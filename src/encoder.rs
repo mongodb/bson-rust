@@ -19,6 +19,8 @@
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+//! Encoder
+
 use std::io::{self, Write};
 use std::convert::From;
 use std::mem;
@@ -325,7 +327,7 @@ mod test {
             enc.encode_document(&doc).unwrap();
         }
 
-        assert_eq!(&buf[..], dst);
+        assert_eq!(&buf[..], &dst[..]);
     }
 
     #[test]
@@ -342,6 +344,6 @@ mod test {
             enc.encode_document(&doc).unwrap();
         }
 
-        panic!("{:?}", buf);
+        assert_eq!(&buf[..], &dst[..]);
     }
 }

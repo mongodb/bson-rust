@@ -21,6 +21,36 @@
 
 #![feature(core)]
 
+//! BSON is a binary format in which zero or more key/value pairs are stored as a single entity.
+//! We call this entity a document.
+//!
+//! This library supports Version 1.0 of BSON standard.
+//!
+//! ## Basic usage
+//!
+//! ```rust
+//! extern crate bson;
+//! use std::io::Cursor;
+//! use bson::{Bson, Document, Encoder, Decoder};
+//!
+//! fn main() {
+//!     let mut doc = Document::new();
+//!     doc.insert("foo".to_string(), Bson::String("bar".to_string()));
+//!
+//!     let mut buf = Vec::new();
+//!     {
+//!         let mut enc = Encoder::new(&mut buf);
+//!         enc.encode_document(&doc).unwrap();
+//!     }
+//!
+//!     let mut r = Cursor::new(&buf[..]);
+//!     {
+//!         let mut dec = Decoder::new(&mut r);
+//!         let doc = dec.decode_document().unwrap();
+//!     }
+//! }
+//! ```
+
 extern crate rustc_serialize;
 extern crate chrono;
 extern crate byteorder;
