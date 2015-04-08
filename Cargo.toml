@@ -13,3 +13,4 @@ name = "bson"
 [dependencies]
 chrono = "*"
 byteorder = "*"
+rustc-serialize = "*"

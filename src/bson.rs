@@ -23,6 +23,8 @@ use std::collections::BTreeMap;
 use std::string;
 
 use chrono::{DateTime, UTC};
+use rustc_serialize::json;
+use rustc_serialize::hex::ToHex;
 
 use spec::BinarySubtype;
 
@@ -48,3 +50,64 @@ pub enum Bson {
 
 pub type Array = Vec<Bson>;
 pub type Document = BTreeMap<String, Bson>;
+
+impl Bson {
+    pub fn to_json(&self) -> json::Json {
+        match self {
+            &Bson::FloatingPoint(v) => json::Json::F64(v),
+            &Bson::String(ref v) => json::Json::String(v.clone()),
+            &Bson::Array(ref v) =>
+                json::Json::Array(v.iter().map(|x| x.to_json()).collect()),
+            &Bson::Document(ref v) =>
+                json::Json::Object(v.iter().map(|(k, v)| (k.clone(), v.to_json())).collect()),
+            &Bson::Boolean(v) => json::Json::Boolean(v),
+            &Bson::Null => json::Json::Null,
+            &Bson::RegExp(ref pat, ref opt) => {
+                let mut re = json::Object::new();
+                re.insert("pattern".to_string(), json::Json::String(pat.clone()));
+                re.insert("options".to_string(), json::Json::String(opt.clone()));
+
+                json::Json::Object(re)
+            },
+            &Bson::JavaScriptCode(ref code) => json::Json::String(code.clone()),
+            &Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
+                let mut obj = json::Object::new();
+                obj.insert("code".to_string(), json::Json::String(code.clone()));
+
+                let scope_obj =
+                    scope.iter().map(|(k, v)| (k.clone(), v.to_json())).collect();
+
+                obj.insert("scope".to_string(), json::Json::Object(scope_obj));
+
+                json::Json::Object(obj)
+            },
+            &Bson::Deprecated => json::Json::String("deprecated".to_string()),
+            &Bson::I32(v) => json::Json::I64(v as i64),
+            &Bson::I64(v) => json::Json::I64(v),
+            &Bson::TimeStamp(v) => json::Json::I64(v),
+            &Bson::Binary(t, ref v) => {
+                let mut obj = json::Object::new();
+                let tval: u8 = From::from(t);
+                obj.insert("type".to_string(), json::Json::I64(tval as i64));
+                obj.insert("data".to_string(), json::Json::String(v[..].to_hex()));
+
+                json::Json::Object(obj)
+            },
+            &Bson::ObjectId(v) => json::Json::String(v.to_hex()),
+            &Bson::UtcDatetime(ref v) => json::Json::String(v.to_string()),
+        }
+    }
+
+    pub fn from_json(j: &json::Json) -> Bson {
+        match j {
+            &json::Json::I64(x) => Bson::I64(x),
+            &json::Json::U64(x) => Bson::I64(x as i64),
+            &json::Json::F64(x) => Bson::FloatingPoint(x),
+            &json::Json::String(ref x) => Bson::String(x.clone()),
+            &json::Json::Boolean(x) => Bson::Boolean(x),
+            &json::Json::Array(ref x) => Bson::Array(x.iter().map(|x| Bson::from_json(x)).collect()),
+            &json::Json::Object(ref x) => Bson::Document(x.iter().map(|(k, v)| (k.clone(), Bson::from_json(v))).collect()),
+            &json::Json::Null => Bson::Null,
+        }
+    }
+}

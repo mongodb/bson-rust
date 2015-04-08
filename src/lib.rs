@@ -21,6 +21,7 @@
 
 #![feature(core)]
 
+extern crate rustc_serialize;
 extern crate chrono;
 extern crate byteorder;
 
