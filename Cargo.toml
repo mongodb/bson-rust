@@ -1,0 +1,15 @@
+[package]
+name = "bson-rs"
+version = "0.0.1"
+authors = ["Y. T. Chung <zonyitoo@gmail.com>"]
+description = "Encoding and decoding support for BSON in Rust"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/zonyitoo/bson-rs"
+
+[lib]
+name = "bson"
+
+[dependencies]
+chrono = "*"
+byteorder = "*"
