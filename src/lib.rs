@@ -55,9 +55,9 @@ extern crate rustc_serialize;
 extern crate chrono;
 extern crate byteorder;
 
-pub use self::bson::{Bson, Document, Array};
-pub use self::encoder::{Encoder, EncoderResult};
-pub use self::decoder::{Decoder, DecoderResult};
+pub use self::bson::{Bson, ToBson, Document, Array};
+pub use self::encoder::{Encoder, EncoderResult, EncoderError};
+pub use self::decoder::{Decoder, DecoderResult, DecoderError};
 
 pub mod bson;
 pub mod spec;

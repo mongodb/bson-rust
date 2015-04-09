@@ -113,3 +113,25 @@ impl Bson {
         }
     }
 }
+
+pub trait ToBson {
+    fn to_bson(&self) -> Bson;
+}
+
+impl ToBson for str {
+    fn to_bson(&self) -> Bson {
+        Bson::String(self.to_string())
+    }
+}
+
+impl<T: ToBson> ToBson for [T] {
+    fn to_bson(&self) -> Bson {
+        Bson::Array(self.iter().map(|x| x.to_bson()).collect())
+    }
+}
+
+impl<T: ToBson> ToBson for BTreeMap<String, T> {
+    fn to_bson(&self) -> Bson {
+        Bson::Document(self.iter().map(|(k, v)| (k.clone(), v.to_bson())).collect())
+    }
+}

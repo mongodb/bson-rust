@@ -50,11 +50,6 @@ impl From<byteorder::Error> for EncoderError {
 
 pub type EncoderResult<T> = Result<T, EncoderError>;
 
-pub trait ToBson {
-    fn code(&self) -> u8;
-    fn serialize(&self, &mut Write) -> Result<(), EncoderError>;
-}
-
 pub struct Encoder<'a> {
     writer: &'a mut Write
 }
