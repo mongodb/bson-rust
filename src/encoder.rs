@@ -22,11 +22,12 @@
 //! Encoder
 
 use std::io::{self, Write};
+use std::iter::IntoIterator;
 use std::{mem, error, fmt};
 
 use byteorder::{self, LittleEndian, WriteBytesExt};
 
-use bson::{Array, Document, Bson};
+use bson::Bson;
 
 #[derive(Debug)]
 pub enum EncoderError {
@@ -96,7 +97,7 @@ fn write_f64<W: Write + ?Sized>(writer: &mut W, val: f64) -> EncoderResult<()> {
     writer.write_f64::<LittleEndian>(val).map_err(From::from)
 }
 
-fn encode_array<W: Write + ?Sized>(writer: &mut W, arr: &Array) -> EncoderResult<()> {
+fn encode_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> EncoderResult<()> {
     let mut buf = Vec::new();
     for (key, val) in arr.iter().enumerate() {
         try!(encode_bson(&mut buf, &key.to_string(), val));
@@ -108,9 +109,12 @@ fn encode_array<W: Write + ?Sized>(writer: &mut W, arr: &Array) -> EncoderResult
     Ok(())
 }
 
-pub fn encode_document<'a, W: Write + ?Sized>(writer: &mut W, doc: &Document) -> EncoderResult<()> {
+pub fn encode_document
+    <'a, W: Write + ?Sized, D: IntoIterator<Item=(&'a String, &'a Bson)>>
+    (writer: &mut W, doc: D) -> EncoderResult<()>
+{
     let mut buf = Vec::new();
-    for (key, val) in doc.iter() {
+    for (key, val) in doc.into_iter() {
         try!(encode_bson(&mut buf, key, val));
     }
 
@@ -128,7 +132,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         &Bson::FloatingPoint(v) => write_f64(writer, v),
         &Bson::String(ref v) => write_string(writer, &v),
         &Bson::Array(ref v) => encode_array(writer, &v),
-        &Bson::Document(ref v) => encode_document(writer, &v),
+        &Bson::Document(ref v) => encode_document(writer, v),
         &Bson::Boolean(v) => writer.write_u8(if v { 0x00 } else { 0x01 }).map_err(From::from),
         &Bson::RegExp(ref pat, ref opt) => {
             try!(write_cstring(writer, pat));
