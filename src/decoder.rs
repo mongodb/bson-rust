@@ -22,20 +22,20 @@
 //! Decoder
 
 use std::io::{self, Read};
-use std::str;
-use std::convert::From;
+use std::{str, error, fmt};
 
 use byteorder::{self, LittleEndian, ReadBytesExt};
 use chrono::{DateTime, NaiveDateTime, UTC};
 
 use spec::{self, BinarySubtype};
-use bson;
+use bson::{Bson, Array, Document};
 
 #[derive(Debug)]
 pub enum DecoderError {
     IoError(io::Error),
     Utf8Error(str::Utf8Error),
     UnrecognizedElementType(u8),
+    InvalidArrayKey(String, String)
 }
 
 impl From<io::Error> for DecoderError {
@@ -50,10 +50,35 @@ impl From<str::Utf8Error> for DecoderError {
     }
 }
 
-
 impl From<byteorder::Error> for DecoderError {
     fn from(err: byteorder::Error) -> DecoderError {
         DecoderError::IoError(From::from(err))
+    }
+}
+
+impl fmt::Display for DecoderError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &DecoderError::IoError(ref inner) => inner.fmt(fmt),
+            &DecoderError::Utf8Error(ref inner) => inner.fmt(fmt),
+            &DecoderError::UnrecognizedElementType(tag) => {
+                write!(fmt, "unrecognized element type `{}`", tag)
+            }
+            &DecoderError::InvalidArrayKey(ref want, ref got) => {
+                write!(fmt, "invalid array key: expected `{}`, got `{}`", want, got)
+            }
+        }
+    }
+}
+
+impl error::Error for DecoderError {
+    fn description(&self) -> &str {
+        match self {
+            &DecoderError::IoError(ref inner) => inner.description(),
+            &DecoderError::Utf8Error(ref inner) => inner.description(),
+            &DecoderError::UnrecognizedElementType(_) => "unrecognized element type",
+            &DecoderError::InvalidArrayKey(_, _) => "invalid array key"
+        }
     }
 }
 
@@ -89,12 +114,11 @@ impl<'a> Decoder<'a> {
             v.push(c);
         }
 
-        Ok(try!(str::from_utf8(&v[..])).to_string())
+        Ok(try!(str::from_utf8(&v)).to_owned())
     }
 
     pub fn decode_floating_point(&mut self) -> Result<f64, DecoderError> {
-        let f = try!(self.reader.read_f64::<LittleEndian>());
-        Ok(f)
+        self.reader.read_f64::<LittleEndian>().map_err(From::from)
     }
 
     pub fn decode_utf8_string(&mut self) -> Result<String, DecoderError> {
@@ -103,7 +127,7 @@ impl<'a> Decoder<'a> {
 
     pub fn decode_binary_data(&mut self) -> Result<(BinarySubtype, Vec<u8>), DecoderError> {
         let len = try!(self.reader.read_i32::<LittleEndian>());
-        let t: BinarySubtype = From::from(try!(self.reader.read_u8()));
+        let t = BinarySubtype::from(try!(self.reader.read_u8()));
         let mut data = Vec::new();
         try!(self.reader.take(len as u64).read_to_end(&mut data));
 
@@ -122,12 +146,7 @@ impl<'a> Decoder<'a> {
 
     pub fn decode_boolean(&mut self) -> Result<bool, DecoderError> {
         let x = try!(self.reader.read_u8());
-
-        if x == 0x00 {
-            Ok(false)
-        } else {
-            Ok(true)
-        }
+        Ok(x != 0x00)
     }
 
     pub fn decode_regexp(&mut self) -> Result<(String, String), DecoderError> {
@@ -138,34 +157,25 @@ impl<'a> Decoder<'a> {
     }
 
     pub fn decode_javascript_code(&mut self) -> Result<String, DecoderError> {
-        let code = try!(self.read_string());
-
-        Ok(code)
+        self.read_string()
     }
 
-    pub fn decode_javascript_code_with_scope(&mut self) -> Result<(String, bson::Document), DecoderError> {
+    pub fn decode_javascript_code_with_scope(&mut self) -> Result<(String, Document), DecoderError> {
         let code = try!(self.read_string());
         let doc = try!(self.decode_document());
-
         Ok((code, doc))
     }
 
     pub fn decode_integer_32bit(&mut self) -> Result<i32, DecoderError> {
-        let x = try!(self.reader.read_i32::<LittleEndian>());
-
-        Ok(x)
+        self.reader.read_i32::<LittleEndian>().map_err(From::from)
     }
 
     pub fn decode_integer_64bit(&mut self) -> Result<i64, DecoderError> {
-        let x = try!(self.reader.read_i64::<LittleEndian>());
-
-        Ok(x)
+        self.reader.read_i64::<LittleEndian>().map_err(From::from)
     }
 
     pub fn decode_timestamp(&mut self) -> Result<i64, DecoderError> {
-        let x = try!(self.reader.read_i64::<LittleEndian>());
-
-        Ok(x)
+        self.reader.read_i64::<LittleEndian>().map_err(From::from)
     }
 
     pub fn decode_utc_datetime(&mut self) -> Result<DateTime<UTC>, DecoderError> {
@@ -176,8 +186,8 @@ impl<'a> Decoder<'a> {
         Ok(d)
     }
 
-    pub fn decode_document(&mut self) -> Result<bson::Document, DecoderError> {
-        let mut doc = bson::Document::new();
+    pub fn decode_document(&mut self) -> Result<Document, DecoderError> {
+        let mut doc = Document::new();
 
         try!(self.reader.read_i32::<LittleEndian>()); // Total length, we don't need it
 
@@ -188,7 +198,8 @@ impl<'a> Decoder<'a> {
                 break;
             }
 
-            let (k, v) = try!(self.decode_bson(t));
+            let k = try!(self.read_cstring());
+            let v = try!(self.decode_bson(t));
 
             doc.insert(k, v);
         }
@@ -196,8 +207,8 @@ impl<'a> Decoder<'a> {
         Ok(doc)
     }
 
-    pub fn decode_array(&mut self) -> Result<bson::Array, DecoderError> {
-        let mut arr = bson::Array::new();
+    pub fn decode_array(&mut self) -> Result<Array, DecoderError> {
+        let mut arr = Array::new();
 
         try!(self.reader.read_i32::<LittleEndian>()); // Total length, we don't need it
 
@@ -206,8 +217,13 @@ impl<'a> Decoder<'a> {
             if t == 0 {
                 break;
             }
-            // TODO: Ignore the key or not?
-            let (_, v) = try!(self.decode_bson(t));
+
+            let k = try!(self.read_cstring());
+            let want = format!("{}", arr.len());
+            if k != want {
+                return Err(DecoderError::InvalidArrayKey(want, k));
+            }
+            let v = try!(self.decode_bson(t));
 
             arr.push(v)
         }
@@ -215,105 +231,59 @@ impl<'a> Decoder<'a> {
         Ok(arr)
     }
 
-    fn decode_bson(&mut self, t: u8) -> Result<(String, bson::Bson), DecoderError> {
-        let res = match t {
+    fn decode_bson(&mut self, tag: u8) -> Result<Bson, DecoderError> {
+        match tag {
             spec::ELEMENT_TYPE_FLOATING_POINT => {
-                let key = try!(self.read_cstring());
-                let val = try!(self.decode_floating_point());
-
-                (key, bson::Bson::FloatingPoint(val))
+                self.decode_floating_point().map(Bson::FloatingPoint)
             },
             spec::ELEMENT_TYPE_UTF8_STRING => {
-                let key = try!(self.read_cstring());
-                let val = try!(self.decode_utf8_string());
-
-                (key, bson::Bson::String(val))
+                self.decode_utf8_string().map(Bson::String)
             },
             spec::ELEMENT_TYPE_EMBEDDED_DOCUMENT => {
-                let key = try!(self.read_cstring());
-                let val = try!(self.decode_document());
-
-                (key, bson::Bson::Document(val))
+                self.decode_document().map(Bson::Document)
             },
             spec::ELEMENT_TYPE_ARRAY => {
-                let key = try!(self.read_cstring());
-                let val = try!(self.decode_array());
-
-                (key, bson::Bson::Array(val))
+                self.decode_array().map(Bson::Array)
             },
             spec::ELEMENT_TYPE_BINARY => {
-                let key = try!(self.read_cstring());
-                let (t, dat) = try!(self.decode_binary_data());
-
-                (key, bson::Bson::Binary(t, dat))
+                self.decode_binary_data().map(|(t, dat)| Bson::Binary(t, dat))
             },
             spec::ELEMENT_TYPE_OBJECT_ID => {
-                let key = try!(self.read_cstring());
-                let val = try!(self.decode_objectid());
-
-                (key, bson::Bson::ObjectId(val))
+                self.decode_objectid().map(Bson::ObjectId)
             },
             spec::ELEMENT_TYPE_BOOLEAN => {
-                let key = try!(self.read_cstring());
-                let val = try!(self.decode_boolean());
-
-                (key, bson::Bson::Boolean(val))
+                self.decode_boolean().map(Bson::Boolean)
             },
             spec::ELEMENT_TYPE_NULL_VALUE => {
-                let key = try!(self.read_cstring());
-
-                (key, bson::Bson::Null)
+                Ok(Bson::Null)
             },
             spec::ELEMENT_TYPE_REGULAR_EXPRESSION => {
-                let key = try!(self.read_cstring());
-                let (pat, opt) = try!(self.decode_regexp());
-
-                (key, bson::Bson::RegExp(pat, opt))
+                self.decode_regexp().map(|(pat, opt)| Bson::RegExp(pat, opt))
             },
             spec::ELEMENT_TYPE_JAVASCRIPT_CODE => {
-                let key = try!(self.read_cstring());
-                let code = try!(self.decode_javascript_code());
-
-                (key, bson::Bson::JavaScriptCode(code))
+                self.decode_javascript_code().map(Bson::JavaScriptCode)
             },
             spec::ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE => {
-                let key = try!(self.read_cstring());
-                let (code, scope) = try!(self.decode_javascript_code_with_scope());
-
-                (key, bson::Bson::JavaScriptCodeWithScope(code, scope))
+                self.decode_javascript_code_with_scope().map(
+                    |(code, scope)| Bson::JavaScriptCodeWithScope(code, scope)
+                )
             },
             spec::ELEMENT_TYPE_DEPRECATED => {
-                let key = try!(self.read_cstring());
-
-                (key, bson::Bson::Deprecated)
+                Ok(Bson::Deprecated)
             },
             spec::ELEMENT_TYPE_32BIT_INTEGER => {
-                let key = try!(self.read_cstring());
-                let val = try!(self.decode_integer_32bit());
-
-                (key, bson::Bson::I32(val))
+                self.decode_integer_32bit().map(Bson::I32)
             },
             spec::ELEMENT_TYPE_64BIT_INTEGER => {
-                let key = try!(self.read_cstring());
-                let val = try!(self.decode_integer_64bit());
-
-                (key, bson::Bson::I64(val))
+                self.decode_integer_64bit().map(Bson::I64)
             },
             spec::ELEMENT_TYPE_TIMESTAMP => {
-                let key = try!(self.read_cstring());
-                let val = try!(self.decode_timestamp());
-
-                (key, bson::Bson::TimeStamp(val))
+                self.decode_timestamp().map(Bson::TimeStamp)
             },
             spec::ELEMENT_TYPE_UTC_DATETIME => {
-                let key = try!(self.read_cstring());
-                let val = try!(self.decode_utc_datetime());
-
-                (key, bson::Bson::UtcDatetime(val))
+                self.decode_utc_datetime().map(Bson::UtcDatetime)
             },
-            _ => return Err(DecoderError::UnrecognizedElementType(t)),
-        };
-
-        Ok(res)
+            _ => Err(DecoderError::UnrecognizedElementType(tag)),
+        }
     }
 }
