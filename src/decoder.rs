@@ -30,6 +30,7 @@ use chrono::{DateTime, NaiveDateTime, UTC};
 use spec::{self, BinarySubtype};
 use bson::{Bson, Array, Document};
 
+/// Possible errors that can arise during decoding.
 #[derive(Debug)]
 pub enum DecoderError {
     IoError(io::Error),
@@ -89,6 +90,7 @@ impl error::Error for DecoderError {
     }
 }
 
+/// Alias for `Result<T, DecoderError>`.
 pub type DecoderResult<T> = Result<T, DecoderError>;
 
 fn read_string<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<String> {
@@ -123,6 +125,7 @@ fn read_i64<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i64> {
     reader.read_i64::<LittleEndian>().map_err(From::from)
 }
 
+/// Attempt to decode a `Document` from a byte stream.
 pub fn decode_document<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
     let mut doc = Document::new();
 

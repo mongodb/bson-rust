@@ -29,6 +29,7 @@ use byteorder::{self, LittleEndian, WriteBytesExt};
 
 use bson::Bson;
 
+/// Possible errors that can arise during encoding.
 #[derive(Debug)]
 pub enum EncoderError {
     IoError(io::Error),
@@ -67,6 +68,7 @@ impl error::Error for EncoderError {
     }
 }
 
+/// Alias for `Result<T, EncoderError>`.
 pub type EncoderResult<T> = Result<T, EncoderError>;
 
 fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> EncoderResult<()> {
@@ -109,13 +111,17 @@ fn encode_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> EncoderResul
     Ok(())
 }
 
+/// Attempt to encode a `Document` into a byte stream.
+///
+/// Can encode any type which is iterable as `(key: &str, value: &Bson)` pairs,
+/// which generally means most maps.
 pub fn encode_document
-    <'a, W: Write + ?Sized, D: IntoIterator<Item=(&'a String, &'a Bson)>>
+    <'a, S: AsRef<str> + 'a, W: Write + ?Sized, D: IntoIterator<Item=(&'a S, &'a Bson)>>
     (writer: &mut W, doc: D) -> EncoderResult<()>
 {
     let mut buf = Vec::new();
     for (key, val) in doc.into_iter() {
-        try!(encode_bson(&mut buf, key, val));
+        try!(encode_bson(&mut buf, key.as_ref(), val));
     }
 
     try!(write_i32(writer, (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32));

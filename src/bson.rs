@@ -29,6 +29,7 @@ use rustc_serialize::hex::ToHex;
 
 use spec::{ElementType, BinarySubtype};
 
+/// Possible BSON value types.
 #[derive(Debug, Clone)]
 pub enum Bson {
     FloatingPoint(f64),
@@ -49,10 +50,13 @@ pub enum Bson {
     UtcDatetime(DateTime<UTC>),
 }
 
+/// Alias for `Vec<Bson>`.
 pub type Array = Vec<Bson>;
+/// Alias for `BTreeMap<String, Bson>`.
 pub type Document = BTreeMap<String, Bson>;
 
 impl Bson {
+    /// Get the `ElementType` of this value.
     pub fn element_type(&self) -> ElementType {
         match self {
             &Bson::FloatingPoint(..) => ElementType::FloatingPoint,
@@ -74,6 +78,7 @@ impl Bson {
         }
     }
 
+    /// Convert this value to the best approximate `Json`.
     pub fn to_json(&self) -> json::Json {
         match self {
             &Bson::FloatingPoint(v) => json::Json::F64(v),
@@ -120,6 +125,7 @@ impl Bson {
         }
     }
 
+    /// Create a `Bson` from a `Json`.
     pub fn from_json(j: &json::Json) -> Bson {
         match j {
             &json::Json::I64(x) => Bson::I64(x),
@@ -131,27 +137,5 @@ impl Bson {
             &json::Json::Object(ref x) => Bson::Document(x.iter().map(|(k, v)| (k.clone(), Bson::from_json(v))).collect()),
             &json::Json::Null => Bson::Null,
         }
-    }
-}
-
-pub trait ToBson {
-    fn to_bson(&self) -> Bson;
-}
-
-impl ToBson for str {
-    fn to_bson(&self) -> Bson {
-        Bson::String(self.to_owned())
-    }
-}
-
-impl<T: ToBson> ToBson for [T] {
-    fn to_bson(&self) -> Bson {
-        Bson::Array(self.iter().map(|x| x.to_bson()).collect())
-    }
-}
-
-impl<T: ToBson> ToBson for BTreeMap<String, T> {
-    fn to_bson(&self) -> Bson {
-        Bson::Document(self.iter().map(|(k, v)| (k.clone(), v.to_bson())).collect())
     }
 }

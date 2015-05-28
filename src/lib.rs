@@ -22,7 +22,7 @@
 //! BSON is a binary format in which zero or more key/value pairs are stored as a single entity.
 //! We call this entity a document.
 //!
-//! This library supports Version 1.0 of BSON standard.
+//! This library supports version 1.0 of the [BSON standard](http://bsonspec.org/spec.html).
 //!
 //! ## Basic usage
 //!
@@ -46,7 +46,7 @@ extern crate rustc_serialize;
 extern crate chrono;
 extern crate byteorder;
 
-pub use self::bson::{Bson, ToBson, Document, Array};
+pub use self::bson::{Bson, Document, Array};
 pub use self::encoder::{encode_document, EncoderResult, EncoderError};
 pub use self::decoder::{decode_document, DecoderResult, DecoderError};
 

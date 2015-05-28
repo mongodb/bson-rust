@@ -19,8 +19,7 @@
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-//! BSON Specification Version 1.0
-/// http://bsonspec.org/spec.html
+//! Constants derived from the [BSON Specification Version 1.0](http://bsonspec.org/spec.html).
 
 use std::convert::From;
 
@@ -52,6 +51,9 @@ pub const BINARY_SUBTYPE_UUID_OLD                   : u8 = 0x03;
 pub const BINARY_SUBTYPE_UUID                       : u8 = 0x04;
 pub const BINARY_SUBTYPE_MD5                        : u8 = 0x05;
 
+/// All available BSON element types.
+///
+/// Not all element types are representable by the `Bson` type.
 #[repr(u8)]
 #[derive(Debug, Eq, PartialEq)]
 pub enum ElementType {
@@ -60,14 +62,14 @@ pub enum ElementType {
     EmbeddedDocument            = ELEMENT_TYPE_EMBEDDED_DOCUMENT,
     Array                       = ELEMENT_TYPE_ARRAY,
     Binary                      = ELEMENT_TYPE_BINARY,
-    #[warn(deprecated)]
+    /// Deprecated.
     Undefined                   = ELEMENT_TYPE_UNDEFINED,
     ObjectId                    = ELEMENT_TYPE_OBJECT_ID,
     Boolean                     = ELEMENT_TYPE_BOOLEAN,
     UtcDatetime                 = ELEMENT_TYPE_UTC_DATETIME,
     NullValue                   = ELEMENT_TYPE_NULL_VALUE,
     RegularExpression           = ELEMENT_TYPE_REGULAR_EXPRESSION,
-    #[warn(deprecated)]
+    /// Deprecated.
     DbPointer                   = ELEMENT_TYPE_DBPOINTER,
     JavaScriptCode              = ELEMENT_TYPE_JAVASCRIPT_CODE,
     Deprecated                  = ELEMENT_TYPE_DEPRECATED,
@@ -81,6 +83,7 @@ pub enum ElementType {
 }
 
 impl ElementType {
+    /// Attempt to convert from a `u8`.
     #[inline]
     pub fn from(tag: u8) -> Option<ElementType> {
         use self::ElementType::*;
@@ -110,6 +113,7 @@ impl ElementType {
     }
 }
 
+/// The available binary subtypes, plus a user-defined slot.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum BinarySubtype {
     Generic,
