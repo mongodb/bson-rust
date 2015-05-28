@@ -163,8 +163,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
             writer.write_all(data).map_err(From::from)
         },
         &Bson::UtcDatetime(ref v) => write_i64(writer, v.timestamp()),
-        &Bson::Null |
-        &Bson::Deprecated => Ok(())
+        &Bson::Null => Ok(())
     }
 }
 

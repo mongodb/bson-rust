@@ -209,7 +209,6 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
             let scope = try!(decode_document(reader));
             Ok(Bson::JavaScriptCodeWithScope(code, scope))
         },
-        Some(Deprecated) => Ok(Bson::Deprecated),
         Some(Integer32Bit) => read_i32(reader).map(Bson::I32),
         Some(Integer64Bit) => read_i64(reader).map(Bson::I64),
         Some(TimeStamp) => read_i64(reader).map(Bson::TimeStamp),
@@ -217,6 +216,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
             let time = try!(read_i64(reader));
             Ok(Bson::UtcDatetime(DateTime::from_utc(NaiveDateTime::from_timestamp(time, 0), UTC)))
         },
+		Some(Deprecated) |
         Some(Undefined) |
         Some(DbPointer) |
         Some(MaxKey) |

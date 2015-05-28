@@ -41,7 +41,6 @@ pub enum Bson {
     RegExp(String, String),
     JavaScriptCode(String),
     JavaScriptCodeWithScope(String, Document),
-    Deprecated,
     I32(i32),
     I64(i64),
     TimeStamp(i64),
@@ -68,7 +67,6 @@ impl Bson {
             &Bson::RegExp(..) => ElementType::RegularExpression,
             &Bson::JavaScriptCode(..) => ElementType::JavaScriptCode,
             &Bson::JavaScriptCodeWithScope(..) => ElementType::JavaScriptCodeWithScope,
-            &Bson::Deprecated => ElementType::Deprecated,
             &Bson::I32(..) => ElementType::Integer32Bit,
             &Bson::I64(..) => ElementType::Integer64Bit,
             &Bson::TimeStamp(..) => ElementType::TimeStamp,
@@ -108,7 +106,6 @@ impl Bson {
 
                 json::Json::Object(obj)
             },
-            &Bson::Deprecated => json::Json::String("deprecated".to_owned()),
             &Bson::I32(v) => json::Json::I64(v as i64),
             &Bson::I64(v) => json::Json::I64(v),
             &Bson::TimeStamp(v) => json::Json::I64(v),
