@@ -22,30 +22,23 @@
 //! BSON is a binary format in which zero or more key/value pairs are stored as a single entity.
 //! We call this entity a document.
 //!
-//! This library supports Version 1.0 of BSON standard.
+//! This library supports version 1.0 of the [BSON standard](http://bsonspec.org/spec.html).
 //!
 //! ## Basic usage
 //!
 //! ```rust
 //! extern crate bson;
 //! use std::io::Cursor;
-//! use bson::{Bson, Document, Encoder, Decoder};
+//! use bson::{Bson, Document, encode_document, decode_document};
 //!
 //! fn main() {
 //!     let mut doc = Document::new();
-//!     doc.insert("foo".to_string(), Bson::String("bar".to_string()));
+//!     doc.insert("foo".to_owned(), Bson::String("bar".to_owned()));
 //!
 //!     let mut buf = Vec::new();
-//!     {
-//!         let mut enc = Encoder::new(&mut buf);
-//!         enc.encode_document(&doc).unwrap();
-//!     }
+//!     encode_document(&mut buf, &doc).unwrap();
 //!
-//!     let mut r = Cursor::new(&buf[..]);
-//!     {
-//!         let mut dec = Decoder::new(&mut r);
-//!         let doc = dec.decode_document().unwrap();
-//!     }
+//!     let doc = decode_document(&mut Cursor::new(&buf[..])).unwrap();
 //! }
 //! ```
 
@@ -53,12 +46,12 @@ extern crate rustc_serialize;
 extern crate chrono;
 extern crate byteorder;
 
-pub use self::bson::{Bson, ToBson, Document, Array};
-pub use self::encoder::{Encoder, EncoderResult, EncoderError};
-pub use self::decoder::{Decoder, DecoderResult, DecoderError};
+pub use self::bson::{Bson, Document, Array};
+pub use self::encoder::{encode_document, EncoderResult, EncoderError};
+pub use self::decoder::{decode_document, DecoderResult, DecoderError};
 
-pub mod bson;
 pub mod spec;
+mod bson;
+mod encoder;
+mod decoder;
 
-pub mod encoder;
-pub mod decoder;
