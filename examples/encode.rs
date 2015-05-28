@@ -16,11 +16,10 @@ fn main() {
     doc.insert("array".to_string(), Bson::Array(arr));
 
     let mut buf = Vec::new();
-	encode_document(&mut buf, &doc).unwrap();
+    encode_document(&mut buf, &doc).unwrap();
 
     println!("Encoded: {:?}", buf);
 
-    let mut r = Cursor::new(&buf[..]);
-	let doc = decode_document(&mut r).unwrap();
-	println!("Decoded: {:?}", doc);
+    let doc = decode_document(&mut Cursor::new(&buf[..])).unwrap();
+    println!("Decoded: {:?}", doc);
 }

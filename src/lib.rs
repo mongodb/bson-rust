@@ -38,8 +38,7 @@
 //!     let mut buf = Vec::new();
 //!     encode_document(&mut buf, &doc).unwrap();
 //!
-//!     let mut r = Cursor::new(&buf[..]);
-//!     let doc = decode_document(&mut Cursor::new(&buf[..]));
+//!     let doc = decode_document(&mut Cursor::new(&buf[..])).unwrap();
 //! }
 //! ```
 
@@ -51,9 +50,8 @@ pub use self::bson::{Bson, ToBson, Document, Array};
 pub use self::encoder::{encode_document, EncoderResult, EncoderError};
 pub use self::decoder::{decode_document, DecoderResult, DecoderError};
 
-mod bson;
 pub mod spec;
-
+mod bson;
 mod encoder;
 mod decoder;
 

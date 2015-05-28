@@ -27,7 +27,7 @@ use chrono::{DateTime, UTC};
 use rustc_serialize::json;
 use rustc_serialize::hex::ToHex;
 
-use spec::BinarySubtype;
+use spec::{ElementType, BinarySubtype};
 
 #[derive(Debug, Clone)]
 pub enum Bson {
@@ -53,6 +53,27 @@ pub type Array = Vec<Bson>;
 pub type Document = BTreeMap<String, Bson>;
 
 impl Bson {
+    pub fn element_type(&self) -> ElementType {
+        match self {
+            &Bson::FloatingPoint(..) => ElementType::FloatingPoint,
+            &Bson::String(..) => ElementType::Utf8String,
+            &Bson::Array(..) => ElementType::Array,
+            &Bson::Document(..) => ElementType::EmbeddedDocument,
+            &Bson::Boolean(..) => ElementType::Boolean,
+            &Bson::Null => ElementType::NullValue,
+            &Bson::RegExp(..) => ElementType::RegularExpression,
+            &Bson::JavaScriptCode(..) => ElementType::JavaScriptCode,
+            &Bson::JavaScriptCodeWithScope(..) => ElementType::JavaScriptCodeWithScope,
+            &Bson::Deprecated => ElementType::Deprecated,
+            &Bson::I32(..) => ElementType::Integer32Bit,
+            &Bson::I64(..) => ElementType::Integer64Bit,
+            &Bson::TimeStamp(..) => ElementType::TimeStamp,
+            &Bson::Binary(..) => ElementType::Binary,
+            &Bson::ObjectId(..) => ElementType::ObjectId,
+            &Bson::UtcDatetime(..) => ElementType::UtcDatetime,
+        }
+    }
+
     pub fn to_json(&self) -> json::Json {
         match self {
             &Bson::FloatingPoint(v) => json::Json::F64(v),

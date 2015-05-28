@@ -92,130 +92,132 @@ impl error::Error for DecoderError {
 pub type DecoderResult<T> = Result<T, DecoderError>;
 
 fn read_string<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<String> {
-	let len = try!(reader.read_i32::<LittleEndian>());
+    let len = try!(reader.read_i32::<LittleEndian>());
 
-	let mut s = String::with_capacity(len as usize - 1);
-	try!(reader.take(len as u64 - 1).read_to_string(&mut s));
-	try!(reader.read_u8()); // The last 0x00
+    let mut s = String::with_capacity(len as usize - 1);
+    try!(reader.take(len as u64 - 1).read_to_string(&mut s));
+    try!(reader.read_u8()); // The last 0x00
 
-	Ok(s)
+    Ok(s)
 }
 
 fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<String> {
-	let mut v = Vec::new();
+    let mut v = Vec::new();
 
-	loop {
-		let c = try!(reader.read_u8());
-		if c == 0 { break; }
-		v.push(c);
-	}
+    loop {
+        let c = try!(reader.read_u8());
+        if c == 0 { break; }
+        v.push(c);
+    }
 
-	Ok(try!(str::from_utf8(&v)).to_owned())
+    Ok(try!(str::from_utf8(&v)).to_owned())
 }
 
+#[inline]
 fn read_i32<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i32> {
-	reader.read_i32::<LittleEndian>().map_err(From::from)
+    reader.read_i32::<LittleEndian>().map_err(From::from)
 }
 
+#[inline]
 fn read_i64<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i64> {
-	reader.read_i64::<LittleEndian>().map_err(From::from)
+    reader.read_i64::<LittleEndian>().map_err(From::from)
 }
 
 pub fn decode_document<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
-	let mut doc = Document::new();
+    let mut doc = Document::new();
 
-	// disregard the length: using Read::take causes infinite type recursion
-	try!(read_i32(reader));
+    // disregard the length: using Read::take causes infinite type recursion
+    try!(read_i32(reader));
 
-	loop {
-		let tag = try!(reader.read_u8());
+    loop {
+        let tag = try!(reader.read_u8());
 
-		if tag == 0 {
-			break;
-		}
+        if tag == 0 {
+            break;
+        }
 
-		let key = try!(read_cstring(reader));
-		let val = try!(decode_bson(reader, tag));
+        let key = try!(read_cstring(reader));
+        let val = try!(decode_bson(reader, tag));
 
-		doc.insert(key, val);
-	}
+        doc.insert(key, val);
+    }
 
-	Ok(doc)
+    Ok(doc)
 }
 
 fn decode_array<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Array> {
-	let mut arr = Array::new();
+    let mut arr = Array::new();
 
-	// disregard the length: using Read::take causes infinite type recursion
-	try!(read_i32(reader));
+    // disregard the length: using Read::take causes infinite type recursion
+    try!(read_i32(reader));
 
-	loop {
-		let tag = try!(reader.read_u8());
-		if tag == 0 {
-			break;
-		}
+    loop {
+        let tag = try!(reader.read_u8());
+        if tag == 0 {
+            break;
+        }
 
-		// check that the key is as expected
-		let key = try!(read_cstring(reader));
-		if key != &arr.len().to_string()[..] {
-			return Err(DecoderError::InvalidArrayKey(arr.len(), key));
-		}
+        // check that the key is as expected
+        let key = try!(read_cstring(reader));
+        if key != &arr.len().to_string()[..] {
+            return Err(DecoderError::InvalidArrayKey(arr.len(), key));
+        }
 
-		let val = try!(decode_bson(reader, tag));
-		arr.push(val)
-	}
+        let val = try!(decode_bson(reader, tag));
+        arr.push(val)
+    }
 
-	Ok(arr)
+    Ok(arr)
 }
 
 fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson> {
-	use spec::ElementType::*;
-	match spec::ElementType::from(tag) {
-		Some(FloatingPoint) => {
-			Ok(Bson::FloatingPoint(try!(reader.read_f64::<LittleEndian>())))
-		},
-		Some(Utf8String) => read_string(reader).map(Bson::String),
-		Some(EmbeddedDocument) => decode_document(reader).map(Bson::Document),
-		Some(Array) => decode_array(reader).map(Bson::Array),
-		Some(Binary) => {
-			let len = try!(read_i32(reader));
-			let subtype = BinarySubtype::from(try!(reader.read_u8()));
-			let mut data = Vec::with_capacity(len as usize);
-			try!(reader.take(len as u64).read_to_end(&mut data));
-			Ok(Bson::Binary(subtype, data))
-		}
-		Some(ObjectId) => {
-			let mut objid = [0; 12];
-			for x in &mut objid {
-				*x = try!(reader.read_u8());
-			}
-			Ok(Bson::ObjectId(objid))
-		}
-		Some(Boolean) => Ok(Bson::Boolean(try!(reader.read_u8()) != 0)),
-		Some(NullValue) => Ok(Bson::Null),
-		Some(RegularExpression) => {
-			let pat = try!(read_cstring(reader));
-			let opt = try!(read_cstring(reader));
-			Ok(Bson::RegExp(pat, opt))
-		},
-		Some(JavaScriptCode) => read_string(reader).map(Bson::JavaScriptCode),
-		Some(JavaScriptCodeWithScope) => {
-			let code = try!(read_string(reader));
-			let scope = try!(decode_document(reader));
-			Ok(Bson::JavaScriptCodeWithScope(code, scope))
-		},
-		Some(Deprecated) => Ok(Bson::Deprecated),
-		Some(Integer32Bit) => read_i32(reader).map(Bson::I32),
-		Some(Integer64Bit) => read_i64(reader).map(Bson::I64),
-		Some(TimeStamp) => read_i64(reader).map(Bson::TimeStamp),
-		Some(UtcDatetime) => {
-			let time = try!(read_i64(reader));
-			Ok(Bson::UtcDatetime(DateTime::from_utc(NaiveDateTime::from_timestamp(time, 0), UTC)))
-		},
-		Some(Undefined) |
-		Some(DbPointer) |
-		Some(MaxKey) |
-		Some(MinKey) |
-		None => Err(DecoderError::UnrecognizedElementType(tag))
-	}
+    use spec::ElementType::*;
+    match spec::ElementType::from(tag) {
+        Some(FloatingPoint) => {
+            Ok(Bson::FloatingPoint(try!(reader.read_f64::<LittleEndian>())))
+        },
+        Some(Utf8String) => read_string(reader).map(Bson::String),
+        Some(EmbeddedDocument) => decode_document(reader).map(Bson::Document),
+        Some(Array) => decode_array(reader).map(Bson::Array),
+        Some(Binary) => {
+            let len = try!(read_i32(reader));
+            let subtype = BinarySubtype::from(try!(reader.read_u8()));
+            let mut data = Vec::with_capacity(len as usize);
+            try!(reader.take(len as u64).read_to_end(&mut data));
+            Ok(Bson::Binary(subtype, data))
+        }
+        Some(ObjectId) => {
+            let mut objid = [0; 12];
+            for x in &mut objid {
+                *x = try!(reader.read_u8());
+            }
+            Ok(Bson::ObjectId(objid))
+        }
+        Some(Boolean) => Ok(Bson::Boolean(try!(reader.read_u8()) != 0)),
+        Some(NullValue) => Ok(Bson::Null),
+        Some(RegularExpression) => {
+            let pat = try!(read_cstring(reader));
+            let opt = try!(read_cstring(reader));
+            Ok(Bson::RegExp(pat, opt))
+        },
+        Some(JavaScriptCode) => read_string(reader).map(Bson::JavaScriptCode),
+        Some(JavaScriptCodeWithScope) => {
+            let code = try!(read_string(reader));
+            let scope = try!(decode_document(reader));
+            Ok(Bson::JavaScriptCodeWithScope(code, scope))
+        },
+        Some(Deprecated) => Ok(Bson::Deprecated),
+        Some(Integer32Bit) => read_i32(reader).map(Bson::I32),
+        Some(Integer64Bit) => read_i64(reader).map(Bson::I64),
+        Some(TimeStamp) => read_i64(reader).map(Bson::TimeStamp),
+        Some(UtcDatetime) => {
+            let time = try!(read_i64(reader));
+            Ok(Bson::UtcDatetime(DateTime::from_utc(NaiveDateTime::from_timestamp(time, 0), UTC)))
+        },
+        Some(Undefined) |
+        Some(DbPointer) |
+        Some(MaxKey) |
+        Some(MinKey) |
+        None => Err(DecoderError::UnrecognizedElementType(tag))
+    }
 }

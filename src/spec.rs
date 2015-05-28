@@ -81,33 +81,33 @@ pub enum ElementType {
 }
 
 impl ElementType {
-	#[inline]
-	pub fn from(tag: u8) -> Option<ElementType> {
-		use self::ElementType::*;
-		Some(match tag {
-			ELEMENT_TYPE_FLOATING_POINT => FloatingPoint,
-			ELEMENT_TYPE_UTF8_STRING => Utf8String,
-			ELEMENT_TYPE_EMBEDDED_DOCUMENT => EmbeddedDocument,
-			ELEMENT_TYPE_ARRAY => Array,
-			ELEMENT_TYPE_BINARY => Binary,
-			ELEMENT_TYPE_UNDEFINED => Undefined,
-			ELEMENT_TYPE_OBJECT_ID => ObjectId,
-			ELEMENT_TYPE_BOOLEAN => Boolean,
-			ELEMENT_TYPE_UTC_DATETIME => UtcDatetime,
-			ELEMENT_TYPE_NULL_VALUE => NullValue,
-			ELEMENT_TYPE_REGULAR_EXPRESSION => RegularExpression,
-			ELEMENT_TYPE_DBPOINTER => DbPointer,
-			ELEMENT_TYPE_JAVASCRIPT_CODE => JavaScriptCode,
-			ELEMENT_TYPE_DEPRECATED => Deprecated,
-			ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE => JavaScriptCodeWithScope,
-			ELEMENT_TYPE_32BIT_INTEGER => Integer32Bit,
-			ELEMENT_TYPE_TIMESTAMP => TimeStamp,
-			ELEMENT_TYPE_64BIT_INTEGER => Integer64Bit,
-			ELEMENT_TYPE_MAXKEY => MaxKey,
-			ELEMENT_TYPE_MINKEY => MinKey,
-			_ => return None
-		})
-	}
+    #[inline]
+    pub fn from(tag: u8) -> Option<ElementType> {
+        use self::ElementType::*;
+        Some(match tag {
+            ELEMENT_TYPE_FLOATING_POINT => FloatingPoint,
+            ELEMENT_TYPE_UTF8_STRING => Utf8String,
+            ELEMENT_TYPE_EMBEDDED_DOCUMENT => EmbeddedDocument,
+            ELEMENT_TYPE_ARRAY => Array,
+            ELEMENT_TYPE_BINARY => Binary,
+            ELEMENT_TYPE_UNDEFINED => Undefined,
+            ELEMENT_TYPE_OBJECT_ID => ObjectId,
+            ELEMENT_TYPE_BOOLEAN => Boolean,
+            ELEMENT_TYPE_UTC_DATETIME => UtcDatetime,
+            ELEMENT_TYPE_NULL_VALUE => NullValue,
+            ELEMENT_TYPE_REGULAR_EXPRESSION => RegularExpression,
+            ELEMENT_TYPE_DBPOINTER => DbPointer,
+            ELEMENT_TYPE_JAVASCRIPT_CODE => JavaScriptCode,
+            ELEMENT_TYPE_DEPRECATED => Deprecated,
+            ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE => JavaScriptCodeWithScope,
+            ELEMENT_TYPE_32BIT_INTEGER => Integer32Bit,
+            ELEMENT_TYPE_TIMESTAMP => TimeStamp,
+            ELEMENT_TYPE_64BIT_INTEGER => Integer64Bit,
+            ELEMENT_TYPE_MAXKEY => MaxKey,
+            ELEMENT_TYPE_MINKEY => MinKey,
+            _ => return None
+        })
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
