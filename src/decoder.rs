@@ -35,7 +35,7 @@ pub enum DecoderError {
     IoError(io::Error),
     Utf8Error(str::Utf8Error),
     UnrecognizedElementType(u8),
-    InvalidArrayKey(String, String)
+    InvalidArrayKey(usize, String)
 }
 
 impl From<io::Error> for DecoderError {
@@ -78,6 +78,13 @@ impl error::Error for DecoderError {
             &DecoderError::Utf8Error(ref inner) => inner.description(),
             &DecoderError::UnrecognizedElementType(_) => "unrecognized element type",
             &DecoderError::InvalidArrayKey(_, _) => "invalid array key"
+        }
+    }
+    fn cause(&self) -> Option<&error::Error> {
+        match self {
+            &DecoderError::IoError(ref inner) => Some(inner),
+            &DecoderError::Utf8Error(ref inner) => Some(inner),
+            _ => None
         }
     }
 }
@@ -219,9 +226,8 @@ impl<'a> Decoder<'a> {
             }
 
             let k = try!(self.read_cstring());
-            let want = format!("{}", arr.len());
-            if k != want {
-                return Err(DecoderError::InvalidArrayKey(want, k));
+            if k != &arr.len().to_string()[..] {
+                return Err(DecoderError::InvalidArrayKey(arr.len(), k));
             }
             let v = try!(self.decode_bson(t));
 

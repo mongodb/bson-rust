@@ -33,7 +33,7 @@
 //!
 //! fn main() {
 //!     let mut doc = Document::new();
-//!     doc.insert("foo".to_string(), Bson::String("bar".to_string()));
+//!     doc.insert("foo".to_owned(), Bson::String("bar".to_owned()));
 //!
 //!     let mut buf = Vec::new();
 //!     {

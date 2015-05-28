@@ -90,7 +90,7 @@ impl Bson {
                 let mut obj = json::Object::new();
                 let tval: u8 = From::from(t);
                 obj.insert("type".to_owned(), json::Json::I64(tval as i64));
-                obj.insert("data".to_owned(), json::Json::String(v[..].to_hex()));
+                obj.insert("data".to_owned(), json::Json::String(v.to_hex()));
 
                 json::Json::Object(obj)
             },

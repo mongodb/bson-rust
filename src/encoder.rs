@@ -22,14 +22,13 @@
 //! Encoder
 
 use std::io::{self, Write};
-use std::convert::From;
-use std::mem;
+use std::{mem, error, fmt};
 
 use byteorder::{self, LittleEndian, WriteBytesExt};
 use chrono::{DateTime, UTC};
 
 use spec::{ElementType, BinarySubtype};
-use bson;
+use bson::{Array, Document, Bson};
 
 #[derive(Debug)]
 pub enum EncoderError {
@@ -45,6 +44,27 @@ impl From<io::Error> for EncoderError {
 impl From<byteorder::Error> for EncoderError {
     fn from(err: byteorder::Error) -> EncoderError {
         EncoderError::IoError(From::from(err))
+    }
+}
+
+impl fmt::Display for EncoderError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &EncoderError::IoError(ref inner) => inner.fmt(fmt)
+        }
+    }
+}
+
+impl error::Error for EncoderError {
+    fn description(&self) -> &str {
+        match self {
+            &EncoderError::IoError(ref inner) => inner.description(),
+        }
+    }
+    fn cause(&self) -> Option<&error::Error> {
+        match self {
+            &EncoderError::IoError(ref inner) => Some(inner)
+        }
     }
 }
 
@@ -159,7 +179,7 @@ impl<'a> Encoder<'a> {
         Ok(())
     }
 
-    pub fn encode_javascript_code_with_scope(&mut self, key: &str, code: &str, scope: &bson::Document)
+    pub fn encode_javascript_code_with_scope(&mut self, key: &str, code: &str, scope: &Document)
             -> Result<(), EncoderError> {
         try!(self.writer.write_u8(ElementType::JavaScriptCodeWithScope as u8));
         try!(self.write_cstring(key));
@@ -213,21 +233,21 @@ impl<'a> Encoder<'a> {
         Ok(())
     }
 
-    pub fn encode_embedded_document(&mut self, key: &str, doc: &bson::Document) -> Result<(), EncoderError> {
+    pub fn encode_embedded_document(&mut self, key: &str, doc: &Document) -> Result<(), EncoderError> {
         try!(self.writer.write_u8(ElementType::EmbeddedDocument as u8));
         try!(self.write_cstring(key));
 
         self.encode_document(doc)
     }
 
-    pub fn encode_embedded_array(&mut self, key: &str, arr: &bson::Array) -> Result<(), EncoderError> {
+    pub fn encode_embedded_array(&mut self, key: &str, arr: &Array) -> Result<(), EncoderError> {
         try!(self.writer.write_u8(ElementType::Array as u8));
         try!(self.write_cstring(key));
 
         self.encode_array(arr)
     }
 
-    pub fn encode_document(&mut self, doc: &bson::Document) -> Result<(), EncoderError> {
+    pub fn encode_document(&mut self, doc: &Document) -> Result<(), EncoderError> {
         let mut buf = Vec::new();
 
         {
@@ -244,13 +264,13 @@ impl<'a> Encoder<'a> {
         Ok(())
     }
 
-    pub fn encode_array(&mut self, arr: &bson::Array) -> Result<(), EncoderError> {
+    pub fn encode_array(&mut self, arr: &Array) -> Result<(), EncoderError> {
         let mut buf = Vec::new();
 
         {
             let mut enc = Encoder::new(&mut buf);
             for (key, val) in arr.iter().enumerate() {
-                try!(enc.encode_bson(&key.to_string()[..], val));
+                try!(enc.encode_bson(&key.to_string(), val));
             }
         }
 
@@ -261,9 +281,7 @@ impl<'a> Encoder<'a> {
         Ok(())
     }
 
-    fn encode_bson(&mut self, key: &str, val: &bson::Bson) -> Result<(), EncoderError> {
-        use bson::Bson;
-
+    fn encode_bson(&mut self, key: &str, val: &Bson) -> Result<(), EncoderError> {
         match val {
             &Bson::FloatingPoint(v)                     => self.encode_floating_point(&key[..], v),
             &Bson::String(ref v)                        => self.encode_utf8_string(&key[..], &v[..]),
@@ -289,7 +307,7 @@ impl<'a> Encoder<'a> {
 #[cfg(test)]
 mod test {
     use super::Encoder;
-    use bson;
+    use bson::{Document, Bson};
 
     #[test]
     fn test_encode_floating_point() {
@@ -300,8 +318,8 @@ mod test {
         {
             let mut enc = Encoder::new(&mut buf);
 
-            let mut doc = bson::Document::new();
-            doc.insert("key".to_string(), bson::Bson::FloatingPoint(src));
+            let mut doc = Document::new();
+            doc.insert("key".to_owned(), Bson::FloatingPoint(src));
             enc.encode_document(&doc).unwrap();
         }
 
@@ -310,32 +328,32 @@ mod test {
 
     #[test]
     fn test_encode_utf8_string() {
-        let src = "test你好吗".to_string();
+        let src = "test你好吗".to_owned();
         let dst = [28, 0, 0, 0, 2, 107, 101, 121, 0, 14, 0, 0, 0, 116, 101, 115, 116, 228, 189, 160, 229, 165, 189, 229, 144, 151, 0, 0];
 
         let mut buf = Vec::new();
         {
             let mut enc = Encoder::new(&mut buf);
 
-            let mut doc = bson::Document::new();
-            doc.insert("key".to_string(), bson::Bson::String(src));
+            let mut doc = Document::new();
+            doc.insert("key".to_owned(), Bson::String(src));
             enc.encode_document(&doc).unwrap();
         }
 
-        assert_eq!(&buf[..], &dst[..]);
+        assert_eq!(&buf, &dst);
     }
 
     #[test]
     fn test_encode_array() {
-        let src = vec![bson::Bson::FloatingPoint(1.01), bson::Bson::String("xyz".to_string())];
+        let src = vec![Bson::FloatingPoint(1.01), Bson::String("xyz".to_owned())];
         let dst = [37, 0, 0, 0, 4, 107, 101, 121, 0, 27, 0, 0, 0, 1, 48, 0, 41, 92, 143, 194, 245, 40, 240, 63, 2, 49, 0, 4, 0, 0, 0, 120, 121, 122, 0, 0, 0];
 
         let mut buf = Vec::new();
         {
             let mut enc = Encoder::new(&mut buf);
 
-            let mut doc = bson::Document::new();
-            doc.insert("key".to_string(), bson::Bson::Array(src));
+            let mut doc = Document::new();
+            doc.insert("key".to_owned(), Bson::Array(src));
             enc.encode_document(&doc).unwrap();
         }
 
