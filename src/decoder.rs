@@ -91,205 +91,131 @@ impl error::Error for DecoderError {
 
 pub type DecoderResult<T> = Result<T, DecoderError>;
 
-pub struct Decoder<'a> {
-    reader: &'a mut Read,
+fn read_string<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<String> {
+	let len = try!(reader.read_i32::<LittleEndian>());
+
+	let mut s = String::with_capacity(len as usize - 1);
+	try!(reader.take(len as u64 - 1).read_to_string(&mut s));
+	try!(reader.read_u8()); // The last 0x00
+
+	Ok(s)
 }
 
-impl<'a> Decoder<'a> {
-    pub fn new(r: &'a mut Read) -> Decoder<'a> {
-        Decoder {
-            reader: r,
-        }
-    }
+fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<String> {
+	let mut v = Vec::new();
 
-    fn read_string(&mut self) -> Result<String, DecoderError> {
-        let len = try!(self.reader.read_i32::<LittleEndian>());
+	loop {
+		let c = try!(reader.read_u8());
+		if c == 0 { break; }
+		v.push(c);
+	}
 
-        let mut s = String::new();
-        try!(self.reader.take(len as u64 - 1).read_to_string(&mut s));
-        try!(self.reader.read_u8()); // The last 0x00
+	Ok(try!(str::from_utf8(&v)).to_owned())
+}
 
-        Ok(s)
-    }
+fn read_i32<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i32> {
+	reader.read_i32::<LittleEndian>().map_err(From::from)
+}
 
-    fn read_cstring(&mut self) -> Result<String, DecoderError> {
-        let mut v = Vec::new();
+fn read_i64<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i64> {
+	reader.read_i64::<LittleEndian>().map_err(From::from)
+}
 
-        loop {
-            let c = try!(self.reader.read_u8());
-            if c == 0 { break; }
-            v.push(c);
-        }
+pub fn decode_document<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
+	let mut doc = Document::new();
 
-        Ok(try!(str::from_utf8(&v)).to_owned())
-    }
+	// disregard the length: using Read::take causes infinite type recursion
+	try!(read_i32(reader));
 
-    pub fn decode_floating_point(&mut self) -> Result<f64, DecoderError> {
-        self.reader.read_f64::<LittleEndian>().map_err(From::from)
-    }
+	loop {
+		let tag = try!(reader.read_u8());
 
-    pub fn decode_utf8_string(&mut self) -> Result<String, DecoderError> {
-        self.read_string()
-    }
+		if tag == 0 {
+			break;
+		}
 
-    pub fn decode_binary_data(&mut self) -> Result<(BinarySubtype, Vec<u8>), DecoderError> {
-        let len = try!(self.reader.read_i32::<LittleEndian>());
-        let t = BinarySubtype::from(try!(self.reader.read_u8()));
-        let mut data = Vec::new();
-        try!(self.reader.take(len as u64).read_to_end(&mut data));
+		let key = try!(read_cstring(reader));
+		let val = try!(decode_bson(reader, tag));
 
-        Ok((t, data))
-    }
+		doc.insert(key, val);
+	}
 
-    pub fn decode_objectid(&mut self) -> Result<[u8; 12], DecoderError> {
-        let mut objid = [0u8; 12];
+	Ok(doc)
+}
 
-        for x in objid.iter_mut() {
-            *x = try!(self.reader.read_u8());
-        }
+fn decode_array<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Array> {
+	let mut arr = Array::new();
 
-        Ok(objid)
-    }
+	// disregard the length: using Read::take causes infinite type recursion
+	try!(read_i32(reader));
 
-    pub fn decode_boolean(&mut self) -> Result<bool, DecoderError> {
-        let x = try!(self.reader.read_u8());
-        Ok(x != 0x00)
-    }
+	loop {
+		let tag = try!(reader.read_u8());
+		if tag == 0 {
+			break;
+		}
 
-    pub fn decode_regexp(&mut self) -> Result<(String, String), DecoderError> {
-        let pat = try!(self.read_cstring());
-        let opt = try!(self.read_cstring());
+		// check that the key is as expected
+		let key = try!(read_cstring(reader));
+		if key != &arr.len().to_string()[..] {
+			return Err(DecoderError::InvalidArrayKey(arr.len(), key));
+		}
 
-        Ok((pat, opt))
-    }
+		let val = try!(decode_bson(reader, tag));
+		arr.push(val)
+	}
 
-    pub fn decode_javascript_code(&mut self) -> Result<String, DecoderError> {
-        self.read_string()
-    }
+	Ok(arr)
+}
 
-    pub fn decode_javascript_code_with_scope(&mut self) -> Result<(String, Document), DecoderError> {
-        let code = try!(self.read_string());
-        let doc = try!(self.decode_document());
-        Ok((code, doc))
-    }
-
-    pub fn decode_integer_32bit(&mut self) -> Result<i32, DecoderError> {
-        self.reader.read_i32::<LittleEndian>().map_err(From::from)
-    }
-
-    pub fn decode_integer_64bit(&mut self) -> Result<i64, DecoderError> {
-        self.reader.read_i64::<LittleEndian>().map_err(From::from)
-    }
-
-    pub fn decode_timestamp(&mut self) -> Result<i64, DecoderError> {
-        self.reader.read_i64::<LittleEndian>().map_err(From::from)
-    }
-
-    pub fn decode_utc_datetime(&mut self) -> Result<DateTime<UTC>, DecoderError> {
-        let x = try!(self.reader.read_i64::<LittleEndian>());
-
-        let d = DateTime::from_utc(NaiveDateTime::from_timestamp(x, 0), UTC);
-
-        Ok(d)
-    }
-
-    pub fn decode_document(&mut self) -> Result<Document, DecoderError> {
-        let mut doc = Document::new();
-
-        try!(self.reader.read_i32::<LittleEndian>()); // Total length, we don't need it
-
-        loop {
-            let t = try!(self.reader.read_u8());
-
-            if t == 0 {
-                break;
-            }
-
-            let k = try!(self.read_cstring());
-            let v = try!(self.decode_bson(t));
-
-            doc.insert(k, v);
-        }
-
-        Ok(doc)
-    }
-
-    pub fn decode_array(&mut self) -> Result<Array, DecoderError> {
-        let mut arr = Array::new();
-
-        try!(self.reader.read_i32::<LittleEndian>()); // Total length, we don't need it
-
-        loop {
-            let t = try!(self.reader.read_u8());
-            if t == 0 {
-                break;
-            }
-
-            let k = try!(self.read_cstring());
-            if k != &arr.len().to_string()[..] {
-                return Err(DecoderError::InvalidArrayKey(arr.len(), k));
-            }
-            let v = try!(self.decode_bson(t));
-
-            arr.push(v)
-        }
-
-        Ok(arr)
-    }
-
-    fn decode_bson(&mut self, tag: u8) -> Result<Bson, DecoderError> {
-        match tag {
-            spec::ELEMENT_TYPE_FLOATING_POINT => {
-                self.decode_floating_point().map(Bson::FloatingPoint)
-            },
-            spec::ELEMENT_TYPE_UTF8_STRING => {
-                self.decode_utf8_string().map(Bson::String)
-            },
-            spec::ELEMENT_TYPE_EMBEDDED_DOCUMENT => {
-                self.decode_document().map(Bson::Document)
-            },
-            spec::ELEMENT_TYPE_ARRAY => {
-                self.decode_array().map(Bson::Array)
-            },
-            spec::ELEMENT_TYPE_BINARY => {
-                self.decode_binary_data().map(|(t, dat)| Bson::Binary(t, dat))
-            },
-            spec::ELEMENT_TYPE_OBJECT_ID => {
-                self.decode_objectid().map(Bson::ObjectId)
-            },
-            spec::ELEMENT_TYPE_BOOLEAN => {
-                self.decode_boolean().map(Bson::Boolean)
-            },
-            spec::ELEMENT_TYPE_NULL_VALUE => {
-                Ok(Bson::Null)
-            },
-            spec::ELEMENT_TYPE_REGULAR_EXPRESSION => {
-                self.decode_regexp().map(|(pat, opt)| Bson::RegExp(pat, opt))
-            },
-            spec::ELEMENT_TYPE_JAVASCRIPT_CODE => {
-                self.decode_javascript_code().map(Bson::JavaScriptCode)
-            },
-            spec::ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE => {
-                self.decode_javascript_code_with_scope().map(
-                    |(code, scope)| Bson::JavaScriptCodeWithScope(code, scope)
-                )
-            },
-            spec::ELEMENT_TYPE_DEPRECATED => {
-                Ok(Bson::Deprecated)
-            },
-            spec::ELEMENT_TYPE_32BIT_INTEGER => {
-                self.decode_integer_32bit().map(Bson::I32)
-            },
-            spec::ELEMENT_TYPE_64BIT_INTEGER => {
-                self.decode_integer_64bit().map(Bson::I64)
-            },
-            spec::ELEMENT_TYPE_TIMESTAMP => {
-                self.decode_timestamp().map(Bson::TimeStamp)
-            },
-            spec::ELEMENT_TYPE_UTC_DATETIME => {
-                self.decode_utc_datetime().map(Bson::UtcDatetime)
-            },
-            _ => Err(DecoderError::UnrecognizedElementType(tag)),
-        }
-    }
+fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson> {
+	use spec::ElementType::*;
+	match spec::ElementType::from(tag) {
+		Some(FloatingPoint) => {
+			Ok(Bson::FloatingPoint(try!(reader.read_f64::<LittleEndian>())))
+		},
+		Some(Utf8String) => read_string(reader).map(Bson::String),
+		Some(EmbeddedDocument) => decode_document(reader).map(Bson::Document),
+		Some(Array) => decode_array(reader).map(Bson::Array),
+		Some(Binary) => {
+			let len = try!(read_i32(reader));
+			let subtype = BinarySubtype::from(try!(reader.read_u8()));
+			let mut data = Vec::with_capacity(len as usize);
+			try!(reader.take(len as u64).read_to_end(&mut data));
+			Ok(Bson::Binary(subtype, data))
+		}
+		Some(ObjectId) => {
+			let mut objid = [0; 12];
+			for x in &mut objid {
+				*x = try!(reader.read_u8());
+			}
+			Ok(Bson::ObjectId(objid))
+		}
+		Some(Boolean) => Ok(Bson::Boolean(try!(reader.read_u8()) != 0)),
+		Some(NullValue) => Ok(Bson::Null),
+		Some(RegularExpression) => {
+			let pat = try!(read_cstring(reader));
+			let opt = try!(read_cstring(reader));
+			Ok(Bson::RegExp(pat, opt))
+		},
+		Some(JavaScriptCode) => read_string(reader).map(Bson::JavaScriptCode),
+		Some(JavaScriptCodeWithScope) => {
+			let code = try!(read_string(reader));
+			let scope = try!(decode_document(reader));
+			Ok(Bson::JavaScriptCodeWithScope(code, scope))
+		},
+		Some(Deprecated) => Ok(Bson::Deprecated),
+		Some(Integer32Bit) => read_i32(reader).map(Bson::I32),
+		Some(Integer64Bit) => read_i64(reader).map(Bson::I64),
+		Some(TimeStamp) => read_i64(reader).map(Bson::TimeStamp),
+		Some(UtcDatetime) => {
+			let time = try!(read_i64(reader));
+			Ok(Bson::UtcDatetime(DateTime::from_utc(NaiveDateTime::from_timestamp(time, 0), UTC)))
+		},
+		Some(Undefined) |
+		Some(DbPointer) |
+		Some(MaxKey) |
+		Some(MinKey) |
+		None => Err(DecoderError::UnrecognizedElementType(tag))
+	}
 }

@@ -55,10 +55,11 @@ extern crate byteorder;
 
 pub use self::bson::{Bson, ToBson, Document, Array};
 pub use self::encoder::{Encoder, EncoderResult, EncoderError};
-pub use self::decoder::{Decoder, DecoderResult, DecoderError};
+pub use self::decoder::{decode_document, DecoderResult, DecoderError};
 
-pub mod bson;
+mod bson;
 pub mod spec;
 
 pub mod encoder;
-pub mod decoder;
+mod decoder;
+
