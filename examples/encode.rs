@@ -2,7 +2,7 @@ extern crate bson;
 extern crate chrono;
 
 use std::io::Cursor;
-use bson::{Bson, Document, Array, Encoder, Decoder};
+use bson::{Bson, Document, Array, encode_document, decode_document};
 
 fn main() {
     let mut doc = Document::new();
@@ -16,18 +16,11 @@ fn main() {
     doc.insert("array".to_string(), Bson::Array(arr));
 
     let mut buf = Vec::new();
-    {
-        let mut enc = Encoder::new(&mut buf);
-        enc.encode_document(&doc).unwrap();
-    }
+	encode_document(&mut buf, &doc).unwrap();
 
     println!("Encoded: {:?}", buf);
 
     let mut r = Cursor::new(&buf[..]);
-    {
-        let mut dec = Decoder::new(&mut r);
-        let doc = dec.decode_document().unwrap();
-
-        println!("Decoded: {:?}", doc);
-    }
+	let doc = decode_document(&mut r).unwrap();
+	println!("Decoded: {:?}", doc);
 }

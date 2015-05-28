@@ -29,23 +29,17 @@
 //! ```rust
 //! extern crate bson;
 //! use std::io::Cursor;
-//! use bson::{Bson, Document, Encoder, Decoder};
+//! use bson::{Bson, Document, encode_document, decode_document};
 //!
 //! fn main() {
 //!     let mut doc = Document::new();
 //!     doc.insert("foo".to_owned(), Bson::String("bar".to_owned()));
 //!
 //!     let mut buf = Vec::new();
-//!     {
-//!         let mut enc = Encoder::new(&mut buf);
-//!         enc.encode_document(&doc).unwrap();
-//!     }
+//!     encode_document(&mut buf, &doc).unwrap();
 //!
 //!     let mut r = Cursor::new(&buf[..]);
-//!     {
-//!         let mut dec = Decoder::new(&mut r);
-//!         let doc = dec.decode_document().unwrap();
-//!     }
+//!     let doc = decode_document(&mut Cursor::new(&buf[..]));
 //! }
 //! ```
 
@@ -54,12 +48,12 @@ extern crate chrono;
 extern crate byteorder;
 
 pub use self::bson::{Bson, ToBson, Document, Array};
-pub use self::encoder::{Encoder, EncoderResult, EncoderError};
+pub use self::encoder::{encode_document, EncoderResult, EncoderError};
 pub use self::decoder::{decode_document, DecoderResult, DecoderError};
 
 mod bson;
 pub mod spec;
 
-pub mod encoder;
+mod encoder;
 mod decoder;
 
