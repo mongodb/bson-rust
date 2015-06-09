@@ -1,5 +1,5 @@
 [package]
-name = "bson-rs"
+name = "bson"
 version = "0.1.0"
 authors = ["Y. T. Chung <zonyitoo@gmail.com>"]
 description = "Encoding and decoding support for BSON in Rust"
