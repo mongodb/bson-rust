@@ -1,6 +1,6 @@
 use bson::Bson;
 use std::collections::BTreeMap;
-use std::iter::FromIterator;
+use std::iter::{FromIterator, Map};
 
 /// A BSON document represented as an associative BTree Map with insertion ordering.
 #[derive(Debug, Clone)]
@@ -10,15 +10,46 @@ pub struct OrderedDocument {
 }
 
 /// An iterator over OrderedDocument entries.
+#[derive(Clone)]
 pub struct OrderedDocumentIterator {
     ordered_document: OrderedDocument,
     index: usize,
 }
 
 /// An owning iterator over OrderedDocument entries.
+#[derive(Clone)]
 pub struct OrderedDocumentIntoIterator<'a> {
     ordered_document: &'a OrderedDocument,
     index: usize,
+}
+
+/// An iterator over an OrderedDocument's keys.
+pub struct Keys<'a> {
+    inner: Map<OrderedDocumentIntoIterator<'a>, fn((&'a String, &'a Bson)) -> &'a String>
+}
+
+/// An iterator over an OrderedDocument's values.
+pub struct Values<'a> {
+    inner: Map<OrderedDocumentIntoIterator<'a>, fn((&'a String, &'a Bson)) -> &'a Bson>
+}
+
+impl<'a> Clone for Keys<'a> {
+    fn clone(&self) -> Keys<'a> { Keys { inner: self.inner.clone() } }
+}
+
+impl<'a> Iterator for Keys<'a> {
+    type Item = &'a String;
+    fn next(&mut self) -> Option<(&'a String)> { self.inner.next() }
+}
+
+impl<'a> Clone for Values<'a> {
+    fn clone(&self) -> Values<'a> { Values { inner: self.inner.clone() } }
+}
+
+impl<'a> Iterator for Values<'a> {
+    type Item = &'a Bson;
+
+    fn next(&mut self) -> Option<(&'a Bson)> { self.inner.next() }
 }
 
 impl IntoIterator for OrderedDocument {
@@ -118,13 +149,19 @@ impl OrderedDocument {
     }
 
     /// Gets a collection of all keys in the document.
-    pub fn keys<'a>(&'a self) -> Vec<&String> {
-        self.iter().map(|(k, _)| k).collect()
+    pub fn keys<'a>(&'a self) -> Keys<'a> {
+        fn first<A, B>((a, _): (A, B)) -> A { a }
+        let first: fn((&'a String, &'a Bson)) -> &'a String = first;
+
+        Keys { inner: self.iter().map(first) }
     }
 
     /// Gets a collection of all values in the document.
-    pub fn values<'a>(&'a self) -> Vec<&Bson> {
-        self.iter().map(|(_, v)| v).collect()
+    pub fn values<'a>(&'a self) -> Values<'a> {
+        fn second<A, B>((_, b): (A, B)) -> B { b }
+        let second: fn((&'a String, &'a Bson)) -> &'a Bson = second;
+
+        Values { inner: self.iter().map(second) }
     }
 
     /// Returns the number of elements in the document.
