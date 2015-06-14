@@ -1,6 +1,8 @@
 use bson::Bson;
 use std::collections::BTreeMap;
 use std::iter::{FromIterator, Map};
+use std::vec::IntoIter;
+use std::slice;
 
 /// A BSON document represented as an associative BTree Map with insertion ordering.
 #[derive(Debug, Clone)]
@@ -10,17 +12,15 @@ pub struct OrderedDocument {
 }
 
 /// An iterator over OrderedDocument entries.
-#[derive(Clone)]
 pub struct OrderedDocumentIntoIterator {
-    ordered_document: OrderedDocument,
-    index: usize,
+    vec_iter: IntoIter<String>,
+    document: BTreeMap<String, Bson>,
 }
 
 /// An owning iterator over OrderedDocument entries.
-#[derive(Clone)]
 pub struct OrderedDocumentIterator<'a> {
-    ordered_document: &'a OrderedDocument,
-    index: usize,
+    vec_iter: slice::Iter<'a, String>,
+    document: &'a BTreeMap<String, Bson>,
 }
 
 /// An iterator over an OrderedDocument's keys.
@@ -33,17 +33,9 @@ pub struct Values<'a> {
     inner: Map<OrderedDocumentIterator<'a>, fn((&'a String, &'a Bson)) -> &'a Bson>
 }
 
-impl<'a> Clone for Keys<'a> {
-    fn clone(&self) -> Keys<'a> { Keys { inner: self.inner.clone() } }
-}
-
 impl<'a> Iterator for Keys<'a> {
     type Item = &'a String;
     fn next(&mut self) -> Option<(&'a String)> { self.inner.next() }
-}
-
-impl<'a> Clone for Values<'a> {
-    fn clone(&self) -> Values<'a> { Values { inner: self.inner.clone() } }
 }
 
 impl<'a> Iterator for Values<'a> {
@@ -57,7 +49,10 @@ impl IntoIterator for OrderedDocument {
     type IntoIter = OrderedDocumentIntoIterator;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIntoIterator { ordered_document: self, index: 0 }
+        OrderedDocumentIntoIterator {
+            document: self.document,
+            vec_iter: self.keys.into_iter()
+        }
     }
 }
 
@@ -66,7 +61,11 @@ impl<'a> IntoIterator for &'a OrderedDocument {
     type IntoIter = OrderedDocumentIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIterator { ordered_document: self, index: 0 }
+        let ref keys = self.keys;
+        OrderedDocumentIterator {
+            vec_iter: keys.into_iter(),
+            document: &self.document,
+        }
     }
 }
 
@@ -83,28 +82,23 @@ impl FromIterator<(String, Bson)> for OrderedDocument {
 impl<'a> Iterator for OrderedDocumentIntoIterator {
     type Item = (String, Bson);
     fn next(&mut self) -> Option<(String, Bson)> {
-        if self.ordered_document.keys.len() <= self.index {
-            return None;
+        match self.vec_iter.next() {
+            Some(key) => {
+                let val = self.document.get(&key[..]).unwrap();
+                Some((key, val.to_owned()))
+            },
+            None => None,
         }
-
-        let ref key = self.ordered_document.keys[self.index];
-        let val = self.ordered_document.get(&key[..]).unwrap();
-        self.index += 1;
-        Some((key.to_owned(), val.to_owned()))
     }
 }
 
 impl<'a> Iterator for OrderedDocumentIterator<'a> {
     type Item = (&'a String, &'a Bson);
     fn next(&mut self) -> Option<(&'a String, &'a Bson)> {
-        if self.ordered_document.keys.len() <= self.index {
-            return None;
+        match self.vec_iter.next() {
+            Some(key) => Some((&key, self.document.get(&key[..]).unwrap())),
+            None => None,
         }
-
-        let ref key = self.ordered_document.keys[self.index];
-        let val = self.ordered_document.get(&key[..]).unwrap();
-        self.index += 1;
-        Some((key, val))
     }
 }
 
