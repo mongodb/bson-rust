@@ -11,26 +11,26 @@ pub struct OrderedDocument {
 
 /// An iterator over OrderedDocument entries.
 #[derive(Clone)]
-pub struct OrderedDocumentIterator {
+pub struct OrderedDocumentIntoIterator {
     ordered_document: OrderedDocument,
     index: usize,
 }
 
 /// An owning iterator over OrderedDocument entries.
 #[derive(Clone)]
-pub struct OrderedDocumentIntoIterator<'a> {
+pub struct OrderedDocumentIterator<'a> {
     ordered_document: &'a OrderedDocument,
     index: usize,
 }
 
 /// An iterator over an OrderedDocument's keys.
 pub struct Keys<'a> {
-    inner: Map<OrderedDocumentIntoIterator<'a>, fn((&'a String, &'a Bson)) -> &'a String>
+    inner: Map<OrderedDocumentIterator<'a>, fn((&'a String, &'a Bson)) -> &'a String>
 }
 
 /// An iterator over an OrderedDocument's values.
 pub struct Values<'a> {
-    inner: Map<OrderedDocumentIntoIterator<'a>, fn((&'a String, &'a Bson)) -> &'a Bson>
+    inner: Map<OrderedDocumentIterator<'a>, fn((&'a String, &'a Bson)) -> &'a Bson>
 }
 
 impl<'a> Clone for Keys<'a> {
@@ -54,19 +54,19 @@ impl<'a> Iterator for Values<'a> {
 
 impl IntoIterator for OrderedDocument {
     type Item = (String, Bson);
-    type IntoIter = OrderedDocumentIterator;
+    type IntoIter = OrderedDocumentIntoIterator;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIterator { ordered_document: self, index: 0 }
+        OrderedDocumentIntoIterator { ordered_document: self, index: 0 }
     }
 }
 
 impl<'a> IntoIterator for &'a OrderedDocument {
     type Item = (&'a String, &'a Bson);
-    type IntoIter = OrderedDocumentIntoIterator<'a>;
+    type IntoIter = OrderedDocumentIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIntoIterator { ordered_document: self, index: 0 }
+        OrderedDocumentIterator { ordered_document: self, index: 0 }
     }
 }
 
@@ -80,7 +80,7 @@ impl FromIterator<(String, Bson)> for OrderedDocument {
     }
 }
 
-impl<'a> Iterator for OrderedDocumentIterator {
+impl<'a> Iterator for OrderedDocumentIntoIterator {
     type Item = (String, Bson);
     fn next(&mut self) -> Option<(String, Bson)> {
         if self.ordered_document.keys.len() <= self.index {
@@ -94,7 +94,7 @@ impl<'a> Iterator for OrderedDocumentIterator {
     }
 }
 
-impl<'a> Iterator for OrderedDocumentIntoIterator<'a> {
+impl<'a> Iterator for OrderedDocumentIterator<'a> {
     type Item = (&'a String, &'a Bson);
     fn next(&mut self) -> Option<(&'a String, &'a Bson)> {
         if self.ordered_document.keys.len() <= self.index {
@@ -118,7 +118,7 @@ impl OrderedDocument {
     }
 
     /// Gets an iterator over the entries of the map.
-    pub fn iter<'a>(&'a self) -> OrderedDocumentIntoIterator<'a> {
+    pub fn iter<'a>(&'a self) -> OrderedDocumentIterator<'a> {
         self.into_iter()
     }
 
