@@ -40,7 +40,6 @@ impl<'a> Iterator for Keys<'a> {
 
 impl<'a> Iterator for Values<'a> {
     type Item = &'a Bson;
-
     fn next(&mut self) -> Option<(&'a Bson)> { self.inner.next() }
 }
 
@@ -84,7 +83,7 @@ impl<'a> Iterator for OrderedDocumentIntoIterator {
     fn next(&mut self) -> Option<(String, Bson)> {
         match self.vec_iter.next() {
             Some(key) => {
-                let val = self.document.get(&key[..]).unwrap();
+                let val = self.document.remove(&key[..]).unwrap();
                 Some((key, val.to_owned()))
             },
             None => None,
@@ -96,7 +95,10 @@ impl<'a> Iterator for OrderedDocumentIterator<'a> {
     type Item = (&'a String, &'a Bson);
     fn next(&mut self) -> Option<(&'a String, &'a Bson)> {
         match self.vec_iter.next() {
-            Some(key) => Some((&key, self.document.get(&key[..]).unwrap())),
+            Some(key) => {
+                let val = self.document.get(&key[..]).unwrap();
+                Some((&key, val))
+            },
             None => None,
         }
     }
