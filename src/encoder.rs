@@ -139,7 +139,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         &Bson::String(ref v) => write_string(writer, &v),
         &Bson::Array(ref v) => encode_array(writer, &v),
         &Bson::Document(ref v) => encode_document(writer, v),
-        &Bson::Boolean(v) => writer.write_u8(if v { 0x00 } else { 0x01 }).map_err(From::from),
+        &Bson::Boolean(v) => writer.write_u8(if v { 0x01 } else { 0x00 }).map_err(From::from),
         &Bson::RegExp(ref pat, ref opt) => {
             try!(write_cstring(writer, pat));
             write_cstring(writer, opt)
