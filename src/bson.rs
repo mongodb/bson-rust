@@ -53,6 +53,87 @@ pub type Array = Vec<Bson>;
 /// Alias for `OrderedDocument`.
 pub type Document = OrderedDocument;
 
+impl From<f64> for Bson {
+    fn from(a: f64) -> Bson {
+        Bson::FloatingPoint(a)
+    }
+}
+
+impl<'a> From<&'a str> for Bson {
+    fn from(s: &str) -> Bson {
+        Bson::String(s.to_owned())
+    }
+}
+
+impl From<String> for Bson {
+    fn from(a: String) -> Bson {
+        Bson::String(a.to_owned())
+    }
+}
+
+impl From<Array> for Bson {
+    fn from(a: Array) -> Bson {
+        Bson::Array(a)
+    }
+}
+
+impl From<Document> for Bson {
+    fn from(a: Document) -> Bson {
+        Bson::Document(a)
+    }
+}
+
+impl From<bool> for Bson {
+    fn from(a: bool) -> Bson {
+        Bson::Boolean(a)
+    }
+}
+
+impl From<(String, String)> for Bson {
+    fn from(a: (String, String)) -> Bson {
+        let (a1, a2) = a;
+        Bson::RegExp(a1.to_owned(), a2.to_owned())
+    }
+}
+
+impl From<(String, Document)> for Bson {
+    fn from(a: (String, Document)) -> Bson {
+        let (a1, a2) = a;
+        Bson::JavaScriptCodeWithScope(a1, a2)
+    }
+}
+
+impl From<(BinarySubtype, Vec<u8>)> for Bson {
+    fn from(a: (BinarySubtype, Vec<u8>)) -> Bson {
+        let (a1, a2) = a;
+        Bson::Binary(a1, a2)
+    }
+}
+
+impl From<i32> for Bson {
+    fn from(a: i32) -> Bson {
+        Bson::I32(a)
+    }
+}
+
+impl From<i64> for Bson {
+    fn from(a: i64) -> Bson {
+        Bson::I64(a)
+    }
+}
+
+impl From<[u8; 12]> for Bson {
+    fn from(a: [u8; 12]) -> Bson {
+        Bson::ObjectId(a)
+    }
+}
+
+impl From<DateTime<UTC>> for Bson {
+    fn from(a: DateTime<UTC>) -> Bson {
+        Bson::UtcDatetime(a)
+    }
+}
+
 impl Bson {
     /// Get the `ElementType` of this value.
     pub fn element_type(&self) -> ElementType {
