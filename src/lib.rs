@@ -42,15 +42,20 @@
 //! }
 //! ```
 
-extern crate rustc_serialize;
-extern crate chrono;
 extern crate byteorder;
+extern crate chrono;
+extern crate crypto;
+extern crate libc;
+extern crate rand;
+extern crate rustc_serialize;
+extern crate time;
 
 pub use self::bson::{Bson, Document, Array};
 pub use self::encoder::{encode_document, EncoderResult, EncoderError};
 pub use self::decoder::{decode_document, DecoderResult, DecoderError};
 
 pub mod spec;
+pub mod oid;
 mod bson;
 mod encoder;
 mod decoder;
