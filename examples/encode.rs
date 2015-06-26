@@ -2,7 +2,7 @@ extern crate bson;
 extern crate chrono;
 
 use std::io::Cursor;
-use bson::{Bson, Document, Array, encode_document, decode_document};
+use bson::{Bson, Document, Array, encode_document, decode_document, oid};
 
 fn main() {
     let mut doc = Document::new();
@@ -11,7 +11,7 @@ fn main() {
     let mut arr = Array::new();
     arr.push(Bson::String("blah".to_string()));
     arr.push(Bson::UtcDatetime(chrono::UTC::now()));
-    arr.push(Bson::ObjectId([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
+    arr.push(Bson::ObjectId(oid::ObjectId::with_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])));
 
     doc.insert("array".to_string(), Bson::Array(arr));
 

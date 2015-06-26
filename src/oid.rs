@@ -75,7 +75,7 @@ impl error::Error for OIDError {
 
     fn cause(&self) -> Option<&error::Error> {
         match self {            
-            &OIDError::ArgumentError(ref inner) => None,
+            &OIDError::ArgumentError(_) => None,
             &OIDError::FromHexError(ref inner) => Some(inner),
             &OIDError::IoError(ref inner) => Some(inner),
             &OIDError::HostnameError => None,

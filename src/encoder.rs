@@ -145,7 +145,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
             write_cstring(writer, opt)
         },
         &Bson::JavaScriptCode(ref code) => write_string(writer, &code),
-        &Bson::ObjectId(id) => writer.write_all(&id).map_err(From::from),
+        &Bson::ObjectId(ref id) => writer.write_all(&id.bytes()).map_err(From::from),
         &Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
             let mut buf = Vec::new();
             try!(write_string(&mut buf, code));

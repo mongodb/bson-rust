@@ -27,6 +27,7 @@ use rustc_serialize::hex::ToHex;
 
 use ordered::OrderedDocument;
 use spec::{ElementType, BinarySubtype};
+use oid;
 
 /// Possible BSON value types.
 #[derive(Debug, Clone)]
@@ -44,7 +45,7 @@ pub enum Bson {
     I64(i64),
     TimeStamp(i64),
     Binary(BinarySubtype, Vec<u8>),
-    ObjectId([u8; 12]),
+    ObjectId(oid::ObjectId),
     UtcDatetime(DateTime<UTC>),
 }
 
@@ -124,7 +125,13 @@ impl From<i64> for Bson {
 
 impl From<[u8; 12]> for Bson {
     fn from(a: [u8; 12]) -> Bson {
-        Bson::ObjectId(a)
+        Bson::ObjectId(oid::ObjectId::with_bytes(a))
+    }
+}
+
+impl From<oid::ObjectId> for Bson {
+    fn from(a: oid::ObjectId) -> Bson {
+        Bson::ObjectId(a.to_owned())
     }
 }
 
@@ -197,7 +204,7 @@ impl Bson {
 
                 json::Json::Object(obj)
             },
-            &Bson::ObjectId(v) => json::Json::String(v.to_hex()),
+            &Bson::ObjectId(ref v) => json::Json::String(v.bytes().to_hex()),
             &Bson::UtcDatetime(ref v) => json::Json::String(v.to_string()),
         }
     }
