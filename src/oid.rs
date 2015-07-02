@@ -31,54 +31,54 @@ extern {
 }
 
 #[derive(Debug)]
-pub enum OIDError {
+pub enum Error {
     ArgumentError(String),
     FromHexError(hex::FromHexError),
     IoError(io::Error),
     HostnameError,
 }
 
-impl From<hex::FromHexError> for OIDError {
-    fn from(err: hex::FromHexError) -> OIDError {
-        OIDError::FromHexError(err)
+impl From<hex::FromHexError> for Error {
+    fn from(err: hex::FromHexError) -> Error {
+        Error::FromHexError(err)
     }
 }
 
-impl From<io::Error> for OIDError {
-    fn from(err: io::Error) -> OIDError {
-        OIDError::IoError(err)
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::IoError(err)
     }
 }
 
-pub type Result<T> = result::Result<T, OIDError>;
+pub type Result<T> = result::Result<T, Error>;
 
-impl fmt::Display for OIDError {
+impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &OIDError::ArgumentError(ref inner) => inner.fmt(fmt),
-            &OIDError::FromHexError(ref inner) => inner.fmt(fmt),
-            &OIDError::IoError(ref inner) => inner.fmt(fmt),
-            &OIDError::HostnameError => write!(fmt, "Failed to retrieve hostname for OID generation."),
+            &Error::ArgumentError(ref inner) => inner.fmt(fmt),
+            &Error::FromHexError(ref inner) => inner.fmt(fmt),
+            &Error::IoError(ref inner) => inner.fmt(fmt),
+            &Error::HostnameError => write!(fmt, "Failed to retrieve hostname for OID generation."),
         }
     }
 }
 
-impl error::Error for OIDError {
+impl error::Error for Error {
     fn description(&self) -> &str {
         match self {
-            &OIDError::ArgumentError(ref inner) => &inner,
-            &OIDError::FromHexError(ref inner) => inner.description(),
-            &OIDError::IoError(ref inner) => inner.description(),
-            &OIDError::HostnameError => "Failed to retrieve hostname for OID generation.",
+            &Error::ArgumentError(ref inner) => &inner,
+            &Error::FromHexError(ref inner) => inner.description(),
+            &Error::IoError(ref inner) => inner.description(),
+            &Error::HostnameError => "Failed to retrieve hostname for OID generation.",
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         match self {            
-            &OIDError::ArgumentError(_) => None,
-            &OIDError::FromHexError(ref inner) => Some(inner),
-            &OIDError::IoError(ref inner) => Some(inner),
-            &OIDError::HostnameError => None,
+            &Error::ArgumentError(_) => None,
+            &Error::FromHexError(ref inner) => Some(inner),
+            &Error::IoError(ref inner) => Some(inner),
+            &Error::HostnameError => None,
         }
     }
 }
@@ -117,7 +117,7 @@ impl ObjectId {
     pub fn with_string(s: &str) -> Result<ObjectId> {
         let bytes = try!(s.from_hex());
         if bytes.len() != 12 {
-            Err(OIDError::ArgumentError("Provided string must be a 12-byte hexadecimal string.".to_owned()))
+            Err(Error::ArgumentError("Provided string must be a 12-byte hexadecimal string.".to_owned()))
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
             for i in 0..12 {
@@ -198,7 +198,7 @@ impl ObjectId {
         let err = unsafe { gethostname(ptr as *mut libc::c_char, len as libc::size_t) } as i32;
 
         if err != 0 {
-            return Err(OIDError::HostnameError);
+            return Err(Error::HostnameError);
         }
 
         // Convert bytes into string
