@@ -54,8 +54,9 @@ pub use self::bson::{Bson, Document, Array};
 pub use self::encoder::{encode_document, EncoderResult, EncoderError};
 pub use self::decoder::{decode_document, DecoderResult, DecoderError};
 
-pub mod spec;
+pub mod macros;
 pub mod oid;
+pub mod spec;
 mod bson;
 mod encoder;
 mod decoder;

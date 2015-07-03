@@ -1,6 +1,3 @@
-extern crate bson;
-extern crate rustc_serialize;
-
 use bson::oid::ObjectId;
 use rustc_serialize::hex::ToHex;
 
