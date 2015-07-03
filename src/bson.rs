@@ -54,6 +54,12 @@ pub type Array = Vec<Bson>;
 /// Alias for `OrderedDocument`.
 pub type Document = OrderedDocument;
 
+impl From<f32> for Bson {
+    fn from(a: f32) -> Bson {
+        Bson::FloatingPoint(a as f64)
+    }
+}
+
 impl From<f64> for Bson {
     fn from(a: f64) -> Bson {
         Bson::FloatingPoint(a)
@@ -120,6 +126,18 @@ impl From<i32> for Bson {
 impl From<i64> for Bson {
     fn from(a: i64) -> Bson {
         Bson::I64(a)
+    }
+}
+
+impl From<u32> for Bson {
+    fn from(a: u32) -> Bson {
+        Bson::I32(a as i32)
+    }
+}
+
+impl From<u64> for Bson {
+    fn from(a: u64) -> Bson {
+        Bson::I64(a as i64)
     }
 }
 
