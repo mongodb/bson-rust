@@ -11,6 +11,10 @@ homepage = "https://github.com/zonyitoo/bson-rs"
 name = "bson"
 
 [dependencies]
-chrono = "*"
-byteorder = "*"
-rustc-serialize = "*"
+byteorder = "0.3"
+chrono = "0.2"
+libc = "0.1"
+rand = "0.3"
+rust-crypto = "0.2.31"
+rustc-serialize = "0.3"
+time = "0.1"

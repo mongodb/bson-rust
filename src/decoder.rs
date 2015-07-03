@@ -29,6 +29,7 @@ use chrono::{DateTime, NaiveDateTime, UTC};
 
 use spec::{self, BinarySubtype};
 use bson::{Bson, Array, Document};
+use oid;
 
 /// Possible errors that can arise during decoding.
 #[derive(Debug)]
@@ -194,7 +195,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
             for x in &mut objid {
                 *x = try!(reader.read_u8());
             }
-            Ok(Bson::ObjectId(objid))
+            Ok(Bson::ObjectId(oid::ObjectId::with_bytes(objid)))
         }
         Some(Boolean) => Ok(Bson::Boolean(try!(reader.read_u8()) != 0)),
         Some(NullValue) => Ok(Bson::Null),
