@@ -30,6 +30,7 @@ extern {
     fn gethostname(name: *mut libc::c_char, size: libc::size_t) -> libc::c_int;
 }
 
+/// Errors that can occur during OID construction and generation.
 #[derive(Debug)]
 pub enum Error {
     ArgumentError(String),
@@ -50,6 +51,7 @@ impl From<io::Error> for Error {
     }
 }
 
+/// Alias for Result<T, oid::Error>.
 pub type Result<T> = result::Result<T, Error>;
 
 impl fmt::Display for Error {
@@ -83,6 +85,7 @@ impl error::Error for Error {
     }
 }
 
+/// A wrapper around raw 12-byte ObjectId representations.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub struct ObjectId {
     id: [u8; 12],
@@ -107,6 +110,7 @@ impl ObjectId {
         Ok(ObjectId::with_bytes(buf))
     }
 
+    /// Constructs a new ObjectId wrapper around the raw byte representation.
     pub fn with_bytes(bytes: [u8; 12]) -> ObjectId {
         ObjectId {
             id: bytes,
@@ -136,6 +140,7 @@ impl ObjectId {
         ObjectId::with_bytes(buf)
     }
 
+    /// Returns the raw byte representation of an ObjectId.
     pub fn bytes(&self) -> [u8; 12] {
         self.id
     }
