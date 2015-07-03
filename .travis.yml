@@ -1,5 +1,8 @@
 language: rust
 
+env:
+    - RUST_TEST_THREADS=1
+
 script:
     - cargo build -v
     - cargo test -v
