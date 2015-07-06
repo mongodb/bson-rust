@@ -29,6 +29,8 @@ macro_rules! bson {
 
 #[macro_export]
 macro_rules! doc {
+    () => {{ $crate::Document::new() }};
+
     ( $($key:expr => $val:tt),* ) => {{
         let mut document = $crate::Document::new();
 
