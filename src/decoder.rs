@@ -217,7 +217,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
             let time = try!(read_i64(reader));
             Ok(Bson::UtcDatetime(DateTime::from_utc(NaiveDateTime::from_timestamp(time, 0), UTC)))
         },
-		Some(Deprecated) |
+	Some(Deprecated) |
         Some(Undefined) |
         Some(DbPointer) |
         Some(MaxKey) |
