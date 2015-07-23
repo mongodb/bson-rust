@@ -1,4 +1,4 @@
-#[macro_use]
+#[macro_use(bson, doc)]
 extern crate bson;
 extern crate chrono;
 extern crate rustc_serialize;
