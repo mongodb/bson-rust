@@ -21,6 +21,9 @@
 
 //! BSON definition
 
+use std::fmt::{Display, Error, Formatter};
+use std::str;
+
 use chrono::{DateTime, UTC};
 use rustc_serialize::json;
 use rustc_serialize::hex::ToHex;
@@ -53,6 +56,60 @@ pub enum Bson {
 pub type Array = Vec<Bson>;
 /// Alias for `OrderedDocument`.
 pub type Document = OrderedDocument;
+
+impl Display for Bson {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        let bson_string = match self {
+            &Bson::FloatingPoint(f) => format!("{}", f),
+            &Bson::String(ref s) => format!("\"{}\"", s),
+            &Bson::Array(ref vec) => {
+                let mut string = "[".to_owned();
+
+                for bson in vec.iter() {
+                    if !string.eq("[") {
+                        string.push_str(", ");
+                    }
+
+                    string.push_str(&format!("{}", bson));
+                }
+
+                string.push_str("]");
+                string
+            },
+            &Bson::Document(ref doc) => format!("{}", doc),
+            &Bson::Boolean(b) => format!("{}", b),
+            &Bson::Null => "null".to_owned(),
+            &Bson::RegExp(ref pat, ref opt) => format!("/{}/{}", pat, opt),
+            &Bson::JavaScriptCode(ref s) |
+            &Bson::JavaScriptCodeWithScope(ref s, _) => s.to_owned(),
+            &Bson::I32(i) => format!("{}", i),
+            &Bson::I64(i) => format!("{}", i),
+            &Bson::TimeStamp(i) => {
+                let time = (i >> 32) as i32;
+                let inc = (i & 0xFFFFFFFF) as i32;
+
+                format!("Timestamp({}, {})", time, inc)
+            },
+            &Bson::Binary(t, ref vec) => {
+                let string = unsafe { str::from_utf8_unchecked(vec) };
+                format!("BinData({}, \"{}\")", u8::from(t), string)
+            }
+            &Bson::ObjectId(ref id) => {
+                let mut vec = vec![];
+
+                for byte in id.bytes().iter() {
+                    vec.push(byte.to_owned());
+                }
+
+                let string = unsafe { String::from_utf8_unchecked(vec) };
+                format!("ObjectId(\"{}\")", string)
+            }
+            &Bson::UtcDatetime(date_time) => format!("Date(\"{}\")", date_time)
+        };
+
+        fmt.write_str(&bson_string)
+    }
+}
 
 impl From<f32> for Bson {
     fn from(a: f32) -> Bson {
