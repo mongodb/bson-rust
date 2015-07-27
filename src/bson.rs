@@ -75,7 +75,7 @@ impl Display for Bson {
 
                 string.push_str("]");
                 string
-            },
+            }
             &Bson::Document(ref doc) => format!("{}", doc),
             &Bson::Boolean(b) => format!("{}", b),
             &Bson::Null => "null".to_owned(),
@@ -89,11 +89,8 @@ impl Display for Bson {
                 let inc = (i & 0xFFFFFFFF) as i32;
 
                 format!("Timestamp({}, {})", time, inc)
-            },
-            &Bson::Binary(t, ref vec) => {
-                let string = unsafe { str::from_utf8_unchecked(vec) };
-                format!("BinData({}, \"{}\")", u8::from(t), string)
             }
+            &Bson::Binary(t, ref vec) => format!("BinData({}, {})", u8::from(t), vec.to_hex()),
             &Bson::ObjectId(ref id) => {
                 let mut vec = vec![];
 
