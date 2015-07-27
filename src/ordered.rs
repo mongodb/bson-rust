@@ -1,5 +1,6 @@
 use bson::Bson;
 use std::collections::BTreeMap;
+use std::fmt::{Display, Error, Formatter};
 use std::iter::{FromIterator, Map};
 use std::vec::IntoIter;
 use std::slice;
@@ -9,6 +10,23 @@ use std::slice;
 pub struct OrderedDocument {
     pub keys: Vec<String>,
     document: BTreeMap<String, Bson>,
+}
+
+impl Display for OrderedDocument {
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+        let mut string = "{ ".to_owned();
+
+        for (key, value) in self.iter() {
+            if !string.eq("{ ") {
+                string.push_str(", ");
+            }
+
+            string.push_str(&format!("{}: {}", key, value));
+        }
+
+        string.push_str(" }");
+        fmt.write_str(&string)
+    }
 }
 
 /// An iterator over OrderedDocument entries.
