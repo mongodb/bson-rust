@@ -1,6 +1,9 @@
 extern crate bson;
+extern crate chrono;
 
 use bson::{Document, Bson, encode_document};
+use chrono::UTC;
+use chrono::offset::TimeZone;
 
 #[test]
 fn test_encode_floating_point() {
@@ -37,6 +40,19 @@ fn test_encode_array() {
 
     let mut doc = Document::new();
     doc.insert("key".to_owned(), Bson::Array(src));
+
+    let mut buf = Vec::new();
+    encode_document(&mut buf, &doc).unwrap();
+
+    assert_eq!(&buf[..], &dst[..]);
+}
+#[test]
+fn test_encode_utc_date_time() {
+    let src = UTC.timestamp(1286705410, 0);
+    let dst = [18, 0, 0, 0, 9, 107, 101, 121, 0, 208, 111, 158, 149, 43, 1, 0, 0, 0];
+
+    let mut doc = Document::new();
+    doc.insert("key".to_owned(), Bson::UtcDatetime(src));
 
     let mut buf = Vec::new();
     encode_document(&mut buf, &doc).unwrap();
