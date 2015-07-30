@@ -24,6 +24,7 @@
 use std::io::{self, Write};
 use std::iter::IntoIterator;
 use std::{mem, error, fmt};
+use chrono::Timelike;
 
 use byteorder::{self, LittleEndian, WriteBytesExt};
 
@@ -162,7 +163,9 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
             try!(writer.write_u8(From::from(subtype)));
             writer.write_all(data).map_err(From::from)
         },
-        &Bson::UtcDatetime(ref v) => write_i64(writer, v.timestamp() * 1000),
+        &Bson::UtcDatetime(ref v) => {
+            write_i64(writer, (v.timestamp() * 1000) + (v.nanosecond()  / 1000000)  as i64)
+        },
         &Bson::Null => Ok(())
     }
 }

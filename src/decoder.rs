@@ -25,7 +25,8 @@ use std::io::{self, Read};
 use std::{str, error, fmt};
 
 use byteorder::{self, LittleEndian, ReadBytesExt};
-use chrono::{DateTime, NaiveDateTime, UTC};
+use chrono::{UTC};
+use chrono::offset::TimeZone;
 
 use spec::{self, BinarySubtype};
 use bson::{Bson, Array, Document};
@@ -215,7 +216,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
         Some(TimeStamp) => read_i64(reader).map(Bson::TimeStamp),
         Some(UtcDatetime) => {
             let time = try!(read_i64(reader));
-            Ok(Bson::UtcDatetime(DateTime::from_utc(NaiveDateTime::from_timestamp(time / 1000, 0), UTC)))
+            Ok(Bson::UtcDatetime(UTC.timestamp(time / 1000, (time % 1000) as u32 * 1000000)))
         },
 	Some(Deprecated) |
         Some(Undefined) |
