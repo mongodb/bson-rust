@@ -24,7 +24,7 @@ const COUNTER_OFFSET: usize = PROCESS_ID_OFFSET + PROCESS_ID_SIZE;
 const MAX_U24: usize = 0xFFFFFF;
 
 static OID_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
-static mut MACHINE_BYTES: [u8; 3] = [0; 3];
+static mut MACHINE_BYTES: Option<[u8; 3]> = None;
 
 extern {
     fn gethostname(name: *mut libc::c_char, size: libc::size_t) -> libc::c_int;
@@ -191,8 +191,8 @@ impl ObjectId {
         // Since the generated machine id is not variable, arising race conditions
         // will have the same MACHINE_BYTES result.
         unsafe {
-            if MACHINE_BYTES[0] != 0 || MACHINE_BYTES[1] != 0 || MACHINE_BYTES[2] != 0 {
-                return Ok(MACHINE_BYTES);
+            if let Some(bytes) = MACHINE_BYTES.as_ref() {
+                return Ok(bytes.clone());
             }
         }
 
@@ -224,7 +224,7 @@ impl ObjectId {
             }
         }
 
-        unsafe { MACHINE_BYTES = vec };
+        unsafe { MACHINE_BYTES = Some(vec) };
         Ok(vec)
     }
 
