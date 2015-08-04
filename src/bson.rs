@@ -24,7 +24,8 @@
 use std::fmt::{Display, Error, Formatter};
 
 use chrono::{DateTime, UTC};
-use rustc_serialize::json;
+use rustc_serialize::json::{self,Decoder,DecodeResult};
+use rustc_serialize::Decodable;
 use rustc_serialize::hex::ToHex;
 
 use ordered::OrderedDocument;
@@ -212,6 +213,7 @@ impl From<DateTime<UTC>> for Bson {
     }
 }
 
+
 impl Bson {
     /// Get the `ElementType` of this value.
     pub fn element_type(&self) -> ElementType {
@@ -278,6 +280,10 @@ impl Bson {
             &Bson::ObjectId(ref v) => json::Json::String(v.bytes().to_hex()),
             &Bson::UtcDatetime(ref v) => json::Json::String(v.to_string()),
         }
+    }
+
+    pub fn to_object<T>(&self) -> DecodeResult<T> where T : Decodable {
+        T::decode(&mut Decoder::new(self.to_json()))
     }
 
     /// Create a `Bson` from a `Json`.
