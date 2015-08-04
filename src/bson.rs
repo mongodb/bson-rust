@@ -22,7 +22,6 @@
 //! BSON definition
 
 use std::fmt::{Display, Error, Formatter};
-use std::str;
 
 use chrono::{DateTime, UTC};
 use rustc_serialize::json;
