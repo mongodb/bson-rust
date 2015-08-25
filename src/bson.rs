@@ -32,7 +32,7 @@ use spec::{ElementType, BinarySubtype};
 use oid;
 
 /// Possible BSON value types.
-#[derive(Debug, Clone)]
+#[derive(Debug,Clone,PartialEq)]
 pub enum Bson {
     FloatingPoint(f64),
     String(String),

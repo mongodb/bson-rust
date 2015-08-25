@@ -76,7 +76,7 @@ impl error::Error for Error {
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        match self {            
+        match self {
             &Error::ArgumentError(_) => None,
             &Error::FromHexError(ref inner) => Some(inner),
             &Error::IoError(ref inner) => Some(inner),
