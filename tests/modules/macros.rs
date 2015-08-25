@@ -28,11 +28,9 @@ fn recursive_macro() {
     // Inner Doc 1
     match doc.get("b") {
         Some(&Bson::Document(ref doc)) => {
-
             // Inner doc 2
             match doc.get("bar") {
                 Some(&Bson::Document(ref inner_doc)) => {
-
                     // Inner array
                     match inner_doc.get("harbor") {
                         Some(&Bson::Array(ref arr)) => {
@@ -85,7 +83,6 @@ fn recursive_macro() {
             // Nested document
             match arr[0] {
                 Bson::Document(ref doc) => {
-
                     // String
                     match doc.get("apple") {
                         Some(&Bson::String(ref s)) => assert_eq!("ripe", s),
@@ -101,7 +98,6 @@ fn recursive_macro() {
     // Single-item document
     match doc.get("e") {
         Some(&Bson::Document(ref bdoc)) => {
-
             // String
             match bdoc.get("single") {
                 Some(&Bson::String(ref s)) => assert_eq!("test", s),

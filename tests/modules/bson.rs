@@ -6,11 +6,11 @@ fn to_json() {
     doc.insert("first".to_owned(), Bson::I32(1));
     doc.insert("second".to_owned(), Bson::String("foo".to_owned()));
     doc.insert("alphanumeric".to_owned(), Bson::String("bar".to_owned()));
-    let data = Bson::Document(doc).to_json();    
+    let data = Bson::Document(doc).to_json();
 
     assert!(data.is_object());
     let obj = data.as_object().unwrap();
-    
+
     let first = obj.get("first").unwrap();
     assert!(first.is_number());
     assert_eq!(first.as_i64().unwrap(), 1);
@@ -22,5 +22,4 @@ fn to_json() {
     let alphanumeric = obj.get("alphanumeric").unwrap();
     assert!(alphanumeric.is_string());
     assert_eq!(alphanumeric.as_string().unwrap(), "bar");
-
 }

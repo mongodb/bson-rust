@@ -46,6 +46,7 @@ fn test_encode_array() {
 
     assert_eq!(&buf[..], &dst[..]);
 }
+
 #[test]
 fn test_encode_utc_date_time() {
     let src = UTC.timestamp(1286705410, 0);

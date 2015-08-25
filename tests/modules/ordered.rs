@@ -30,7 +30,7 @@ fn remove() {
     let expected_keys = vec!(
         "first",
         "alphanumeric",
-        );
+    );
 
     let keys: Vec<_> = doc.iter().map(|(key, _)| key.to_owned()).collect();
     assert_eq!(expected_keys, keys);
