@@ -189,10 +189,15 @@ impl OrderedDocument {
     }
 
     /// Sets the value of the entry with the OccupiedEntry's key,
-    /// and returns the entry's old value.
-    pub fn insert<KT: Into<String>>(&mut self, key: KT, val: Bson) -> Option<Bson> {
-        let key = key.into();
+    /// and returns the entry's old value. Accepts any type that
+    /// can be converted into Bson.
+    pub fn insert<KT: Into<String>, BT: Into<Bson>>(&mut self, key: KT, val: BT) -> Option<Bson> {
+        self.insert_bson(key.into(), val.into())
+    }
 
+    /// Sets the value of the entry with the OccupiedEntry's key,
+    /// and returns the entry's old value.
+    pub fn insert_bson(&mut self, key: String, val: Bson) -> Option<Bson> {
         {
             let key_slice = &key[..];
             if self.contains_key(key_slice) {

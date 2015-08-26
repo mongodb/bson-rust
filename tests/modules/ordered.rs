@@ -20,9 +20,9 @@ fn ordered_insert() {
 #[test]
 fn ordered_insert_shorthand() {
     let mut doc = Document::new();
-    doc.insert("first", Bson::I32(1));
-    doc.insert("second", Bson::String("foo".to_owned()));
-    doc.insert("alphanumeric", Bson::String("bar".to_owned()));
+    doc.insert("first", 1i32);
+    doc.insert("second", "foo");
+    doc.insert("alphanumeric", "bar".to_owned());
 
     let expected_keys = vec!(
         "first".to_owned(),

@@ -35,7 +35,7 @@ macro_rules! doc {
         let mut document = $crate::Document::new();
 
         $(
-            document.insert($key.to_owned(), bson!($val));
+            document.insert_bson($key.to_owned(), bson!($val));
         )*
 
         document
