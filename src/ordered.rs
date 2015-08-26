@@ -190,16 +190,19 @@ impl OrderedDocument {
 
     /// Sets the value of the entry with the OccupiedEntry's key,
     /// and returns the entry's old value.
-    pub fn insert(&mut self, key: String, val: Bson) -> Option<Bson> {
-        let key_slice = &key[..];
+    pub fn insert<KT: Into<String>>(&mut self, key: KT, val: Bson) -> Option<Bson> {
+        let key = key.into();
 
-        if self.contains_key(key_slice) {
-            let position = self.position(key_slice).unwrap();
-            self.keys.remove(position);
+        {
+            let key_slice = &key[..];
+            if self.contains_key(key_slice) {
+                let position = self.position(key_slice).unwrap();
+                self.keys.remove(position);
+            }
         }
 
         self.keys.push(key.to_owned());
-        self.document.insert(key.to_owned(), val.to_owned())
+        self.document.insert(key, val.to_owned())
     }
 
     /// Takes the value of the entry out of the document, and returns it.
