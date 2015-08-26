@@ -1,12 +1,24 @@
-use bson::Bson;
+use chrono::{DateTime, UTC};
+use bson::{Array,Bson,Document};
+use super::oid::ObjectId;
 use std::collections::BTreeMap;
 use std::fmt::{Display, Error, Formatter};
 use std::iter::{FromIterator, Map};
 use std::vec::IntoIter;
 use std::slice;
 
+/// Error to indicate that either a value was empty or it contained an unexpected
+/// type, for use with the direct getters.
+#[derive(Debug,PartialEq)]
+pub enum ValueAccessError {
+    NotPresent,
+    UnexpectedType
+}
+
+pub type ValueAccessResult<T> = Result<T, ValueAccessError>;
+
 /// A BSON document represented as an associative BTree Map with insertion ordering.
-#[derive(Debug, Clone)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct OrderedDocument {
     pub keys: Vec<String>,
     document: BTreeMap<String, Bson>,
@@ -147,9 +159,107 @@ impl OrderedDocument {
         self.document.get(key)
     }
 
-    /// Gets a mutable reference to the value in the entry.
+    /// Gets a mutable reference to the Bson corresponding to the key
     pub fn get_mut(&mut self, key: &str) -> Option<&mut Bson> {
         self.document.get_mut(key)
+    }
+
+    /// Get a floating point value for this key if it exists and has
+    /// the correct type.
+    pub fn get_f64(&self, key: &str) -> ValueAccessResult<f64> {
+        match self.get(key) {
+            Some(&Bson::FloatingPoint(v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent)
+        }
+    }
+
+    /// Get a string slice this key if it exists and has the correct type.
+    pub fn get_str(&self, key: &str) -> ValueAccessResult<&str> {
+        match self.get(key) {
+            Some(&Bson::String(ref v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent)
+        }
+    }
+
+    /// Get a reference to an array for this key if it exists and has
+    /// the correct type.
+    pub fn get_array(&self, key: &str) -> ValueAccessResult<&Array> {
+        match self.get(key) {
+            Some(&Bson::Array(ref v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent)
+        }
+    }
+
+    /// Get a reference to a document for this key if it exists and has
+    /// the correct type.
+    pub fn get_document(&self, key: &str) -> ValueAccessResult<&Document> {
+        match self.get(key) {
+            Some(&Bson::Document(ref v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent)
+        }
+    }
+
+    /// Get a bool value for this key if it exists and has the correct type.
+    pub fn get_bool(&self, key: &str) -> ValueAccessResult<bool> {
+        match self.get(key) {
+            Some(&Bson::Boolean(v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent)
+        }
+    }
+
+    /// Returns wether this key has a null value
+    pub fn is_null(&self, key: &str) -> bool {
+        self.get(key) == Some(&Bson::Null)
+    }
+
+    /// Get an i32 value for this key if it exists and has the correct type.
+    pub fn get_i32(&self, key: &str) -> ValueAccessResult<i32> {
+        match self.get(key) {
+            Some(&Bson::I32(v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent)
+        }
+    }
+
+    /// Get an i64 value for this key if it exists and has the correct type.
+    pub fn get_i64(&self, key: &str) -> ValueAccessResult<i64> {
+        match self.get(key) {
+            Some(&Bson::I64(v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent)
+        }
+    }
+
+    /// Get a time stamp value for this key if it exists and has the correct type.
+    pub fn get_time_stamp(&self, key: &str) -> ValueAccessResult<i64> {
+        match self.get(key) {
+            Some(&Bson::TimeStamp(v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent)
+        }
+    }
+
+    /// Get an object id value for this key if it exists and has the correct type.
+    pub fn get_object_id(&self, key: &str) -> ValueAccessResult<&ObjectId> {
+        match self.get(key) {
+            Some(&Bson::ObjectId(ref v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent)
+        }
+    }
+
+    /// Get a UTC datetime value for this key if it exists and has the correct type.
+    pub fn get_utc_datetime(&self, key: &str) -> ValueAccessResult<&DateTime<UTC>> {
+        match self.get(key) {
+            Some(&Bson::UtcDatetime(ref v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent)
+        }
     }
 
     /// Returns true if the map contains a value for the specified key.
