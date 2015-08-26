@@ -102,7 +102,7 @@ impl<'a> Iterator for OrderedDocumentIntoIterator {
         match self.vec_iter.next() {
             Some(key) => {
                 let val = self.document.remove(&key[..]).unwrap();
-                Some((key, val.to_owned()))
+                Some((key, val))
             },
             None => None,
         }
@@ -202,7 +202,7 @@ impl OrderedDocument {
         }
 
         self.keys.push(key.to_owned());
-        self.document.insert(key, val.to_owned())
+        self.document.insert(key, val)
     }
 
     /// Takes the value of the entry out of the document, and returns it.

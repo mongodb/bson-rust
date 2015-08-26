@@ -25,7 +25,7 @@ fn test_encode_utf8_string() {
     let dst = [28, 0, 0, 0, 2, 107, 101, 121, 0, 14, 0, 0, 0, 116, 101, 115, 116, 228, 189, 160, 229, 165, 189, 229, 144, 151, 0, 0];
 
     let mut doc = Document::new();
-    doc.insert("key".to_owned(), Bson::String(src));
+    doc.insert("key", Bson::String(src));
 
     let mut buf = Vec::new();
     encode_document(&mut buf, &doc).unwrap();
@@ -39,7 +39,7 @@ fn test_encode_array() {
     let dst = [37, 0, 0, 0, 4, 107, 101, 121, 0, 27, 0, 0, 0, 1, 48, 0, 41, 92, 143, 194, 245, 40, 240, 63, 2, 49, 0, 4, 0, 0, 0, 120, 121, 122, 0, 0, 0];
 
     let mut doc = Document::new();
-    doc.insert("key".to_owned(), Bson::Array(src));
+    doc.insert("key", Bson::Array(src));
 
     let mut buf = Vec::new();
     encode_document(&mut buf, &doc).unwrap();
@@ -53,7 +53,7 @@ fn test_encode_utc_date_time() {
     let dst = [18, 0, 0, 0, 9, 107, 101, 121, 0, 208, 111, 158, 149, 43, 1, 0, 0, 0];
 
     let mut doc = Document::new();
-    doc.insert("key".to_owned(), Bson::UtcDatetime(src));
+    doc.insert("key", Bson::UtcDatetime(src));
 
     let mut buf = Vec::new();
     encode_document(&mut buf, &doc).unwrap();
