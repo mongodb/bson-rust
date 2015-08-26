@@ -37,9 +37,9 @@ fn ordered_insert_shorthand() {
 #[test]
 fn remove() {
     let mut doc = Document::new();
-    doc.insert("first".to_owned(), Bson::I32(1));
-    doc.insert("second".to_owned(), Bson::String("foo".to_owned()));
-    doc.insert("alphanumeric".to_owned(), Bson::String("bar".to_owned()));
+    doc.insert("first", Bson::I32(1));
+    doc.insert("second", Bson::String("foo".to_owned()));
+    doc.insert("alphanumeric", Bson::String("bar".to_owned()));
 
     assert!(doc.remove("second").is_some());
     assert!(doc.remove("none").is_none());

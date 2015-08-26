@@ -3,9 +3,9 @@ use bson::{Bson, Document};
 #[test]
 fn to_json() {
     let mut doc = Document::new();
-    doc.insert("first".to_owned(), Bson::I32(1));
-    doc.insert("second".to_owned(), Bson::String("foo".to_owned()));
-    doc.insert("alphanumeric".to_owned(), Bson::String("bar".to_owned()));
+    doc.insert("first", Bson::I32(1));
+    doc.insert("second", Bson::String("foo".to_owned()));
+    doc.insert("alphanumeric", Bson::String("bar".to_owned()));
     let data = Bson::Document(doc).to_json();
 
     assert!(data.is_object());
