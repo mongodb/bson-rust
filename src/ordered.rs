@@ -2,20 +2,46 @@ use chrono::{DateTime, UTC};
 use bson::{Array,Bson,Document};
 use super::oid::ObjectId;
 use std::collections::BTreeMap;
-use std::fmt::{Display, Error, Formatter};
+use std::error;
+use std::fmt;
+use std::fmt::{Debug, Display, Error, Formatter};
 use std::iter::{FromIterator, Map};
 use std::vec::IntoIter;
 use std::slice;
 
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters.
-#[derive(Debug,PartialEq)]
+#[derive(PartialEq)]
 pub enum ValueAccessError {
     NotPresent,
     UnexpectedType
 }
 
 pub type ValueAccessResult<T> = Result<T, ValueAccessError>;
+
+impl Debug for ValueAccessError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match *self {
+            ValueAccessError::NotPresent => write!(f, "ValueAccessError: field is not present"),
+            ValueAccessError::UnexpectedType => write!(f, "ValueAccessError: field does not have the expected type")
+        }
+    }
+}
+
+impl Display for ValueAccessError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match *self {
+            ValueAccessError::NotPresent => write!(f, "field is not present"),
+            ValueAccessError::UnexpectedType => write!(f, "field does not have the expected type")
+        }
+    }
+}
+
+impl error::Error for ValueAccessError {
+    fn description(&self) -> &str {
+        "Error to indicate that either a value was empty or it contained an unexpected type"
+    }
+}
 
 /// A BSON document represented as an associative BTree Map with insertion ordering.
 #[derive(Debug,Clone,PartialEq)]
