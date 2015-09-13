@@ -17,7 +17,8 @@ fn recursive_macro() {
                 "apple" => "ripe"
             }
         ],
-        "e" => { "single" => "test" }
+        "e" => { "single" => "test" },
+        "n" => (Bson::Null)
     };
 
     match doc.get("a") {
@@ -105,5 +106,12 @@ fn recursive_macro() {
             }
         },
         _ => panic!("Single-item document was not inserted correctly."),
+    }
+
+    match doc.get("n") {
+        Some(&Bson::Null) => {
+            // It was null
+        }
+        _ => panic!("Null was not inserted correctly."),
     }
 }
