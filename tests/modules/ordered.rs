@@ -1,5 +1,6 @@
 use bson::{Bson, Document};
 use bson::ValueAccessError;
+use bson::spec::BinarySubtype;
 use bson::oid::ObjectId;
 use chrono::UTC;
 
@@ -41,6 +42,7 @@ fn ordered_insert_shorthand() {
 fn test_getters() {
     let datetime = UTC::now();
     let cloned_dt = datetime.clone();
+    let binary = vec![0, 1, 2, 3, 4];
     let mut doc = doc! {
         "floating_point" => 10.0,
         "string" => "a value",
@@ -49,7 +51,8 @@ fn test_getters() {
         "bool" => true,
         "i32" => 1i32,
         "i64" => 1i64,
-        "datetime" => cloned_dt
+        "datetime" => cloned_dt,
+        "binary" => (BinarySubtype::Generic, binary.clone())
     };
 
     assert_eq!(None, doc.get("nonsense"));
@@ -88,13 +91,16 @@ fn test_getters() {
     assert_eq!(Some(&Bson::TimeStamp(100)), doc.get("timestamp"));
     assert_eq!(Ok(100i64), doc.get_time_stamp("timestamp"));
 
+    assert_eq!(Some(&Bson::UtcDatetime(datetime.clone())), doc.get("datetime"));
+    assert_eq!(Ok(&datetime), doc.get_utc_datetime("datetime"));
+
     let object_id = ObjectId::new().unwrap();
     doc.insert("_id".to_string(), Bson::ObjectId(object_id.clone()));
     assert_eq!(Some(&Bson::ObjectId(object_id.clone())), doc.get("_id"));
     assert_eq!(Ok(&object_id), doc.get_object_id("_id"));
 
-    assert_eq!(Some(&Bson::UtcDatetime(datetime.clone())), doc.get("datetime"));
-    assert_eq!(Ok(&datetime), doc.get_utc_datetime("datetime"));
+    assert_eq!(Some(&Bson::Binary(BinarySubtype::Generic, binary.clone())), doc.get("binary"));
+    assert_eq!(Ok(&binary), doc.get_binary_generic("binary"));
 }
 
 #[test]
