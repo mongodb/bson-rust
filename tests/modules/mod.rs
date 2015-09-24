@@ -1,4 +1,4 @@
-mod encoder;
+mod encoder_decoder;
 mod macros;
 mod oid;
 mod ordered;
