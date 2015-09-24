@@ -1,5 +1,6 @@
 use chrono::{DateTime, UTC};
 use bson::{Array,Bson,Document};
+use super::spec::BinarySubtype;
 use super::oid::ObjectId;
 use std::collections::BTreeMap;
 use std::error;
@@ -265,6 +266,15 @@ impl OrderedDocument {
     pub fn get_time_stamp(&self, key: &str) -> ValueAccessResult<i64> {
         match self.get(key) {
             Some(&Bson::TimeStamp(v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent)
+        }
+    }
+
+    /// Get a generic binary value for this key if it exists and has the correct type.
+    pub fn get_binary_generic(&self, key: &str) -> ValueAccessResult<&Vec<u8>> {
+        match self.get(key) {
+            Some(&Bson::Binary(BinarySubtype::Generic, ref v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent)
         }
