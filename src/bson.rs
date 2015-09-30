@@ -127,6 +127,12 @@ impl<'a> From<&'a str> for Bson {
 
 impl From<String> for Bson {
     fn from(a: String) -> Bson {
+        Bson::String(a)
+    }
+}
+
+impl<'a> From<&'a String> for Bson {
+    fn from(a: &'a String) -> Bson {
         Bson::String(a.to_owned())
     }
 }
