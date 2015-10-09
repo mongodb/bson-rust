@@ -1,5 +1,6 @@
 use bson::oid::ObjectId;
 use rustc_serialize::hex::ToHex;
+use rustc_serialize::json;
 
 #[test]
 fn deserialize() {
@@ -63,6 +64,7 @@ fn byte_string_oid() {
                            0x83u8, 0x2Bu8, 0x21u8, 0x8Eu8];
 
     assert_eq!(bytes, oid.bytes());
+    assert_eq!(s, oid.to_string());
 }
 
 #[test]
@@ -95,4 +97,22 @@ fn increasing() {
     let oid1 = oid1_res.unwrap();
     let oid2 = oid2_res.unwrap();
     assert!(oid1 < oid2);
+}
+
+#[derive(RustcEncodable,RustcDecodable,PartialEq,Debug)]
+struct StructWithObjectId {
+    id: ObjectId
+}
+
+#[test]
+fn use_in_rustc_serialize() {
+    let s = "541b1a00e8a23afa832b218e";
+    let s = StructWithObjectId {
+        id: ObjectId::with_string(s).unwrap()
+    };
+    let encoded = json::encode(&s).unwrap();
+    assert_eq!("{\"id\":\"541b1a00e8a23afa832b218e\"}", encoded);
+
+    let decoded: StructWithObjectId = json::decode(&encoded).unwrap();
+    assert_eq!(s, decoded);
 }

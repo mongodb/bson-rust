@@ -5,7 +5,8 @@ use crypto::md5::Md5;
 
 use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use rand::{Rng, OsRng};
-use rustc_serialize::hex::{self, FromHex};
+use rustc_serialize::hex::{self, FromHex, ToHex};
+use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use time;
 
 use std::{fmt, io, error, result};
@@ -145,6 +146,11 @@ impl ObjectId {
         self.id
     }
 
+    /// Returns a 12-byte (24-char) hexadecimal string
+    pub fn to_string(&self) -> String {
+        self.id.to_hex()
+    }
+
     /// Retrieves the timestamp (seconds since epoch) from an ObjectId.
     pub fn timestamp(&self) -> u32 {
         BigEndian::read_u32(&self.id)
@@ -262,6 +268,19 @@ impl ObjectId {
         BigEndian::write_u64(&mut buf, u_int);
         let buf_u24: [u8; 3] = [buf[5], buf[6], buf[7]];
         Ok(buf_u24)
+    }
+}
+
+impl Decodable for ObjectId {
+    fn decode<D: Decoder>(d: &mut D) -> result::Result<Self, D::Error> {
+        let str = try!(d.read_str());
+        Ok(ObjectId::with_string(&str).unwrap())
+    }
+}
+
+impl Encodable for ObjectId {
+    fn encode<S: Encoder>(&self, s: &mut S) -> result::Result<(), S::Error> {
+        s.emit_str(&self.to_string())
     }
 }
 
