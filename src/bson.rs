@@ -90,16 +90,7 @@ impl Display for Bson {
                 format!("Timestamp({}, {})", time, inc)
             }
             &Bson::Binary(t, ref vec) => format!("BinData({}, 0x{})", u8::from(t), vec.to_hex()),
-            &Bson::ObjectId(ref id) => {
-                let mut vec = vec![];
-
-                for byte in id.bytes().iter() {
-                    vec.push(byte.to_owned());
-                }
-
-                let string = unsafe { String::from_utf8_unchecked(vec) };
-                format!("ObjectId(\"{}\")", string)
-            }
+            &Bson::ObjectId(ref id) => format!("ObjectId(\"{}\")", id),
             &Bson::UtcDatetime(date_time) => format!("Date(\"{}\")", date_time)
         };
 
