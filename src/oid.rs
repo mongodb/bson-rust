@@ -146,11 +146,6 @@ impl ObjectId {
         self.id
     }
 
-    /// Returns a 12-byte (24-char) hexadecimal string
-    pub fn to_string(&self) -> String {
-        self.id.to_hex()
-    }
-
     /// Retrieves the timestamp (seconds since epoch) from an ObjectId.
     pub fn timestamp(&self) -> u32 {
         BigEndian::read_u32(&self.id)
@@ -268,6 +263,18 @@ impl ObjectId {
         BigEndian::write_u64(&mut buf, u_int);
         let buf_u24: [u8; 3] = [buf[5], buf[6], buf[7]];
         Ok(buf_u24)
+    }
+}
+
+impl ToHex for ObjectId {
+    fn to_hex(&self) -> String {
+        self.id.to_hex()
+    }
+}
+
+impl fmt::Display for ObjectId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(&self.to_hex())
     }
 }
 

@@ -58,52 +58,43 @@ pub type Document = OrderedDocument;
 
 impl Display for Bson {
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        let bson_string = match self {
-            &Bson::FloatingPoint(f) => format!("{}", f),
-            &Bson::String(ref s) => format!("\"{}\"", s),
+        match self {
+            &Bson::FloatingPoint(f) => write!(fmt, "{}", f),
+            &Bson::String(ref s) => write!(fmt, "\"{}\"", s),
             &Bson::Array(ref vec) => {
-                let mut string = "[".to_owned();
+                try!(write!(fmt, "["));
 
+                let mut first = true;
                 for bson in vec.iter() {
-                    if !string.eq("[") {
-                        string.push_str(", ");
+                    if !first {
+                        try!(write!(fmt, ", "));
                     }
 
-                    string.push_str(&format!("{}", bson));
+                    try!(write!(fmt, "{}", bson));
+                    first = false;
                 }
 
-                string.push_str("]");
-                string
+                write!(fmt, "]")
             }
-            &Bson::Document(ref doc) => format!("{}", doc),
-            &Bson::Boolean(b) => format!("{}", b),
-            &Bson::Null => "null".to_owned(),
-            &Bson::RegExp(ref pat, ref opt) => format!("/{}/{}", pat, opt),
+            &Bson::Document(ref doc) => write!(fmt, "{}", doc),
+            &Bson::Boolean(b) => write!(fmt, "{}", b),
+            &Bson::Null => write!(fmt, "null"),
+            &Bson::RegExp(ref pat, ref opt) => write!(fmt, "/{}/{}", pat, opt),
             &Bson::JavaScriptCode(ref s) |
-            &Bson::JavaScriptCodeWithScope(ref s, _) => s.to_owned(),
-            &Bson::I32(i) => format!("{}", i),
-            &Bson::I64(i) => format!("{}", i),
+            &Bson::JavaScriptCodeWithScope(ref s, _) => fmt.write_str(&s),
+            &Bson::I32(i) => write!(fmt, "{}", i),
+            &Bson::I64(i) => write!(fmt, "{}", i),
             &Bson::TimeStamp(i) => {
                 let time = (i >> 32) as i32;
                 let inc = (i & 0xFFFFFFFF) as i32;
 
-                format!("Timestamp({}, {})", time, inc)
+                write!(fmt, "Timestamp({}, {})", time, inc)
             }
-            &Bson::Binary(t, ref vec) => format!("BinData({}, 0x{})", u8::from(t), vec.to_hex()),
-            &Bson::ObjectId(ref id) => {
-                let mut vec = vec![];
-
-                for byte in id.bytes().iter() {
-                    vec.push(byte.to_owned());
-                }
-
-                let string = unsafe { String::from_utf8_unchecked(vec) };
-                format!("ObjectId(\"{}\")", string)
-            }
-            &Bson::UtcDatetime(date_time) => format!("Date(\"{}\")", date_time)
-        };
-
-        fmt.write_str(&bson_string)
+            &Bson::Binary(t, ref vec) =>
+                write!(fmt, "BinData({}, 0x{})", u8::from(t), vec.to_hex()),
+            &Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
+            &Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time)
+        }
     }
 }
 
