@@ -48,13 +48,16 @@ extern crate crypto;
 extern crate libc;
 extern crate rand;
 extern crate rustc_serialize;
+extern crate serde;
 extern crate time;
 
 pub use self::bson::{Bson, Document, Array};
 pub use self::encoder::{encode_document, EncoderResult, EncoderError};
 pub use self::decoder::{decode_document, DecoderResult, DecoderError};
 pub use self::ordered::{ValueAccessError, ValueAccessResult};
+pub use self::ser::{to_bson, from_bson};
 
+#[macro_use]
 pub mod macros;
 pub mod oid;
 pub mod spec;
@@ -62,3 +65,4 @@ mod bson;
 mod encoder;
 mod decoder;
 mod ordered;
+mod ser;

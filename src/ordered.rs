@@ -9,6 +9,8 @@ use std::fmt::{Debug, Display, Error, Formatter};
 use std::iter::{FromIterator, Map};
 use std::vec::IntoIter;
 use std::slice;
+use serde::ser::{Serialize, Serializer};
+use serde::ser::impls::MapIteratorVisitor;
 
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters.
@@ -363,5 +365,23 @@ impl OrderedDocument {
             self.keys.remove(position.unwrap());
         }
         self.document.remove(key)
+    }
+}
+
+impl Serialize for OrderedDocument {
+    #[inline]
+    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+        where S: Serializer,
+    {
+        serializer.visit_map(MapIteratorVisitor::new(self.iter(), Some(self.len())))
+    }
+}
+
+impl From<BTreeMap<String, Bson>> for OrderedDocument {
+    fn from(tree: BTreeMap<String, Bson>) -> OrderedDocument {        
+        OrderedDocument {
+            keys: tree.keys().cloned().collect(),
+            document: tree,
+        }
     }
 }

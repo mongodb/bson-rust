@@ -23,9 +23,10 @@
 
 use std::fmt::{Display, Error, Formatter};
 
-use chrono::{DateTime, UTC};
+use chrono::{DateTime, Timelike, UTC};
+use chrono::offset::TimeZone;
 use rustc_serialize::json;
-use rustc_serialize::hex::ToHex;
+use rustc_serialize::hex::{FromHex, ToHex};
 
 use ordered::OrderedDocument;
 use spec::{ElementType, BinarySubtype};
@@ -289,5 +290,86 @@ impl Bson {
             &json::Json::Object(ref x) => Bson::Document(x.iter().map(|(k, v)| (k.clone(), Bson::from_json(v))).collect()),
             &json::Json::Null => Bson::Null,
         }
+    }
+
+    pub fn to_extended_document(&self) -> Document {
+        match *self {
+            Bson::RegExp(ref pat, ref opt) => {
+                doc! {
+                    "$regex" => (pat.clone()),
+                    "$options" => (opt.clone())
+                }
+            }
+            Bson::JavaScriptCode(ref code) => {
+                doc! {
+                    "$code" => (code.clone())
+                }
+            }
+            Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
+                doc! {
+                    "$code" => (code.clone()),
+                    "$scope" => (scope.clone())
+                }
+            }
+            Bson::TimeStamp(v) => {
+                // TODO
+                doc! {
+                    //"$timestamp" => {
+//                        "t" => (v[0..4] as i32),
+                    //"i" => (v[4..8] as i32),
+                    "$timestamp" => v
+                }
+            }
+            Bson::Binary(t, ref v) => {
+                let tval: u8 = From::from(t);
+                doc! {
+                    "$binary" => (v.to_hex()),
+                    "type" => (tval as i64)
+                }
+            }
+            Bson::ObjectId(ref v) => {
+                doc! {
+                    "$oid" => (v.to_string())
+                }
+            }
+            Bson::UtcDatetime(ref v) => {
+                doc! {
+                    "$date" => {
+                        "$numberLong" => ((v.timestamp() * 1000) + (v.nanosecond() / 1000000) as i64)
+                    }
+                }
+            }
+            // TODO: Actual error
+            _ => unreachable!()
+        }
+    }
+
+    pub fn from_extended_document(values: Document) -> Result<Bson, Error> {
+        if let Some(&Bson::String(ref pat)) = values.get("$regex") {
+            if let Some(&Bson::String(ref opt)) = values.get("$options") {
+                return Ok(Bson::RegExp(pat.to_owned(), opt.to_owned()));
+            }
+        } else if let Some(&Bson::String(ref code)) = values.get("$code") {
+            if let Some(&Bson::Document(ref scope)) = values.get("$sscope") {
+                return Ok(Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned()));
+            } else {
+                return Ok(Bson::JavaScriptCode(code.to_owned()));
+            }
+        } else if values.contains_key("$timestamp") {
+            // TODO
+        } else if let Some(&Bson::String(ref hex)) = values.get("$binary") {
+            if let Some(&Bson::I64(t)) = values.get("type") {
+                let ttype = t as u8;
+                return Ok(Bson::Binary(From::from(ttype), hex.from_hex().unwrap()));
+            }
+        } else if let Some(&Bson::String(ref hex)) = values.get("$oid") {
+            return Ok(Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap()));
+        } else if let Some(&Bson::Document(ref doc)) = values.get("$date") {
+            if let Some(&Bson::I64(long)) = doc.get("$numberLong") {
+                return Ok(Bson::UtcDatetime(UTC.timestamp(long / 1000, (long % 1000) as u32 * 1000000)));
+            }
+        }       
+        
+        Ok(Bson::Document(values))
     }
 }
