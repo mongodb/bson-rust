@@ -187,6 +187,80 @@ impl de::Error for Error {
     }
 }
 
+pub struct BsonVisitor;
+
+impl de::Visitor for BsonVisitor {
+    type Value = Bson;
+    
+    #[inline]
+    fn visit_bool<E>(&mut self, value: bool) -> Result<Bson, E> {
+        Ok(Bson::Boolean(value))
+    }
+    
+    #[inline]
+    fn visit_i64<E>(&mut self, value: i64) -> Result<Bson, E> {
+        Ok(Bson::I64(value))
+    }
+    
+    #[inline]
+    fn visit_u64<E>(&mut self, value: u64) -> Result<Bson, E> {
+        Ok(Bson::FloatingPoint(value as f64))
+    }
+    
+    #[inline]
+    fn visit_f64<E>(&mut self, value: f64) -> Result<Bson, E> {
+        Ok(Bson::FloatingPoint(value))
+    }
+    
+    #[inline]
+    fn visit_str<E>(&mut self, value: &str) -> Result<Bson, E>
+        where E: de::Error,
+    {
+        self.visit_string(String::from(value))
+    }
+    
+    #[inline]
+    fn visit_string<E>(&mut self, value: String) -> Result<Bson, E> {
+        Ok(Bson::String(value))
+    }
+    
+    #[inline]
+    fn visit_none<E>(&mut self) -> Result<Bson, E> {
+        Ok(Bson::Null)
+    }
+    
+    #[inline]
+    fn visit_some<D>(&mut self, deserializer: &mut D) -> Result<Bson, D::Error>
+        where D: de::Deserializer,
+    {
+        de::Deserialize::deserialize(deserializer)
+    }
+    
+    #[inline]
+    fn visit_unit<E>(&mut self) -> Result<Bson, E> {
+        Ok(Bson::Null)
+    }
+    
+    #[inline]
+    fn visit_seq<V>(&mut self, visitor: V) -> Result<Bson, V::Error>
+        where V: de::SeqVisitor,
+    {
+        let values = try!(de::impls::VecVisitor::new().visit_seq(visitor));
+        Ok(Bson::Array(values))
+    }
+    
+    #[inline]
+    fn visit_map<V>(&mut self, visitor: V) -> Result<Bson, V::Error>
+        where V: de::MapVisitor,
+    {
+        let values = try!(de::impls::BTreeMapVisitor::new().visit_map(visitor));
+        let values2 = values.clone();
+        println!("{:?}", Bson::from_extended_document(values2.into()));
+        Ok(Bson::from_extended_document(values.into()).unwrap())
+    }
+}
+
+
 #[derive(Debug)]
 enum State {
     Bson(Bson),
@@ -382,7 +456,9 @@ impl ser::Serializer for Serializer {
             state => panic!("expected object, found {:?}", state),
         };
 
+        println!("VALUES FROM VISIT_MAP: {:?} // {:?}", &values, values.get("$oid"));
         let bson = Bson::from_extended_document(values).unwrap();
+        
         self.state.push(State::Bson(bson));
         Ok(())
     }
@@ -423,12 +499,16 @@ impl ser::Serializer for Serializer {
             state => panic!("expected key, found {:?}", state),
         };
 
+        println!("SERIALIZED KEY: {:?}", &key);
+
         try!(value.serialize(self));
 
         let value = match self.state.pop().unwrap() {
             State::Bson(value) => value,
             state => panic!("expected value, found {:?}", state),
         };
+
+        println!("SERIALIZED VALUE: {:?}", &value);
 
         match *self.state.last_mut().unwrap() {
             State::Document(ref mut values) => { values.insert(key, value); }
@@ -497,6 +577,7 @@ impl de::Deserializer for Deserializer {
             _ => {
                 let doc = value.to_extended_document();
                 let len = doc.len();
+                println!("{:?}", doc);
                 visitor.visit_map(MapDeserializer {
                     de: self,
                     iter: doc.into_iter(),
@@ -787,77 +868,6 @@ impl de::Deserialize for Bson {
     fn deserialize<D>(deserializer: &mut D) -> Result<Bson, D::Error>
         where D: de::Deserializer,
     {
-        struct BsonVisitor;
-
-        impl de::Visitor for BsonVisitor {
-            type Value = Bson;
-
-            #[inline]
-            fn visit_bool<E>(&mut self, value: bool) -> Result<Bson, E> {
-                Ok(Bson::Boolean(value))
-            }
-
-            #[inline]
-            fn visit_i64<E>(&mut self, value: i64) -> Result<Bson, E> {
-                Ok(Bson::I64(value))
-            }
-
-            #[inline]
-            fn visit_u64<E>(&mut self, value: u64) -> Result<Bson, E> {
-                Ok(Bson::FloatingPoint(value as f64))
-            }
-
-            #[inline]
-            fn visit_f64<E>(&mut self, value: f64) -> Result<Bson, E> {
-                Ok(Bson::FloatingPoint(value))
-            }
-
-            #[inline]
-            fn visit_str<E>(&mut self, value: &str) -> Result<Bson, E>
-                where E: de::Error,
-            {
-                self.visit_string(String::from(value))
-            }
-
-            #[inline]
-            fn visit_string<E>(&mut self, value: String) -> Result<Bson, E> {
-                Ok(Bson::String(value))
-            }
-
-            #[inline]
-            fn visit_none<E>(&mut self) -> Result<Bson, E> {
-                Ok(Bson::Null)
-            }
-
-            #[inline]
-            fn visit_some<D>(&mut self, deserializer: &mut D) -> Result<Bson, D::Error>
-                where D: de::Deserializer,
-            {
-                de::Deserialize::deserialize(deserializer)
-            }
-
-            #[inline]
-            fn visit_unit<E>(&mut self) -> Result<Bson, E> {
-                Ok(Bson::Null)
-            }
-
-            #[inline]
-            fn visit_seq<V>(&mut self, visitor: V) -> Result<Bson, V::Error>
-                where V: de::SeqVisitor,
-            {
-                let values = try!(de::impls::VecVisitor::new().visit_seq(visitor));
-                Ok(Bson::Array(values))
-            }
-
-            #[inline]
-            fn visit_map<V>(&mut self, visitor: V) -> Result<Bson, V::Error>
-                where V: de::MapVisitor,
-            {
-                let values = try!(de::impls::BTreeMapVisitor::new().visit_map(visitor));
-                Ok(Bson::from_extended_document(values.into()).unwrap())
-            }
-        }
-
         deserializer.visit(BsonVisitor)
     }
 }
@@ -878,50 +888,3 @@ pub fn from_bson<T>(bson: Bson) -> Result<T, Error>
     let mut de = Deserializer::new(bson);
     de::Deserialize::deserialize(&mut de)
 }
-
-
-///////////////
-/*
-pub struct OrderedMapIteratorVisitor<Iter> {
-    iter: Iter,
-    len: Option<usize>,
-}
-
-impl<K, V, Iter> OrderedMapIteratorVisitor<Iter>
-    where Iter: Iterator<Item=(K, V)>
-{
-    /// Construct a new `MapIteratorVisitor<Iter>`.
-    #[inline]
-    pub fn new(iter: Iter, len: Option<usize>) -> MapIteratorVisitor<Iter> {
-        MapIteratorVisitor {
-            iter: iter,
-            len: len,
-        }
-    }
-}
-
-impl<K, V, I> MapVisitor for MapIteratorVisitor<I>
-    where K: Serialize,
-          V: Serialize,
-          I: Iterator<Item=(K, V)>,
-{
-    #[inline]
-    fn visit<S>(&mut self, serializer: &mut S) -> Result<Option<()>, S::Error>
-        where S: Serializer,
-    {
-        match self.iter.next() {
-            Some((key, value)) => {
-                let value = try!(serializer.serialize_map_elt(key, value));
-                Ok(Some(value))
-            }
-            None => Ok(None)
-        }
-    }
-
-    #[inline]
-    fn len(&self) -> Option<usize> {
-        self.len
-    }
-}
-*/
-///////////////////////////////////////////////////////////////////////////////

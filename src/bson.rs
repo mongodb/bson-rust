@@ -345,12 +345,14 @@ impl Bson {
     }
 
     pub fn from_extended_document(values: Document) -> Result<Bson, Error> {
-        if let Some(&Bson::String(ref pat)) = values.get("$regex") {
-            if let Some(&Bson::String(ref opt)) = values.get("$options") {
-                return Ok(Bson::RegExp(pat.to_owned(), opt.to_owned()));
+        if values.contains_key("$regex") {
+            if let Some(&Bson::String(ref pat)) = values.get("$regex") {
+                if let Some(&Bson::String(ref opt)) = values.get("$options") {
+                    return Ok(Bson::RegExp(pat.to_owned(), opt.to_owned()));
+                }
             }
         } else if let Some(&Bson::String(ref code)) = values.get("$code") {
-            if let Some(&Bson::Document(ref scope)) = values.get("$sscope") {
+            if let Some(&Bson::Document(ref scope)) = values.get("$scope") {
                 return Ok(Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned()));
             } else {
                 return Ok(Bson::JavaScriptCode(code.to_owned()));
@@ -363,12 +365,13 @@ impl Bson {
                 return Ok(Bson::Binary(From::from(ttype), hex.from_hex().unwrap()));
             }
         } else if let Some(&Bson::String(ref hex)) = values.get("$oid") {
+            println!("RETURNING OID");
             return Ok(Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap()));
         } else if let Some(&Bson::Document(ref doc)) = values.get("$date") {
             if let Some(&Bson::I64(long)) = doc.get("$numberLong") {
                 return Ok(Bson::UtcDatetime(UTC.timestamp(long / 1000, (long % 1000) as u32 * 1000000)));
             }
-        }       
+        }
         
         Ok(Bson::Document(values))
     }
