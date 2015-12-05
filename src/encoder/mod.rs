@@ -21,56 +21,21 @@
 
 //! Encoder
 
-use std::io::{self, Write};
-use std::iter::IntoIterator;
-use std::{mem, error, fmt};
-use chrono::Timelike;
+mod error;
+mod serde;
 
-use byteorder::{self, LittleEndian, WriteBytesExt};
+pub use self::error::{EncoderError, EncoderResult};
+pub use self::serde::Encoder;
+
+use std::io::Write;
+use std::iter::IntoIterator;
+use std::mem;
+
+use chrono::Timelike;
+use byteorder::{LittleEndian, WriteBytesExt};
 
 use bson::Bson;
-
-/// Possible errors that can arise during encoding.
-#[derive(Debug)]
-pub enum EncoderError {
-    IoError(io::Error),
-}
-
-impl From<io::Error> for EncoderError {
-    fn from(err: io::Error) -> EncoderError {
-        EncoderError::IoError(err)
-    }
-}
-
-impl From<byteorder::Error> for EncoderError {
-    fn from(err: byteorder::Error) -> EncoderError {
-        EncoderError::IoError(From::from(err))
-    }
-}
-
-impl fmt::Display for EncoderError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &EncoderError::IoError(ref inner) => inner.fmt(fmt)
-        }
-    }
-}
-
-impl error::Error for EncoderError {
-    fn description(&self) -> &str {
-        match self {
-            &EncoderError::IoError(ref inner) => inner.description(),
-        }
-    }
-    fn cause(&self) -> Option<&error::Error> {
-        match self {
-            &EncoderError::IoError(ref inner) => Some(inner)
-        }
-    }
-}
-
-/// Alias for `Result<T, EncoderError>`.
-pub type EncoderResult<T> = Result<T, EncoderError>;
+use serde::Serialize;
 
 fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> EncoderResult<()> {
     try!(writer.write_i32::<LittleEndian>(s.len() as i32 + 1));
@@ -168,4 +133,13 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         },
         &Bson::Null => Ok(())
     }
+}
+
+/// Encode a `T` Serializable into a BSON `Value`.
+pub fn to_bson<T>(value: &T) -> Bson
+    where T: Serialize
+{
+    let mut ser = Encoder::new();
+    value.serialize(&mut ser).unwrap();
+    ser.unwrap()
 }

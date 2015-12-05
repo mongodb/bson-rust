@@ -1,5 +1,7 @@
 #[macro_export]
 macro_rules! bson {
+    ([]) => {{ $crate::Bson::Array(Vec::new()) }};
+
     ([$($val:tt),*]) => {{
         let mut array = Vec::new();
 

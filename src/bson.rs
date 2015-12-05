@@ -22,15 +22,16 @@
 //! BSON definition
 
 use std::fmt::{Display, Error, Formatter};
+use std::mem;
 
 use chrono::{DateTime, Timelike, UTC};
 use chrono::offset::TimeZone;
 use rustc_serialize::json;
 use rustc_serialize::hex::{FromHex, ToHex};
 
+use oid;
 use ordered::OrderedDocument;
 use spec::{ElementType, BinarySubtype};
-use oid;
 
 /// Possible BSON value types.
 #[derive(Debug,Clone,PartialEq)]
@@ -312,12 +313,10 @@ impl Bson {
                 }
             }
             Bson::TimeStamp(v) => {
-                // TODO
+                let raw: [i32; 2] = unsafe { mem::transmute(v) };                
                 doc! {
-                    //"$timestamp" => {
-//                        "t" => (v[0..4] as i32),
-                    //"i" => (v[4..8] as i32),
-                    "$timestamp" => v
+                    "t" => (raw[0]),
+                    "i" => (raw[1])
                 }
             }
             Bson::Binary(t, ref v) => {
@@ -351,22 +350,30 @@ impl Bson {
                     return Ok(Bson::RegExp(pat.to_owned(), opt.to_owned()));
                 }
             }
+
         } else if let Some(&Bson::String(ref code)) = values.get("$code") {
             if let Some(&Bson::Document(ref scope)) = values.get("$scope") {
                 return Ok(Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned()));
             } else {
                 return Ok(Bson::JavaScriptCode(code.to_owned()));
             }
-        } else if values.contains_key("$timestamp") {
-            // TODO
+
+        } else if let Some(&Bson::I32(t)) = values.get("t") {
+            if let Some(&Bson::I32(i)) = values.get("i") {
+                let raw: [i32; 2] = [t, i];
+                let timestamp: i64 = unsafe { mem::transmute(raw) };
+                return Ok(Bson::TimeStamp(timestamp))
+            }
+
         } else if let Some(&Bson::String(ref hex)) = values.get("$binary") {
             if let Some(&Bson::I64(t)) = values.get("type") {
                 let ttype = t as u8;
                 return Ok(Bson::Binary(From::from(ttype), hex.from_hex().unwrap()));
             }
+
         } else if let Some(&Bson::String(ref hex)) = values.get("$oid") {
-            println!("RETURNING OID");
             return Ok(Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap()));
+
         } else if let Some(&Bson::Document(ref doc)) = values.get("$date") {
             if let Some(&Bson::I64(long)) = doc.get("$numberLong") {
                 return Ok(Bson::UtcDatetime(UTC.timestamp(long / 1000, (long % 1000) as u32 * 1000000)));

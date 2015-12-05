@@ -1,0 +1,22 @@
+[package]
+name = "serde-tests"
+version = "0.1.0"
+authors = ["Kevin Yeh <kevinyeah@utexas.edu>"]
+build = "build.rs"
+
+
+[dependencies]
+serde = "0.6"
+bson = { path = "..", features = ["serde"] }
+
+[build-dependencies]
+syntex = "0.22"
+serde_codegen = "0.6"
+
+[lib]
+name = "serde_tests"
+path = "lib.rs"
+
+[[test]]
+name = "serde"
+path = "test.rs"

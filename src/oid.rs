@@ -1,21 +1,17 @@
 use libc;
 
+use std::{fmt, io, error, result};
+use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+
+use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use crypto::digest::Digest;
 use crypto::md5::Md5;
 
-use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use rand::{Rng, OsRng};
 use rustc_serialize::hex::{self, FromHex, ToHex};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
-use time;
 
-use std::{fmt, io, error, result};
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-use serde::ser::{Serialize, Serializer};
-use serde::de::{Deserialize, Deserializer};
-use serde::ser::impls::MapIteratorVisitor;
-use bson::{Bson, Document};
-use ser::BsonVisitor;
+use time;
 
 const TIMESTAMP_SIZE: usize = 4;
 const MACHINE_ID_SIZE: usize = 3;
@@ -333,27 +329,3 @@ fn count_is_big_endian() {
     assert_eq!(0x33u8, oid.bytes()[COUNTER_OFFSET + 2]);
 }
 
-impl Serialize for ObjectId {
-    #[inline]
-    fn serialize<S>(&self, serializer: &mut S) -> result::Result<(), S::Error>
-        where S: Serializer,
-    {
-        let mut doc = Document::new();
-        doc.insert("$oid".to_owned(), self.to_string());
-        serializer.visit_map(MapIteratorVisitor::new(doc.iter(), Some(doc.len())))
-    }
-}
-
-impl Deserialize for ObjectId {
-    /// Deserialize this value given this `Deserializer`.
-    fn deserialize<D>(deserializer: &mut D) -> result::Result<Self, D::Error>
-        where D: Deserializer,
-    {
-        deserializer.visit_map(BsonVisitor)
-            .and_then(|bson| if let Bson::ObjectId(oid) = bson {
-                Ok(oid)
-            } else {
-                    unimplemented!()
-                })
-    }
-}

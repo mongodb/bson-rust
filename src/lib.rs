@@ -52,10 +52,9 @@ extern crate serde;
 extern crate time;
 
 pub use self::bson::{Bson, Document, Array};
-pub use self::encoder::{encode_document, EncoderResult, EncoderError};
-pub use self::decoder::{decode_document, DecoderResult, DecoderError};
+pub use self::encoder::{encode_document, to_bson, Encoder, EncoderResult, EncoderError};
+pub use self::decoder::{decode_document, from_bson, Decoder, DecoderResult, DecoderError};
 pub use self::ordered::{ValueAccessError, ValueAccessResult};
-pub use self::ser::{to_bson, from_bson};
 
 #[macro_use]
 pub mod macros;
@@ -65,4 +64,3 @@ mod bson;
 mod encoder;
 mod decoder;
 mod ordered;
-mod ser;
