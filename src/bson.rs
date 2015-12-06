@@ -22,7 +22,6 @@
 //! BSON definition
 
 use std::fmt::{Display, Error, Formatter};
-use std::mem;
 
 use chrono::{DateTime, Timelike, UTC};
 use chrono::offset::TimeZone;
@@ -313,10 +312,12 @@ impl Bson {
                 }
             }
             Bson::TimeStamp(v) => {
-                let raw: [i32; 2] = unsafe { mem::transmute(v) };                
+                let time = (v >> 32) as i32;
+                let inc = (v & 0xFFFFFFFF) as i32;
+
                 doc! {
-                    "t" => (raw[0]),
-                    "i" => (raw[1])
+                    "t" => time,
+                    "i" => inc
                 }
             }
             Bson::Binary(t, ref v) => {
@@ -360,8 +361,7 @@ impl Bson {
 
         } else if let Some(&Bson::I32(t)) = values.get("t") {
             if let Some(&Bson::I32(i)) = values.get("i") {
-                let raw: [i32; 2] = [t, i];
-                let timestamp: i64 = unsafe { mem::transmute(raw) };
+                let timestamp = ((t as i64) << 32) + (i as i64);
                 return Ok(Bson::TimeStamp(timestamp))
             }
 
