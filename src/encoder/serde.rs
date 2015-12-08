@@ -259,7 +259,7 @@ impl Serializer for Encoder {
             state => panic!("expected object, found {:?}", state),
         };
 
-        let bson = Bson::from_extended_document(values).unwrap();
+        let bson = Bson::from_extended_document(values);
         
         self.state.push(State::Bson(bson));
         Ok(())

@@ -245,15 +245,19 @@ impl Bson {
             &Bson::Null => json::Json::Null,
             &Bson::RegExp(ref pat, ref opt) => {
                 let mut re = json::Object::new();
-                re.insert("pattern".to_owned(), json::Json::String(pat.clone()));
-                re.insert("options".to_owned(), json::Json::String(opt.clone()));
+                re.insert("$regex".to_owned(), json::Json::String(pat.clone()));
+                re.insert("$options".to_owned(), json::Json::String(opt.clone()));
 
                 json::Json::Object(re)
             },
-            &Bson::JavaScriptCode(ref code) => json::Json::String(code.clone()),
+            &Bson::JavaScriptCode(ref code) => {
+                let mut obj = json::Object::new();
+                obj.insert("$code".to_owned(), json::Json::String(code.clone()));
+                json::Json::Object(obj)
+            },
             &Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
                 let mut obj = json::Object::new();
-                obj.insert("code".to_owned(), json::Json::String(code.clone()));
+                obj.insert("$code".to_owned(), json::Json::String(code.clone()));
 
                 let scope_obj =
                     scope.iter().map(|(k, v)| (k.clone(), v.to_json())).collect();
@@ -264,17 +268,38 @@ impl Bson {
             },
             &Bson::I32(v) => json::Json::I64(v as i64),
             &Bson::I64(v) => json::Json::I64(v),
-            &Bson::TimeStamp(v) => json::Json::I64(v),
+            &Bson::TimeStamp(v) => {
+                let time = v >> 32;
+                let inc = v & 0x0000FFFF;
+
+                let mut obj = json::Object::new();
+                obj.insert("t".to_owned(), json::Json::I64(time));
+                obj.insert("i".to_owned(), json::Json::I64(inc));
+
+                json::Json::Object(obj)
+            },
             &Bson::Binary(t, ref v) => {
                 let mut obj = json::Object::new();
                 let tval: u8 = From::from(t);
                 obj.insert("type".to_owned(), json::Json::I64(tval as i64));
-                obj.insert("data".to_owned(), json::Json::String(v.to_hex()));
+                obj.insert("$binary".to_owned(), json::Json::String(v.to_hex()));
 
                 json::Json::Object(obj)
             },
-            &Bson::ObjectId(ref v) => json::Json::String(v.bytes().to_hex()),
-            &Bson::UtcDatetime(ref v) => json::Json::String(v.to_string()),
+            &Bson::ObjectId(ref v) => {
+                let mut obj = json::Object::new();
+                obj.insert("$oid".to_owned(), json::Json::String(v.to_string()));
+
+                json::Json::Object(obj)
+            },
+            &Bson::UtcDatetime(ref v) => {
+                let mut obj = json::Object::new();
+                let mut inner = json::Object::new();
+                inner.insert("$numberLong".to_owned(), json::Json::I64((v.timestamp() * 1000) + 
+                                                                       (v.nanosecond() / 1000000) as i64));
+                obj.insert("$date".to_owned(), json::Json::Object(inner));
+                json::Json::Object(obj)
+            }
         }
     }
 
@@ -287,7 +312,8 @@ impl Bson {
             &json::Json::String(ref x) => Bson::String(x.clone()),
             &json::Json::Boolean(x) => Bson::Boolean(x),
             &json::Json::Array(ref x) => Bson::Array(x.iter().map(Bson::from_json).collect()),
-            &json::Json::Object(ref x) => Bson::Document(x.iter().map(|(k, v)| (k.clone(), Bson::from_json(v))).collect()),
+            &json::Json::Object(ref x) => Bson::from_extended_document(
+                x.iter().map(|(k, v)| (k.clone(), Bson::from_json(v))).collect()),
             &json::Json::Null => Bson::Null,
         }
     }
@@ -344,42 +370,48 @@ impl Bson {
         }
     }
 
-    pub fn from_extended_document(values: Document) -> Result<Bson, Error> {
+    pub fn from_extended_document(values: Document) -> Bson {
         if values.contains_key("$regex") {
             if let Some(&Bson::String(ref pat)) = values.get("$regex") {
                 if let Some(&Bson::String(ref opt)) = values.get("$options") {
-                    return Ok(Bson::RegExp(pat.to_owned(), opt.to_owned()));
+                    return Bson::RegExp(pat.to_owned(), opt.to_owned());
                 }
             }
 
         } else if let Some(&Bson::String(ref code)) = values.get("$code") {
             if let Some(&Bson::Document(ref scope)) = values.get("$scope") {
-                return Ok(Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned()));
+                return Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned());
             } else {
-                return Ok(Bson::JavaScriptCode(code.to_owned()));
+                return Bson::JavaScriptCode(code.to_owned());
             }
 
         } else if let Some(&Bson::I32(t)) = values.get("t") {
             if let Some(&Bson::I32(i)) = values.get("i") {
                 let timestamp = ((t as i64) << 32) + (i as i64);
-                return Ok(Bson::TimeStamp(timestamp))
+                return Bson::TimeStamp(timestamp)
+            }
+
+        } else if let Some(&Bson::I64(t)) = values.get("t") {
+            if let Some(&Bson::I64(i)) = values.get("i") {
+                let timestamp = (t << 32) + i;
+                return Bson::TimeStamp(timestamp)
             }
 
         } else if let Some(&Bson::String(ref hex)) = values.get("$binary") {
             if let Some(&Bson::I64(t)) = values.get("type") {
                 let ttype = t as u8;
-                return Ok(Bson::Binary(From::from(ttype), hex.from_hex().unwrap()));
+                return Bson::Binary(From::from(ttype), hex.from_hex().unwrap());
             }
 
         } else if let Some(&Bson::String(ref hex)) = values.get("$oid") {
-            return Ok(Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap()));
+            return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
 
         } else if let Some(&Bson::Document(ref doc)) = values.get("$date") {
             if let Some(&Bson::I64(long)) = doc.get("$numberLong") {
-                return Ok(Bson::UtcDatetime(UTC.timestamp(long / 1000, (long % 1000) as u32 * 1000000)));
+                return Bson::UtcDatetime(UTC.timestamp(long / 1000, (long % 1000) as u32 * 1000000));
             }
         }
         
-        Ok(Bson::Document(values))
+        Bson::Document(values)
     }
 }

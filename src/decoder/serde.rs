@@ -92,7 +92,7 @@ impl Visitor for BsonVisitor {
         where V: MapVisitor,
     {
         let values = try!(de::impls::BTreeMapVisitor::new().visit_map(visitor));
-        Ok(Bson::from_extended_document(values.into()).unwrap())
+        Ok(Bson::from_extended_document(values.into()))
     }
 }
 
