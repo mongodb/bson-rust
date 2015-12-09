@@ -10,6 +10,43 @@ use super::error::{DecoderError, DecoderResult};
 
 pub struct BsonVisitor;
 
+
+impl Deserialize for ObjectId {
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+        where D: Deserializer,
+    {
+        deserializer.visit_map(BsonVisitor)
+            .and_then(|bson| if let Bson::ObjectId(oid) = bson {
+                Ok(oid)
+            } else {
+                Err(de::Error::syntax(&format!("expected objectId extended document, found {}", bson)))
+            })
+    }
+}
+
+impl Deserialize for OrderedDocument {
+    /// Deserialize this value given this `Deserializer`.
+    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+        where D: Deserializer,
+    {
+        deserializer.visit_map(BsonVisitor)
+            .and_then(|bson| if let Bson::Document(doc) = bson {
+                Ok(doc)
+            } else {
+                Err(de::Error::syntax(&format!("expected document, found extended JSON data type: {}", bson)))
+            })
+    }
+}
+
+impl Deserialize for Bson {
+    #[inline]
+    fn deserialize<D>(deserializer: &mut D) -> Result<Bson, D::Error>
+        where D: Deserializer,
+    {
+        deserializer.visit(BsonVisitor)
+    }
+}
+
 impl Visitor for BsonVisitor {
     type Value = Bson;
     
@@ -96,49 +133,11 @@ impl Visitor for BsonVisitor {
     }
 }
 
-impl Deserialize for ObjectId {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
-        where D: Deserializer,
-    {
-        deserializer.visit_map(BsonVisitor)
-            .and_then(|bson| if let Bson::ObjectId(oid) = bson {
-                Ok(oid)
-            } else {
-                unimplemented!()
-            })
-    }
-}
-
-impl Deserialize for OrderedDocument {
-    /// Deserialize this value given this `Deserializer`.
-    fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
-        where D: Deserializer,
-    {
-        deserializer.visit_map(BsonVisitor)
-            .and_then(|bson| if let Bson::Document(doc) = bson {
-                Ok(doc)
-            } else {
-                unimplemented!()
-            })
-    }
-}
-
-impl Deserialize for Bson {
-    #[inline]
-    fn deserialize<D>(deserializer: &mut D) -> Result<Bson, D::Error>
-        where D: Deserializer,
-    {
-        deserializer.visit(BsonVisitor)
-    }
-}
-
-/// Creates a `serde::Deserializer` from a `json::Value` object.
 pub struct Decoder {
     value: Option<Bson>,
 }
 
 impl Decoder {
-    /// Creates a new deserializer instance for deserializing the specified JSON value.
     pub fn new(value: Bson) -> Decoder {
         Decoder {
             value: Some(value),
@@ -264,17 +263,20 @@ impl<'a> VariantVisitor for VariantDecoder<'a> {
     fn visit_variant<V>(&mut self) -> DecoderResult<V>
         where V: Deserialize,
     {
-        Deserialize::deserialize(&mut Decoder::new(self.variant.take().unwrap()))
+        Deserialize::deserialize(&mut Decoder::new(try!(self.variant.take()
+                                                        .ok_or(DecoderError::EndOfStream))))
     }
 
     fn visit_unit(&mut self) -> DecoderResult<()> {
-        Deserialize::deserialize(&mut Decoder::new(self.val.take().unwrap()))
+        Deserialize::deserialize(&mut Decoder::new(try!(self.val.take()
+                                                        .ok_or(DecoderError::EndOfStream))))
     }
 
     fn visit_newtype<T>(&mut self) -> DecoderResult<T>
         where T: Deserialize,
     {
-        Deserialize::deserialize(&mut Decoder::new(self.val.take().unwrap()))
+        Deserialize::deserialize(&mut Decoder::new(try!(self.val.take()
+                                                        .ok_or(DecoderError::EndOfStream))))
     }
 
     fn visit_tuple<V>(&mut self,
@@ -282,7 +284,8 @@ impl<'a> VariantVisitor for VariantDecoder<'a> {
                       visitor: V) -> DecoderResult<V::Value>
         where V: Visitor,
     {
-        if let Bson::Array(fields) = self.val.take().unwrap() {
+        if let Bson::Array(fields) = try!(self.val.take()
+                                          .ok_or(DecoderError::EndOfStream)) {
             Deserializer::visit(
                 &mut SeqDecoder {
                     de: self.de,
@@ -301,7 +304,8 @@ impl<'a> VariantVisitor for VariantDecoder<'a> {
                        visitor: V) -> DecoderResult<V::Value>
         where V: Visitor,
     {
-        if let Bson::Document(fields) = self.val.take().unwrap() {
+        if let Bson::Document(fields) = try!(self.val.take()
+                                             .ok_or(DecoderError::EndOfStream)) {
             Deserializer::visit(
                 &mut MapDecoder {
                     de: self.de,
@@ -398,7 +402,9 @@ impl<'a> MapVisitor for MapDecoder<'a> {
     fn visit_value<T>(&mut self) -> DecoderResult<T>
         where T: Deserialize
     {
-        let value = self.value.take().unwrap();
+        let value = try!(self.value.take()
+                         .ok_or(DecoderError::EndOfStream));
+
         self.de.value = Some(value);
         Ok(try!(Deserialize::deserialize(self.de)))
     }

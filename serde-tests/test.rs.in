@@ -60,7 +60,10 @@ macro_rules! t {
 macro_rules! encode( ($t:expr) => ({
     let mut e = Encoder::new();
     t!($t.serialize(&mut e));
-    e.unwrap()
+    match e.bson() {
+        Ok(b) => b,
+        Err(e) => panic!("Failed to serialize: {}", e),
+    }
 }) );
 
 macro_rules! decode( ($t:expr) => ({

@@ -8,7 +8,7 @@ fn floating_point() {
     let f: f64 = from_bson(obj.clone()).unwrap();
     assert_eq!(f, 240.5);
 
-    let deser: Bson = to_bson(&f);
+    let deser: Bson = to_bson(&f).unwrap();
     assert_eq!(obj, deser);
 }
 
@@ -18,7 +18,7 @@ fn string() {
     let s: String = from_bson(obj.clone()).unwrap();
     assert_eq!(s, "avocado");
 
-    let deser: Bson = to_bson(&s);
+    let deser: Bson = to_bson(&s).unwrap();
     assert_eq!(obj, deser);
 }
 
@@ -28,7 +28,7 @@ fn arr() {
     let arr: Vec<i32> = from_bson(obj.clone().clone()).unwrap();
     assert_eq!(arr, vec![0i32, 1i32, 2i32, 3i32]);
 
-    let deser: Bson = to_bson(&arr);
+    let deser: Bson = to_bson(&arr).unwrap();
     assert_eq!(deser, obj);
 }
 
@@ -38,7 +38,7 @@ fn boolean() {
     let b: bool = from_bson(obj.clone()).unwrap();
     assert_eq!(b, true);
 
-    let deser: Bson = to_bson(&b);
+    let deser: Bson = to_bson(&b).unwrap();
     assert_eq!(deser, obj);
 }
 
@@ -49,7 +49,7 @@ fn int32() {
 
     assert_eq!(i, 101);
 
-    let deser: Bson = to_bson(&i);
+    let deser: Bson = to_bson(&i).unwrap();
     assert_eq!(deser, obj);
 }
 
@@ -60,7 +60,7 @@ fn int64() {
 
     assert_eq!(i, 101);
 
-    let deser: Bson = to_bson(&i);
+    let deser: Bson = to_bson(&i).unwrap();
     assert_eq!(deser, obj);
 }
 
@@ -74,6 +74,6 @@ fn oid() {
     expected.insert("$oid".to_owned(), oid.to_string());
     assert_eq!(s, expected);
 
-    let deser: Bson = to_bson(&s);
+    let deser: Bson = to_bson(&s).unwrap();
     assert_eq!(deser, obj);
 }

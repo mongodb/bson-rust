@@ -136,10 +136,10 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
 }
 
 /// Encode a `T` Serializable into a BSON `Value`.
-pub fn to_bson<T>(value: &T) -> Bson
+pub fn to_bson<T>(value: &T) -> EncoderResult<Bson>
     where T: Serialize
 {
     let mut ser = Encoder::new();
-    value.serialize(&mut ser).unwrap();
-    ser.unwrap()
+    try!(value.serialize(&mut ser));
+    ser.bson()
 }

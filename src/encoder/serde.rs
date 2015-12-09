@@ -4,7 +4,7 @@ use serde::ser::impls::MapIteratorVisitor;
 use bson::{self, Bson, Document};
 use oid::ObjectId;
 
-use super::to_bson;
+use super::{to_bson, EncoderError, EncoderResult};
 
 impl Serialize for ObjectId {
     #[inline]
@@ -48,8 +48,8 @@ impl Serialize for Bson {
     }
 }
 
-#[derive(Debug)]
-enum State {
+#[derive(Debug, Clone, PartialEq)]
+pub enum State {
     Bson(Bson),
     Array(Vec<Bson>),
     Document(bson::Document),
@@ -68,85 +68,92 @@ impl Encoder {
     }
 
     /// Unwrap the `Serializer` and return the `Value`.
-    pub fn unwrap(mut self) -> Bson {
+    pub fn bson(mut self) -> EncoderResult<Bson> {
         match self.state.pop() {
-            Some(State::Bson(value)) => value,
-            Some(state) => panic!("expected value, found {:?}", state),
-            None => panic!("expected value, found no state"),
+            Some(State::Bson(value)) => Ok(value),
+            Some(state) => Err(EncoderError::InvalidState(state)),
+            None => Err(EncoderError::EmptyState),
+        }
+    }
+
+    fn pop(&mut self) -> EncoderResult<State> {
+        match self.state.pop() {
+            Some(state) => Ok(state),
+            None => Err(EncoderError::EmptyState),
         }
     }
 }
 
 impl Serializer for Encoder {
-    type Error = ();
+    type Error = EncoderError;
 
     #[inline]
-    fn visit_bool(&mut self, value: bool) -> Result<(), ()> {
+    fn visit_bool(&mut self, value: bool) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::Boolean(value)));
         Ok(())
     }
 
     #[inline]
-    fn visit_i8(&mut self, value: i8) -> Result<(), ()> {
+    fn visit_i8(&mut self, value: i8) -> EncoderResult<()> {
         self.visit_i32(value as i32)
     }    
 
     #[inline]
-    fn visit_i16(&mut self, value: i16) -> Result<(), ()> {
+    fn visit_i16(&mut self, value: i16) -> EncoderResult<()> {
         self.visit_i32(value as i32)
     }    
 
     #[inline]
-    fn visit_i32(&mut self, value: i32) -> Result<(), ()> {
+    fn visit_i32(&mut self, value: i32) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::I32(value)));
         Ok(())
     }
 
     #[inline]
-    fn visit_i64(&mut self, value: i64) -> Result<(), ()> {
+    fn visit_i64(&mut self, value: i64) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::I64(value)));
         Ok(())
     }
 
     #[inline]
-    fn visit_u64(&mut self, value: u64) -> Result<(), ()> {
+    fn visit_u64(&mut self, value: u64) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::FloatingPoint(value as f64)));
         Ok(())
     }
 
     #[inline]
-    fn visit_f64(&mut self, value: f64) -> Result<(), ()> {
+    fn visit_f64(&mut self, value: f64) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::FloatingPoint(value as f64)));
         Ok(())
     }
 
     #[inline]
-    fn visit_char(&mut self, value: char) -> Result<(), ()> {
+    fn visit_char(&mut self, value: char) -> EncoderResult<()> {
         let mut s = String::new();
         s.push(value);
         self.visit_str(&s)
     }
 
     #[inline]
-    fn visit_str(&mut self, value: &str) -> Result<(), ()> {
+    fn visit_str(&mut self, value: &str) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::String(String::from(value))));
         Ok(())
     }
 
     #[inline]
-    fn visit_none(&mut self) -> Result<(), ()> {
+    fn visit_none(&mut self) -> EncoderResult<()> {
         self.visit_unit()
     }
 
     #[inline]
-    fn visit_some<V>(&mut self, value: V) -> Result<(), ()>
+    fn visit_some<V>(&mut self, value: V) -> EncoderResult<()>
         where V: Serialize,
     {
         value.serialize(self)
     }
 
     #[inline]
-    fn visit_unit(&mut self) -> Result<(), ()> {
+    fn visit_unit(&mut self) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::Null));
         Ok(())
     }
@@ -155,12 +162,12 @@ impl Serializer for Encoder {
     fn visit_unit_variant(&mut self,
                           _name: &str,
                           _variant_index: usize,
-                          variant: &str) -> Result<(), ()> {
+                          variant: &str) -> EncoderResult<()> {
+
         let mut values = bson::Document::new();
         values.insert(String::from(variant), Bson::Array(vec![]));
 
         self.state.push(State::Bson(Bson::Document(values)));
-
         Ok(())
     }
 
@@ -169,35 +176,32 @@ impl Serializer for Encoder {
                                 _name: &str,
                                 _variant_index: usize,
                                 variant: &str,
-                                value: T) -> Result<(), ()>
+                                value: T) -> EncoderResult<()>
         where T: Serialize,
     {
         let mut values = bson::Document::new();
-        values.insert(String::from(variant), to_bson(&value));
+        values.insert(String::from(variant), try!(to_bson(&value)));
 
         self.state.push(State::Bson(Bson::Document(values)));
-
         Ok(())
     }
 
     #[inline]
-    fn visit_seq<V>(&mut self, mut visitor: V) -> Result<(), ()>
+    fn visit_seq<V>(&mut self, mut visitor: V) -> EncoderResult<()>
         where V: SeqVisitor,
     {
         let len = visitor.len().unwrap_or(0);
         let values = Vec::with_capacity(len);
-
         self.state.push(State::Array(values));
 
         while let Some(()) = try!(visitor.visit(self)) { }
 
-        let values = match self.state.pop().unwrap() {
+        let values = match try!(self.pop()) {
             State::Array(values) => values,
-            state => panic!("Expected array, found {:?}", state),
+            state => return Err(EncoderError::InvalidState(state)),
         };
 
         self.state.push(State::Bson(Bson::Array(values)));
-
         Ok(())
     }
 
@@ -206,61 +210,58 @@ impl Serializer for Encoder {
                               _name: &str,
                               _variant_index: usize,
                               variant: &str,
-                              visitor: V) -> Result<(), ()>
+                              visitor: V) -> EncoderResult<()>
         where V: SeqVisitor,
     {
         try!(self.visit_seq(visitor));
 
-        let value = match self.state.pop().unwrap() {
+        let value = match try!(self.pop()) {
             State::Bson(value) => value,
-            state => panic!("expected value, found {:?}", state),
+            state => return Err(EncoderError::InvalidState(state)),
         };
 
         let mut object = bson::Document::new();
-
         object.insert(String::from(variant), value);
 
         self.state.push(State::Bson(Bson::Document(object)));
-
         Ok(())
     }
 
     #[inline]
-    fn visit_seq_elt<T>(&mut self, value: T) -> Result<(), ()>
+    fn visit_seq_elt<T>(&mut self, value: T) -> EncoderResult<()>
         where T: Serialize,
     {
         try!(value.serialize(self));
 
-        let value = match self.state.pop().unwrap() {
+        let value = match try!(self.pop()) {
             State::Bson(value) => value,
-            state => panic!("expected value, found {:?}", state),
+            state => return Err(EncoderError::InvalidState(state)),
         };
 
-        match *self.state.last_mut().unwrap() {
-            State::Array(ref mut values) => { values.push(value); }
-            ref state => panic!("expected array, found {:?}", state),
+        match self.state.last_mut() {
+            Some(&mut State::Array(ref mut values)) => values.push(value),
+            Some(state) => return Err(EncoderError::InvalidState(state.clone())),
+            None => return Err(EncoderError::EmptyState),
         }
 
         Ok(())
     }
 
     #[inline]
-    fn visit_map<V>(&mut self, mut visitor: V) -> Result<(), ()>
+    fn visit_map<V>(&mut self, mut visitor: V) -> EncoderResult<()>
         where V: MapVisitor,
     {
         let values = bson::Document::new();
-
         self.state.push(State::Document(values));
 
         while let Some(()) = try!(visitor.visit(self)) { }
 
-        let values = match self.state.pop().unwrap() {
+        let values = match try!(self.pop()) {
             State::Document(values) => values,
-            state => panic!("expected object, found {:?}", state),
+            state => return return Err(EncoderError::InvalidState(state)),
         };
 
         let bson = Bson::from_extended_document(values);
-        
         self.state.push(State::Bson(bson));
         Ok(())
     }
@@ -270,48 +271,47 @@ impl Serializer for Encoder {
                                _name: &str,
                                _variant_index: usize,
                                variant: &str,
-                               visitor: V) -> Result<(), ()>
+                               visitor: V) -> EncoderResult<()>
         where V: MapVisitor,
     {
         try!(self.visit_map(visitor));
 
-        let value = match self.state.pop().unwrap() {
+        let value = match try!(self.pop()) {
             State::Bson(value) => value,
-            state => panic!("expected value, found {:?}", state),
+            state => return Err(EncoderError::InvalidState(state)),
         };
 
         let mut object = bson::Document::new();
-
         object.insert(String::from(variant), value);
 
         self.state.push(State::Bson(Bson::Document(object)));
-
         Ok(())
     }
 
     #[inline]
-    fn visit_map_elt<K, V>(&mut self, key: K, value: V) -> Result<(), ()>
+    fn visit_map_elt<K, V>(&mut self, key: K, value: V) -> EncoderResult<()>
         where K: Serialize,
               V: Serialize,
     {
         try!(key.serialize(self));
 
-        let key = match self.state.pop().unwrap() {
+        let key = match try!(self.pop()) {
             State::Bson(Bson::String(value)) => value,
-            state => panic!("expected key, found {:?}", state),
+            state => return Err(EncoderError::InvalidMapKeyType(state)),
         };
 
         try!(value.serialize(self));
 
-        let value = match self.state.pop().unwrap() {
+        let value = match try!(self.pop()) {
             State::Bson(value) => value,
-            state => panic!("expected value, found {:?}", state),
+            state => return Err(EncoderError::InvalidState(state)),
         };
 
         if Bson::Null != value {
-            match *self.state.last_mut().unwrap() {
-                State::Document(ref mut values) => { values.insert(key, value); }
-                ref state => panic!("expected object, found {:?}", state),
+            match self.state.last_mut() {
+                Some(&mut State::Document(ref mut values)) => { values.insert(key, value); }
+                Some(state) => return Err(EncoderError::InvalidState(state.clone())),
+                None => return Err(EncoderError::EmptyState),
             }
         }
 

@@ -365,49 +365,45 @@ impl Bson {
                     }
                 }
             }
-            // TODO: Actual error
-            _ => unreachable!()
+            _ => panic!("Attempted conversion of invalid data type: {}", self),
         }
     }
 
     pub fn from_extended_document(values: Document) -> Bson {
-        if values.contains_key("$regex") {
-            if let Some(&Bson::String(ref pat)) = values.get("$regex") {
-                if let Some(&Bson::String(ref opt)) = values.get("$options") {
-                    return Bson::RegExp(pat.to_owned(), opt.to_owned());
-                }
-            }
+        if values.len() == 2 {
+            if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), 
+                                         values.get_str("$options")) {
+                return Bson::RegExp(pat.to_owned(), opt.to_owned());
 
-        } else if let Some(&Bson::String(ref code)) = values.get("$code") {
-            if let Some(&Bson::Document(ref scope)) = values.get("$scope") {
+            } else if let (Ok(code), Ok(scope)) = (values.get_str("$code"),
+                                                   values.get_document("$scope")) {
                 return Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned());
-            } else {
-                return Bson::JavaScriptCode(code.to_owned());
-            }
 
-        } else if let Some(&Bson::I32(t)) = values.get("t") {
-            if let Some(&Bson::I32(i)) = values.get("i") {
+            } else if let (Ok(t), Ok(i)) = (values.get_i32("t"),
+                                            values.get_i32("i")) {
                 let timestamp = ((t as i64) << 32) + (i as i64);
-                return Bson::TimeStamp(timestamp)
-            }
+                return Bson::TimeStamp(timestamp);
 
-        } else if let Some(&Bson::I64(t)) = values.get("t") {
-            if let Some(&Bson::I64(i)) = values.get("i") {
+            } else if let (Ok(t), Ok(i)) = (values.get_i64("t"),
+                                            values.get_i64("i")) {
                 let timestamp = (t << 32) + i;
-                return Bson::TimeStamp(timestamp)
-            }
+                return Bson::TimeStamp(timestamp);
 
-        } else if let Some(&Bson::String(ref hex)) = values.get("$binary") {
-            if let Some(&Bson::I64(t)) = values.get("type") {
+            } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"),
+                                              values.get_i64("type")) {
                 let ttype = t as u8;
                 return Bson::Binary(From::from(ttype), hex.from_hex().unwrap());
             }
 
-        } else if let Some(&Bson::String(ref hex)) = values.get("$oid") {
-            return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
+        } else if values.len() == 1 {
+            if let Ok(code) = values.get_str("$code") {
+                return Bson::JavaScriptCode(code.to_owned());
 
-        } else if let Some(&Bson::Document(ref doc)) = values.get("$date") {
-            if let Some(&Bson::I64(long)) = doc.get("$numberLong") {
+            } else if let Ok(hex) = values.get_str("$oid") {
+                return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
+
+            } else if let Ok(long) = values.get_document("$date")
+                                           .and_then(|inner| inner.get_i64("$numberLong")) {
                 return Bson::UtcDatetime(UTC.timestamp(long / 1000, (long % 1000) as u32 * 1000000));
             }
         }
