@@ -1,16 +1,17 @@
 use libc;
 
+use std::{fmt, io, error, result};
+use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+
+use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use crypto::digest::Digest;
 use crypto::md5::Md5;
 
-use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use rand::{Rng, OsRng};
 use rustc_serialize::hex::{self, FromHex, ToHex};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
-use time;
 
-use std::{fmt, io, error, result};
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use time;
 
 const TIMESTAMP_SIZE: usize = 4;
 const MACHINE_ID_SIZE: usize = 3;
@@ -327,3 +328,4 @@ fn count_is_big_endian() {
     assert_eq!(0x22u8, oid.bytes()[COUNTER_OFFSET + 1]);
     assert_eq!(0x33u8, oid.bytes()[COUNTER_OFFSET + 2]);
 }
+

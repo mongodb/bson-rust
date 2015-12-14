@@ -1,14 +1,13 @@
 use chrono::{DateTime, UTC};
-use bson::{Array,Bson,Document};
-use super::spec::BinarySubtype;
-use super::oid::ObjectId;
 use std::collections::BTreeMap;
-use std::error;
-use std::fmt;
+use std::{error, fmt, slice};
 use std::fmt::{Debug, Display, Error, Formatter};
 use std::iter::{FromIterator, Map};
 use std::vec::IntoIter;
-use std::slice;
+
+use bson::{Array,Bson,Document};
+use oid::ObjectId;
+use spec::BinarySubtype;
 
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters.
@@ -363,5 +362,14 @@ impl OrderedDocument {
             self.keys.remove(position.unwrap());
         }
         self.document.remove(key)
+    }
+}
+
+impl From<BTreeMap<String, Bson>> for OrderedDocument {
+    fn from(tree: BTreeMap<String, Bson>) -> OrderedDocument {        
+        OrderedDocument {
+            keys: tree.keys().cloned().collect(),
+            document: tree,
+        }
     }
 }

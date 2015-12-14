@@ -21,10 +21,16 @@
 
 //! Decoder
 
-use std::io::{self, Read};
-use std::{str, error, fmt};
+mod error;
+mod serde;
 
-use byteorder::{self, LittleEndian, ReadBytesExt};
+pub use self::error::{DecoderError, DecoderResult};
+pub use self::serde::Decoder;
+
+use std::io::Read;
+use std::str;
+
+use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{UTC};
 use chrono::offset::TimeZone;
 
@@ -32,68 +38,7 @@ use spec::{self, BinarySubtype};
 use bson::{Bson, Array, Document};
 use oid;
 
-/// Possible errors that can arise during decoding.
-#[derive(Debug)]
-pub enum DecoderError {
-    IoError(io::Error),
-    Utf8Error(str::Utf8Error),
-    UnrecognizedElementType(u8),
-    InvalidArrayKey(usize, String)
-}
-
-impl From<io::Error> for DecoderError {
-    fn from(err: io::Error) -> DecoderError {
-        DecoderError::IoError(err)
-    }
-}
-
-impl From<str::Utf8Error> for DecoderError {
-    fn from(err: str::Utf8Error) -> DecoderError {
-        DecoderError::Utf8Error(err)
-    }
-}
-
-impl From<byteorder::Error> for DecoderError {
-    fn from(err: byteorder::Error) -> DecoderError {
-        DecoderError::IoError(From::from(err))
-    }
-}
-
-impl fmt::Display for DecoderError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &DecoderError::IoError(ref inner) => inner.fmt(fmt),
-            &DecoderError::Utf8Error(ref inner) => inner.fmt(fmt),
-            &DecoderError::UnrecognizedElementType(tag) => {
-                write!(fmt, "unrecognized element type `{}`", tag)
-            }
-            &DecoderError::InvalidArrayKey(ref want, ref got) => {
-                write!(fmt, "invalid array key: expected `{}`, got `{}`", want, got)
-            }
-        }
-    }
-}
-
-impl error::Error for DecoderError {
-    fn description(&self) -> &str {
-        match self {
-            &DecoderError::IoError(ref inner) => inner.description(),
-            &DecoderError::Utf8Error(ref inner) => inner.description(),
-            &DecoderError::UnrecognizedElementType(_) => "unrecognized element type",
-            &DecoderError::InvalidArrayKey(_, _) => "invalid array key"
-        }
-    }
-    fn cause(&self) -> Option<&error::Error> {
-        match self {
-            &DecoderError::IoError(ref inner) => Some(inner),
-            &DecoderError::Utf8Error(ref inner) => Some(inner),
-            _ => None
-        }
-    }
-}
-
-/// Alias for `Result<T, DecoderError>`.
-pub type DecoderResult<T> = Result<T, DecoderError>;
+use serde::de::Deserialize;
 
 fn read_string<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<String> {
     let len = try!(reader.read_i32::<LittleEndian>());
@@ -225,4 +170,12 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
         Some(MinKey) |
         None => Err(DecoderError::UnrecognizedElementType(tag))
     }
+}
+
+/// Decode a BSON `Value` into a `T` Deserializable.
+pub fn from_bson<T>(bson: Bson) -> DecoderResult<T>
+    where T: Deserialize
+{
+    let mut de = Decoder::new(bson);
+    Deserialize::deserialize(&mut de)
 }
