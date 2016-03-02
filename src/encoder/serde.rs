@@ -13,7 +13,7 @@ impl Serialize for ObjectId {
     {
         let mut doc = Document::new();
         doc.insert("$oid".to_owned(), self.to_string());
-        serializer.visit_map(MapIteratorVisitor::new(doc.iter(), Some(doc.len())))
+        serializer.serialize_map(MapIteratorVisitor::new(doc.iter(), Some(doc.len())))
     }
 }
 
@@ -22,7 +22,7 @@ impl Serialize for Document {
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
         where S: Serializer,
     {
-        serializer.visit_map(MapIteratorVisitor::new(self.iter(), Some(self.len())))
+        serializer.serialize_map(MapIteratorVisitor::new(self.iter(), Some(self.len())))
     }
 }
 
@@ -32,14 +32,14 @@ impl Serialize for Bson {
         where S: Serializer,
     {
         match *self {
-            Bson::FloatingPoint(v) => serializer.visit_f64(v),
-            Bson::String(ref v) => serializer.visit_str(v),
+            Bson::FloatingPoint(v) => serializer.serialize_f64(v),
+            Bson::String(ref v) => serializer.serialize_str(v),
             Bson::Array(ref v) => v.serialize(serializer),
             Bson::Document(ref v) => v.serialize(serializer),
-            Bson::Boolean(v) => serializer.visit_bool(v),
-            Bson::Null => serializer.visit_unit(),
-            Bson::I32(v) => serializer.visit_i32(v),
-            Bson::I64(v) => serializer.visit_i64(v),                        
+            Bson::Boolean(v) => serializer.serialize_bool(v),
+            Bson::Null => serializer.serialize_unit(),
+            Bson::I32(v) => serializer.serialize_i32(v),
+            Bson::I64(v) => serializer.serialize_i64(v),
             _ => {
                 let doc = self.to_extended_document();
                 doc.serialize(serializer)
@@ -88,78 +88,78 @@ impl Serializer for Encoder {
     type Error = EncoderError;
 
     #[inline]
-    fn visit_bool(&mut self, value: bool) -> EncoderResult<()> {
+    fn serialize_bool(&mut self, value: bool) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::Boolean(value)));
         Ok(())
     }
 
     #[inline]
-    fn visit_i8(&mut self, value: i8) -> EncoderResult<()> {
-        self.visit_i32(value as i32)
+    fn serialize_i8(&mut self, value: i8) -> EncoderResult<()> {
+        self.serialize_i32(value as i32)
     }    
 
     #[inline]
-    fn visit_i16(&mut self, value: i16) -> EncoderResult<()> {
-        self.visit_i32(value as i32)
+    fn serialize_i16(&mut self, value: i16) -> EncoderResult<()> {
+        self.serialize_i32(value as i32)
     }    
 
     #[inline]
-    fn visit_i32(&mut self, value: i32) -> EncoderResult<()> {
+    fn serialize_i32(&mut self, value: i32) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::I32(value)));
         Ok(())
     }
 
     #[inline]
-    fn visit_i64(&mut self, value: i64) -> EncoderResult<()> {
+    fn serialize_i64(&mut self, value: i64) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::I64(value)));
         Ok(())
     }
 
     #[inline]
-    fn visit_u64(&mut self, value: u64) -> EncoderResult<()> {
+    fn serialize_u64(&mut self, value: u64) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::FloatingPoint(value as f64)));
         Ok(())
     }
 
     #[inline]
-    fn visit_f64(&mut self, value: f64) -> EncoderResult<()> {
+    fn serialize_f64(&mut self, value: f64) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::FloatingPoint(value as f64)));
         Ok(())
     }
 
     #[inline]
-    fn visit_char(&mut self, value: char) -> EncoderResult<()> {
+    fn serialize_char(&mut self, value: char) -> EncoderResult<()> {
         let mut s = String::new();
         s.push(value);
-        self.visit_str(&s)
+        self.serialize_str(&s)
     }
 
     #[inline]
-    fn visit_str(&mut self, value: &str) -> EncoderResult<()> {
+    fn serialize_str(&mut self, value: &str) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::String(String::from(value))));
         Ok(())
     }
 
     #[inline]
-    fn visit_none(&mut self) -> EncoderResult<()> {
-        self.visit_unit()
+    fn serialize_none(&mut self) -> EncoderResult<()> {
+        self.serialize_unit()
     }
 
     #[inline]
-    fn visit_some<V>(&mut self, value: V) -> EncoderResult<()>
+    fn serialize_some<V>(&mut self, value: V) -> EncoderResult<()>
         where V: Serialize,
     {
         value.serialize(self)
     }
 
     #[inline]
-    fn visit_unit(&mut self) -> EncoderResult<()> {
+    fn serialize_unit(&mut self) -> EncoderResult<()> {
         self.state.push(State::Bson(Bson::Null));
         Ok(())
     }
 
     #[inline]
-    fn visit_unit_variant(&mut self,
+    fn serialize_unit_variant(&mut self,
                           _name: &str,
                           _variant_index: usize,
                           variant: &str) -> EncoderResult<()> {
@@ -172,7 +172,7 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn visit_newtype_variant<T>(&mut self,
+    fn serialize_newtype_variant<T>(&mut self,
                                 _name: &str,
                                 _variant_index: usize,
                                 variant: &str,
@@ -187,7 +187,7 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn visit_seq<V>(&mut self, mut visitor: V) -> EncoderResult<()>
+    fn serialize_seq<V>(&mut self, mut visitor: V) -> EncoderResult<()>
         where V: SeqVisitor,
     {
         let len = visitor.len().unwrap_or(0);
@@ -206,14 +206,14 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn visit_tuple_variant<V>(&mut self,
+    fn serialize_tuple_variant<V>(&mut self,
                               _name: &str,
                               _variant_index: usize,
                               variant: &str,
                               visitor: V) -> EncoderResult<()>
         where V: SeqVisitor,
     {
-        try!(self.visit_seq(visitor));
+        try!(self.serialize_seq(visitor));
 
         let value = match try!(self.pop()) {
             State::Bson(value) => value,
@@ -228,7 +228,7 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn visit_seq_elt<T>(&mut self, value: T) -> EncoderResult<()>
+    fn serialize_seq_elt<T>(&mut self, value: T) -> EncoderResult<()>
         where T: Serialize,
     {
         try!(value.serialize(self));
@@ -248,7 +248,7 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn visit_map<V>(&mut self, mut visitor: V) -> EncoderResult<()>
+    fn serialize_map<V>(&mut self, mut visitor: V) -> EncoderResult<()>
         where V: MapVisitor,
     {
         let values = bson::Document::new();
@@ -267,14 +267,14 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn visit_struct_variant<V>(&mut self,
+    fn serialize_struct_variant<V>(&mut self,
                                _name: &str,
                                _variant_index: usize,
                                variant: &str,
                                visitor: V) -> EncoderResult<()>
         where V: MapVisitor,
     {
-        try!(self.visit_map(visitor));
+        try!(self.serialize_map(visitor));
 
         let value = match try!(self.pop()) {
             State::Bson(value) => value,
@@ -289,7 +289,7 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn visit_map_elt<K, V>(&mut self, key: K, value: V) -> EncoderResult<()>
+    fn serialize_map_elt<K, V>(&mut self, key: K, value: V) -> EncoderResult<()>
         where K: Serialize,
               V: Serialize,
     {
@@ -316,10 +316,5 @@ impl Serializer for Encoder {
         }
 
         Ok(())
-    }
-
-    #[inline]
-    fn format() -> &'static str {
-        "bson"
     }
 }
