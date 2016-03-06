@@ -19,6 +19,7 @@ rust-crypto = "0.2.31"
 rustc-serialize = "0.3"
 serde = "0.7"
 time = "0.1"
+linked-hash-map = "0.0.9"
 
 [dependencies.num]
 version = "~0.1.27"
