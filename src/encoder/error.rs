@@ -1,5 +1,6 @@
 use std::{io, error, fmt};
 use byteorder;
+use serde::ser;
 use super::serde::State;
 
 /// Possible errors that can arise during encoding.
@@ -9,6 +10,7 @@ pub enum EncoderError {
     InvalidMapKeyType(State),
     InvalidState(State),
     EmptyState,
+    Unknown(String),
 }
 
 impl From<io::Error> for EncoderError {
@@ -30,6 +32,7 @@ impl fmt::Display for EncoderError {
             &EncoderError::InvalidMapKeyType(ref inner) => write!(fmt, "Invalid map key type: {:?}", inner),
             &EncoderError::InvalidState(ref inner) => write!(fmt, "Invalid state emitted: {:?}", inner),
             &EncoderError::EmptyState => write!(fmt, "No state emitted"),
+            &EncoderError::Unknown(ref inner) => inner.fmt(fmt),
         }
     }
 }
@@ -41,6 +44,7 @@ impl error::Error for EncoderError {
             &EncoderError::InvalidMapKeyType(_) => "Invalid map key type",
             &EncoderError::InvalidState(_) => "Invalid state emitted",
             &EncoderError::EmptyState => "No state emitted",
+            &EncoderError::Unknown(ref inner) => inner,
         }
     }
     fn cause(&self) -> Option<&error::Error> {
@@ -48,6 +52,12 @@ impl error::Error for EncoderError {
             &EncoderError::IoError(ref inner) => Some(inner),
             _ => None,
         }
+    }
+}
+
+impl ser::Error for EncoderError {
+    fn custom<T: Into<String>>(msg: T) -> EncoderError {
+        EncoderError::Unknown(msg.into())
     }
 }
 

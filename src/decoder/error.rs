@@ -14,9 +14,10 @@ pub enum DecoderError {
     // An unexpected field was found.
     UnknownField(String),
     // There was an error with the syntactical structure of the BSON.
-    SyntaxError,
+    SyntaxError(String),
     // The end of the BSON input was reached too soon.
     EndOfStream,
+    Unknown(String),
 }
 
 impl From<io::Error> for DecoderError {
@@ -52,8 +53,9 @@ impl fmt::Display for DecoderError {
                 write!(fmt, "expected a field of type `{}`", field_type)
             }
             DecoderError::UnknownField(ref field) => write!(fmt, "unknown field `{}`", field),
-            DecoderError::SyntaxError => write!(fmt, "syntax error"),
+            DecoderError::SyntaxError(ref inner) => inner.fmt(fmt),
             DecoderError::EndOfStream => write!(fmt, "end of stream"),
+            DecoderError::Unknown(ref inner) => inner.fmt(fmt),
         }
     }
 }
@@ -67,8 +69,9 @@ impl error::Error for DecoderError {
             DecoderError::InvalidArrayKey(_, _) => "invalid array key",
             DecoderError::ExpectedField(_) => "expected a field",
             DecoderError::UnknownField(_) => "found an unknown field",
-            DecoderError::SyntaxError => "syntax error",
+            DecoderError::SyntaxError(ref inner) => inner,
             DecoderError::EndOfStream => "end of stream",
+            DecoderError::Unknown(ref inner) => inner,
         }
     }
     fn cause(&self) -> Option<&error::Error> {
@@ -81,8 +84,12 @@ impl error::Error for DecoderError {
 }
 
 impl de::Error for DecoderError {
-    fn syntax(_: &str) -> DecoderError {
-        DecoderError::SyntaxError
+    fn custom<T: Into<String>>(msg: T) -> DecoderError {
+        DecoderError::Unknown(msg.into())
+    }
+
+    fn invalid_value(msg: &str) -> DecoderError {
+        DecoderError::SyntaxError(msg.to_owned())
     }
 
     fn end_of_stream() -> DecoderError {
