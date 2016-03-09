@@ -5,7 +5,7 @@ use serde::de::{self, Deserialize, Deserializer, Visitor,
 
 use bson::Bson;
 use oid::ObjectId;
-use ordered::{OrderedDocument, OrderedDocumentIntoIterator};
+use ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
 use super::error::{DecoderError, DecoderResult};
 
 pub struct BsonVisitor;
@@ -49,7 +49,7 @@ impl Deserialize for Bson {
 
 impl Visitor for BsonVisitor {
     type Value = Bson;
-    
+
     #[inline]
     fn visit_bool<E>(&mut self, value: bool) -> Result<Bson, E> {
         Ok(Bson::Boolean(value))
@@ -66,7 +66,7 @@ impl Visitor for BsonVisitor {
         Ok(Bson::I32(value as i32))
     }
 
-    
+
     #[inline]
     fn visit_i32<E>(&mut self, value: i32) -> Result<Bson, E> {
         Ok(Bson::I32(value))
@@ -76,46 +76,46 @@ impl Visitor for BsonVisitor {
     fn visit_i64<E>(&mut self, value: i64) -> Result<Bson, E> {
         Ok(Bson::I64(value))
     }
-    
+
     #[inline]
     fn visit_u64<E>(&mut self, value: u64) -> Result<Bson, E> {
         Ok(Bson::I64(value as i64))
     }
-    
+
     #[inline]
     fn visit_f64<E>(&mut self, value: f64) -> Result<Bson, E> {
         Ok(Bson::FloatingPoint(value))
     }
-    
+
     #[inline]
     fn visit_str<E>(&mut self, value: &str) -> Result<Bson, E>
         where E: de::Error
     {
         self.visit_string(String::from(value))
     }
-    
+
     #[inline]
     fn visit_string<E>(&mut self, value: String) -> Result<Bson, E> {
         Ok(Bson::String(value))
     }
-    
+
     #[inline]
     fn visit_none<E>(&mut self) -> Result<Bson, E> {
         Ok(Bson::Null)
     }
-    
+
     #[inline]
     fn visit_some<D>(&mut self, deserializer: &mut D) -> Result<Bson, D::Error>
         where D: Deserializer,
     {
         de::Deserialize::deserialize(deserializer)
     }
-    
+
     #[inline]
     fn visit_unit<E>(&mut self) -> Result<Bson, E> {
         Ok(Bson::Null)
     }
-    
+
     #[inline]
     fn visit_seq<V>(&mut self, visitor: V) -> Result<Bson, V::Error>
         where V: SeqVisitor,
@@ -123,12 +123,12 @@ impl Visitor for BsonVisitor {
         let values = try!(de::impls::VecVisitor::new().visit_seq(visitor));
         Ok(Bson::Array(values))
     }
-    
+
     #[inline]
     fn visit_map<V>(&mut self, visitor: V) -> Result<Bson, V::Error>
         where V: MapVisitor,
     {
-        let values = try!(de::impls::BTreeMapVisitor::new().visit_map(visitor));
+        let values = try!(OrderedDocumentVisitor::new().visit_map(visitor));
         Ok(Bson::from_extended_document(values.into()))
     }
 }
