@@ -88,7 +88,7 @@ impl error::Error for Error {
 }
 
 /// A wrapper around raw 12-byte ObjectId representations.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub struct ObjectId {
     id: [u8; 12],
 }
@@ -279,6 +279,12 @@ impl fmt::Display for ObjectId {
     }
 }
 
+impl fmt::Debug for ObjectId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(&format!("ObjectId({})", self.to_hex()))
+    }
+}
+
 impl Decodable for ObjectId {
     fn decode<D: Decoder>(d: &mut D) -> result::Result<Self, D::Error> {
         let str = try!(d.read_str());
@@ -329,3 +335,22 @@ fn count_is_big_endian() {
     assert_eq!(0x33u8, oid.bytes()[COUNTER_OFFSET + 2]);
 }
 
+#[test]
+fn test_display() {
+    let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
+
+    assert_eq!(
+        format!("{}", id),
+        "53e37d08776f724e42000000"
+    )
+}
+
+#[test]
+fn test_debug() {
+    let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
+
+    assert_eq!(
+        format!("{:?}", id),
+        "ObjectId(53e37d08776f724e42000000)"
+    )
+}
