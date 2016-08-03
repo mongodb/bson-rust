@@ -1,15 +1,13 @@
 use std::{io, error, fmt};
 use byteorder;
 use serde::ser;
-use super::serde::State;
+use bson::Bson;
 
 /// Possible errors that can arise during encoding.
 #[derive(Debug)]
 pub enum EncoderError {
     IoError(io::Error),
-    InvalidMapKeyType(State),
-    InvalidState(State),
-    EmptyState,
+    InvalidMapKeyType(Bson),
     Unknown(String),
 }
 
@@ -29,9 +27,7 @@ impl fmt::Display for EncoderError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &EncoderError::IoError(ref inner) => inner.fmt(fmt),
-            &EncoderError::InvalidMapKeyType(ref inner) => write!(fmt, "Invalid map key type: {:?}", inner),
-            &EncoderError::InvalidState(ref inner) => write!(fmt, "Invalid state emitted: {:?}", inner),
-            &EncoderError::EmptyState => write!(fmt, "No state emitted"),
+            &EncoderError::InvalidMapKeyType(ref bson) => write!(fmt, "Invalid map key type: {:?}", bson),
             &EncoderError::Unknown(ref inner) => inner.fmt(fmt),
         }
     }
@@ -42,8 +38,6 @@ impl error::Error for EncoderError {
         match self {
             &EncoderError::IoError(ref inner) => inner.description(),
             &EncoderError::InvalidMapKeyType(_) => "Invalid map key type",
-            &EncoderError::InvalidState(_) => "Invalid state emitted",
-            &EncoderError::EmptyState => "No state emitted",
             &EncoderError::Unknown(ref inner) => inner,
         }
     }

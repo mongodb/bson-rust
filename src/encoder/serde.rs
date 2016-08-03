@@ -1,7 +1,6 @@
-use serde::ser::{Serialize, Serializer, SeqVisitor, MapVisitor};
-use serde::ser::impls::MapIteratorVisitor;
+use serde::ser::{Serialize, Serializer};
 
-use bson::{self, Bson, Document};
+use bson::{Array, Bson, Document};
 use oid::ObjectId;
 
 use super::{to_bson, EncoderError, EncoderResult};
@@ -11,9 +10,10 @@ impl Serialize for ObjectId {
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
         where S: Serializer,
     {
-        let mut doc = Document::new();
-        doc.insert("$oid".to_owned(), self.to_string());
-        serializer.serialize_map(MapIteratorVisitor::new(doc.iter(), Some(doc.len())))
+        let mut state = try!(serializer.serialize_map(Some(1)));
+        try!(serializer.serialize_map_key(&mut state, "$oid"));
+        try!(serializer.serialize_map_value(&mut state, self.to_string()));
+        serializer.serialize_map_end(state)
     }
 }
 
@@ -22,7 +22,12 @@ impl Serialize for Document {
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
         where S: Serializer,
     {
-        serializer.serialize_map(MapIteratorVisitor::new(self.iter(), Some(self.len())))
+        let mut state = try!(serializer.serialize_map(Some(self.len())));
+        for (k, v) in self {
+            try!(serializer.serialize_map_key(&mut state, k));
+            try!(serializer.serialize_map_value(&mut state, v));
+        }
+        serializer.serialize_map_end(state)
     }
 }
 
@@ -48,82 +53,119 @@ impl Serialize for Bson {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum State {
-    Bson(Bson),
-    Array(Vec<Bson>),
-    Document(bson::Document),
-}
-
 pub struct Encoder {
-    state: Vec<State>,
+    value: Bson,
 }
 
 impl Encoder {
     /// Construct a new `Serializer`.
     pub fn new() -> Encoder {
         Encoder {
-            state: Vec::with_capacity(4),
+            value: Bson::Null,
         }
     }
 
-    /// Unwrap the `Serializer` and return the `Value`.
-    pub fn bson(mut self) -> EncoderResult<Bson> {
-        match self.state.pop() {
-            Some(State::Bson(value)) => Ok(value),
-            Some(state) => Err(EncoderError::InvalidState(state)),
-            None => Err(EncoderError::EmptyState),
-        }
+    /// Unwrap the `Encoder` and return the `Bson` value.
+    pub fn bson(self) -> EncoderResult<Bson> {
+        Ok(self.value)
     }
+}
 
-    fn pop(&mut self) -> EncoderResult<State> {
-        match self.state.pop() {
-            Some(state) => Ok(state),
-            None => Err(EncoderError::EmptyState),
-        }
-    }
+#[doc(hidden)]
+pub struct TupleVariantState {
+    name: &'static str,
+    array: Array,
+}
+
+#[doc(hidden)]
+pub struct StructVariantState {
+    name: &'static str,
+    map: MapState,
+}
+
+#[doc(hidden)]
+pub struct MapState {
+    document: Document,
+    next_key: Option<String>,
 }
 
 impl Serializer for Encoder {
     type Error = EncoderError;
+    type SeqState = Array;
+    type TupleState = Array;
+    type TupleStructState = Array;
+    type TupleVariantState = TupleVariantState;
+    type MapState = MapState;
+    type StructState = MapState;
+    type StructVariantState = StructVariantState;
 
     #[inline]
     fn serialize_bool(&mut self, value: bool) -> EncoderResult<()> {
-        self.state.push(State::Bson(Bson::Boolean(value)));
+        self.value = Bson::Boolean(value);
         Ok(())
+    }
+
+    #[inline]
+    fn serialize_isize(&mut self, value: isize) -> EncoderResult<()> {
+        self.serialize_i64(value as i64)
     }
 
     #[inline]
     fn serialize_i8(&mut self, value: i8) -> EncoderResult<()> {
         self.serialize_i32(value as i32)
-    }    
+    }
 
     #[inline]
     fn serialize_i16(&mut self, value: i16) -> EncoderResult<()> {
         self.serialize_i32(value as i32)
-    }    
+    }
 
     #[inline]
     fn serialize_i32(&mut self, value: i32) -> EncoderResult<()> {
-        self.state.push(State::Bson(Bson::I32(value)));
+        self.value = Bson::I32(value);
         Ok(())
     }
 
     #[inline]
     fn serialize_i64(&mut self, value: i64) -> EncoderResult<()> {
-        self.state.push(State::Bson(Bson::I64(value)));
+        self.value = Bson::I64(value);
         Ok(())
+    }
+
+    #[inline]
+    fn serialize_usize(&mut self, value: usize) -> EncoderResult<()> {
+        self.serialize_u64(value as u64)
+    }
+
+    #[inline]
+    fn serialize_u8(&mut self, value: u8) -> EncoderResult<()> {
+        self.serialize_u64(value as u64)
+    }
+
+    #[inline]
+    fn serialize_u16(&mut self, value: u16) -> EncoderResult<()> {
+        self.serialize_u64(value as u64)
+    }
+
+    #[inline]
+    fn serialize_u32(&mut self, value: u32) -> EncoderResult<()> {
+        self.serialize_u64(value as u64)
     }
 
     #[inline]
     fn serialize_u64(&mut self, value: u64) -> EncoderResult<()> {
-        self.state.push(State::Bson(Bson::FloatingPoint(value as f64)));
+        self.value = Bson::FloatingPoint(value as f64);
         Ok(())
     }
 
     #[inline]
+    fn serialize_f32(&mut self, value: f32) -> EncoderResult<()> {
+        self.serialize_f64(value as f64)
+    }
+
+    #[inline]
     fn serialize_f64(&mut self, value: f64) -> EncoderResult<()> {
-        self.state.push(State::Bson(Bson::FloatingPoint(value as f64)));
+        self.value = Bson::FloatingPoint(value);
         Ok(())
     }
 
@@ -136,8 +178,16 @@ impl Serializer for Encoder {
 
     #[inline]
     fn serialize_str(&mut self, value: &str) -> EncoderResult<()> {
-        self.state.push(State::Bson(Bson::String(String::from(value))));
+        self.value = Bson::String(value.to_string());
         Ok(())
+    }
+
+    fn serialize_bytes(&mut self, value: &[u8]) -> EncoderResult<()> {
+        let mut state = try!(self.serialize_seq(Some(value.len())));
+        for byte in value {
+            try!(self.serialize_seq_elt(&mut state, byte));
+        }
+        self.serialize_seq_end(state)
     }
 
     #[inline]
@@ -154,167 +204,237 @@ impl Serializer for Encoder {
 
     #[inline]
     fn serialize_unit(&mut self) -> EncoderResult<()> {
-        self.state.push(State::Bson(Bson::Null));
         Ok(())
+    }
+
+    #[inline]
+    fn serialize_unit_struct(&mut self,
+                             _name: &'static str) -> EncoderResult<()> {
+        self.serialize_unit()
     }
 
     #[inline]
     fn serialize_unit_variant(&mut self,
-                          _name: &str,
+                          _name: &'static str,
                           _variant_index: usize,
-                          variant: &str) -> EncoderResult<()> {
+                          variant: &'static str) -> EncoderResult<()> {
+        let mut unit_variant = Document::new();
+        unit_variant.insert(variant.to_string(), Bson::Array(vec![]));
 
-        let mut values = bson::Document::new();
-        values.insert(String::from(variant), Bson::Array(vec![]));
-
-        self.state.push(State::Bson(Bson::Document(values)));
+        self.value = Bson::Document(unit_variant);
         Ok(())
+    }
+
+    #[inline]
+    fn serialize_newtype_struct<T>(&mut self,
+                                   name: &'static str,
+                                   value: T) -> EncoderResult<()>
+        where T: Serialize,
+    {
+        let mut state = try!(self.serialize_tuple_struct(name, 1));
+        try!(self.serialize_tuple_struct_elt(&mut state, value));
+        self.serialize_tuple_struct_end(state)
     }
 
     #[inline]
     fn serialize_newtype_variant<T>(&mut self,
-                                _name: &str,
-                                _variant_index: usize,
-                                variant: &str,
+                                name: &'static str,
+                                variant_index: usize,
+                                variant: &'static str,
                                 value: T) -> EncoderResult<()>
         where T: Serialize,
     {
-        let mut values = bson::Document::new();
-        values.insert(String::from(variant), try!(to_bson(&value)));
-
-        self.state.push(State::Bson(Bson::Document(values)));
-        Ok(())
+        let mut state = try!(self.serialize_tuple_variant(name, variant_index, variant, 1));
+        try!(self.serialize_tuple_variant_elt(&mut state, value));
+        self.serialize_tuple_variant_end(state)
     }
 
     #[inline]
-    fn serialize_seq<V>(&mut self, mut visitor: V) -> EncoderResult<()>
-        where V: SeqVisitor,
-    {
-        let len = visitor.len().unwrap_or(0);
-        let values = Vec::with_capacity(len);
-        self.state.push(State::Array(values));
-
-        while let Some(()) = try!(visitor.visit(self)) { }
-
-        let values = match try!(self.pop()) {
-            State::Array(values) => values,
-            state => return Err(EncoderError::InvalidState(state)),
-        };
-
-        self.state.push(State::Bson(Bson::Array(values)));
-        Ok(())
+    fn serialize_seq(&mut self, len: Option<usize>) -> EncoderResult<Array> {
+        Ok(Array::with_capacity(len.unwrap_or(0)))
     }
 
     #[inline]
-    fn serialize_tuple_variant<V>(&mut self,
-                              _name: &str,
-                              _variant_index: usize,
-                              variant: &str,
-                              visitor: V) -> EncoderResult<()>
-        where V: SeqVisitor,
-    {
-        try!(self.serialize_seq(visitor));
-
-        let value = match try!(self.pop()) {
-            State::Bson(value) => value,
-            state => return Err(EncoderError::InvalidState(state)),
-        };
-
-        let mut object = bson::Document::new();
-        object.insert(String::from(variant), value);
-
-        self.state.push(State::Bson(Bson::Document(object)));
-        Ok(())
-    }
-
-    #[inline]
-    fn serialize_seq_elt<T>(&mut self, value: T) -> EncoderResult<()>
+    fn serialize_seq_elt<T>(&mut self,
+                            state: &mut Array,
+                            value: T) -> EncoderResult<()>
         where T: Serialize,
     {
-        try!(value.serialize(self));
-
-        let value = match try!(self.pop()) {
-            State::Bson(value) => value,
-            state => return Err(EncoderError::InvalidState(state)),
-        };
-
-        match self.state.last_mut() {
-            Some(&mut State::Array(ref mut values)) => values.push(value),
-            Some(state) => return Err(EncoderError::InvalidState(state.clone())),
-            None => return Err(EncoderError::EmptyState),
-        }
-
+        state.push(try!(to_bson(&value)));
         Ok(())
     }
 
     #[inline]
-    fn serialize_map<V>(&mut self, mut visitor: V) -> EncoderResult<()>
-        where V: MapVisitor,
+    fn serialize_seq_end(&mut self, state: Array) -> EncoderResult<()> {
+        self.value = Bson::Array(state);
+        Ok(())
+    }
+
+    #[inline]
+    fn serialize_seq_fixed_size(&mut self, len: usize) -> EncoderResult<Array> {
+        Ok(Array::with_capacity(len))
+    }
+
+    #[inline]
+    fn serialize_tuple(&mut self, len: usize) -> EncoderResult<Array> {
+        self.serialize_seq(Some(len))
+    }
+
+    #[inline]
+    fn serialize_tuple_elt<T>(&mut self,
+                              state: &mut Array,
+                              value: T) -> EncoderResult<()>
+        where T: Serialize,
     {
-        let values = bson::Document::new();
-        self.state.push(State::Document(values));
-
-        while let Some(()) = try!(visitor.visit(self)) { }
-
-        let values = match try!(self.pop()) {
-            State::Document(values) => values,
-            state => return return Err(EncoderError::InvalidState(state)),
-        };
-
-        let bson = Bson::from_extended_document(values);
-        self.state.push(State::Bson(bson));
-        Ok(())
+        self.serialize_seq_elt(state, value)
     }
 
     #[inline]
-    fn serialize_struct_variant<V>(&mut self,
-                               _name: &str,
+    fn serialize_tuple_end(&mut self, state: Array) -> EncoderResult<()> {
+        self.serialize_seq_end(state)
+    }
+
+    #[inline]
+    fn serialize_tuple_struct(&mut self,
+                              _name: &'static str,
+                              len: usize) -> EncoderResult<Array> {
+        self.serialize_seq(Some(len))
+    }
+
+    #[inline]
+    fn serialize_tuple_struct_elt<T>(&mut self,
+                                     state: &mut Array,
+                                     value: T) -> EncoderResult<()>
+        where T: Serialize,
+    {
+        self.serialize_seq_elt(state, value)
+    }
+
+    #[inline]
+    fn serialize_tuple_struct_end(&mut self,
+                                  state: Array) -> EncoderResult<()> {
+        self.serialize_seq_end(state)
+    }
+
+    #[inline]
+    fn serialize_tuple_variant(&mut self,
+                               _name: &'static str,
                                _variant_index: usize,
-                               variant: &str,
-                               visitor: V) -> EncoderResult<()>
-        where V: MapVisitor,
+                               variant: &'static str,
+                               len: usize) -> EncoderResult<TupleVariantState> {
+        Ok(TupleVariantState {
+            name: variant,
+            array: try!(self.serialize_seq(Some(len))),
+        })
+    }
+
+    #[inline]
+    fn serialize_tuple_variant_elt<T>(&mut self,
+                                      state: &mut TupleVariantState,
+                                      value: T) -> EncoderResult<()>
+        where T: Serialize,
     {
-        try!(self.serialize_map(visitor));
+        self.serialize_seq_elt(&mut state.array, value)
+    }
 
-        let value = match try!(self.pop()) {
-            State::Bson(value) => value,
-            state => return Err(EncoderError::InvalidState(state)),
-        };
+    #[inline]
+    fn serialize_tuple_variant_end(&mut self,
+                                   state: TupleVariantState) -> EncoderResult<()> {
+        let mut tuple_variant = Document::new();
+        tuple_variant.insert(state.name.to_string(), Bson::Array(state.array));
 
-        let mut object = bson::Document::new();
-        object.insert(String::from(variant), value);
-
-        self.state.push(State::Bson(Bson::Document(object)));
+        self.value = Bson::Document(tuple_variant);
         Ok(())
     }
 
     #[inline]
-    fn serialize_map_elt<K, V>(&mut self, key: K, value: V) -> EncoderResult<()>
-        where K: Serialize,
-              V: Serialize,
+    fn serialize_map(&mut self,
+                     _len: Option<usize>) -> EncoderResult<MapState> {
+        Ok(MapState {
+            document: Document::new(),
+            next_key: None,
+        })
+    }
+
+    #[inline]
+    fn serialize_map_key<T>(&mut self,
+                            state: &mut MapState,
+                            key: T) -> EncoderResult<()>
+        where T: Serialize,
     {
-        try!(key.serialize(self));
-
-        let key = match try!(self.pop()) {
-            State::Bson(Bson::String(value)) => value,
-            state => return Err(EncoderError::InvalidMapKeyType(state)),
+        state.next_key = match try!(to_bson(&key)) {
+            Bson::String(s) => Some(s),
+            other => return Err(EncoderError::InvalidMapKeyType(other)),
         };
+        Ok(())
+    }
 
-        try!(value.serialize(self));
+    #[inline]
+    fn serialize_map_value<T>(&mut self,
+                              state: &mut MapState,
+                              value: T) -> EncoderResult<()>
+        where T: Serialize,
+    {
+        let key = state.next_key.take().unwrap_or_else(|| "".to_string());
+        state.document.insert(key, try!(to_bson(&value)));
+        Ok(())
+    }
 
-        let value = match try!(self.pop()) {
-            State::Bson(value) => value,
-            state => return Err(EncoderError::InvalidState(state)),
-        };
+    #[inline]
+    fn serialize_map_end(&mut self, state: MapState) -> EncoderResult<()> {
+        self.value = Bson::from_extended_document(state.document);
+        Ok(())
+    }
 
-        if Bson::Null != value {
-            match self.state.last_mut() {
-                Some(&mut State::Document(ref mut values)) => { values.insert(key, value); }
-                Some(state) => return Err(EncoderError::InvalidState(state.clone())),
-                None => return Err(EncoderError::EmptyState),
-            }
-        }
+    #[inline]
+    fn serialize_struct(&mut self,
+                        _name: &'static str,
+                        len: usize) -> EncoderResult<MapState> {
+        self.serialize_map(Some(len))
+    }
 
+    #[inline]
+    fn serialize_struct_elt<V: Serialize>(&mut self, state: &mut MapState, key: &'static str, value: V) -> EncoderResult<()> {
+        try!(self.serialize_map_key(state, key));
+        self.serialize_map_value(state, value)
+    }
+
+    #[inline]
+    fn serialize_struct_end(&mut self, state: MapState) -> EncoderResult<()> {
+        self.serialize_map_end(state)
+    }
+
+    #[inline]
+    fn serialize_struct_variant(&mut self,
+                                name: &'static str,
+                                _variant_index: usize,
+                                variant: &'static str,
+                                len: usize) -> EncoderResult<StructVariantState> {
+        Ok(StructVariantState {
+            name: variant,
+            map: try!(self.serialize_struct(name, len)),
+        })
+    }
+
+    #[inline]
+    fn serialize_struct_variant_elt<V>(&mut self,
+                                       state: &mut StructVariantState,
+                                       key: &'static str,
+                                       value: V) -> EncoderResult<()>
+        where V: Serialize,
+    {
+        self.serialize_struct_elt(&mut state.map, key, value)
+    }
+
+    #[inline]
+    fn serialize_struct_variant_end(&mut self,
+                                    state: StructVariantState) -> EncoderResult<()> {
+        let value = Bson::from_extended_document(state.map.document);
+
+        let mut struct_variant = Document::new();
+        struct_variant.insert(state.name.to_string(), value);
+
+        self.value = Bson::Document(struct_variant);
         Ok(())
     }
 }
