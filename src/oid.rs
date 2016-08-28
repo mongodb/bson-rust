@@ -306,9 +306,11 @@ fn pid_generation() {
 }
 
 #[test]
-fn count_generation() {
-    let start = 52222;
+fn count_generated_is_big_endian() {
+    let start = 1122866;
     OID_COUNTER.store(start, Ordering::SeqCst);
+
+    // Test count generates correct value 1122866
     let count_res = ObjectId::gen_count();
     assert!(count_res.is_ok());
     let count_bytes = count_res.unwrap();
@@ -320,12 +322,8 @@ fn count_generation() {
 
     let count = BigEndian::read_u32(&buf);
     assert_eq!(start as u32, count);
-}
 
-#[test]
-fn count_is_big_endian() {
-    let start = 1122867;
-    OID_COUNTER.store(start, Ordering::SeqCst);
+    // Test OID formats count correctly as big endian
     let oid_res = ObjectId::new();
     assert!(oid_res.is_ok());
     let oid = oid_res.unwrap();
