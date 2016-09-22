@@ -152,6 +152,10 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
         },
         Some(JavaScriptCode) => read_string(reader).map(Bson::JavaScriptCode),
         Some(JavaScriptCodeWithScope) => {
+            // disregard the length:
+            //     using Read::take causes infinite type recursion
+            try!(read_i32(reader));
+
             let code = try!(read_string(reader));
             let scope = try!(decode_document(reader));
             Ok(Bson::JavaScriptCodeWithScope(code, scope))

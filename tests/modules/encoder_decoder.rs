@@ -148,8 +148,8 @@ fn test_encode_decode_javascript_code_with_scope() {
 
     assert_eq!(buf, dst);
 
-    //let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
-    //assert_eq!(decoded, doc);
+    let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
+    assert_eq!(decoded, doc);
 }
 
 #[test]
