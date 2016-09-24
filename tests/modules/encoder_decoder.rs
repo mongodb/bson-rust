@@ -136,21 +136,21 @@ fn test_encode_decode_javascript_code() {
     assert_eq!(decoded, doc);
 }
 
-//#[test]
-//fn test_encode_decode_javascript_code_with_scope() {
-//    let src = Bson::JavaScriptCodeWithScope("1".to_owned(), doc!{});
-//    let dst = vec![25, 0, 0, 0, 15, 107, 101, 121, 0, 12, 0, 0, 0, 2, 0, 0, 0, 49, 0, 5, 0, 0, 0, 0, 0];
-//
-//    let doc = doc!{ "key" => src };
-//
-//    let mut buf = Vec::new();
-//    encode_document(&mut buf, &doc).unwrap();
-//
-//    assert_eq!(buf, dst);
-//
-//    let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
-//    assert_eq!(decoded, doc);
-//}
+#[test]
+fn test_encode_decode_javascript_code_with_scope() {
+    let src = Bson::JavaScriptCodeWithScope("1".to_owned(), doc!{});
+    let dst = vec![25, 0, 0, 0, 15, 107, 101, 121, 0, 15, 0, 0, 0, 2, 0, 0, 0, 49, 0, 5, 0, 0, 0, 0, 0];
+
+    let doc = doc!{ "key" => src };
+
+    let mut buf = Vec::new();
+    encode_document(&mut buf, &doc).unwrap();
+
+    assert_eq!(buf, dst);
+
+    let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
+    assert_eq!(decoded, doc);
+}
 
 #[test]
 fn test_encode_decode_i32() {

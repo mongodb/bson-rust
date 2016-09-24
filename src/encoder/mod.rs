@@ -117,7 +117,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
             try!(write_string(&mut buf, code));
             try!(encode_document(&mut buf, scope));
 
-            try!(write_i32(writer, buf.len() as i32 + 1));
+            try!(write_i32(writer, buf.len() as i32 + 4));
             writer.write_all(&buf).map_err(From::from)
         },
         &Bson::I32(v) => write_i32(writer, v),
