@@ -78,7 +78,7 @@ impl error::Error for DecoderError {
         match *self {
             DecoderError::IoError(ref inner) => Some(inner),
             DecoderError::Utf8Error(ref inner) => Some(inner),
-            _ => None
+            _ => None,
         }
     }
 }

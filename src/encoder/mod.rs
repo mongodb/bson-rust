@@ -71,7 +71,8 @@ fn encode_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> EncoderResul
         try!(encode_bson(&mut buf, &key.to_string(), val));
     }
 
-    try!(write_i32(writer, (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32));
+    try!(write_i32(writer,
+                   (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32));
     try!(writer.write_all(&buf));
     try!(writer.write_u8(0));
     Ok(())
@@ -81,16 +82,20 @@ fn encode_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> EncoderResul
 ///
 /// Can encode any type which is iterable as `(key: &str, value: &Bson)` pairs,
 /// which generally means most maps.
-pub fn encode_document
-    <'a, S: AsRef<str> + 'a, W: Write + ?Sized, D: IntoIterator<Item=(&'a S, &'a Bson)>>
-    (writer: &mut W, doc: D) -> EncoderResult<()>
-{
+pub fn encode_document<'a,
+                       S: AsRef<str> + 'a,
+                       W: Write + ?Sized,
+                       D: IntoIterator<Item = (&'a S, &'a Bson)>>
+    (writer: &mut W,
+     doc: D)
+     -> EncoderResult<()> {
     let mut buf = Vec::new();
     for (key, val) in doc.into_iter() {
         try!(encode_bson(&mut buf, key.as_ref(), val));
     }
 
-    try!(write_i32(writer, (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32));
+    try!(write_i32(writer,
+                   (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32));
     try!(writer.write_all(&buf));
     try!(writer.write_u8(0));
     Ok(())
@@ -109,7 +114,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         &Bson::RegExp(ref pat, ref opt) => {
             try!(write_cstring(writer, pat));
             write_cstring(writer, opt)
-        },
+        }
         &Bson::JavaScriptCode(ref code) => write_string(writer, &code),
         &Bson::ObjectId(ref id) => writer.write_all(&id.bytes()).map_err(From::from),
         &Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
@@ -119,7 +124,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
 
             try!(write_i32(writer, buf.len() as i32 + 4));
             writer.write_all(&buf).map_err(From::from)
-        },
+        }
         &Bson::I32(v) => write_i32(writer, v),
         &Bson::I64(v) => write_i64(writer, v),
         &Bson::TimeStamp(v) => write_i64(writer, v),
@@ -127,11 +132,13 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
             try!(write_i32(writer, data.len() as i32));
             try!(writer.write_u8(From::from(subtype)));
             writer.write_all(data).map_err(From::from)
-        },
+        }
         &Bson::UtcDatetime(ref v) => {
-            write_i64(writer, (v.timestamp() * 1000) + (v.nanosecond()  / 1000000)  as i64)
-        },
-        &Bson::Null => Ok(())
+            write_i64(writer,
+                      (v.timestamp() * 1000) + (v.nanosecond() / 1000000) as i64)
+        }
+        &Bson::Null => Ok(()),
+        &Bson::Symbol(ref v) => write_string(writer, &v),
     }
 }
 

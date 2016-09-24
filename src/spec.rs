@@ -23,33 +23,33 @@
 
 use std::convert::From;
 
-pub const ELEMENT_TYPE_FLOATING_POINT               : u8 = 0x01;
-pub const ELEMENT_TYPE_UTF8_STRING                  : u8 = 0x02;
-pub const ELEMENT_TYPE_EMBEDDED_DOCUMENT            : u8 = 0x03;
-pub const ELEMENT_TYPE_ARRAY                        : u8 = 0x04;
-pub const ELEMENT_TYPE_BINARY                       : u8 = 0x05;
-pub const ELEMENT_TYPE_UNDEFINED                    : u8 = 0x06; // Deprecated
-pub const ELEMENT_TYPE_OBJECT_ID                    : u8 = 0x07;
-pub const ELEMENT_TYPE_BOOLEAN                      : u8 = 0x08;
-pub const ELEMENT_TYPE_UTC_DATETIME                 : u8 = 0x09;
-pub const ELEMENT_TYPE_NULL_VALUE                   : u8 = 0x0A;
-pub const ELEMENT_TYPE_REGULAR_EXPRESSION           : u8 = 0x0B;
-pub const ELEMENT_TYPE_DBPOINTER                    : u8 = 0x0C; // Deprecated
-pub const ELEMENT_TYPE_JAVASCRIPT_CODE              : u8 = 0x0D;
-pub const ELEMENT_TYPE_DEPRECATED                   : u8 = 0x0E;
-pub const ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE   : u8 = 0x0F;
-pub const ELEMENT_TYPE_32BIT_INTEGER                : u8 = 0x10;
-pub const ELEMENT_TYPE_TIMESTAMP                    : u8 = 0x11;
-pub const ELEMENT_TYPE_64BIT_INTEGER                : u8 = 0x12;
-pub const ELEMENT_TYPE_MINKEY                       : u8 = 0xFF;
-pub const ELEMENT_TYPE_MAXKEY                       : u8 = 0x7F;
+pub const ELEMENT_TYPE_FLOATING_POINT: u8             = 0x01;
+pub const ELEMENT_TYPE_UTF8_STRING: u8                = 0x02;
+pub const ELEMENT_TYPE_EMBEDDED_DOCUMENT: u8          = 0x03;
+pub const ELEMENT_TYPE_ARRAY: u8                      = 0x04;
+pub const ELEMENT_TYPE_BINARY: u8                     = 0x05;
+pub const ELEMENT_TYPE_UNDEFINED: u8                  = 0x06; // Deprecated
+pub const ELEMENT_TYPE_OBJECT_ID: u8                  = 0x07;
+pub const ELEMENT_TYPE_BOOLEAN: u8                    = 0x08;
+pub const ELEMENT_TYPE_UTC_DATETIME: u8               = 0x09;
+pub const ELEMENT_TYPE_NULL_VALUE: u8                 = 0x0A;
+pub const ELEMENT_TYPE_REGULAR_EXPRESSION: u8         = 0x0B;
+pub const ELEMENT_TYPE_DBPOINTER: u8                  = 0x0C; // Deprecated
+pub const ELEMENT_TYPE_JAVASCRIPT_CODE: u8            = 0x0D;
+pub const ELEMENT_TYPE_SYMBOL: u8                     = 0x0E; // Deprecated
+pub const ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE: u8 = 0x0F;
+pub const ELEMENT_TYPE_32BIT_INTEGER: u8              = 0x10;
+pub const ELEMENT_TYPE_TIMESTAMP: u8                  = 0x11;
+pub const ELEMENT_TYPE_64BIT_INTEGER: u8              = 0x12;
+pub const ELEMENT_TYPE_MINKEY: u8                     = 0xFF;
+pub const ELEMENT_TYPE_MAXKEY: u8                     = 0x7F;
 
-pub const BINARY_SUBTYPE_GENERIC                    : u8 = 0x00;
-pub const BINARY_SUBTYPE_FUNCTION                   : u8 = 0x01;
-pub const BINARY_SUBTYPE_BINARY_OLD                 : u8 = 0x02;
-pub const BINARY_SUBTYPE_UUID_OLD                   : u8 = 0x03;
-pub const BINARY_SUBTYPE_UUID                       : u8 = 0x04;
-pub const BINARY_SUBTYPE_MD5                        : u8 = 0x05;
+pub const BINARY_SUBTYPE_GENERIC: u8                  = 0x00;
+pub const BINARY_SUBTYPE_FUNCTION: u8                 = 0x01;
+pub const BINARY_SUBTYPE_BINARY_OLD: u8               = 0x02;
+pub const BINARY_SUBTYPE_UUID_OLD: u8                 = 0x03;
+pub const BINARY_SUBTYPE_UUID: u8                     = 0x04;
+pub const BINARY_SUBTYPE_MD5: u8                      = 0x05;
 
 /// All available BSON element types.
 ///
@@ -57,29 +57,30 @@ pub const BINARY_SUBTYPE_MD5                        : u8 = 0x05;
 #[repr(u8)]
 #[derive(Debug, Eq, PartialEq)]
 pub enum ElementType {
-    FloatingPoint               = ELEMENT_TYPE_FLOATING_POINT,
-    Utf8String                  = ELEMENT_TYPE_UTF8_STRING,
-    EmbeddedDocument            = ELEMENT_TYPE_EMBEDDED_DOCUMENT,
-    Array                       = ELEMENT_TYPE_ARRAY,
-    Binary                      = ELEMENT_TYPE_BINARY,
+    FloatingPoint           = ELEMENT_TYPE_FLOATING_POINT,
+    Utf8String              = ELEMENT_TYPE_UTF8_STRING,
+    EmbeddedDocument        = ELEMENT_TYPE_EMBEDDED_DOCUMENT,
+    Array                   = ELEMENT_TYPE_ARRAY,
+    Binary                  = ELEMENT_TYPE_BINARY,
     /// Deprecated.
-    Undefined                   = ELEMENT_TYPE_UNDEFINED,
-    ObjectId                    = ELEMENT_TYPE_OBJECT_ID,
-    Boolean                     = ELEMENT_TYPE_BOOLEAN,
-    UtcDatetime                 = ELEMENT_TYPE_UTC_DATETIME,
-    NullValue                   = ELEMENT_TYPE_NULL_VALUE,
-    RegularExpression           = ELEMENT_TYPE_REGULAR_EXPRESSION,
+    Undefined               = ELEMENT_TYPE_UNDEFINED,
+    ObjectId                = ELEMENT_TYPE_OBJECT_ID,
+    Boolean                 = ELEMENT_TYPE_BOOLEAN,
+    UtcDatetime             = ELEMENT_TYPE_UTC_DATETIME,
+    NullValue               = ELEMENT_TYPE_NULL_VALUE,
+    RegularExpression       = ELEMENT_TYPE_REGULAR_EXPRESSION,
     /// Deprecated.
-    DbPointer                   = ELEMENT_TYPE_DBPOINTER,
-    JavaScriptCode              = ELEMENT_TYPE_JAVASCRIPT_CODE,
-    Deprecated                  = ELEMENT_TYPE_DEPRECATED,
-    JavaScriptCodeWithScope     = ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE,
-    Integer32Bit                = ELEMENT_TYPE_32BIT_INTEGER,
-    TimeStamp                   = ELEMENT_TYPE_TIMESTAMP,
-    Integer64Bit                = ELEMENT_TYPE_64BIT_INTEGER,
+    DbPointer               = ELEMENT_TYPE_DBPOINTER,
+    JavaScriptCode          = ELEMENT_TYPE_JAVASCRIPT_CODE,
+    /// Deprecated.
+    Symbol                  = ELEMENT_TYPE_SYMBOL,
+    JavaScriptCodeWithScope = ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE,
+    Integer32Bit            = ELEMENT_TYPE_32BIT_INTEGER,
+    TimeStamp               = ELEMENT_TYPE_TIMESTAMP,
+    Integer64Bit            = ELEMENT_TYPE_64BIT_INTEGER,
 
-    MaxKey                      = ELEMENT_TYPE_MAXKEY,
-    MinKey                      = ELEMENT_TYPE_MINKEY,
+    MaxKey                  = ELEMENT_TYPE_MAXKEY,
+    MinKey                  = ELEMENT_TYPE_MINKEY,
 }
 
 impl ElementType {
@@ -101,14 +102,14 @@ impl ElementType {
             ELEMENT_TYPE_REGULAR_EXPRESSION => RegularExpression,
             ELEMENT_TYPE_DBPOINTER => DbPointer,
             ELEMENT_TYPE_JAVASCRIPT_CODE => JavaScriptCode,
-            ELEMENT_TYPE_DEPRECATED => Deprecated,
+            ELEMENT_TYPE_SYMBOL => Symbol,
             ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE => JavaScriptCodeWithScope,
             ELEMENT_TYPE_32BIT_INTEGER => Integer32Bit,
             ELEMENT_TYPE_TIMESTAMP => TimeStamp,
             ELEMENT_TYPE_64BIT_INTEGER => Integer64Bit,
             ELEMENT_TYPE_MAXKEY => MaxKey,
             ELEMENT_TYPE_MINKEY => MinKey,
-            _ => return None
+            _ => return None,
         })
     }
 }
@@ -127,30 +128,30 @@ pub enum BinarySubtype {
 
 impl From<BinarySubtype> for u8 {
     #[inline]
-    fn from(t : BinarySubtype) -> u8 {
+    fn from(t: BinarySubtype) -> u8 {
         match t {
-            BinarySubtype::Generic         => BINARY_SUBTYPE_GENERIC,
-            BinarySubtype::Function        => BINARY_SUBTYPE_FUNCTION,
-            BinarySubtype::BinaryOld       => BINARY_SUBTYPE_BINARY_OLD,
-            BinarySubtype::UuidOld         => BINARY_SUBTYPE_UUID_OLD,
-            BinarySubtype::Uuid            => BINARY_SUBTYPE_UUID,
-            BinarySubtype::Md5             => BINARY_SUBTYPE_MD5,
-            BinarySubtype::UserDefined(x)  => x,
+            BinarySubtype::Generic => BINARY_SUBTYPE_GENERIC,
+            BinarySubtype::Function => BINARY_SUBTYPE_FUNCTION,
+            BinarySubtype::BinaryOld => BINARY_SUBTYPE_BINARY_OLD,
+            BinarySubtype::UuidOld => BINARY_SUBTYPE_UUID_OLD,
+            BinarySubtype::Uuid => BINARY_SUBTYPE_UUID,
+            BinarySubtype::Md5 => BINARY_SUBTYPE_MD5,
+            BinarySubtype::UserDefined(x) => x,
         }
     }
 }
 
 impl From<u8> for BinarySubtype {
     #[inline]
-    fn from(t : u8) -> BinarySubtype {
+    fn from(t: u8) -> BinarySubtype {
         match t {
-            BINARY_SUBTYPE_GENERIC      => BinarySubtype::Generic,
-            BINARY_SUBTYPE_FUNCTION     => BinarySubtype::Function,
-            BINARY_SUBTYPE_BINARY_OLD   => BinarySubtype::BinaryOld,
-            BINARY_SUBTYPE_UUID_OLD     => BinarySubtype::UuidOld,
-            BINARY_SUBTYPE_UUID         => BinarySubtype::Uuid,
-            BINARY_SUBTYPE_MD5          => BinarySubtype::Md5,
-            _                           => BinarySubtype::UserDefined(t),
+            BINARY_SUBTYPE_GENERIC => BinarySubtype::Generic,
+            BINARY_SUBTYPE_FUNCTION => BinarySubtype::Function,
+            BINARY_SUBTYPE_BINARY_OLD => BinarySubtype::BinaryOld,
+            BINARY_SUBTYPE_UUID_OLD => BinarySubtype::UuidOld,
+            BINARY_SUBTYPE_UUID => BinarySubtype::Uuid,
+            BINARY_SUBTYPE_MD5 => BinarySubtype::Md5,
+            _ => BinarySubtype::UserDefined(t),
         }
     }
 }

@@ -1,7 +1,7 @@
 use std::vec;
 
-use serde::de::{self, Deserialize, Deserializer, Visitor,
-                EnumVisitor, MapVisitor, SeqVisitor, VariantVisitor};
+use serde::de::{self, Deserialize, Deserializer, Visitor, EnumVisitor, MapVisitor, SeqVisitor,
+                VariantVisitor};
 
 use bson::Bson;
 use oid::ObjectId;
@@ -13,13 +13,15 @@ pub struct BsonVisitor;
 
 impl Deserialize for ObjectId {
     fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
-        where D: Deserializer,
+        where D: Deserializer
     {
         deserializer.deserialize_map(BsonVisitor)
             .and_then(|bson| if let Bson::ObjectId(oid) = bson {
                 Ok(oid)
             } else {
-                Err(de::Error::invalid_value(&format!("expected objectId extended document, found {}", bson)))
+                Err(de::Error::invalid_value(&format!("expected objectId extended document, \
+                                                       found {}",
+                                                      bson)))
             })
     }
 }
@@ -27,13 +29,15 @@ impl Deserialize for ObjectId {
 impl Deserialize for OrderedDocument {
     /// Deserialize this value given this `Deserializer`.
     fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
-        where D: Deserializer,
+        where D: Deserializer
     {
         deserializer.deserialize_map(BsonVisitor)
             .and_then(|bson| if let Bson::Document(doc) = bson {
                 Ok(doc)
             } else {
-                Err(de::Error::invalid_value(&format!("expected document, found extended JSON data type: {}", bson)))
+                Err(de::Error::invalid_value(&format!("expected document, found extended JSON \
+                                                       data type: {}",
+                                                      bson)))
             })
     }
 }
@@ -41,7 +45,7 @@ impl Deserialize for OrderedDocument {
 impl Deserialize for Bson {
     #[inline]
     fn deserialize<D>(deserializer: &mut D) -> Result<Bson, D::Error>
-        where D: Deserializer,
+        where D: Deserializer
     {
         deserializer.deserialize(BsonVisitor)
     }
@@ -106,7 +110,7 @@ impl Visitor for BsonVisitor {
 
     #[inline]
     fn visit_some<D>(&mut self, deserializer: &mut D) -> Result<Bson, D::Error>
-        where D: Deserializer,
+        where D: Deserializer
     {
         de::Deserialize::deserialize(deserializer)
     }
@@ -118,7 +122,7 @@ impl Visitor for BsonVisitor {
 
     #[inline]
     fn visit_seq<V>(&mut self, visitor: V) -> Result<Bson, V::Error>
-        where V: SeqVisitor,
+        where V: SeqVisitor
     {
         let values = try!(de::impls::VecVisitor::new().visit_seq(visitor));
         Ok(Bson::Array(values))
@@ -126,7 +130,7 @@ impl Visitor for BsonVisitor {
 
     #[inline]
     fn visit_map<V>(&mut self, visitor: V) -> Result<Bson, V::Error>
-        where V: MapVisitor,
+        where V: MapVisitor
     {
         let values = try!(OrderedDocumentVisitor::new().visit_map(visitor));
         Ok(Bson::from_extended_document(values.into()))
@@ -139,9 +143,7 @@ pub struct Decoder {
 
 impl Decoder {
     pub fn new(value: Bson) -> Decoder {
-        Decoder {
-            value: Some(value),
-        }
+        Decoder { value: Some(value) }
     }
 }
 
@@ -187,11 +189,13 @@ impl Deserializer for Decoder {
 
     #[inline]
     fn deserialize<V>(&mut self, mut visitor: V) -> DecoderResult<V::Value>
-        where V: Visitor,
+        where V: Visitor
     {
         let value = match self.value.take() {
             Some(value) => value,
-            None => { return Err(de::Error::end_of_stream()); }
+            None => {
+                return Err(de::Error::end_of_stream());
+            }
         };
 
         match value {
@@ -233,7 +237,7 @@ impl Deserializer for Decoder {
 
     #[inline]
     fn deserialize_option<V>(&mut self, mut visitor: V) -> DecoderResult<V::Value>
-        where V: Visitor,
+        where V: Visitor
     {
         match self.value {
             Some(Bson::Null) => visitor.visit_none(),
@@ -244,15 +248,20 @@ impl Deserializer for Decoder {
 
     #[inline]
     fn deserialize_enum<V>(&mut self,
-                     _name: &str,
-                     _variants: &'static [&'static str],
-                     mut visitor: V) -> DecoderResult<V::Value>
-        where V: EnumVisitor,
+                           _name: &str,
+                           _variants: &'static [&'static str],
+                           mut visitor: V)
+                           -> DecoderResult<V::Value>
+        where V: EnumVisitor
     {
         let value = match self.value.take() {
             Some(Bson::Document(value)) => value,
-            Some(_) => { return Err(de::Error::invalid_value("expected an enum")); }
-            None => { return Err(de::Error::end_of_stream()); }
+            Some(_) => {
+                return Err(de::Error::invalid_value("expected an enum"));
+            }
+            None => {
+                return Err(de::Error::end_of_stream());
+            }
         };
 
         let mut iter = value.into_iter();
@@ -265,19 +274,22 @@ impl Deserializer for Decoder {
         // enums are encoded in json as maps with a single key:value pair
         match iter.next() {
             Some(_) => Err(de::Error::invalid_value("expected map")),
-            None => visitor.visit(VariantDecoder {
-                de: self,
-                val: Some(value),
-                variant: Some(Bson::String(variant)),
-            }),
+            None => {
+                visitor.visit(VariantDecoder {
+                    de: self,
+                    val: Some(value),
+                    variant: Some(Bson::String(variant)),
+                })
+            }
         }
     }
 
     #[inline]
     fn deserialize_newtype_struct<V>(&mut self,
-                               _name: &'static str,
-                               mut visitor: V) -> DecoderResult<V::Value>
-        where V: Visitor,
+                                     _name: &'static str,
+                                     mut visitor: V)
+                                     -> DecoderResult<V::Value>
+        where V: Visitor
     {
         visitor.visit_newtype_struct(self)
     }
@@ -323,60 +335,60 @@ impl<'a> VariantVisitor for VariantDecoder<'a> {
     type Error = DecoderError;
 
     fn visit_variant<V>(&mut self) -> DecoderResult<V>
-        where V: Deserialize,
+        where V: Deserialize
     {
-        Deserialize::deserialize(&mut Decoder::new(try!(self.variant.take()
-                                                        .ok_or(DecoderError::EndOfStream))))
+        Deserialize::deserialize(&mut Decoder::new(try!(self.variant
+            .take()
+            .ok_or(DecoderError::EndOfStream))))
     }
 
     fn visit_unit(&mut self) -> DecoderResult<()> {
-        Deserialize::deserialize(&mut Decoder::new(try!(self.val.take()
-                                                        .ok_or(DecoderError::EndOfStream))))
+        Deserialize::deserialize(&mut Decoder::new(try!(self.val
+            .take()
+            .ok_or(DecoderError::EndOfStream))))
     }
 
     fn visit_newtype<T>(&mut self) -> DecoderResult<T>
-        where T: Deserialize,
+        where T: Deserialize
     {
-        Deserialize::deserialize(&mut Decoder::new(try!(self.val.take()
-                                                        .ok_or(DecoderError::EndOfStream))))
+        Deserialize::deserialize(&mut Decoder::new(try!(self.val
+            .take()
+            .ok_or(DecoderError::EndOfStream))))
     }
 
-    fn visit_tuple<V>(&mut self,
-                      _len: usize,
-                      visitor: V) -> DecoderResult<V::Value>
-        where V: Visitor,
+    fn visit_tuple<V>(&mut self, _len: usize, visitor: V) -> DecoderResult<V::Value>
+        where V: Visitor
     {
-        if let Bson::Array(fields) = try!(self.val.take()
-                                          .ok_or(DecoderError::EndOfStream)) {
-            Deserializer::deserialize(
-                &mut SeqDecoder {
-                    de: self.de,
-                    len: fields.len(),
-                    iter: fields.into_iter(),
-                },
-                visitor,
-            )
+        if let Bson::Array(fields) = try!(self.val
+            .take()
+            .ok_or(DecoderError::EndOfStream)) {
+            Deserializer::deserialize(&mut SeqDecoder {
+                                          de: self.de,
+                                          len: fields.len(),
+                                          iter: fields.into_iter(),
+                                      },
+                                      visitor)
         } else {
             Err(de::Error::invalid_value("expected a tuple"))
         }
     }
 
     fn visit_struct<V>(&mut self,
-                       _fields: &'static[&'static str],
-                       visitor: V) -> DecoderResult<V::Value>
-        where V: Visitor,
+                       _fields: &'static [&'static str],
+                       visitor: V)
+                       -> DecoderResult<V::Value>
+        where V: Visitor
     {
-        if let Bson::Document(fields) = try!(self.val.take()
-                                             .ok_or(DecoderError::EndOfStream)) {
-            Deserializer::deserialize(
-                &mut MapDecoder {
-                    de: self.de,
-                    len: fields.len(),
-                    iter: fields.into_iter(),
-                    value: None,
-                },
-                visitor,
-            )
+        if let Bson::Document(fields) = try!(self.val
+            .take()
+            .ok_or(DecoderError::EndOfStream)) {
+            Deserializer::deserialize(&mut MapDecoder {
+                                          de: self.de,
+                                          len: fields.len(),
+                                          iter: fields.into_iter(),
+                                          value: None,
+                                      },
+                                      visitor)
         } else {
             Err(de::Error::invalid_value("expected a struct"))
         }
@@ -394,7 +406,7 @@ impl<'a> Deserializer for SeqDecoder<'a> {
 
     #[inline]
     fn deserialize<V>(&mut self, mut visitor: V) -> DecoderResult<V::Value>
-        where V: Visitor,
+        where V: Visitor
     {
         if self.len == 0 {
             visitor.visit_unit()
@@ -497,8 +509,9 @@ impl<'a> MapVisitor for MapDecoder<'a> {
     fn visit_value<T>(&mut self) -> DecoderResult<T>
         where T: Deserialize
     {
-        let value = try!(self.value.take()
-                         .ok_or(DecoderError::EndOfStream));
+        let value = try!(self.value
+            .take()
+            .ok_or(DecoderError::EndOfStream));
 
         self.de.value = Some(value);
         Ok(try!(Deserialize::deserialize(self.de)))
@@ -509,7 +522,7 @@ impl<'a> MapVisitor for MapDecoder<'a> {
     }
 
     fn missing_field<V>(&mut self, _field: &'static str) -> DecoderResult<V>
-        where V: Deserialize,
+        where V: Deserialize
     {
         // See if the type can deserialize from a unit.
         struct UnitDecoder;
@@ -518,13 +531,13 @@ impl<'a> MapVisitor for MapDecoder<'a> {
             type Error = DecoderError;
 
             fn deserialize<V>(&mut self, mut visitor: V) -> DecoderResult<V::Value>
-                where V: Visitor,
+                where V: Visitor
             {
                 visitor.visit_unit()
             }
 
             fn deserialize_option<V>(&mut self, mut visitor: V) -> DecoderResult<V::Value>
-                where V: Visitor,
+                where V: Visitor
             {
                 visitor.visit_none()
             }
@@ -575,7 +588,7 @@ impl<'a> Deserializer for MapDecoder<'a> {
 
     #[inline]
     fn deserialize<V>(&mut self, mut visitor: V) -> DecoderResult<V::Value>
-        where V: Visitor,
+        where V: Visitor
     {
         visitor.visit_map(self)
     }

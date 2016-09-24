@@ -31,7 +31,7 @@ use std::io::Read;
 use std::str;
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use chrono::{UTC};
+use chrono::UTC;
 use chrono::offset::TimeZone;
 
 use spec::{self, BinarySubtype};
@@ -55,7 +55,9 @@ fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<String> {
 
     loop {
         let c = try!(reader.read_u8());
-        if c == 0 { break; }
+        if c == 0 {
+            break;
+        }
         v.push(c);
     }
 
@@ -123,9 +125,7 @@ fn decode_array<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Array> {
 fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson> {
     use spec::ElementType::*;
     match spec::ElementType::from(tag) {
-        Some(FloatingPoint) => {
-            Ok(Bson::FloatingPoint(try!(reader.read_f64::<LittleEndian>())))
-        },
+        Some(FloatingPoint) => Ok(Bson::FloatingPoint(try!(reader.read_f64::<LittleEndian>()))),
         Some(Utf8String) => read_string(reader).map(Bson::String),
         Some(EmbeddedDocument) => decode_document(reader).map(Bson::Document),
         Some(Array) => decode_array(reader).map(Bson::Array),
@@ -149,7 +149,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
             let pat = try!(read_cstring(reader));
             let opt = try!(read_cstring(reader));
             Ok(Bson::RegExp(pat, opt))
-        },
+        }
         Some(JavaScriptCode) => read_string(reader).map(Bson::JavaScriptCode),
         Some(JavaScriptCodeWithScope) => {
             // disregard the length:
@@ -159,20 +159,18 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
             let code = try!(read_string(reader));
             let scope = try!(decode_document(reader));
             Ok(Bson::JavaScriptCodeWithScope(code, scope))
-        },
+        }
         Some(Integer32Bit) => read_i32(reader).map(Bson::I32),
         Some(Integer64Bit) => read_i64(reader).map(Bson::I64),
         Some(TimeStamp) => read_i64(reader).map(Bson::TimeStamp),
         Some(UtcDatetime) => {
             let time = try!(read_i64(reader));
             Ok(Bson::UtcDatetime(UTC.timestamp(time / 1000, (time % 1000) as u32 * 1000000)))
-        },
-	Some(Deprecated) |
-        Some(Undefined) |
-        Some(DbPointer) |
-        Some(MaxKey) |
-        Some(MinKey) |
-        None => Err(DecoderError::UnrecognizedElementType(tag))
+        }
+        Some(Symbol) => read_string(reader).map(Bson::Symbol),
+        Some(Undefined) | Some(DbPointer) | Some(MaxKey) | Some(MinKey) | None => {
+            Err(DecoderError::UnrecognizedElementType(tag))
+        }
     }
 }
 

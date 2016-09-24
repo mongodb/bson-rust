@@ -28,7 +28,7 @@ const MAX_U24: usize = 0xFFFFFF;
 static OID_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
 static mut MACHINE_BYTES: Option<[u8; 3]> = None;
 
-extern {
+extern "C" {
     fn gethostname(name: *mut libc::c_char, size: libc::size_t) -> libc::c_int;
 }
 
@@ -104,26 +104,33 @@ impl ObjectId {
         let counter = try!(ObjectId::gen_count());
 
         let mut buf: [u8; 12] = [0; 12];
-        for i in 0..TIMESTAMP_SIZE { buf[TIMESTAMP_OFFSET + i] = timestamp[i]; }
-        for i in 0..MACHINE_ID_SIZE { buf[MACHINE_ID_OFFSET + i] = machine_id[i]; }
-        for i in 0..PROCESS_ID_SIZE { buf[PROCESS_ID_OFFSET + i] = process_id[i]; }
-        for i in 0..COUNTER_SIZE { buf[COUNTER_OFFSET +i] = counter[i]; }
+        for i in 0..TIMESTAMP_SIZE {
+            buf[TIMESTAMP_OFFSET + i] = timestamp[i];
+        }
+        for i in 0..MACHINE_ID_SIZE {
+            buf[MACHINE_ID_OFFSET + i] = machine_id[i];
+        }
+        for i in 0..PROCESS_ID_SIZE {
+            buf[PROCESS_ID_OFFSET + i] = process_id[i];
+        }
+        for i in 0..COUNTER_SIZE {
+            buf[COUNTER_OFFSET + i] = counter[i];
+        }
 
         Ok(ObjectId::with_bytes(buf))
     }
 
     /// Constructs a new ObjectId wrapper around the raw byte representation.
     pub fn with_bytes(bytes: [u8; 12]) -> ObjectId {
-        ObjectId {
-            id: bytes,
-        }
+        ObjectId { id: bytes }
     }
 
     /// Creates an ObjectID using a 12-byte (24-char) hexadecimal string.
     pub fn with_string(s: &str) -> Result<ObjectId> {
         let bytes = try!(s.from_hex());
         if bytes.len() != 12 {
-            Err(Error::ArgumentError("Provided string must be a 12-byte hexadecimal string.".to_owned()))
+            Err(Error::ArgumentError("Provided string must be a 12-byte hexadecimal string."
+                .to_owned()))
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
             for i in 0..12 {
@@ -156,7 +163,7 @@ impl ObjectId {
     pub fn machine_id(&self) -> u32 {
         let mut buf: [u8; 4] = [0; 4];
         for i in 0..MACHINE_ID_SIZE {
-            buf[i] = self.id[MACHINE_ID_OFFSET+i];
+            buf[i] = self.id[MACHINE_ID_OFFSET + i];
         }
         LittleEndian::read_u32(&buf)
     }
@@ -170,7 +177,7 @@ impl ObjectId {
     pub fn counter(&self) -> u32 {
         let mut buf: [u8; 4] = [0; 4];
         for i in 0..COUNTER_SIZE {
-            buf[i+1] = self.id[COUNTER_OFFSET+i];
+            buf[i + 1] = self.id[COUNTER_OFFSET + i];
         }
         BigEndian::read_u32(&buf)
     }
@@ -182,7 +189,7 @@ impl ObjectId {
         let timestamp = timespec.sec as u32;
 
         let mut buf: [u8; 4] = [0; 4];
-        BigEndian::write_u32(&mut buf,timestamp);
+        BigEndian::write_u32(&mut buf, timestamp);
         buf
     }
 
@@ -317,7 +324,7 @@ fn count_generated_is_big_endian() {
 
     let mut buf: [u8; 4] = [0; 4];
     for i in 0..COUNTER_SIZE {
-        buf[i+1] = count_bytes[i];
+        buf[i + 1] = count_bytes[i];
     }
 
     let count = BigEndian::read_u32(&buf);
@@ -337,18 +344,12 @@ fn count_generated_is_big_endian() {
 fn test_display() {
     let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
 
-    assert_eq!(
-        format!("{}", id),
-        "53e37d08776f724e42000000"
-    )
+    assert_eq!(format!("{}", id), "53e37d08776f724e42000000")
 }
 
 #[test]
 fn test_debug() {
     let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
 
-    assert_eq!(
-        format!("{:?}", id),
-        "ObjectId(53e37d08776f724e42000000)"
-    )
+    assert_eq!(format!("{:?}", id), "ObjectId(53e37d08776f724e42000000)")
 }

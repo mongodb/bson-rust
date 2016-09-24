@@ -27,7 +27,9 @@ impl fmt::Display for EncoderError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &EncoderError::IoError(ref inner) => inner.fmt(fmt),
-            &EncoderError::InvalidMapKeyType(ref bson) => write!(fmt, "Invalid map key type: {:?}", bson),
+            &EncoderError::InvalidMapKeyType(ref bson) => {
+                write!(fmt, "Invalid map key type: {:?}", bson)
+            }
             &EncoderError::Unknown(ref inner) => inner.fmt(fmt),
         }
     }

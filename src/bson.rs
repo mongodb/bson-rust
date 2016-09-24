@@ -50,6 +50,7 @@ pub enum Bson {
     Binary(BinarySubtype, Vec<u8>),
     ObjectId(oid::ObjectId),
     UtcDatetime(DateTime<UTC>),
+    Symbol(String),
 }
 
 /// Alias for `Vec<Bson>`.
@@ -94,7 +95,8 @@ impl Display for Bson {
             &Bson::Binary(t, ref vec) =>
                 write!(fmt, "BinData({}, 0x{})", u8::from(t), vec.to_hex()),
             &Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
-            &Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time)
+            &Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
+            &Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
         }
     }
 }
@@ -229,6 +231,7 @@ impl Bson {
             &Bson::Binary(..) => ElementType::Binary,
             &Bson::ObjectId(..) => ElementType::ObjectId,
             &Bson::UtcDatetime(..) => ElementType::UtcDatetime,
+            &Bson::Symbol(..) => ElementType::Symbol,
         }
     }
 
@@ -295,9 +298,15 @@ impl Bson {
             &Bson::UtcDatetime(ref v) => {
                 let mut obj = json::Object::new();
                 let mut inner = json::Object::new();
-                inner.insert("$numberLong".to_owned(), json::Json::I64((v.timestamp() * 1000) + 
+                inner.insert("$numberLong".to_owned(), json::Json::I64((v.timestamp() * 1000) +
                                                                        (v.nanosecond() / 1000000) as i64));
                 obj.insert("$date".to_owned(), json::Json::Object(inner));
+                json::Json::Object(obj)
+            },
+            &Bson::Symbol(ref v) => {
+                // FIXME: Don't know what is the best way to encode Symbol type
+                let mut obj = json::Object::new();
+                obj.insert("$symbol".to_owned(), json::Json::String(v.to_owned()));
                 json::Json::Object(obj)
             }
         }
@@ -365,13 +374,18 @@ impl Bson {
                     }
                 }
             }
+            Bson::Symbol(ref v) => {
+                doc! {
+                    "$symbol" => (v.to_owned())
+                }
+            }
             _ => panic!("Attempted conversion of invalid data type: {}", self),
         }
     }
 
     pub fn from_extended_document(values: Document) -> Bson {
         if values.len() == 2 {
-            if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), 
+            if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"),
                                          values.get_str("$options")) {
                 return Bson::RegExp(pat.to_owned(), opt.to_owned());
 
@@ -405,9 +419,11 @@ impl Bson {
             } else if let Ok(long) = values.get_document("$date")
                                            .and_then(|inner| inner.get_i64("$numberLong")) {
                 return Bson::UtcDatetime(UTC.timestamp(long / 1000, (long % 1000) as u32 * 1000000));
+            } else if let Ok(sym) = values.get_str("$symbol") {
+                return Bson::Symbol(sym.to_owned());
             }
         }
-        
+
         Bson::Document(values)
     }
 }

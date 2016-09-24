@@ -113,9 +113,7 @@ impl IntoIterator for OrderedDocument {
     type IntoIter = OrderedDocumentIntoIterator;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIntoIterator {
-            inner: self.inner
-        }
+        OrderedDocumentIntoIterator { inner: self.inner }
     }
 }
 
@@ -124,9 +122,7 @@ impl<'a> IntoIterator for &'a OrderedDocument {
     type IntoIter = OrderedDocumentIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIterator {
-            inner: self.inner.iter(),
-        }
+        OrderedDocumentIterator { inner: self.inner.iter() }
     }
 }
 
@@ -157,9 +153,7 @@ impl<'a> Iterator for OrderedDocumentIterator<'a> {
 impl OrderedDocument {
     /// Creates a new empty OrderedDocument.
     pub fn new() -> OrderedDocument {
-        OrderedDocument {
-            inner: LinkedHashMap::new(),
-        }
+        OrderedDocument { inner: LinkedHashMap::new() }
     }
 
     /// Gets an iterator over the entries of the map.
@@ -345,9 +339,7 @@ impl OrderedDocument {
 
 impl From<LinkedHashMap<String, Bson>> for OrderedDocument {
     fn from(tree: LinkedHashMap<String, Bson>) -> OrderedDocument {
-        OrderedDocument {
-            inner: tree,
-        }
+        OrderedDocument { inner: tree }
     }
 }
 
@@ -357,9 +349,7 @@ pub struct OrderedDocumentVisitor {
 
 impl OrderedDocumentVisitor {
     pub fn new() -> OrderedDocumentVisitor {
-        OrderedDocumentVisitor {
-            marker: PhantomData,
-        }
+        OrderedDocumentVisitor { marker: PhantomData }
     }
 }
 
@@ -374,8 +364,10 @@ impl Visitor for OrderedDocumentVisitor {
     }
 
     #[inline]
-    fn visit_map<Visitor>(&mut self, mut visitor: Visitor) -> Result<OrderedDocument, Visitor::Error>
-        where Visitor: MapVisitor,
+    fn visit_map<Visitor>(&mut self,
+                          mut visitor: Visitor)
+                          -> Result<OrderedDocument, Visitor::Error>
+        where Visitor: MapVisitor
     {
         let mut inner = LinkedHashMap::with_capacity(visitor.size_hint().0);
 
