@@ -10,7 +10,7 @@ serde = "0.8"
 bson = { path = "..", features = ["serde"] }
 
 [build-dependencies]
-syntex = "*"
+syntex = "0.46"
 serde_codegen = "0.8"
 
 [lib]
