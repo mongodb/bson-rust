@@ -188,7 +188,45 @@ fn inner_structs_with_options() {
     assert_eq!(encode!(v),
                bdoc! {
                    "a" => {
+                       "a" => (Bson::Null),
                        "b" => {
+                           "a" => "foo",
+                           "b" => (4.5)
+                       }
+                   },
+                   "b" => {
+                       "a" => "bar",
+                       "b" => (1.0)
+                   }
+               });
+    assert_eq!(v, decode!(encode!(v)));
+}
+
+#[test]
+fn inner_structs_with_skippable_options() {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo {
+        #[serde(skip_serializing_if="Option::is_none")]
+        a: Option<Box<Foo>>,
+        b: Bar,
+    }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Bar {
+        a: String,
+        b: f64,
+    }
+
+    let v = Foo {
+        a: Some(Box::new(Foo {
+            a: None,
+            b: Bar { a: "foo".to_string(), b: 4.5 },
+        })),
+        b: Bar { a: "bar".to_string(), b: 1.0 },
+    };
+    assert_eq!(encode!(v),
+               bdoc! {
+                   "a" => {
+                   "b" => {
                            "a" => "foo",
                            "b" => (4.5)
                        }
@@ -295,7 +333,7 @@ fn missing_errors() {
 
     let mut d = Decoder::new(bdoc! {});
     let a: Result<Foo, DecoderError> = Deserialize::deserialize(&mut d);
-    
+
     assert!(a.is_err());
 }
 
@@ -305,18 +343,28 @@ fn parse_enum() {
     struct Foo { a: E }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     enum E {
+        Empty,
         Bar(i32),
         Baz(f64),
+        Pair(i32, i32),
         Last(Foo2),
+        Vector(Vec<i32>),
+        Named { a: i32 },
+        MultiNamed { a: i32, b: i32 },
     }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo2 {
         test: String,
     }
 
+    let v = Foo { a: E::Empty };
+    assert_eq!(
+        encode!(v),
+        bdoc! { "a" => "Empty" }
+    );
+    assert_eq!(v, decode!(encode!(v)));
+
     let v = Foo { a: E::Bar(10) };
-    // technically serde is correct here. a single element tuple still is a
-    // tuple and therefor a sequence
     assert_eq!(
         encode!(v),
         bdoc! { "a" => { "Bar" => 10 } }
@@ -326,7 +374,14 @@ fn parse_enum() {
     let v = Foo { a: E::Baz(10.2) };
     assert_eq!(
         encode!(v),
-        bdoc! { "a" => { "Baz" => (10.2) } }
+        bdoc! { "a" => { "Baz" => 10.2 } }
+    );
+    assert_eq!(v, decode!(encode!(v)));
+
+    let v = Foo { a: E::Pair(12,42) };
+    assert_eq!(
+        encode!(v),
+        bdoc! { "a" => { "Pair" => [ 12, 42] } }
     );
     assert_eq!(v, decode!(encode!(v)));
 
@@ -334,6 +389,26 @@ fn parse_enum() {
     assert_eq!(
         encode!(v),
         bdoc! { "a" => { "Last" => { "test" => "test" } } }
+    );
+    assert_eq!(v, decode!(encode!(v)));
+
+    let v = Foo { a: E::Vector(vec!(12,42)) };
+    assert_eq!(
+        encode!(v),
+        bdoc! { "a" => { "Vector" => [ 12, 42 ] } }
+    );
+    assert_eq!(v, decode!(encode!(v)));
+
+    let v = Foo { a: E::Named { a: 12 } };
+    assert_eq!(
+        encode!(v),
+        bdoc! { "a" => { "Named" => { "a" => 12 } } }
+    );
+    assert_eq!(v, decode!(encode!(v)));
+    let v = Foo { a: E::MultiNamed { a: 12, b: 42 } };
+    assert_eq!(
+        encode!(v),
+        bdoc! { "a" => { "MultiNamed" => { "a" => 12, "b" => 42 } } }
     );
     assert_eq!(v, decode!(encode!(v)));
 }
