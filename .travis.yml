@@ -6,3 +6,4 @@ env:
 script:
     - cargo build -v
     - cargo test -v
+    - cd serde-tests && cargo test -v

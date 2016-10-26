@@ -256,6 +256,13 @@ impl Deserializer for Decoder {
     {
         let value = match self.value.take() {
             Some(Bson::Document(value)) => value,
+            Some(Bson::String(variant)) => {
+                return visitor.visit(VariantDecoder {
+                    de: self,
+                    val: None,
+                    variant: Some(Bson::String(variant)),
+                })
+            }
             Some(_) => {
                 return Err(de::Error::invalid_value("expected an enum"));
             }
@@ -343,9 +350,13 @@ impl<'a> VariantVisitor for VariantDecoder<'a> {
     }
 
     fn visit_unit(&mut self) -> DecoderResult<()> {
-        Deserialize::deserialize(&mut Decoder::new(try!(self.val
-            .take()
-            .ok_or(DecoderError::EndOfStream))))
+        match self.val.take() {
+            None => Ok(()),
+            Some(val) => {
+                try!(Deserialize::deserialize(&mut Decoder::new(val)));
+                Ok(())
+            }
+        }
     }
 
     fn visit_newtype<T>(&mut self) -> DecoderResult<T>

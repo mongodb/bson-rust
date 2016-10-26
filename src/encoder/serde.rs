@@ -216,10 +216,7 @@ impl Serializer for Encoder {
                               _variant_index: usize,
                               variant: &'static str)
                               -> EncoderResult<()> {
-        let mut unit_variant = Document::new();
-        unit_variant.insert(variant.to_string(), Bson::Array(vec![]));
-
-        self.value = Bson::Document(unit_variant);
+        self.value = Bson::String(variant.to_string());
         Ok(())
     }
 
@@ -330,7 +327,11 @@ impl Serializer for Encoder {
     #[inline]
     fn serialize_tuple_variant_end(&mut self, state: TupleVariantState) -> EncoderResult<()> {
         let mut tuple_variant = Document::new();
-        tuple_variant.insert(state.name.to_string(), Bson::Array(state.array));
+        if state.array.len() == 1 {
+            tuple_variant.insert(state.name.to_string(), state.array.into_iter().next().unwrap());
+        } else {
+            tuple_variant.insert(state.name.to_string(), Bson::Array(state.array));
+        }
 
         self.value = Bson::Document(tuple_variant);
         Ok(())
