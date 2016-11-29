@@ -16,9 +16,14 @@ This crate works with Cargo and can be found on
 
 ```toml
 [dependencies]
-bson = "*"
+bson = "0.3.2"
 ```
 ## Usage
+Link the library in _main.rs_:
+```rust
+#[macro_use(bson, doc)]
+extern crate bson;
+```
 
 Prepare your struct for Serde serialization:
 ```rust
@@ -42,11 +47,11 @@ let person = Person {
 };
 
 let serialized_person = bson::to_bson(&person)?;  // Serialize
- 
-if let bson::Bson::Document(document) = serialized {
+
+if let bson::Bson::Document(document) = serialized_person {
     mongoCollection.insert_one(document, None)?;  // Insert into a MongoDB collection
 } else {
-    println!("Error converting the BSON object into a MongoDB document")
+    println!("Error converting the BSON object into a MongoDB document");
 }
 ```
 
@@ -54,7 +59,7 @@ Deserialize the struct:
 ```rust
 // Read the document from a MongoDB collection
 let person_document = mongoCollection.find_one(Some(doc! { "_id" => "12345" }), None)?
-    .expect("Document not found")
+    .expect("Document not found");
 
 // Deserialize the document into a Person instance
 let person = bson::from_bson(bson::Bson::Document(person_document))?
