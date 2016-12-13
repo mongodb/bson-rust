@@ -12,6 +12,7 @@ use rustc_serialize::hex::{self, FromHex, ToHex};
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 
 use time;
+use hostname::get_hostname;
 
 const TIMESTAMP_SIZE: usize = 4;
 const MACHINE_ID_SIZE: usize = 3;
@@ -28,9 +29,6 @@ const MAX_U24: usize = 0xFFFFFF;
 static OID_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
 static mut MACHINE_BYTES: Option<[u8; 3]> = None;
 
-extern "C" {
-    fn gethostname(name: *mut libc::c_char, size: libc::size_t) -> libc::c_int;
-}
 
 /// Errors that can occur during OID construction and generation.
 #[derive(Debug)]
@@ -205,22 +203,14 @@ impl ObjectId {
             }
         }
 
-        // Retrieve hostname through libc
-        let len = 255;
-        let mut buf = Vec::<u8>::with_capacity(len);
-        let ptr = buf.as_mut_ptr();
-        let err = unsafe { gethostname(ptr as *mut libc::c_char, len as libc::size_t) } as i32;
-
-        if err != 0 {
+        let hostname = get_hostname();
+        if hostname.is_none() {
             return Err(Error::HostnameError);
         }
 
-        // Convert bytes into string
-        let s = String::from_utf8_lossy(&buf);
-
         // Hash hostname string
         let mut md5 = Md5::new();
-        md5.input_str(&s.into_owned()[..]);
+        md5.input_str(hostname.unwrap().as_str());
         let hash = md5.result_str();
 
         // Re-convert string to bytes and grab first three
