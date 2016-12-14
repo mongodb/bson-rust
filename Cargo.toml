@@ -20,6 +20,7 @@ rustc-serialize = "0.3"
 serde = "0.8"
 time = "0.1"
 linked-hash-map = "0.0.9"
+hostname = "^0.1"
 
 [dependencies.num]
 version = "~0.1.27"
