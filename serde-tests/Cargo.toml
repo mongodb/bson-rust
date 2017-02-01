@@ -6,12 +6,12 @@ build = "build.rs"
 
 
 [dependencies]
-serde = "0.8"
+serde = "0.9"
 bson = { path = "..", features = ["serde"] }
 
 [build-dependencies]
 syntex = "0.46"
-serde_codegen = "0.8"
+serde_codegen = "0.9"
 
 [lib]
 name = "serde_tests"

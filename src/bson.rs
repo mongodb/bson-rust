@@ -21,7 +21,7 @@
 
 //! BSON definition
 
-use std::fmt::{Display, Error, Formatter};
+use std::fmt::{self, Display, Debug};
 
 use chrono::{DateTime, Timelike, UTC};
 use chrono::offset::TimeZone;
@@ -33,7 +33,7 @@ use ordered::OrderedDocument;
 use spec::{ElementType, BinarySubtype};
 
 /// Possible BSON value types.
-#[derive(Debug,Clone,PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Bson {
     FloatingPoint(f64),
     String(String),
@@ -58,8 +58,38 @@ pub type Array = Vec<Bson>;
 /// Alias for `OrderedDocument`.
 pub type Document = OrderedDocument;
 
+impl Debug for Bson {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &Bson::FloatingPoint(p) => write!(f, "FloatingPoint({:?})", p),
+            &Bson::String(ref s) => write!(f, "String({:?})", s),
+            &Bson::Array(ref vec) => write!(f, "Array({:?})", vec),
+            &Bson::Document(ref doc) => write!(f, "Document({})", doc),
+            &Bson::Boolean(b) => write!(f, "Boolean({:?})", b),
+            &Bson::Null => write!(f, "Null"),
+            &Bson::RegExp(ref pat, ref opt) => write!(f, "RegExp(/{:?}/{:?})", pat, opt),
+            &Bson::JavaScriptCode(ref s) => write!(f, "JavaScriptCode({:?})", s),
+            &Bson::JavaScriptCodeWithScope(ref s, ref scope) => {
+                write!(f, "JavaScriptCodeWithScope({:?}, {:?})", s, scope)
+            }
+            &Bson::I32(v) => write!(f, "I32({:?})", v),
+            &Bson::I64(v) => write!(f, "I64({:?})", v),
+            &Bson::TimeStamp(i) => {
+                let time = (i >> 32) as i32;
+                let inc = (i & 0xFFFFFFFF) as i32;
+
+                write!(f, "TimeStamp({}, {})", time, inc)
+            }
+            &Bson::Binary(t, ref vec) => write!(f, "BinData({}, 0x{})", u8::from(t), vec.to_hex()),
+            &Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
+            &Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
+            &Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
+        }
+    }
+}
+
 impl Display for Bson {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &Bson::FloatingPoint(f) => write!(fmt, "{}", f),
             &Bson::String(ref s) => write!(fmt, "\"{}\"", s),
@@ -92,8 +122,9 @@ impl Display for Bson {
 
                 write!(fmt, "Timestamp({}, {})", time, inc)
             }
-            &Bson::Binary(t, ref vec) =>
-                write!(fmt, "BinData({}, 0x{})", u8::from(t), vec.to_hex()),
+            &Bson::Binary(t, ref vec) => {
+                write!(fmt, "BinData({}, 0x{})", u8::from(t), vec.to_hex())
+            }
             &Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             &Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             &Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
@@ -240,10 +271,10 @@ impl Bson {
         match self {
             &Bson::FloatingPoint(v) => json::Json::F64(v),
             &Bson::String(ref v) => json::Json::String(v.clone()),
-            &Bson::Array(ref v) =>
-                json::Json::Array(v.iter().map(|x| x.to_json()).collect()),
-            &Bson::Document(ref v) =>
-                json::Json::Object(v.iter().map(|(k, v)| (k.clone(), v.to_json())).collect()),
+            &Bson::Array(ref v) => json::Json::Array(v.iter().map(|x| x.to_json()).collect()),
+            &Bson::Document(ref v) => {
+                json::Json::Object(v.iter().map(|(k, v)| (k.clone(), v.to_json())).collect())
+            }
             &Bson::Boolean(v) => json::Json::Boolean(v),
             &Bson::Null => json::Json::Null,
             &Bson::RegExp(ref pat, ref opt) => {
@@ -252,23 +283,22 @@ impl Bson {
                 re.insert("$options".to_owned(), json::Json::String(opt.clone()));
 
                 json::Json::Object(re)
-            },
+            }
             &Bson::JavaScriptCode(ref code) => {
                 let mut obj = json::Object::new();
                 obj.insert("$code".to_owned(), json::Json::String(code.clone()));
                 json::Json::Object(obj)
-            },
+            }
             &Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
                 let mut obj = json::Object::new();
                 obj.insert("$code".to_owned(), json::Json::String(code.clone()));
 
-                let scope_obj =
-                    scope.iter().map(|(k, v)| (k.clone(), v.to_json())).collect();
+                let scope_obj = scope.iter().map(|(k, v)| (k.clone(), v.to_json())).collect();
 
                 obj.insert("scope".to_owned(), json::Json::Object(scope_obj));
 
                 json::Json::Object(obj)
-            },
+            }
             &Bson::I32(v) => json::Json::I64(v as i64),
             &Bson::I64(v) => json::Json::I64(v),
             &Bson::TimeStamp(v) => {
@@ -280,7 +310,7 @@ impl Bson {
                 obj.insert("i".to_owned(), json::Json::I64(inc));
 
                 json::Json::Object(obj)
-            },
+            }
             &Bson::Binary(t, ref v) => {
                 let mut obj = json::Object::new();
                 let tval: u8 = From::from(t);
@@ -288,21 +318,22 @@ impl Bson {
                 obj.insert("$binary".to_owned(), json::Json::String(v.to_hex()));
 
                 json::Json::Object(obj)
-            },
+            }
             &Bson::ObjectId(ref v) => {
                 let mut obj = json::Object::new();
                 obj.insert("$oid".to_owned(), json::Json::String(v.to_string()));
 
                 json::Json::Object(obj)
-            },
+            }
             &Bson::UtcDatetime(ref v) => {
                 let mut obj = json::Object::new();
                 let mut inner = json::Object::new();
-                inner.insert("$numberLong".to_owned(), json::Json::I64((v.timestamp() * 1000) +
-                                                                       (v.nanosecond() / 1000000) as i64));
+                inner.insert("$numberLong".to_owned(),
+                             json::Json::I64((v.timestamp() * 1000) +
+                                             (v.nanosecond() / 1000000) as i64));
                 obj.insert("$date".to_owned(), json::Json::Object(inner));
                 json::Json::Object(obj)
-            },
+            }
             &Bson::Symbol(ref v) => {
                 // FIXME: Don't know what is the best way to encode Symbol type
                 let mut obj = json::Object::new();
@@ -321,8 +352,11 @@ impl Bson {
             &json::Json::String(ref x) => Bson::String(x.clone()),
             &json::Json::Boolean(x) => Bson::Boolean(x),
             &json::Json::Array(ref x) => Bson::Array(x.iter().map(Bson::from_json).collect()),
-            &json::Json::Object(ref x) => Bson::from_extended_document(
-                x.iter().map(|(k, v)| (k.clone(), Bson::from_json(v))).collect()),
+            &json::Json::Object(ref x) => {
+                Bson::from_extended_document(x.iter()
+                    .map(|(k, v)| (k.clone(), Bson::from_json(v)))
+                    .collect())
+            }
             &json::Json::Null => Bson::Null,
         }
     }
@@ -385,26 +419,22 @@ impl Bson {
 
     pub fn from_extended_document(values: Document) -> Bson {
         if values.len() == 2 {
-            if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"),
-                                         values.get_str("$options")) {
+            if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
                 return Bson::RegExp(pat.to_owned(), opt.to_owned());
 
-            } else if let (Ok(code), Ok(scope)) = (values.get_str("$code"),
-                                                   values.get_document("$scope")) {
+            } else if let (Ok(code), Ok(scope)) =
+                (values.get_str("$code"), values.get_document("$scope")) {
                 return Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned());
 
-            } else if let (Ok(t), Ok(i)) = (values.get_i32("t"),
-                                            values.get_i32("i")) {
+            } else if let (Ok(t), Ok(i)) = (values.get_i32("t"), values.get_i32("i")) {
                 let timestamp = ((t as i64) << 32) + (i as i64);
                 return Bson::TimeStamp(timestamp);
 
-            } else if let (Ok(t), Ok(i)) = (values.get_i64("t"),
-                                            values.get_i64("i")) {
+            } else if let (Ok(t), Ok(i)) = (values.get_i64("t"), values.get_i64("i")) {
                 let timestamp = (t << 32) + i;
                 return Bson::TimeStamp(timestamp);
 
-            } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"),
-                                              values.get_i64("type")) {
+            } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
                 return Bson::Binary(From::from(ttype), hex.from_hex().unwrap());
             }
@@ -417,7 +447,7 @@ impl Bson {
                 return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
 
             } else if let Ok(long) = values.get_document("$date")
-                                           .and_then(|inner| inner.get_i64("$numberLong")) {
+                .and_then(|inner| inner.get_i64("$numberLong")) {
                 return Bson::UtcDatetime(UTC.timestamp(long / 1000, (long % 1000) as u32 * 1000000));
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());

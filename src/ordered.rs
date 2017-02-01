@@ -1,5 +1,5 @@
-use std::{error, fmt};
-use std::fmt::{Debug, Display, Error, Formatter};
+use std::error;
+use std::fmt::{self, Debug, Display, Formatter};
 use std::iter::{FromIterator, Map};
 use std::marker::PhantomData;
 
@@ -50,27 +50,35 @@ impl error::Error for ValueAccessError {
 }
 
 /// A BSON document represented as an associative HashMap with insertion ordering.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct OrderedDocument {
     inner: LinkedHashMap<String, Bson>,
 }
 
 impl Display for OrderedDocument {
-    fn fmt(&self, fmt: &mut Formatter) -> Result<(), Error> {
-        try!(write!(fmt, "{{ "));
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        try!(write!(fmt, "{{"));
 
         let mut first = true;
         for (k, v) in self.iter() {
             if first {
                 first = false;
+                try!(write!(fmt, " "));
             } else {
                 try!(write!(fmt, ", "));
             }
 
             try!(write!(fmt, "{}: {}", k, v));
         }
-        try!(write!(fmt, " }}"));
+
+        try!(write!(fmt, "{}}}", if !first { " " } else { "" }));
         Ok(())
+    }
+}
+
+impl Debug for OrderedDocument {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "OrderedDocument({:?})", self.inner)
     }
 }
 
@@ -356,17 +364,19 @@ impl OrderedDocumentVisitor {
 impl Visitor for OrderedDocumentVisitor {
     type Value = OrderedDocument;
 
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "expecting ordered document")
+    }
+
     #[inline]
-    fn visit_unit<E>(&mut self) -> Result<OrderedDocument, E>
+    fn visit_unit<E>(self) -> Result<OrderedDocument, E>
         where E: de::Error
     {
         Ok(OrderedDocument::new())
     }
 
     #[inline]
-    fn visit_map<Visitor>(&mut self,
-                          mut visitor: Visitor)
-                          -> Result<OrderedDocument, Visitor::Error>
+    fn visit_map<Visitor>(self, mut visitor: Visitor) -> Result<OrderedDocument, Visitor::Error>
         where Visitor: MapVisitor
     {
         let mut inner = LinkedHashMap::with_capacity(visitor.size_hint().0);
@@ -374,8 +384,6 @@ impl Visitor for OrderedDocumentVisitor {
         while let Some((key, value)) = try!(visitor.visit()) {
             inner.insert(key, value);
         }
-
-        try!(visitor.end());
 
         Ok(inner.into())
     }
