@@ -1,5 +1,4 @@
 use std::{io, error, fmt};
-use byteorder;
 use serde::ser;
 use bson::Bson;
 
@@ -14,12 +13,6 @@ pub enum EncoderError {
 impl From<io::Error> for EncoderError {
     fn from(err: io::Error) -> EncoderError {
         EncoderError::IoError(err)
-    }
-}
-
-impl From<byteorder::Error> for EncoderError {
-    fn from(err: byteorder::Error) -> EncoderError {
-        EncoderError::IoError(From::from(err))
     }
 }
 

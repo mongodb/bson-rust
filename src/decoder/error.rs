@@ -1,5 +1,4 @@
 use std::{io, error, fmt, str};
-use byteorder;
 use serde::de;
 
 /// Possible errors that can arise during decoding.
@@ -29,12 +28,6 @@ impl From<io::Error> for DecoderError {
 impl From<str::Utf8Error> for DecoderError {
     fn from(err: str::Utf8Error) -> DecoderError {
         DecoderError::Utf8Error(err)
-    }
-}
-
-impl From<byteorder::Error> for DecoderError {
-    fn from(err: byteorder::Error) -> DecoderError {
-        DecoderError::IoError(From::from(err))
     }
 }
 
