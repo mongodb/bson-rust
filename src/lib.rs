@@ -49,6 +49,8 @@ extern crate libc;
 extern crate rand;
 extern crate rustc_serialize;
 extern crate serde;
+#[macro_use]
+extern crate serde_json;
 extern crate time;
 extern crate linked_hash_map;
 extern crate hostname;

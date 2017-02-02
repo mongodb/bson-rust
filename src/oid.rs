@@ -9,7 +9,6 @@ use crypto::md5::Md5;
 
 use rand::{Rng, OsRng};
 use rustc_serialize::hex::{self, FromHex, ToHex};
-use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 
 use time;
 use hostname::get_hostname;
@@ -279,19 +278,6 @@ impl fmt::Display for ObjectId {
 impl fmt::Debug for ObjectId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&format!("ObjectId({})", self.to_hex()))
-    }
-}
-
-impl Decodable for ObjectId {
-    fn decode<D: Decoder>(d: &mut D) -> result::Result<Self, D::Error> {
-        let str = try!(d.read_str());
-        Ok(ObjectId::with_string(&str).unwrap())
-    }
-}
-
-impl Encodable for ObjectId {
-    fn encode<S: Encoder>(&self, s: &mut S) -> result::Result<(), S::Error> {
-        s.emit_str(&self.to_string())
     }
 }
 
