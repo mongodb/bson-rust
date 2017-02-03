@@ -11,11 +11,11 @@ use std::collections::BTreeMap;
 fn test_ser_vec() {
     let vec = vec![1, 2, 3];
 
-    let mut encoder = Encoder::new();
-    vec.serialize(&mut encoder).unwrap();
+    let encoder = Encoder::new();
+    let result = vec.serialize(encoder).unwrap();
 
     let expected = bson!([1, 2, 3]);
-    assert_eq!(expected, encoder.bson().unwrap());
+    assert_eq!(expected, result);
 }
 
 #[test]
@@ -24,19 +24,19 @@ fn test_ser_map() {
     map.insert("x", 0);
     map.insert("y", 1);
 
-    let mut encoder = Encoder::new();
-    map.serialize(&mut encoder).unwrap();
+    let encoder = Encoder::new();
+    let result = map.serialize(encoder).unwrap();
 
     let expected = bson!({ "x" => 0, "y" => 1 });
-    assert_eq!(expected, encoder.bson().unwrap());
+    assert_eq!(expected, result);
 }
 
 #[test]
 fn test_de_vec() {
     let bson = bson!([1, 2, 3]);
 
-    let mut decoder = Decoder::new(bson);
-    let vec = Vec::<i32>::deserialize(&mut decoder).unwrap();
+    let decoder = Decoder::new(bson);
+    let vec = Vec::<i32>::deserialize(decoder).unwrap();
 
     let expected = vec![1, 2, 3];
     assert_eq!(expected, vec);
@@ -46,8 +46,8 @@ fn test_de_vec() {
 fn test_de_map() {
     let bson = bson!({ "x" => 0, "y" => 1 });
 
-    let mut decoder = Decoder::new(bson);
-    let map = BTreeMap::<String, i32>::deserialize(&mut decoder).unwrap();
+    let decoder = Decoder::new(bson);
+    let map = BTreeMap::<String, i32>::deserialize(decoder).unwrap();
 
     let mut expected = BTreeMap::new();
     expected.insert("x".to_string(), 0);

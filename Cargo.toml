@@ -1,6 +1,6 @@
 [package]
 name = "bson"
-version = "0.3.2"
+version = "0.4.0"
 authors = ["Y. T. Chung <zonyitoo@gmail.com>"]
 description = "Encoding and decoding support for BSON in Rust"
 license = "MIT"
@@ -11,15 +11,15 @@ homepage = "https://github.com/zonyitoo/bson-rs"
 name = "bson"
 
 [dependencies]
-byteorder = "0.3"
+byteorder = "1.0"
 chrono = "0.2"
-libc = "0.1"
+libc = "0.2"
 rand = "0.3"
-rust-crypto = "0.2.31"
+rust-crypto = "0.2"
 rustc-serialize = "0.3"
-serde = "0.8"
+serde = "0.9"
 time = "0.1"
-linked-hash-map = "0.0.9"
+linked-hash-map = "0.3"
 hostname = "^0.1"
 
 [dependencies.num]

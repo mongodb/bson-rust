@@ -1,9 +1,18 @@
 language: rust
 
+rust:
+    - stable
+    - beta
+    - nightly
+
+cache: cargo
+
 env:
     - RUST_TEST_THREADS=1
 
+sudo: false
+
 script:
     - cargo build -v
-    - cargo test -v
-    - cd serde-tests && cargo test -v
+    - cargo test -v --no-fail-fast
+    - cd serde-tests && cargo test -v --no-fail-fast

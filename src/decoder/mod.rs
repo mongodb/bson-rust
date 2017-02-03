@@ -28,7 +28,6 @@ pub use self::error::{DecoderError, DecoderResult};
 pub use self::serde::Decoder;
 
 use std::io::Read;
-use std::str;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::UTC;
@@ -61,7 +60,7 @@ fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<String> {
         v.push(c);
     }
 
-    Ok(try!(str::from_utf8(&v)).to_owned())
+    Ok(try!(String::from_utf8(v)))
 }
 
 #[inline]
@@ -111,8 +110,13 @@ fn decode_array<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Array> {
 
         // check that the key is as expected
         let key = try!(read_cstring(reader));
-        if key != &arr.len().to_string()[..] {
-            return Err(DecoderError::InvalidArrayKey(arr.len(), key));
+        match key.parse::<usize>() {
+            Err(..) => return Err(DecoderError::InvalidArrayKey(arr.len(), key)),
+            Ok(idx) => {
+                if idx != arr.len() {
+                    return Err(DecoderError::InvalidArrayKey(arr.len(), key));
+                }
+            }
         }
 
         let val = try!(decode_bson(reader, tag));
@@ -178,6 +182,6 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
 pub fn from_bson<T>(bson: Bson) -> DecoderResult<T>
     where T: Deserialize
 {
-    let mut de = Decoder::new(bson);
-    Deserialize::deserialize(&mut de)
+    let de = Decoder::new(bson);
+    Deserialize::deserialize(de)
 }

@@ -3,6 +3,7 @@ extern crate serde;
 
 use std::collections::{BTreeMap, HashSet};
 use serde::{Deserialize, Serialize, Deserializer};
+use serde::de::Unexpected;
 
 use bson::{Bson, Encoder, Decoder, DecoderError};
 
@@ -58,17 +59,16 @@ macro_rules! t {
 }
 
 macro_rules! encode( ($t:expr) => ({
-    let mut e = Encoder::new();
-    t!($t.serialize(&mut e));
-    match e.bson() {
+    let e = Encoder::new();
+    match $t.serialize(e) {
         Ok(b) => b,
         Err(e) => panic!("Failed to serialize: {}", e),
     }
 }) );
 
 macro_rules! decode( ($t:expr) => ({
-    let mut d = Decoder::new($t);
-    t!(Deserialize::deserialize(&mut d))
+    let d = Decoder::new($t);
+    t!(Deserialize::deserialize(d))
 }) );
 
 #[test]
@@ -118,24 +118,24 @@ fn application_decode_error() {
     #[derive(PartialEq, Debug)]
     struct Range10(usize);
     impl Deserialize for Range10 {
-         fn deserialize<D: Deserializer>(d: &mut D) -> Result<Range10, D::Error> {
+         fn deserialize<D: Deserializer>(d: D) -> Result<Range10, D::Error> {
              let x: usize = try!(Deserialize::deserialize(d));
              if x > 10 {
-                 Err(serde::de::Error::invalid_value("more than 10"))
+                 Err(serde::de::Error::invalid_value(Unexpected::Unsigned(x as u64), &"more than 10"))
              } else {
                  Ok(Range10(x))
              }
          }
     }
-    let mut d_good = Decoder::new(Bson::I64(5));
-    let mut d_bad1 = Decoder::new(Bson::String("not an isize".to_string()));
-    let mut d_bad2 = Decoder::new(Bson::I64(11));
+    let d_good = Decoder::new(Bson::I64(5));
+    let d_bad1 = Decoder::new(Bson::String("not an isize".to_string()));
+    let d_bad2 = Decoder::new(Bson::I64(11));
 
-    assert_eq!(Range10(5), t!(Deserialize::deserialize(&mut d_good)));
+    assert_eq!(Range10(5), t!(Deserialize::deserialize(d_good)));
 
-    let err1: Result<Range10, _> = Deserialize::deserialize(&mut d_bad1);
+    let err1: Result<Range10, _> = Deserialize::deserialize(d_bad1);
     assert!(err1.is_err());
-    let err2: Result<Range10, _> = Deserialize::deserialize(&mut d_bad2);
+    let err2: Result<Range10, _> = Deserialize::deserialize(d_bad2);
     assert!(err2.is_err());
 }
 
@@ -316,10 +316,10 @@ fn type_conversion() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo { bar: i32 }
 
-    let mut d = Decoder::new(bdoc!{
+    let d = Decoder::new(bdoc!{
         "bar" => (1.0)
     });
-    let a: Result<Foo, DecoderError> = Deserialize::deserialize(&mut d);
+    let a: Result<Foo, DecoderError> = Deserialize::deserialize(d);
     assert_eq!(
         a.unwrap(),
         Foo { bar: 1 }
@@ -331,8 +331,8 @@ fn missing_errors() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo { bar: i32 }
 
-    let mut d = Decoder::new(bdoc! {});
-    let a: Result<Foo, DecoderError> = Deserialize::deserialize(&mut d);
+    let d = Decoder::new(bdoc! {});
+    let a: Result<Foo, DecoderError> = Deserialize::deserialize(d);
 
     assert!(a.is_err());
 }
@@ -419,12 +419,12 @@ fn unused_fields() {
     struct Foo { a: i32 }
 
     let v = Foo { a: 2 };
-    let mut d = Decoder::new(bdoc! {
+    let d = Decoder::new(bdoc! {
         "a" => 2,
         "b" => 5
     });
 
-    assert_eq!(v, t!(Deserialize::deserialize(&mut d)));
+    assert_eq!(v, t!(Deserialize::deserialize(d)));
 }
 
 #[test]
@@ -435,14 +435,14 @@ fn unused_fields2() {
     struct Bar { a: i32 }
 
     let v = Foo { a: Bar { a: 2 } };
-    let mut d = Decoder::new(bdoc! {
+    let d = Decoder::new(bdoc! {
         "a" => {
             "a" => 2,
             "b" => 5
         }
     });
     
-    assert_eq!(v, t!(Deserialize::deserialize(&mut d)));
+    assert_eq!(v, t!(Deserialize::deserialize(d)));
 }
 
 #[test]
@@ -453,12 +453,12 @@ fn unused_fields3() {
     struct Bar { a: i32 }
     
     let v = Foo { a: Bar { a: 2 } };
-    let mut d = Decoder::new(bdoc! {
+    let d = Decoder::new(bdoc! {
         "a" => {
             "a" => 2
         }
     });
-    assert_eq!(v, t!(Deserialize::deserialize(&mut d)));
+    assert_eq!(v, t!(Deserialize::deserialize(d)));
 }
 
 #[test]
@@ -469,12 +469,12 @@ fn unused_fields4() {
     let mut map = BTreeMap::new();
     map.insert("a".to_owned(), "foo".to_owned());
     let v = Foo { a: map };
-    let mut d = Decoder::new(bdoc! {
+    let d = Decoder::new(bdoc! {
         "a" => {
             "a" => "foo"
         }
     });
-    assert_eq!(v, t!(Deserialize::deserialize(&mut d)));
+    assert_eq!(v, t!(Deserialize::deserialize(d)));
 }
 
 #[test]
@@ -483,10 +483,10 @@ fn unused_fields5() {
     struct Foo { a: Vec<String> }
 
     let v = Foo { a: vec!["a".to_string()] };
-    let mut d = Decoder::new(bdoc! {
+    let d = Decoder::new(bdoc! {
         "a" => ["a"]
     });
-    assert_eq!(v, t!(Deserialize::deserialize(&mut d)));
+    assert_eq!(v, t!(Deserialize::deserialize(d)));
 }
 
 #[test]
@@ -495,10 +495,10 @@ fn unused_fields6() {
     struct Foo { a: Option<Vec<String>> }
 
     let v = Foo { a: Some(vec![]) };
-    let mut d = Decoder::new(bdoc! {
+    let d = Decoder::new(bdoc! {
         "a" => []
     });
-    assert_eq!(v, t!(Deserialize::deserialize(&mut d)));
+    assert_eq!(v, t!(Deserialize::deserialize(d)));
 }
 
 #[test]
@@ -509,22 +509,25 @@ fn unused_fields7() {
     struct Bar { a: i32 }
 
     let v = Foo { a: vec![Bar { a: 1 }] };
-    let mut d = Decoder::new(bdoc! {
+    let d = Decoder::new(bdoc! {
         "a" => [{"a" => 1, "b" => 2}]
     });
-    assert_eq!(v, t!(Deserialize::deserialize(&mut d)));
+    assert_eq!(v, t!(Deserialize::deserialize(d)));
 }
 
 #[test]
 fn empty_arrays() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct Foo { a: Vec<Bar> }
+    struct Foo {
+        #[serde(default)]
+        a: Vec<Bar>
+    }
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Bar;
 
     let v = Foo { a: vec![] };
-    let mut d = Decoder::new(bdoc! {});
-    assert_eq!(v, t!(Deserialize::deserialize(&mut d)));
+    let d = Decoder::new(bdoc! {});
+    assert_eq!(v, t!(Deserialize::deserialize(d)));
 }
 
 #[test]
@@ -535,12 +538,12 @@ fn empty_arrays2() {
     struct Bar;
     
     let v = Foo { a: None };
-    let mut d = Decoder::new(bdoc! {});
-    assert_eq!(v, t!(Deserialize::deserialize(&mut d)));
+    let d = Decoder::new(bdoc! {});
+    assert_eq!(v, t!(Deserialize::deserialize(d)));
 
     let v = Foo { a: Some(vec![]) };
-    let mut d = Decoder::new(bdoc! {
+    let d = Decoder::new(bdoc! {
         "a" => []
     });
-    assert_eq!(v, t!(Deserialize::deserialize(&mut d)));
+    assert_eq!(v, t!(Deserialize::deserialize(d)));
 }
