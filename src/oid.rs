@@ -6,9 +6,9 @@ use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use crypto::digest::Digest;
 use crypto::md5::Md5;
+use data_encoding::{self, hex};
 
 use rand::{Rng, OsRng};
-use rustc_serialize::hex::{self, FromHex, ToHex};
 
 use time;
 use hostname::get_hostname;
@@ -33,13 +33,13 @@ static mut MACHINE_BYTES: Option<[u8; 3]> = None;
 #[derive(Debug)]
 pub enum Error {
     ArgumentError(String),
-    FromHexError(hex::FromHexError),
+    FromHexError(data_encoding::decode::Error),
     IoError(io::Error),
     HostnameError,
 }
 
-impl From<hex::FromHexError> for Error {
-    fn from(err: hex::FromHexError) -> Error {
+impl From<data_encoding::decode::Error> for Error {
+    fn from(err: data_encoding::decode::Error) -> Error {
         Error::FromHexError(err)
     }
 }
@@ -124,7 +124,7 @@ impl ObjectId {
 
     /// Creates an ObjectID using a 12-byte (24-char) hexadecimal string.
     pub fn with_string(s: &str) -> Result<ObjectId> {
-        let bytes = try!(s.from_hex());
+        let bytes = try!(hex::decode(s.to_uppercase().as_bytes()));
         if bytes.len() != 12 {
             Err(Error::ArgumentError("Provided string must be a 12-byte hexadecimal string."
                 .to_owned()))
@@ -177,6 +177,11 @@ impl ObjectId {
             buf[i + 1] = self.id[COUNTER_OFFSET + i];
         }
         BigEndian::read_u32(&buf)
+    }
+
+    /// Convert the objectId to hex representation.
+    pub fn to_hex(&self) -> String {
+        hex::encode(&self.id)
     }
 
     // Generates a new timestamp representing the current seconds since epoch.
@@ -263,12 +268,6 @@ impl ObjectId {
     }
 }
 
-impl ToHex for ObjectId {
-    fn to_hex(&self) -> String {
-        self.id.to_hex()
-    }
-}
-
 impl fmt::Display for ObjectId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&self.to_hex())
@@ -320,12 +319,12 @@ fn count_generated_is_big_endian() {
 fn test_display() {
     let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
 
-    assert_eq!(format!("{}", id), "53e37d08776f724e42000000")
+    assert_eq!(format!("{}", id), "53E37D08776F724E42000000")
 }
 
 #[test]
 fn test_debug() {
     let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
 
-    assert_eq!(format!("{:?}", id), "ObjectId(53e37d08776f724e42000000)")
+    assert_eq!(format!("{:?}", id), "ObjectId(53E37D08776F724E42000000)")
 }

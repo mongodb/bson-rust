@@ -1,7 +1,7 @@
 #[macro_use(bson, doc)]
 extern crate bson;
 extern crate chrono;
-extern crate rustc_serialize;
+extern crate data_encoding;
 
 mod modules;
 
@@ -9,7 +9,7 @@ use bson::Bson;
 use bson::spec::BinarySubtype;
 use bson::oid::ObjectId;
 use chrono::offset::utc::UTC;
-use rustc_serialize::hex::ToHex;
+use data_encoding::hex;
 
 #[test]
 fn test_format() {
@@ -45,7 +45,7 @@ fn test_format() {
         "date" => (Bson::UtcDatetime(date))
     };
 
-    let expected = format!("{{ float: 2.4, string: \"hello\", array: [\"testing\", 1], doc: {{ fish: \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, regexp: /s[ao]d/i, code: function(x) {{ return x._id; }}, i32: 12, i64: -55, timestamp: Timestamp(0, 229999444), binary: BinData(5, 0x{}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}", "thingies".as_bytes().to_hex(), id_string.as_bytes().to_hex(), date);
+    let expected = format!("{{ float: 2.4, string: \"hello\", array: [\"testing\", 1], doc: {{ fish: \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, regexp: /s[ao]d/i, code: function(x) {{ return x._id; }}, i32: 12, i64: -55, timestamp: Timestamp(0, 229999444), binary: BinData(5, 0x{}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}", hex::encode("thingies".as_bytes()), hex::encode(id_string.as_bytes()), date);
 
     assert_eq!(expected, format!("{}", doc));
 }
