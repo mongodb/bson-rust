@@ -29,7 +29,7 @@ use chrono::offset::TimeZone;
 use oid;
 use ordered::OrderedDocument;
 use rustc_serialize::hex::{FromHex, ToHex};
-use serde_json::{self, Value};
+use serde_json:: Value;
 use spec::{ElementType, BinarySubtype};
 
 /// Possible BSON value types.
@@ -269,13 +269,11 @@ impl Bson {
     /// Convert this value to the best approximate `Json`.
     pub fn to_json(&self) -> Value {
         match self {
-            &Bson::FloatingPoint(v) => v.into(),
-            &Bson::String(ref v) => Value::String(v.clone()),
-            &Bson::Array(ref v) =>
-                Value::Array(v.iter().map(|x| x.to_json()).collect()),
-            &Bson::Document(ref v) =>
-                Value::Object(v.iter().map(|(k, v)| (k.clone(), v.to_json())).collect::<serde_json::Map<String, Value>>()),
-            &Bson::Boolean(v) => Value::Bool(v),
+            &Bson::FloatingPoint(v) => json!(v),
+            &Bson::String(ref v) => json!(v),
+            &Bson::Array(ref v) => json!(v),
+            &Bson::Document(ref v) => json!(v),
+            &Bson::Boolean(v) => json!(v),
             &Bson::Null => Value::Null,
             &Bson::RegExp(ref pat, ref opt) => json!({
                 "$regex": pat,
@@ -312,12 +310,8 @@ impl Bson {
                     "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
                 }
             }),
-            &Bson::Symbol(ref v) => {
-                // FIXME: Don't know what is the best way to encode Symbol type
-                json!({
-                    "$symbol": v
-                })
-            }
+            // FIXME: Don't know what is the best way to encode Symbol type
+            &Bson::Symbol(ref v) => json!({"$symbol": v})
         }
     }
 
@@ -327,9 +321,9 @@ impl Bson {
             &Value::Number(ref x) =>
                 x.as_i64().map(Bson::from)
                 .or(x.as_u64().map(Bson::from))
-                .expect("blah"),
-            &Value::String(ref x) => Bson::String(x.clone()),
-            &Value::Bool(x) => Bson::Boolean(x),
+                .expect(&format!("Invalid number value: {}", x)),
+            &Value::String(ref x) => x.into(),
+            &Value::Bool(x) => x.into(),
             &Value::Array(ref x) => Bson::Array(x.iter().map(Bson::from_json).collect()),
             &Value::Object(ref x) => {
                 Bson::from_extended_document(x.iter()
