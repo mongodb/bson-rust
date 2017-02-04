@@ -19,7 +19,7 @@
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-//! Constants derived from the [BSON Specification Version 1.0](http://bsonspec.org/spec.html).
+//! Constants derived from the [BSON Specification Version 1.1](http://bsonspec.org/spec.html).
 
 use std::convert::From;
 
@@ -41,6 +41,7 @@ pub const ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE: u8 = 0x0F;
 pub const ELEMENT_TYPE_32BIT_INTEGER: u8 = 0x10;
 pub const ELEMENT_TYPE_TIMESTAMP: u8 = 0x11;
 pub const ELEMENT_TYPE_64BIT_INTEGER: u8 = 0x12;
+pub const ELEMENT_TYPE_128BIT_DECIMAL: u8 = 0x13;
 pub const ELEMENT_TYPE_MINKEY: u8 = 0xFF;
 pub const ELEMENT_TYPE_MAXKEY: u8 = 0x7F;
 
@@ -55,32 +56,50 @@ pub const BINARY_SUBTYPE_MD5: u8 = 0x05;
 ///
 /// Not all element types are representable by the `Bson` type.
 #[repr(u8)]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum ElementType {
+    /// 64-bit binary floating point
     FloatingPoint = ELEMENT_TYPE_FLOATING_POINT,
+    /// UTF-8 string
     Utf8String = ELEMENT_TYPE_UTF8_STRING,
+    /// Embedded document
     EmbeddedDocument = ELEMENT_TYPE_EMBEDDED_DOCUMENT,
+    /// Array
     Array = ELEMENT_TYPE_ARRAY,
+    /// Binary data
     Binary = ELEMENT_TYPE_BINARY,
-    /// Deprecated.
+    /// Deprecated. Undefined (value)
     Undefined = ELEMENT_TYPE_UNDEFINED,
+    /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId = ELEMENT_TYPE_OBJECT_ID,
+    /// Boolean value
     Boolean = ELEMENT_TYPE_BOOLEAN,
+    /// UTC datetime
     UtcDatetime = ELEMENT_TYPE_UTC_DATETIME,
+    /// Null value
     NullValue = ELEMENT_TYPE_NULL_VALUE,
+    /// Regular expression - The first cstring is the regex pattern, the second is the regex options string.
+    /// Options are identified by characters, which must be stored in alphabetical order.
+    /// Valid options are 'i' for case insensitive matching, 'm' for multiline matching, 'x' for verbose mode,
+    /// 'l' to make \w, \W, etc. locale dependent, 's' for dotall mode ('.' matches everything), and 'u' to
+    /// make \w, \W, etc. match unicode.
     RegularExpression = ELEMENT_TYPE_REGULAR_EXPRESSION,
     /// Deprecated.
     DbPointer = ELEMENT_TYPE_DBPOINTER,
+    /// JavaScript code
     JavaScriptCode = ELEMENT_TYPE_JAVASCRIPT_CODE,
     /// Deprecated.
     Symbol = ELEMENT_TYPE_SYMBOL,
+    /// JavaScript code w/ scope
     JavaScriptCodeWithScope = ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE,
+    /// 32-bit integer
     Integer32Bit = ELEMENT_TYPE_32BIT_INTEGER,
+    /// Timestamp
     TimeStamp = ELEMENT_TYPE_TIMESTAMP,
+    /// 64-bit integer
     Integer64Bit = ELEMENT_TYPE_64BIT_INTEGER,
-
-    MaxKey = ELEMENT_TYPE_MAXKEY,
-    MinKey = ELEMENT_TYPE_MINKEY,
+    /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
+    Decimal128Bit           = ELEMENT_TYPE_128BIT_DECIMAL,
 }
 
 impl ElementType {
@@ -107,6 +126,7 @@ impl ElementType {
                  ELEMENT_TYPE_32BIT_INTEGER => Integer32Bit,
                  ELEMENT_TYPE_TIMESTAMP => TimeStamp,
                  ELEMENT_TYPE_64BIT_INTEGER => Integer64Bit,
+                 ELEMENT_TYPE_128BIT_DECIMAL => Decimal128Bit,
                  ELEMENT_TYPE_MAXKEY => MaxKey,
                  ELEMENT_TYPE_MINKEY => MinKey,
                  _ => return None,
