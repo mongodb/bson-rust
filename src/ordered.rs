@@ -1,3 +1,5 @@
+//! A BSON document represented as an associative HashMap with insertion ordering.
+
 use std::error;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::iter::{FromIterator, Map};

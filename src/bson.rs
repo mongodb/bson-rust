@@ -30,27 +30,50 @@ use rustc_serialize::hex::{FromHex, ToHex};
 
 use oid;
 use ordered::OrderedDocument;
+use decimal128::Decimal128;
 use spec::{ElementType, BinarySubtype};
 
 /// Possible BSON value types.
 #[derive(Clone, PartialEq)]
 pub enum Bson {
+    /// 64-bit binary floating point
     FloatingPoint(f64),
+    /// UTF-8 string
     String(String),
+    /// Array
     Array(Array),
+    /// Embedded document
     Document(Document),
+    /// Boolean value
     Boolean(bool),
+    /// Null value
     Null,
+    /// Regular expression - The first cstring is the regex pattern, the second is the regex options string.
+    /// Options are identified by characters, which must be stored in alphabetical order.
+    /// Valid options are 'i' for case insensitive matching, 'm' for multiline matching, 'x' for verbose mode,
+    /// 'l' to make \w, \W, etc. locale dependent, 's' for dotall mode ('.' matches everything), and 'u' to
+    /// make \w, \W, etc. match unicode.
     RegExp(String, String),
+    /// JavaScript code
     JavaScriptCode(String),
+    /// JavaScript code w/ scope
     JavaScriptCodeWithScope(String, Document),
+    /// 32-bit integer
     I32(i32),
+    /// 64-bit integer
     I64(i64),
+    /// Timestamp
     TimeStamp(i64),
+    /// Binary data
     Binary(BinarySubtype, Vec<u8>),
+    /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId(oid::ObjectId),
+    /// UTC datetime
     UtcDatetime(DateTime<UTC>),
+    /// Symbol (Deprecated)
     Symbol(String),
+    /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
+    Decimal128(Decimal128),
 }
 
 /// Alias for `Vec<Bson>`.
@@ -84,6 +107,7 @@ impl Debug for Bson {
             &Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
             &Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
             &Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
+            &Bson::Decimal128(ref d) => write!(f, "Decimal128({:?})", d),
         }
     }
 }
@@ -128,6 +152,7 @@ impl Display for Bson {
             &Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             &Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             &Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
+            &Bson::Decimal128(ref d) => write!(fmt, "{}", d),
         }
     }
 }
@@ -263,6 +288,7 @@ impl Bson {
             &Bson::ObjectId(..) => ElementType::ObjectId,
             &Bson::UtcDatetime(..) => ElementType::UtcDatetime,
             &Bson::Symbol(..) => ElementType::Symbol,
+            &Bson::Decimal128(..) => ElementType::Decimal128Bit,
         }
     }
 
@@ -340,6 +366,12 @@ impl Bson {
                 obj.insert("$symbol".to_owned(), json::Json::String(v.to_owned()));
                 json::Json::Object(obj)
             }
+            &Bson::Decimal128(ref v) => {
+                let mut obj = json::Object::new();
+                obj.insert("$numberDecimal".to_owned(),
+                           json::Json::String(v.to_string()));
+                json::Json::Object(obj)
+            }
         }
     }
 
@@ -413,6 +445,11 @@ impl Bson {
                     "$symbol" => (v.to_owned())
                 }
             }
+            Bson::Decimal128(ref v) => {
+                doc! {
+                    "$numberDecimal" => (v.to_string())
+                }
+            }
             _ => panic!("Attempted conversion of invalid data type: {}", self),
         }
     }
@@ -451,6 +488,8 @@ impl Bson {
                 return Bson::UtcDatetime(UTC.timestamp(long / 1000, (long % 1000) as u32 * 1000000));
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
+            } else if let Ok(dec) = values.get_str("$numberDecimal") {
+                return Bson::Decimal128(dec.parse::<Decimal128>().unwrap());
             }
         }
 

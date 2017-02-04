@@ -52,11 +52,13 @@ extern crate serde;
 extern crate time;
 extern crate linked_hash_map;
 extern crate hostname;
+extern crate decimal;
 
 pub use self::bson::{Bson, Document, Array};
 pub use self::encoder::{encode_document, to_bson, Encoder, EncoderResult, EncoderError};
 pub use self::decoder::{decode_document, from_bson, Decoder, DecoderResult, DecoderError};
 pub use self::ordered::{ValueAccessError, ValueAccessResult};
+pub use self::decimal128::Decimal128;
 
 #[macro_use]
 pub mod macros;
@@ -66,3 +68,4 @@ mod bson;
 mod encoder;
 mod decoder;
 pub mod ordered;
+pub mod decimal128;

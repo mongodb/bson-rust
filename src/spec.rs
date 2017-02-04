@@ -19,65 +19,87 @@
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-//! Constants derived from the [BSON Specification Version 1.0](http://bsonspec.org/spec.html).
+//! Constants derived from the [BSON Specification Version 1.1](http://bsonspec.org/spec.html).
 
 use std::convert::From;
 
-pub const ELEMENT_TYPE_FLOATING_POINT: u8             = 0x01;
-pub const ELEMENT_TYPE_UTF8_STRING: u8                = 0x02;
-pub const ELEMENT_TYPE_EMBEDDED_DOCUMENT: u8          = 0x03;
-pub const ELEMENT_TYPE_ARRAY: u8                      = 0x04;
-pub const ELEMENT_TYPE_BINARY: u8                     = 0x05;
-pub const ELEMENT_TYPE_UNDEFINED: u8                  = 0x06; // Deprecated
-pub const ELEMENT_TYPE_OBJECT_ID: u8                  = 0x07;
-pub const ELEMENT_TYPE_BOOLEAN: u8                    = 0x08;
-pub const ELEMENT_TYPE_UTC_DATETIME: u8               = 0x09;
-pub const ELEMENT_TYPE_NULL_VALUE: u8                 = 0x0A;
-pub const ELEMENT_TYPE_REGULAR_EXPRESSION: u8         = 0x0B;
-pub const ELEMENT_TYPE_DBPOINTER: u8                  = 0x0C; // Deprecated
-pub const ELEMENT_TYPE_JAVASCRIPT_CODE: u8            = 0x0D;
-pub const ELEMENT_TYPE_SYMBOL: u8                     = 0x0E; // Deprecated
-pub const ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE: u8 = 0x0F;
-pub const ELEMENT_TYPE_32BIT_INTEGER: u8              = 0x10;
-pub const ELEMENT_TYPE_TIMESTAMP: u8                  = 0x11;
-pub const ELEMENT_TYPE_64BIT_INTEGER: u8              = 0x12;
-pub const ELEMENT_TYPE_MINKEY: u8                     = 0xFF;
-pub const ELEMENT_TYPE_MAXKEY: u8                     = 0x7F;
+const ELEMENT_TYPE_FLOATING_POINT: u8             = 0x01;
+const ELEMENT_TYPE_UTF8_STRING: u8                = 0x02;
+const ELEMENT_TYPE_EMBEDDED_DOCUMENT: u8          = 0x03;
+const ELEMENT_TYPE_ARRAY: u8                      = 0x04;
+const ELEMENT_TYPE_BINARY: u8                     = 0x05;
+const ELEMENT_TYPE_UNDEFINED: u8                  = 0x06; // Deprecated
+const ELEMENT_TYPE_OBJECT_ID: u8                  = 0x07;
+const ELEMENT_TYPE_BOOLEAN: u8                    = 0x08;
+const ELEMENT_TYPE_UTC_DATETIME: u8               = 0x09;
+const ELEMENT_TYPE_NULL_VALUE: u8                 = 0x0A;
+const ELEMENT_TYPE_REGULAR_EXPRESSION: u8         = 0x0B;
+const ELEMENT_TYPE_DBPOINTER: u8                  = 0x0C; // Deprecated
+const ELEMENT_TYPE_JAVASCRIPT_CODE: u8            = 0x0D;
+const ELEMENT_TYPE_SYMBOL: u8                     = 0x0E; // Deprecated
+const ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE: u8 = 0x0F;
+const ELEMENT_TYPE_32BIT_INTEGER: u8              = 0x10;
+const ELEMENT_TYPE_TIMESTAMP: u8                  = 0x11;
+const ELEMENT_TYPE_64BIT_INTEGER: u8              = 0x12;
+const ELEMENT_TYPE_128BIT_DECIMAL: u8             = 0x13;
+const ELEMENT_TYPE_MINKEY: u8                     = 0xFF;
+const ELEMENT_TYPE_MAXKEY: u8                     = 0x7F;
 
-pub const BINARY_SUBTYPE_GENERIC: u8                  = 0x00;
-pub const BINARY_SUBTYPE_FUNCTION: u8                 = 0x01;
-pub const BINARY_SUBTYPE_BINARY_OLD: u8               = 0x02;
-pub const BINARY_SUBTYPE_UUID_OLD: u8                 = 0x03;
-pub const BINARY_SUBTYPE_UUID: u8                     = 0x04;
-pub const BINARY_SUBTYPE_MD5: u8                      = 0x05;
+const BINARY_SUBTYPE_GENERIC: u8                  = 0x00;
+const BINARY_SUBTYPE_FUNCTION: u8                 = 0x01;
+const BINARY_SUBTYPE_BINARY_OLD: u8               = 0x02;
+const BINARY_SUBTYPE_UUID_OLD: u8                 = 0x03;
+const BINARY_SUBTYPE_UUID: u8                     = 0x04;
+const BINARY_SUBTYPE_MD5: u8                      = 0x05;
 
 /// All available BSON element types.
 ///
 /// Not all element types are representable by the `Bson` type.
 #[repr(u8)]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum ElementType {
+    /// 64-bit binary floating point
     FloatingPoint           = ELEMENT_TYPE_FLOATING_POINT,
+    /// UTF-8 string
     Utf8String              = ELEMENT_TYPE_UTF8_STRING,
+    /// Embedded document
     EmbeddedDocument        = ELEMENT_TYPE_EMBEDDED_DOCUMENT,
+    /// Array
     Array                   = ELEMENT_TYPE_ARRAY,
+    /// Binary data
     Binary                  = ELEMENT_TYPE_BINARY,
-    /// Deprecated.
+    /// Deprecated. Undefined (value)
     Undefined               = ELEMENT_TYPE_UNDEFINED,
+    /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId                = ELEMENT_TYPE_OBJECT_ID,
+    /// Boolean value
     Boolean                 = ELEMENT_TYPE_BOOLEAN,
+    /// UTC datetime
     UtcDatetime             = ELEMENT_TYPE_UTC_DATETIME,
+    /// Null value
     NullValue               = ELEMENT_TYPE_NULL_VALUE,
+    /// Regular expression - The first cstring is the regex pattern, the second is the regex options string.
+    /// Options are identified by characters, which must be stored in alphabetical order.
+    /// Valid options are 'i' for case insensitive matching, 'm' for multiline matching, 'x' for verbose mode,
+    /// 'l' to make \w, \W, etc. locale dependent, 's' for dotall mode ('.' matches everything), and 'u' to
+    /// make \w, \W, etc. match unicode.
     RegularExpression       = ELEMENT_TYPE_REGULAR_EXPRESSION,
     /// Deprecated.
     DbPointer               = ELEMENT_TYPE_DBPOINTER,
+    /// JavaScript code
     JavaScriptCode          = ELEMENT_TYPE_JAVASCRIPT_CODE,
     /// Deprecated.
     Symbol                  = ELEMENT_TYPE_SYMBOL,
+    /// JavaScript code w/ scope
     JavaScriptCodeWithScope = ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE,
+    /// 32-bit integer
     Integer32Bit            = ELEMENT_TYPE_32BIT_INTEGER,
+    /// Timestamp
     TimeStamp               = ELEMENT_TYPE_TIMESTAMP,
+    /// 64-bit integer
     Integer64Bit            = ELEMENT_TYPE_64BIT_INTEGER,
+    /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
+    Decimal128Bit           = ELEMENT_TYPE_128BIT_DECIMAL,
 
     MaxKey                  = ELEMENT_TYPE_MAXKEY,
     MinKey                  = ELEMENT_TYPE_MINKEY,
@@ -89,27 +111,28 @@ impl ElementType {
     pub fn from(tag: u8) -> Option<ElementType> {
         use self::ElementType::*;
         Some(match tag {
-            ELEMENT_TYPE_FLOATING_POINT => FloatingPoint,
-            ELEMENT_TYPE_UTF8_STRING => Utf8String,
-            ELEMENT_TYPE_EMBEDDED_DOCUMENT => EmbeddedDocument,
-            ELEMENT_TYPE_ARRAY => Array,
-            ELEMENT_TYPE_BINARY => Binary,
-            ELEMENT_TYPE_UNDEFINED => Undefined,
-            ELEMENT_TYPE_OBJECT_ID => ObjectId,
-            ELEMENT_TYPE_BOOLEAN => Boolean,
-            ELEMENT_TYPE_UTC_DATETIME => UtcDatetime,
-            ELEMENT_TYPE_NULL_VALUE => NullValue,
-            ELEMENT_TYPE_REGULAR_EXPRESSION => RegularExpression,
-            ELEMENT_TYPE_DBPOINTER => DbPointer,
-            ELEMENT_TYPE_JAVASCRIPT_CODE => JavaScriptCode,
-            ELEMENT_TYPE_SYMBOL => Symbol,
+            ELEMENT_TYPE_FLOATING_POINT             => FloatingPoint,
+            ELEMENT_TYPE_UTF8_STRING                => Utf8String,
+            ELEMENT_TYPE_EMBEDDED_DOCUMENT          => EmbeddedDocument,
+            ELEMENT_TYPE_ARRAY                      => Array,
+            ELEMENT_TYPE_BINARY                     => Binary,
+            ELEMENT_TYPE_UNDEFINED                  => Undefined,
+            ELEMENT_TYPE_OBJECT_ID                  => ObjectId,
+            ELEMENT_TYPE_BOOLEAN                    => Boolean,
+            ELEMENT_TYPE_UTC_DATETIME               => UtcDatetime,
+            ELEMENT_TYPE_NULL_VALUE                 => NullValue,
+            ELEMENT_TYPE_REGULAR_EXPRESSION         => RegularExpression,
+            ELEMENT_TYPE_DBPOINTER                  => DbPointer,
+            ELEMENT_TYPE_JAVASCRIPT_CODE            => JavaScriptCode,
+            ELEMENT_TYPE_SYMBOL                     => Symbol,
             ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE => JavaScriptCodeWithScope,
-            ELEMENT_TYPE_32BIT_INTEGER => Integer32Bit,
-            ELEMENT_TYPE_TIMESTAMP => TimeStamp,
-            ELEMENT_TYPE_64BIT_INTEGER => Integer64Bit,
-            ELEMENT_TYPE_MAXKEY => MaxKey,
-            ELEMENT_TYPE_MINKEY => MinKey,
-            _ => return None,
+            ELEMENT_TYPE_32BIT_INTEGER              => Integer32Bit,
+            ELEMENT_TYPE_TIMESTAMP                  => TimeStamp,
+            ELEMENT_TYPE_64BIT_INTEGER              => Integer64Bit,
+            ELEMENT_TYPE_128BIT_DECIMAL             => Decimal128Bit,
+            ELEMENT_TYPE_MAXKEY                     => MaxKey,
+            ELEMENT_TYPE_MINKEY                     => MinKey,
+            _                                       => return None,
         })
     }
 }

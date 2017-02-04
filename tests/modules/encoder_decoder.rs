@@ -5,6 +5,7 @@ use std::io::Cursor;
 use bson::{Bson, decode_document, encode_document};
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
+use bson::decimal128::Decimal128;
 use chrono::UTC;
 use chrono::offset::TimeZone;
 
@@ -259,6 +260,23 @@ fn test_encode_decode_symbol() {
     let dst = vec![18, 0, 0, 0, 14, 107, 101, 121, 0, 4, 0, 0, 0, 97, 98, 99, 0, 0];
 
     let doc = doc!{ "key" => symbol };
+
+    let mut buf = Vec::new();
+    encode_document(&mut buf, &doc).unwrap();
+
+    assert_eq!(buf, dst);
+
+    let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
+    assert_eq!(decoded, doc);
+}
+
+#[test]
+fn test_encode_decode_decimal128() {
+    let val = Bson::Decimal128(Decimal128::from_i32(0));
+    let dst = vec![26, 0, 0, 0, 19, 107, 101, 121, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8,
+                   34, 0];
+
+    let doc = doc! { "key" => val };
 
     let mut buf = Vec::new();
     encode_document(&mut buf, &doc).unwrap();

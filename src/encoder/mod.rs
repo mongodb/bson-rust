@@ -35,6 +35,7 @@ use chrono::Timelike;
 use byteorder::{LittleEndian, WriteBytesExt};
 
 use bson::Bson;
+use decimal128::Decimal128;
 use serde::Serialize;
 
 fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> EncoderResult<()> {
@@ -63,6 +64,12 @@ fn write_i64<W: Write + ?Sized>(writer: &mut W, val: i64) -> EncoderResult<()> {
 #[inline]
 fn write_f64<W: Write + ?Sized>(writer: &mut W, val: f64) -> EncoderResult<()> {
     writer.write_f64::<LittleEndian>(val).map_err(From::from)
+}
+
+#[inline]
+fn write_f128<W: Write + ?Sized>(writer: &mut W, val: Decimal128) -> EncoderResult<()> {
+    let raw = val.to_raw_bytes_le();
+    writer.write_all(&raw).map_err(From::from)
 }
 
 fn encode_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> EncoderResult<()> {
@@ -139,6 +146,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         }
         &Bson::Null => Ok(()),
         &Bson::Symbol(ref v) => write_string(writer, &v),
+        &Bson::Decimal128(ref v) => write_f128(writer, v.clone()),
     }
 }
 

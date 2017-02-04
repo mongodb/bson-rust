@@ -1,3 +1,5 @@
+//! ObjectId
+
 use libc;
 
 use std::{fmt, io, error, result};

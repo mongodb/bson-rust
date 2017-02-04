@@ -28,10 +28,12 @@ pub use self::error::{DecoderError, DecoderResult};
 pub use self::serde::Decoder;
 
 use std::io::Read;
+use std::mem;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::UTC;
 use chrono::offset::TimeZone;
+use decimal128::Decimal128;
 
 use spec::{self, BinarySubtype};
 use bson::{Bson, Array, Document};
@@ -71,6 +73,14 @@ fn read_i32<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i32> {
 #[inline]
 fn read_i64<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i64> {
     reader.read_i64::<LittleEndian>().map_err(From::from)
+}
+
+#[inline]
+fn read_f128<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Decimal128> {
+    let mut local_buf: [u8; 16] = unsafe { mem::uninitialized() };
+    try!(reader.read_exact(&mut local_buf));
+    let val = unsafe { Decimal128::from_raw_bytes_le(local_buf) };
+    Ok(val)
 }
 
 /// Attempt to decode a `Document` from a byte stream.
@@ -172,6 +182,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
             Ok(Bson::UtcDatetime(UTC.timestamp(time / 1000, (time % 1000) as u32 * 1000000)))
         }
         Some(Symbol) => read_string(reader).map(Bson::Symbol),
+        Some(Decimal128Bit) => read_f128(reader).map(Bson::Decimal128),
         Some(Undefined) | Some(DbPointer) | Some(MaxKey) | Some(MinKey) | None => {
             Err(DecoderError::UnrecognizedElementType(tag))
         }
