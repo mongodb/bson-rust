@@ -21,7 +21,7 @@ rand = "0.3"
 rust-crypto = "0.2"
 rustc-serialize = "0.3"
 serde = "0.9"
-serde_json = "0.9.5"
+serde_json = { version = "0.9.5", features = ["preserve_order"] }
 time = "0.1"
 linked-hash-map = "0.3"
 hostname = "^0.1"
