@@ -29,7 +29,7 @@ use chrono::offset::TimeZone;
 use oid;
 use ordered::OrderedDocument;
 use rustc_serialize::hex::{FromHex, ToHex};
-use serde_json::Value;
+use serde_json::{self, Value};
 use spec::{ElementType, BinarySubtype};
 
 /// Possible BSON value types.
@@ -269,13 +269,13 @@ impl Bson {
     /// Convert this value to the best approximate `Json`.
     pub fn to_json(&self) -> Value {
         match self {
-            &Bson::FloatingPoint(v) => Value::F64(v),
+            &Bson::FloatingPoint(v) => v.into(),
             &Bson::String(ref v) => Value::String(v.clone()),
             &Bson::Array(ref v) =>
                 Value::Array(v.iter().map(|x| x.to_json()).collect()),
             &Bson::Document(ref v) =>
-                Value::Object(v.iter().map(|(k, v)| (k.clone(), v.to_json())).collect()),
-            &Bson::Boolean(v) => Value::Boolean(v),
+                Value::Object(v.iter().map(|(k, v)| (k.clone(), v.to_json())).collect::<serde_json::Map<String, Value>>()),
+            &Bson::Boolean(v) => Value::Bool(v),
             &Bson::Null => Value::Null,
             &Bson::RegExp(ref pat, ref opt) => json!({
                 "$regex": pat,
@@ -283,15 +283,13 @@ impl Bson {
             }),
             &Bson::JavaScriptCode(ref code) => json!({"$code": code}),
             &Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
-                let scope_obj =
-                    scope.iter().map(|(k, v)| (k.clone(), v.to_json())).collect();
                 json!({
                     "$code": code,
-                    "scope": scope_obj
+                    "scope": scope
                 })
             },
-            &Bson::I32(v) => Value::I64(v as i64),
-            &Bson::I64(v) => Value::I64(v),
+            &Bson::I32(v) => v.into(),
+            &Bson::I64(v) => v.into(),
             &Bson::TimeStamp(v) => {
                 let time = v >> 32;
                 let inc = v & 0x0000FFFF;
@@ -311,7 +309,7 @@ impl Bson {
             &Bson::ObjectId(ref v) => json!({"$oid": v.to_string()}),
             &Bson::UtcDatetime(ref v) => json!({
                 "$date": {
-                    "$numberLong": ((v.timestamp() * 1000) + v.nanosecond() / 1000000) as i64
+                    "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
                 }
             }),
             &Bson::Symbol(ref v) => {
@@ -326,11 +324,12 @@ impl Bson {
     /// Create a `Bson` from a `Json`.
     pub fn from_json(j: &Value) -> Bson {
         match j {
-            &Value::I64(x) => Bson::I64(x),
-            &Value::U64(x) => Bson::I64(x as i64),
-            &Value::F64(x) => Bson::FloatingPoint(x),
+            &Value::Number(ref x) =>
+                x.as_i64().map(Bson::from)
+                .or(x.as_u64().map(Bson::from))
+                .expect("blah"),
             &Value::String(ref x) => Bson::String(x.clone()),
-            &Value::Boolean(x) => Bson::Boolean(x),
+            &Value::Bool(x) => Bson::Boolean(x),
             &Value::Array(ref x) => Bson::Array(x.iter().map(Bson::from_json).collect()),
             &Value::Object(ref x) => {
                 Bson::from_extended_document(x.iter()
