@@ -1,6 +1,5 @@
 use bson::oid::ObjectId;
 use rustc_serialize::hex::ToHex;
-use rustc_serialize::json;
 
 #[test]
 fn deserialize() {
