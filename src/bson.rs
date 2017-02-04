@@ -26,10 +26,10 @@ use std::fmt::{self, Display, Debug};
 use chrono::{DateTime, Timelike, UTC};
 use chrono::offset::TimeZone;
 use data_encoding::hex;
+use serde_json::Value;
 
 use oid;
 use ordered::OrderedDocument;
-use serde_json:: Value;
 use spec::{ElementType, BinarySubtype};
 
 /// Possible BSON value types.
