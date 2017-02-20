@@ -1,3 +1,5 @@
+//! A BSON document represented as an associative HashMap with insertion ordering.
+
 use std::error;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::iter::{FromIterator, Map};
@@ -17,10 +19,13 @@ use spec::BinarySubtype;
 /// type, for use with the direct getters.
 #[derive(PartialEq)]
 pub enum ValueAccessError {
+    /// Cannot find the expected field with the specified key
     NotPresent,
+    /// Found a Bson value with the specified key, but not with the expected type
     UnexpectedType,
 }
 
+/// Result of accessing Bson value
 pub type ValueAccessResult<T> = Result<T, ValueAccessError>;
 
 impl Debug for ValueAccessError {

@@ -143,6 +143,7 @@ impl Visitor for BsonVisitor {
     }
 }
 
+/// Serde Decoder
 pub struct Decoder {
     value: Option<Bson>,
 }

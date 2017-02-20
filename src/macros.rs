@@ -1,3 +1,4 @@
+/// Construct a BSON value
 #[macro_export]
 macro_rules! bson {
     ([]) => {{ $crate::Bson::Array(Vec::new()) }};
@@ -29,6 +30,7 @@ macro_rules! bson {
     }};
 }
 
+/// Construct a BSON Document
 #[macro_export]
 macro_rules! doc {
     () => {{ $crate::Document::new() }};

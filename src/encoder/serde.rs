@@ -54,6 +54,7 @@ impl Serialize for Bson {
     }
 }
 
+/// Serde Encoder
 pub struct Encoder;
 
 impl Encoder {
