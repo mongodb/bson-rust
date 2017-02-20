@@ -20,12 +20,14 @@ bson = "0.4"
 ```
 ## Usage
 Link the library in _main.rs_:
+
 ```rust
 #[macro_use(bson, doc)]
 extern crate bson;
 ```
 
 Prepare your struct for Serde serialization:
+
 ```rust
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Person {
@@ -37,6 +39,7 @@ pub struct Person {
 ```
 
 Serialize the struct:
+
 ```rust
 use bson;
 
@@ -56,6 +59,7 @@ if let bson::Bson::Document(document) = serialized_person {
 ```
 
 Deserialize the struct:
+
 ```rust
 // Read the document from a MongoDB collection
 let person_document = mongoCollection.find_one(Some(doc! { "_id" => "12345" }), None)?

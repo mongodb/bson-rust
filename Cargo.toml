@@ -1,6 +1,6 @@
 [package]
 name = "bson"
-version = "0.4.0"
+version = "0.4.1"
 authors = [
     "Y. T. Chung <zonyitoo@gmail.com>",
     "Kevin Yeh <kevinyeah@utexas.edu>"
@@ -9,6 +9,7 @@ description = "Encoding and decoding support for BSON in Rust"
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/zonyitoo/bson-rs"
+documentation = "https://docs.rs/crate/bson"
 
 [lib]
 name = "bson"
