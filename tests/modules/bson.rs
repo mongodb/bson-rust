@@ -17,9 +17,9 @@ fn to_json() {
 
     let second = obj.get("second").unwrap();
     assert!(second.is_string());
-    assert_eq!(second.as_string().unwrap(), "foo");
+    assert_eq!(second.as_str().unwrap(), "foo");
 
     let alphanumeric = obj.get("alphanumeric").unwrap();
     assert!(alphanumeric.is_string());
-    assert_eq!(alphanumeric.as_string().unwrap(), "bar");
+    assert_eq!(alphanumeric.as_str().unwrap(), "bar");
 }

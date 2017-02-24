@@ -25,8 +25,8 @@ use std::fmt::{self, Display, Debug};
 
 use chrono::{DateTime, Timelike, UTC};
 use chrono::offset::TimeZone;
-use rustc_serialize::json;
-use rustc_serialize::hex::{FromHex, ToHex};
+use data_encoding::hex;
+use serde_json::Value;
 
 use oid;
 use ordered::OrderedDocument;
@@ -80,7 +80,7 @@ impl Debug for Bson {
 
                 write!(f, "TimeStamp({}, {})", time, inc)
             }
-            &Bson::Binary(t, ref vec) => write!(f, "BinData({}, 0x{})", u8::from(t), vec.to_hex()),
+            &Bson::Binary(t, ref vec) => write!(f, "BinData({}, 0x{})", u8::from(t), hex::encode(vec)),
             &Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
             &Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
             &Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
@@ -123,7 +123,7 @@ impl Display for Bson {
                 write!(fmt, "Timestamp({}, {})", time, inc)
             }
             &Bson::Binary(t, ref vec) => {
-                write!(fmt, "BinData({}, 0x{})", u8::from(t), vec.to_hex())
+                write!(fmt, "BinData({}, 0x{})", u8::from(t), hex::encode(vec))
             }
             &Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             &Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
@@ -267,97 +267,70 @@ impl Bson {
     }
 
     /// Convert this value to the best approximate `Json`.
-    pub fn to_json(&self) -> json::Json {
+    pub fn to_json(&self) -> Value {
         match self {
-            &Bson::FloatingPoint(v) => json::Json::F64(v),
-            &Bson::String(ref v) => json::Json::String(v.clone()),
-            &Bson::Array(ref v) => json::Json::Array(v.iter().map(|x| x.to_json()).collect()),
-            &Bson::Document(ref v) => {
-                json::Json::Object(v.iter().map(|(k, v)| (k.clone(), v.to_json())).collect())
-            }
-            &Bson::Boolean(v) => json::Json::Boolean(v),
-            &Bson::Null => json::Json::Null,
-            &Bson::RegExp(ref pat, ref opt) => {
-                let mut re = json::Object::new();
-                re.insert("$regex".to_owned(), json::Json::String(pat.clone()));
-                re.insert("$options".to_owned(), json::Json::String(opt.clone()));
-
-                json::Json::Object(re)
-            }
-            &Bson::JavaScriptCode(ref code) => {
-                let mut obj = json::Object::new();
-                obj.insert("$code".to_owned(), json::Json::String(code.clone()));
-                json::Json::Object(obj)
-            }
+            &Bson::FloatingPoint(v) => json!(v),
+            &Bson::String(ref v) => json!(v),
+            &Bson::Array(ref v) => json!(v),
+            &Bson::Document(ref v) => json!(v),
+            &Bson::Boolean(v) => json!(v),
+            &Bson::Null => Value::Null,
+            &Bson::RegExp(ref pat, ref opt) => json!({
+                "$regex": pat,
+                "$options": opt
+            }),
+            &Bson::JavaScriptCode(ref code) => json!({"$code": code}),
             &Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
-                let mut obj = json::Object::new();
-                obj.insert("$code".to_owned(), json::Json::String(code.clone()));
-
-                let scope_obj = scope.iter().map(|(k, v)| (k.clone(), v.to_json())).collect();
-
-                obj.insert("scope".to_owned(), json::Json::Object(scope_obj));
-
-                json::Json::Object(obj)
-            }
-            &Bson::I32(v) => json::Json::I64(v as i64),
-            &Bson::I64(v) => json::Json::I64(v),
+                json!({
+                    "$code": code,
+                    "scope": scope
+                })
+            },
+            &Bson::I32(v) => v.into(),
+            &Bson::I64(v) => v.into(),
             &Bson::TimeStamp(v) => {
                 let time = v >> 32;
                 let inc = v & 0x0000FFFF;
 
-                let mut obj = json::Object::new();
-                obj.insert("t".to_owned(), json::Json::I64(time));
-                obj.insert("i".to_owned(), json::Json::I64(inc));
-
-                json::Json::Object(obj)
-            }
+                json!({
+                    "t": time,
+                    "i": inc
+                })
+            },
             &Bson::Binary(t, ref v) => {
-                let mut obj = json::Object::new();
                 let tval: u8 = From::from(t);
-                obj.insert("type".to_owned(), json::Json::I64(tval as i64));
-                obj.insert("$binary".to_owned(), json::Json::String(v.to_hex()));
-
-                json::Json::Object(obj)
-            }
-            &Bson::ObjectId(ref v) => {
-                let mut obj = json::Object::new();
-                obj.insert("$oid".to_owned(), json::Json::String(v.to_string()));
-
-                json::Json::Object(obj)
-            }
-            &Bson::UtcDatetime(ref v) => {
-                let mut obj = json::Object::new();
-                let mut inner = json::Object::new();
-                inner.insert("$numberLong".to_owned(),
-                             json::Json::I64((v.timestamp() * 1000) +
-                                             (v.nanosecond() / 1000000) as i64));
-                obj.insert("$date".to_owned(), json::Json::Object(inner));
-                json::Json::Object(obj)
-            }
-            &Bson::Symbol(ref v) => {
-                // FIXME: Don't know what is the best way to encode Symbol type
-                let mut obj = json::Object::new();
-                obj.insert("$symbol".to_owned(), json::Json::String(v.to_owned()));
-                json::Json::Object(obj)
-            }
+                json!({
+                    "type": tval,
+                    "$binary": hex::encode(v)
+                })
+            },
+            &Bson::ObjectId(ref v) => json!({"$oid": v.to_string()}),
+            &Bson::UtcDatetime(ref v) => json!({
+                "$date": {
+                    "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
+                }
+            }),
+            // FIXME: Don't know what is the best way to encode Symbol type
+            &Bson::Symbol(ref v) => json!({"$symbol": v})
         }
     }
 
     /// Create a `Bson` from a `Json`.
-    pub fn from_json(j: &json::Json) -> Bson {
+    pub fn from_json(j: &Value) -> Bson {
         match j {
-            &json::Json::I64(x) => Bson::I64(x),
-            &json::Json::U64(x) => Bson::I64(x as i64),
-            &json::Json::F64(x) => Bson::FloatingPoint(x),
-            &json::Json::String(ref x) => Bson::String(x.clone()),
-            &json::Json::Boolean(x) => Bson::Boolean(x),
-            &json::Json::Array(ref x) => Bson::Array(x.iter().map(Bson::from_json).collect()),
-            &json::Json::Object(ref x) => {
+            &Value::Number(ref x) =>
+                x.as_i64().map(Bson::from)
+                .or(x.as_u64().map(Bson::from))
+                .expect(&format!("Invalid number value: {}", x)),
+            &Value::String(ref x) => x.into(),
+            &Value::Bool(x) => x.into(),
+            &Value::Array(ref x) => Bson::Array(x.iter().map(Bson::from_json).collect()),
+            &Value::Object(ref x) => {
                 Bson::from_extended_document(x.iter()
                     .map(|(k, v)| (k.clone(), Bson::from_json(v)))
                     .collect())
             }
-            &json::Json::Null => Bson::Null,
+            &Value::Null => Bson::Null,
         }
     }
 
@@ -392,7 +365,7 @@ impl Bson {
             Bson::Binary(t, ref v) => {
                 let tval: u8 = From::from(t);
                 doc! {
-                    "$binary" => (v.to_hex()),
+                    "$binary" => (hex::encode(v)),
                     "type" => (tval as i64)
                 }
             }
@@ -436,7 +409,7 @@ impl Bson {
 
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
-                return Bson::Binary(From::from(ttype), hex.from_hex().unwrap());
+                return Bson::Binary(From::from(ttype), hex::decode(hex.to_uppercase().as_bytes()).unwrap());
             }
 
         } else if values.len() == 1 {
