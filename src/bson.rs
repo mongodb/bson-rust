@@ -320,7 +320,7 @@ impl Bson {
         match j {
             &Value::Number(ref x) =>
                 x.as_i64().map(Bson::from)
-                .or(x.as_f64().map(Bson::from))
+                .or_else(|| x.as_f64().map(Bson::from))
                 .expect(&format!("Invalid number value: {}", x)),
             &Value::String(ref x) => x.into(),
             &Value::Bool(x) => x.into(),
