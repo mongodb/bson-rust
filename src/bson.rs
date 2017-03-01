@@ -35,21 +35,41 @@ use spec::{ElementType, BinarySubtype};
 /// Possible BSON value types.
 #[derive(Clone, PartialEq)]
 pub enum Bson {
+    /// 64-bit binary floating point
     FloatingPoint(f64),
+    /// UTF-8 string
     String(String),
+    /// Array
     Array(Array),
+    /// Embedded document
     Document(Document),
+    /// Boolean value
     Boolean(bool),
+    /// Null value
     Null,
+    /// Regular expression - The first cstring is the regex pattern, the second is the regex options string.
+    /// Options are identified by characters, which must be stored in alphabetical order.
+    /// Valid options are 'i' for case insensitive matching, 'm' for multiline matching, 'x' for verbose mode,
+    /// 'l' to make \w, \W, etc. locale dependent, 's' for dotall mode ('.' matches everything), and 'u' to
+    /// make \w, \W, etc. match unicode.
     RegExp(String, String),
+    /// JavaScript code
     JavaScriptCode(String),
+    /// JavaScript code w/ scope
     JavaScriptCodeWithScope(String, Document),
+    /// 32-bit integer
     I32(i32),
+    /// 64-bit integer
     I64(i64),
+    /// Timestamp
     TimeStamp(i64),
+    /// Binary data
     Binary(BinarySubtype, Vec<u8>),
+    /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId(oid::ObjectId),
+    /// UTC datetime
     UtcDatetime(DateTime<UTC>),
+    /// Symbol (Deprecated)
     Symbol(String),
 }
 
@@ -80,7 +100,9 @@ impl Debug for Bson {
 
                 write!(f, "TimeStamp({}, {})", time, inc)
             }
-            &Bson::Binary(t, ref vec) => write!(f, "BinData({}, 0x{})", u8::from(t), hex::encode(vec)),
+            &Bson::Binary(t, ref vec) => {
+                write!(f, "BinData({}, 0x{})", u8::from(t), hex::encode(vec))
+            }
             &Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
             &Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
             &Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
@@ -275,17 +297,19 @@ impl Bson {
             &Bson::Document(ref v) => json!(v),
             &Bson::Boolean(v) => json!(v),
             &Bson::Null => Value::Null,
-            &Bson::RegExp(ref pat, ref opt) => json!({
-                "$regex": pat,
-                "$options": opt
-            }),
+            &Bson::RegExp(ref pat, ref opt) => {
+                json!({
+                    "$regex": pat,
+                    "$options": opt
+                })
+            }
             &Bson::JavaScriptCode(ref code) => json!({"$code": code}),
             &Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
                 json!({
                     "$code": code,
                     "scope": scope
                 })
-            },
+            }
             &Bson::I32(v) => v.into(),
             &Bson::I64(v) => v.into(),
             &Bson::TimeStamp(v) => {
@@ -296,32 +320,36 @@ impl Bson {
                     "t": time,
                     "i": inc
                 })
-            },
+            }
             &Bson::Binary(t, ref v) => {
                 let tval: u8 = From::from(t);
                 json!({
                     "type": tval,
                     "$binary": hex::encode(v)
                 })
-            },
+            }
             &Bson::ObjectId(ref v) => json!({"$oid": v.to_string()}),
-            &Bson::UtcDatetime(ref v) => json!({
+            &Bson::UtcDatetime(ref v) => {
+                json!({
                 "$date": {
                     "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
                 }
-            }),
+            })
+            }
             // FIXME: Don't know what is the best way to encode Symbol type
-            &Bson::Symbol(ref v) => json!({"$symbol": v})
+            &Bson::Symbol(ref v) => json!({"$symbol": v}),
         }
     }
 
     /// Create a `Bson` from a `Json`.
     pub fn from_json(j: &Value) -> Bson {
         match j {
-            &Value::Number(ref x) =>
-                x.as_i64().map(Bson::from)
-                .or_else(|| x.as_f64().map(Bson::from))
-                .expect(&format!("Invalid number value: {}", x)),
+            &Value::Number(ref x) => {
+                x.as_i64()
+                    .map(Bson::from)
+                    .or_else(|| x.as_f64().map(Bson::from))
+                    .expect(&format!("Invalid number value: {}", x))
+            }
             &Value::String(ref x) => x.into(),
             &Value::Bool(x) => x.into(),
             &Value::Array(ref x) => Bson::Array(x.iter().map(Bson::from_json).collect()),
@@ -334,6 +362,9 @@ impl Bson {
         }
     }
 
+    /// Converts to extended format.
+    /// This function mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    #[doc(hidden)]
     pub fn to_extended_document(&self) -> Document {
         match *self {
             Bson::RegExp(ref pat, ref opt) => {
@@ -390,6 +421,9 @@ impl Bson {
         }
     }
 
+    /// Converts from extended format.
+    /// This function mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    #[doc(hidden)]
     pub fn from_extended_document(values: Document) -> Bson {
         if values.len() == 2 {
             if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
@@ -409,7 +443,8 @@ impl Bson {
 
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
-                return Bson::Binary(From::from(ttype), hex::decode(hex.to_uppercase().as_bytes()).unwrap());
+                return Bson::Binary(From::from(ttype),
+                                    hex::decode(hex.to_uppercase().as_bytes()).unwrap());
             }
 
         } else if values.len() == 1 {
@@ -428,5 +463,104 @@ impl Bson {
         }
 
         Bson::Document(values)
+    }
+}
+
+/// Value helpers
+impl Bson {
+    /// If `Bson` is `FloatingPoint`, return its value. Returns `None` otherwise
+    pub fn as_f64(&self) -> Option<f64> {
+        match *self {
+            Bson::FloatingPoint(ref v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `String`, return its value. Returns `None` otherwise
+    pub fn as_str(&self) -> Option<&str> {
+        match *self {
+            Bson::String(ref s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `Array`, return its value. Returns `None` otherwise
+    pub fn as_array(&self) -> Option<&Array> {
+        match *self {
+            Bson::Array(ref v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `Document`, return its value. Returns `None` otherwise
+    pub fn as_document(&self) -> Option<&Document> {
+        match *self {
+            Bson::Document(ref v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `Boolean`, return its value. Returns `None` otherwise
+    pub fn as_bool(&self) -> Option<bool> {
+        match *self {
+            Bson::Boolean(ref v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `I32`, return its value. Returns `None` otherwise
+    pub fn as_i32(&self) -> Option<i32> {
+        match *self {
+            Bson::I32(ref v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `I64`, return its value. Returns `None` otherwise
+    pub fn as_i64(&self) -> Option<i64> {
+        match *self {
+            Bson::I64(ref v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `Objectid`, return its value. Returns `None` otherwise
+    pub fn as_object_id(&self) -> Option<&oid::ObjectId> {
+        match *self {
+            Bson::ObjectId(ref v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `UtcDateTime`, return its value. Returns `None` otherwise
+    pub fn as_utc_date_time(&self) -> Option<&DateTime<UTC>> {
+        match *self {
+            Bson::UtcDatetime(ref v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `Symbol`, return its value. Returns `None` otherwise
+    pub fn as_symbol(&self) -> Option<&str> {
+        match *self {
+            Bson::Symbol(ref v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `TimeStamp`, return its value. Returns `None` otherwise
+    pub fn as_timestamp(&self) -> Option<i64> {
+        match *self {
+            Bson::TimeStamp(ref v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `Null`, return its value. Returns `None` otherwise
+    pub fn as_null(&self) -> Option<()> {
+        match *self {
+            Bson::Null => Some(()),
+            _ => None,
+        }
     }
 }
