@@ -25,8 +25,8 @@ use std::fmt::{self, Display, Debug};
 
 use chrono::{DateTime, Timelike, UTC};
 use chrono::offset::TimeZone;
-use data_encoding::hex;
 use serde_json::Value;
+use hex::{FromHex, ToHex};
 
 use oid;
 use ordered::OrderedDocument;
@@ -100,9 +100,7 @@ impl Debug for Bson {
 
                 write!(f, "TimeStamp({}, {})", time, inc)
             }
-            &Bson::Binary(t, ref vec) => {
-                write!(f, "BinData({}, 0x{})", u8::from(t), hex::encode(vec))
-            }
+            &Bson::Binary(t, ref vec) => write!(f, "BinData({}, 0x{})", u8::from(t), vec.to_hex()),
             &Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
             &Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
             &Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
@@ -145,7 +143,7 @@ impl Display for Bson {
                 write!(fmt, "Timestamp({}, {})", time, inc)
             }
             &Bson::Binary(t, ref vec) => {
-                write!(fmt, "BinData({}, 0x{})", u8::from(t), hex::encode(vec))
+                write!(fmt, "BinData({}, 0x{})", u8::from(t), vec.to_hex())
             }
             &Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             &Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
@@ -325,7 +323,7 @@ impl Bson {
                 let tval: u8 = From::from(t);
                 json!({
                     "type": tval,
-                    "$binary": hex::encode(v)
+                    "$binary": v.to_hex()
                 })
             }
             &Bson::ObjectId(ref v) => json!({"$oid": v.to_string()}),
@@ -396,7 +394,7 @@ impl Bson {
             Bson::Binary(t, ref v) => {
                 let tval: u8 = From::from(t);
                 doc! {
-                    "$binary" => (hex::encode(v)),
+                    "$binary" => (v.to_hex()),
                     "type" => (tval as i64)
                 }
             }
@@ -444,7 +442,7 @@ impl Bson {
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
                 return Bson::Binary(From::from(ttype),
-                                    hex::decode(hex.to_uppercase().as_bytes()).unwrap());
+                                    FromHex::from_hex(hex.as_bytes()).unwrap());
             }
 
         } else if values.len() == 1 {
