@@ -45,7 +45,6 @@
 extern crate byteorder;
 extern crate chrono;
 extern crate crypto;
-extern crate data_encoding;
 extern crate libc;
 extern crate rand;
 extern crate serde;
@@ -54,6 +53,7 @@ extern crate serde_json;
 extern crate time;
 extern crate linked_hash_map;
 extern crate hostname;
+extern crate hex;
 
 pub use self::bson::{Bson, Document, Array};
 pub use self::encoder::{encode_document, to_bson, Encoder, EncoderResult, EncoderError};

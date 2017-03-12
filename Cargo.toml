@@ -1,6 +1,6 @@
 [package]
 name = "bson"
-version = "0.4.4"
+version = "0.5.0"
 authors = [
     "Y. T. Chung <zonyitoo@gmail.com>",
     "Kevin Yeh <kevinyeah@utexas.edu>"
@@ -17,7 +17,6 @@ name = "bson"
 [dependencies]
 byteorder = "1.0"
 chrono = "0.2"
-data-encoding = "1.1.2"
 libc = "0.2"
 rand = "0.3"
 rust-crypto = "0.2"
@@ -26,3 +25,4 @@ serde_json = { version = "0.9.5", features = ["preserve_order"] }
 time = "0.1"
 linked-hash-map = "0.3"
 hostname = "^0.1"
+hex = "^0.2"

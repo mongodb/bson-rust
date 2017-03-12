@@ -8,7 +8,8 @@ use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use crypto::digest::Digest;
 use crypto::md5::Md5;
-use data_encoding::{self, hex};
+
+use hex::{ToHex, FromHex, FromHexError};
 
 use rand::{Rng, OsRng};
 
@@ -35,13 +36,13 @@ static mut MACHINE_BYTES: Option<[u8; 3]> = None;
 #[derive(Debug)]
 pub enum Error {
     ArgumentError(String),
-    FromHexError(data_encoding::decode::Error),
+    FromHexError(FromHexError),
     IoError(io::Error),
     HostnameError,
 }
 
-impl From<data_encoding::decode::Error> for Error {
-    fn from(err: data_encoding::decode::Error) -> Error {
+impl From<FromHexError> for Error {
+    fn from(err: FromHexError) -> Error {
         Error::FromHexError(err)
     }
 }
@@ -126,7 +127,7 @@ impl ObjectId {
 
     /// Creates an ObjectID using a 12-byte (24-char) hexadecimal string.
     pub fn with_string(s: &str) -> Result<ObjectId> {
-        let bytes = try!(hex::decode(s.to_uppercase().as_bytes()));
+        let bytes: Vec<u8> = try!(FromHex::from_hex(s.as_bytes()));
         if bytes.len() != 12 {
             Err(Error::ArgumentError("Provided string must be a 12-byte hexadecimal string."
                 .to_owned()))
@@ -183,7 +184,7 @@ impl ObjectId {
 
     /// Convert the objectId to hex representation.
     pub fn to_hex(&self) -> String {
-        hex::encode(&self.id)
+        self.id.to_hex()
     }
 
     // Generates a new timestamp representing the current seconds since epoch.
@@ -321,12 +322,12 @@ fn count_generated_is_big_endian() {
 fn test_display() {
     let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
 
-    assert_eq!(format!("{}", id), "53E37D08776F724E42000000")
+    assert_eq!(format!("{}", id), "53e37d08776f724e42000000")
 }
 
 #[test]
 fn test_debug() {
     let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
 
-    assert_eq!(format!("{:?}", id), "ObjectId(53E37D08776F724E42000000)")
+    assert_eq!(format!("{:?}", id), "ObjectId(53e37d08776f724e42000000)")
 }
