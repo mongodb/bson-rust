@@ -302,7 +302,7 @@ impl Into<Value> for Bson {
                     "$code": code,
                     "scope": scope
                 })
-            },
+            }
             Bson::I32(v) => v.into(),
             Bson::I64(v) => v.into(),
             Bson::TimeStamp(v) => {
@@ -312,14 +312,14 @@ impl Into<Value> for Bson {
                     "t": time,
                     "i": inc
                 })
-            },
+            }
             Bson::Binary(t, ref v) => {
                 let tval: u8 = From::from(t);
                 json!({
                     "type": tval,
                     "$binary": v.to_hex()
                 })
-            },
+            }
             Bson::ObjectId(v) => json!({"$oid": v.to_string()}),
             Bson::UtcDatetime(v) => json!({
                 "$date": {
