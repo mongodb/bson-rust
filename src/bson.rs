@@ -295,14 +295,14 @@ impl Into<Value> for Bson {
             Bson::RegExp(pat, opt) => json!({
                 "$regex": pat,
                 "$options": opt
-            }),
+            })
             Bson::JavaScriptCode(code) => json!({"$code": code}),
             Bson::JavaScriptCodeWithScope(code, scope) => {
                 json!({
                     "$code": code,
                     "scope": scope
                 })
-            },
+            }
             Bson::I32(v) => v.into(),
             Bson::I64(v) => v.into(),
             Bson::TimeStamp(v) => {
@@ -312,20 +312,20 @@ impl Into<Value> for Bson {
                     "t": time,
                     "i": inc
                 })
-            },
+            }
             Bson::Binary(t, ref v) => {
                 let tval: u8 = From::from(t);
                 json!({
                     "type": tval,
                     "$binary": v.to_hex()
                 })
-            },
+            }
             Bson::ObjectId(v) => json!({"$oid": v.to_string()}),
             Bson::UtcDatetime(v) => json!({
                 "$date": {
                     "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
                 }
-            }),
+            })
             // FIXME: Don't know what is the best way to encode Symbol type
             Bson::Symbol(v) => json!({"$symbol": v})
         }
