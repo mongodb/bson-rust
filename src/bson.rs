@@ -263,6 +263,75 @@ impl From<DateTime<UTC>> for Bson {
     }
 }
 
+impl From<Value> for Bson {
+    fn from(a: Value) -> Bson {
+        match a {
+            Value::Number(x) =>
+                x.as_i64().map(Bson::from)
+                .or(x.as_u64().map(Bson::from))
+                .expect(&format!("Invalid number value: {}", x)),
+            Value::String(x) => x.into(),
+            Value::Bool(x) => x.into(),
+            Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from).collect()),
+            Value::Object(x) => {
+                Bson::from_extended_document(x.into_iter()
+                                             .map(|(k, v)| (k.clone(), v.into()))
+                                             .collect())
+            }
+            Value::Null => Bson::Null,
+        }
+    }
+}
+
+impl Into<Value> for Bson {
+    fn into(self) -> Value {
+        match self {
+            Bson::FloatingPoint(v) => json!(v),
+            Bson::String(v) => json!(v),
+            Bson::Array(v) => json!(v),
+            Bson::Document(v) => json!(v),
+            Bson::Boolean(v) => json!(v),
+            Bson::Null => Value::Null,
+            Bson::RegExp(pat, opt) => json!({
+                "$regex": pat,
+                "$options": opt
+            }),
+            Bson::JavaScriptCode(code) => json!({"$code": code}),
+            Bson::JavaScriptCodeWithScope(code, scope) => {
+                json!({
+                    "$code": code,
+                    "scope": scope
+                })
+            },
+            Bson::I32(v) => v.into(),
+            Bson::I64(v) => v.into(),
+            Bson::TimeStamp(v) => {
+                let time = v >> 32;
+                let inc = v & 0x0000FFFF;
+                json!({
+                    "t": time,
+                    "i": inc
+                })
+            },
+            Bson::Binary(t, ref v) => {
+                let tval: u8 = From::from(t);
+                json!({
+                    "type": tval,
+                    "$binary": v.to_hex()
+                })
+            },
+            Bson::ObjectId(v) => json!({"$oid": v.to_string()}),
+            Bson::UtcDatetime(v) => json!({
+                "$date": {
+                    "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
+                }
+            }),
+            // FIXME: Don't know what is the best way to encode Symbol type
+            Bson::Symbol(v) => json!({"$symbol": v})
+        }
+    }
+}
+
 impl Bson {
     /// Get the `ElementType` of this value.
     pub fn element_type(&self) -> ElementType {
@@ -286,78 +355,22 @@ impl Bson {
         }
     }
 
-    /// Convert this value to the best approximate `Json`.
+    // Clones the bson and returns the representative serde_json Value.
+    // The json will be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
     pub fn to_json(&self) -> Value {
-        match self {
-            &Bson::FloatingPoint(v) => json!(v),
-            &Bson::String(ref v) => json!(v),
-            &Bson::Array(ref v) => json!(v),
-            &Bson::Document(ref v) => json!(v),
-            &Bson::Boolean(v) => json!(v),
-            &Bson::Null => Value::Null,
-            &Bson::RegExp(ref pat, ref opt) => {
-                json!({
-                    "$regex": pat,
-                    "$options": opt
-                })
-            }
-            &Bson::JavaScriptCode(ref code) => json!({"$code": code}),
-            &Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
-                json!({
-                    "$code": code,
-                    "scope": scope
-                })
-            }
-            &Bson::I32(v) => v.into(),
-            &Bson::I64(v) => v.into(),
-            &Bson::TimeStamp(v) => {
-                let time = v >> 32;
-                let inc = v & 0x0000FFFF;
-
-                json!({
-                    "t": time,
-                    "i": inc
-                })
-            }
-            &Bson::Binary(t, ref v) => {
-                let tval: u8 = From::from(t);
-                json!({
-                    "type": tval,
-                    "$binary": v.to_hex()
-                })
-            }
-            &Bson::ObjectId(ref v) => json!({"$oid": v.to_string()}),
-            &Bson::UtcDatetime(ref v) => {
-                json!({
-                "$date": {
-                    "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
-                }
-            })
-            }
-            // FIXME: Don't know what is the best way to encode Symbol type
-            &Bson::Symbol(ref v) => json!({"$symbol": v}),
-        }
+        self.clone().into()
     }
 
-    /// Create a `Bson` from a `Json`.
-    pub fn from_json(j: &Value) -> Bson {
-        match j {
-            &Value::Number(ref x) => {
-                x.as_i64()
-                    .map(Bson::from)
-                    .or_else(|| x.as_f64().map(Bson::from))
-                    .expect(&format!("Invalid number value: {}", x))
-            }
-            &Value::String(ref x) => x.into(),
-            &Value::Bool(x) => x.into(),
-            &Value::Array(ref x) => Bson::Array(x.iter().map(Bson::from_json).collect()),
-            &Value::Object(ref x) => {
-                Bson::from_extended_document(x.iter()
-                    .map(|(k, v)| (k.clone(), Bson::from_json(v)))
-                    .collect())
-            }
-            &Value::Null => Bson::Null,
-        }
+    // Consumes the bson and returns the representative serde_json Value.
+    // The json will be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    pub fn into_json(self) -> Value {
+        self.into()
+    }
+
+    // Consumes the serde_json Value and returns the representative bson.
+    // The json should be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    pub fn from_json(val: Value) -> Bson {
+        val.into()
     }
 
     /// Converts to extended format.
