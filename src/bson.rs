@@ -355,20 +355,23 @@ impl Bson {
         }
     }
 
-    // Clones the bson and returns the representative serde_json Value.
-    // The json will be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    /// Clones the bson and returns the representative serde_json Value.
+    /// The json will be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    #[deprecated(since="0.5.1", note="use bson.clone().into() instead")]
     pub fn to_json(&self) -> Value {
         self.clone().into()
     }
 
-    // Consumes the bson and returns the representative serde_json Value.
-    // The json will be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    /// Consumes the bson and returns the representative serde_json Value.
+    /// The json will be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    #[deprecated(since="0.5.1", note="use bson.into() instead")]
     pub fn into_json(self) -> Value {
         self.into()
     }
 
-    // Consumes the serde_json Value and returns the representative bson.
-    // The json should be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    /// Consumes the serde_json Value and returns the representative bson.
+    /// The json should be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    #[deprecated(since="0.5.1", note="use json.into() instead")]
     pub fn from_json(val: Value) -> Bson {
         val.into()
     }
