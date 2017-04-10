@@ -266,17 +266,20 @@ impl From<DateTime<UTC>> for Bson {
 impl From<Value> for Bson {
     fn from(a: Value) -> Bson {
         match a {
-            Value::Number(x) =>
-                x.as_i64().map(Bson::from)
-                .or(x.as_u64().map(Bson::from))
-                .expect(&format!("Invalid number value: {}", x)),
+            Value::Number(x) => {
+                x.as_i64()
+                    .map(Bson::from)
+                    .or_else(|| x.as_u64().map(Bson::from))
+                    .or_else(|| x.as_f64().map(Bson::from))
+                    .unwrap_or_else(|| panic!("Invalid number value: {}", x))
+            }
             Value::String(x) => x.into(),
             Value::Bool(x) => x.into(),
             Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from).collect()),
             Value::Object(x) => {
                 Bson::from_extended_document(x.into_iter()
-                                             .map(|(k, v)| (k.clone(), v.into()))
-                                             .collect())
+                                                 .map(|(k, v)| (k.clone(), v.into()))
+                                                 .collect())
             }
             Value::Null => Bson::Null,
         }
@@ -292,10 +295,12 @@ impl Into<Value> for Bson {
             Bson::Document(v) => json!(v),
             Bson::Boolean(v) => json!(v),
             Bson::Null => Value::Null,
-            Bson::RegExp(pat, opt) => json!({
-                "$regex": pat,
-                "$options": opt
-            }),
+            Bson::RegExp(pat, opt) => {
+                json!({
+                    "$regex": pat,
+                    "$options": opt
+                })
+            }
             Bson::JavaScriptCode(code) => json!({"$code": code}),
             Bson::JavaScriptCodeWithScope(code, scope) => {
                 json!({
@@ -321,13 +326,15 @@ impl Into<Value> for Bson {
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_string()}),
-            Bson::UtcDatetime(v) => json!({
-                "$date": {
-                    "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
-                }
-            }),
+            Bson::UtcDatetime(v) => {
+                json!({
+                    "$date": {
+                        "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
+                    }
+                })
+            }
             // FIXME: Don't know what is the best way to encode Symbol type
-            Bson::Symbol(v) => json!({"$symbol": v})
+            Bson::Symbol(v) => json!({"$symbol": v}),
         }
     }
 }
@@ -468,9 +475,11 @@ impl Bson {
             } else if let Ok(hex) = values.get_str("$oid") {
                 return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
 
-            } else if let Ok(long) = values.get_document("$date")
-                .and_then(|inner| inner.get_i64("$numberLong")) {
-                return Bson::UtcDatetime(UTC.timestamp(long / 1000, (long % 1000) as u32 * 1000000));
+            } else if let Ok(long) = values
+                          .get_document("$date")
+                          .and_then(|inner| inner.get_i64("$numberLong")) {
+                return Bson::UtcDatetime(UTC.timestamp(long / 1000,
+                                                       (long % 1000) as u32 * 1000000));
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
             }
