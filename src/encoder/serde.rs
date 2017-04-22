@@ -176,7 +176,7 @@ impl Serializer for Encoder {
     #[inline]
     fn serialize_unit_variant(self,
                               _name: &'static str,
-                              _variant_index: usize,
+                              _variant_index: u32,
                               variant: &'static str)
                               -> EncoderResult<Bson> {
         Ok(Bson::String(variant.to_string()))
@@ -197,7 +197,7 @@ impl Serializer for Encoder {
     #[inline]
     fn serialize_newtype_variant<T: ?Sized>(self,
                                             _name: &'static str,
-                                            _variant_index: usize,
+                                            _variant_index: u32,
                                             variant: &'static str,
                                             value: &T)
                                             -> EncoderResult<Bson>
@@ -217,11 +217,6 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn serialize_seq_fixed_size(self, len: usize) -> EncoderResult<Self::SerializeSeq> {
-        Ok(ArraySerializer { inner: Array::with_capacity(len) })
-    }
-
-    #[inline]
     fn serialize_tuple(self, len: usize) -> EncoderResult<Self::SerializeTuple> {
         Ok(TupleSerializer { inner: Array::with_capacity(len) })
     }
@@ -237,22 +232,22 @@ impl Serializer for Encoder {
     #[inline]
     fn serialize_tuple_variant(self,
                                _name: &'static str,
-                               _variant_index: usize,
+                               _variant_index: u32,
                                variant: &'static str,
                                len: usize)
                                -> EncoderResult<Self::SerializeTupleVariant> {
         Ok(TupleVariantSerializer {
-            inner: Array::with_capacity(len),
-            name: variant,
-        })
+               inner: Array::with_capacity(len),
+               name: variant,
+           })
     }
 
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> EncoderResult<Self::SerializeMap> {
         Ok(MapSerializer {
-            inner: Document::new(),
-            next_key: None,
-        })
+               inner: Document::new(),
+               next_key: None,
+           })
     }
 
     #[inline]
@@ -266,14 +261,14 @@ impl Serializer for Encoder {
     #[inline]
     fn serialize_struct_variant(self,
                                 _name: &'static str,
-                                _variant_index: usize,
+                                _variant_index: u32,
                                 variant: &'static str,
                                 _len: usize)
                                 -> EncoderResult<Self::SerializeStructVariant> {
         Ok(StructVariantSerializer {
-            name: variant,
-            inner: Document::new(),
-        })
+               name: variant,
+               inner: Document::new(),
+           })
     }
 }
 
