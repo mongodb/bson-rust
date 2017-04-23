@@ -2,16 +2,11 @@
 name = "serde-tests"
 version = "0.1.0"
 authors = ["Kevin Yeh <kevinyeah@utexas.edu>"]
-build = "build.rs"
-
 
 [dependencies]
-serde = "0.9"
+serde = "1.0"
 bson = { path = "..", features = ["serde"] }
-
-[build-dependencies]
-syntex = "0.46"
-serde_codegen = "0.9"
+serde_derive = "1.0"
 
 [lib]
 name = "serde_tests"

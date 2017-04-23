@@ -9,7 +9,7 @@ use chrono::{DateTime, UTC};
 
 use linked_hash_map::{self, LinkedHashMap};
 
-use serde::de::{self, Visitor, MapVisitor};
+use serde::de::{self, Visitor, MapAccess};
 
 use bson::{Array, Bson, Document};
 use oid::ObjectId;
@@ -366,7 +366,7 @@ impl OrderedDocumentVisitor {
     }
 }
 
-impl Visitor for OrderedDocumentVisitor {
+impl<'de> Visitor<'de> for OrderedDocumentVisitor {
     type Value = OrderedDocument;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -381,12 +381,15 @@ impl Visitor for OrderedDocumentVisitor {
     }
 
     #[inline]
-    fn visit_map<Visitor>(self, mut visitor: Visitor) -> Result<OrderedDocument, Visitor::Error>
-        where Visitor: MapVisitor
+    fn visit_map<V>(self, mut visitor: V) -> Result<OrderedDocument, V::Error>
+        where V: MapAccess<'de>
     {
-        let mut inner = LinkedHashMap::with_capacity(visitor.size_hint().0);
+        let mut inner = match visitor.size_hint() {
+            Some(size) => LinkedHashMap::with_capacity(size),
+            None => LinkedHashMap::new(),
+        };
 
-        while let Some((key, value)) = try!(visitor.visit()) {
+        while let Some((key, value)) = try!(visitor.next_entry()) {
             inner.insert(key, value);
         }
 

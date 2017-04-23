@@ -179,8 +179,8 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
 }
 
 /// Decode a BSON `Value` into a `T` Deserializable.
-pub fn from_bson<T>(bson: Bson) -> DecoderResult<T>
-    where T: Deserialize
+pub fn from_bson<'de, T>(bson: Bson) -> DecoderResult<T>
+    where T: Deserialize<'de>
 {
     let de = Decoder::new(bson);
     Deserialize::deserialize(de)
