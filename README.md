@@ -16,7 +16,7 @@ This crate works with Cargo and can be found on
 
 ```toml
 [dependencies]
-bson = "0.6.1"
+bson = "0.7"
 ```
 ## Usage
 Link the library in _main.rs_:
