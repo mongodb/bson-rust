@@ -1,6 +1,6 @@
 [package]
 name = "bson"
-version = "0.7.0"
+version = "0.7.1"
 authors = [
     "Y. T. Chung <zonyitoo@gmail.com>",
     "Kevin Yeh <kevinyeah@utexas.edu>"
@@ -16,7 +16,7 @@ name = "bson"
 
 [dependencies]
 byteorder = "1.0"
-chrono = "0.2"
+chrono = "0.3"
 libc = "0.2"
 rand = "0.3"
 rust-crypto = "0.2"
@@ -26,3 +26,6 @@ time = "0.1"
 linked-hash-map = "0.3"
 hostname = "^0.1"
 hex = "^0.2"
+
+[dev-dependencies]
+serde_derive = "1.0"

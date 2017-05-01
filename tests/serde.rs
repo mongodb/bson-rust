@@ -1,9 +1,12 @@
 #[macro_use]
 extern crate bson;
-use bson::{Encoder, Decoder};
-
 extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate chrono;
+
 use serde::{Serialize, Deserialize};
+use bson::{Encoder, Decoder, Bson};
 
 use std::collections::BTreeMap;
 
@@ -53,4 +56,27 @@ fn test_de_map() {
     expected.insert("x".to_string(), 0);
     expected.insert("y".to_string(), 1);
     assert_eq!(expected, map);
+}
+
+#[test]
+fn test_ser_datetime() {
+    use chrono::{UTC, Timelike};
+    use bson::UtcDateTime;
+
+    #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
+    struct Foo {
+        date: UtcDateTime,
+    }
+
+    let now = UTC::now();
+    // FIXME: Due to BSON's datetime precision
+    let now = now.with_nanosecond(now.nanosecond() / 1000000 * 1000000).unwrap();
+
+    let foo = Foo { date: From::from(now) };
+
+    let x = bson::to_bson(&foo).unwrap();
+    assert_eq!(x.as_document().unwrap(), &doc! { "date" => (Bson::UtcDatetime(now)) });
+
+    let xfoo: Foo = bson::from_bson(x).unwrap();
+    assert_eq!(xfoo, foo);
 }

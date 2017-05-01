@@ -1,7 +1,7 @@
 use serde::ser::{Serialize, Serializer, SerializeSeq, SerializeTuple, SerializeTupleStruct,
                  SerializeTupleVariant, SerializeMap, SerializeStruct, SerializeStructVariant};
 
-use bson::{Array, Bson, Document};
+use bson::{Array, Bson, Document, UtcDateTime};
 use oid::ObjectId;
 
 use super::{to_bson, EncoderError, EncoderResult};
@@ -432,5 +432,16 @@ impl SerializeStructVariant for StructVariantSerializer {
         struct_variant.insert(self.name, var);
 
         Ok(Bson::Document(struct_variant))
+    }
+}
+
+impl Serialize for UtcDateTime {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        // Cloning a `DateTime` is extremely cheap
+        let doc = Bson::UtcDatetime(self.0);
+        doc.serialize(serializer)
     }
 }

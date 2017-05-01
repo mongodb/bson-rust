@@ -5,7 +5,7 @@ use serde::de::{self, Deserialize, Deserializer, Visitor, MapAccess, SeqAccess, 
                 DeserializeSeed, EnumAccess};
 use serde::de::Unexpected;
 
-use bson::Bson;
+use bson::{Bson, UtcDateTime};
 use oid::ObjectId;
 use ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
 use super::error::{DecoderError, DecoderResult};
@@ -366,8 +366,7 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
         match self.val.take() {
             None => Ok(()),
             Some(val) => {
-                try!(Deserialize::deserialize(Decoder::new(val)));
-                Ok(())
+                Bson::deserialize(Decoder::new(val)).map(|_| ())
             }
         }
     }
@@ -568,5 +567,18 @@ impl<'de> Deserializer<'de> for MapDecoder {
         deserialize_identifier();
         deserialize_ignored_any();
         deserialize_byte_buf();
+    }
+}
+
+impl<'de> Deserialize<'de> for UtcDateTime {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer<'de>
+    {
+        use serde::de::Error;
+
+        match Bson::deserialize(deserializer)? {
+            Bson::UtcDatetime(dt) => Ok(UtcDateTime(dt)),
+            _ => Err(D::Error::custom("expecting UtcDateTime")),
+        }
     }
 }

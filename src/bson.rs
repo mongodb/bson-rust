@@ -22,6 +22,7 @@
 //! BSON definition
 
 use std::fmt::{self, Display, Debug};
+use std::ops::{Deref, DerefMut};
 
 use chrono::{DateTime, Timelike, UTC};
 use chrono::offset::TimeZone;
@@ -429,7 +430,7 @@ impl Bson {
             Bson::UtcDatetime(ref v) => {
                 doc! {
                     "$date" => {
-                        "$numberLong" => ((v.timestamp() * 1000) + (v.nanosecond() / 1000000) as i64)
+                        "$numberLong" => ((v.timestamp() * 1000) + v.nanosecond() as i64 / 1000000)
                     }
                 }
             }
@@ -479,7 +480,7 @@ impl Bson {
                           .get_document("$date")
                           .and_then(|inner| inner.get_i64("$numberLong")) {
                 return Bson::UtcDatetime(UTC.timestamp(long / 1000,
-                                                       (long % 1000) as u32 * 1000000));
+                                                       ((long % 1000) * 1000000) as u32));
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
             }
@@ -585,5 +586,49 @@ impl Bson {
             Bson::Null => Some(()),
             _ => None,
         }
+    }
+}
+
+/// `DateTime` representation in struct for serde serialization
+///
+/// Just a helper for convenience
+///
+/// ```rust,ignore
+/// #[macro_use]
+/// extern crate serde_derive;
+/// extern crate bson;
+/// use bson::UtcDateTime;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Foo {
+///     date_time: UtcDateTime,
+/// }
+/// ```
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub struct UtcDateTime(pub DateTime<UTC>);
+
+impl Deref for UtcDateTime {
+    type Target = DateTime<UTC>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for UtcDateTime {
+    fn deref_mut(&mut self) -> &mut DateTime<UTC> {
+        &mut self.0
+    }
+}
+
+impl Into<DateTime<UTC>> for UtcDateTime {
+    fn into(self) -> DateTime<UTC> {
+        self.0
+    }
+}
+
+impl From<DateTime<UTC>> for UtcDateTime {
+    fn from(x: DateTime<UTC>) -> Self {
+        UtcDateTime(x)
     }
 }
