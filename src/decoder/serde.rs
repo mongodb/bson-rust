@@ -62,39 +62,73 @@ impl<'de> Visitor<'de> for BsonVisitor {
     }
 
     #[inline]
-    fn visit_bool<E>(self, value: bool) -> Result<Bson, E> {
+    fn visit_bool<E>(self, value: bool) -> Result<Bson, E>
+        where E: de::Error
+    {
         Ok(Bson::Boolean(value))
     }
 
     #[inline]
-    fn visit_i8<E>(self, value: i8) -> Result<Bson, E> {
-        Ok(Bson::I32(value as i32))
+    fn visit_i8<E>(self, value: i8) -> Result<Bson, E>
+        where E: de::Error
+    {
+        self.visit_i32(value as i32)
+    }
+
+    #[inline]
+    fn visit_u8<E>(self, value: u8) -> Result<Bson, E>
+        where E: de::Error
+    {
+        self.visit_i8(value as i8)
     }
 
 
     #[inline]
-    fn visit_i16<E>(self, value: i16) -> Result<Bson, E> {
-        Ok(Bson::I32(value as i32))
+    fn visit_i16<E>(self, value: i16) -> Result<Bson, E>
+        where E: de::Error
+    {
+        self.visit_i32(value as i32)
     }
 
+    #[inline]
+    fn visit_u16<E>(self, value: u16) -> Result<Bson, E>
+        where E: de::Error
+    {
+        self.visit_i16(value as i16)
+    }
 
     #[inline]
-    fn visit_i32<E>(self, value: i32) -> Result<Bson, E> {
+    fn visit_i32<E>(self, value: i32) -> Result<Bson, E>
+        where E: de::Error
+    {
         Ok(Bson::I32(value))
     }
 
     #[inline]
-    fn visit_i64<E>(self, value: i64) -> Result<Bson, E> {
+    fn visit_u32<E>(self, value: u32) -> Result<Bson, E>
+        where E: de::Error
+    {
+        self.visit_i32(value as i32)
+    }
+
+    #[inline]
+    fn visit_i64<E>(self, value: i64) -> Result<Bson, E>
+        where E: de::Error
+    {
         Ok(Bson::I64(value))
     }
 
     #[inline]
-    fn visit_u64<E>(self, value: u64) -> Result<Bson, E> {
-        Ok(Bson::I64(value as i64))
+    fn visit_u64<E>(self, value: u64) -> Result<Bson, E>
+        where E: de::Error
+    {
+        self.visit_i64(value as i64)
     }
 
     #[inline]
-    fn visit_f64<E>(self, value: f64) -> Result<Bson, E> {
+    fn visit_f64<E>(self, value: f64) -> Result<Bson, E>
+        where E: de::Error
+    {
         Ok(Bson::FloatingPoint(value))
     }
 
@@ -106,12 +140,16 @@ impl<'de> Visitor<'de> for BsonVisitor {
     }
 
     #[inline]
-    fn visit_string<E>(self, value: String) -> Result<Bson, E> {
+    fn visit_string<E>(self, value: String) -> Result<Bson, E>
+        where E: de::Error
+    {
         Ok(Bson::String(value))
     }
 
     #[inline]
-    fn visit_none<E>(self) -> Result<Bson, E> {
+    fn visit_none<E>(self) -> Result<Bson, E>
+        where E: de::Error
+    {
         Ok(Bson::Null)
     }
 
