@@ -80,3 +80,18 @@ fn test_ser_datetime() {
     let xfoo: Foo = bson::from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
+
+#[test]
+fn test_unsigned() {
+    #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+    struct Foo {
+        foo: u32,
+    }
+
+    let foo = Foo { foo: 1 };
+    let b = bson::to_bson(&foo).unwrap();
+    assert_eq!(b, Bson::Document(doc! { "foo" => { Bson::I32(1) } }));
+
+    let de_foo = bson::from_bson::<Foo>(b).unwrap();
+    assert_eq!(de_foo, foo);
+}
