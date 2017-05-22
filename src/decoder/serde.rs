@@ -3,7 +3,7 @@ use std::fmt;
 
 use serde::de::{self, Deserialize, Deserializer, Visitor, MapAccess, SeqAccess, VariantAccess,
                 DeserializeSeed, EnumAccess};
-use serde::de::Unexpected;
+use serde::de::{Error, Unexpected};
 
 use bson::{Bson, UtcDateTime};
 use oid::ObjectId;
@@ -62,35 +62,66 @@ impl<'de> Visitor<'de> for BsonVisitor {
     }
 
     #[inline]
-    fn visit_bool<E>(self, value: bool) -> Result<Bson, E> {
+    fn visit_bool<E>(self, value: bool) -> Result<Bson, E>
+        where E: Error
+    {
         Ok(Bson::Boolean(value))
     }
 
     #[inline]
-    fn visit_i8<E>(self, value: i8) -> Result<Bson, E> {
+    fn visit_i8<E>(self, value: i8) -> Result<Bson, E>
+        where E: Error
+    {
         Ok(Bson::I32(value as i32))
     }
 
+    #[inline]
+    fn visit_u8<E>(self, value: u8) -> Result<Bson, E>
+        where E: Error
+    {
+        Err(Error::invalid_type(Unexpected::Unsigned(value as u64), &"a signed integer"))
+    }
 
     #[inline]
-    fn visit_i16<E>(self, value: i16) -> Result<Bson, E> {
+    fn visit_i16<E>(self, value: i16) -> Result<Bson, E>
+        where E: Error
+    {
         Ok(Bson::I32(value as i32))
     }
 
+    #[inline]
+    fn visit_u16<E>(self, value: u16) -> Result<Bson, E>
+        where E: Error
+    {
+        Err(Error::invalid_type(Unexpected::Unsigned(value as u64), &"a signed integer"))
+    }
 
     #[inline]
-    fn visit_i32<E>(self, value: i32) -> Result<Bson, E> {
+    fn visit_i32<E>(self, value: i32) -> Result<Bson, E>
+        where E: Error
+    {
         Ok(Bson::I32(value))
     }
 
     #[inline]
-    fn visit_i64<E>(self, value: i64) -> Result<Bson, E> {
+    fn visit_u32<E>(self, value: u32) -> Result<Bson, E>
+        where E: Error
+    {
+        Err(Error::invalid_type(Unexpected::Unsigned(value as u64), &"a signed integer"))
+    }
+
+    #[inline]
+    fn visit_i64<E>(self, value: i64) -> Result<Bson, E>
+        where E: Error
+    {
         Ok(Bson::I64(value))
     }
 
     #[inline]
-    fn visit_u64<E>(self, value: u64) -> Result<Bson, E> {
-        Ok(Bson::I64(value as i64))
+    fn visit_u64<E>(self, value: u64) -> Result<Bson, E>
+        where E: Error
+    {
+        Err(Error::invalid_type(Unexpected::Unsigned(value), &"a signed integer"))
     }
 
     #[inline]

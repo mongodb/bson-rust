@@ -87,8 +87,18 @@ impl Serializer for Encoder {
     }
 
     #[inline]
+    fn serialize_u8(self, _value: u8) -> EncoderResult<Bson> {
+        Err(EncoderError::UnsupportedUnsignedType)
+    }
+
+    #[inline]
     fn serialize_i16(self, value: i16) -> EncoderResult<Bson> {
         self.serialize_i32(value as i32)
+    }
+
+    #[inline]
+    fn serialize_u16(self, _value: u16) -> EncoderResult<Bson> {
+        Err(EncoderError::UnsupportedUnsignedType)
     }
 
     #[inline]
@@ -97,28 +107,18 @@ impl Serializer for Encoder {
     }
 
     #[inline]
+    fn serialize_u32(self, _value: u32) -> EncoderResult<Bson> {
+        Err(EncoderError::UnsupportedUnsignedType)
+    }
+
+    #[inline]
     fn serialize_i64(self, value: i64) -> EncoderResult<Bson> {
         Ok(Bson::I64(value))
     }
 
     #[inline]
-    fn serialize_u8(self, value: u8) -> EncoderResult<Bson> {
-        self.serialize_u64(value as u64)
-    }
-
-    #[inline]
-    fn serialize_u16(self, value: u16) -> EncoderResult<Bson> {
-        self.serialize_u64(value as u64)
-    }
-
-    #[inline]
-    fn serialize_u32(self, value: u32) -> EncoderResult<Bson> {
-        self.serialize_u64(value as u64)
-    }
-
-    #[inline]
-    fn serialize_u64(self, value: u64) -> EncoderResult<Bson> {
-        Ok(Bson::FloatingPoint(value as f64))
+    fn serialize_u64(self, _value: u64) -> EncoderResult<Bson> {
+        Err(EncoderError::UnsupportedUnsignedType)
     }
 
     #[inline]

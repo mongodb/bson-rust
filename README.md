@@ -34,7 +34,7 @@ pub struct Person {
     #[serde(rename = "_id")]  // Use MongoDB's special primary key field name when serializing 
     pub id: String,
     pub name: String,
-    pub age: u32
+    pub age: i32
 }
 ```
 
