@@ -439,6 +439,7 @@ impl Bson {
                     "$symbol" => (v.to_owned())
                 }
             }
+            Bson::Document(ref v) => v.to_owned(),
             _ => panic!("Attempted conversion of invalid data type: {}", self),
         }
     }
