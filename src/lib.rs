@@ -68,3 +68,4 @@ mod bson;
 mod encoder;
 mod decoder;
 pub mod ordered;
+pub mod compat;

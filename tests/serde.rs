@@ -80,3 +80,20 @@ fn test_ser_datetime() {
     let xfoo: Foo = bson::from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
+
+
+#[test]
+fn test_compat_u2f() {
+    #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
+    struct Foo {
+        #[serde(with = "bson::compat::u2f")]
+        x: u32
+    }
+
+    let foo = Foo { x: 20 };
+    let b = bson::to_bson(&foo).unwrap();
+    assert_eq!(b, Bson::Document(doc! { "x" => (Bson::FloatingPoint(20.0)) }));
+
+    let de_foo = bson::from_bson::<Foo>(b).unwrap();
+    assert_eq!(de_foo, foo);
+}
