@@ -85,7 +85,7 @@ impl Debug for Bson {
             &Bson::FloatingPoint(p) => write!(f, "FloatingPoint({:?})", p),
             &Bson::String(ref s) => write!(f, "String({:?})", s),
             &Bson::Array(ref vec) => write!(f, "Array({:?})", vec),
-            &Bson::Document(ref doc) => write!(f, "Document({})", doc),
+            &Bson::Document(ref doc) => write!(f, "Document({:?})", doc),
             &Bson::Boolean(b) => write!(f, "Boolean({:?})", b),
             &Bson::Null => write!(f, "Null"),
             &Bson::RegExp(ref pat, ref opt) => write!(f, "RegExp(/{:?}/{:?})", pat, opt),

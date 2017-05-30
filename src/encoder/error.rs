@@ -9,6 +9,7 @@ pub enum EncoderError {
     IoError(io::Error),
     InvalidMapKeyType(Bson),
     Unknown(String),
+    UnsupportedUnsignedType,
 }
 
 impl From<io::Error> for EncoderError {
@@ -25,6 +26,7 @@ impl fmt::Display for EncoderError {
                 write!(fmt, "Invalid map key type: {:?}", bson)
             }
             &EncoderError::Unknown(ref inner) => inner.fmt(fmt),
+            &EncoderError::UnsupportedUnsignedType => write!(fmt, "BSON does not support unsigned type"),
         }
     }
 }
@@ -35,6 +37,7 @@ impl error::Error for EncoderError {
             &EncoderError::IoError(ref inner) => inner.description(),
             &EncoderError::InvalidMapKeyType(_) => "Invalid map key type",
             &EncoderError::Unknown(ref inner) => inner,
+            &EncoderError::UnsupportedUnsignedType => "BSON does not support unsigned type",
         }
     }
     fn cause(&self) -> Option<&error::Error> {
