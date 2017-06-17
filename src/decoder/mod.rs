@@ -28,6 +28,7 @@ pub use self::error::{DecoderError, DecoderResult};
 pub use self::serde::Decoder;
 
 use std::io::Read;
+use std::mem::size_of;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::UTC;
@@ -75,41 +76,59 @@ fn read_i64<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i64> {
 
 /// Attempt to decode a `Document` from a byte stream.
 pub fn decode_document<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
+    decode_document_and_get_length(reader).map(|(_, doc)| doc)
+}
+
+/// Attempt to decode a `Document` from a byte stream, returning the length as well.
+pub fn decode_document_and_get_length<R: Read + ?Sized>(
+    reader: &mut R,
+) -> DecoderResult<(usize, Document)> {
     let mut doc = Document::new();
+    let mut length = 0;
 
     // disregard the length: using Read::take causes infinite type recursion
     try!(read_i32(reader));
+    length += size_of::<i32>();
 
     loop {
         let tag = try!(reader.read_u8());
+        length += size_of::<u8>();
 
         if tag == 0 {
             break;
         }
 
         let key = try!(read_cstring(reader));
-        let val = try!(decode_bson(reader, tag));
+        length += key.len() + 1;
+        let (val_length, val) = try!(decode_bson_and_get_length(reader, tag));
+        length += val_length;
 
         doc.insert(key, val);
     }
 
-    Ok(doc)
+    Ok((length, doc))
 }
 
-fn decode_array<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Array> {
+fn decode_array_and_get_length<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<(usize, Array)> {
     let mut arr = Array::new();
+    let mut length = 0;
 
     // disregard the length: using Read::take causes infinite type recursion
     try!(read_i32(reader));
+    length += size_of::<i32>();
 
     loop {
         let tag = try!(reader.read_u8());
+        length += size_of::<u8>();
+
         if tag == 0 {
             break;
         }
 
         // check that the key is as expected
         let key = try!(read_cstring(reader));
+        length += key.len() + 1;
+
         match key.parse::<usize>() {
             Err(..) => return Err(DecoderError::InvalidArrayKey(arr.len(), key)),
             Ok(idx) => {
@@ -119,59 +138,89 @@ fn decode_array<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Array> {
             }
         }
 
-        let val = try!(decode_bson(reader, tag));
+        let (val_length, val) = try!(decode_bson_and_get_length(reader, tag));
+        length += val_length;
         arr.push(val)
     }
 
-    Ok(arr)
+    Ok((length, arr))
 }
 
-fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson> {
+fn decode_bson_and_get_length<R: Read + ?Sized>(
+    reader: &mut R,
+    tag: u8,
+) -> DecoderResult<(usize, Bson)> {
     use spec::ElementType::*;
     match spec::ElementType::from(tag) {
-        Some(FloatingPoint) => Ok(Bson::FloatingPoint(try!(reader.read_f64::<LittleEndian>()))),
-        Some(Utf8String) => read_string(reader).map(Bson::String),
-        Some(EmbeddedDocument) => decode_document(reader).map(Bson::Document),
-        Some(Array) => decode_array(reader).map(Bson::Array),
+        Some(FloatingPoint) => {
+            Ok((
+                size_of::<f64>(),
+                Bson::FloatingPoint(try!(reader.read_f64::<LittleEndian>())),
+            ))
+        }
+        Some(Utf8String) => {
+            read_string(reader).map(|s| (size_of::<i32>() + s.len() + 1, Bson::String(s)))
+        }
+        Some(EmbeddedDocument) => {
+            decode_document_and_get_length(reader).map(
+                |(length, doc)| {
+                    (length, Bson::Document(doc))
+                },
+            )
+        }
+        Some(Array) => {
+            decode_array_and_get_length(reader).map(|(length, array)| (length, Bson::Array(array)))
+        }
         Some(Binary) => {
-            let len = try!(read_i32(reader));
+            let len = try!(read_i32(reader)) as usize;
             let subtype = BinarySubtype::from(try!(reader.read_u8()));
-            let mut data = Vec::with_capacity(len as usize);
+            let mut data = Vec::with_capacity(len);
             try!(reader.take(len as u64).read_to_end(&mut data));
-            Ok(Bson::Binary(subtype, data))
+            Ok((
+                size_of::<i32>() + size_of::<u8>() + len,
+                Bson::Binary(subtype, data),
+            ))
         }
         Some(ObjectId) => {
             let mut objid = [0; 12];
             for x in &mut objid {
                 *x = try!(reader.read_u8());
             }
-            Ok(Bson::ObjectId(oid::ObjectId::with_bytes(objid)))
+            Ok((12, Bson::ObjectId(oid::ObjectId::with_bytes(objid))))
         }
-        Some(Boolean) => Ok(Bson::Boolean(try!(reader.read_u8()) != 0)),
-        Some(NullValue) => Ok(Bson::Null),
+        Some(Boolean) => Ok((1, Bson::Boolean(try!(reader.read_u8()) != 0))),
+        Some(NullValue) => Ok((0, Bson::Null)),
         Some(RegularExpression) => {
             let pat = try!(read_cstring(reader));
             let opt = try!(read_cstring(reader));
-            Ok(Bson::RegExp(pat, opt))
+            Ok((pat.len() + opt.len() + 2, Bson::RegExp(pat, opt)))
         }
-        Some(JavaScriptCode) => read_string(reader).map(Bson::JavaScriptCode),
+        Some(JavaScriptCode) => {
+            read_string(reader).map(|s| {
+                (size_of::<i32>() + s.len() + 1, Bson::JavaScriptCode(s))
+            })
+        }
         Some(JavaScriptCodeWithScope) => {
             // disregard the length:
             //     using Read::take causes infinite type recursion
             try!(read_i32(reader));
 
             let code = try!(read_string(reader));
-            let scope = try!(decode_document(reader));
-            Ok(Bson::JavaScriptCodeWithScope(code, scope))
+            let (scope_length, scope) = try!(decode_document_and_get_length(reader));
+            let length = 2 * size_of::<i32>() + code.len() + 1 + scope_length;
+            Ok((length, Bson::JavaScriptCodeWithScope(code, scope)))
         }
-        Some(Integer32Bit) => read_i32(reader).map(Bson::I32),
-        Some(Integer64Bit) => read_i64(reader).map(Bson::I64),
-        Some(TimeStamp) => read_i64(reader).map(Bson::TimeStamp),
+        Some(Integer32Bit) => read_i32(reader).map(|i| (size_of::<i32>(), Bson::I32(i))),
+        Some(Integer64Bit) => read_i64(reader).map(|i| (size_of::<i64>(), Bson::I64(i))),
+        Some(TimeStamp) => read_i64(reader).map(|i| (size_of::<i64>(), Bson::TimeStamp(i))),
         Some(UtcDatetime) => {
             let time = try!(read_i64(reader));
-            Ok(Bson::UtcDatetime(UTC.timestamp(time / 1000, (time % 1000) as u32 * 1000000)))
+            let timestamp = UTC.timestamp(time / 1000, (time % 1000) as u32 * 1000000);
+            Ok((size_of::<i64>(), Bson::UtcDatetime(timestamp)))
         }
-        Some(Symbol) => read_string(reader).map(Bson::Symbol),
+        Some(Symbol) => {
+            read_string(reader).map(|s| (size_of::<i32>() + s.len() + 1, Bson::Symbol(s)))
+        }
         Some(Undefined) | Some(DbPointer) | Some(MaxKey) | Some(MinKey) | None => {
             Err(DecoderError::UnrecognizedElementType(tag))
         }

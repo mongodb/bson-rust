@@ -2,7 +2,7 @@ extern crate bson;
 extern crate chrono;
 
 use std::io::Cursor;
-use bson::{Bson, decode_document, encode_document};
+use bson::{Bson, decode_document, decode_document_and_get_length, Document, encode_document};
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
 use chrono::UTC;
@@ -267,4 +267,47 @@ fn test_encode_decode_symbol() {
 
     let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
+}
+
+#[test]
+fn test_encode_length_empty() {
+    let doc = Document::new();
+
+    let mut buf = Vec::new();
+    encode_document(&mut buf, &doc).unwrap();
+    let encoded_length = buf.len();
+
+    let (decoded_length, _) = decode_document_and_get_length(&mut Cursor::new(buf)).unwrap();
+    assert_eq!(encoded_length, decoded_length);
+}
+
+#[test]
+fn test_encode_decode_length_complex() {
+    let doc = doc! {
+        "float" => 2.0,
+        "sub_doc" => {
+            "str" => "baz"
+        },
+        "array" => (Bson::Array(vec![
+            Bson::Boolean(true),
+            Bson::Null,
+        ])),
+        "regex" => (Bson::RegExp("/[abc][def][ghi]/".to_string(), "i".to_string())),
+        "js" => (Bson::JavaScriptCode("foo() { return 4; }".to_string())),
+        "js_scope" => (Bson::JavaScriptCodeWithScope("foo() { return x; }".to_string(), doc! { "x" => 4 })),
+        "i32" => 4i32,
+        "i64" => 8i64,
+        "ts" => (Bson::TimeStamp(27)),
+        "bin" => (Bson::Binary(BinarySubtype::Generic, (0..10).collect())),
+        "oid" => (ObjectId::new().unwrap()),
+        "utc" => (UTC.timestamp(1263, 1)),
+        "sym" => (Bson::Symbol("whatever".to_string()))
+    };
+
+    let mut buf = Vec::new();
+    encode_document(&mut buf, &doc).unwrap();
+    let encoded_length = buf.len();
+
+    let (decoded_length, _) = decode_document_and_get_length(&mut buf.as_slice()).unwrap();
+    assert_eq!(encoded_length, decoded_length);
 }
