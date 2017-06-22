@@ -24,7 +24,7 @@
 use std::fmt::{self, Display, Debug};
 use std::ops::{Deref, DerefMut};
 
-use chrono::{DateTime, Timelike, UTC};
+use chrono::{DateTime, Timelike, Utc};
 use chrono::offset::TimeZone;
 use serde_json::Value;
 use hex::{FromHex, ToHex};
@@ -69,7 +69,7 @@ pub enum Bson {
     /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId(oid::ObjectId),
     /// UTC datetime
-    UtcDatetime(DateTime<UTC>),
+    UtcDatetime(DateTime<Utc>),
     /// Symbol (Deprecated)
     Symbol(String),
 }
@@ -258,8 +258,8 @@ impl From<oid::ObjectId> for Bson {
     }
 }
 
-impl From<DateTime<UTC>> for Bson {
-    fn from(a: DateTime<UTC>) -> Bson {
+impl From<DateTime<Utc>> for Bson {
+    fn from(a: DateTime<Utc>) -> Bson {
         Bson::UtcDatetime(a)
     }
 }
@@ -479,7 +479,7 @@ impl Bson {
             } else if let Ok(long) = values
                           .get_document("$date")
                           .and_then(|inner| inner.get_i64("$numberLong")) {
-                return Bson::UtcDatetime(UTC.timestamp(long / 1000,
+                return Bson::UtcDatetime(Utc.timestamp(long / 1000,
                                                        ((long % 1000) * 1000000) as u32));
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
@@ -557,7 +557,7 @@ impl Bson {
     }
 
     /// If `Bson` is `UtcDateTime`, return its value. Returns `None` otherwise
-    pub fn as_utc_date_time(&self) -> Option<&DateTime<UTC>> {
+    pub fn as_utc_date_time(&self) -> Option<&DateTime<Utc>> {
         match *self {
             Bson::UtcDatetime(ref v) => Some(v),
             _ => None,
@@ -605,10 +605,10 @@ impl Bson {
 /// }
 /// ```
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub struct UtcDateTime(pub DateTime<UTC>);
+pub struct UtcDateTime(pub DateTime<Utc>);
 
 impl Deref for UtcDateTime {
-    type Target = DateTime<UTC>;
+    type Target = DateTime<Utc>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -616,19 +616,19 @@ impl Deref for UtcDateTime {
 }
 
 impl DerefMut for UtcDateTime {
-    fn deref_mut(&mut self) -> &mut DateTime<UTC> {
+    fn deref_mut(&mut self) -> &mut DateTime<Utc> {
         &mut self.0
     }
 }
 
-impl Into<DateTime<UTC>> for UtcDateTime {
-    fn into(self) -> DateTime<UTC> {
+impl Into<DateTime<Utc>> for UtcDateTime {
+    fn into(self) -> DateTime<Utc> {
         self.0
     }
 }
 
-impl From<DateTime<UTC>> for UtcDateTime {
-    fn from(x: DateTime<UTC>) -> Self {
+impl From<DateTime<Utc>> for UtcDateTime {
+    fn from(x: DateTime<Utc>) -> Self {
         UtcDateTime(x)
     }
 }

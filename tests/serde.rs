@@ -60,7 +60,7 @@ fn test_de_map() {
 
 #[test]
 fn test_ser_datetime() {
-    use chrono::{UTC, Timelike};
+    use chrono::{Utc, Timelike};
     use bson::UtcDateTime;
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
@@ -68,7 +68,7 @@ fn test_ser_datetime() {
         date: UtcDateTime,
     }
 
-    let now = UTC::now();
+    let now = Utc::now();
     // FIXME: Due to BSON's datetime precision
     let now = now.with_nanosecond(now.nanosecond() / 1000000 * 1000000).unwrap();
 

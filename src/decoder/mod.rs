@@ -30,7 +30,7 @@ pub use self::serde::Decoder;
 use std::io::Read;
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use chrono::UTC;
+use chrono::Utc;
 use chrono::offset::TimeZone;
 
 use spec::{self, BinarySubtype};
@@ -169,7 +169,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
         Some(TimeStamp) => read_i64(reader).map(Bson::TimeStamp),
         Some(UtcDatetime) => {
             let time = try!(read_i64(reader));
-            Ok(Bson::UtcDatetime(UTC.timestamp(time / 1000, (time % 1000) as u32 * 1000000)))
+            Ok(Bson::UtcDatetime(Utc.timestamp(time / 1000, (time % 1000) as u32 * 1000000)))
         }
         Some(Symbol) => read_string(reader).map(Bson::Symbol),
         Some(Undefined) | Some(DbPointer) | Some(MaxKey) | Some(MinKey) | None => {
