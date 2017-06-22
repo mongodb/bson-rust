@@ -5,7 +5,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::iter::{FromIterator, Map};
 use std::marker::PhantomData;
 
-use chrono::{DateTime, UTC};
+use chrono::{DateTime, Utc};
 
 use linked_hash_map::{self, LinkedHashMap};
 
@@ -288,7 +288,7 @@ impl OrderedDocument {
     }
 
     /// Get a UTC datetime value for this key if it exists and has the correct type.
-    pub fn get_utc_datetime(&self, key: &str) -> ValueAccessResult<&DateTime<UTC>> {
+    pub fn get_utc_datetime(&self, key: &str) -> ValueAccessResult<&DateTime<Utc>> {
         match self.get(key) {
             Some(&Bson::UtcDatetime(ref v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),

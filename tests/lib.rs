@@ -8,7 +8,7 @@ mod modules;
 use bson::Bson;
 use bson::spec::BinarySubtype;
 use bson::oid::ObjectId;
-use chrono::offset::utc::UTC;
+use chrono::offset::Utc;
 use hex::ToHex;
 
 #[test]
@@ -22,7 +22,7 @@ fn test_format() {
     }
 
     let id = ObjectId::with_bytes(bytes);
-    let date = UTC::now();
+    let date = Utc::now();
 
     let doc = doc! {
         "float" => 2.4,

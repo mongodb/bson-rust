@@ -5,7 +5,7 @@ use std::io::Cursor;
 use bson::{Bson, decode_document, encode_document};
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
-use chrono::UTC;
+use chrono::Utc;
 use chrono::offset::TimeZone;
 
 #[test]
@@ -239,7 +239,7 @@ fn test_encode_decode_object_id() {
 
 #[test]
 fn test_encode_utc_date_time() {
-    let src = UTC.timestamp(1286705410, 0);
+    let src = Utc.timestamp(1286705410, 0);
     let dst = vec![18, 0, 0, 0, 9, 107, 101, 121, 0, 208, 111, 158, 149, 43, 1, 0, 0, 0];
 
     let doc = doc!{ "key" => src };

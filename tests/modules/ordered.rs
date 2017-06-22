@@ -2,7 +2,7 @@ use bson::{Bson, Document};
 use bson::ValueAccessError;
 use bson::spec::BinarySubtype;
 use bson::oid::ObjectId;
-use chrono::UTC;
+use chrono::Utc;
 
 #[test]
 fn ordered_insert() {
@@ -40,7 +40,7 @@ fn ordered_insert_shorthand() {
 
 #[test]
 fn test_getters() {
-    let datetime = UTC::now();
+    let datetime = Utc::now();
     let cloned_dt = datetime.clone();
     let binary = vec![0, 1, 2, 3, 4];
     let mut doc = doc! {
