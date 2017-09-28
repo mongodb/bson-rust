@@ -1,19 +1,10 @@
 #[macro_export]
 macro_rules! bson {
-    // Hide distracting implementation details from the generated rustdoc.
-    ($($bson:tt)+) => {
-        bson_internal!($($bson)+)
-    };
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! bson_internal {
     //////////////////////////////////////////////////////////////////////////
     // TT muncher for parsing the inside of an array [...]. Produces a vec![...]
     // of the elements.
     //
-    // Must be invoked as: bson_internal!(@array [] $($tt)*)
+    // Must be invoked as: bson!(@array [] $($tt)*)
     //////////////////////////////////////////////////////////////////////////
 
     // Done with trailing comma.
@@ -28,49 +19,49 @@ macro_rules! bson_internal {
 
     // Next element is `null`.
     (@array [$($elems:expr,)*] null $($rest:tt)*) => {
-        bson_internal!(@array [$($elems,)* bson_internal!(null)] $($rest)*)
+        bson!(@array [$($elems,)* bson!(null)] $($rest)*)
     };
 
     // Next element is `true`.
     (@array [$($elems:expr,)*] true $($rest:tt)*) => {
-        bson_internal!(@array [$($elems,)* bson_internal!(true)] $($rest)*)
+        bson!(@array [$($elems,)* bson!(true)] $($rest)*)
     };
 
     // Next element is `false`.
     (@array [$($elems:expr,)*] false $($rest:tt)*) => {
-        bson_internal!(@array [$($elems,)* bson_internal!(false)] $($rest)*)
+        bson!(@array [$($elems,)* bson!(false)] $($rest)*)
     };
 
     // Next element is an array.
     (@array [$($elems:expr,)*] [$($array:tt)*] $($rest:tt)*) => {
-        bson_internal!(@array [$($elems,)* bson_internal!([$($array)*])] $($rest)*)
+        bson!(@array [$($elems,)* bson!([$($array)*])] $($rest)*)
     };
 
     // Next element is a map.
     (@array [$($elems:expr,)*] {$($map:tt)*} $($rest:tt)*) => {
-        bson_internal!(@array [$($elems,)* bson_internal!({$($map)*})] $($rest)*)
+        bson!(@array [$($elems,)* bson!({$($map)*})] $($rest)*)
     };
 
     // Next element is an expression followed by comma.
     (@array [$($elems:expr,)*] $next:expr, $($rest:tt)*) => {
-        bson_internal!(@array [$($elems,)* bson_internal!($next),] $($rest)*)
+        bson!(@array [$($elems,)* bson!($next),] $($rest)*)
     };
 
     // Last element is an expression with no trailing comma.
     (@array [$($elems:expr,)*] $last:expr) => {
-        bson_internal!(@array [$($elems,)* bson_internal!($last)])
+        bson!(@array [$($elems,)* bson!($last)])
     };
 
     // Comma after the most recent element.
     (@array [$($elems:expr),*] , $($rest:tt)*) => {
-        bson_internal!(@array [$($elems,)*] $($rest)*)
+        bson!(@array [$($elems,)*] $($rest)*)
     };
 
     //////////////////////////////////////////////////////////////////////////
     // TT muncher for parsing the inside of an object {...}. Each entry is
     // inserted into the given map variable.
     //
-    // Must be invoked as: bson_internal!(@object $map () ($($tt)*) ($($tt)*))
+    // Must be invoked as: bson!(@object $map () ($($tt)*) ($($tt)*))
     //
     // We require two copies of the input tokens so that we can match on one
     // copy and trigger errors on the other copy.
@@ -82,7 +73,7 @@ macro_rules! bson_internal {
     // Insert the current entry followed by trailing comma.
     (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
         $object.insert_bson(($($key)+).into(), $value);
-        bson_internal!(@object $object () ($($rest)*) ($($rest)*));
+        bson!(@object $object () ($($rest)*) ($($rest)*));
     };
 
     // Insert the last entry without trailing comma.
@@ -92,83 +83,83 @@ macro_rules! bson_internal {
 
     // Next value is `null`.
     (@object $object:ident ($($key:tt)+) (=> null $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!(null)) $($rest)*);
+        bson!(@object $object [$($key)+] (bson!(null)) $($rest)*);
     };
 
     (@object $object:ident ($($key:tt)+) (: null $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!(null)) $($rest)*);
+        bson!(@object $object [$($key)+] (bson!(null)) $($rest)*);
     };
 
     // Next value is `true`.
     (@object $object:ident ($($key:tt)+) (=> true $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!(true)) $($rest)*);
+        bson!(@object $object [$($key)+] (bson!(true)) $($rest)*);
     };
 
     (@object $object:ident ($($key:tt)+) (: true $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!(true)) $($rest)*);
+        bson!(@object $object [$($key)+] (bson!(true)) $($rest)*);
     };
 
     // Next value is `false`.
     (@object $object:ident ($($key:tt)+) (=> false $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!(false)) $($rest)*);
+        bson!(@object $object [$($key)+] (bson!(false)) $($rest)*);
     };
 
     (@object $object:ident ($($key:tt)+) (: false $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!(false)) $($rest)*);
+        bson!(@object $object [$($key)+] (bson!(false)) $($rest)*);
     };
 
     // Next value is an array.
     (@object $object:ident ($($key:tt)+) (=> [$($array:tt)*] $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!([$($array)*])) $($rest)*);
+        bson!(@object $object [$($key)+] (bson!([$($array)*])) $($rest)*);
     };
 
     (@object $object:ident ($($key:tt)+) (: [$($array:tt)*] $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!([$($array)*])) $($rest)*);
+        bson!(@object $object [$($key)+] (bson!([$($array)*])) $($rest)*);
     };
 
     // Next value is a map.
     (@object $object:ident ($($key:tt)+) (=> {$($map:tt)*} $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!({$($map)*})) $($rest)*);
+        bson!(@object $object [$($key)+] (bson!({$($map)*})) $($rest)*);
     };
 
     (@object $object:ident ($($key:tt)+) (: {$($map:tt)*} $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!({$($map)*})) $($rest)*);
+        bson!(@object $object [$($key)+] (bson!({$($map)*})) $($rest)*);
     };
 
     // Next value is an expression followed by comma.
     (@object $object:ident ($($key:tt)+) (=> $value:expr , $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!($value)) , $($rest)*);
+        bson!(@object $object [$($key)+] (bson!($value)) , $($rest)*);
     };
 
     (@object $object:ident ($($key:tt)+) (: $value:expr , $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!($value)) , $($rest)*);
+        bson!(@object $object [$($key)+] (bson!($value)) , $($rest)*);
     };
 
     // Last value is an expression with no trailing comma.
     (@object $object:ident ($($key:tt)+) (=> $value:expr) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!($value)));
+        bson!(@object $object [$($key)+] (bson!($value)));
     };
 
     (@object $object:ident ($($key:tt)+) (: $value:expr) $copy:tt) => {
-        bson_internal!(@object $object [$($key)+] (bson_internal!($value)));
+        bson!(@object $object [$($key)+] (bson!($value)));
     };
 
     // Missing value for last entry. Trigger a reasonable error message.
     (@object $object:ident ($($key:tt)+) (=>) $copy:tt) => {
         // "unexpected end of macro invocation"
-        bson_internal!();
+        bson!();
     };
 
     (@object $object:ident ($($key:tt)+) (:) $copy:tt) => {
         // "unexpected end of macro invocation"
-        bson_internal!();
+        bson!();
     };
 
     // Missing colon and value for last entry. Trigger a reasonable error
     // message.
     (@object $object:ident ($($key:tt)+) () $copy:tt) => {
         // "unexpected end of macro invocation"
-        bson_internal!();
+        bson!();
     };
 
     // Misplaced colon. Trigger a reasonable error message.
@@ -191,22 +182,22 @@ macro_rules! bson_internal {
     // Key is fully parenthesized. This avoids clippy double_parens false
     // positives because the parenthesization may be necessary here.
     (@object $object:ident () (($key:expr) => $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object ($key) (=> $($rest)*) (=> $($rest)*));
+        bson!(@object $object ($key) (=> $($rest)*) (=> $($rest)*));
     };
 
     (@object $object:ident () (($key:expr) : $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object ($key) (: $($rest)*) (: $($rest)*));
+        bson!(@object $object ($key) (: $($rest)*) (: $($rest)*));
     };
 
     // Munch a token into the current key.
     (@object $object:ident ($($key:tt)*) ($tt:tt $($rest:tt)*) $copy:tt) => {
-        bson_internal!(@object $object ($($key)* $tt) ($($rest)*) ($($rest)*));
+        bson!(@object $object ($($key)* $tt) ($($rest)*) ($($rest)*));
     };
 
     //////////////////////////////////////////////////////////////////////////
     // The main implementation.
     //
-    // Must be invoked as: bson_internal!($($bson)+)
+    // Must be invoked as: bson!($($bson)+)
     //////////////////////////////////////////////////////////////////////////
 
     (null) => {
@@ -226,7 +217,7 @@ macro_rules! bson_internal {
     };
 
     ([ $($tt:tt)+ ]) => {
-        $crate::Bson::Array(bson_internal!(@array [] $($tt)+))
+        $crate::Bson::Array(bson!(@array [] $($tt)+))
     };
 
     ({}) => {
@@ -236,7 +227,7 @@ macro_rules! bson_internal {
     ({$($tt:tt)+}) => {
         $crate::Bson::Document({
             let mut object = $crate::Document::new();
-            bson_internal!(@object object () ($($tt)+) ($($tt)+));
+            bson!(@object object () ($($tt)+) ($($tt)+));
             object
         })
     };
@@ -286,7 +277,7 @@ macro_rules! doc {
     () => {{ $crate::Document::new() }};
     ( $($tt:tt)+ ) => {{
         let mut object = $crate::Document::new();
-        bson_internal!(@object object () ($($tt)+) ($($tt)+));
+        bson!(@object object () ($($tt)+) ($($tt)+));
         object
     }};
 }

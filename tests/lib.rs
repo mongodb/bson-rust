@@ -1,4 +1,4 @@
-#[macro_use(bson, bson_internal, doc)]
+#[macro_use(bson, doc)]
 extern crate bson;
 extern crate chrono;
 extern crate hex;
@@ -31,7 +31,7 @@ fn test_rocket_format() {
         "doc" => {
             "fish" => "in",
             "a" => "barrel",
-            "!" => 1
+            "!" => 1,
         },
         "bool" => true,
         "null" => Bson::Null,
@@ -78,7 +78,7 @@ fn test_colon_format() {
         "doc": {
             "fish": "in",
             "a": "barrel",
-            "!": 1
+            "!": 1,
         },
         "bool": true,
         "null": Bson::Null,
