@@ -1,4 +1,4 @@
-#[macro_use(bson, doc)]
+#[macro_use(bson, bson_internal, doc)]
 extern crate bson;
 extern crate chrono;
 extern crate hex;
