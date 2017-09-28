@@ -95,8 +95,16 @@ macro_rules! bson_internal {
         bson_internal!(@object $object [$($key)+] (bson_internal!(null)) $($rest)*);
     };
 
+    (@object $object:ident ($($key:tt)+) (: null $($rest:tt)*) $copy:tt) => {
+        bson_internal!(@object $object [$($key)+] (bson_internal!(null)) $($rest)*);
+    };
+
     // Next value is `true`.
     (@object $object:ident ($($key:tt)+) (=> true $($rest:tt)*) $copy:tt) => {
+        bson_internal!(@object $object [$($key)+] (bson_internal!(true)) $($rest)*);
+    };
+
+    (@object $object:ident ($($key:tt)+) (: true $($rest:tt)*) $copy:tt) => {
         bson_internal!(@object $object [$($key)+] (bson_internal!(true)) $($rest)*);
     };
 
@@ -105,8 +113,16 @@ macro_rules! bson_internal {
         bson_internal!(@object $object [$($key)+] (bson_internal!(false)) $($rest)*);
     };
 
+    (@object $object:ident ($($key:tt)+) (: false $($rest:tt)*) $copy:tt) => {
+        bson_internal!(@object $object [$($key)+] (bson_internal!(false)) $($rest)*);
+    };
+
     // Next value is an array.
     (@object $object:ident ($($key:tt)+) (=> [$($array:tt)*] $($rest:tt)*) $copy:tt) => {
+        bson_internal!(@object $object [$($key)+] (bson_internal!([$($array)*])) $($rest)*);
+    };
+
+    (@object $object:ident ($($key:tt)+) (: [$($array:tt)*] $($rest:tt)*) $copy:tt) => {
         bson_internal!(@object $object [$($key)+] (bson_internal!([$($array)*])) $($rest)*);
     };
 
@@ -115,8 +131,16 @@ macro_rules! bson_internal {
         bson_internal!(@object $object [$($key)+] (bson_internal!({$($map)*})) $($rest)*);
     };
 
+    (@object $object:ident ($($key:tt)+) (: {$($map:tt)*} $($rest:tt)*) $copy:tt) => {
+        bson_internal!(@object $object [$($key)+] (bson_internal!({$($map)*})) $($rest)*);
+    };
+
     // Next value is an expression followed by comma.
     (@object $object:ident ($($key:tt)+) (=> $value:expr , $($rest:tt)*) $copy:tt) => {
+        bson_internal!(@object $object [$($key)+] (bson_internal!($value)) , $($rest)*);
+    };
+
+    (@object $object:ident ($($key:tt)+) (: $value:expr , $($rest:tt)*) $copy:tt) => {
         bson_internal!(@object $object [$($key)+] (bson_internal!($value)) , $($rest)*);
     };
 
@@ -125,8 +149,17 @@ macro_rules! bson_internal {
         bson_internal!(@object $object [$($key)+] (bson_internal!($value)));
     };
 
+    (@object $object:ident ($($key:tt)+) (: $value:expr) $copy:tt) => {
+        bson_internal!(@object $object [$($key)+] (bson_internal!($value)));
+    };
+
     // Missing value for last entry. Trigger a reasonable error message.
     (@object $object:ident ($($key:tt)+) (=>) $copy:tt) => {
+        // "unexpected end of macro invocation"
+        bson_internal!();
+    };
+
+    (@object $object:ident ($($key:tt)+) (:) $copy:tt) => {
         // "unexpected end of macro invocation"
         bson_internal!();
     };
@@ -144,6 +177,11 @@ macro_rules! bson_internal {
         unimplemented!($colon);
     };
 
+    (@object $object:ident () (: $($rest:tt)*) ($colon:tt $($copy:tt)*)) => {
+        // Takes no arguments so "no rules expected the token `:`".
+        unimplemented!($colon);
+    };
+
     // Found a comma inside a key. Trigger a reasonable error message.
     (@object $object:ident ($($key:tt)*) (, $($rest:tt)*) ($comma:tt $($copy:tt)*)) => {
         // Takes no arguments so "no rules expected the token `,`".
@@ -154,6 +192,10 @@ macro_rules! bson_internal {
     // positives because the parenthesization may be necessary here.
     (@object $object:ident () (($key:expr) => $($rest:tt)*) $copy:tt) => {
         bson_internal!(@object $object ($key) (=> $($rest)*) (=> $($rest)*));
+    };
+
+    (@object $object:ident () (($key:expr) : $($rest:tt)*) $copy:tt) => {
+        bson_internal!(@object $object ($key) (: $($rest)*) (: $($rest)*));
     };
 
     // Munch a token into the current key.
