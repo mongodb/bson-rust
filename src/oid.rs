@@ -272,6 +272,9 @@ impl ObjectId {
 }
 
 impl Default for ObjectId {
+    /// Attempts to call `ObjectId::new()`. If this causes an error, then an `ObjectId` with
+    /// empty bytes is returned. Note that if `Object::new()` succeeds, then the result of this
+    /// method will be different every time it is executed.
     fn default() -> ObjectId {
         // Attempt to create a new `ObjectId`; if that fails return an empty `ObjectId`
         ObjectId::new().unwrap_or(ObjectId::with_bytes([0; 12]))
