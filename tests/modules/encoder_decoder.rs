@@ -1,6 +1,3 @@
-extern crate bson;
-extern crate chrono;
-
 use std::io::Cursor;
 use bson::{Bson, decode_document, encode_document};
 use bson::oid::ObjectId;

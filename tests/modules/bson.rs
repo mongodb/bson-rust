@@ -1,4 +1,7 @@
+extern crate serde_json;
+
 use bson::{Bson, Document};
+use self::serde_json::Value;
 
 #[test]
 fn to_json() {
@@ -6,7 +9,7 @@ fn to_json() {
     doc.insert("first", Bson::I32(1));
     doc.insert("second", Bson::String("foo".to_owned()));
     doc.insert("alphanumeric", Bson::String("bar".to_owned()));
-    let data = Bson::Document(doc).to_json();
+    let data: Value = Bson::Document(doc).clone().into();
 
     assert!(data.is_object());
     let obj = data.as_object().unwrap();
