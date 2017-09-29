@@ -26,3 +26,16 @@ fn to_json() {
     assert!(alphanumeric.is_string());
     assert_eq!(alphanumeric.as_str().unwrap(), "bar");
 }
+
+#[test]
+fn bson_default() {
+    let bson1 = Bson::default();
+    assert_eq!(bson1, Bson::Null);
+}
+
+#[test]
+fn document_default() {
+    let doc1 = Document::default();
+    assert_eq!(doc1.keys().count(), 0);
+    assert_eq!(doc1, Document::new());
+}

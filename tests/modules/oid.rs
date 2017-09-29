@@ -86,3 +86,9 @@ fn increasing() {
     let oid2 = oid2_res.unwrap();
     assert!(oid1 < oid2);
 }
+
+#[test]
+fn oid_default() {
+    let oid1 = ObjectId::default();
+    assert_eq!(oid1, ObjectId::with_bytes([0; 12]));
+}
