@@ -88,7 +88,7 @@ impl error::Error for Error {
 }
 
 /// A wrapper around raw 12-byte ObjectId representations.
-#[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct ObjectId {
     id: [u8; 12],
 }
@@ -268,6 +268,13 @@ impl ObjectId {
         BigEndian::write_u64(&mut buf, u_int);
         let buf_u24: [u8; 3] = [buf[5], buf[6], buf[7]];
         Ok(buf_u24)
+    }
+}
+
+impl Default for ObjectId {
+    fn default() -> ObjectId {
+        // Attempt to create a new `ObjectId`; if that fails return an empty `ObjectId`
+        ObjectId::new().unwrap_or(ObjectId::with_bytes([0; 12]))
     }
 }
 
