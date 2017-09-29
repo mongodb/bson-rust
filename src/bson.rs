@@ -79,6 +79,12 @@ pub type Array = Vec<Bson>;
 /// Alias for `OrderedDocument`.
 pub type Document = OrderedDocument;
 
+impl Default for Bson {
+    fn default() -> Self {
+        Bson::Null
+    }
+}
+
 impl Debug for Bson {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
