@@ -60,6 +60,12 @@ pub struct OrderedDocument {
     inner: LinkedHashMap<String, Bson>,
 }
 
+impl Default for OrderedDocument {
+    fn default() -> Self {
+        Document::new()
+    }
+}
+
 impl Display for OrderedDocument {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         try!(write!(fmt, "{{"));
