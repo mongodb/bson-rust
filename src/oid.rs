@@ -277,7 +277,7 @@ impl Default for ObjectId {
     /// method will be different every time it is executed.
     fn default() -> ObjectId {
         // Attempt to create a new `ObjectId`; if that fails return an empty `ObjectId`
-        ObjectId::new().unwrap_or(ObjectId::with_bytes([0; 12]))
+        ObjectId::new().unwrap_or_else(|_| ObjectId::with_bytes([0; 12]))
     }
 }
 
