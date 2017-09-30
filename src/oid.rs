@@ -271,16 +271,6 @@ impl ObjectId {
     }
 }
 
-impl Default for ObjectId {
-    /// Attempts to call `ObjectId::new()`. If this causes an error, then an `ObjectId` with
-    /// empty bytes is returned. Note that if `Object::new()` succeeds, then the result of this
-    /// method will be different every time it is executed.
-    fn default() -> ObjectId {
-        // Attempt to create a new `ObjectId`; if that fails return an empty `ObjectId`
-        ObjectId::new().unwrap_or_else(|_| ObjectId::with_bytes([0; 12]))
-    }
-}
-
 impl fmt::Display for ObjectId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&self.to_hex())

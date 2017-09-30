@@ -86,14 +86,3 @@ fn increasing() {
     let oid2 = oid2_res.unwrap();
     assert!(oid1 < oid2);
 }
-
-#[test]
-fn oid_default() {
-    let empty_oid = ObjectId::with_bytes([0; 12]);
-    let oid1 = ObjectId::default();
-    let oid2 = ObjectId::default();
-
-    // Both should generate a new random `ObjectId`; if the creation of a random `ObjectId`
-    // fails, it will create an `ObjectId` with an empty bytes.
-    assert!(oid1 != oid2 || (oid1 == empty_oid && oid2 == empty_oid));
-}
