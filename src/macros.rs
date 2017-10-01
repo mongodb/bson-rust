@@ -43,16 +43,6 @@ macro_rules! bson {
         bson!(@array [$($elems,)* bson!(null)] $($rest)*)
     };
 
-    // Next element is `true`.
-    (@array [$($elems:expr,)*] true $($rest:tt)*) => {
-        bson!(@array [$($elems,)* bson!(true)] $($rest)*)
-    };
-
-    // Next element is `false`.
-    (@array [$($elems:expr,)*] false $($rest:tt)*) => {
-        bson!(@array [$($elems,)* bson!(false)] $($rest)*)
-    };
-
     // Next element is an array.
     (@array [$($elems:expr,)*] [$($array:tt)*] $($rest:tt)*) => {
         bson!(@array [$($elems,)* bson!([$($array)*])] $($rest)*)
@@ -109,24 +99,6 @@ macro_rules! bson {
 
     (@object $object:ident ($($key:tt)+) (: null $($rest:tt)*) $copy:tt) => {
         bson!(@object $object [$($key)+] (bson!(null)) $($rest)*);
-    };
-
-    // Next value is `true`.
-    (@object $object:ident ($($key:tt)+) (=> true $($rest:tt)*) $copy:tt) => {
-        bson!(@object $object [$($key)+] (bson!(true)) $($rest)*);
-    };
-
-    (@object $object:ident ($($key:tt)+) (: true $($rest:tt)*) $copy:tt) => {
-        bson!(@object $object [$($key)+] (bson!(true)) $($rest)*);
-    };
-
-    // Next value is `false`.
-    (@object $object:ident ($($key:tt)+) (=> false $($rest:tt)*) $copy:tt) => {
-        bson!(@object $object [$($key)+] (bson!(false)) $($rest)*);
-    };
-
-    (@object $object:ident ($($key:tt)+) (: false $($rest:tt)*) $copy:tt) => {
-        bson!(@object $object [$($key)+] (bson!(false)) $($rest)*);
     };
 
     // Next value is an array.
