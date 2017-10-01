@@ -148,22 +148,22 @@ macro_rules! bson {
         bson!();
     };
 
-    // Missing colon and value for last entry. Trigger a reasonable error
-    // message.
+    // Missing key-value separator and value for last entry.
+    // Trigger a reasonable error message.
     (@object $object:ident ($($key:tt)+) () $copy:tt) => {
         // "unexpected end of macro invocation"
         bson!();
     };
 
-    // Misplaced colon. Trigger a reasonable error message.
-    (@object $object:ident () (=> $($rest:tt)*) ($colon:tt $($copy:tt)*)) => {
+    // Misplaced key-value separator. Trigger a reasonable error message.
+    (@object $object:ident () (=> $($rest:tt)*) ($kv_separator:tt $($copy:tt)*)) => {
         // Takes no arguments so "no rules expected the token `:`".
-        unimplemented!($colon);
+        unimplemented!($kv_separator);
     };
 
-    (@object $object:ident () (: $($rest:tt)*) ($colon:tt $($copy:tt)*)) => {
+    (@object $object:ident () (: $($rest:tt)*) ($kv_separator:tt $($copy:tt)*)) => {
         // Takes no arguments so "no rules expected the token `:`".
-        unimplemented!($colon);
+        unimplemented!($kv_separator);
     };
 
     // Found a comma inside a key. Trigger a reasonable error message.
