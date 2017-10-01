@@ -1,3 +1,24 @@
+// BSON macro based on the serde_json json! implementation.
+
+/// Construct a bson::BSON value from a literal.
+///
+/// ```rust
+/// # #[macro_use]
+/// # extern crate bson;
+/// #
+/// # fn main() {
+/// let value = bson!({
+///     "code": 200,
+///     "success": true,
+///     "payload": {
+///       "some": [
+///           "pay",
+///           "loads",
+///       ]
+///     }
+/// });
+/// # }
+/// ```
 #[macro_export]
 macro_rules! bson {
     //////////////////////////////////////////////////////////////////////////
@@ -7,12 +28,12 @@ macro_rules! bson {
     // Must be invoked as: bson!(@array [] $($tt)*)
     //////////////////////////////////////////////////////////////////////////
 
-    // Done with trailing comma.
+    // Finished with trailing comma.
     (@array [$($elems:expr,)*]) => {
         vec![$($elems,)*]
     };
 
-    // Done without trailing comma.
+    // Finished without trailing comma.
     (@array [$($elems:expr),*]) => {
         vec![$($elems),*]
     };
@@ -67,7 +88,7 @@ macro_rules! bson {
     // copy and trigger errors on the other copy.
     //////////////////////////////////////////////////////////////////////////
 
-    // Done.
+    // Finished.
     (@object $object:ident () () ()) => {};
 
     // Insert the current entry followed by trailing comma.
@@ -204,14 +225,6 @@ macro_rules! bson {
         $crate::Bson::Null
     };
 
-    (true) => {
-        $crate::Bson::Boolean(true)
-    };
-
-    (false) => {
-        $crate::Bson::Boolean(false)
-    };
-
     ([]) => {
         $crate::Bson::Array(vec![])
     };
@@ -221,25 +234,39 @@ macro_rules! bson {
     };
 
     ({}) => {
-        $crate::Bson::Document($crate::Document::new())
+        $crate::Bson::Document(doc!{})
     };
 
     ({$($tt:tt)+}) => {
-        $crate::Bson::Document({
-            let mut object = $crate::Document::new();
-            bson!(@object object () ($($tt)+) ($($tt)+));
-            object
-        })
+        $crate::Bson::Document(doc!{$($tt)+});
     };
 
     // Any Serialize type: numbers, strings, struct literals, variables etc.
     // Must be below every other rule.
     ($other:expr) => {
         ::std::convert::From::from($other)
-        //$crate::to_bson(&$other).unwrap()
     };
 }
 
+/// Construct a bson::Document value.
+///
+/// ```rust
+/// # #[macro_use]
+/// # extern crate bson;
+/// #
+/// # fn main() {
+/// let value = doc! {
+///     "code": 200,
+///     "success": true,
+///     "payload": {
+///       "some": [
+///           "pay",
+///           "loads",
+///       ]
+///     }
+/// };
+/// # }
+/// ```
 #[macro_export]
 macro_rules! doc {
     () => {{ $crate::Document::new() }};
