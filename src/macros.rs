@@ -157,7 +157,7 @@ macro_rules! bson {
 
     // Misplaced key-value separator. Trigger a reasonable error message.
     (@object $object:ident () (=> $($rest:tt)*) ($kv_separator:tt $($copy:tt)*)) => {
-        // Takes no arguments so "no rules expected the token `:`".
+        // Takes no arguments so "no rules expected the token `=>`".
         unimplemented!($kv_separator);
     };
 
