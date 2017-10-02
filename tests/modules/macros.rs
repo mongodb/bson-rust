@@ -3,22 +3,22 @@ use bson::Bson;
 #[test]
 fn recursive_macro() {
     let doc = doc! {
-        "a" => "foo",
-        "b" => {
-            "bar" => {
-                "harbor" => ["seal", false],
-                "jelly" => 42.0
+        "a": "foo",
+        "b": {
+            "bar": {
+                "harbor": ["seal", false],
+                "jelly": 42.0,
             },
-            "grape" => 27
+            "grape": 27,
         },
-        "c" => [-7],
-        "d" => [
+        "c": [-7],
+        "d": [
             {
-                "apple" => "ripe"
+                "apple": "ripe",
             }
         ],
-        "e" => { "single" => "test" },
-        "n" => (Bson::Null)
+        "e": { "single": "test" },
+        "n": (Bson::Null),
     };
 
     match doc.get("a") {

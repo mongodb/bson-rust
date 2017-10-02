@@ -11,6 +11,7 @@ use bson::oid::ObjectId;
 use chrono::offset::Utc;
 use hex::ToHex;
 
+// Support rocket format for backwards-compatibility with pre-0.10.
 #[test]
 fn test_rocket_format() {
     let id_string = "thisismyname";
