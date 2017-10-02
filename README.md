@@ -63,7 +63,7 @@ Deserialize the struct:
 
 ```rust
 // Read the document from a MongoDB collection
-let person_document = mongoCollection.find_one(Some(doc! { "_id" => "12345" }), None)?
+let person_document = mongoCollection.find_one(Some(doc! { "_id": "12345" }), None)?
     .expect("Document not found");
 
 // Deserialize the document into a Person instance
@@ -87,7 +87,7 @@ fn test_compat_u2f() {
 
     let foo = Foo { x: 20 };
     let b = bson::to_bson(&foo).unwrap();
-    assert_eq!(b, Bson::Document(doc! { "x" => (Bson::FloatingPoint(20.0)) }));
+    assert_eq!(b, Bson::Document(doc! { "x": Bson::FloatingPoint(20.0) }));
 
     let de_foo = bson::from_bson::<Foo>(b).unwrap();
     assert_eq!(de_foo, foo);

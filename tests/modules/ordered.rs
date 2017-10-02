@@ -44,15 +44,15 @@ fn test_getters() {
     let cloned_dt = datetime.clone();
     let binary = vec![0, 1, 2, 3, 4];
     let mut doc = doc! {
-        "floating_point" => 10.0,
-        "string" => "a value",
-        "array" => [10, 20, 30],
-        "doc" => { "key" => 1 },
-        "bool" => true,
-        "i32" => 1i32,
-        "i64" => 1i64,
-        "datetime" => cloned_dt,
-        "binary" => (BinarySubtype::Generic, binary.clone())
+        "floating_point": 10.0,
+        "string": "a value",
+        "array": [10, 20, 30],
+        "doc": { "key": 1 },
+        "bool": true,
+        "i32": 1i32,
+        "i64": 1i64,
+        "datetime": cloned_dt,
+        "binary": (BinarySubtype::Generic, binary.clone())
     };
 
     assert_eq!(None, doc.get("nonsense"));
@@ -69,7 +69,7 @@ fn test_getters() {
     assert_eq!(Some(&Bson::Array(array.clone())), doc.get("array"));
     assert_eq!(Ok(&array), doc.get_array("array"));
 
-    let embedded = doc! { "key" => 1 };
+    let embedded = doc! { "key": 1 };
     assert_eq!(Some(&Bson::Document(embedded.clone())), doc.get("doc"));
     assert_eq!(Ok(&embedded), doc.get_document("doc"));
 

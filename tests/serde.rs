@@ -30,7 +30,7 @@ fn test_ser_map() {
     let encoder = Encoder::new();
     let result = map.serialize(encoder).unwrap();
 
-    let expected = bson!({ "x" => 0, "y" => 1 });
+    let expected = bson!({ "x": 0, "y": 1 });
     assert_eq!(expected, result);
 }
 
@@ -47,7 +47,7 @@ fn test_de_vec() {
 
 #[test]
 fn test_de_map() {
-    let bson = bson!({ "x" => 0, "y" => 1 });
+    let bson = bson!({ "x": 0, "y": 1 });
 
     let decoder = Decoder::new(bson);
     let map = BTreeMap::<String, i32>::deserialize(decoder).unwrap();
@@ -75,7 +75,7 @@ fn test_ser_datetime() {
     let foo = Foo { date: From::from(now) };
 
     let x = bson::to_bson(&foo).unwrap();
-    assert_eq!(x.as_document().unwrap(), &doc! { "date" => (Bson::UtcDatetime(now)) });
+    assert_eq!(x.as_document().unwrap(), &doc! { "date": (Bson::UtcDatetime(now)) });
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
@@ -92,7 +92,7 @@ fn test_compat_u2f() {
 
     let foo = Foo { x: 20 };
     let b = bson::to_bson(&foo).unwrap();
-    assert_eq!(b, Bson::Document(doc! { "x" => (Bson::FloatingPoint(20.0)) }));
+    assert_eq!(b, Bson::Document(doc! { "x": (Bson::FloatingPoint(20.0)) }));
 
     let de_foo = bson::from_bson::<Foo>(b).unwrap();
     assert_eq!(de_foo, foo);

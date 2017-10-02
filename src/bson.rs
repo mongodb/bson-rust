@@ -397,19 +397,19 @@ impl Bson {
         match *self {
             Bson::RegExp(ref pat, ref opt) => {
                 doc! {
-                    "$regex" => (pat.clone()),
-                    "$options" => (opt.clone())
+                    "$regex": pat.clone(),
+                    "$options": opt.clone(),
                 }
             }
             Bson::JavaScriptCode(ref code) => {
                 doc! {
-                    "$code" => (code.clone())
+                    "$code": code.clone(),
                 }
             }
             Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
                 doc! {
-                    "$code" => (code.clone()),
-                    "$scope" => (scope.clone())
+                    "$code": code.clone(),
+                    "$scope": scope.clone(),
                 }
             }
             Bson::TimeStamp(v) => {
@@ -417,32 +417,32 @@ impl Bson {
                 let inc = (v & 0xFFFFFFFF) as i32;
 
                 doc! {
-                    "t" => time,
-                    "i" => inc
+                    "t": time,
+                    "i": inc
                 }
             }
             Bson::Binary(t, ref v) => {
                 let tval: u8 = From::from(t);
                 doc! {
-                    "$binary" => (v.to_hex()),
-                    "type" => (tval as i64)
+                    "$binary": v.to_hex(),
+                    "type": tval as i64,
                 }
             }
             Bson::ObjectId(ref v) => {
                 doc! {
-                    "$oid" => (v.to_string())
+                    "$oid": v.to_string(),
                 }
             }
             Bson::UtcDatetime(ref v) => {
                 doc! {
-                    "$date" => {
-                        "$numberLong" => ((v.timestamp() * 1000) + v.nanosecond() as i64 / 1000000)
+                    "$date": {
+                        "$numberLong" => (v.timestamp() * 1000) + v.nanosecond() as i64 / 1000000,
                     }
                 }
             }
             Bson::Symbol(ref v) => {
                 doc! {
-                    "$symbol" => (v.to_owned())
+                    "$symbol": v.to_owned(),
                 }
             }
             _ => panic!("Attempted conversion of invalid data type: {}", self),
