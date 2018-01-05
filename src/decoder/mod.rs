@@ -39,11 +39,18 @@ use oid;
 
 use serde::de::Deserialize;
 
-fn read_string<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<String> {
+fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderResult<String> {
     let len = try!(reader.read_i32::<LittleEndian>());
 
-    let mut s = String::with_capacity(len as usize - 1);
-    try!(reader.take(len as u64 - 1).read_to_string(&mut s));
+    let s = if utf8_lossy {
+        let mut buf = Vec::with_capacity(len as usize - 1);
+        try!(reader.take(len as u64 - 1).read_to_end(&mut buf));
+        String::from_utf8_lossy(&buf).to_string()
+    } else {
+        let mut s = String::with_capacity(len as usize - 1);
+        try!(reader.take(len as u64 - 1).read_to_string(&mut s));
+        s
+    };
     try!(reader.read_u8()); // The last 0x00
 
     Ok(s)
@@ -88,7 +95,7 @@ pub fn decode_document<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Docume
         }
 
         let key = try!(read_cstring(reader));
-        let val = try!(decode_bson(reader, tag));
+        let val = try!(decode_bson(reader, tag, false));
 
         doc.insert(key, val);
     }
@@ -96,7 +103,30 @@ pub fn decode_document<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Docume
     Ok(doc)
 }
 
-fn decode_array<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Array> {
+/// Attempt to decode a `Document` that may contain invalid UTF-8 strings from a byte stream.
+pub fn decode_document_utf8_lossy<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
+    let mut doc = Document::new();
+
+    // disregard the length: using Read::take causes infinite type recursion
+    try!(read_i32(reader));
+
+    loop {
+        let tag = try!(reader.read_u8());
+
+        if tag == 0 {
+            break;
+        }
+
+        let key = try!(read_cstring(reader));
+        let val = try!(decode_bson(reader, tag, true));
+
+        doc.insert(key, val);
+    }
+
+    Ok(doc)
+}
+
+fn decode_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderResult<Array> {
     let mut arr = Array::new();
 
     // disregard the length: using Read::take causes infinite type recursion
@@ -119,20 +149,20 @@ fn decode_array<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Array> {
             }
         }
 
-        let val = try!(decode_bson(reader, tag));
+        let val = try!(decode_bson(reader, tag, utf8_lossy));
         arr.push(val)
     }
 
     Ok(arr)
 }
 
-fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson> {
+fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> DecoderResult<Bson> {
     use spec::ElementType::*;
     match spec::ElementType::from(tag) {
         Some(FloatingPoint) => Ok(Bson::FloatingPoint(try!(reader.read_f64::<LittleEndian>()))),
-        Some(Utf8String) => read_string(reader).map(Bson::String),
+        Some(Utf8String) => read_string(reader, utf8_lossy).map(Bson::String),
         Some(EmbeddedDocument) => decode_document(reader).map(Bson::Document),
-        Some(Array) => decode_array(reader).map(Bson::Array),
+        Some(Array) => decode_array(reader, utf8_lossy).map(Bson::Array),
         Some(Binary) => {
             let len = try!(read_i32(reader));
             let subtype = BinarySubtype::from(try!(reader.read_u8()));
@@ -154,13 +184,13 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
             let opt = try!(read_cstring(reader));
             Ok(Bson::RegExp(pat, opt))
         }
-        Some(JavaScriptCode) => read_string(reader).map(Bson::JavaScriptCode),
+        Some(JavaScriptCode) => read_string(reader, utf8_lossy).map(Bson::JavaScriptCode),
         Some(JavaScriptCodeWithScope) => {
             // disregard the length:
             //     using Read::take causes infinite type recursion
             try!(read_i32(reader));
 
-            let code = try!(read_string(reader));
+            let code = try!(read_string(reader, utf8_lossy));
             let scope = try!(decode_document(reader));
             Ok(Bson::JavaScriptCodeWithScope(code, scope))
         }
@@ -171,7 +201,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8) -> DecoderResult<Bson>
             let time = try!(read_i64(reader));
             Ok(Bson::UtcDatetime(Utc.timestamp(time / 1000, (time % 1000) as u32 * 1000000)))
         }
-        Some(Symbol) => read_string(reader).map(Bson::Symbol),
+        Some(Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol),
         Some(Undefined) | Some(DbPointer) | Some(MaxKey) | Some(MinKey) | None => {
             Err(DecoderError::UnrecognizedElementType(tag))
         }

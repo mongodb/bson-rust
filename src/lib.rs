@@ -57,7 +57,7 @@ extern crate hex;
 
 pub use self::bson::{Bson, Document, Array, UtcDateTime};
 pub use self::encoder::{encode_document, to_bson, Encoder, EncoderResult, EncoderError};
-pub use self::decoder::{decode_document, from_bson, Decoder, DecoderResult, DecoderError};
+pub use self::decoder::{decode_document, decode_document_utf8_lossy, from_bson, Decoder, DecoderResult, DecoderError};
 pub use self::ordered::{ValueAccessError, ValueAccessResult};
 
 #[macro_use]
