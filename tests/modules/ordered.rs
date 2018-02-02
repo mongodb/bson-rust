@@ -121,3 +121,38 @@ fn remove() {
     let keys: Vec<_> = doc.iter().map(|(key, _)| key.to_owned()).collect();
     assert_eq!(expected_keys, keys);
 }
+
+#[test]
+fn entry() {
+    let mut doc = doc! {
+        "first": 1i32,
+        "second": "foo",
+        "alphanumeric": "bar",
+    };
+
+    {
+        let first_entry = doc.entry("first".to_owned());
+        assert_eq!(first_entry.key(), "first");
+
+        let v = first_entry.or_insert_with(|| Bson::TimeStamp(27));
+        assert_eq!(v, &mut Bson::I32(1));
+    }
+
+    {
+        let fourth_entry = doc.entry("fourth".to_owned());
+        assert_eq!(fourth_entry.key(), "fourth");
+
+        let v = fourth_entry.or_insert(Bson::Null);
+        assert_eq!(v, &mut Bson::Null);
+    }
+
+    assert_eq!(
+        doc,
+        doc! {
+            "first": 1i32,
+            "second": "foo",
+            "alphanumeric": "bar",
+            "fourth": Bson::Null,
+        },
+    );
+}

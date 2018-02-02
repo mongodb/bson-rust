@@ -354,6 +354,30 @@ impl OrderedDocument {
     pub fn remove(&mut self, key: &str) -> Option<Bson> {
         self.inner.remove(key)
     }
+
+    pub fn entry(&mut self, k: String) -> Entry {
+        Entry {
+            inner: self.inner.entry(k),
+        }
+    }
+}
+
+pub struct Entry<'a> {
+    inner: linked_hash_map::Entry<'a, String, Bson>,
+}
+
+impl<'a> Entry<'a> {
+    pub fn key(&self) -> &str {
+        self.inner.key()
+    }
+
+    pub fn or_insert(self, default: Bson) -> &'a mut Bson {
+        self.inner.or_insert(default)
+    }
+
+    pub fn or_insert_with<F: FnOnce() -> Bson>(self, default: F) -> &'a mut Bson {
+        self.inner.or_insert_with(default)
+    }
 }
 
 impl From<LinkedHashMap<String, Bson>> for OrderedDocument {
