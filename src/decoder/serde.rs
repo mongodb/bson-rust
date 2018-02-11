@@ -5,7 +5,7 @@ use serde::de::{self, Deserialize, Deserializer, Visitor, MapAccess, SeqAccess, 
                 DeserializeSeed, EnumAccess};
 use serde::de::{Error, Unexpected};
 
-use bson::{Bson, UtcDateTime};
+use bson::{Bson, TimeStamp, UtcDateTime};
 use oid::ObjectId;
 use ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
 use super::error::{DecoderError, DecoderResult};
@@ -601,6 +601,26 @@ impl<'de> Deserializer<'de> for MapDecoder {
     }
 }
 
+impl<'de> Deserialize<'de> for TimeStamp {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer<'de>
+    {
+        use serde::de::Error;
+
+        match Bson::deserialize(deserializer)? {
+            Bson::TimeStamp(ts) => {
+                let ts = ts.to_be();
+
+                Ok(TimeStamp {
+                    t: ((ts as u64) >> 32) as u32,
+                    i: (ts & 0xFFFF_FFFF) as u32,
+                })
+            }
+            _ => Err(D::Error::custom("expecting UtcDateTime")),
+        }
+    }
+}
+
 impl<'de> Deserialize<'de> for UtcDateTime {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>
@@ -613,3 +633,4 @@ impl<'de> Deserialize<'de> for UtcDateTime {
         }
     }
 }
+

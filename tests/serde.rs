@@ -59,6 +59,22 @@ fn test_de_map() {
 }
 
 #[test]
+fn test_de_timestamp() {
+    use bson::TimeStamp;
+
+    #[derive(Deserialize, Eq, PartialEq, Debug)]
+    struct Foo {
+        ts: TimeStamp,
+    }
+
+    let foo: Foo = bson::from_bson(Bson::Document(doc! {
+        "ts": Bson::TimeStamp(0x0A00_0000_0C00_0000),
+    })).unwrap();
+
+    assert_eq!(foo.ts, TimeStamp { t: 12, i: 10 });
+}
+
+#[test]
 fn test_ser_datetime() {
     use chrono::{Utc, Timelike};
     use bson::UtcDateTime;
