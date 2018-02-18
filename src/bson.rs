@@ -595,6 +595,27 @@ impl Bson {
     }
 }
 
+/// `TimeStamp` representation in struct for serde serialization
+///
+/// Just a helper for convenience
+///
+/// ```rust,ignore
+/// #[macro_use]
+/// extern crate serde_derive;
+/// extern crate bson;
+/// use bson::TimeStamp;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Foo {
+///     timestamp: TimeStamp,
+/// }
+/// ```
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct TimeStamp {
+    pub t: u32,
+    pub i: u32,
+}
+
 /// `DateTime` representation in struct for serde serialization
 ///
 /// Just a helper for convenience
