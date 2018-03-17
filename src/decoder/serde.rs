@@ -54,6 +54,24 @@ impl<'de> Deserialize<'de> for Bson {
     }
 }
 
+#[cfg(feature = "unsigned_conversion")]
+fn visit_unsigned_int<
+    T: Copy + ::std::convert::TryInto<i32> + Into<u64>,
+    E: Error
+>(value: T) -> Result<Bson, E> {
+    value.try_into()
+        .map(Bson::I32)
+        .map_err(|_| de::Error::invalid_value(
+            Unexpected::Unsigned(value.into()),
+            &format!("an integer less than or equal to {}", i32::max_value()).as_str()
+        ))
+}
+
+#[cfg(not(feature = "unsigned_conversion"))]
+fn visit_unsigned_int<T: Into<u64>, E: Error>(value: T) -> Result<Bson, E> {
+    Err(Error::invalid_type(Unexpected::Unsigned(value.into()), &"a signed integer"))
+}
+
 impl<'de> Visitor<'de> for BsonVisitor {
     type Value = Bson;
 
@@ -79,7 +97,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_u8<E>(self, value: u8) -> Result<Bson, E>
         where E: Error
     {
-        Err(Error::invalid_type(Unexpected::Unsigned(value as u64), &"a signed integer"))
+        visit_unsigned_int(value)
     }
 
     #[inline]
@@ -93,7 +111,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_u16<E>(self, value: u16) -> Result<Bson, E>
         where E: Error
     {
-        Err(Error::invalid_type(Unexpected::Unsigned(value as u64), &"a signed integer"))
+        visit_unsigned_int(value)
     }
 
     #[inline]
@@ -107,7 +125,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_u32<E>(self, value: u32) -> Result<Bson, E>
         where E: Error
     {
-        Err(Error::invalid_type(Unexpected::Unsigned(value as u64), &"a signed integer"))
+        visit_unsigned_int(value)
     }
 
     #[inline]
@@ -121,7 +139,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_u64<E>(self, value: u64) -> Result<Bson, E>
         where E: Error
     {
-        Err(Error::invalid_type(Unexpected::Unsigned(value), &"a signed integer"))
+        visit_unsigned_int(value)
     }
 
     #[inline]
