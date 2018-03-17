@@ -121,15 +121,15 @@ impl Display for Bson {
             &Bson::FloatingPoint(f) => write!(fmt, "{}", f),
             &Bson::String(ref s) => write!(fmt, "\"{}\"", s),
             &Bson::Array(ref vec) => {
-                try!(write!(fmt, "["));
+                write!(fmt, "[")?;
 
                 let mut first = true;
                 for bson in vec.iter() {
                     if !first {
-                        try!(write!(fmt, ", "));
+                        write!(fmt, ", ")?;
                     }
 
-                    try!(write!(fmt, "{}", bson));
+                    write!(fmt, "{}", bson)?;
                     first = false;
                 }
 

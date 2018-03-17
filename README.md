@@ -7,10 +7,12 @@
 Encoding and decoding support for BSON in Rust
 
 ## Useful links
-- [API Documentation](https://docs.rs/bson/)
-- [Serde](https://serde.rs/)
+
+* [API Documentation](https://docs.rs/bson/)
+* [Serde](https://serde.rs/)
 
 ## Installation
+
 This crate works with Cargo and can be found on
 [crates.io](https://crates.io/crates/bson) with a `Cargo.toml` like:
 
@@ -20,6 +22,7 @@ bson = "0.11"
 ```
 
 ## Usage
+
 Link the library in _main.rs_:
 
 ```rust
@@ -32,7 +35,7 @@ Prepare your struct for Serde serialization:
 ```rust
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Person {
-    #[serde(rename = "_id")]  // Use MongoDB's special primary key field name when serializing 
+    #[serde(rename = "_id")]  // Use MongoDB's special primary key field name when serializing
     pub id: String,
     pub name: String,
     pub age: i32
@@ -95,3 +98,5 @@ fn test_compat_u2f() {
 ```
 
 In this example, we added an attribute `#[serde(with = "bson::compat::u2f")]` on field `x`, which will tell `serde` to use the `bson::compat::u2f::serialize` and `bson::compat::u2f::deserialize` methods to process this field.
+
+More recently, the ability to cast unsigned integers to signed integers has been added behind the `unsigned_conversion` feature. It makes of the unstable nightly `try_from` API to avoid undefined behavior, and will throw an error if the number being cast is larger than the maximum value of a 32-bit integer.

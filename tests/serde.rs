@@ -97,7 +97,6 @@ fn test_ser_datetime() {
     assert_eq!(xfoo, foo);
 }
 
-
 #[test]
 fn test_compat_u2f() {
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]

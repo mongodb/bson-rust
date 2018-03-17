@@ -54,6 +54,24 @@ impl<'de> Deserialize<'de> for Bson {
     }
 }
 
+#[cfg(feature = "unsigned_conversion")]
+fn visit_unsigned_int<
+    T: Copy + ::std::convert::TryInto<i32> + Into<u64>,
+    E: Error
+>(value: T) -> Result<Bson, E> {
+    value.try_into()
+        .map(Bson::I32)
+        .map_err(|_| de::Error::invalid_value(
+            Unexpected::Unsigned(value.into()),
+            &format!("an integer less than or equal to {}", i32::max_value()).as_str()
+        ))
+}
+
+#[cfg(not(feature = "unsigned_conversion"))]
+fn visit_unsigned_int<T: Into<u64>, E: Error>(value: T) -> Result<Bson, E> {
+    Err(Error::invalid_type(Unexpected::Unsigned(value.into()), &"a signed integer"))
+}
+
 impl<'de> Visitor<'de> for BsonVisitor {
     type Value = Bson;
 
@@ -79,7 +97,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_u8<E>(self, value: u8) -> Result<Bson, E>
         where E: Error
     {
-        Err(Error::invalid_type(Unexpected::Unsigned(value as u64), &"a signed integer"))
+        visit_unsigned_int(value)
     }
 
     #[inline]
@@ -93,7 +111,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_u16<E>(self, value: u16) -> Result<Bson, E>
         where E: Error
     {
-        Err(Error::invalid_type(Unexpected::Unsigned(value as u64), &"a signed integer"))
+        visit_unsigned_int(value)
     }
 
     #[inline]
@@ -107,7 +125,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_u32<E>(self, value: u32) -> Result<Bson, E>
         where E: Error
     {
-        Err(Error::invalid_type(Unexpected::Unsigned(value as u64), &"a signed integer"))
+        visit_unsigned_int(value)
     }
 
     #[inline]
@@ -121,7 +139,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_u64<E>(self, value: u64) -> Result<Bson, E>
         where E: Error
     {
-        Err(Error::invalid_type(Unexpected::Unsigned(value), &"a signed integer"))
+        visit_unsigned_int(value)
     }
 
     #[inline]
@@ -175,7 +193,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_map<V>(self, visitor: V) -> Result<Bson, V::Error>
         where V: MapAccess<'de>
     {
-        let values = try!(OrderedDocumentVisitor::new().visit_map(visitor));
+        let values = OrderedDocumentVisitor::new().visit_map(visitor)?;
         Ok(Bson::from_extended_document(values.into()))
     }
 }
@@ -405,14 +423,14 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
     fn newtype_variant_seed<T>(mut self, seed: T) -> DecoderResult<T::Value>
         where T: DeserializeSeed<'de>
     {
-        let dec = Decoder::new(try!(self.val.take().ok_or(DecoderError::EndOfStream)));
+        let dec = Decoder::new(self.val.take().ok_or(DecoderError::EndOfStream)?);
         seed.deserialize(dec)
     }
 
     fn tuple_variant<V>(mut self, _len: usize, visitor: V) -> DecoderResult<V::Value>
         where V: Visitor<'de>
     {
-        if let Bson::Array(fields) = try!(self.val.take().ok_or(DecoderError::EndOfStream)) {
+        if let Bson::Array(fields) = self.val.take().ok_or(DecoderError::EndOfStream)? {
 
             let de = SeqDecoder {
                 len: fields.len(),
@@ -430,7 +448,7 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
                          -> DecoderResult<V::Value>
         where V: Visitor<'de>
     {
-        if let Bson::Document(fields) = try!(self.val.take().ok_or(DecoderError::EndOfStream)) {
+        if let Bson::Document(fields) = self.val.take().ok_or(DecoderError::EndOfStream)? {
             let de = MapDecoder {
                 len: fields.len(),
                 iter: fields.into_iter(),
@@ -549,7 +567,7 @@ impl<'de> MapAccess<'de> for MapDecoder {
     fn next_value_seed<V>(&mut self, seed: V) -> DecoderResult<V::Value>
         where V: DeserializeSeed<'de>
     {
-        let value = try!(self.value.take().ok_or(DecoderError::EndOfStream));
+        let value = self.value.take().ok_or(DecoderError::EndOfStream)?;
         let de = Decoder::new(value);
         seed.deserialize(de)
     }

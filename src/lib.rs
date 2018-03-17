@@ -42,6 +42,8 @@
 //! }
 //! ```
 
+#![cfg_attr(feature = "unsigned_conversion", feature(try_from))]
+
 extern crate byteorder;
 extern crate chrono;
 extern crate crypto;
