@@ -10,6 +10,7 @@ pub enum EncoderError {
     InvalidMapKeyType(Bson),
     Unknown(String),
     UnsupportedUnsignedType,
+    OutOfRangeUnsignedType(u64),
 }
 
 impl From<io::Error> for EncoderError {
@@ -27,6 +28,9 @@ impl fmt::Display for EncoderError {
             }
             &EncoderError::Unknown(ref inner) => inner.fmt(fmt),
             &EncoderError::UnsupportedUnsignedType => write!(fmt, "BSON does not support unsigned type"),
+            &EncoderError::OutOfRangeUnsignedType(val) => {
+                write!(fmt, "The provided value {} is larger than the max value for a 32-bit integer", val)
+            },
         }
     }
 }
@@ -38,6 +42,7 @@ impl error::Error for EncoderError {
             &EncoderError::InvalidMapKeyType(_) => "Invalid map key type",
             &EncoderError::Unknown(ref inner) => inner,
             &EncoderError::UnsupportedUnsignedType => "BSON does not support unsigned type",
+            &EncoderError::OutOfRangeUnsignedType(_) => "Unsigned integer large than valid range",
         }
     }
 

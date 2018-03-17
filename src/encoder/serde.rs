@@ -62,6 +62,20 @@ impl Encoder {
     pub fn new() -> Encoder {
         Encoder
     }
+
+    #[cfg(feature = "unsigned_conversion")]
+    fn visit_unsigned_int<
+        T: Copy + ::std::convert::TryInto<i32> + Into<u64>
+    >(self, value: T) -> EncoderResult<Bson> {
+        value.try_into()
+            .map(|val| self.serialize_i32(val))
+            .map_err(|_| EncoderError::OutOfRangeUnsignedType(value.into()))?
+    }
+
+    #[cfg(not(feature = "unsigned_conversion"))]
+    fn visit_unsigned_int<T: Into<u64>>(self, _: T) -> EncoderResult<Bson> {
+        Err(EncoderError::UnsupportedUnsignedType)
+    }
 }
 
 impl Serializer for Encoder {
@@ -87,8 +101,8 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn serialize_u8(self, _value: u8) -> EncoderResult<Bson> {
-        Err(EncoderError::UnsupportedUnsignedType)
+    fn serialize_u8(self, value: u8) -> EncoderResult<Bson> {
+        self.visit_unsigned_int(value)
     }
 
     #[inline]
@@ -97,8 +111,8 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn serialize_u16(self, _value: u16) -> EncoderResult<Bson> {
-        Err(EncoderError::UnsupportedUnsignedType)
+    fn serialize_u16(self, value: u16) -> EncoderResult<Bson> {
+        self.visit_unsigned_int(value)
     }
 
     #[inline]
@@ -107,8 +121,8 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn serialize_u32(self, _value: u32) -> EncoderResult<Bson> {
-        Err(EncoderError::UnsupportedUnsignedType)
+    fn serialize_u32(self, value: u32) -> EncoderResult<Bson> {
+        self.visit_unsigned_int(value)
     }
 
     #[inline]
@@ -117,8 +131,8 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn serialize_u64(self, _value: u64) -> EncoderResult<Bson> {
-        Err(EncoderError::UnsupportedUnsignedType)
+    fn serialize_u64(self, value: u64) -> EncoderResult<Bson> {
+        self.visit_unsigned_int(value)
     }
 
     #[inline]

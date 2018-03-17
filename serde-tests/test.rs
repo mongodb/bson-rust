@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashSet};
 use serde::{Deserialize, Serialize, Deserializer};
 use serde::de::Unexpected;
 
-use bson::{Bson, Encoder, Decoder, DecoderError};
+use bson::{Bson, Encoder, Decoder, DecoderError, to_bson};
 
 macro_rules! bson {
     ([]) => {{ bson::Bson::Array(Vec::new()) }};
@@ -576,4 +576,36 @@ fn empty_arrays2() {
         "a" => []
     });
     assert_eq!(v, t!(Deserialize::deserialize(d)));
+}
+
+#[test]
+fn unsigned() {
+    #[derive(Serialize, Deserialize)]
+    struct Foo {
+        pub a: u16,
+        pub b: u32,
+        pub c: u64,
+    }
+
+    let res = to_bson(&Foo {
+        a: 1u16,
+        b: 2u32,
+        c: 3u64,
+    });
+
+    if cfg!(feature = "unsigned_conversion") {
+        assert!(res.is_ok())
+    } else {
+        assert!(res.is_err())
+    }
+}
+
+#[test]
+fn unsigned_overflow() {
+    #[derive(Serialize, Deserialize)]
+    struct Foo {
+        a: u64
+    }
+
+    assert!(to_bson(&Foo { a: u64::max_value() }).is_err())
 }
