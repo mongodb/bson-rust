@@ -40,6 +40,7 @@ impl error::Error for EncoderError {
             &EncoderError::UnsupportedUnsignedType => "BSON does not support unsigned type",
         }
     }
+
     fn cause(&self) -> Option<&error::Error> {
         match self {
             &EncoderError::IoError(ref inner) => Some(inner),

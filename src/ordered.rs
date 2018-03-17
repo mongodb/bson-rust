@@ -68,21 +68,21 @@ impl Default for OrderedDocument {
 
 impl Display for OrderedDocument {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        try!(write!(fmt, "{{"));
+        write!(fmt, "{{")?;
 
         let mut first = true;
         for (k, v) in self.iter() {
             if first {
                 first = false;
-                try!(write!(fmt, " "));
+                write!(fmt, " ")?;
             } else {
-                try!(write!(fmt, ", "));
+                write!(fmt, ", ")?;
             }
 
-            try!(write!(fmt, "{}: {}", k, v));
+            write!(fmt, "{}: {}", k, v)?;
         }
 
-        try!(write!(fmt, "{}}}", if !first { " " } else { "" }));
+        write!(fmt, "{}}}", if !first { " " } else { "" })?;
         Ok(())
     }
 }
@@ -419,7 +419,7 @@ impl<'de> Visitor<'de> for OrderedDocumentVisitor {
             None => LinkedHashMap::new(),
         };
 
-        while let Some((key, value)) = try!(visitor.next_entry()) {
+        while let Some((key, value)) = visitor.next_entry()? {
             inner.insert(key, value);
         }
 
