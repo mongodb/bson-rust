@@ -175,7 +175,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_map<V>(self, visitor: V) -> Result<Bson, V::Error>
         where V: MapAccess<'de>
     {
-        let values = try!(OrderedDocumentVisitor::new().visit_map(visitor));
+        let values = OrderedDocumentVisitor::new().visit_map(visitor)?;
         Ok(Bson::from_extended_document(values.into()))
     }
 }
@@ -405,14 +405,14 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
     fn newtype_variant_seed<T>(mut self, seed: T) -> DecoderResult<T::Value>
         where T: DeserializeSeed<'de>
     {
-        let dec = Decoder::new(try!(self.val.take().ok_or(DecoderError::EndOfStream)));
+        let dec = Decoder::new(self.val.take().ok_or(DecoderError::EndOfStream)?);
         seed.deserialize(dec)
     }
 
     fn tuple_variant<V>(mut self, _len: usize, visitor: V) -> DecoderResult<V::Value>
         where V: Visitor<'de>
     {
-        if let Bson::Array(fields) = try!(self.val.take().ok_or(DecoderError::EndOfStream)) {
+        if let Bson::Array(fields) = self.val.take().ok_or(DecoderError::EndOfStream)? {
 
             let de = SeqDecoder {
                 len: fields.len(),
@@ -430,7 +430,7 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
                          -> DecoderResult<V::Value>
         where V: Visitor<'de>
     {
-        if let Bson::Document(fields) = try!(self.val.take().ok_or(DecoderError::EndOfStream)) {
+        if let Bson::Document(fields) = self.val.take().ok_or(DecoderError::EndOfStream)? {
             let de = MapDecoder {
                 len: fields.len(),
                 iter: fields.into_iter(),
@@ -549,7 +549,7 @@ impl<'de> MapAccess<'de> for MapDecoder {
     fn next_value_seed<V>(&mut self, seed: V) -> DecoderResult<V::Value>
         where V: DeserializeSeed<'de>
     {
-        let value = try!(self.value.take().ok_or(DecoderError::EndOfStream));
+        let value = self.value.take().ok_or(DecoderError::EndOfStream)?;
         let de = Decoder::new(value);
         seed.deserialize(de)
     }
