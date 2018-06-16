@@ -23,10 +23,10 @@ impl Serialize for Document {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
     {
-        let mut state = try!(serializer.serialize_map(Some(self.len())));
+        let mut state = serializer.serialize_map(Some(self.len()))?;
         for (k, v) in self {
-            try!(state.serialize_key(k));
-            try!(state.serialize_value(v));
+            state.serialize_key(k)?;
+            state.serialize_value(v)?;
         }
         state.end()
     }
