@@ -319,8 +319,10 @@ impl<'de> Deserializer<'de> for Decoder {
         // enums are encoded in json as maps with a single key:value pair
         match iter.next() {
             Some(_) => Err(DecoderError::InvalidType("expected a single key:value pair".to_owned())),
-            None => visitor.visit_enum(EnumDecoder { val: Bson::String(variant),
-                                                     decoder: VariantDecoder { val: Some(value) }, }),
+            None => {
+                visitor.visit_enum(EnumDecoder { val: Bson::String(variant),
+                                                 decoder: VariantDecoder { val: Some(value) }, })
+            }
         }
     }
 

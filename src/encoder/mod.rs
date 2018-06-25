@@ -107,8 +107,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         &Bson::String(ref v) => write_string(writer, &v),
         &Bson::Array(ref v) => encode_array(writer, &v),
         &Bson::Document(ref v) => encode_document(writer, v),
-        &Bson::Boolean(v) => writer.write_u8(if v { 0x01 } else { 0x00 })
-                                   .map_err(From::from),
+        &Bson::Boolean(v) => writer.write_u8(if v { 0x01 } else { 0x00 }).map_err(From::from),
         &Bson::RegExp(ref pat, ref opt) => {
             write_cstring(writer, pat)?;
             write_cstring(writer, opt)
@@ -131,10 +130,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
             writer.write_u8(From::from(subtype))?;
             writer.write_all(data).map_err(From::from)
         }
-        &Bson::UtcDatetime(ref v) => {
-            write_i64(writer,
-                      (v.timestamp() * 1000) + (v.nanosecond() / 1000000) as i64)
-        }
+        &Bson::UtcDatetime(ref v) => write_i64(writer, (v.timestamp() * 1000) + (v.nanosecond() / 1000000) as i64),
         &Bson::Null => Ok(()),
         &Bson::Symbol(ref v) => write_string(writer, &v),
     }
