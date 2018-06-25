@@ -21,17 +21,17 @@
 
 //! BSON definition
 
-use std::fmt::{self, Display, Debug};
+use std::fmt::{self, Debug, Display};
 use std::ops::{Deref, DerefMut};
 
 use chrono::{DateTime, Timelike, Utc};
 use chrono::offset::TimeZone;
-use serde_json::Value;
 use hex::{FromHex, ToHex};
+use serde_json::Value;
 
 use oid;
 use ordered::OrderedDocument;
-use spec::{ElementType, BinarySubtype};
+use spec::{BinarySubtype, ElementType};
 
 /// Possible BSON value types.
 #[derive(Clone, PartialEq)]
@@ -121,15 +121,15 @@ impl Display for Bson {
             &Bson::FloatingPoint(f) => write!(fmt, "{}", f),
             &Bson::String(ref s) => write!(fmt, "\"{}\"", s),
             &Bson::Array(ref vec) => {
-                try!(write!(fmt, "["));
+                write!(fmt, "[")?;
 
                 let mut first = true;
                 for bson in vec.iter() {
                     if !first {
-                        try!(write!(fmt, ", "));
+                        write!(fmt, ", ")?;
                     }
 
-                    try!(write!(fmt, "{}", bson));
+                    write!(fmt, "{}", bson)?;
                     first = false;
                 }
 
@@ -139,8 +139,7 @@ impl Display for Bson {
             &Bson::Boolean(b) => write!(fmt, "{}", b),
             &Bson::Null => write!(fmt, "null"),
             &Bson::RegExp(ref pat, ref opt) => write!(fmt, "/{}/{}", pat, opt),
-            &Bson::JavaScriptCode(ref s) |
-            &Bson::JavaScriptCodeWithScope(ref s, _) => fmt.write_str(&s),
+            &Bson::JavaScriptCode(ref s) | &Bson::JavaScriptCodeWithScope(ref s, _) => fmt.write_str(&s),
             &Bson::I32(i) => write!(fmt, "{}", i),
             &Bson::I64(i) => write!(fmt, "{}", i),
             &Bson::TimeStamp(i) => {
@@ -149,9 +148,7 @@ impl Display for Bson {
 
                 write!(fmt, "Timestamp({}, {})", time, inc)
             }
-            &Bson::Binary(t, ref vec) => {
-                write!(fmt, "BinData({}, 0x{})", u8::from(t), vec.to_hex())
-            }
+            &Bson::Binary(t, ref vec) => write!(fmt, "BinData({}, 0x{})", u8::from(t), vec.to_hex()),
             &Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             &Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             &Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
@@ -274,19 +271,16 @@ impl From<Value> for Bson {
     fn from(a: Value) -> Bson {
         match a {
             Value::Number(x) => {
-                x.as_i64()
-                    .map(Bson::from)
-                    .or_else(|| x.as_u64().map(Bson::from))
-                    .or_else(|| x.as_f64().map(Bson::from))
-                    .unwrap_or_else(|| panic!("Invalid number value: {}", x))
+                x.as_i64().map(Bson::from)
+                 .or_else(|| x.as_u64().map(Bson::from))
+                 .or_else(|| x.as_f64().map(Bson::from))
+                 .unwrap_or_else(|| panic!("Invalid number value: {}", x))
             }
             Value::String(x) => x.into(),
             Value::Bool(x) => x.into(),
             Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from).collect()),
             Value::Object(x) => {
-                Bson::from_extended_document(x.into_iter()
-                                                 .map(|(k, v)| (k.clone(), v.into()))
-                                                 .collect())
+                Bson::from_extended_document(x.into_iter().map(|(k, v)| (k.clone(), v.into())).collect())
             }
             Value::Null => Bson::Null,
         }
@@ -308,7 +302,7 @@ impl Into<Value> for Bson {
                     "$options": opt
                 })
             }
-            Bson::JavaScriptCode(code) => json!({"$code": code}),
+            Bson::JavaScriptCode(code) => json!({ "$code": code }),
             Bson::JavaScriptCodeWithScope(code, scope) => {
                 json!({
                     "$code": code,
@@ -341,7 +335,7 @@ impl Into<Value> for Bson {
                 })
             }
             // FIXME: Don't know what is the best way to encode Symbol type
-            Bson::Symbol(v) => json!({"$symbol": v}),
+            Bson::Symbol(v) => json!({ "$symbol": v }),
         }
     }
 }
@@ -371,21 +365,21 @@ impl Bson {
 
     /// Clones the bson and returns the representative serde_json Value.
     /// The json will be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
-    #[deprecated(since="0.5.1", note="use bson.clone().into() instead")]
+    #[deprecated(since = "0.5.1", note = "use bson.clone().into() instead")]
     pub fn to_json(&self) -> Value {
         self.clone().into()
     }
 
     /// Consumes the bson and returns the representative serde_json Value.
     /// The json will be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
-    #[deprecated(since="0.5.1", note="use bson.into() instead")]
+    #[deprecated(since = "0.5.1", note = "use bson.into() instead")]
     pub fn into_json(self) -> Value {
         self.into()
     }
 
     /// Consumes the serde_json Value and returns the representative bson.
     /// The json should be in [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
-    #[deprecated(since="0.5.1", note="use json.into() instead")]
+    #[deprecated(since = "0.5.1", note = "use json.into() instead")]
     pub fn from_json(val: Value) -> Bson {
         val.into()
     }
@@ -456,37 +450,28 @@ impl Bson {
         if values.len() == 2 {
             if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
                 return Bson::RegExp(pat.to_owned(), opt.to_owned());
-
-            } else if let (Ok(code), Ok(scope)) =
-                (values.get_str("$code"), values.get_document("$scope")) {
+            } else if let (Ok(code), Ok(scope)) = (values.get_str("$code"), values.get_document("$scope")) {
                 return Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned());
-
             } else if let (Ok(t), Ok(i)) = (values.get_i32("t"), values.get_i32("i")) {
                 let timestamp = ((t as i64) << 32) + (i as i64);
                 return Bson::TimeStamp(timestamp);
-
             } else if let (Ok(t), Ok(i)) = (values.get_i64("t"), values.get_i64("i")) {
                 let timestamp = (t << 32) + i;
                 return Bson::TimeStamp(timestamp);
-
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
                 return Bson::Binary(From::from(ttype),
                                     FromHex::from_hex(hex.as_bytes()).unwrap());
             }
-
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {
                 return Bson::JavaScriptCode(code.to_owned());
-
             } else if let Ok(hex) = values.get_str("$oid") {
                 return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
-
-            } else if let Ok(long) = values
-                          .get_document("$date")
-                          .and_then(|inner| inner.get_i64("$numberLong")) {
-                return Bson::UtcDatetime(Utc.timestamp(long / 1000,
-                                                       ((long % 1000) * 1000000) as u32));
+            } else if let Ok(long) = values.get_document("$date")
+                                           .and_then(|inner| inner.get_i64("$numberLong"))
+            {
+                return Bson::UtcDatetime(Utc.timestamp(long / 1000, ((long % 1000) * 1000000) as u32));
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
             }

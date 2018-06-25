@@ -1,9 +1,9 @@
-use std::io::Cursor;
-use bson::{Bson, decode_document, decode_document_utf8_lossy, encode_document};
+use bson::{decode_document, encode_document, Bson, decode_document_utf8_lossy};
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
 use chrono::Utc;
 use chrono::offset::TimeZone;
+use std::io::Cursor;
 
 #[test]
 fn test_encode_decode_floating_point() {
@@ -24,8 +24,8 @@ fn test_encode_decode_floating_point() {
 #[test]
 fn test_encode_decode_utf8_string() {
     let src = "test你好吗".to_owned();
-    let dst = vec![28, 0, 0, 0, 2, 107, 101, 121, 0, 14, 0, 0, 0, 116, 101, 115, 116, 228, 189,
-                   160, 229, 165, 189, 229, 144, 151, 0, 0];
+    let dst = vec![28, 0, 0, 0, 2, 107, 101, 121, 0, 14, 0, 0, 0, 116, 101, 115, 116, 228, 189, 160, 229, 165, 189,
+                   229, 144, 151, 0, 0];
 
     let doc = doc!{ "key": src };
 
@@ -56,8 +56,8 @@ fn test_encode_decode_utf8_string_invalid() {
 #[test]
 fn test_encode_decode_array() {
     let src = vec![Bson::FloatingPoint(1.01), Bson::String("xyz".to_owned())];
-    let dst = vec![37, 0, 0, 0, 4, 107, 101, 121, 0, 27, 0, 0, 0, 1, 48, 0, 41, 92, 143, 194, 245,
-                   40, 240, 63, 2, 49, 0, 4, 0, 0, 0, 120, 121, 122, 0, 0, 0];
+    let dst = vec![37, 0, 0, 0, 4, 107, 101, 121, 0, 27, 0, 0, 0, 1, 48, 0, 41, 92, 143, 194, 245, 40, 240, 63, 2, 49,
+                   0, 4, 0, 0, 0, 120, 121, 122, 0, 0, 0];
 
     let doc = doc!{ "key": src };
 
@@ -73,8 +73,7 @@ fn test_encode_decode_array() {
 #[test]
 fn test_encode_decode_document() {
     let src = doc! { "subkey": 1 };
-    let dst = vec![27, 0, 0, 0, 3, 107, 101, 121, 0, 17, 0, 0, 0, 16, 115, 117, 98, 107, 101, 121,
-                   0, 1, 0, 0, 0, 0, 0];
+    let dst = vec![27, 0, 0, 0, 3, 107, 101, 121, 0, 17, 0, 0, 0, 16, 115, 117, 98, 107, 101, 121, 0, 1, 0, 0, 0, 0, 0];
 
     let doc = doc!{ "key": src };
 
@@ -154,8 +153,7 @@ fn test_encode_decode_javascript_code() {
 #[test]
 fn test_encode_decode_javascript_code_with_scope() {
     let src = Bson::JavaScriptCodeWithScope("1".to_owned(), doc!{});
-    let dst = vec![25, 0, 0, 0, 15, 107, 101, 121, 0, 15, 0, 0, 0, 2, 0, 0, 0, 49, 0, 5, 0, 0, 0,
-                   0, 0];
+    let dst = vec![25, 0, 0, 0, 15, 107, 101, 121, 0, 15, 0, 0, 0, 2, 0, 0, 0, 49, 0, 5, 0, 0, 0, 0, 0];
 
     let doc = doc!{ "key": src };
 
@@ -235,8 +233,7 @@ fn test_encode_binary_generic() {
 #[test]
 fn test_encode_decode_object_id() {
     let src = ObjectId::with_string("507f1f77bcf86cd799439011").unwrap();
-    let dst = vec![22, 0, 0, 0, 7, 107, 101, 121, 0, 80, 127, 31, 119, 188, 248, 108, 215, 153,
-                   67, 144, 17, 0];
+    let dst = vec![22, 0, 0, 0, 7, 107, 101, 121, 0, 80, 127, 31, 119, 188, 248, 108, 215, 153, 67, 144, 17, 0];
 
     let doc = doc!{ "key": src };
 

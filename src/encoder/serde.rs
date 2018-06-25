@@ -1,5 +1,5 @@
-use serde::ser::{Serialize, Serializer, SerializeSeq, SerializeTuple, SerializeTupleStruct,
-                 SerializeTupleVariant, SerializeMap, SerializeStruct, SerializeStructVariant};
+use serde::ser::{Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
+                 SerializeTupleStruct, SerializeTupleVariant, Serializer};
 
 use bson::{Array, Bson, Document, UtcDateTime};
 use oid::ObjectId;
@@ -23,10 +23,10 @@ impl Serialize for Document {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
     {
-        let mut state = try!(serializer.serialize_map(Some(self.len())));
+        let mut state = serializer.serialize_map(Some(self.len()))?;
         for (k, v) in self {
-            try!(state.serialize_key(k));
-            try!(state.serialize_value(v));
+            state.serialize_key(k)?;
+            state.serialize_value(v)?;
         }
         state.end()
     }
@@ -46,6 +46,7 @@ impl Serialize for Bson {
             Bson::Null => serializer.serialize_unit(),
             Bson::I32(v) => serializer.serialize_i32(v),
             Bson::I64(v) => serializer.serialize_i64(v),
+            Bson::Binary(_, ref v) => serializer.serialize_bytes(v),
             _ => {
                 let doc = self.to_extended_document();
                 doc.serialize(serializer)
@@ -144,11 +145,13 @@ impl Serializer for Encoder {
     }
 
     fn serialize_bytes(self, value: &[u8]) -> EncoderResult<Bson> {
-        let mut state = self.serialize_seq(Some(value.len()))?;
-        for byte in value {
-            state.serialize_element(byte)?;
-        }
-        state.end()
+        use spec::BinarySubtype;
+        // let mut state = self.serialize_seq(Some(value.len()))?;
+        // for byte in value {
+        //     state.serialize_element(byte)?;
+        // }
+        // state.end()
+        Ok(Bson::Binary(BinarySubtype::Generic, value.to_vec()))
     }
 
     #[inline]
@@ -183,13 +186,10 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self,
-                                           _name: &'static str,
-                                           value: &T)
-                                           -> EncoderResult<Bson>
+    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> EncoderResult<Bson>
         where T: Serialize
     {
-        let mut ser = TupleStructSerializer { inner: Array::new() };
+        let mut ser = TupleStructSerializer { inner: Array::new(), };
         ser.serialize_field(value)?;
         ser.end()
     }
@@ -203,30 +203,25 @@ impl Serializer for Encoder {
                                             -> EncoderResult<Bson>
         where T: Serialize
     {
-        let mut ser = TupleVariantSerializer {
-            inner: Array::new(),
-            name: variant,
-        };
+        let mut ser = TupleVariantSerializer { inner: Array::new(),
+                                               name: variant, };
         ser.serialize_field(value)?;
         ser.end()
     }
 
     #[inline]
     fn serialize_seq(self, len: Option<usize>) -> EncoderResult<Self::SerializeSeq> {
-        Ok(ArraySerializer { inner: Array::with_capacity(len.unwrap_or(0)) })
+        Ok(ArraySerializer { inner: Array::with_capacity(len.unwrap_or(0)), })
     }
 
     #[inline]
     fn serialize_tuple(self, len: usize) -> EncoderResult<Self::SerializeTuple> {
-        Ok(TupleSerializer { inner: Array::with_capacity(len) })
+        Ok(TupleSerializer { inner: Array::with_capacity(len), })
     }
 
     #[inline]
-    fn serialize_tuple_struct(self,
-                              _name: &'static str,
-                              len: usize)
-                              -> EncoderResult<Self::SerializeTupleStruct> {
-        Ok(TupleStructSerializer { inner: Array::with_capacity(len) })
+    fn serialize_tuple_struct(self, _name: &'static str, len: usize) -> EncoderResult<Self::SerializeTupleStruct> {
+        Ok(TupleStructSerializer { inner: Array::with_capacity(len), })
     }
 
     #[inline]
@@ -236,26 +231,19 @@ impl Serializer for Encoder {
                                variant: &'static str,
                                len: usize)
                                -> EncoderResult<Self::SerializeTupleVariant> {
-        Ok(TupleVariantSerializer {
-               inner: Array::with_capacity(len),
-               name: variant,
-           })
+        Ok(TupleVariantSerializer { inner: Array::with_capacity(len),
+                                    name: variant, })
     }
 
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> EncoderResult<Self::SerializeMap> {
-        Ok(MapSerializer {
-               inner: Document::new(),
-               next_key: None,
-           })
+        Ok(MapSerializer { inner: Document::new(),
+                           next_key: None, })
     }
 
     #[inline]
-    fn serialize_struct(self,
-                        _name: &'static str,
-                        _len: usize)
-                        -> EncoderResult<Self::SerializeStruct> {
-        Ok(StructSerializer { inner: Document::new() })
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> EncoderResult<Self::SerializeStruct> {
+        Ok(StructSerializer { inner: Document::new(), })
     }
 
     #[inline]
@@ -265,10 +253,8 @@ impl Serializer for Encoder {
                                 variant: &'static str,
                                 _len: usize)
                                 -> EncoderResult<Self::SerializeStructVariant> {
-        Ok(StructVariantSerializer {
-               name: variant,
-               inner: Document::new(),
-           })
+        Ok(StructVariantSerializer { name: variant,
+                                     inner: Document::new(), })
     }
 }
 
@@ -394,10 +380,7 @@ impl SerializeStruct for StructSerializer {
     type Ok = Bson;
     type Error = EncoderError;
 
-    fn serialize_field<T: ?Sized + Serialize>(&mut self,
-                                              key: &'static str,
-                                              value: &T)
-                                              -> EncoderResult<()> {
+    fn serialize_field<T: ?Sized + Serialize>(&mut self, key: &'static str, value: &T) -> EncoderResult<()> {
         self.inner.insert(key, to_bson(value)?);
         Ok(())
     }
@@ -417,10 +400,7 @@ impl SerializeStructVariant for StructVariantSerializer {
     type Ok = Bson;
     type Error = EncoderError;
 
-    fn serialize_field<T: ?Sized + Serialize>(&mut self,
-                                              key: &'static str,
-                                              value: &T)
-                                              -> EncoderResult<()> {
+    fn serialize_field<T: ?Sized + Serialize>(&mut self, key: &'static str, value: &T) -> EncoderResult<()> {
         self.inner.insert(key, to_bson(value)?);
         Ok(())
     }

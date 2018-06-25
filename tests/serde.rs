@@ -1,12 +1,12 @@
 #[macro_use]
 extern crate bson;
+extern crate chrono;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate chrono;
 
-use serde::{Serialize, Deserialize};
-use bson::{Encoder, Decoder, Bson};
+use bson::{Bson, Decoder, Encoder};
+use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
 
@@ -76,8 +76,8 @@ fn test_de_timestamp() {
 
 #[test]
 fn test_ser_datetime() {
-    use chrono::{Utc, Timelike};
     use bson::UtcDateTime;
+    use chrono::{Timelike, Utc};
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
@@ -88,22 +88,22 @@ fn test_ser_datetime() {
     // FIXME: Due to BSON's datetime precision
     let now = now.with_nanosecond(now.nanosecond() / 1000000 * 1000000).unwrap();
 
-    let foo = Foo { date: From::from(now) };
+    let foo = Foo { date: From::from(now), };
 
     let x = bson::to_bson(&foo).unwrap();
-    assert_eq!(x.as_document().unwrap(), &doc! { "date": (Bson::UtcDatetime(now)) });
+    assert_eq!(x.as_document().unwrap(),
+               &doc! { "date": (Bson::UtcDatetime(now)) });
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
-
 
 #[test]
 fn test_compat_u2f() {
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
         #[serde(with = "bson::compat::u2f")]
-        x: u32
+        x: u32,
     }
 
     let foo = Foo { x: 20 };
@@ -112,4 +112,25 @@ fn test_compat_u2f() {
 
     let de_foo = bson::from_bson::<Foo>(b).unwrap();
     assert_eq!(de_foo, foo);
+}
+
+#[test]
+fn test_byte_vec() {
+    use std::io::Cursor;
+
+    #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+    pub struct AuthChallenge<'a> {
+        pub challenge: &'a [u8],
+    }
+
+    let x = AuthChallenge { challenge: b"18762b98b7c34c25bf9dc3154e4a5ca3" };
+
+    let b = bson::to_bson(&x).unwrap();
+    // assert_eq!(b, Bson::Document(doc! { "challenge": (Bson::Binary(bson::spec::BinarySubtype::Generic, x.challenge.clone()))}));
+
+    // let mut buf = Vec::new();
+    // bson::encode_document(&mut buf, b.as_document().unwrap()).unwrap();
+
+    // let xb = bson::decode_document(&mut Cursor::new(buf)).unwrap();
+    // assert_eq!(b.as_document().unwrap(), &xb);
 }

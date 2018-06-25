@@ -3,10 +3,9 @@ use hex::ToHex;
 
 #[test]
 fn deserialize() {
-    let bytes: [u8; 12] = [0xDEu8, 0xADu8, 0xBEu8, 0xEFu8 /* timestamp is 3735928559 */,
-                           0xEFu8, 0xCDu8, 0xABu8 /* machine_id is 11259375 */, 0xFAu8,
-                           0x29u8 /* process_id is 10746 */, 0x11u8, 0x22u8,
-                           0x33u8 /* increment is 1122867 */];
+    let bytes: [u8; 12] = [0xDEu8, 0xADu8, 0xBEu8, 0xEFu8 /* timestamp is 3735928559 */, 0xEFu8, 0xCDu8,
+                           0xABu8 /* machine_id is 11259375 */, 0xFAu8, 0x29u8 /* process_id is 10746 */,
+                           0x11u8, 0x22u8, 0x33u8 /* increment is 1122867 */];
 
     let oid = ObjectId::with_bytes(bytes);
     assert_eq!(3735928559 as u32, oid.timestamp());
@@ -48,8 +47,8 @@ fn byte_string_oid() {
     let oid_res = ObjectId::with_string(s);
     assert!(oid_res.is_ok());
     let oid = oid_res.unwrap();
-    let bytes: [u8; 12] = [0x54u8, 0x1Bu8, 0x1Au8, 0x00u8, 0xE8u8, 0xA2u8, 0x3Au8, 0xFAu8, 0x83u8,
-                           0x2Bu8, 0x21u8, 0x8Eu8];
+    let bytes: [u8; 12] =
+        [0x54u8, 0x1Bu8, 0x1Au8, 0x00u8, 0xE8u8, 0xA2u8, 0x3Au8, 0xFAu8, 0x83u8, 0x2Bu8, 0x21u8, 0x8Eu8];
 
     assert_eq!(bytes, oid.bytes());
     assert_eq!(s, oid.to_string());

@@ -1,4 +1,4 @@
-use bson::{Bson, to_bson, from_bson};
+use bson::{from_bson, to_bson, Bson};
 use bson::oid::ObjectId;
 use std::collections::BTreeMap;
 

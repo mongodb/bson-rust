@@ -2,19 +2,19 @@
 
 use libc;
 
-use std::{fmt, io, error, result};
+use std::{error, fmt, io, result};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 
-use byteorder::{ByteOrder, BigEndian, LittleEndian};
+use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use crypto::digest::Digest;
 use crypto::md5::Md5;
 
-use hex::{ToHex, FromHex, FromHexError};
+use hex::{FromHex, FromHexError, ToHex};
 
-use rand::{Rng, OsRng};
+use rand::{OsRng, Rng};
 
-use time;
 use hostname::get_hostname;
+use time;
 
 const TIMESTAMP_SIZE: usize = 4;
 const MACHINE_ID_SIZE: usize = 3;
@@ -30,7 +30,6 @@ const MAX_U24: usize = 0xFFFFFF;
 
 static OID_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
 static mut MACHINE_BYTES: Option<[u8; 3]> = None;
-
 
 /// Errors that can occur during OID construction and generation.
 #[derive(Debug)]
@@ -99,9 +98,9 @@ impl ObjectId {
     /// for more information.
     pub fn new() -> Result<ObjectId> {
         let timestamp = ObjectId::gen_timestamp();
-        let machine_id = try!(ObjectId::gen_machine_id());
+        let machine_id = ObjectId::gen_machine_id()?;
         let process_id = ObjectId::gen_process_id();
-        let counter = try!(ObjectId::gen_count());
+        let counter = ObjectId::gen_count()?;
 
         let mut buf: [u8; 12] = [0; 12];
         for i in 0..TIMESTAMP_SIZE {
@@ -127,10 +126,9 @@ impl ObjectId {
 
     /// Creates an ObjectID using a 12-byte (24-char) hexadecimal string.
     pub fn with_string(s: &str) -> Result<ObjectId> {
-        let bytes: Vec<u8> = try!(FromHex::from_hex(s.as_bytes()));
+        let bytes: Vec<u8> = FromHex::from_hex(s.as_bytes())?;
         if bytes.len() != 12 {
-            Err(Error::ArgumentError("Provided string must be a 12-byte hexadecimal string."
-                .to_owned()))
+            Err(Error::ArgumentError("Provided string must be a 12-byte hexadecimal string.".to_owned()))
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
             for i in 0..12 {
@@ -248,7 +246,7 @@ impl ObjectId {
     fn gen_count() -> Result<[u8; 3]> {
         // Init oid counter
         if OID_COUNTER.load(Ordering::SeqCst) == 0 {
-            let mut rng = try!(OsRng::new());
+            let mut rng = OsRng::new()?;
             let start = rng.gen_range(0, MAX_U24 + 1);
             OID_COUNTER.store(start, Ordering::SeqCst);
         }

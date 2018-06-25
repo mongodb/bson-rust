@@ -1,4 +1,4 @@
-use std::{io, error, fmt, string};
+use std::{error, fmt, io, string};
 use std::fmt::Display;
 
 use serde::de::{self, Expected, Unexpected};
@@ -48,22 +48,16 @@ impl fmt::Display for DecoderError {
         match *self {
             DecoderError::IoError(ref inner) => inner.fmt(fmt),
             DecoderError::FromUtf8Error(ref inner) => inner.fmt(fmt),
-            DecoderError::UnrecognizedElementType(tag) => {
-                write!(fmt, "unrecognized element type `{}`", tag)
-            }
+            DecoderError::UnrecognizedElementType(tag) => write!(fmt, "unrecognized element type `{}`", tag),
             DecoderError::InvalidArrayKey(ref want, ref got) => {
                 write!(fmt, "invalid array key: expected `{}`, got `{}`", want, got)
             }
-            DecoderError::ExpectedField(field_type) => {
-                write!(fmt, "expected a field of type `{}`", field_type)
-            }
+            DecoderError::ExpectedField(field_type) => write!(fmt, "expected a field of type `{}`", field_type),
             DecoderError::UnknownField(ref field) => write!(fmt, "unknown field `{}`", field),
             DecoderError::SyntaxError(ref inner) => inner.fmt(fmt),
             DecoderError::EndOfStream => write!(fmt, "end of stream"),
             DecoderError::InvalidType(ref desc) => desc.fmt(fmt),
-            DecoderError::InvalidLength(ref len, ref desc) => {
-                write!(fmt, "expecting length {}, {}", len, desc)
-            }
+            DecoderError::InvalidLength(ref len, ref desc) => write!(fmt, "expecting length {}, {}", len, desc),
             DecoderError::DuplicatedField(ref field) => write!(fmt, "duplicated field `{}`", field),
             DecoderError::UnknownVariant(ref var) => write!(fmt, "unknown variant `{}`", var),
             DecoderError::InvalidValue(ref desc) => desc.fmt(fmt),
@@ -78,7 +72,7 @@ impl error::Error for DecoderError {
             DecoderError::IoError(ref inner) => inner.description(),
             DecoderError::FromUtf8Error(ref inner) => inner.description(),
             DecoderError::UnrecognizedElementType(_) => "unrecognized element type",
-            DecoderError::InvalidArrayKey(_, _) => "invalid array key",
+            DecoderError::InvalidArrayKey(..) => "invalid array key",
             DecoderError::ExpectedField(_) => "expected a field",
             DecoderError::UnknownField(_) => "found an unknown field",
             DecoderError::SyntaxError(ref inner) => inner,

@@ -1,7 +1,7 @@
-use std::{io, error, fmt};
-use std::fmt::Display;
-use serde::ser;
 use bson::Bson;
+use serde::ser;
+use std::{error, fmt, io};
+use std::fmt::Display;
 
 /// Possible errors that can arise during encoding.
 #[derive(Debug)]
@@ -22,9 +22,7 @@ impl fmt::Display for EncoderError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &EncoderError::IoError(ref inner) => inner.fmt(fmt),
-            &EncoderError::InvalidMapKeyType(ref bson) => {
-                write!(fmt, "Invalid map key type: {:?}", bson)
-            }
+            &EncoderError::InvalidMapKeyType(ref bson) => write!(fmt, "Invalid map key type: {:?}", bson),
             &EncoderError::Unknown(ref inner) => inner.fmt(fmt),
             &EncoderError::UnsupportedUnsignedType => write!(fmt, "BSON does not support unsigned type"),
         }

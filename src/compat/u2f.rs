@@ -1,6 +1,6 @@
 //! Convert unsigned types to/from `Bson::FloatingPoint`
 
-use serde::{Serializer, Deserializer, Deserialize};
+use serde::{Deserialize, Deserializer, Serializer};
 
 /// Converts primitive unsigned types to `f64`
 pub trait ToF64 {

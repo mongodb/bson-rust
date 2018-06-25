@@ -1,7 +1,7 @@
 extern crate serde_json;
 
-use bson::{Bson, Document};
 use self::serde_json::Value;
+use bson::{Bson, Document};
 
 #[test]
 fn to_json() {

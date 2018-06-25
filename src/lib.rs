@@ -28,8 +28,8 @@
 //!
 //! ```rust
 //! extern crate bson;
+//! use bson::{decode_document, encode_document, Bson, Document};
 //! use std::io::Cursor;
-//! use bson::{Bson, Document, encode_document, decode_document};
 //!
 //! fn main() {
 //!     let mut doc = Document::new();
@@ -45,19 +45,19 @@
 extern crate byteorder;
 extern crate chrono;
 extern crate crypto;
+extern crate hex;
+extern crate hostname;
 extern crate libc;
+extern crate linked_hash_map;
 extern crate rand;
 extern crate serde;
 #[macro_use]
 extern crate serde_json;
 extern crate time;
-extern crate linked_hash_map;
-extern crate hostname;
-extern crate hex;
 
-pub use self::bson::{Bson, Document, Array, TimeStamp, UtcDateTime};
-pub use self::encoder::{encode_document, to_bson, Encoder, EncoderResult, EncoderError};
-pub use self::decoder::{decode_document, decode_document_utf8_lossy, from_bson, Decoder, DecoderResult, DecoderError};
+pub use self::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
+pub use self::decoder::{decode_document, from_bson, Decoder, DecoderError, DecoderResult, decode_document_utf8_lossy};
+pub use self::encoder::{encode_document, to_bson, Encoder, EncoderError, EncoderResult};
 pub use self::ordered::{ValueAccessError, ValueAccessResult};
 
 #[macro_use]

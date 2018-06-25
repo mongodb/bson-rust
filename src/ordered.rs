@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 
 use linked_hash_map::{self, LinkedHashMap};
 
-use serde::de::{self, Visitor, MapAccess};
+use serde::de::{self, MapAccess, Visitor};
 
 use bson::{Array, Bson, Document};
 use oid::ObjectId;
@@ -32,9 +32,7 @@ impl Debug for ValueAccessError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             ValueAccessError::NotPresent => write!(f, "ValueAccessError: field is not present"),
-            ValueAccessError::UnexpectedType => {
-                write!(f, "ValueAccessError: field does not have the expected type")
-            }
+            ValueAccessError::UnexpectedType => write!(f, "ValueAccessError: field does not have the expected type"),
         }
     }
 }
@@ -68,21 +66,21 @@ impl Default for OrderedDocument {
 
 impl Display for OrderedDocument {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        try!(write!(fmt, "{{"));
+        write!(fmt, "{{")?;
 
         let mut first = true;
         for (k, v) in self.iter() {
             if first {
                 first = false;
-                try!(write!(fmt, " "));
+                write!(fmt, " ")?;
             } else {
-                try!(write!(fmt, ", "));
+                write!(fmt, ", ")?;
             }
 
-            try!(write!(fmt, "{}: {}", k, v));
+            write!(fmt, "{}: {}", k, v)?;
         }
 
-        try!(write!(fmt, "{}}}", if !first { " " } else { "" }));
+        write!(fmt, "{}}}", if !first { " " } else { "" })?;
         Ok(())
     }
 }
@@ -141,7 +139,7 @@ impl<'a> IntoIterator for &'a OrderedDocument {
     type IntoIter = OrderedDocumentIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIterator { inner: self.inner.iter() }
+        OrderedDocumentIterator { inner: self.inner.iter(), }
     }
 }
 
@@ -172,7 +170,7 @@ impl<'a> Iterator for OrderedDocumentIterator<'a> {
 impl OrderedDocument {
     /// Creates a new empty OrderedDocument.
     pub fn new() -> OrderedDocument {
-        OrderedDocument { inner: LinkedHashMap::new() }
+        OrderedDocument { inner: LinkedHashMap::new(), }
     }
 
     /// Gets an iterator over the entries of the map.
@@ -314,7 +312,7 @@ impl OrderedDocument {
         }
         let first: fn((&'a String, &'a Bson)) -> &'a String = first;
 
-        Keys { inner: self.iter().map(first) }
+        Keys { inner: self.iter().map(first), }
     }
 
     /// Gets a collection of all values in the document.
@@ -324,7 +322,7 @@ impl OrderedDocument {
         }
         let second: fn((&'a String, &'a Bson)) -> &'a Bson = second;
 
-        Values { inner: self.iter().map(second) }
+        Values { inner: self.iter().map(second), }
     }
 
     /// Returns the number of elements in the document.
@@ -356,9 +354,7 @@ impl OrderedDocument {
     }
 
     pub fn entry(&mut self, k: String) -> Entry {
-        Entry {
-            inner: self.inner.entry(k),
-        }
+        Entry { inner: self.inner.entry(k), }
     }
 }
 
@@ -392,7 +388,7 @@ pub struct OrderedDocumentVisitor {
 
 impl OrderedDocumentVisitor {
     pub fn new() -> OrderedDocumentVisitor {
-        OrderedDocumentVisitor { marker: PhantomData }
+        OrderedDocumentVisitor { marker: PhantomData, }
     }
 }
 
@@ -419,7 +415,7 @@ impl<'de> Visitor<'de> for OrderedDocumentVisitor {
             None => LinkedHashMap::new(),
         };
 
-        while let Some((key, value)) = try!(visitor.next_entry()) {
+        while let Some((key, value)) = visitor.next_entry()? {
             inner.insert(key, value);
         }
 

@@ -1,6 +1,6 @@
 use bson::Bson;
-use bson::spec::BinarySubtype;
 use bson::oid::ObjectId;
+use bson::spec::BinarySubtype;
 use chrono::offset::Utc;
 use hex::ToHex;
 
@@ -40,13 +40,13 @@ fn standard_format() {
     };
 
     let expected = format!("{{ float: 2.4, string: \"hello\", array: [\"testing\", 1, true, [1, 2]], doc: {{ \
-                            fish: \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, \
-                            regexp: /s[ao]d/i, with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, \
-                            i64: -55, timestamp: Timestamp(0, 229999444), binary: BinData(5, \
-                            0x{}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}",
-                           "thingies".to_hex(),
-                           id_string.to_hex(),
-                           date);
+                 fish: \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, \
+                 regexp: /s[ao]d/i, with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, \
+                 i64: -55, timestamp: Timestamp(0, 229999444), binary: BinData(5, \
+                 0x{}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}",
+                "thingies".to_hex(),
+                id_string.to_hex(),
+                date);
 
     assert_eq!(expected, format!("{}", doc));
 }
@@ -88,13 +88,13 @@ fn rocket_format() {
     };
 
     let expected = format!("{{ float: 2.4, string: \"hello\", array: [\"testing\", 1, true, [\"nested\", 2]], doc: {{ \
-                            fish: \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, \
-                            regexp: /s[ao]d/i, with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, \
-                            i64: -55, timestamp: Timestamp(0, 229999444), binary: BinData(5, \
-                            0x{}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}",
-                           "thingies".to_hex(),
-                           id_string.to_hex(),
-                           date);
+                 fish: \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, \
+                 regexp: /s[ao]d/i, with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, \
+                 i64: -55, timestamp: Timestamp(0, 229999444), binary: BinData(5, \
+                 0x{}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}",
+                "thingies".to_hex(),
+                id_string.to_hex(),
+                date);
 
     assert_eq!(expected, format!("{}", doc));
 }
@@ -167,7 +167,7 @@ fn recursive_macro() {
                                 Bson::Boolean(ref b) => assert!(!b),
                                 _ => panic!("Boolean 'false' was not inserted into inner array correctly."),
                             }
-                        },
+                        }
                         _ => panic!("Inner array was not inserted correctly."),
                     }
 
@@ -176,10 +176,10 @@ fn recursive_macro() {
                         Some(&Bson::FloatingPoint(ref fp)) => assert_eq!(42.0, *fp),
                         _ => panic!("Floating point 42.0 was not inserted correctly."),
                     }
-                },
+                }
                 _ => panic!("Second inner document was not inserted correctly."),
             }
-        },
+        }
         _ => panic!("Inner document was not inserted correctly."),
     }
 
@@ -193,7 +193,7 @@ fn recursive_macro() {
                 Bson::I32(ref i) => assert_eq!(-7, *i),
                 _ => panic!("I32 '-7' was not inserted correctly."),
             }
-        },
+        }
         _ => panic!("Single-item array was not inserted correctly."),
     }
 
@@ -210,10 +210,10 @@ fn recursive_macro() {
                         Some(&Bson::String(ref s)) => assert_eq!("ripe", s),
                         _ => panic!("String 'ripe' was not inserted correctly."),
                     }
-                },
+                }
                 _ => panic!("Document was not inserted into array correctly."),
             }
-        },
+        }
         _ => panic!("Array was not inserted correctly."),
     }
 
@@ -225,7 +225,7 @@ fn recursive_macro() {
                 Some(&Bson::String(ref s)) => assert_eq!("test", s),
                 _ => panic!("String 'test' was not inserted correctly."),
             }
-        },
+        }
         _ => panic!("Single-item document was not inserted correctly."),
     }
 
