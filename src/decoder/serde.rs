@@ -1,14 +1,16 @@
 use std::fmt;
 use std::vec;
 
-use serde::de::{self, Deserialize, DeserializeSeed, Deserializer, EnumAccess, MapAccess, SeqAccess, VariantAccess,
-                Visitor};
+use serde::de::{
+    self, Deserialize, DeserializeSeed, Deserializer, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor,
+};
 use serde::de::{Error, Unexpected};
 
 use super::error::{DecoderError, DecoderResult};
 use bson::{Bson, TimeStamp, UtcDateTime};
 use oid::ObjectId;
 use ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
+use spec::BinarySubtype;
 
 pub struct BsonVisitor;
 
@@ -176,6 +178,13 @@ impl<'de> Visitor<'de> for BsonVisitor {
         let values = OrderedDocumentVisitor::new().visit_map(visitor)?;
         Ok(Bson::from_extended_document(values.into()))
     }
+
+    #[inline]
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Bson, E>
+        where E: Error
+    {
+        Ok(Bson::Binary(BinarySubtype::Generic, v.to_vec()))
+    }
 }
 
 /// Serde Decoder
@@ -256,6 +265,7 @@ impl<'de> Deserializer<'de> for Decoder {
             Bson::Null => visitor.visit_unit(),
             Bson::I32(v) => visitor.visit_i32(v),
             Bson::I64(v) => visitor.visit_i64(v),
+            Bson::Binary(_, v) => visitor.visit_bytes(&v),
             _ => {
                 let doc = value.to_extended_document();
                 let len = doc.len();
@@ -309,10 +319,8 @@ impl<'de> Deserializer<'de> for Decoder {
         // enums are encoded in json as maps with a single key:value pair
         match iter.next() {
             Some(_) => Err(DecoderError::InvalidType("expected a single key:value pair".to_owned())),
-            None => {
-                visitor.visit_enum(EnumDecoder { val: Bson::String(variant),
-                                                 decoder: VariantDecoder { val: Some(value) }, })
-            }
+            None => visitor.visit_enum(EnumDecoder { val: Bson::String(variant),
+                                                     decoder: VariantDecoder { val: Some(value) }, }),
         }
     }
 

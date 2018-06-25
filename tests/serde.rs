@@ -4,6 +4,7 @@ extern crate chrono;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_bytes;
 
 use bson::{Bson, Decoder, Encoder};
 use serde::{Deserialize, Serialize};
@@ -88,11 +89,10 @@ fn test_ser_datetime() {
     // FIXME: Due to BSON's datetime precision
     let now = now.with_nanosecond(now.nanosecond() / 1000000 * 1000000).unwrap();
 
-    let foo = Foo { date: From::from(now), };
+    let foo = Foo { date: From::from(now) };
 
     let x = bson::to_bson(&foo).unwrap();
-    assert_eq!(x.as_document().unwrap(),
-               &doc! { "date": (Bson::UtcDatetime(now)) });
+    assert_eq!(x.as_document().unwrap(), &doc! { "date": (Bson::UtcDatetime(now)) });
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
@@ -116,21 +116,38 @@ fn test_compat_u2f() {
 
 #[test]
 fn test_byte_vec() {
-    use std::io::Cursor;
-
-    #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+    #[derive(Serialize, Debug, Eq, PartialEq)]
     pub struct AuthChallenge<'a> {
+        #[serde(with = "serde_bytes")]
         pub challenge: &'a [u8],
     }
 
-    let x = AuthChallenge { challenge: b"18762b98b7c34c25bf9dc3154e4a5ca3" };
+    let x = AuthChallenge { challenge: b"18762b98b7c34c25bf9dc3154e4a5ca3", };
 
     let b = bson::to_bson(&x).unwrap();
-    // assert_eq!(b, Bson::Document(doc! { "challenge": (Bson::Binary(bson::spec::BinarySubtype::Generic, x.challenge.clone()))}));
+    assert_eq!(b, Bson::Document(doc! { "challenge": (Bson::Binary(bson::spec::BinarySubtype::Generic, x.challenge.to_vec()))}));
 
     // let mut buf = Vec::new();
     // bson::encode_document(&mut buf, b.as_document().unwrap()).unwrap();
 
     // let xb = bson::decode_document(&mut Cursor::new(buf)).unwrap();
     // assert_eq!(b.as_document().unwrap(), &xb);
+}
+
+#[test]
+fn test_serde_bytes() {
+    #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
+    pub struct Foo {
+        #[serde(with = "serde_bytes")]
+        data: Vec<u8>,
+    }
+
+    let x = Foo { data: b"12345abcde".to_vec(), };
+
+    let b = bson::to_bson(&x).unwrap();
+    assert_eq!(b.as_document().unwrap(),
+               &doc! {"data": Bson::Binary(bson::spec::BinarySubtype::Generic, b"12345abcde".to_vec())});
+
+    let f = bson::from_bson::<Foo>(b).unwrap();
+    assert_eq!(x, f);
 }
