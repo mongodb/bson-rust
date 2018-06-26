@@ -44,7 +44,6 @@
 
 extern crate byteorder;
 extern crate chrono;
-extern crate crypto;
 extern crate hex;
 extern crate hostname;
 extern crate libc;
@@ -53,19 +52,20 @@ extern crate rand;
 extern crate serde;
 #[macro_use]
 extern crate serde_json;
+extern crate md5;
 extern crate time;
 
 pub use self::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
-pub use self::decoder::{decode_document, from_bson, Decoder, DecoderError, DecoderResult, decode_document_utf8_lossy};
+pub use self::decoder::{decode_document, decode_document_utf8_lossy, from_bson, Decoder, DecoderError, DecoderResult};
 pub use self::encoder::{encode_document, to_bson, Encoder, EncoderError, EncoderResult};
 pub use self::ordered::{ValueAccessError, ValueAccessResult};
 
 #[macro_use]
 pub mod macros;
-pub mod oid;
-pub mod spec;
 mod bson;
-mod encoder;
-mod decoder;
-pub mod ordered;
 pub mod compat;
+mod decoder;
+mod encoder;
+pub mod oid;
+pub mod ordered;
+pub mod spec;

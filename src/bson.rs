@@ -24,9 +24,9 @@
 use std::fmt::{self, Debug, Display};
 use std::ops::{Deref, DerefMut};
 
-use chrono::{DateTime, Timelike, Utc};
 use chrono::offset::TimeZone;
-use hex::{FromHex, ToHex};
+use chrono::{DateTime, Timelike, Utc};
+use hex;
 use serde_json::Value;
 
 use oid;
@@ -107,7 +107,7 @@ impl Debug for Bson {
 
                 write!(f, "TimeStamp({}, {})", time, inc)
             }
-            &Bson::Binary(t, ref vec) => write!(f, "BinData({}, 0x{})", u8::from(t), vec.to_hex()),
+            &Bson::Binary(t, ref vec) => write!(f, "BinData({}, 0x{})", u8::from(t), hex::encode(vec)),
             &Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
             &Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
             &Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
@@ -148,7 +148,7 @@ impl Display for Bson {
 
                 write!(fmt, "Timestamp({}, {})", time, inc)
             }
-            &Bson::Binary(t, ref vec) => write!(fmt, "BinData({}, 0x{})", u8::from(t), vec.to_hex()),
+            &Bson::Binary(t, ref vec) => write!(fmt, "BinData({}, 0x{})", u8::from(t), hex::encode(vec)),
             &Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             &Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             &Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
@@ -270,12 +270,11 @@ impl From<DateTime<Utc>> for Bson {
 impl From<Value> for Bson {
     fn from(a: Value) -> Bson {
         match a {
-            Value::Number(x) => {
-                x.as_i64().map(Bson::from)
-                 .or_else(|| x.as_u64().map(Bson::from))
-                 .or_else(|| x.as_f64().map(Bson::from))
-                 .unwrap_or_else(|| panic!("Invalid number value: {}", x))
-            }
+            Value::Number(x) => x.as_i64()
+                                 .map(Bson::from)
+                                 .or_else(|| x.as_u64().map(Bson::from))
+                                 .or_else(|| x.as_f64().map(Bson::from))
+                                 .unwrap_or_else(|| panic!("Invalid number value: {}", x)),
             Value::String(x) => x.into(),
             Value::Bool(x) => x.into(),
             Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from).collect()),
@@ -296,19 +295,15 @@ impl Into<Value> for Bson {
             Bson::Document(v) => json!(v),
             Bson::Boolean(v) => json!(v),
             Bson::Null => Value::Null,
-            Bson::RegExp(pat, opt) => {
-                json!({
+            Bson::RegExp(pat, opt) => json!({
                     "$regex": pat,
                     "$options": opt
-                })
-            }
+                }),
             Bson::JavaScriptCode(code) => json!({ "$code": code }),
-            Bson::JavaScriptCodeWithScope(code, scope) => {
-                json!({
+            Bson::JavaScriptCodeWithScope(code, scope) => json!({
                     "$code": code,
                     "scope": scope
-                })
-            }
+                }),
             Bson::I32(v) => v.into(),
             Bson::I64(v) => v.into(),
             Bson::TimeStamp(v) => {
@@ -323,17 +318,15 @@ impl Into<Value> for Bson {
                 let tval: u8 = From::from(t);
                 json!({
                     "type": tval,
-                    "$binary": v.to_hex()
+                    "$binary": hex::encode(v),
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_string()}),
-            Bson::UtcDatetime(v) => {
-                json!({
+            Bson::UtcDatetime(v) => json!({
                     "$date": {
                         "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
                     }
-                })
-            }
+                }),
             // FIXME: Don't know what is the best way to encode Symbol type
             Bson::Symbol(v) => json!({ "$symbol": v }),
         }
@@ -418,7 +411,7 @@ impl Bson {
             Bson::Binary(t, ref v) => {
                 let tval: u8 = From::from(t);
                 doc! {
-                    "$binary": v.to_hex(),
+                    "$binary": hex::encode(v),
                     "type": tval as i64,
                 }
             }
@@ -460,8 +453,7 @@ impl Bson {
                 return Bson::TimeStamp(timestamp);
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
-                return Bson::Binary(From::from(ttype),
-                                    FromHex::from_hex(hex.as_bytes()).unwrap());
+                return Bson::Binary(From::from(ttype), hex::decode(hex.as_bytes()).expect("$binary value is not a valid Hex encoded bytes"));
             }
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {

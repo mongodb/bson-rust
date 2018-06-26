@@ -1,8 +1,8 @@
-use bson::Bson;
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
+use bson::Bson;
 use chrono::offset::Utc;
-use hex::ToHex;
+use hex;
 
 #[test]
 fn standard_format() {
@@ -44,8 +44,8 @@ fn standard_format() {
                  regexp: /s[ao]d/i, with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, \
                  i64: -55, timestamp: Timestamp(0, 229999444), binary: BinData(5, \
                  0x{}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}",
-                "thingies".to_hex(),
-                id_string.to_hex(),
+                hex::encode("thingies"),
+                hex::encode(id_string),
                 date);
 
     assert_eq!(expected, format!("{}", doc));
@@ -92,8 +92,8 @@ fn rocket_format() {
                  regexp: /s[ao]d/i, with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, \
                  i64: -55, timestamp: Timestamp(0, 229999444), binary: BinData(5, \
                  0x{}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}",
-                "thingies".to_hex(),
-                id_string.to_hex(),
+                hex::encode("thingies"),
+                hex::encode(id_string),
                 date);
 
     assert_eq!(expected, format!("{}", doc));

@@ -2,16 +2,15 @@
 
 use libc;
 
-use std::{error, fmt, io, result};
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::{error, fmt, io, result};
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use crypto::digest::Digest;
-use crypto::md5::Md5;
+use md5;
 
-use hex::{FromHex, FromHexError, ToHex};
+use hex::{self, FromHexError};
 
-use rand::{OsRng, Rng};
+use rand::{thread_rng, Rng};
 
 use hostname::get_hostname;
 use time;
@@ -126,7 +125,7 @@ impl ObjectId {
 
     /// Creates an ObjectID using a 12-byte (24-char) hexadecimal string.
     pub fn with_string(s: &str) -> Result<ObjectId> {
-        let bytes: Vec<u8> = FromHex::from_hex(s.as_bytes())?;
+        let bytes: Vec<u8> = hex::decode(s.as_bytes())?;
         if bytes.len() != 12 {
             Err(Error::ArgumentError("Provided string must be a 12-byte hexadecimal string.".to_owned()))
         } else {
@@ -182,7 +181,7 @@ impl ObjectId {
 
     /// Convert the objectId to hex representation.
     pub fn to_hex(&self) -> String {
-        self.id.to_hex()
+        hex::encode(self.id)
     }
 
     // Generates a new timestamp representing the current seconds since epoch.
@@ -214,9 +213,8 @@ impl ObjectId {
         }
 
         // Hash hostname string
-        let mut md5 = Md5::new();
-        md5.input_str(hostname.unwrap().as_str());
-        let hash = md5.result_str();
+        let digest = md5::compute(hostname.unwrap().as_str());
+        let hash = format!("{:x}", digest);
 
         // Re-convert string to bytes and grab first three
         let mut bytes = hash.bytes();
@@ -246,8 +244,7 @@ impl ObjectId {
     fn gen_count() -> Result<[u8; 3]> {
         // Init oid counter
         if OID_COUNTER.load(Ordering::SeqCst) == 0 {
-            let mut rng = OsRng::new()?;
-            let start = rng.gen_range(0, MAX_U24 + 1);
+            let start = thread_rng().gen_range(0, MAX_U24 + 1);
             OID_COUNTER.store(start, Ordering::SeqCst);
         }
 

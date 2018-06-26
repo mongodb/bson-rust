@@ -1,6 +1,6 @@
 [package]
 name = "bson"
-version = "0.11.1"
+version = "0.12.0"
 authors = [
     "Y. T. Chung <zonyitoo@gmail.com>",
     "Kevin Yeh <kevinyeah@utexas.edu>"
@@ -15,17 +15,17 @@ documentation = "https://docs.rs/crate/bson"
 name = "bson"
 
 [dependencies]
-byteorder = "1.0"
+byteorder = "1"
 chrono = "0.4"
 libc = "0.2"
-rand = "0.3"
-rust-crypto = "0.2"
+rand = "0.5"
 serde = "1.0"
-serde_json = { version = "1.0.0", features = ["preserve_order"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
 time = "0.1"
 linked-hash-map = "0.5"
-hostname = "^0.1"
-hex = "^0.2"
+hostname = "0.1"
+hex = "0.3"
+md5 = "0.3"
 
 [dev-dependencies]
 serde_derive = "1.0"
