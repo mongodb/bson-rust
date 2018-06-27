@@ -30,8 +30,8 @@ pub use self::serde::Decoder;
 use std::io::Read;
 
 use byteorder::{LittleEndian, ReadBytesExt};
+use chrono::offset::{LocalResult, TimeZone};
 use chrono::Utc;
-use chrono::offset::TimeZone;
 
 use bson::{Array, Bson, Document};
 use oid;
@@ -199,7 +199,12 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
         Some(TimeStamp) => read_i64(reader).map(Bson::TimeStamp),
         Some(UtcDatetime) => {
             let time = read_i64(reader)?;
-            Ok(Bson::UtcDatetime(Utc.timestamp(time / 1000, (time % 1000) as u32 * 1000000)))
+
+            match Utc.timestamp_opt(time / 1000, (time % 1000) as u32 * 1000000) {
+                LocalResult::None => Err(DecoderError::InvalidTimestamp(time)),
+                LocalResult::Ambiguous(..) => Err(DecoderError::AmbiguousTimestamp(time)),
+                LocalResult::Single(t) => Ok(Bson::UtcDatetime(t)),
+            }
         }
         Some(Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol),
         Some(Undefined) | Some(DbPointer) | Some(MaxKey) | Some(MinKey) | None => {

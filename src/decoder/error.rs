@@ -1,5 +1,5 @@
-use std::{error, fmt, io, string};
 use std::fmt::Display;
+use std::{error, fmt, io, string};
 
 use serde::de::{self, Expected, Unexpected};
 
@@ -28,6 +28,11 @@ pub enum DecoderError {
     UnknownVariant(String),
     // Invalid value
     InvalidValue(String),
+    // Invalid timestamp
+    InvalidTimestamp(i64),
+    // Ambiguous timestamp
+    AmbiguousTimestamp(i64),
+
     Unknown(String),
 }
 
@@ -62,6 +67,8 @@ impl fmt::Display for DecoderError {
             DecoderError::UnknownVariant(ref var) => write!(fmt, "unknown variant `{}`", var),
             DecoderError::InvalidValue(ref desc) => desc.fmt(fmt),
             DecoderError::Unknown(ref inner) => inner.fmt(fmt),
+            DecoderError::InvalidTimestamp(ref i) => write!(fmt, "no such local time {}", i),
+            DecoderError::AmbiguousTimestamp(ref i) => write!(fmt, "ambiguous local time {}", i),
         }
     }
 }
@@ -83,6 +90,8 @@ impl error::Error for DecoderError {
             DecoderError::UnknownVariant(_) => "unknown variant",
             DecoderError::InvalidValue(ref desc) => desc,
             DecoderError::Unknown(ref inner) => inner,
+            DecoderError::InvalidTimestamp(..) => "no such local time",
+            DecoderError::AmbiguousTimestamp(..) => "ambiguous local time",
         }
     }
     fn cause(&self) -> Option<&error::Error> {
