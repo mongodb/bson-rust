@@ -42,6 +42,11 @@ use serde::de::Deserialize;
 fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderResult<String> {
     let len = reader.read_i32::<LittleEndian>()?;
 
+    // UTF-8 String must have at least 1 byte (the last 0x00).
+    if len < 1 {
+        return Err(DecoderError::InvalidLength(len as usize, format!("invalid length {} for UTF-8 string", len)));
+    }
+
     let s = if utf8_lossy {
         let mut buf = Vec::with_capacity(len as usize - 1);
         reader.take(len as u64 - 1).read_to_end(&mut buf)?;
