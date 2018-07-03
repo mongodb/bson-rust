@@ -1,9 +1,10 @@
-use bson::{decode_document, encode_document, Bson, decode_document_utf8_lossy};
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
-use chrono::Utc;
+use bson::{decode_document, decode_document_utf8_lossy, encode_document, Bson};
+use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::offset::TimeZone;
-use std::io::Cursor;
+use chrono::Utc;
+use std::io::{Cursor, Write};
 
 #[test]
 fn test_encode_decode_floating_point() {
@@ -276,4 +277,22 @@ fn test_encode_decode_symbol() {
 
     let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
+}
+
+#[test]
+fn test_decode_utc_date_time_overflows() {
+    let t = 1530492218 * 1_000 + 999;
+
+    let mut raw0 = vec![0x09, b'A', 0x00];
+    raw0.write_i64::<LittleEndian>(t).unwrap();
+
+    let mut raw = vec![];
+    raw.write_i32::<LittleEndian>((raw0.len() + 4 + 1) as i32).unwrap();
+    raw.write_all(&raw0).unwrap();
+    raw.write_u8(0).unwrap();
+
+    let decoded = decode_document(&mut Cursor::new(raw)).unwrap();
+
+    let expected = doc! { "A" => Utc.timestamp(1530492218, 999 * 1_000_000)};
+    assert_eq!(decoded, expected);
 }
