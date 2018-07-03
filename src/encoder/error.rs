@@ -10,6 +10,7 @@ pub enum EncoderError {
     InvalidMapKeyType(Bson),
     Unknown(String),
     UnsupportedUnsignedType,
+    UnsignedTypesValueExceedsRange(u64),
 }
 
 impl From<io::Error> for EncoderError {
@@ -25,6 +26,14 @@ impl fmt::Display for EncoderError {
             &EncoderError::InvalidMapKeyType(ref bson) => write!(fmt, "Invalid map key type: {:?}", bson),
             &EncoderError::Unknown(ref inner) => inner.fmt(fmt),
             &EncoderError::UnsupportedUnsignedType => write!(fmt, "BSON does not support unsigned type"),
+            &EncoderError::UnsignedTypesValueExceedsRange(value) => {
+                write!(
+                    fmt,
+                    "BSON does not support unsigned types.
+                     An attempt to encode the value: {} in a signed type failed due to the values size.",
+                    value
+                )
+            },
         }
     }
 }
@@ -36,6 +45,8 @@ impl error::Error for EncoderError {
             &EncoderError::InvalidMapKeyType(_) => "Invalid map key type",
             &EncoderError::Unknown(ref inner) => inner,
             &EncoderError::UnsupportedUnsignedType => "BSON does not support unsigned type",
+            &EncoderError::UnsignedTypesValueExceedsRange(_) => "BSON does not support unsigned types.
+                 An attempt to encode the value: {} in a signed type failed due to the values size."
         }
     }
     fn cause(&self) -> Option<&error::Error> {

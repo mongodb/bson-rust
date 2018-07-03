@@ -15,4 +15,5 @@ sudo: false
 script:
     - cargo build -v
     - cargo test -v --no-fail-fast
+    - cargo test -v --no-fail-fast --features u2i
     - cd serde-tests && cargo test -v --no-fail-fast
