@@ -206,7 +206,11 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
             // The int64 is UTC milliseconds since the Unix epoch.
             let time = read_i64(reader)?;
 
-            match Utc.timestamp_opt(time / 1000, ((time % 1000) as u32) * 1_000_000) {
+            let sec = time / 1000;
+            let tmp_msec = time % 1000;
+            let msec = if tmp_msec < 0 { 1000 - tmp_msec } else { tmp_msec };
+
+            match Utc.timestamp_opt(sec, (msec as u32) * 1_000_000) {
                 LocalResult::None => Err(DecoderError::InvalidTimestamp(time)),
                 LocalResult::Ambiguous(..) => Err(DecoderError::AmbiguousTimestamp(time)),
                 LocalResult::Single(t) => Ok(Bson::UtcDatetime(t)),
