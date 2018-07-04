@@ -11,6 +11,12 @@ readme = "README.md"
 homepage = "https://github.com/zonyitoo/bson-rs"
 documentation = "https://docs.rs/crate/bson"
 
+[features]
+# no features by default
+default = []
+# attempt to encode unsigned types in signed types
+u2i = []
+
 [lib]
 name = "bson"
 
@@ -26,7 +32,9 @@ linked-hash-map = "0.5"
 hostname = "0.1"
 hex = "0.3"
 md5 = "0.3"
+try_from = "0.2"
 
 [dev-dependencies]
+assert_matches = "1.2"
 serde_derive = "1.0"
 serde_bytes = "0.10"

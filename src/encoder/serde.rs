@@ -3,6 +3,7 @@ use serde::ser::{Serialize, SerializeMap, SerializeSeq, SerializeStruct, Seriali
 
 use bson::{Array, Bson, Document, UtcDateTime};
 use oid::ObjectId;
+use try_from::TryFrom;
 
 use super::{to_bson, EncoderError, EncoderResult};
 
@@ -88,8 +89,12 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn serialize_u8(self, _value: u8) -> EncoderResult<Bson> {
-        Err(EncoderError::UnsupportedUnsignedType)
+    fn serialize_u8(self, value: u8) -> EncoderResult<Bson> {
+        if cfg!(feature = "u2i") {
+            Ok(Bson::I32(value as i32))
+        } else {
+            Err(EncoderError::UnsupportedUnsignedType)
+        }
     }
 
     #[inline]
@@ -98,8 +103,12 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn serialize_u16(self, _value: u16) -> EncoderResult<Bson> {
-        Err(EncoderError::UnsupportedUnsignedType)
+    fn serialize_u16(self, value: u16) -> EncoderResult<Bson> {
+        if cfg!(feature = "u2i") {
+            Ok(Bson::I32(value as i32))
+        } else {
+            Err(EncoderError::UnsupportedUnsignedType)
+        }
     }
 
     #[inline]
@@ -108,8 +117,12 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn serialize_u32(self, _value: u32) -> EncoderResult<Bson> {
-        Err(EncoderError::UnsupportedUnsignedType)
+    fn serialize_u32(self, value: u32) -> EncoderResult<Bson> {
+        if cfg!(feature = "u2i") {
+            Ok(Bson::I64(value as i64))
+        } else {
+            Err(EncoderError::UnsupportedUnsignedType)
+        }
     }
 
     #[inline]
@@ -118,8 +131,15 @@ impl Serializer for Encoder {
     }
 
     #[inline]
-    fn serialize_u64(self, _value: u64) -> EncoderResult<Bson> {
-        Err(EncoderError::UnsupportedUnsignedType)
+    fn serialize_u64(self, value: u64) -> EncoderResult<Bson> {
+        if cfg!(feature = "u2i") {
+            match i64::try_from(value) {
+                Ok(ivalue) => Ok(Bson::I64(ivalue)),
+                Err(_) => Err(EncoderError::UnsignedTypesValueExceedsRange(value)),
+            }
+        } else {
+            Err(EncoderError::UnsupportedUnsignedType)
+        }
     }
 
     #[inline]
