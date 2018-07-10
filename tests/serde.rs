@@ -69,7 +69,7 @@ fn test_de_timestamp() {
     }
 
     let foo: Foo = bson::from_bson(Bson::Document(doc! {
-        "ts": Bson::TimeStamp(0x0A00_0000_0C00_0000),
+        "ts": Bson::TimeStamp(0x0000_000C_0000_000A),
     })).unwrap();
 
     assert_eq!(foo.ts, TimeStamp { t: 12, i: 10 });
