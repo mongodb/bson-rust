@@ -63,7 +63,7 @@ Deserialize the struct:
 
 ```rust
 // Read the document from a MongoDB collection
-let person_document = mongoCollection.find_one(Some(doc! { "_id": "12345" }), None)?
+let person_document = mongoCollection.find_one(Some(doc! { "_id":  bson::oid::ObjectId::with_string("12345") }), None)?
     .expect("Document not found");
 
 // Deserialize the document into a Person instance
