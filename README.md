@@ -33,7 +33,7 @@ Prepare your struct for Serde serialization:
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Person {
     #[serde(rename = "_id")]  // Use MongoDB's special primary key field name when serializing 
-    pub id: String,
+    pub id: bson::oid::ObjectId,
     pub name: String,
     pub age: i32
 }
@@ -63,7 +63,7 @@ Deserialize the struct:
 
 ```rust
 // Read the document from a MongoDB collection
-let person_document = mongoCollection.find_one(Some(doc! { "_id":  bson::oid::ObjectId::with_string("12345") }), None)?
+let person_document = mongoCollection.find_one(Some(doc! { "_id":  bson::oid::ObjectId::with_string("12345").expect("Id not valid") }), None)?
     .expect("Document not found");
 
 // Deserialize the document into a Person instance
