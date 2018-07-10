@@ -60,6 +60,24 @@ fn test_de_map() {
 }
 
 #[test]
+fn test_ser_timestamp() {
+    use bson::TimeStamp;
+
+    #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
+    struct Foo {
+        ts: TimeStamp,
+    }
+
+    let foo = Foo { ts: TimeStamp { t: 12, i: 10 } };
+
+    let x = bson::to_bson(&foo).unwrap();
+    assert_eq!(x.as_document().unwrap(), &doc! { "ts": Bson::TimeStamp(0x0000_000C_0000_000A) });
+
+    let xfoo: Foo = bson::from_bson(x).unwrap();
+    assert_eq!(xfoo, foo);
+}
+
+#[test]
 fn test_de_timestamp() {
     use bson::TimeStamp;
 
