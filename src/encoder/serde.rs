@@ -1,7 +1,7 @@
 use serde::ser::{Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
                  SerializeTupleStruct, SerializeTupleVariant, Serializer};
 
-use bson::{Array, Bson, Document, UtcDateTime};
+use bson::{Array, Bson, Document, UtcDateTime, TimeStamp};
 use oid::ObjectId;
 use try_from::TryFrom;
 
@@ -432,6 +432,17 @@ impl SerializeStructVariant for StructVariantSerializer {
         struct_variant.insert(self.name, var);
 
         Ok(Bson::Document(struct_variant))
+    }
+}
+
+impl Serialize for TimeStamp {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        let ts = ((self.t.to_le() as u64) << 32) | (self.i.to_le() as u64);
+        let doc = Bson::TimeStamp(ts as i64);
+        doc.serialize(serializer)
     }
 }
 
