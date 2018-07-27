@@ -56,31 +56,31 @@ pub type Result<T> = result::Result<T, Error>;
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Error::ArgumentError(ref inner) => inner.fmt(fmt),
-            &Error::FromHexError(ref inner) => inner.fmt(fmt),
-            &Error::IoError(ref inner) => inner.fmt(fmt),
-            &Error::HostnameError => write!(fmt, "Failed to retrieve hostname for OID generation."),
+        match *self {
+            Error::ArgumentError(ref inner) => inner.fmt(fmt),
+            Error::FromHexError(ref inner) => inner.fmt(fmt),
+            Error::IoError(ref inner) => inner.fmt(fmt),
+            Error::HostnameError => fmt.write_str("Failed to retrieve hostname for OID generation."),
         }
     }
 }
 
 impl error::Error for Error {
     fn description(&self) -> &str {
-        match self {
-            &Error::ArgumentError(ref inner) => &inner,
-            &Error::FromHexError(ref inner) => inner.description(),
-            &Error::IoError(ref inner) => inner.description(),
-            &Error::HostnameError => "Failed to retrieve hostname for OID generation.",
+        match *self {
+            Error::ArgumentError(ref inner) => &inner,
+            Error::FromHexError(ref inner) => inner.description(),
+            Error::IoError(ref inner) => inner.description(),
+            Error::HostnameError => "Failed to retrieve hostname for OID generation.",
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        match self {
-            &Error::ArgumentError(_) => None,
-            &Error::FromHexError(ref inner) => Some(inner),
-            &Error::IoError(ref inner) => Some(inner),
-            &Error::HostnameError => None,
+        match *self {
+            Error::ArgumentError(_) => None,
+            Error::FromHexError(ref inner) => Some(inner),
+            Error::IoError(ref inner) => Some(inner),
+            Error::HostnameError => None,
         }
     }
 }

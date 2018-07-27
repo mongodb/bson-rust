@@ -115,7 +115,7 @@ impl ElementType {
 }
 
 /// The available binary subtypes, plus a user-defined slot.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum BinarySubtype {
     Generic,
     Function,

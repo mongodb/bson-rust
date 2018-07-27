@@ -60,7 +60,7 @@ impl fmt::Display for DecoderError {
             DecoderError::ExpectedField(field_type) => write!(fmt, "expected a field of type `{}`", field_type),
             DecoderError::UnknownField(ref field) => write!(fmt, "unknown field `{}`", field),
             DecoderError::SyntaxError(ref inner) => inner.fmt(fmt),
-            DecoderError::EndOfStream => write!(fmt, "end of stream"),
+            DecoderError::EndOfStream => fmt.write_str("end of stream"),
             DecoderError::InvalidType(ref desc) => desc.fmt(fmt),
             DecoderError::InvalidLength(ref len, ref desc) => write!(fmt, "expecting length {}, {}", len, desc),
             DecoderError::DuplicatedField(ref field) => write!(fmt, "duplicated field `{}`", field),

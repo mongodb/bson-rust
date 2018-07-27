@@ -21,34 +21,33 @@ impl From<io::Error> for EncoderError {
 
 impl fmt::Display for EncoderError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &EncoderError::IoError(ref inner) => inner.fmt(fmt),
-            &EncoderError::InvalidMapKeyType(ref bson) => write!(fmt, "Invalid map key type: {:?}", bson),
-            &EncoderError::Unknown(ref inner) => inner.fmt(fmt),
-            &EncoderError::UnsupportedUnsignedType => write!(fmt, "BSON does not support unsigned type"),
-            &EncoderError::UnsignedTypesValueExceedsRange(value) => {
-                write!(
-                    fmt,
-                    "BSON does not support unsigned types.
-                     An attempt to encode the value: {} in a signed type failed due to the values size.",
-                    value
-                )
-            },
+        match *self {
+            EncoderError::IoError(ref inner) => inner.fmt(fmt),
+            EncoderError::InvalidMapKeyType(ref bson) => write!(fmt, "Invalid map key type: {:?}", bson),
+            EncoderError::Unknown(ref inner) => inner.fmt(fmt),
+            EncoderError::UnsupportedUnsignedType => fmt.write_str("BSON does not support unsigned type"),
+            EncoderError::UnsignedTypesValueExceedsRange(value) => write!(
+                fmt,
+                "BSON does not support unsigned types.
+                 An attempt to encode the value: {} in a signed type failed due to the value's size.",
+                value
+            ),
         }
     }
 }
 
 impl error::Error for EncoderError {
     fn description(&self) -> &str {
-        match self {
-            &EncoderError::IoError(ref inner) => inner.description(),
-            &EncoderError::InvalidMapKeyType(_) => "Invalid map key type",
-            &EncoderError::Unknown(ref inner) => inner,
-            &EncoderError::UnsupportedUnsignedType => "BSON does not support unsigned type",
-            &EncoderError::UnsignedTypesValueExceedsRange(_) => "BSON does not support unsigned types.
+        match *self {
+            EncoderError::IoError(ref inner) => inner.description(),
+            EncoderError::InvalidMapKeyType(_) => "Invalid map key type",
+            EncoderError::Unknown(ref inner) => inner,
+            EncoderError::UnsupportedUnsignedType => "BSON does not support unsigned type",
+            EncoderError::UnsignedTypesValueExceedsRange(_) => "BSON does not support unsigned types.
                  An attempt to encode the value: {} in a signed type failed due to the values size."
         }
     }
+
     fn cause(&self) -> Option<&error::Error> {
         match self {
             &EncoderError::IoError(ref inner) => Some(inner),

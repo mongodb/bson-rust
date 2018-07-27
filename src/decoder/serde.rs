@@ -58,7 +58,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     type Value = Bson;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "expecting a Bson")
+        f.write_str("expecting a Bson")
     }
 
     #[inline]
