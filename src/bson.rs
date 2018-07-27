@@ -87,71 +87,71 @@ impl Default for Bson {
 
 impl Debug for Bson {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Bson::FloatingPoint(p) => write!(f, "FloatingPoint({:?})", p),
-            &Bson::String(ref s) => write!(f, "String({:?})", s),
-            &Bson::Array(ref vec) => write!(f, "Array({:?})", vec),
-            &Bson::Document(ref doc) => write!(f, "Document({:?})", doc),
-            &Bson::Boolean(b) => write!(f, "Boolean({:?})", b),
-            &Bson::Null => write!(f, "Null"),
-            &Bson::RegExp(ref pat, ref opt) => write!(f, "RegExp(/{:?}/{:?})", pat, opt),
-            &Bson::JavaScriptCode(ref s) => write!(f, "JavaScriptCode({:?})", s),
-            &Bson::JavaScriptCodeWithScope(ref s, ref scope) => {
+        match *self {
+            Bson::FloatingPoint(p) => write!(f, "FloatingPoint({:?})", p),
+            Bson::String(ref s) => write!(f, "String({:?})", s),
+            Bson::Array(ref vec) => write!(f, "Array({:?})", vec),
+            Bson::Document(ref doc) => write!(f, "Document({:?})", doc),
+            Bson::Boolean(b) => write!(f, "Boolean({:?})", b),
+            Bson::Null => write!(f, "Null"),
+            Bson::RegExp(ref pat, ref opt) => write!(f, "RegExp(/{:?}/{:?})", pat, opt),
+            Bson::JavaScriptCode(ref s) => write!(f, "JavaScriptCode({:?})", s),
+            Bson::JavaScriptCodeWithScope(ref s, ref scope) => {
                 write!(f, "JavaScriptCodeWithScope({:?}, {:?})", s, scope)
             }
-            &Bson::I32(v) => write!(f, "I32({:?})", v),
-            &Bson::I64(v) => write!(f, "I64({:?})", v),
-            &Bson::TimeStamp(i) => {
+            Bson::I32(v) => write!(f, "I32({:?})", v),
+            Bson::I64(v) => write!(f, "I64({:?})", v),
+            Bson::TimeStamp(i) => {
                 let time = (i >> 32) as i32;
                 let inc = (i & 0xFFFFFFFF) as i32;
 
                 write!(f, "TimeStamp({}, {})", time, inc)
             }
-            &Bson::Binary(t, ref vec) => write!(f, "BinData({}, 0x{})", u8::from(t), hex::encode(vec)),
-            &Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
-            &Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
-            &Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
+            Bson::Binary(t, ref vec) => write!(f, "BinData({}, 0x{})", u8::from(t), hex::encode(vec)),
+            Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
+            Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
+            Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
         }
     }
 }
 
 impl Display for Bson {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Bson::FloatingPoint(f) => write!(fmt, "{}", f),
-            &Bson::String(ref s) => write!(fmt, "\"{}\"", s),
-            &Bson::Array(ref vec) => {
-                write!(fmt, "[")?;
+        match *self {
+            Bson::FloatingPoint(f) => write!(fmt, "{}", f),
+            Bson::String(ref s) => write!(fmt, "\"{}\"", s),
+            Bson::Array(ref vec) => {
+                fmt.write_str("[")?;
 
                 let mut first = true;
-                for bson in vec.iter() {
+                for bson in vec {
                     if !first {
-                        write!(fmt, ", ")?;
+                        fmt.write_str(", ")?;
                     }
 
                     write!(fmt, "{}", bson)?;
                     first = false;
                 }
 
-                write!(fmt, "]")
+                fmt.write_str("]")
             }
-            &Bson::Document(ref doc) => write!(fmt, "{}", doc),
-            &Bson::Boolean(b) => write!(fmt, "{}", b),
-            &Bson::Null => write!(fmt, "null"),
-            &Bson::RegExp(ref pat, ref opt) => write!(fmt, "/{}/{}", pat, opt),
-            &Bson::JavaScriptCode(ref s) | &Bson::JavaScriptCodeWithScope(ref s, _) => fmt.write_str(&s),
-            &Bson::I32(i) => write!(fmt, "{}", i),
-            &Bson::I64(i) => write!(fmt, "{}", i),
-            &Bson::TimeStamp(i) => {
+            Bson::Document(ref doc) => write!(fmt, "{}", doc),
+            Bson::Boolean(b) => write!(fmt, "{}", b),
+            Bson::Null => write!(fmt, "null"),
+            Bson::RegExp(ref pat, ref opt) => write!(fmt, "/{}/{}", pat, opt),
+            Bson::JavaScriptCode(ref s) | Bson::JavaScriptCodeWithScope(ref s, _) => fmt.write_str(&s),
+            Bson::I32(i) => write!(fmt, "{}", i),
+            Bson::I64(i) => write!(fmt, "{}", i),
+            Bson::TimeStamp(i) => {
                 let time = (i >> 32) as i32;
                 let inc = (i & 0xFFFFFFFF) as i32;
 
                 write!(fmt, "Timestamp({}, {})", time, inc)
             }
-            &Bson::Binary(t, ref vec) => write!(fmt, "BinData({}, 0x{})", u8::from(t), hex::encode(vec)),
-            &Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
-            &Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
-            &Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
+            Bson::Binary(t, ref vec) => write!(fmt, "BinData({}, 0x{})", u8::from(t), hex::encode(vec)),
+            Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
+            Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
+            Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
         }
     }
 }
@@ -205,23 +205,20 @@ impl From<bool> for Bson {
 }
 
 impl From<(String, String)> for Bson {
-    fn from(a: (String, String)) -> Bson {
-        let (a1, a2) = a;
-        Bson::RegExp(a1.to_owned(), a2.to_owned())
+    fn from((pat, opt): (String, String)) -> Bson {
+        Bson::RegExp(pat, opt)
     }
 }
 
 impl From<(String, Document)> for Bson {
-    fn from(a: (String, Document)) -> Bson {
-        let (a1, a2) = a;
-        Bson::JavaScriptCodeWithScope(a1, a2)
+    fn from((code, scope): (String, Document)) -> Bson {
+        Bson::JavaScriptCodeWithScope(code, scope)
     }
 }
 
 impl From<(BinarySubtype, Vec<u8>)> for Bson {
-    fn from(a: (BinarySubtype, Vec<u8>)) -> Bson {
-        let (a1, a2) = a;
-        Bson::Binary(a1, a2)
+    fn from((ty, data): (BinarySubtype, Vec<u8>)) -> Bson {
+        Bson::Binary(ty, data)
     }
 }
 
@@ -257,7 +254,7 @@ impl From<[u8; 12]> for Bson {
 
 impl From<oid::ObjectId> for Bson {
     fn from(a: oid::ObjectId) -> Bson {
-        Bson::ObjectId(a.to_owned())
+        Bson::ObjectId(a)
     }
 }
 
@@ -279,16 +276,16 @@ impl From<Value> for Bson {
             Value::Bool(x) => x.into(),
             Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from).collect()),
             Value::Object(x) => {
-                Bson::from_extended_document(x.into_iter().map(|(k, v)| (k.clone(), v.into())).collect())
+                Bson::from_extended_document(x.into_iter().map(|(k, v)| (k, v.into())).collect())
             }
             Value::Null => Bson::Null,
         }
     }
 }
 
-impl Into<Value> for Bson {
-    fn into(self) -> Value {
-        match self {
+impl From<Bson> for Value {
+    fn from(bson: Bson) -> Self {
+        match bson {
             Bson::FloatingPoint(v) => json!(v),
             Bson::String(v) => json!(v),
             Bson::Array(v) => json!(v),
@@ -336,23 +333,23 @@ impl Into<Value> for Bson {
 impl Bson {
     /// Get the `ElementType` of this value.
     pub fn element_type(&self) -> ElementType {
-        match self {
-            &Bson::FloatingPoint(..) => ElementType::FloatingPoint,
-            &Bson::String(..) => ElementType::Utf8String,
-            &Bson::Array(..) => ElementType::Array,
-            &Bson::Document(..) => ElementType::EmbeddedDocument,
-            &Bson::Boolean(..) => ElementType::Boolean,
-            &Bson::Null => ElementType::NullValue,
-            &Bson::RegExp(..) => ElementType::RegularExpression,
-            &Bson::JavaScriptCode(..) => ElementType::JavaScriptCode,
-            &Bson::JavaScriptCodeWithScope(..) => ElementType::JavaScriptCodeWithScope,
-            &Bson::I32(..) => ElementType::Integer32Bit,
-            &Bson::I64(..) => ElementType::Integer64Bit,
-            &Bson::TimeStamp(..) => ElementType::TimeStamp,
-            &Bson::Binary(..) => ElementType::Binary,
-            &Bson::ObjectId(..) => ElementType::ObjectId,
-            &Bson::UtcDatetime(..) => ElementType::UtcDatetime,
-            &Bson::Symbol(..) => ElementType::Symbol,
+        match *self {
+            Bson::FloatingPoint(..) => ElementType::FloatingPoint,
+            Bson::String(..) => ElementType::Utf8String,
+            Bson::Array(..) => ElementType::Array,
+            Bson::Document(..) => ElementType::EmbeddedDocument,
+            Bson::Boolean(..) => ElementType::Boolean,
+            Bson::Null => ElementType::NullValue,
+            Bson::RegExp(..) => ElementType::RegularExpression,
+            Bson::JavaScriptCode(..) => ElementType::JavaScriptCode,
+            Bson::JavaScriptCodeWithScope(..) => ElementType::JavaScriptCodeWithScope,
+            Bson::I32(..) => ElementType::Integer32Bit,
+            Bson::I64(..) => ElementType::Integer64Bit,
+            Bson::TimeStamp(..) => ElementType::TimeStamp,
+            Bson::Binary(..) => ElementType::Binary,
+            Bson::ObjectId(..) => ElementType::ObjectId,
+            Bson::UtcDatetime(..) => ElementType::UtcDatetime,
+            Bson::Symbol(..) => ElementType::Symbol,
         }
     }
 
@@ -437,7 +434,7 @@ impl Bson {
     }
 
     /// Converts from extended format.
-    /// This function mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    /// This function is mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
     #[doc(hidden)]
     pub fn from_extended_document(values: Document) -> Bson {
         if values.len() == 2 {
@@ -478,7 +475,7 @@ impl Bson {
     /// If `Bson` is `FloatingPoint`, return its value. Returns `None` otherwise
     pub fn as_f64(&self) -> Option<f64> {
         match *self {
-            Bson::FloatingPoint(ref v) => Some(*v),
+            Bson::FloatingPoint(v) => Some(v),
             _ => None,
         }
     }
@@ -510,7 +507,7 @@ impl Bson {
     /// If `Bson` is `Boolean`, return its value. Returns `None` otherwise
     pub fn as_bool(&self) -> Option<bool> {
         match *self {
-            Bson::Boolean(ref v) => Some(*v),
+            Bson::Boolean(v) => Some(v),
             _ => None,
         }
     }
@@ -518,7 +515,7 @@ impl Bson {
     /// If `Bson` is `I32`, return its value. Returns `None` otherwise
     pub fn as_i32(&self) -> Option<i32> {
         match *self {
-            Bson::I32(ref v) => Some(*v),
+            Bson::I32(v) => Some(v),
             _ => None,
         }
     }
@@ -526,7 +523,7 @@ impl Bson {
     /// If `Bson` is `I64`, return its value. Returns `None` otherwise
     pub fn as_i64(&self) -> Option<i64> {
         match *self {
-            Bson::I64(ref v) => Some(*v),
+            Bson::I64(v) => Some(v),
             _ => None,
         }
     }
@@ -558,7 +555,7 @@ impl Bson {
     /// If `Bson` is `TimeStamp`, return its value. Returns `None` otherwise
     pub fn as_timestamp(&self) -> Option<i64> {
         match *self {
-            Bson::TimeStamp(ref v) => Some(*v),
+            Bson::TimeStamp(v) => Some(v),
             _ => None,
         }
     }
@@ -587,7 +584,7 @@ impl Bson {
 ///     timestamp: TimeStamp,
 /// }
 /// ```
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub struct TimeStamp {
     pub t: u32,
     pub i: u32,

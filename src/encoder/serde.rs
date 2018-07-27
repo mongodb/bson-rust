@@ -13,8 +13,7 @@ impl Serialize for ObjectId {
         where S: Serializer
     {
         let mut ser = serializer.serialize_map(Some(1))?;
-        ser.serialize_key("$oid")?;
-        ser.serialize_value(&self.to_string())?;
+        ser.serialize_entry("$oid", &self.to_string())?;
         ser.end()
     }
 }
@@ -26,8 +25,7 @@ impl Serialize for Document {
     {
         let mut state = serializer.serialize_map(Some(self.len()))?;
         for (k, v) in self {
-            state.serialize_key(k)?;
-            state.serialize_value(v)?;
+            state.serialize_entry(k, v)?;
         }
         state.end()
     }
@@ -381,7 +379,7 @@ impl SerializeMap for MapSerializer {
     }
 
     fn serialize_value<T: ?Sized + Serialize>(&mut self, value: &T) -> EncoderResult<()> {
-        let key = self.next_key.take().unwrap_or_else(|| "".to_string());
+        let key = self.next_key.take().unwrap_or_default();
         self.inner.insert(key, to_bson(&value)?);
         Ok(())
     }

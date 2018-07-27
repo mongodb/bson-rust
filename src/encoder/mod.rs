@@ -102,19 +102,19 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
     writer.write_u8(val.element_type() as u8)?;
     write_cstring(writer, key)?;
 
-    match val {
-        &Bson::FloatingPoint(v) => write_f64(writer, v),
-        &Bson::String(ref v) => write_string(writer, &v),
-        &Bson::Array(ref v) => encode_array(writer, &v),
-        &Bson::Document(ref v) => encode_document(writer, v),
-        &Bson::Boolean(v) => writer.write_u8(if v { 0x01 } else { 0x00 }).map_err(From::from),
-        &Bson::RegExp(ref pat, ref opt) => {
+    match *val {
+        Bson::FloatingPoint(v) => write_f64(writer, v),
+        Bson::String(ref v) => write_string(writer, &v),
+        Bson::Array(ref v) => encode_array(writer, &v),
+        Bson::Document(ref v) => encode_document(writer, v),
+        Bson::Boolean(v) => writer.write_u8(if v { 0x01 } else { 0x00 }).map_err(From::from),
+        Bson::RegExp(ref pat, ref opt) => {
             write_cstring(writer, pat)?;
             write_cstring(writer, opt)
         }
-        &Bson::JavaScriptCode(ref code) => write_string(writer, &code),
-        &Bson::ObjectId(ref id) => writer.write_all(&id.bytes()).map_err(From::from),
-        &Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
+        Bson::JavaScriptCode(ref code) => write_string(writer, &code),
+        Bson::ObjectId(ref id) => writer.write_all(&id.bytes()).map_err(From::from),
+        Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
             let mut buf = Vec::new();
             write_string(&mut buf, code)?;
             encode_document(&mut buf, scope)?;
@@ -122,17 +122,17 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
             write_i32(writer, buf.len() as i32 + 4)?;
             writer.write_all(&buf).map_err(From::from)
         }
-        &Bson::I32(v) => write_i32(writer, v),
-        &Bson::I64(v) => write_i64(writer, v),
-        &Bson::TimeStamp(v) => write_i64(writer, v),
-        &Bson::Binary(subtype, ref data) => {
+        Bson::I32(v) => write_i32(writer, v),
+        Bson::I64(v) => write_i64(writer, v),
+        Bson::TimeStamp(v) => write_i64(writer, v),
+        Bson::Binary(subtype, ref data) => {
             write_i32(writer, data.len() as i32)?;
             writer.write_u8(From::from(subtype))?;
             writer.write_all(data).map_err(From::from)
         }
-        &Bson::UtcDatetime(ref v) => write_i64(writer, (v.timestamp() * 1000) + (v.nanosecond() / 1_000_000) as i64),
-        &Bson::Null => Ok(()),
-        &Bson::Symbol(ref v) => write_string(writer, &v),
+        Bson::UtcDatetime(ref v) => write_i64(writer, (v.timestamp() * 1000) + (v.nanosecond() / 1_000_000) as i64),
+        Bson::Null => Ok(()),
+        Bson::Symbol(ref v) => write_string(writer, &v),
     }
 }
 

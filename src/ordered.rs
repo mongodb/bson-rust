@@ -66,22 +66,21 @@ impl Default for OrderedDocument {
 
 impl Display for OrderedDocument {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        write!(fmt, "{{")?;
+        fmt.write_str("{")?;
 
         let mut first = true;
-        for (k, v) in self.iter() {
+        for (k, v) in self {
             if first {
                 first = false;
-                write!(fmt, " ")?;
+                fmt.write_str(" ")?;
             } else {
-                write!(fmt, ", ")?;
+                fmt.write_str(", ")?;
             }
 
             write!(fmt, "{}: {}", k, v)?;
         }
 
-        write!(fmt, "{}}}", if !first { " " } else { "" })?;
-        Ok(())
+        write!(fmt, "{}}}", if !first { " " } else { "" })
     }
 }
 
@@ -113,6 +112,7 @@ pub struct Values<'a> {
 
 impl<'a> Iterator for Keys<'a> {
     type Item = &'a String;
+
     fn next(&mut self) -> Option<(&'a String)> {
         self.inner.next()
     }
@@ -120,6 +120,7 @@ impl<'a> Iterator for Keys<'a> {
 
 impl<'a> Iterator for Values<'a> {
     type Item = &'a Bson;
+
     fn next(&mut self) -> Option<(&'a Bson)> {
         self.inner.next()
     }
@@ -147,7 +148,7 @@ impl FromIterator<(String, Bson)> for OrderedDocument {
     fn from_iter<T: IntoIterator<Item = (String, Bson)>>(iter: T) -> Self {
         let mut doc = OrderedDocument::new();
         for (k, v) in iter {
-            doc.insert(k, v.to_owned());
+            doc.insert(k, v);
         }
         doc
     }
@@ -155,6 +156,7 @@ impl FromIterator<(String, Bson)> for OrderedDocument {
 
 impl<'a> Iterator for OrderedDocumentIntoIterator {
     type Item = (String, Bson);
+
     fn next(&mut self) -> Option<(String, Bson)> {
         self.inner.pop_front()
     }
@@ -162,6 +164,7 @@ impl<'a> Iterator for OrderedDocumentIntoIterator {
 
 impl<'a> Iterator for OrderedDocumentIterator<'a> {
     type Item = (&'a String, &'a Bson);
+
     fn next(&mut self) -> Option<(&'a String, &'a Bson)> {
         self.inner.next()
     }
