@@ -605,7 +605,7 @@ pub struct TimeStamp {
 ///     date_time: UtcDateTime,
 /// }
 /// ```
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 pub struct UtcDateTime(pub DateTime<Utc>);
 
 impl Deref for UtcDateTime {
@@ -622,9 +622,9 @@ impl DerefMut for UtcDateTime {
     }
 }
 
-impl Into<DateTime<Utc>> for UtcDateTime {
-    fn into(self) -> DateTime<Utc> {
-        self.0
+impl From<UtcDateTime> for DateTime<Utc> {
+    fn from(utc: UtcDateTime) -> Self {
+        utc.0
     }
 }
 
