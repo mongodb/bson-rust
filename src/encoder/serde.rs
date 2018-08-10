@@ -207,9 +207,7 @@ impl Serializer for Encoder {
     fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> EncoderResult<Bson>
         where T: Serialize
     {
-        let mut ser = TupleStructSerializer { inner: Array::new(), };
-        ser.serialize_field(value)?;
-        ser.end()
+        value.serialize(self)
     }
 
     #[inline]
@@ -221,10 +219,9 @@ impl Serializer for Encoder {
                                             -> EncoderResult<Bson>
         where T: Serialize
     {
-        let mut ser = TupleVariantSerializer { inner: Array::new(),
-                                               name: variant, };
-        ser.serialize_field(value)?;
-        ser.end()
+        let mut newtype_variant = Document::new();
+        newtype_variant.insert(variant, to_bson(value)?);
+        Ok(newtype_variant.into())
     }
 
     #[inline]
@@ -350,13 +347,8 @@ impl SerializeTupleVariant for TupleVariantSerializer {
 
     fn end(self) -> EncoderResult<Bson> {
         let mut tuple_variant = Document::new();
-        if self.inner.len() == 1 {
-            tuple_variant.insert(self.name, self.inner.into_iter().next().unwrap());
-        } else {
-            tuple_variant.insert(self.name, Bson::Array(self.inner));
-        }
-
-        Ok(Bson::Document(tuple_variant))
+        tuple_variant.insert(self.name, self.inner);
+        Ok(tuple_variant.into())
     }
 }
 
