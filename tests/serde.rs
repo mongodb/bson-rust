@@ -169,3 +169,75 @@ fn test_serde_bytes() {
     let f = bson::from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
 }
+
+#[test]
+fn test_serde_newtype_struct() {
+    #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+    struct Email(String);
+
+    let email_1 = Email(String::from("bson@serde.rs"));
+    let b = bson::to_bson(&email_1).unwrap();
+    assert_eq!(b, Bson::String(email_1.0));
+
+    let s = String::from("root@localho.st");
+    let de = Bson::String(s.clone());
+    let email_2 = bson::from_bson::<Email>(de).unwrap();
+    assert_eq!(email_2, Email(s));
+}
+
+#[test]
+fn test_serde_tuple_struct() {
+    #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+    struct Name(String, String); // first, last
+
+    let name_1 = Name(String::from("Graydon"), String::from("Hoare"));
+    let b = bson::to_bson(&name_1).unwrap();
+    assert_eq!(b, bson!([
+        name_1.0.clone(),
+        name_1.1.clone(),
+    ]));
+
+    let (first, last) = (String::from("Donald"), String::from("Knuth"));
+    let de = bson!([first.clone(), last.clone()]);
+    let name_2 = bson::from_bson::<Name>(de).unwrap();
+    assert_eq!(name_2, Name(first, last));
+}
+
+#[test]
+fn test_serde_newtype_variant() {
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[serde(tag = "type", content = "value")]
+    enum Number {
+        Int(i64),
+        Float(f64),
+    }
+
+    let n = 42;
+    let num_1 = Number::Int(n);
+    let b = bson::to_bson(&num_1).unwrap();
+    assert_eq!(b, bson!({ "type": "Int", "value": n }));
+
+    let x = 1337.0;
+    let de = bson!({ "type": "Float", "value": x });
+    let num_2 = bson::from_bson::<Number>(de).unwrap();
+    assert_eq!(num_2, Number::Float(x));
+}
+
+#[test]
+fn test_serde_tuple_variant() {
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    enum Point {
+        TwoDim(f64, f64),
+        ThreeDim(f64, f64, f64),
+    }
+
+    let (x1, y1) = (3.14, -2.71);
+    let p1 = Point::TwoDim(x1, y1);
+    let b = bson::to_bson(&p1).unwrap();
+    assert_eq!(b, bson!({ "TwoDim": [x1, y1] }));
+
+    let (x2, y2, z2) = (0.0, -13.37, 4.2);
+    let de = bson!({ "ThreeDim": [x2, y2, z2] });
+    let p2 = bson::from_bson::<Point>(de).unwrap();
+    assert_eq!(p2, Point::ThreeDim(x2, y2, z2));
+}
