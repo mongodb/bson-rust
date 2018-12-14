@@ -32,6 +32,7 @@ use serde_json::Value;
 use oid;
 use ordered::OrderedDocument;
 use spec::{BinarySubtype, ElementType};
+use std::str::FromStr;
 
 /// Possible BSON value types.
 #[derive(Clone, PartialEq)]
@@ -459,8 +460,8 @@ impl Bson {
                 .map(|ts_str| DateTime::parse_from_rfc3339(ts_str))
             {
                 return Bson::UtcDatetime(utc.with_timezone(&Utc));
-            } else if let Ok(long) = values.get_document("$date")
-                                           .and_then(|inner| inner.get_i64("$numberLong"))
+            } else if let Ok(Ok(long)) = values.get_document("$date")
+                                           .and_then(|inner| inner.get_str("$numberLong")).map(|n_str| i64::from_str(n_str))
             {
                 return Bson::UtcDatetime(Utc.timestamp(long / 1000, ((long % 1000) * 1000000) as u32));
             } else if let Ok(sym) = values.get_str("$symbol") {
