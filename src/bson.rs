@@ -457,6 +457,11 @@ impl Bson {
                 return Bson::JavaScriptCode(code.to_owned());
             } else if let Ok(hex) = values.get_str("$oid") {
                 return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
+            } else if let Ok(Ok(utc)) = values
+                .get_str("$date")
+                .map(|ts_str| DateTime::parse_from_rfc3339(ts_str))
+            {
+                return Bson::UtcDatetime(utc.with_timezone(&Utc));
             } else if let Ok(long) = values.get_document("$date")
                                            .and_then(|inner| inner.get_i64("$numberLong"))
             {
