@@ -377,7 +377,7 @@ impl SerializeMap for MapSerializer {
     }
 
     fn end(self) -> EncoderResult<Bson> {
-        Ok(Bson::Document(self.inner))
+        Ok(Bson::from_extended_document(self.inner))
     }
 }
 

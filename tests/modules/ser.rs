@@ -138,3 +138,17 @@ fn int64() {
     let deser: Bson = to_bson(&i).unwrap();
     assert_eq!(deser, obj);
 }
+
+#[test]
+fn oid() {
+    let oid = ObjectId::new().unwrap();
+    let obj = Bson::ObjectId(oid.clone());
+    let s: BTreeMap<String, String> = from_bson(obj.clone()).unwrap();
+
+    let mut expected = BTreeMap::new();
+    expected.insert("$oid".to_owned(), oid.to_string());
+    assert_eq!(s, expected);
+
+    let deser: Bson = to_bson(&s).unwrap();
+    assert_eq!(deser, obj);
+}
