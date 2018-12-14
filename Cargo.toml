@@ -33,6 +33,7 @@ hostname = "0.1"
 hex = "0.3"
 md5 = "0.3"
 try_from = "0.2"
+base64 = "0.10"
 
 [dev-dependencies]
 assert_matches = "1.2"

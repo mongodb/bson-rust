@@ -312,14 +312,14 @@ impl From<Bson> for Value {
             Bson::Binary(t, ref v) => {
                 let tval: u8 = From::from(t);
                 json!({
-                    "type": tval,
-                    "$binary": hex::encode(v),
+                    "$type": hex::encode(&[tval]),
+                    "$binary": base64::encode(v)
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_string()}),
             Bson::UtcDatetime(v) => json!({
                     "$date": {
-                        "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
+                        "$numberLong": ((v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)).to_string()
                     }
                 }),
             // FIXME: Don't know what is the best way to encode Symbol type
@@ -406,8 +406,8 @@ impl Bson {
             Bson::Binary(t, ref v) => {
                 let tval: u8 = From::from(t);
                 doc! {
-                    "$binary": hex::encode(v),
-                    "type": tval as i64,
+                    "$binary": base64::encode(v),
+                    "$type": hex::encode([tval as u8]),
                 }
             }
             Bson::ObjectId(ref v) => {
@@ -418,7 +418,7 @@ impl Bson {
             Bson::UtcDatetime(ref v) => {
                 doc! {
                     "$date": {
-                        "$numberLong" => ((v.timestamp() * 1000) + v.nanosecond() as i64 / 1000000).to_string(),
+                        "$numberLong": ((v.timestamp() * 1000) + v.nanosecond() as i64 / 1000000).to_string(),
                     }
                 }
             }
@@ -446,9 +446,10 @@ impl Bson {
             } else if let (Ok(t), Ok(i)) = (values.get_i64("t"), values.get_i64("i")) {
                 let timestamp = (t << 32) + i;
                 return Bson::TimeStamp(timestamp);
-            } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
-                let ttype = t as u8;
-                return Bson::Binary(From::from(ttype), hex::decode(hex.as_bytes()).expect("$binary value is not a valid Hex encoded bytes"));
+            } else if let (Ok(Ok(v)), Ok(Ok(t))) = (values.get_str("$binary").map(base64::decode), values.get_str("$type").map(|t_str| <Vec<u8> as hex::FromHex>::from_hex(t_str)))  {
+                if t.len() == 1 {
+                    return Bson::Binary(From::from(t[0]), v);
+                }
             }
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {
@@ -464,9 +465,14 @@ impl Bson {
                                            .and_then(|inner| inner.get_str("$numberLong")).map(|n_str| i64::from_str(n_str))
             {
                 return Bson::UtcDatetime(Utc.timestamp(long / 1000, ((long % 1000) * 1000000) as u32));
+            } else if let Ok(long) = values.get_i64("$date") {
+                // This case is actually technicly incorrect when converting Strict Mode encoded Bson into Bson
+                // however, because of the way deserializing works, the `{"$numberLong": "number"}`
+                // from the case above would already be converted to just `i64`.
+                return Bson::UtcDatetime(Utc.timestamp(long / 1000, ((long % 1000) * 1000000) as u32));
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
-            } else if let Ok(number) = values.get_i64("$numberLong") {
+            } else if let Ok(Ok(number)) = values.get_str("$numberLong").map(|n_str| i64::from_str(n_str)) {
                 return Bson::from(number);
             }
         }

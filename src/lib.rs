@@ -55,6 +55,7 @@ extern crate serde_json;
 extern crate md5;
 extern crate time;
 extern crate try_from;
+extern crate base64;
 
 pub use self::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
 pub use self::decoder::{decode_document, decode_document_utf8_lossy, from_bson, Decoder, DecoderError, DecoderResult};
