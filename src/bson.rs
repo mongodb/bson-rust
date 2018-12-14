@@ -417,7 +417,7 @@ impl Bson {
             Bson::UtcDatetime(ref v) => {
                 doc! {
                     "$date": {
-                        "$numberLong" => (v.timestamp() * 1000) + v.nanosecond() as i64 / 1000000,
+                        "$numberLong" => ((v.timestamp() * 1000) + v.nanosecond() as i64 / 1000000).to_string(),
                     }
                 }
             }
