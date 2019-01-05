@@ -35,6 +35,7 @@ try_from = "0.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 hostname = "0.1"
+libc = "0.2"
 
 [dev-dependencies]
 assert_matches = "1.2"
