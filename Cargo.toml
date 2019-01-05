@@ -29,10 +29,13 @@ serde = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 time = "0.1"
 linked-hash-map = "0.5"
-hostname = "0.1"
 hex = "0.3"
 md5 = "0.3"
 try_from = "0.2"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+hostname = "0.1"
+libc = "0.2"
 
 [dev-dependencies]
 assert_matches = "1.2"

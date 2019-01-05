@@ -1,18 +1,21 @@
 //! ObjectId
 
-use libc;
-
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::{error, fmt, io, result};
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use md5;
 
 use hex::{self, FromHexError};
 
 use rand::{thread_rng, Rng};
 
+#[cfg(not(target_arch = "wasm32"))]
 use hostname::get_hostname;
+#[cfg(not(target_arch = "wasm32"))]
+use libc;
+#[cfg(not(target_arch = "wasm32"))]
+use md5;
+
 use time;
 
 const TIMESTAMP_SIZE: usize = 4;
@@ -197,6 +200,7 @@ impl ObjectId {
 
     // Generates a new machine id represented as an MD5-hashed 3-byte-encoded hostname string.
     // Represented in Little Endian.
+    #[cfg(not(target_arch = "wasm32"))]
     fn gen_machine_id() -> Result<[u8; 3]> {
         // Short-circuit if machine id has already been calculated.
         // Since the generated machine id is not variable, arising race conditions
@@ -230,13 +234,41 @@ impl ObjectId {
         Ok(vec)
     }
 
+    // In case of wasm compilation generates a random 3-byte array.
+    #[cfg(target_arch = "wasm32")]
+    fn gen_machine_id() -> Result<[u8; 3]> {
+        // Short-circuit if machine id has already been calculated.
+        // Since the generated machine id is not variable, arising race conditions
+        // will have the same MACHINE_BYTES result.
+        unsafe {
+            if let Some(bytes) = MACHINE_BYTES.as_ref() {
+                return Ok(bytes.clone());
+            }
+        }
+
+        let mut rng = rand::thread_rng();
+        let vec: [u8; 3] = [rng.gen(), rng.gen(), rng.gen()];
+
+        unsafe { MACHINE_BYTES = Some(vec) };
+        Ok(vec)
+    }
+
     // Gets the process ID and returns it as a 2-byte array.
     // Represented in Little Endian.
+    #[cfg(not(target_arch = "wasm32"))]
     fn gen_process_id() -> [u8; 2] {
         let pid = unsafe { libc::getpid() as u16 };
         let mut buf: [u8; 2] = [0; 2];
         LittleEndian::write_u16(&mut buf, pid);
         buf
+    }
+
+    // In case of wasm return a random 2-byte array.
+    #[cfg(target_arch = "wasm32")]
+    fn gen_process_id() -> [u8; 2] {
+        let mut rng = rand::thread_rng();
+        let vec: [u8; 2] = [rng.gen(), rng.gen()];
+        vec
     }
 
     // Gets an incremental 3-byte count.
@@ -279,6 +311,7 @@ impl fmt::Debug for ObjectId {
 }
 
 #[test]
+#[cfg(not(target_arch = "wasm33"))]
 fn pid_generation() {
     let pid = unsafe { libc::getpid() as u16 };
     let generated = ObjectId::gen_process_id();
