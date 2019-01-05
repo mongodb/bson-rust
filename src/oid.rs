@@ -6,13 +6,16 @@ use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::{error, fmt, io, result};
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use md5;
 
 use hex::{self, FromHexError};
 
 use rand::{thread_rng, Rng};
 
+#[cfg(not(target_arch = "wasm32"))]
+use md5;
+#[cfg(not(target_arch = "wasm32"))]
 use hostname::get_hostname;
+
 use time;
 
 const TIMESTAMP_SIZE: usize = 4;
@@ -197,6 +200,7 @@ impl ObjectId {
 
     // Generates a new machine id represented as an MD5-hashed 3-byte-encoded hostname string.
     // Represented in Little Endian.
+    #[cfg(not(target_arch = "wasm32"))]
     fn gen_machine_id() -> Result<[u8; 3]> {
         // Short-circuit if machine id has already been calculated.
         // Since the generated machine id is not variable, arising race conditions
@@ -227,6 +231,13 @@ impl ObjectId {
         }
 
         unsafe { MACHINE_BYTES = Some(vec) };
+        Ok(vec)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn gen_machine_id() -> Result<[u8; 3]> {
+        let mut rng = rand::thread_rng();
+        let vec: [u8; 3] = [ rng.gen(), rng.gen(), rng.gen() ];
         Ok(vec)
     }
 

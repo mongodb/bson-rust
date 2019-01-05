@@ -45,7 +45,6 @@
 extern crate byteorder;
 extern crate chrono;
 extern crate hex;
-extern crate hostname;
 extern crate libc;
 extern crate linked_hash_map;
 extern crate rand;
@@ -55,6 +54,9 @@ extern crate serde_json;
 extern crate md5;
 extern crate time;
 extern crate try_from;
+
+#[cfg(not(target_arch = "wasm32"))]
+extern crate hostname;
 
 pub use self::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
 pub use self::decoder::{decode_document, decode_document_utf8_lossy, from_bson, Decoder, DecoderError, DecoderResult};
