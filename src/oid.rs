@@ -31,7 +31,6 @@ const COUNTER_OFFSET: usize = PROCESS_ID_OFFSET + PROCESS_ID_SIZE;
 const MAX_U24: usize = 0xFFFFFF;
 
 static OID_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
-#[cfg(not(target_arch = "wasm32"))]
 static mut MACHINE_BYTES: Option<[u8; 3]> = None;
 
 /// Errors that can occur during OID construction and generation.
@@ -238,8 +237,19 @@ impl ObjectId {
     // In case of wasm compilation generates a random 3-byte array.
     #[cfg(target_arch = "wasm32")]
     fn gen_machine_id() -> Result<[u8; 3]> {
+        // Short-circuit if machine id has already been calculated.
+        // Since the generated machine id is not variable, arising race conditions
+        // will have the same MACHINE_BYTES result.
+        unsafe {
+            if let Some(bytes) = MACHINE_BYTES.as_ref() {
+                return Ok(bytes.clone());
+            }
+        }
+
         let mut rng = rand::thread_rng();
         let vec: [u8; 3] = [rng.gen(), rng.gen(), rng.gen()];
+
+        unsafe { MACHINE_BYTES = Some(vec) };
         Ok(vec)
     }
 
@@ -301,7 +311,7 @@ impl fmt::Debug for ObjectId {
 }
 
 #[test]
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(target_arch = "wasm33"))]
 fn pid_generation() {
     let pid = unsafe { libc::getpid() as u16 };
     let generated = ObjectId::gen_process_id();
