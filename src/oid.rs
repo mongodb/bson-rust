@@ -1,7 +1,5 @@
 //! ObjectId
 
-use libc;
-
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::{error, fmt, io, result};
 
@@ -12,9 +10,11 @@ use hex::{self, FromHexError};
 use rand::{thread_rng, Rng};
 
 #[cfg(not(target_arch = "wasm32"))]
-use md5;
-#[cfg(not(target_arch = "wasm32"))]
 use hostname::get_hostname;
+#[cfg(not(target_arch = "wasm32"))]
+use libc;
+#[cfg(not(target_arch = "wasm32"))]
+use md5;
 
 use time;
 
@@ -31,6 +31,7 @@ const COUNTER_OFFSET: usize = PROCESS_ID_OFFSET + PROCESS_ID_SIZE;
 const MAX_U24: usize = 0xFFFFFF;
 
 static OID_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
+#[cfg(not(target_arch = "wasm32"))]
 static mut MACHINE_BYTES: Option<[u8; 3]> = None;
 
 /// Errors that can occur during OID construction and generation.
@@ -234,20 +235,30 @@ impl ObjectId {
         Ok(vec)
     }
 
+    // In case of wasm compilation generates a random 3-byte array.
     #[cfg(target_arch = "wasm32")]
     fn gen_machine_id() -> Result<[u8; 3]> {
         let mut rng = rand::thread_rng();
-        let vec: [u8; 3] = [ rng.gen(), rng.gen(), rng.gen() ];
+        let vec: [u8; 3] = [rng.gen(), rng.gen(), rng.gen()];
         Ok(vec)
     }
 
     // Gets the process ID and returns it as a 2-byte array.
     // Represented in Little Endian.
+    #[cfg(not(target_arch = "wasm32"))]
     fn gen_process_id() -> [u8; 2] {
         let pid = unsafe { libc::getpid() as u16 };
         let mut buf: [u8; 2] = [0; 2];
         LittleEndian::write_u16(&mut buf, pid);
         buf
+    }
+
+    // In case of wasm return a random 2-byte array.
+    #[cfg(target_arch = "wasm32")]
+    fn gen_process_id() -> [u8; 2] {
+        let mut rng = rand::thread_rng();
+        let vec: [u8; 2] = [rng.gen(), rng.gen()];
+        vec
     }
 
     // Gets an incremental 3-byte count.
@@ -290,6 +301,7 @@ impl fmt::Debug for ObjectId {
 }
 
 #[test]
+#[cfg(not(target_arch = "wasm32"))]
 fn pid_generation() {
     let pid = unsafe { libc::getpid() as u16 };
     let generated = ObjectId::gen_process_id();
