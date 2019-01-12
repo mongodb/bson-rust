@@ -3,35 +3,25 @@
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 use std::{error, fmt, io, result};
 
-use byteorder::{BigEndian, ByteOrder, LittleEndian};
+use byteorder::{BigEndian, ByteOrder};
 
 use hex::{self, FromHexError};
 
 use rand::{thread_rng, Rng};
 
-#[cfg(not(target_arch = "wasm32"))]
-use hostname::get_hostname;
-#[cfg(not(target_arch = "wasm32"))]
-use libc;
-#[cfg(not(target_arch = "wasm32"))]
-use md5;
-
 use time;
 
 const TIMESTAMP_SIZE: usize = 4;
-const MACHINE_ID_SIZE: usize = 3;
-const PROCESS_ID_SIZE: usize = 2;
+const PROCESS_ID_SIZE: usize = 5;
 const COUNTER_SIZE: usize = 3;
 
 const TIMESTAMP_OFFSET: usize = 0;
-const MACHINE_ID_OFFSET: usize = TIMESTAMP_OFFSET + TIMESTAMP_SIZE;
-const PROCESS_ID_OFFSET: usize = MACHINE_ID_OFFSET + MACHINE_ID_SIZE;
+const PROCESS_ID_OFFSET: usize = TIMESTAMP_OFFSET + TIMESTAMP_SIZE;
 const COUNTER_OFFSET: usize = PROCESS_ID_OFFSET + PROCESS_ID_SIZE;
 
 const MAX_U24: usize = 0xFFFFFF;
 
 static OID_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
-static mut MACHINE_BYTES: Option<[u8; 3]> = None;
 
 /// Errors that can occur during OID construction and generation.
 #[derive(Debug)]
@@ -100,16 +90,12 @@ impl ObjectId {
     /// for more information.
     pub fn new() -> Result<ObjectId> {
         let timestamp = ObjectId::gen_timestamp();
-        let machine_id = ObjectId::gen_machine_id()?;
         let process_id = ObjectId::gen_process_id();
         let counter = ObjectId::gen_count()?;
 
         let mut buf: [u8; 12] = [0; 12];
         for i in 0..TIMESTAMP_SIZE {
             buf[TIMESTAMP_OFFSET + i] = timestamp[i];
-        }
-        for i in 0..MACHINE_ID_SIZE {
-            buf[MACHINE_ID_OFFSET + i] = machine_id[i];
         }
         for i in 0..PROCESS_ID_SIZE {
             buf[PROCESS_ID_OFFSET + i] = process_id[i];
@@ -159,20 +145,6 @@ impl ObjectId {
         BigEndian::read_u32(&self.id)
     }
 
-    /// Retrieves the machine id associated with an ObjectId.
-    pub fn machine_id(&self) -> u32 {
-        let mut buf: [u8; 4] = [0; 4];
-        for i in 0..MACHINE_ID_SIZE {
-            buf[i] = self.id[MACHINE_ID_OFFSET + i];
-        }
-        LittleEndian::read_u32(&buf)
-    }
-
-    /// Retrieves the process id associated with an ObjectId.
-    pub fn process_id(&self) -> u16 {
-        LittleEndian::read_u16(&self.id[PROCESS_ID_OFFSET..])
-    }
-
     /// Retrieves the increment counter from an ObjectId.
     pub fn counter(&self) -> u32 {
         let mut buf: [u8; 4] = [0; 4];
@@ -198,77 +170,12 @@ impl ObjectId {
         buf
     }
 
-    // Generates a new machine id represented as an MD5-hashed 3-byte-encoded hostname string.
-    // Represented in Little Endian.
-    #[cfg(not(target_arch = "wasm32"))]
-    fn gen_machine_id() -> Result<[u8; 3]> {
-        // Short-circuit if machine id has already been calculated.
-        // Since the generated machine id is not variable, arising race conditions
-        // will have the same MACHINE_BYTES result.
-        unsafe {
-            if let Some(bytes) = MACHINE_BYTES.as_ref() {
-                return Ok(bytes.clone());
-            }
-        }
-
-        let hostname = get_hostname();
-        if hostname.is_none() {
-            return Err(Error::HostnameError);
-        }
-
-        // Hash hostname string
-        let digest = md5::compute(hostname.unwrap().as_str());
-        let hash = format!("{:x}", digest);
-
-        // Re-convert string to bytes and grab first three
-        let mut bytes = hash.bytes();
-        let mut vec: [u8; 3] = [0; 3];
-        for i in 0..MACHINE_ID_SIZE {
-            match bytes.next() {
-                Some(b) => vec[i] = b,
-                None => break,
-            }
-        }
-
-        unsafe { MACHINE_BYTES = Some(vec) };
-        Ok(vec)
-    }
-
-    // In case of wasm compilation generates a random 3-byte array.
-    #[cfg(target_arch = "wasm32")]
-    fn gen_machine_id() -> Result<[u8; 3]> {
-        // Short-circuit if machine id has already been calculated.
-        // Since the generated machine id is not variable, arising race conditions
-        // will have the same MACHINE_BYTES result.
-        unsafe {
-            if let Some(bytes) = MACHINE_BYTES.as_ref() {
-                return Ok(bytes.clone());
-            }
-        }
-
-        let mut rng = rand::thread_rng();
-        let vec: [u8; 3] = [rng.gen(), rng.gen(), rng.gen()];
-
-        unsafe { MACHINE_BYTES = Some(vec) };
-        Ok(vec)
-    }
-
-    // Gets the process ID and returns it as a 2-byte array.
-    // Represented in Little Endian.
-    #[cfg(not(target_arch = "wasm32"))]
-    fn gen_process_id() -> [u8; 2] {
-        let pid = unsafe { libc::getpid() as u16 };
-        let mut buf: [u8; 2] = [0; 2];
-        LittleEndian::write_u16(&mut buf, pid);
+    // Generate a random 5-byte array.
+    fn gen_process_id() -> [u8; 5] {
+        let rng = thread_rng().gen_range(0, MAX_U24) as u32;
+        let mut buf: [u8; 5] = [0; 5];
+        BigEndian::write_u32(&mut buf, rng);
         buf
-    }
-
-    // In case of wasm return a random 2-byte array.
-    #[cfg(target_arch = "wasm32")]
-    fn gen_process_id() -> [u8; 2] {
-        let mut rng = rand::thread_rng();
-        let vec: [u8; 2] = [rng.gen(), rng.gen()];
-        vec
     }
 
     // Gets an incremental 3-byte count.
@@ -308,14 +215,6 @@ impl fmt::Debug for ObjectId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&format!("ObjectId({})", self.to_hex()))
     }
-}
-
-#[test]
-#[cfg(not(target_arch = "wasm33"))]
-fn pid_generation() {
-    let pid = unsafe { libc::getpid() as u16 };
-    let generated = ObjectId::gen_process_id();
-    assert_eq!(pid, LittleEndian::read_u16(&generated));
 }
 
 #[test]

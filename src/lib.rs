@@ -54,11 +54,6 @@ extern crate md5;
 extern crate time;
 extern crate try_from;
 
-#[cfg(not(target_arch = "wasm32"))]
-extern crate hostname;
-#[cfg(not(target_arch = "wasm32"))]
-extern crate libc;
-
 pub use self::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
 pub use self::decoder::{decode_document, decode_document_utf8_lossy, from_bson, Decoder, DecoderError, DecoderResult};
 pub use self::encoder::{encode_document, to_bson, Encoder, EncoderError, EncoderResult};
