@@ -156,7 +156,7 @@ impl Display for Bson {
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
-            Bson::Decimal128(ref d) => write!(fmt, "{}", d),
+            Bson::Decimal128(ref d) => write!(fmt, "Decimal128({})", d),
         }
     }
 }

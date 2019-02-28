@@ -8,6 +8,7 @@ use serde::de::{Error, Unexpected};
 
 use super::error::{DecoderError, DecoderResult};
 use bson::{Bson, TimeStamp, UtcDateTime};
+use decimal128::Decimal128;
 use oid::ObjectId;
 use ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
 use spec::BinarySubtype;
@@ -319,10 +320,8 @@ impl<'de> Deserializer<'de> for Decoder {
         // enums are encoded in json as maps with a single key:value pair
         match iter.next() {
             Some(_) => Err(DecoderError::InvalidType("expected a single key:value pair".to_owned())),
-            None => {
-                visitor.visit_enum(EnumDecoder { val: Bson::String(variant),
-                                                 decoder: VariantDecoder { val: Some(value) }, })
-            }
+            None => visitor.visit_enum(EnumDecoder { val: Bson::String(variant),
+                                                     decoder: VariantDecoder { val: Some(value) }, }),
         }
     }
 
@@ -598,6 +597,19 @@ impl<'de> Deserialize<'de> for TimeStamp {
                                i: (ts & 0xFFFF_FFFF) as u32, })
             }
             _ => Err(D::Error::custom("expecting TimeStamp")),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Decimal128 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer<'de>
+    {
+        use serde::de::Error;
+
+        match Bson::deserialize(deserializer)? {
+            Bson::Decimal128(d128) => Ok(d128),
+            _ => Err(D::Error::custom("expecting Decimal128")),
         }
     }
 }

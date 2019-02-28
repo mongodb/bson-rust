@@ -12,6 +12,7 @@ use linked_hash_map::{self, LinkedHashMap};
 use serde::de::{self, MapAccess, Visitor};
 
 use bson::{Array, Bson, Document};
+use decimal128::Decimal128;
 use oid::ObjectId;
 use spec::BinarySubtype;
 
@@ -206,6 +207,15 @@ impl OrderedDocument {
         }
     }
 
+    /// Get Decimal128 value for key, if it exists.
+    pub fn get_decimal128(&self, key: &str) -> ValueAccessResult<&Decimal128> {
+        match self.get(key) {
+            Some(&Bson::Decimal128(ref v)) => Ok(v),
+            Some(_) => Err(ValueAccessError::UnexpectedType),
+            None => Err(ValueAccessError::NotPresent),
+        }
+    }
+
     /// Get a string slice this key if it exists and has the correct type.
     pub fn get_str(&self, key: &str) -> ValueAccessResult<&str> {
         match self.get(key) {
@@ -391,7 +401,7 @@ pub struct OrderedDocumentVisitor {
 
 impl OrderedDocumentVisitor {
     pub fn new() -> OrderedDocumentVisitor {
-        OrderedDocumentVisitor { marker: PhantomData, }
+        OrderedDocumentVisitor { marker: PhantomData }
     }
 }
 

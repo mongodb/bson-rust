@@ -1,7 +1,10 @@
-use serde::ser::{Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
-                 SerializeTupleStruct, SerializeTupleVariant, Serializer};
+use serde::ser::{
+    Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
+    SerializeTupleStruct, SerializeTupleVariant, Serializer,
+};
 
-use bson::{Array, Bson, Document, UtcDateTime, TimeStamp};
+use bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
+use decimal128::Decimal128;
 use oid::ObjectId;
 use try_from::TryFrom;
 
@@ -258,7 +261,7 @@ impl Serializer for Encoder {
 
     #[inline]
     fn serialize_struct(self, _name: &'static str, _len: usize) -> EncoderResult<Self::SerializeStruct> {
-        Ok(StructSerializer { inner: Document::new(), })
+        Ok(StructSerializer { inner: Document::new() })
     }
 
     #[inline]
@@ -432,6 +435,16 @@ impl Serialize for TimeStamp {
     {
         let ts = ((self.t.to_le() as u64) << 32) | (self.i.to_le() as u64);
         let doc = Bson::TimeStamp(ts as i64);
+        doc.serialize(serializer)
+    }
+}
+
+impl Serialize for Decimal128 {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        let doc = Bson::Decimal128(self.clone());
         doc.serialize(serializer)
     }
 }
