@@ -29,10 +29,10 @@ use chrono::{DateTime, Timelike, Utc};
 use hex;
 use serde_json::Value;
 
+use decimal128::Decimal128;
 use oid;
 use ordered::OrderedDocument;
 use spec::{BinarySubtype, ElementType};
-use decimal128::Decimal128;
 
 /// Possible BSON value types.
 #[derive(Clone, PartialEq)]
@@ -280,9 +280,7 @@ impl From<Value> for Bson {
             Value::String(x) => x.into(),
             Value::Bool(x) => x.into(),
             Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from).collect()),
-            Value::Object(x) => {
-                Bson::from_extended_document(x.into_iter().map(|(k, v)| (k, v.into())).collect())
-            }
+            Value::Object(x) => Bson::from_extended_document(x.into_iter().map(|(k, v)| (k, v.into())).collect()),
             Value::Null => Bson::Null,
         }
     }
@@ -331,12 +329,7 @@ impl From<Bson> for Value {
                 }),
             // FIXME: Don't know what is the best way to encode Symbol type
             Bson::Symbol(v) => json!({ "$symbol": v }),
-            Bson::Decimal128(ref v) => {
-                let mut obj = json::Object::new();
-                obj.insert("$numberDecimal".to_owned(),
-                           json::Json::String(v.to_string()));
-                json::Json::Object(obj)
-            }
+            Bson::Decimal128(ref v) => json!({ "$numberDecimal": v.to_string() }),
         }
     }
 }

@@ -99,7 +99,9 @@ pub enum ElementType {
     /// 64-bit integer
     Integer64Bit = ELEMENT_TYPE_64BIT_INTEGER,
     /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
-    Decimal128Bit           = ELEMENT_TYPE_128BIT_DECIMAL,
+    Decimal128Bit = ELEMENT_TYPE_128BIT_DECIMAL,
+    MaxKey = ELEMENT_TYPE_MAXKEY,
+    MinKey = ELEMENT_TYPE_MINKEY,
 }
 
 impl ElementType {

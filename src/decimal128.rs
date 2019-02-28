@@ -1,6 +1,4 @@
-//! `Decimal128` data type representation
-//!
-//! Specification is https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst
+//! [BSON Decimal128](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst) data type representation
 
 use std::fmt;
 use std::str::FromStr;
@@ -10,7 +8,7 @@ use decimal::d128;
 /// Decimal128 type
 #[derive(Clone, PartialEq, PartialOrd)]
 pub struct Decimal128 {
-    inner: d128,
+    d128: d128,
 }
 
 impl Decimal128 {
@@ -21,23 +19,49 @@ impl Decimal128 {
     /// * `NaN`
     /// * `Infinity` or `Inf`
     /// * `1.0`, `+37.0`, `0.73e-7`, `.5`
+    ///
+    /// ```rust
+    /// use bson::decimal128::Decimal128;
+    ///
+    /// let dec128 = Decimal128::from_str("1.05E+3");
+    /// ```
     pub fn from_str(s: &str) -> Decimal128 {
-        Decimal128 { inner: s.parse::<d128>().expect("Invalid Decimal128 string") }
+        Decimal128 { d128: s.parse::<d128>().expect("Invalid Decimal128 string"), }
     }
 
-    /// Construct a `Decimal128` from a `i32` number
+    /// Construct a `Decimal128` from a `i32` number.
+    ///
+    /// ```rust
+    /// use bson::decimal128::Decimal128;
+    ///
+    /// let num: i32 = 23;
+    /// let dec128 = Decimal128::from_i32(num);
+    /// ```
     pub fn from_i32(d: i32) -> Decimal128 {
-        Decimal128 { inner: From::from(d) }
+        Decimal128 { d128: From::from(d) }
     }
 
-    /// Construct a `Decimal128` from a `u32` number
+    /// Construct a `Decimal128` from a `u32` number.
+    ///
+    /// ```rust
+    /// use bson::decimal128::Decimal128;
+    ///
+    /// let num: u32 = 78;
+    /// let dec128 = Decimal128::from_u32(num);
+    /// ```
     pub fn from_u32(d: u32) -> Decimal128 {
-        Decimal128 { inner: From::from(d) }
+        Decimal128 { d128: From::from(d) }
     }
 
-    /// Get a `0`
+    /// Create a new Decimal128 as `0`.
+    ///
+    /// ```rust
+    /// use bson::decimal128::Decimal128;
+    ///
+    /// let dec128 = Decimal128::zero();
+    /// ```
     pub fn zero() -> Decimal128 {
-        Decimal128 { inner: d128::zero() }
+        Decimal128 { d128: d128::zero() }
     }
 
     #[doc(hidden)]
@@ -46,12 +70,12 @@ impl Decimal128 {
             raw.reverse();
         }
 
-        Decimal128 { inner: d128::from_raw_bytes(raw) }
+        Decimal128 { d128: d128::from_raw_bytes(raw), }
     }
 
     #[doc(hidden)]
     pub fn to_raw_bytes_le(&self) -> [u8; 16] {
-        let mut buf = self.inner.to_raw_bytes();
+        let mut buf = self.d128.to_raw_bytes();
         if cfg!(target_endian = "big") {
             buf.reverse();
         }
@@ -59,37 +83,53 @@ impl Decimal128 {
     }
 
     /// Check if value is `NaN`
+    ///
+    /// ```rust
+    /// use bson::decimal128::Decimal128;
+    ///
+    /// let num: u32 = 78;
+    /// let dec128 = Decimal128::from_u32(num);
+    /// assert!(!dec128.is_nan());
+    /// ```
     pub fn is_nan(&self) -> bool {
-        self.inner.is_nan()
+        self.d128.is_nan()
     }
 
     /// Check if value is 0
+    ///
+    /// ```rust
+    /// use bson::decimal128::Decimal128;
+    ///
+    /// let num: u32 = 0;
+    /// let dec128 = Decimal128::from_u32(num);
+    /// assert!(dec128.is_zero());
+    /// ```
     pub fn is_zero(&self) -> bool {
-        self.inner.is_zero()
+        self.d128.is_zero()
     }
 }
 
 impl fmt::Debug for Decimal128 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Decimal(\"{:?}\")", self.inner)
+        write!(f, "Decimal(\"{:?}\")", self.d128)
     }
 }
 
 impl fmt::Display for Decimal128 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.inner)
+        write!(f, "{}", self.d128)
     }
 }
 
 impl fmt::LowerHex for Decimal128 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        <d128 as fmt::LowerHex>::fmt(&self.inner, f)
+        <d128 as fmt::LowerHex>::fmt(&self.d128, f)
     }
 }
 
 impl fmt::LowerExp for Decimal128 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        <d128 as fmt::LowerExp>::fmt(&self.inner, f)
+        <d128 as fmt::LowerExp>::fmt(&self.d128, f)
     }
 }
 
@@ -102,13 +142,13 @@ impl FromStr for Decimal128 {
 
 impl Into<d128> for Decimal128 {
     fn into(self) -> d128 {
-        self.inner
+        self.d128
     }
 }
 
 impl From<d128> for Decimal128 {
     fn from(d: d128) -> Decimal128 {
-        Decimal128 { inner: d }
+        Decimal128 { d128: d }
     }
 }
 
