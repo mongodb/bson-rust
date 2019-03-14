@@ -2,7 +2,7 @@
 
 use libc;
 
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{error, fmt, io, result};
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
@@ -25,9 +25,9 @@ const MACHINE_ID_OFFSET: usize = TIMESTAMP_OFFSET + TIMESTAMP_SIZE;
 const PROCESS_ID_OFFSET: usize = MACHINE_ID_OFFSET + MACHINE_ID_SIZE;
 const COUNTER_OFFSET: usize = PROCESS_ID_OFFSET + PROCESS_ID_SIZE;
 
-const MAX_U24: usize = 0xFFFFFF;
+const MAX_U24: usize = 0xFF_FFFF;
 
-static OID_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
+static OID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static mut MACHINE_BYTES: Option<[u8; 3]> = None;
 
 /// Errors that can occur during OID construction and generation.
@@ -130,9 +130,7 @@ impl ObjectId {
             Err(Error::ArgumentError("Provided string must be a 12-byte hexadecimal string.".to_owned()))
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
-            for i in 0..12 {
-                byte_array[i] = bytes[i];
-            }
+            byte_array[..].copy_from_slice(&bytes[..]);
             Ok(ObjectId::with_bytes(byte_array))
         }
     }
@@ -203,7 +201,7 @@ impl ObjectId {
         // will have the same MACHINE_BYTES result.
         unsafe {
             if let Some(bytes) = MACHINE_BYTES.as_ref() {
-                return Ok(bytes.clone());
+                return Ok(*bytes);
             }
         }
 
@@ -219,9 +217,9 @@ impl ObjectId {
         // Re-convert string to bytes and grab first three
         let mut bytes = hash.bytes();
         let mut vec: [u8; 3] = [0; 3];
-        for i in 0..MACHINE_ID_SIZE {
+        for v in &mut vec {
             match bytes.next() {
-                Some(b) => vec[i] = b,
+                Some(b) => *v = b,
                 None => break,
             }
         }
@@ -287,7 +285,7 @@ fn pid_generation() {
 
 #[test]
 fn count_generated_is_big_endian() {
-    let start = 1122866;
+    let start = 1_122_866;
     OID_COUNTER.store(start, Ordering::SeqCst);
 
     // Test count generates correct value 1122866

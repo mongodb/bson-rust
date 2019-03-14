@@ -229,17 +229,17 @@ impl Serializer for Encoder {
 
     #[inline]
     fn serialize_seq(self, len: Option<usize>) -> EncoderResult<Self::SerializeSeq> {
-        Ok(ArraySerializer { inner: Array::with_capacity(len.unwrap_or(0)), })
+        Ok(ArraySerializer { inner: Array::with_capacity(len.unwrap_or(0)) })
     }
 
     #[inline]
     fn serialize_tuple(self, len: usize) -> EncoderResult<Self::SerializeTuple> {
-        Ok(TupleSerializer { inner: Array::with_capacity(len), })
+        Ok(TupleSerializer { inner: Array::with_capacity(len) })
     }
 
     #[inline]
     fn serialize_tuple_struct(self, _name: &'static str, len: usize) -> EncoderResult<Self::SerializeTupleStruct> {
-        Ok(TupleStructSerializer { inner: Array::with_capacity(len), })
+        Ok(TupleStructSerializer { inner: Array::with_capacity(len) })
     }
 
     #[inline]
@@ -250,13 +250,13 @@ impl Serializer for Encoder {
                                len: usize)
                                -> EncoderResult<Self::SerializeTupleVariant> {
         Ok(TupleVariantSerializer { inner: Array::with_capacity(len),
-                                    name: variant, })
+                                    name: variant })
     }
 
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> EncoderResult<Self::SerializeMap> {
         Ok(MapSerializer { inner: Document::new(),
-                           next_key: None, })
+                           next_key: None })
     }
 
     #[inline]
@@ -272,7 +272,7 @@ impl Serializer for Encoder {
                                 _len: usize)
                                 -> EncoderResult<Self::SerializeStructVariant> {
         Ok(StructVariantSerializer { name: variant,
-                                     inner: Document::new(), })
+                                     inner: Document::new() })
     }
 }
 

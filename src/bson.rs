@@ -106,7 +106,7 @@ impl Debug for Bson {
             Bson::I64(v) => write!(f, "I64({:?})", v),
             Bson::TimeStamp(i) => {
                 let time = (i >> 32) as i32;
-                let inc = (i & 0xFFFFFFFF) as i32;
+                let inc = (i & 0xFFFF_FFFF) as i32;
 
                 write!(f, "TimeStamp({}, {})", time, inc)
             }
@@ -296,19 +296,19 @@ impl From<Bson> for Value {
             Bson::Boolean(v) => json!(v),
             Bson::Null => Value::Null,
             Bson::RegExp(pat, opt) => json!({
-                    "$regex": pat,
-                    "$options": opt
-                }),
+                "$regex": pat,
+                "$options": opt
+            }),
             Bson::JavaScriptCode(code) => json!({ "$code": code }),
             Bson::JavaScriptCodeWithScope(code, scope) => json!({
-                    "$code": code,
-                    "scope": scope
-                }),
+                "$code": code,
+                "scope": scope
+            }),
             Bson::I32(v) => v.into(),
             Bson::I64(v) => v.into(),
             Bson::TimeStamp(v) => {
                 let time = v >> 32;
-                let inc = v & 0x0000FFFF;
+                let inc = v & 0x0000_FFFF;
                 json!({
                     "t": time,
                     "i": inc
@@ -323,10 +323,10 @@ impl From<Bson> for Value {
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_string()}),
             Bson::UtcDatetime(v) => json!({
-                    "$date": {
-                        "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
-                    }
-                }),
+                "$date": {
+                    "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
+                }
+            }),
             // FIXME: Don't know what is the best way to encode Symbol type
             Bson::Symbol(v) => json!({ "$symbol": v }),
             Bson::Decimal128(ref v) => json!({ "$numberDecimal": v.to_string() }),
@@ -403,7 +403,7 @@ impl Bson {
             }
             Bson::TimeStamp(v) => {
                 let time = (v >> 32) as i32;
-                let inc = (v & 0xFFFFFFFF) as i32;
+                let inc = (v & 0xFFFF_FFFF) as i32;
 
                 doc! {
                     "t": time,
@@ -470,7 +470,7 @@ impl Bson {
             } else if let Ok(long) = values.get_document("$date")
                                            .and_then(|inner| inner.get_i64("$numberLong"))
             {
-                return Bson::UtcDatetime(Utc.timestamp(long / 1000, ((long % 1000) * 1000000) as u32));
+                return Bson::UtcDatetime(Utc.timestamp(long / 1000, ((long % 1000) * 1_000_000) as u32));
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
             } else if let Ok(dec) = values.get_str("$numberDecimal") {
