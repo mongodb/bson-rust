@@ -328,3 +328,9 @@ fn test_encode_decode_decimal128() {
     let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
+
+#[test]
+fn test_illegal_size() {
+    let buffer = [0x06, 0xcc, 0xf9, 0x0a, 0x05, 0x00, 0x00, 0x03, 0x00, 0xff, 0xff];
+    assert!(decode_document(&mut Cursor::new(&buffer[..])).is_err());
+}

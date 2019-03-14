@@ -41,6 +41,8 @@ use spec::{self, BinarySubtype};
 
 use serde::de::Deserialize;
 
+const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
+
 fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderResult<String> {
     let len = reader.read_i32::<LittleEndian>()?;
 
@@ -180,6 +182,9 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
         Some(Array) => decode_array(reader, utf8_lossy).map(Bson::Array),
         Some(Binary) => {
             let len = read_i32(reader)?;
+            if len < 0 || len > MAX_BSON_SIZE {
+                return Err(DecoderError::InvalidLength(len as usize, format!("Invalid binary length of {}", len)));
+            }
             let subtype = BinarySubtype::from(reader.read_u8()?);
             let mut data = Vec::with_capacity(len as usize);
             reader.take(len as u64).read_to_end(&mut data)?;
