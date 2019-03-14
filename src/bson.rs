@@ -29,6 +29,7 @@ use chrono::{DateTime, Timelike, Utc};
 use hex;
 use serde_json::Value;
 
+use decimal128::Decimal128;
 use oid;
 use ordered::OrderedDocument;
 use spec::{BinarySubtype, ElementType};
@@ -72,6 +73,8 @@ pub enum Bson {
     UtcDatetime(DateTime<Utc>),
     /// Symbol (Deprecated)
     Symbol(String),
+    /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
+    Decimal128(Decimal128),
 }
 
 /// Alias for `Vec<Bson>`.
@@ -111,6 +114,7 @@ impl Debug for Bson {
             Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
             Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
             Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
+            Bson::Decimal128(ref d) => write!(f, "Decimal128({:?})", d),
         }
     }
 }
@@ -152,6 +156,7 @@ impl Display for Bson {
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
+            Bson::Decimal128(ref d) => write!(fmt, "Decimal128({})", d),
         }
     }
 }
@@ -275,9 +280,7 @@ impl From<Value> for Bson {
             Value::String(x) => x.into(),
             Value::Bool(x) => x.into(),
             Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from).collect()),
-            Value::Object(x) => {
-                Bson::from_extended_document(x.into_iter().map(|(k, v)| (k, v.into())).collect())
-            }
+            Value::Object(x) => Bson::from_extended_document(x.into_iter().map(|(k, v)| (k, v.into())).collect()),
             Value::Null => Bson::Null,
         }
     }
@@ -326,6 +329,7 @@ impl From<Bson> for Value {
                 }),
             // FIXME: Don't know what is the best way to encode Symbol type
             Bson::Symbol(v) => json!({ "$symbol": v }),
+            Bson::Decimal128(ref v) => json!({ "$numberDecimal": v.to_string() }),
         }
     }
 }
@@ -350,6 +354,7 @@ impl Bson {
             Bson::ObjectId(..) => ElementType::ObjectId,
             Bson::UtcDatetime(..) => ElementType::UtcDatetime,
             Bson::Symbol(..) => ElementType::Symbol,
+            Bson::Decimal128(..) => ElementType::Decimal128Bit,
         }
     }
 
@@ -429,6 +434,11 @@ impl Bson {
                     "$symbol": v.to_owned(),
                 }
             }
+            Bson::Decimal128(ref v) => {
+                doc! {
+                    "$numberDecimal" => (v.to_string())
+                }
+            }
             _ => panic!("Attempted conversion of invalid data type: {}", self),
         }
     }
@@ -463,6 +473,8 @@ impl Bson {
                 return Bson::UtcDatetime(Utc.timestamp(long / 1000, ((long % 1000) * 1000000) as u32));
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
+            } else if let Ok(dec) = values.get_str("$numberDecimal") {
+                return Bson::Decimal128(dec.parse::<Decimal128>().unwrap());
             }
         }
 

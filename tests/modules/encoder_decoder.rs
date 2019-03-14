@@ -2,6 +2,7 @@ use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
 use bson::{decode_document, decode_document_utf8_lossy, encode_document, Bson};
 use byteorder::{LittleEndian, WriteBytesExt};
+use bson::decimal128::Decimal128;
 use chrono::offset::TimeZone;
 use chrono::Utc;
 use std::io::{Cursor, Write};
@@ -311,9 +312,25 @@ fn test_decode_multiply_overflows_issue64() {
     assert!(decode_document(&mut Cursor::new(&buffer[..])).is_err());
 }
 
+#[test]
+fn test_encode_decode_decimal128() {
+    let val = Bson::Decimal128(Decimal128::from_i32(0));
+    let dst = vec![26, 0, 0, 0, 19, 107, 101, 121, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8,
+                   34, 0];
+
+    let doc = doc! { "key" => val };
+
+    let mut buf = Vec::new();
+    encode_document(&mut buf, &doc).unwrap();
+
+    assert_eq!(buf, dst);
+
+    let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
+    assert_eq!(decoded, doc);
+}
 
 #[test]
-fn test_illegal_size(){
+fn test_illegal_size() {
     let buffer = [0x06, 0xcc, 0xf9, 0x0a, 0x05, 0x00, 0x00, 0x03, 0x00, 0xff, 0xff];
     assert!(decode_document(&mut Cursor::new(&buffer[..])).is_err());
 }
