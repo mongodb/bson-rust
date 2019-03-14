@@ -32,6 +32,7 @@ linked-hash-map = "0.5"
 hex = "0.3"
 md5 = "0.3"
 try_from = "0.2"
+decimal = "2.0.4"
 
 [dev-dependencies]
 assert_matches = "1.2"

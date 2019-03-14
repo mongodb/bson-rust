@@ -53,11 +53,13 @@ extern crate serde_json;
 extern crate md5;
 extern crate time;
 extern crate try_from;
+extern crate decimal;
 
 pub use self::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
 pub use self::decoder::{decode_document, decode_document_utf8_lossy, from_bson, Decoder, DecoderError, DecoderResult};
 pub use self::encoder::{encode_document, to_bson, Encoder, EncoderError, EncoderResult};
 pub use self::ordered::{ValueAccessError, ValueAccessResult};
+pub use self::decimal128::Decimal128;
 
 #[macro_use]
 pub mod macros;
@@ -68,3 +70,4 @@ mod encoder;
 pub mod oid;
 pub mod ordered;
 pub mod spec;
+pub mod decimal128;

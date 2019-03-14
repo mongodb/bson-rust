@@ -1,6 +1,6 @@
 //! ObjectId
 
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{error, fmt, io, result};
 
 use byteorder::{BigEndian, ByteOrder};
@@ -19,9 +19,9 @@ const TIMESTAMP_OFFSET: usize = 0;
 const PROCESS_ID_OFFSET: usize = TIMESTAMP_OFFSET + TIMESTAMP_SIZE;
 const COUNTER_OFFSET: usize = PROCESS_ID_OFFSET + PROCESS_ID_SIZE;
 
-const MAX_U24: usize = 0xFFFFFF;
+const MAX_U24: usize = 0xFF_FFFF;
 
-static OID_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
+static OID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// Errors that can occur during OID construction and generation.
 #[derive(Debug)]
@@ -119,9 +119,7 @@ impl ObjectId {
             Err(Error::ArgumentError("Provided string must be a 12-byte hexadecimal string.".to_owned()))
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
-            for i in 0..12 {
-                byte_array[i] = bytes[i];
-            }
+            byte_array[..].copy_from_slice(&bytes[..]);
             Ok(ObjectId::with_bytes(byte_array))
         }
     }
@@ -219,7 +217,7 @@ impl fmt::Debug for ObjectId {
 
 #[test]
 fn count_generated_is_big_endian() {
-    let start = 1122866;
+    let start = 1_122_866;
     OID_COUNTER.store(start, Ordering::SeqCst);
 
     // Test count generates correct value 1122866

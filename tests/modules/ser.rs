@@ -1,7 +1,8 @@
-use bson::{from_bson, to_bson, Bson, EncoderError, EncoderResult};
+use bson::decimal128::Decimal128;
 use bson::oid::ObjectId;
+use bson::{from_bson, to_bson, Bson, EncoderError, EncoderResult};
 use std::collections::BTreeMap;
-use std::{u8, u16, u32, u64};
+use std::{u16, u32, u64, u8};
 
 #[test]
 fn floating_point() {
@@ -51,6 +52,17 @@ fn int32() {
     assert_eq!(i, 101);
 
     let deser: Bson = to_bson(&i).unwrap();
+    assert_eq!(deser, obj);
+}
+
+#[test]
+fn dec128() {
+    let d128 = Decimal128::from_str("1.05E+3");
+    let obj = Bson::Decimal128(d128.clone());
+    let ser: Decimal128 = from_bson(obj.clone()).unwrap();
+    assert_eq!(ser, d128);
+
+    let deser: Bson = to_bson(&ser).unwrap();
     assert_eq!(deser, obj);
 }
 

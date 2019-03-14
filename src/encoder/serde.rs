@@ -1,7 +1,10 @@
-use serde::ser::{Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
-                 SerializeTupleStruct, SerializeTupleVariant, Serializer};
+use serde::ser::{
+    Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
+    SerializeTupleStruct, SerializeTupleVariant, Serializer,
+};
 
-use bson::{Array, Bson, Document, UtcDateTime, TimeStamp};
+use bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
+use decimal128::Decimal128;
 use oid::ObjectId;
 use try_from::TryFrom;
 
@@ -226,17 +229,17 @@ impl Serializer for Encoder {
 
     #[inline]
     fn serialize_seq(self, len: Option<usize>) -> EncoderResult<Self::SerializeSeq> {
-        Ok(ArraySerializer { inner: Array::with_capacity(len.unwrap_or(0)), })
+        Ok(ArraySerializer { inner: Array::with_capacity(len.unwrap_or(0)) })
     }
 
     #[inline]
     fn serialize_tuple(self, len: usize) -> EncoderResult<Self::SerializeTuple> {
-        Ok(TupleSerializer { inner: Array::with_capacity(len), })
+        Ok(TupleSerializer { inner: Array::with_capacity(len) })
     }
 
     #[inline]
     fn serialize_tuple_struct(self, _name: &'static str, len: usize) -> EncoderResult<Self::SerializeTupleStruct> {
-        Ok(TupleStructSerializer { inner: Array::with_capacity(len), })
+        Ok(TupleStructSerializer { inner: Array::with_capacity(len) })
     }
 
     #[inline]
@@ -247,18 +250,18 @@ impl Serializer for Encoder {
                                len: usize)
                                -> EncoderResult<Self::SerializeTupleVariant> {
         Ok(TupleVariantSerializer { inner: Array::with_capacity(len),
-                                    name: variant, })
+                                    name: variant })
     }
 
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> EncoderResult<Self::SerializeMap> {
         Ok(MapSerializer { inner: Document::new(),
-                           next_key: None, })
+                           next_key: None })
     }
 
     #[inline]
     fn serialize_struct(self, _name: &'static str, _len: usize) -> EncoderResult<Self::SerializeStruct> {
-        Ok(StructSerializer { inner: Document::new(), })
+        Ok(StructSerializer { inner: Document::new() })
     }
 
     #[inline]
@@ -269,7 +272,7 @@ impl Serializer for Encoder {
                                 _len: usize)
                                 -> EncoderResult<Self::SerializeStructVariant> {
         Ok(StructVariantSerializer { name: variant,
-                                     inner: Document::new(), })
+                                     inner: Document::new() })
     }
 }
 
@@ -432,6 +435,16 @@ impl Serialize for TimeStamp {
     {
         let ts = ((self.t.to_le() as u64) << 32) | (self.i.to_le() as u64);
         let doc = Bson::TimeStamp(ts as i64);
+        doc.serialize(serializer)
+    }
+}
+
+impl Serialize for Decimal128 {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        let doc = Bson::Decimal128(self.clone());
         doc.serialize(serializer)
     }
 }

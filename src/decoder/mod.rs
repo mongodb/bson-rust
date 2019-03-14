@@ -28,16 +28,20 @@ pub use self::error::{DecoderError, DecoderResult};
 pub use self::serde::Decoder;
 
 use std::io::Read;
+use std::mem;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::offset::{LocalResult, TimeZone};
 use chrono::Utc;
+use decimal128::Decimal128;
 
 use bson::{Array, Bson, Document};
 use oid;
 use spec::{self, BinarySubtype};
 
 use serde::de::Deserialize;
+
+const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 
 fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderResult<String> {
     let len = reader.read_i32::<LittleEndian>()?;
@@ -83,6 +87,14 @@ fn read_i32<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i32> {
 #[inline]
 fn read_i64<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i64> {
     reader.read_i64::<LittleEndian>().map_err(From::from)
+}
+
+#[inline]
+fn read_f128<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Decimal128> {
+    let mut local_buf: [u8; 16] = unsafe { mem::uninitialized() };
+    try!(reader.read_exact(&mut local_buf));
+    let val = unsafe { Decimal128::from_raw_bytes_le(local_buf) };
+    Ok(val)
 }
 
 /// Attempt to decode a `Document` from a byte stream.
@@ -170,6 +182,9 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
         Some(Array) => decode_array(reader, utf8_lossy).map(Bson::Array),
         Some(Binary) => {
             let len = read_i32(reader)?;
+            if len < 0 || len > MAX_BSON_SIZE {
+                return Err(DecoderError::InvalidLength(len as usize, format!("Invalid binary length of {}", len)));
+            }
             let subtype = BinarySubtype::from(reader.read_u8()?);
             let mut data = Vec::with_capacity(len as usize);
             reader.take(len as u64).read_to_end(&mut data)?;
@@ -217,6 +232,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
             }
         }
         Some(Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol),
+        Some(Decimal128Bit) => read_f128(reader).map(Bson::Decimal128),
         Some(Undefined) | Some(DbPointer) | Some(MaxKey) | Some(MinKey) | None => {
             Err(DecoderError::UnrecognizedElementType(tag))
         }
