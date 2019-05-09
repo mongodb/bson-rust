@@ -2,7 +2,7 @@
 
 use std::error;
 use std::fmt::{self, Debug, Display, Formatter};
-use std::iter::{FromIterator, Map};
+use std::iter::{Extend, FromIterator, Map};
 use std::marker::PhantomData;
 
 use chrono::{DateTime, Utc};
@@ -141,7 +141,7 @@ impl<'a> IntoIterator for &'a OrderedDocument {
     type IntoIter = OrderedDocumentIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIterator { inner: self.inner.iter(), }
+        OrderedDocumentIterator { inner: self.inner.iter() }
     }
 }
 
@@ -174,7 +174,7 @@ impl<'a> Iterator for OrderedDocumentIterator<'a> {
 impl OrderedDocument {
     /// Creates a new empty OrderedDocument.
     pub fn new() -> OrderedDocument {
-        OrderedDocument { inner: LinkedHashMap::new(), }
+        OrderedDocument { inner: LinkedHashMap::new() }
     }
 
     /// Gets an iterator over the entries of the map.
@@ -325,7 +325,7 @@ impl OrderedDocument {
         }
         let first: fn((&'a String, &'a Bson)) -> &'a String = first;
 
-        Keys { inner: self.iter().map(first), }
+        Keys { inner: self.iter().map(first) }
     }
 
     /// Gets a collection of all values in the document.
@@ -335,7 +335,7 @@ impl OrderedDocument {
         }
         let second: fn((&'a String, &'a Bson)) -> &'a Bson = second;
 
-        Values { inner: self.iter().map(second), }
+        Values { inner: self.iter().map(second) }
     }
 
     /// Returns the number of elements in the document.
@@ -367,7 +367,7 @@ impl OrderedDocument {
     }
 
     pub fn entry(&mut self, k: String) -> Entry {
-        Entry { inner: self.inner.entry(k), }
+        Entry { inner: self.inner.entry(k) }
     }
 }
 
@@ -433,5 +433,13 @@ impl<'de> Visitor<'de> for OrderedDocumentVisitor {
         }
 
         Ok(inner.into())
+    }
+}
+
+impl Extend<(String, Bson)> for OrderedDocument {
+    fn extend<T: IntoIterator<Item = (String, Bson)>>(&mut self, iter: T) {
+        for (k, v) in iter {
+            self.insert(k, v);
+        }
     }
 }
