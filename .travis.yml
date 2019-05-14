@@ -13,9 +13,7 @@ env:
 sudo: false
 
 script:
-    - rustup target add wasm32-unknown-unknown
     - cargo build -v
-    - cargo check --target wasm32-unknown-unknown
     - cargo test -v --no-fail-fast
     - cargo test -v --no-fail-fast --features u2i
     - cd serde-tests && cargo test -v --no-fail-fast
