@@ -2,9 +2,9 @@ use std::fmt;
 use std::vec;
 
 use serde::de::{
-    self, Deserialize, DeserializeSeed, Deserializer, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor,
+    self, Deserialize, DeserializeSeed, Deserializer, EnumAccess, Error, MapAccess, SeqAccess, Unexpected,
+    VariantAccess, Visitor,
 };
-use serde::de::{Error, Unexpected};
 
 use super::error::{DecoderError, DecoderResult};
 use bson::{Bson, TimeStamp, UtcDateTime};
@@ -587,8 +587,6 @@ impl<'de> Deserialize<'de> for TimeStamp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>
     {
-        use serde::de::Error;
-
         match Bson::deserialize(deserializer)? {
             Bson::TimeStamp(ts) => {
                 let ts = ts.to_le();
@@ -605,8 +603,6 @@ impl<'de> Deserialize<'de> for Decimal128 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>
     {
-        use serde::de::Error;
-
         match Bson::deserialize(deserializer)? {
             Bson::Decimal128(d128) => Ok(d128),
             _ => Err(D::Error::custom("expecting Decimal128")),
@@ -618,8 +614,6 @@ impl<'de> Deserialize<'de> for UtcDateTime {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>
     {
-        use serde::de::Error;
-
         match Bson::deserialize(deserializer)? {
             Bson::UtcDatetime(dt) => Ok(UtcDateTime(dt)),
             _ => Err(D::Error::custom("expecting UtcDateTime")),

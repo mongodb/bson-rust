@@ -5,7 +5,7 @@ authors = ["Kevin Yeh <kevinyeah@utexas.edu>"]
 
 [dependencies]
 serde = "1.0"
-bson = { path = "..", features = ["serde"] }
+bson = { path = ".." }
 serde_derive = "1.0"
 
 [lib]
