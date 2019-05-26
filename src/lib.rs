@@ -45,8 +45,6 @@
 extern crate byteorder;
 extern crate chrono;
 extern crate hex;
-extern crate hostname;
-extern crate libc;
 extern crate linked_hash_map;
 extern crate rand;
 extern crate serde;

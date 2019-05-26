@@ -3,23 +3,12 @@ use hex;
 
 #[test]
 fn deserialize() {
-    let bytes: [u8; 12] = [0xDEu8,
-                           0xADu8,
-                           0xBEu8,
-                           0xEFu8, // timestamp is 3735928559
-                           0xEFu8,
-                           0xCDu8,
-                           0xABu8, // machine_id is 11259375
-                           0xFAu8,
-                           0x29u8, // process_id is 10746
-                           0x11u8,
-                           0x22u8,
+    let bytes: [u8; 12] = [0xDEu8, 0xADu8, 0xBEu8, 0xEFu8, // timestamp is 3735928559
+                           0xEFu8, 0xCDu8, 0xABu8, 0xFAu8, 0x29u8, 0x11u8, 0x22u8,
                            0x33u8 /* increment is 1122867 */];
 
     let oid = ObjectId::with_bytes(bytes);
     assert_eq!(3735928559 as u32, oid.timestamp());
-    assert_eq!(11259375 as u32, oid.machine_id());
-    assert_eq!(10746 as u16, oid.process_id());
     assert_eq!(1122867 as u32, oid.counter());
 }
 
@@ -83,14 +72,15 @@ fn oid_not_equals() {
     assert!(oid1 != oid2);
 }
 
+// check that the last byte in objectIDs is increasing
 #[test]
-fn increasing() {
+fn counter_increasing() {
     let oid1_res = ObjectId::new();
     let oid2_res = ObjectId::new();
     assert!(oid1_res.is_ok());
     assert!(oid2_res.is_ok());
 
-    let oid1 = oid1_res.unwrap();
-    let oid2 = oid2_res.unwrap();
-    assert!(oid1 < oid2);
+    let oid1_bytes = oid1_res.unwrap().bytes();
+    let oid2_bytes = oid2_res.unwrap().bytes();
+    assert!(oid1_bytes[11] < oid2_bytes[11]);
 }
