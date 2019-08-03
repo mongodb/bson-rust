@@ -492,10 +492,26 @@ impl Bson {
         }
     }
 
+    /// If `Bson` is `FloatingPoint`, return a mutable reference to its value. Returns `None` otherwise
+    pub fn as_f64_mut(&mut self) -> Option<&mut f64> {
+        match *self {
+            Bson::FloatingPoint(ref mut v) => Some(v),
+            _ => None,
+        }
+    }
+
     /// If `Bson` is `String`, return its value. Returns `None` otherwise
     pub fn as_str(&self) -> Option<&str> {
         match *self {
             Bson::String(ref s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `String`, return a mutable reference to its value. Returns `None` otherwise
+    pub fn as_str_mut(&mut self) -> Option<&mut str> {
+        match *self {
+            Bson::String(ref mut s) => Some(s),
             _ => None,
         }
     }
@@ -508,10 +524,26 @@ impl Bson {
         }
     }
 
+    /// If `Bson` is `Array`, return a mutable reference to its value. Returns `None` otherwise
+    pub fn as_array_mut(&mut self) -> Option<&mut Array> {
+        match *self {
+            Bson::Array(ref mut v) => Some(v),
+            _ => None,
+        }
+    }
+
     /// If `Bson` is `Document`, return its value. Returns `None` otherwise
     pub fn as_document(&self) -> Option<&Document> {
         match *self {
             Bson::Document(ref v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `Document`, return a mutable reference to its value. Returns `None` otherwise
+    pub fn as_document_mut(&mut self) -> Option<&mut Document> {
+        match *self {
+            Bson::Document(ref mut v) => Some(v),
             _ => None,
         }
     }
@@ -524,10 +556,26 @@ impl Bson {
         }
     }
 
+    /// If `Bson` is `Boolean`, return a mutable reference to its value. Returns `None` otherwise
+    pub fn as_bool_mut(&mut self) -> Option<&mut bool> {
+        match *self {
+            Bson::Boolean(ref mut v) => Some(v),
+            _ => None,
+        }
+    }
+
     /// If `Bson` is `I32`, return its value. Returns `None` otherwise
     pub fn as_i32(&self) -> Option<i32> {
         match *self {
             Bson::I32(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `I32`, return a mutable reference to its value. Returns `None` otherwise
+    pub fn as_i32_mut(&mut self) -> Option<&mut i32> {
+        match *self {
+            Bson::I32(ref mut v) => Some(v),
             _ => None,
         }
     }
@@ -540,10 +588,26 @@ impl Bson {
         }
     }
 
+    /// If `Bson` is `I64`, return a mutable reference to its value. Returns `None` otherwise
+    pub fn as_i64_mut(&mut self) -> Option<&mut i64> {
+        match *self {
+            Bson::I64(ref mut v) => Some(v),
+            _ => None,
+        }
+    }
+
     /// If `Bson` is `Objectid`, return its value. Returns `None` otherwise
     pub fn as_object_id(&self) -> Option<&oid::ObjectId> {
         match *self {
             Bson::ObjectId(ref v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `Objectid`, return a mutable reference to its value. Returns `None` otherwise
+    pub fn as_object_id_mut(&mut self) -> Option<&mut oid::ObjectId> {
+        match *self {
+            Bson::ObjectId(ref mut v) => Some(v),
             _ => None,
         }
     }
@@ -556,6 +620,14 @@ impl Bson {
         }
     }
 
+    /// If `Bson` is `UtcDateTime`, return a mutable reference to its value. Returns `None` otherwise
+    pub fn as_utc_date_time_mut(&mut self) -> Option<&mut DateTime<Utc>> {
+        match *self {
+            Bson::UtcDatetime(ref mut v) => Some(v),
+            _ => None,
+        }
+    }
+
     /// If `Bson` is `Symbol`, return its value. Returns `None` otherwise
     pub fn as_symbol(&self) -> Option<&str> {
         match *self {
@@ -564,10 +636,26 @@ impl Bson {
         }
     }
 
+    /// If `Bson` is `Symbol`, return a mutable reference to its value. Returns `None` otherwise
+    pub fn as_symbol_mut(&mut self) -> Option<&mut str> {
+        match *self {
+            Bson::Symbol(ref mut v) => Some(v),
+            _ => None,
+        }
+    }
+
     /// If `Bson` is `TimeStamp`, return its value. Returns `None` otherwise
     pub fn as_timestamp(&self) -> Option<i64> {
         match *self {
             Bson::TimeStamp(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// If `Bson` is `TimeStamp`, return a mutable reference to its value. Returns `None` otherwise
+    pub fn as_timestamp_mut(&mut self) -> Option<&mut i64> {
+        match *self {
+            Bson::TimeStamp(ref mut v) => Some(v),
             _ => None,
         }
     }
