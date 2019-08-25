@@ -3,6 +3,7 @@
 [![Build Status](https://img.shields.io/travis/zonyitoo/bson-rs.svg)](https://travis-ci.org/zonyitoo/bson-rs)
 [![crates.io](https://img.shields.io/crates/v/bson.svg)](https://crates.io/crates/bson)
 [![crates.io](https://img.shields.io/crates/l/bson.svg)](https://crates.io/crates/bson)
+[![dependency status](https://deps.rs/repo/github/zonyitoo/bson-rs/status.svg)](https://deps.rs/repo/github/zonyitoo/bson-rs)
 
 Encoding and decoding support for BSON in Rust
 
