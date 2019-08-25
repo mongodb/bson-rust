@@ -24,7 +24,7 @@ name = "bson"
 byteorder = "1"
 chrono = "0.4"
 libc = "0.2"
-rand = "0.5"
+rand = "0.7"
 serde = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 time = "0.1"
