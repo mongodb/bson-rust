@@ -6,7 +6,7 @@ use serde::ser::{
 use bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
 use decimal128::Decimal128;
 use oid::ObjectId;
-use try_from::TryFrom;
+use std::convert::TryFrom;
 
 use super::{to_bson, EncoderError, EncoderResult};
 

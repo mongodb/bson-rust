@@ -31,7 +31,6 @@ time = "0.1"
 linked-hash-map = "0.5"
 hex = "0.3"
 md5 = "0.6"
-try_from = "0.2"
 decimal = "2.0.4"
 
 [dev-dependencies]

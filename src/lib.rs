@@ -52,7 +52,6 @@ extern crate serde;
 extern crate serde_json;
 extern crate md5;
 extern crate time;
-extern crate try_from;
 extern crate decimal;
 
 pub use self::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
