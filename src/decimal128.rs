@@ -3,12 +3,12 @@
 use std::fmt;
 use std::str::FromStr;
 
-use decimal::d128;
+type D128 = decimal128_ext::Decimal128;
 
 /// Decimal128 type
 #[derive(Clone, PartialEq, PartialOrd)]
 pub struct Decimal128 {
-    inner: d128,
+    inner: D128,
 }
 
 impl Decimal128 {
@@ -26,7 +26,7 @@ impl Decimal128 {
     /// let dec128 = Decimal128::from_str("1.05E+3");
     /// ```
     pub fn from_str(s: &str) -> Decimal128 {
-        Decimal128 { inner: s.parse::<d128>().expect("Invalid Decimal128 string"), }
+        Decimal128 { inner: s.parse::<D128>().expect("Invalid Decimal128 string"), }
     }
 
     /// Construct a `Decimal128` from a `i32` number.
@@ -64,7 +64,7 @@ impl Decimal128 {
     /// assert_eq!(int, num);
     /// ```
     pub fn into_i32(&self) -> i32 {
-        Into::into(self.inner)
+        Into::into(self.inner.clone())
     }
 
     /// Construct a `Decimal128` from a `i32` number.
@@ -78,7 +78,7 @@ impl Decimal128 {
     /// assert_eq!(int, num);
     /// ```
     pub fn into_u32(&self) -> u32 {
-        Into::into(self.inner)
+        Into::into(self.inner.clone())
     }
 
     /// Create a new Decimal128 as `0`.
@@ -89,7 +89,7 @@ impl Decimal128 {
     /// let dec128 = Decimal128::zero();
     /// ```
     pub fn zero() -> Decimal128 {
-        Decimal128 { inner: d128::zero() }
+        Decimal128 { inner: D128::zero() }
     }
 
     #[doc(hidden)]
@@ -98,7 +98,7 @@ impl Decimal128 {
             raw.reverse();
         }
 
-        Decimal128 { inner: d128::from_raw_bytes(raw), }
+        Decimal128 { inner: D128::from_raw_bytes(raw), }
     }
 
     #[doc(hidden)]
@@ -151,13 +151,13 @@ impl fmt::Display for Decimal128 {
 
 impl fmt::LowerHex for Decimal128 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        <d128 as fmt::LowerHex>::fmt(&self.inner, f)
+        <D128 as fmt::LowerHex>::fmt(&self.inner, f)
     }
 }
 
 impl fmt::LowerExp for Decimal128 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        <d128 as fmt::LowerExp>::fmt(&self.inner, f)
+        <D128 as fmt::LowerExp>::fmt(&self.inner, f)
     }
 }
 
@@ -168,14 +168,14 @@ impl FromStr for Decimal128 {
     }
 }
 
-impl Into<d128> for Decimal128 {
-    fn into(self) -> d128 {
+impl Into<D128> for Decimal128 {
+    fn into(self) -> D128 {
         self.inner
     }
 }
 
-impl From<d128> for Decimal128 {
-    fn from(d: d128) -> Decimal128 {
+impl From<D128> for Decimal128 {
+    fn from(d: D128) -> Decimal128 {
         Decimal128 { inner: d }
     }
 }

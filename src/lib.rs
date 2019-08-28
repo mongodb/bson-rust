@@ -44,6 +44,7 @@
 
 extern crate byteorder;
 extern crate chrono;
+extern crate decimal128 as decimal128_ext;
 extern crate hex;
 extern crate linked_hash_map;
 extern crate rand;
@@ -52,7 +53,6 @@ extern crate serde;
 extern crate serde_json;
 extern crate md5;
 extern crate time;
-extern crate decimal;
 
 pub use self::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
 pub use self::decoder::{decode_document, decode_document_utf8_lossy, from_bson, Decoder, DecoderError, DecoderResult};

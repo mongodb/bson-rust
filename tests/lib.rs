@@ -5,6 +5,5 @@ extern crate bson;
 extern crate byteorder;
 extern crate chrono;
 extern crate hex;
-extern crate decimal;
 
 mod modules;
