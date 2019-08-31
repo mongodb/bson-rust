@@ -1,6 +1,6 @@
 [package]
 name = "bson"
-version = "0.13.1"
+version = "0.14.0"
 authors = [
     "Y. T. Chung <zonyitoo@gmail.com>",
     "Kevin Yeh <kevinyeah@utexas.edu>"
@@ -10,12 +10,15 @@ license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/zonyitoo/bson-rs"
 documentation = "https://docs.rs/crate/bson"
+edition = "2018"
 
 [features]
 # no features by default
 default = []
 # attempt to encode unsigned types in signed types
 u2i = []
+# Decimal128 in BSON 1.1
+decimal128 = ["decimal"]
 
 [lib]
 name = "bson"
@@ -31,7 +34,7 @@ time = "0.1"
 linked-hash-map = "0.5"
 hex = "0.3"
 md5 = "0.6"
-decimal = "2.0.4"
+decimal = { version = "2.0.4", optional = true }
 
 [dev-dependencies]
 assert_matches = "1.2"

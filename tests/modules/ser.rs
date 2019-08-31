@@ -1,3 +1,4 @@
+#[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
 use bson::oid::ObjectId;
 use bson::{from_bson, to_bson, Bson, EncoderError, EncoderResult};
@@ -55,6 +56,7 @@ fn int32() {
     assert_eq!(deser, obj);
 }
 
+#[cfg(feature = "decimal128")]
 #[test]
 fn dec128() {
     let d128 = Decimal128::from_str("1.05E+3");

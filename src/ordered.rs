@@ -11,10 +11,11 @@ use linked_hash_map::{self, LinkedHashMap};
 
 use serde::de::{self, MapAccess, Visitor};
 
-use bson::{Array, Bson, Document};
-use decimal128::Decimal128;
-use oid::ObjectId;
-use spec::BinarySubtype;
+use crate::bson::{Array, Bson, Document};
+#[cfg(feature = "decimal128")]
+use crate::decimal128::Decimal128;
+use crate::oid::ObjectId;
+use crate::spec::BinarySubtype;
 
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters.
@@ -218,6 +219,7 @@ impl OrderedDocument {
     }
 
     /// Get a reference to a Decimal128 value for key, if it exists.
+    #[cfg(feature = "decimal128")]
     pub fn get_decimal128(&self, key: &str) -> ValueAccessResult<&Decimal128> {
         match self.get(key) {
             Some(&Bson::Decimal128(ref v)) => Ok(v),
@@ -227,6 +229,7 @@ impl OrderedDocument {
     }
 
     /// Get a mutable reference to a Decimal128 value for key, if it exists.
+    #[cfg(feature = "decimal128")]
     pub fn get_decimal128_mut(&mut self, key: &str) -> ValueAccessResult<&mut Decimal128> {
         match self.get_mut(key) {
             Some(&mut Bson::Decimal128(ref mut v)) => Ok(v),

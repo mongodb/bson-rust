@@ -1,12 +1,14 @@
+use std::convert::TryFrom;
+
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
     SerializeTupleStruct, SerializeTupleVariant, Serializer,
 };
 
-use bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
-use decimal128::Decimal128;
-use oid::ObjectId;
-use std::convert::TryFrom;
+use crate::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
+#[cfg(feature = "decimal128")]
+use crate::decimal128::Decimal128;
+use crate::oid::ObjectId;
 
 use super::{to_bson, EncoderError, EncoderResult};
 
@@ -166,7 +168,7 @@ impl Serializer for Encoder {
     }
 
     fn serialize_bytes(self, value: &[u8]) -> EncoderResult<Bson> {
-        use spec::BinarySubtype;
+        use crate::spec::BinarySubtype;
         // let mut state = self.serialize_seq(Some(value.len()))?;
         // for byte in value {
         //     state.serialize_element(byte)?;
@@ -439,6 +441,7 @@ impl Serialize for TimeStamp {
     }
 }
 
+#[cfg(feature = "decimal128")]
 impl Serialize for Decimal128 {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

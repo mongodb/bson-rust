@@ -94,7 +94,7 @@ impl error::Error for DecoderError {
             DecoderError::AmbiguousTimestamp(..) => "ambiguous local time",
         }
     }
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             DecoderError::IoError(ref inner) => Some(inner),
             DecoderError::FromUtf8Error(ref inner) => Some(inner),
@@ -108,15 +108,15 @@ impl de::Error for DecoderError {
         DecoderError::Unknown(msg.to_string())
     }
 
-    fn invalid_type(_unexp: Unexpected, exp: &Expected) -> DecoderError {
+    fn invalid_type(_unexp: Unexpected, exp: &dyn Expected) -> DecoderError {
         DecoderError::InvalidType(exp.to_string())
     }
 
-    fn invalid_value(_unexp: Unexpected, exp: &Expected) -> DecoderError {
+    fn invalid_value(_unexp: Unexpected, exp: &dyn Expected) -> DecoderError {
         DecoderError::InvalidValue(exp.to_string())
     }
 
-    fn invalid_length(len: usize, exp: &Expected) -> DecoderError {
+    fn invalid_length(len: usize, exp: &dyn Expected) -> DecoderError {
         DecoderError::InvalidLength(len, exp.to_string())
     }
 

@@ -4,7 +4,8 @@ extern crate assert_matches;
 extern crate bson;
 extern crate byteorder;
 extern crate chrono;
-extern crate hex;
+#[cfg(feature = "decimal128")]
 extern crate decimal;
+extern crate hex;
 
 mod modules;

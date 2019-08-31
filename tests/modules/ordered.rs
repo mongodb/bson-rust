@@ -1,3 +1,4 @@
+#[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
@@ -30,6 +31,17 @@ fn ordered_insert_shorthand() {
     let keys: Vec<_> = doc.iter().map(|(key, _)| key.to_owned()).collect();
     assert_eq!(expected_keys, keys);
 }
+
+#[cfg(feature = "decimal128")]
+fn test_decimal128(doc: &mut Document) {
+    let dec = Decimal128::from_str("968E+1");
+    doc.insert("decimal128".to_string(), Bson::Decimal128(dec.clone()));
+    assert_eq!(Some(&Bson::Decimal128(dec.clone())), doc.get("decimal128"));
+    assert_eq!(Ok(&dec), doc.get_decimal128("decimal128"));
+}
+
+#[cfg(not(feature = "decimal128"))]
+fn test_decimal128(_doc: &mut Document) {}
 
 #[test]
 fn test_getters() {
@@ -87,10 +99,7 @@ fn test_getters() {
     assert_eq!(Some(&Bson::UtcDatetime(datetime.clone())), doc.get("datetime"));
     assert_eq!(Ok(&datetime), doc.get_utc_datetime("datetime"));
 
-    let dec = Decimal128::from_str("968E+1");
-    doc.insert("decimal128".to_string(), Bson::Decimal128(dec.clone()));
-    assert_eq!(Some(&Bson::Decimal128(dec.clone())), doc.get("decimal128"));
-    assert_eq!(Ok(&dec), doc.get_decimal128("decimal128"));
+    test_decimal128(&mut doc);
 
     assert_eq!(Some(&Bson::UtcDatetime(datetime.clone())), doc.get("datetime"));
     assert_eq!(Ok(&datetime), doc.get_utc_datetime("datetime"));

@@ -29,10 +29,11 @@ use chrono::{DateTime, Timelike, Utc};
 use hex;
 use serde_json::Value;
 
-use decimal128::Decimal128;
-use oid;
-use ordered::OrderedDocument;
-use spec::{BinarySubtype, ElementType};
+#[cfg(feature = "decimal128")]
+use crate::decimal128::Decimal128;
+use crate::oid;
+use crate::ordered::OrderedDocument;
+use crate::spec::{BinarySubtype, ElementType};
 
 /// Possible BSON value types.
 #[derive(Clone, PartialEq)]
@@ -74,6 +75,7 @@ pub enum Bson {
     /// Symbol (Deprecated)
     Symbol(String),
     /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
+    #[cfg(feature = "decimal128")]
     Decimal128(Decimal128),
 }
 
@@ -114,6 +116,7 @@ impl Debug for Bson {
             Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
             Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
             Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
+            #[cfg(feature = "decimal128")]
             Bson::Decimal128(ref d) => write!(f, "Decimal128({:?})", d),
         }
     }
@@ -156,6 +159,7 @@ impl Display for Bson {
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
+            #[cfg(feature = "decimal128")]
             Bson::Decimal128(ref d) => write!(fmt, "Decimal128({})", d),
         }
     }
@@ -329,6 +333,7 @@ impl From<Bson> for Value {
             }),
             // FIXME: Don't know what is the best way to encode Symbol type
             Bson::Symbol(v) => json!({ "$symbol": v }),
+            #[cfg(feature = "decimal128")]
             Bson::Decimal128(ref v) => json!({ "$numberDecimal": v.to_string() }),
         }
     }
@@ -354,6 +359,7 @@ impl Bson {
             Bson::ObjectId(..) => ElementType::ObjectId,
             Bson::UtcDatetime(..) => ElementType::UtcDatetime,
             Bson::Symbol(..) => ElementType::Symbol,
+            #[cfg(feature = "decimal128")]
             Bson::Decimal128(..) => ElementType::Decimal128Bit,
         }
     }
@@ -434,6 +440,7 @@ impl Bson {
                     "$symbol": v.to_owned(),
                 }
             }
+            #[cfg(feature = "decimal128")]
             Bson::Decimal128(ref v) => {
                 doc! {
                     "$numberDecimal" => (v.to_string())
@@ -445,6 +452,7 @@ impl Bson {
 
     /// Converts from extended format.
     /// This function is mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    #[cfg(feature = "decimal128")]
     #[doc(hidden)]
     pub fn from_extended_document(values: Document) -> Bson {
         if values.len() == 2 {
@@ -475,6 +483,43 @@ impl Bson {
                 return Bson::Symbol(sym.to_owned());
             } else if let Ok(dec) = values.get_str("$numberDecimal") {
                 return Bson::Decimal128(dec.parse::<Decimal128>().unwrap());
+            }
+        }
+
+        Bson::Document(values)
+    }
+
+    /// Converts from extended format.
+    /// This function is mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    #[cfg(not(feature = "decimal128"))]
+    #[doc(hidden)]
+    pub fn from_extended_document(values: Document) -> Bson {
+        if values.len() == 2 {
+            if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
+                return Bson::RegExp(pat.to_owned(), opt.to_owned());
+            } else if let (Ok(code), Ok(scope)) = (values.get_str("$code"), values.get_document("$scope")) {
+                return Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned());
+            } else if let (Ok(t), Ok(i)) = (values.get_i32("t"), values.get_i32("i")) {
+                let timestamp = ((t as i64) << 32) + (i as i64);
+                return Bson::TimeStamp(timestamp);
+            } else if let (Ok(t), Ok(i)) = (values.get_i64("t"), values.get_i64("i")) {
+                let timestamp = (t << 32) + i;
+                return Bson::TimeStamp(timestamp);
+            } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
+                let ttype = t as u8;
+                return Bson::Binary(From::from(ttype), hex::decode(hex.as_bytes()).expect("$binary value is not a valid Hex encoded bytes"));
+            }
+        } else if values.len() == 1 {
+            if let Ok(code) = values.get_str("$code") {
+                return Bson::JavaScriptCode(code.to_owned());
+            } else if let Ok(hex) = values.get_str("$oid") {
+                return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
+            } else if let Ok(long) = values.get_document("$date")
+                                           .and_then(|inner| inner.get_i64("$numberLong"))
+            {
+                return Bson::UtcDatetime(Utc.timestamp(long / 1000, ((long % 1000) * 1_000_000) as u32));
+            } else if let Ok(sym) = values.get_str("$symbol") {
+                return Bson::Symbol(sym.to_owned());
             }
         }
 

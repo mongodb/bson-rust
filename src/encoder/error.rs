@@ -1,7 +1,9 @@
-use bson::Bson;
-use serde::ser;
 use std::fmt::Display;
 use std::{error, fmt, io};
+
+use serde::ser;
+
+use crate::bson::Bson;
 
 /// Possible errors that can arise during encoding.
 #[derive(Debug)]
@@ -43,14 +45,12 @@ impl error::Error for EncoderError {
             EncoderError::InvalidMapKeyType(_) => "Invalid map key type",
             EncoderError::Unknown(ref inner) => inner,
             EncoderError::UnsupportedUnsignedType => "BSON does not support unsigned type",
-            EncoderError::UnsignedTypesValueExceedsRange(_) => {
-                "BSON does not support unsigned types.
-                 An attempt to encode the value: {} in a signed type failed due to the values size."
-            }
+            EncoderError::UnsignedTypesValueExceedsRange(_) => "BSON does not support unsigned types.
+                 An attempt to encode the value: {} in a signed type failed due to the values size.",
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             EncoderError::IoError(ref inner) => Some(inner),
             _ => None,

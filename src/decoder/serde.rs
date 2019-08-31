@@ -7,11 +7,12 @@ use serde::de::{
 };
 
 use super::error::{DecoderError, DecoderResult};
-use bson::{Bson, TimeStamp, UtcDateTime};
-use decimal128::Decimal128;
-use oid::ObjectId;
-use ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
-use spec::BinarySubtype;
+use crate::bson::{Bson, TimeStamp, UtcDateTime};
+#[cfg(feature = "decimal128")]
+use crate::decimal128::Decimal128;
+use crate::oid::ObjectId;
+use crate::ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
+use crate::spec::BinarySubtype;
 
 pub struct BsonVisitor;
 
@@ -19,14 +20,16 @@ impl<'de> Deserialize<'de> for ObjectId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>
     {
-        deserializer
-            .deserialize_map(BsonVisitor)
-            .and_then(|bson| if let Bson::ObjectId(oid) = bson {
-                          Ok(oid)
-                      } else {
-                          let err = format!("expected objectId extended document, found {}", bson);
-                          Err(de::Error::invalid_type(Unexpected::Map, &&err[..]))
-                      })
+        deserializer.deserialize_map(BsonVisitor).and_then(|bson| {
+                                                     if let Bson::ObjectId(oid) = bson {
+                                                         Ok(oid)
+                                                     } else {
+                                                         let err =
+                                                             format!("expected objectId extended document, found {}",
+                                                                     bson);
+                                                         Err(de::Error::invalid_type(Unexpected::Map, &&err[..]))
+                                                     }
+                                                 })
     }
 }
 
@@ -254,13 +257,13 @@ impl<'de> Deserializer<'de> for Decoder {
             Bson::Array(v) => {
                 let len = v.len();
                 visitor.visit_seq(SeqDecoder { iter: v.into_iter(),
-                                               len: len, })
+                                               len: len })
             }
             Bson::Document(v) => {
                 let len = v.len();
                 visitor.visit_map(MapDecoder { iter: v.into_iter(),
                                                value: None,
-                                               len: len, })
+                                               len: len })
             }
             Bson::Boolean(v) => visitor.visit_bool(v),
             Bson::Null => visitor.visit_unit(),
@@ -272,7 +275,7 @@ impl<'de> Deserializer<'de> for Decoder {
                 let len = doc.len();
                 visitor.visit_map(MapDecoder { iter: doc.into_iter(),
                                                value: None,
-                                               len: len, })
+                                               len: len })
             }
         }
     }
@@ -300,7 +303,7 @@ impl<'de> Deserializer<'de> for Decoder {
             Some(Bson::Document(value)) => value,
             Some(Bson::String(variant)) => {
                 return visitor.visit_enum(EnumDecoder { val: Bson::String(variant),
-                                                        decoder: VariantDecoder { val: None }, });
+                                                        decoder: VariantDecoder { val: None } });
             }
             Some(_) => {
                 return Err(DecoderError::InvalidType("expected an enum".to_owned()));
@@ -321,7 +324,7 @@ impl<'de> Deserializer<'de> for Decoder {
         match iter.next() {
             Some(_) => Err(DecoderError::InvalidType("expected a single key:value pair".to_owned())),
             None => visitor.visit_enum(EnumDecoder { val: Bson::String(variant),
-                                                     decoder: VariantDecoder { val: Some(value) }, }),
+                                                     decoder: VariantDecoder { val: Some(value) } }),
         }
     }
 
@@ -332,7 +335,7 @@ impl<'de> Deserializer<'de> for Decoder {
         visitor.visit_newtype_struct(self)
     }
 
-    forward_to_deserialize!{
+    forward_to_deserialize! {
         deserialize_bool();
         deserialize_u8();
         deserialize_u16();
@@ -404,7 +407,7 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
     {
         if let Bson::Array(fields) = self.val.take().ok_or(DecoderError::EndOfStream)? {
             let de = SeqDecoder { len: fields.len(),
-                                  iter: fields.into_iter(), };
+                                  iter: fields.into_iter() };
             de.deserialize_any(visitor)
         } else {
             return Err(DecoderError::InvalidType("expected a tuple".to_owned()));
@@ -417,7 +420,7 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
         if let Bson::Document(fields) = self.val.take().ok_or(DecoderError::EndOfStream)? {
             let de = MapDecoder { len: fields.len(),
                                   iter: fields.into_iter(),
-                                  value: None, };
+                                  value: None };
             de.deserialize_any(visitor)
         } else {
             return Err(DecoderError::InvalidType("expected a struct".to_owned()));
@@ -444,7 +447,7 @@ impl<'de> Deserializer<'de> for SeqDecoder {
         }
     }
 
-    forward_to_deserialize!{
+    forward_to_deserialize! {
         deserialize_bool();
         deserialize_u8();
         deserialize_u16();
@@ -551,7 +554,7 @@ impl<'de> Deserializer<'de> for MapDecoder {
         visitor.visit_map(self)
     }
 
-    forward_to_deserialize!{
+    forward_to_deserialize! {
         deserialize_bool();
         deserialize_u8();
         deserialize_u16();
@@ -592,13 +595,14 @@ impl<'de> Deserialize<'de> for TimeStamp {
                 let ts = ts.to_le();
 
                 Ok(TimeStamp { t: ((ts as u64) >> 32) as u32,
-                               i: (ts & 0xFFFF_FFFF) as u32, })
+                               i: (ts & 0xFFFF_FFFF) as u32 })
             }
             _ => Err(D::Error::custom("expecting TimeStamp")),
         }
     }
 }
 
+#[cfg(feature = "decimal128")]
 impl<'de> Deserialize<'de> for Decimal128 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>

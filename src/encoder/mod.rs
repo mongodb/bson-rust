@@ -34,9 +34,10 @@ use std::mem;
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::Timelike;
 
-use bson::Bson;
-use decimal128::Decimal128;
-use serde::Serialize;
+use crate::bson::Bson;
+#[cfg(feature = "decimal128")]
+use crate::decimal128::Decimal128;
+use crate::serde::Serialize;
 
 fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> EncoderResult<()> {
     writer.write_i32::<LittleEndian>(s.len() as i32 + 1)?;
@@ -66,6 +67,7 @@ fn write_f64<W: Write + ?Sized>(writer: &mut W, val: f64) -> EncoderResult<()> {
     writer.write_f64::<LittleEndian>(val).map_err(From::from)
 }
 
+#[cfg(feature = "decimal128")]
 #[inline]
 fn write_f128<W: Write + ?Sized>(writer: &mut W, val: Decimal128) -> EncoderResult<()> {
     let raw = val.to_raw_bytes_le();
@@ -140,6 +142,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         Bson::UtcDatetime(ref v) => write_i64(writer, (v.timestamp() * 1000) + (v.nanosecond() / 1_000_000) as i64),
         Bson::Null => Ok(()),
         Bson::Symbol(ref v) => write_string(writer, &v),
+        #[cfg(feature = "decimal128")]
         Bson::Decimal128(ref v) => write_f128(writer, v.clone()),
     }
 }
