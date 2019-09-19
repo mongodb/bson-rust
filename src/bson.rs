@@ -177,7 +177,7 @@ impl From<f64> for Bson {
     }
 }
 
-impl<'a> From<&'a str> for Bson {
+impl From<&str> for Bson {
     fn from(s: &str) -> Bson {
         Bson::String(s.to_owned())
     }
@@ -186,18 +186,6 @@ impl<'a> From<&'a str> for Bson {
 impl From<String> for Bson {
     fn from(a: String) -> Bson {
         Bson::String(a)
-    }
-}
-
-impl<'a> From<&'a String> for Bson {
-    fn from(a: &'a String) -> Bson {
-        Bson::String(a.to_owned())
-    }
-}
-
-impl From<Array> for Bson {
-    fn from(a: Array) -> Bson {
-        Bson::Array(a)
     }
 }
 
@@ -228,6 +216,49 @@ impl From<(String, Document)> for Bson {
 impl From<(BinarySubtype, Vec<u8>)> for Bson {
     fn from((ty, data): (BinarySubtype, Vec<u8>)) -> Bson {
         Bson::Binary(ty, data)
+    }
+}
+
+impl<T> From<&T> for Bson
+where
+    T: Clone + Into<Bson>
+{
+    fn from(t: &T) -> Bson {
+        t.clone().into()
+    }
+}
+
+impl<T> From<Vec<T>> for Bson
+where
+    T: Into<Bson>
+{
+    fn from(v: Vec<T>) -> Bson {
+        Bson::Array(v.into_iter().map(|val| val.into()).collect())
+    }
+}
+
+impl<T> From<&[T]> for Bson
+where
+    T: Clone + Into<Bson>
+{
+    fn from(s: &[T]) -> Bson {
+        Bson::Array(s.into_iter().cloned().map(|val| val.into()).collect())
+    }
+}
+
+impl<T: Into<Bson>> ::std::iter::FromIterator<T> for Bson {
+    /// # Examples
+    ///
+    /// ```
+    /// use std::iter::FromIterator;
+    /// use bson::Bson;
+    ///
+    /// let x: Bson = Bson::from_iter(vec!["lorem", "ipsum", "dolor"]);
+    /// // or
+    /// let x: Bson = vec!["lorem", "ipsum", "dolor"].into_iter().collect();
+    /// ```
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Bson::Array(iter.into_iter().map(Into::into).collect())
     }
 }
 
@@ -719,8 +750,7 @@ impl Bson {
 /// Just a helper for convenience
 ///
 /// ```rust,ignore
-/// #[macro_use]
-/// extern crate serde_derive;
+/// use serde::{Serialize, Deserialize};
 /// extern crate bson;
 /// use bson::TimeStamp;
 ///
