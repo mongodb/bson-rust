@@ -2,11 +2,11 @@
 name = "serde-tests"
 version = "0.1.0"
 authors = ["Kevin Yeh <kevinyeah@utexas.edu>"]
+edition = "2018"
 
 [dependencies]
-serde = "1.0"
 bson = { path = ".." }
-serde_derive = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 
 [lib]
 name = "serde_tests"

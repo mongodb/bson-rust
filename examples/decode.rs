@@ -1,4 +1,4 @@
-extern crate bson;
+use bson;
 
 use std::fs::File;
 

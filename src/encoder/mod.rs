@@ -37,7 +37,7 @@ use chrono::Timelike;
 use crate::bson::Bson;
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
-use crate::serde::Serialize;
+use ::serde::Serialize;
 
 fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> EncoderResult<()> {
     writer.write_i32::<LittleEndian>(s.len() as i32 + 1)?;

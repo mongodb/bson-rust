@@ -1,13 +1,6 @@
-#[macro_use]
-extern crate bson;
-extern crate chrono;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_bytes;
-
-use bson::{Bson, Decoder, Encoder};
+use bson::{Bson, Decoder, Encoder, bson, doc};
 use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
 

@@ -1,7 +1,3 @@
-extern crate bson;
-extern crate serde;
-#[macro_use] extern crate serde_derive;
-
 use std::collections::{BTreeMap, HashSet};
 use serde::{Deserialize, Serialize, Deserializer};
 use serde::de::Unexpected;

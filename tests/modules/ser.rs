@@ -1,3 +1,4 @@
+use assert_matches::assert_matches;
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
 use bson::oid::ObjectId;

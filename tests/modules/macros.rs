@@ -1,6 +1,7 @@
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
 use bson::Bson;
+use bson::doc;
 use chrono::offset::Utc;
 use hex;
 

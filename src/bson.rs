@@ -27,7 +27,7 @@ use std::ops::{Deref, DerefMut};
 use chrono::offset::TimeZone;
 use chrono::{DateTime, Timelike, Utc};
 use hex;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
@@ -751,7 +751,6 @@ impl Bson {
 ///
 /// ```rust,ignore
 /// use serde::{Serialize, Deserialize};
-/// extern crate bson;
 /// use bson::TimeStamp;
 ///
 /// #[derive(Serialize, Deserialize)]
@@ -770,9 +769,7 @@ pub struct TimeStamp {
 /// Just a helper for convenience
 ///
 /// ```rust,ignore
-/// #[macro_use]
-/// extern crate serde_derive;
-/// extern crate bson;
+/// use serde::{Serialize, Deserialize};
 /// use bson::UtcDateTime;
 ///
 /// #[derive(Serialize, Deserialize)]

@@ -1,8 +1,8 @@
-extern crate bson;
-extern crate chrono;
+
+use std::io::Cursor;
 
 use bson::{decode_document, encode_document, oid, Array, Bson, Document};
-use std::io::Cursor;
+use chrono;
 
 fn main() {
     let mut doc = Document::new();
