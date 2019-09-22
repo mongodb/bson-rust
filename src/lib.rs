@@ -27,7 +27,6 @@
 //! ## Basic usage
 //!
 //! ```rust
-//! extern crate bson;
 //! use bson::{decode_document, encode_document, Bson, Document};
 //! use std::io::Cursor;
 //!
@@ -42,18 +41,6 @@
 //! }
 //! ```
 
-extern crate byteorder;
-extern crate chrono;
-extern crate hex;
-extern crate linked_hash_map;
-extern crate rand;
-extern crate serde;
-#[macro_use]
-extern crate serde_json;
-#[cfg(feature = "decimal128")]
-extern crate decimal;
-extern crate md5;
-extern crate time;
 
 pub use self::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
 #[cfg(feature = "decimal128")]

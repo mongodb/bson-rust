@@ -1,5 +1,6 @@
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
+use bson::doc;
 use bson::oid::ObjectId;
 use bson::spec::BinarySubtype;
 use bson::ValueAccessError;
