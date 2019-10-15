@@ -34,7 +34,7 @@ time = "0.1"
 linked-hash-map = "0.5"
 hex = "0.3"
 md5 = "0.6"
-decimal = { version = "2.0.4", default_features = false, optional = true }
+decimal = { git = "https://github.com/alkis/decimal.git", rev = "5577a60b9b8860a322288856ff2419c191ed080f", optional = true }
 
 [dev-dependencies]
 assert_matches = "1.2"
