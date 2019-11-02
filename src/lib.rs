@@ -59,4 +59,5 @@ mod decoder;
 mod encoder;
 pub mod oid;
 pub mod ordered;
+pub mod raw;
 pub mod spec;
