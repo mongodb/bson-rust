@@ -417,22 +417,22 @@ impl<'a> RawBson<'a> {
     }
 
     pub fn as_symbol(self) -> Option<&'a str> {
-        if let ElementType::JavaScriptCode = self.element_type {
+        if let ElementType::Symbol = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
             assert_eq!(self.data.len() as i32, length + 4);
-            Some(std::str::from_utf8(&self.data[4..]).expect("not valid utf-8"))
+            Some(std::str::from_utf8(&self.data[4..4 + length as usize - 1]).ok()?)
         } else {
             None
         }
     }
 
     pub fn as_javascript_with_scope(self) -> Option<(&'a str, RawBsonDoc<'a>)> {
-        if let ElementType::JavaScriptCode = self.element_type {
+        if let ElementType::JavaScriptCodeWithScope = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
-            assert_eq!(self.data.len() as i32, length + 4);
+            assert_eq!(self.data.len() as i32, length);
 
             let js_len = i32_from_slice(&self.data[4..8]) as usize;
-            let js = &self.data[8..8 + js_len];
+            let js = &self.data[8..8 + js_len - 1];
             let doc_offset = 8 + js_len;
             let doc_len = i32_from_slice(&self.data[doc_offset..doc_offset + 4]) as usize;
             assert_eq!(self.data.len(), doc_offset + doc_len);
@@ -536,7 +536,10 @@ impl<'a> From<RawBson<'a>> for Bson {
             ElementType::Undefined => Bson::Null,
             ElementType::DbPointer => panic!("Uh oh. Maybe this should be a TryFrom"),
             ElementType::Symbol => Bson::Symbol(String::from(rawbson.as_symbol().expect("not a symbol"))),
-            ElementType::JavaScriptCodeWithScope => unimplemented!(),
+            ElementType::JavaScriptCodeWithScope => {
+                let (js, scope) = rawbson.as_javascript_with_scope().expect("not javascript with scope");
+                Bson::JavaScriptCodeWithScope(String::from(js), scope.into())
+            },
             #[cfg(feature = "decimal128")]
             ElementType::Decimal128Bit => unimplemented!(),
             ElementType::MaxKey => unimplemented!(),
@@ -655,22 +658,26 @@ mod tests {
             "f64": 2.5,
             "string": "hello",
             "document": {},
-            "object_id": oid::ObjectId::with_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12].try_into().unwrap()),
             "array": ["binary", "serialized", "object", "notation"],
             "binary": (BinarySubtype::Generic, vec![1u8, 2, 3]),
+            "object_id": oid::ObjectId::with_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12].try_into().unwrap()),
             "boolean": true,
-            // "datetime": ???
+            "datetime": Utc::now(),
             "null": Bson::Null,
-            "javascript": Bson::JavaScriptCode(String::from("console.log(console);")),
             "regex": Bson::RegExp(String::from(r"end\s*$"), String::from("i")),
+            "javascript": Bson::JavaScriptCode(String::from("console.log(console);")),
+            "symbol": Bson::Symbol(String::from("artist-formerly-known-as")),
+            "javascript_with_scope": Bson::JavaScriptCodeWithScope(String::from("console.log(msg);"), doc!{"ok": true}),
             "int32": 23i32,
+            "timestamp": Bson::TimeStamp(3542578),
             "int64": 46i64,
             "end": "END",
         });
 
         let rawdoc = RawBsonDoc::new(&docbytes);
         let doc: Document = rawdoc.into();
-        println!("{:?}", doc);
+        println!("{:#?}", doc);
+        //assert!(false);
         assert_eq!(
             rawdoc
                 .get("f64")
@@ -693,12 +700,6 @@ mod tests {
             .as_document()
             .expect("result was not a document");
         assert_eq!(doc.data, &[5, 0, 0, 0, 0]); // Empty document
-        let oid = rawdoc
-            .get("object_id")
-            .expect("no key object_id")
-            .as_object_id()
-            .expect("result was not an object id");
-        assert_eq!(oid.to_hex(), "0102030405060708090a0b0c");
 
         let array: RawBsonArray<'_> = rawdoc
             .get("array")
@@ -718,6 +719,13 @@ mod tests {
         assert_eq!(binary.subtype, BinarySubtype::Generic);
         assert_eq!(binary.data, &[1, 2, 3]);
 
+        let oid = rawdoc
+            .get("object_id")
+            .expect("no key object_id")
+            .as_object_id()
+            .expect("result was not an object id");
+        assert_eq!(oid.to_hex(), "0102030405060708090a0b0c");
+
         let boolean = rawdoc
             .get("boolean")
             .expect("no key boolean")
@@ -725,6 +733,12 @@ mod tests {
             .expect("result was not boolean");
 
         assert_eq!(boolean, true);
+
+        let _dt: DateTime<Utc> = rawdoc
+            .get("datetime")
+            .expect("no key datetime")
+            .as_utc_date_time()
+            .expect("was not utc_date_time");
 
         let null = rawdoc
             .get("null")
@@ -749,12 +763,39 @@ mod tests {
             .expect("was not javascript");
         assert_eq!(js, "console.log(console);");
 
+        let symbol = rawdoc
+            .get("symbol")
+            .expect("no key symbol")
+            .as_symbol()
+            .expect("was not symbol");
+        assert_eq!(symbol, "artist-formerly-known-as");
+
+        let (js, scopedoc) = rawdoc
+            .get("javascript_with_scope")
+            .expect("no key javascript_with-scope")
+            .as_javascript_with_scope()
+            .expect("was not javascript with scope");
+        assert_eq!(js, "console.log(msg);");
+        let (scope_key, scope_value_bson) = scopedoc.into_iter().next()
+            .expect("no next value in scope");
+        assert_eq!(scope_key, "ok");
+        let scope_value = scope_value_bson.as_bool().expect("not a boolean");
+        assert_eq!(scope_value, true);
+
         let int32 = rawdoc
             .get("int32")
             .expect("no key int32")
             .as_i32()
             .expect("was not int32");
         assert_eq!(int32, 23i32);
+
+        let ts = rawdoc
+            .get("timestamp")
+            .expect("no key timestamp")
+            .as_timestamp()
+            .expect("was not a timestamp");
+
+        assert_eq!(ts, 3542578);
 
         let int64 = rawdoc
             .get("int64")
