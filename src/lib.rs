@@ -53,6 +53,7 @@ pub use self::ordered::{ValueAccessError, ValueAccessResult};
 pub mod macros;
 mod bson;
 pub mod compat;
+pub mod de;
 #[cfg(feature = "decimal128")]
 pub mod decimal128;
 mod decoder;

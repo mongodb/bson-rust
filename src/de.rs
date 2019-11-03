@@ -1,0 +1,1067 @@
+use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, Visitor};
+use serde::Deserialize;
+
+use std::convert::TryInto;
+use std::fmt::Debug;
+use std::num::TryFromIntError;
+
+use crate::raw::{RawBson, RawBsonDoc, RawBsonDocIterator};
+use crate::spec::ElementType;
+
+#[derive(Debug)]
+pub enum Error {
+    Eof,
+    TrailingData(Vec<u8>),
+    EncodingError,
+    MalformedDocument,
+    Unimplemented,
+    IntConversion(TryFromIntError),
+    Internal(String),
+}
+
+impl From<TryFromIntError> for Error {
+    fn from(err: TryFromIntError) -> Error {
+        Error::IntConversion(err)
+    }
+}
+
+impl std::error::Error for Error {}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl de::Error for Error {
+    fn custom<T: std::fmt::Display>(err: T) -> Error {
+        Error::Internal(format!("{}", err))
+    }
+}
+
+pub struct BsonDeserializer<'de> {
+    bson: RawBson<'de>,
+}
+
+impl<'de> BsonDeserializer<'de> {
+    pub fn from_rawdoc(doc: RawBsonDoc<'de>) -> Self {
+        BsonDeserializer::from_rawbson(RawBson::new(ElementType::EmbeddedDocument, doc.as_bytes()))
+    }
+
+    pub fn from_rawbson(bson: RawBson<'de>) -> Self {
+        BsonDeserializer { bson: bson.into() }
+    }
+}
+
+pub fn from_bytes<'a, T>(data: &'a [u8]) -> Result<T, Error>
+where
+    T: Deserialize<'a>,
+{
+    let doc = RawBsonDoc::new(data);
+    let mut deserializer = BsonDeserializer::from_rawdoc(doc);
+    let t = T::deserialize(&mut deserializer)?;
+    // TODO: Implement completion check.
+    Ok(t)
+}
+
+impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
+    type Error = Error;
+
+    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        println!("deserialize any");
+        match self.bson.element_type() {
+            ElementType::FloatingPoint => self.deserialize_f64(visitor),
+            ElementType::Utf8String => self.deserialize_str(visitor),
+            ElementType::EmbeddedDocument => self.deserialize_map(visitor),
+            ElementType::Array => self.deserialize_seq(visitor),
+            ElementType::Binary => self.deserialize_map(visitor),
+            ElementType::Undefined => self.deserialize_unit(visitor),
+            ElementType::ObjectId => self.deserialize_map(visitor),
+            ElementType::Boolean => self.deserialize_bool(visitor),
+            ElementType::UtcDatetime => Err(Error::Unimplemented),
+            ElementType::NullValue => self.deserialize_unit(visitor),
+            ElementType::DbPointer => Err(Error::Unimplemented),
+            ElementType::RegularExpression => Err(Error::Unimplemented), // deserialize tuple ?
+            ElementType::JavaScriptCode => self.deserialize_str(visitor),
+            ElementType::Symbol => Err(Error::Unimplemented),
+            ElementType::JavaScriptCodeWithScope => Err(Error::Unimplemented),
+            ElementType::Integer32Bit => self.deserialize_i32(visitor),
+            ElementType::TimeStamp => self.deserialize_u64(visitor),
+            ElementType::Integer64Bit => self.deserialize_i64(visitor),
+            ElementType::MinKey => self.deserialize_unit(visitor),
+            ElementType::MaxKey => self.deserialize_unit(visitor),
+        }
+    }
+
+    fn deserialize_bool<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        visitor.visit_bool(self.bson.as_bool().ok_or(Error::MalformedDocument)?)
+    }
+
+    fn deserialize_u8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::Integer32Bit => {
+                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
+                visitor.visit_u8(val.try_into()?)
+            }
+            ElementType::Integer64Bit => {
+                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
+                visitor.visit_u64(val.try_into()?)
+            }
+            _ => Err(Error::Unimplemented),
+        }
+    }
+
+    fn deserialize_i8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::Integer32Bit => {
+                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
+                visitor.visit_i8(val.try_into()?)
+            }
+            ElementType::Integer64Bit => {
+                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
+                visitor.visit_u64(val.try_into()?)
+            }
+            _ => Err(Error::Unimplemented),
+        }
+    }
+    fn deserialize_u16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::Integer32Bit => {
+                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
+                visitor.visit_u16(val.try_into()?)
+            }
+            ElementType::Integer64Bit => {
+                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
+                visitor.visit_u64(val.try_into()?)
+            }
+            _ => Err(Error::Unimplemented),
+        }
+    }
+    fn deserialize_i16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::Integer32Bit => {
+                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
+                visitor.visit_i16(val.try_into()?)
+            }
+            ElementType::Integer64Bit => {
+                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
+                visitor.visit_u64(val.try_into()?)
+            }
+            _ => Err(Error::Unimplemented),
+        }
+    }
+    fn deserialize_u32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::Integer32Bit => {
+                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
+                visitor.visit_u32(val.try_into()?)
+            }
+            ElementType::Integer64Bit => {
+                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
+                visitor.visit_u64(val.try_into()?)
+            }
+            _ => Err(Error::Unimplemented),
+        }
+    }
+    fn deserialize_i32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::Integer32Bit => visitor.visit_i32(self.bson.as_i32().ok_or(Error::MalformedDocument)?),
+            ElementType::Integer64Bit => visitor.visit_u64(self.bson.as_i64().ok_or(Error::MalformedDocument)?.try_into()?),
+            _ => Err(Error::Unimplemented),
+        }
+    }
+
+    fn deserialize_u64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::Integer32Bit => {
+                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
+                visitor.visit_u64(val.try_into()?)
+            }
+            ElementType::Integer64Bit => {
+                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
+                visitor.visit_u64(val.try_into()?)
+            }
+            _ => Err(Error::Unimplemented),
+        }
+    }
+
+    fn deserialize_i64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::Integer32Bit => visitor.visit_i64(self.bson.as_i32().ok_or(Error::MalformedDocument)?.into()),
+            ElementType::Integer64Bit => visitor.visit_i64(self.bson.as_i64().ok_or(Error::MalformedDocument)?),
+            _ => Err(Error::Unimplemented),
+        }
+    }
+
+    fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        visitor.visit_f64(self.bson.as_f64().ok_or(Error::MalformedDocument)?.into())
+    }
+
+    fn deserialize_f64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        visitor.visit_f64(self.bson.as_f64().ok_or(Error::MalformedDocument)?)
+    }
+
+    fn deserialize_char<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        Err(Error::Unimplemented)
+    }
+
+    fn deserialize_str<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        println!("deserialize str");
+        match self.bson.element_type() {
+            ElementType::Utf8String => visitor.visit_borrowed_str(self.bson.as_str().ok_or(Error::MalformedDocument)?),
+            ElementType::JavaScriptCode => {
+                visitor.visit_borrowed_str(self.bson.as_javascript().ok_or(Error::MalformedDocument)?)
+            }
+            _ => Err(Error::Unimplemented),
+        }
+    }
+
+    fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        println!("deserialize string");
+        match self.bson.element_type() {
+            ElementType::Utf8String => visitor.visit_str(self.bson.as_str().ok_or(Error::MalformedDocument)?),
+            ElementType::JavaScriptCode => visitor.visit_str(self.bson.as_javascript().ok_or(Error::MalformedDocument)?),
+            _ => Err(Error::Unimplemented),
+        }
+    }
+
+    fn deserialize_bytes<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        println!("deserializing bytes");
+        match self.bson.element_type() {
+            ElementType::Binary => {
+                let binary = self.bson.as_binary().expect("was not binary");
+                let deserializer = binary::BinaryDeserializer::new(binary);
+                deserializer.deserialize_bytes(visitor)
+            }
+            _ => Err(Error::MalformedDocument),
+        }
+    }
+
+    fn deserialize_byte_buf<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::Binary => {
+                let binary = self.bson.as_binary().expect("was not binary");
+                let deserializer = binary::BinaryDeserializer::new(binary);
+                deserializer.deserialize_byte_buf(visitor)
+            }
+            _ => Err(Error::MalformedDocument),
+        }
+    }
+
+    fn deserialize_option<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::NullValue => visitor.visit_none(),
+            _ => visitor.visit_some(self),
+        }
+    }
+
+    fn deserialize_unit<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::NullValue => visitor.visit_unit(),
+            _ => Err(Error::MalformedDocument),
+        }
+    }
+
+    fn deserialize_unit_struct<V: Visitor<'de>>(self, name: &str, visitor: V) -> Result<V::Value, Self::Error> {
+        Err(Error::Unimplemented)
+    }
+
+    fn deserialize_newtype_struct<V: Visitor<'de>>(self, name: &str, visitor: V) -> Result<V::Value, Self::Error> {
+        Err(Error::Unimplemented)
+    }
+
+    fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        Err(Error::Unimplemented)
+    }
+
+    fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::EmbeddedDocument => {
+                println!("deserialize map with type: {:?}", self.bson.element_type());
+                let doc = self.bson.as_document().ok_or(Error::MalformedDocument)?;
+                let mapper = BsonDocumentMap::new(doc.into_iter());
+                Ok(visitor.visit_map(mapper)?)
+            }
+            ElementType::ObjectId => visitor.visit_map(object_id::ObjectIdDeserializer::new(self.bson)),
+            ElementType::Binary => match self.bson.as_binary() {
+                Some(binary) => visitor.visit_map(binary::BinaryDeserializer::new(binary)),
+                None => Err(Error::MalformedDocument),
+            },
+            _ => Err(Error::MalformedDocument),
+        }
+    }
+
+    fn deserialize_tuple<V: Visitor<'de>>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error> {
+        Err(Error::Unimplemented)
+    }
+
+    fn deserialize_tuple_struct<V: Visitor<'de>>(
+        self,
+        name: &str,
+        len: usize,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error> {
+        Err(Error::Unimplemented)
+    }
+
+    fn deserialize_struct<V: Visitor<'de>>(
+        self,
+        name: &str,
+        _fields: &[&str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error> {
+        self.deserialize_map(visitor)
+    }
+
+    fn deserialize_enum<V: Visitor<'de>>(
+        self,
+        name: &str,
+        fields: &[&str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error> {
+        Err(Error::Unimplemented)
+    }
+
+    fn deserialize_ignored_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        Err(Error::Unimplemented)
+    }
+
+    fn deserialize_identifier<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        Err(Error::Unimplemented)
+    }
+}
+
+struct BsonDocumentMap<'de> {
+    doc_iter: RawBsonDocIterator<'de>,
+    next: Option<RawBson<'de>>,
+}
+
+impl<'de> BsonDocumentMap<'de> {
+    fn new(doc_iter: RawBsonDocIterator<'de>) -> Self {
+        BsonDocumentMap {
+            doc_iter: doc_iter,
+            next: None,
+        }
+    }
+}
+
+impl<'de> MapAccess<'de> for BsonDocumentMap<'de> {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        println!("next key seed");
+        match self.doc_iter.next() {
+            Some((key, value)) => {
+                self.next = Some(value);
+                let deserializer = StrDeserializer::new(key);
+                Ok(Some(seed.deserialize(deserializer)?))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        println!("next value seed");
+        let bson = self.next.take().ok_or(Error::MalformedDocument)?;
+        let mut deserializer = BsonDeserializer::from_rawbson(bson);
+        seed.deserialize(&mut deserializer)
+    }
+}
+
+pub mod array {}
+
+pub mod binary {
+    use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
+
+    use super::Error;
+    use crate::raw::{ RawBsonBinary};
+    use crate::spec::BinarySubtype;
+
+    pub static SUBTYPE_FIELD: &str = "$__bson_binary_subtype";
+    pub static DATA_FIELD: &str = "$__bson_binary_data";
+    pub static NAME: &str = "$__bson_Binary";
+
+    pub(super) struct BinaryDeserializer<'de> {
+        binary: RawBsonBinary<'de>,
+        visited: u8,
+    }
+
+    impl<'de> BinaryDeserializer<'de> {
+        pub(super) fn new(binary: RawBsonBinary<'de>) -> BinaryDeserializer<'de> {
+            BinaryDeserializer { binary, visited: 0 }
+        }
+    }
+
+    impl<'de> Deserializer<'de> for BinaryDeserializer<'de> {
+        type Error = Error;
+
+        fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+        where
+            V: Visitor<'de>,
+        {
+            Err(Error::Unimplemented)
+        }
+
+        fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Error>
+        where
+            V: Visitor<'de>,
+        {
+            visitor.visit_borrowed_bytes(self.binary.as_bytes())
+        }
+
+        fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value, Error>
+        where
+            V: Visitor<'de>
+        {
+            visitor.visit_bytes(self.binary.as_bytes())
+        }
+
+        fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+            visitor.visit_map(self)
+        }
+        
+        serde::forward_to_deserialize_any!(
+            bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+            struct option unit newtype_struct
+            ignored_any unit_struct tuple_struct tuple enum identifier
+        );
+    }
+    impl<'de> MapAccess<'de> for BinaryDeserializer<'de> {
+        type Error = Error;
+
+        fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+        where
+            K: DeserializeSeed<'de>,
+        {
+            match self.visited {
+                0 => seed.deserialize(BinaryKeyDeserializer::new(SUBTYPE_FIELD)).map(Some),
+                1 => seed.deserialize(BinaryKeyDeserializer::new(DATA_FIELD)).map(Some),
+                _ => Ok(None),
+            }
+        }
+
+        fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+        where
+            V: DeserializeSeed<'de>,
+        {
+            match self.visited {
+                0 => {
+                    self.visited += 1;
+                    seed.deserialize(BinarySubtypeDeserializer::new(self.binary.subtype()))
+                }
+                1 => {
+                    self.visited += 1;
+                    seed.deserialize(BinaryDataDeserializer::new(self.binary))
+                }
+                _ => Err(Error::MalformedDocument),
+            }
+        }
+    }
+
+    struct BinaryKeyDeserializer {
+        key: &'static str,
+    }
+
+    impl BinaryKeyDeserializer {
+        fn new(key: &'static str) -> BinaryKeyDeserializer {
+            BinaryKeyDeserializer { key }
+        }
+    }
+
+    impl<'de> Deserializer<'de> for BinaryKeyDeserializer {
+        type Error = Error;
+
+        fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+        where
+            V: Visitor<'de>,
+        {
+            visitor.visit_str(self.key)
+        }
+
+        serde::forward_to_deserialize_any!(
+            bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+            bytes byte_buf map struct option unit newtype_struct
+            ignored_any unit_struct tuple_struct tuple enum identifier
+        );
+    }
+
+    struct BinarySubtypeDeserializer {
+        subtype: BinarySubtype,
+    }
+
+    impl BinarySubtypeDeserializer {
+        fn new(subtype: BinarySubtype) -> BinarySubtypeDeserializer {
+            BinarySubtypeDeserializer { subtype }
+        }
+    }
+
+    impl<'de> Deserializer<'de> for BinarySubtypeDeserializer {
+        type Error = Error;
+
+        fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+        where
+            V: Visitor<'de>,
+        {
+            visitor.visit_u8(self.subtype.into())
+        }
+
+        serde::forward_to_deserialize_any!(
+            bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+            bytes byte_buf map struct option unit newtype_struct
+            ignored_any unit_struct tuple_struct tuple enum identifier
+        );
+    }
+
+    struct BinaryDataDeserializer<'de> {
+        binary: RawBsonBinary<'de>,
+    }
+
+    impl<'de> BinaryDataDeserializer<'de> {
+        fn new(binary: RawBsonBinary<'de>) -> BinaryDataDeserializer<'de> {
+            BinaryDataDeserializer { binary }
+        }
+    }
+
+    impl<'de> Deserializer<'de> for BinaryDataDeserializer<'de> {
+        type Error = Error;
+
+        fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+        where
+            V: Visitor<'de>,
+        {
+            visitor.visit_borrowed_bytes(self.binary.as_bytes())
+        }
+
+        serde::forward_to_deserialize_any!(
+            bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+            bytes byte_buf map struct option unit newtype_struct
+            ignored_any unit_struct tuple_struct tuple enum identifier
+        );
+    }
+}
+
+pub mod object_id {
+    // ObjectId handling
+
+    use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
+
+    use super::Error;
+    use crate::raw::{RawBson};
+    use crate::spec::ElementType;
+
+    pub static FIELD: &str = "$__bson_object_id";
+    pub static NAME: &str = "$__bson_ObjectId";
+
+    pub(super) struct ObjectIdDeserializer<'de> {
+        bson: RawBson<'de>,
+        visited: bool,
+    }
+
+    impl<'de> ObjectIdDeserializer<'de> {
+        pub(super) fn new(bson: RawBson<'de>) -> ObjectIdDeserializer<'de> {
+            ObjectIdDeserializer { bson, visited: false }
+        }
+    }
+
+    impl<'de> MapAccess<'de> for ObjectIdDeserializer<'de> {
+        type Error = Error;
+
+        fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<<K as DeserializeSeed<'de>>::Value>, Self::Error>
+        where
+            K: DeserializeSeed<'de>,
+        {
+            println!("object id next key");
+            if self.visited {
+                Ok(None)
+            } else {
+                self.visited = true;
+                seed.deserialize(ObjectIdKeyDeserializer).map(Some)
+            }
+        }
+
+        fn next_value_seed<V>(&mut self, seed: V) -> Result<<V as DeserializeSeed<'de>>::Value, Self::Error>
+        where
+            V: DeserializeSeed<'de>,
+        {
+            println!("object id next value");
+
+            seed.deserialize(ObjectIdValueDeserializer::new(self.bson))
+        }
+    }
+
+    struct ObjectIdKeyDeserializer;
+
+    impl<'de> Deserializer<'de> for ObjectIdKeyDeserializer {
+        type Error = Error;
+
+        fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+        where
+            V: Visitor<'de>,
+        {
+            visitor.visit_borrowed_str(FIELD)
+        }
+
+        serde::forward_to_deserialize_any!(
+            bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+            bytes byte_buf map struct option unit newtype_struct
+            ignored_any unit_struct tuple_struct tuple enum identifier
+        );
+    }
+
+    struct ObjectIdValueDeserializer<'de>(RawBson<'de>);
+
+    impl<'de> ObjectIdValueDeserializer<'de> {
+        fn new(bson: RawBson<'de>) -> ObjectIdValueDeserializer<'de> {
+            ObjectIdValueDeserializer(bson)
+        }
+    }
+
+    impl<'de> Deserializer<'de> for ObjectIdValueDeserializer<'de> {
+        type Error = Error;
+
+        fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+        where
+            V: Visitor<'de>,
+        {
+            match self.0.element_type() {
+                ElementType::ObjectId => visitor.visit_borrowed_bytes(self.0.as_bytes()),
+                _ => Err(Error::MalformedDocument),
+            }
+        }
+
+        serde::forward_to_deserialize_any!(
+            bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+            bytes byte_buf map struct option unit newtype_struct
+            ignored_any unit_struct tuple_struct tuple enum identifier
+        );
+    }
+}
+
+struct StrDeserializer<'a> {
+    value: &'a str,
+}
+
+impl<'a> StrDeserializer<'a> {
+    fn new(value: &'a str) -> StrDeserializer<'a> {
+        StrDeserializer { value }
+    }
+}
+impl<'de> Deserializer<'de> for StrDeserializer<'de> {
+    type Error = Error;
+
+    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        println!("deserialize identifier");
+        visitor.visit_borrowed_str(self.value)
+    }
+
+    serde::forward_to_deserialize_any!(
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+        bytes byte_buf map struct option unit newtype_struct
+        ignored_any unit_struct tuple_struct tuple enum identifier
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use crate::spec::BinarySubtype;
+    use crate::{Bson, doc, encode_document};
+    use crate::oid::ObjectId;
+
+    use serde_derive::Deserialize;
+
+    use super::from_bytes;
+
+    mod uuid {
+        use serde::de::Visitor;
+        use serde::de::{Deserialize, MapAccess};
+        use serde::export::fmt::Error;
+        use serde::export::Formatter;
+        use serde::Deserializer;
+
+        use crate::spec::BinarySubtype;
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        pub(super) struct Uuid {
+            data: Vec<u8>,
+        }
+
+        impl Uuid {
+            pub fn new(data: Vec<u8>) -> Uuid {
+                return Uuid { data };
+            }
+        }
+
+        impl<'de> Deserialize<'de> for Uuid {
+            fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct UuidVisitor;
+
+                impl<'de> Visitor<'de> for UuidVisitor {
+                    type Value = Uuid;
+
+                    fn expecting(&self, formatter: &mut Formatter<'_>) -> Result<(), Error> {
+                        formatter.write_str("a bson uuid")
+                    }
+
+                    fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+                    where
+                        M: MapAccess<'de>,
+                    {
+                        let subtype_key = map.next_key::<FieldKey>()?;
+                        if subtype_key.map(|dk| dk.key) != Some(super::super::binary::SUBTYPE_FIELD) {
+                            return Err(serde::de::Error::custom(
+                                "BinarySubtypeKey not found in synthesized struct",
+                            ));
+                        }
+
+                        let subtype_value: BinarySubtypeFromU8 = map.next_value()?;
+                        match subtype_value.subtype {
+                            BinarySubtype::Uuid | BinarySubtype::UuidOld => {}
+                            _ => {
+                                return Err(serde::de::Error::custom(
+                                    "Expected binary subtype of Uuid (4) or UuidOld (3)",
+                                ))
+                            }
+                        }
+
+                        let data_key = map.next_key::<FieldKey>()?;
+
+                        if data_key.map(|dk| dk.key) != Some(super::super::binary::DATA_FIELD) {
+                            return Err(serde::de::Error::custom(
+                                "BinaryDataKey not found in synthesized struct",
+                            ));
+                        }
+                        let data_value: BinaryDataFromBytes = map.next_value()?;
+                        // Handle old vs new uuid parsing...
+                        Ok(Uuid { data: data_value.data })
+                    }
+                }
+                static FIELDS: [&str; 2] = [super::super::binary::SUBTYPE_FIELD, super::super::binary::DATA_FIELD];
+                deserializer.deserialize_struct(super::super::binary::NAME, &FIELDS, UuidVisitor)
+            }
+        }
+
+        struct FieldKey {
+            key: &'static str,
+        }
+
+        impl FieldKey {
+            fn new(key: &'static str) -> FieldKey {
+                FieldKey { key }
+            }
+        }
+
+        impl<'de> Deserialize<'de> for FieldKey {
+            fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct KeyVisitor;
+
+                impl<'de> Visitor<'de> for KeyVisitor {
+                    type Value = FieldKey;
+
+                    fn expecting(&self, formatter: &mut Formatter<'_>) -> Result<(), Error> {
+                        formatter.write_str("an identifier")
+                    }
+
+                    fn visit_str<E: serde::de::Error>(self, s: &str) -> Result<FieldKey, E> {
+                        use super::super::binary::{DATA_FIELD, SUBTYPE_FIELD};
+                        if s == SUBTYPE_FIELD {
+                            Ok(FieldKey::new(SUBTYPE_FIELD))
+                        } else if s == DATA_FIELD {
+                            Ok(FieldKey::new(DATA_FIELD))
+                        } else {
+                            Err(serde::de::Error::custom(format!("unexpected field: {}", s)))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(KeyVisitor)
+            }
+        }
+
+        struct BinarySubtypeFromU8 {
+            subtype: BinarySubtype,
+        }
+
+        impl BinarySubtypeFromU8 {
+            fn new(subtype_byte: u8) -> BinarySubtypeFromU8 {
+                let subtype = BinarySubtype::from(subtype_byte);
+                BinarySubtypeFromU8 { subtype }
+            }
+        }
+
+        impl<'de> Deserialize<'de> for BinarySubtypeFromU8 {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct SubtypeVisitor;
+
+                impl<'de> Visitor<'de> for SubtypeVisitor {
+                    type Value = BinarySubtypeFromU8;
+
+                    fn expecting(&self, formatter: &mut Formatter<'_>) -> Result<(), Error> {
+                        formatter.write_str("a u8 representing a binary subtype")
+                    }
+
+                    fn visit_u8<E: serde::de::Error>(self, byte: u8) -> Result<BinarySubtypeFromU8, E> {
+                        Ok(BinarySubtypeFromU8::new(byte))
+                    }
+                }
+
+                deserializer.deserialize_u8(SubtypeVisitor)
+            }
+        }
+
+        struct BinaryDataFromBytes {
+            data: Vec<u8>,
+        }
+
+        impl BinaryDataFromBytes {
+            fn new(data: Vec<u8>) -> BinaryDataFromBytes {
+                BinaryDataFromBytes { data }
+            }
+        }
+
+        impl<'de> Deserialize<'de> for BinaryDataFromBytes {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct DataVisitor;
+
+                impl<'de> Visitor<'de> for DataVisitor {
+                    type Value = BinaryDataFromBytes;
+
+                    fn expecting(&self, formatter: &mut Formatter<'_>) -> Result<(), Error> {
+                        formatter.write_str("bytes")
+                    }
+
+                    fn visit_bytes<E: serde::de::Error>(self, bytes: &[u8]) -> Result<BinaryDataFromBytes, E> {
+                        Ok(BinaryDataFromBytes::new(bytes.to_vec()))
+                    }
+                }
+
+                deserializer.deserialize_bytes(DataVisitor)
+            }
+        }
+    }
+
+    mod object_id {
+        use std::fmt;
+
+        use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
+        use serde::export::fmt::Error;
+        use serde::export::Formatter;
+
+        use crate::de::object_id;
+
+        #[derive(Debug)]
+        pub(super) struct ObjectId(Vec<u8>);
+
+        impl ObjectId {
+            pub(super) fn from_bytes(bytes: Vec<u8>) -> Option<ObjectId> {
+                if bytes.len() == 12 {
+                    Some(ObjectId(bytes))
+                } else {
+                    None
+                }
+            }
+            pub(super) fn to_hex(&self) -> String {
+                self.0.iter().map(|x| format!("{:02x}", *x)).collect::<String>()
+            }
+        }
+
+        impl<'de> Deserialize<'de> for ObjectId {
+            fn deserialize<D>(deserializer: D) -> Result<ObjectId, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct ObjectIdVisitor;
+
+                impl<'de> Visitor<'de> for ObjectIdVisitor {
+                    type Value = ObjectId;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        formatter.write_str("a bson objectid")
+                    }
+
+                    fn visit_map<V>(self, mut map: V) -> Result<ObjectId, V::Error>
+                    where
+                        V: MapAccess<'de>,
+                    {
+                        let value = map.next_key::<ObjectIdKey>()?;
+                        if value.is_none() {
+                            return Err(serde::de::Error::custom(
+                                "No ObjectIdKey not found in synthesized struct",
+                            ));
+                        }
+                        let v: ObjectIdFromBytes = map.next_value()?;
+                        Ok(v.0)
+                    }
+                }
+
+                static FIELDS: [&str; 1] = [object_id::FIELD];
+                deserializer.deserialize_struct(object_id::NAME, &FIELDS, ObjectIdVisitor)
+            }
+        }
+
+        struct ObjectIdKey;
+
+        impl<'de> Deserialize<'de> for ObjectIdKey {
+            fn deserialize<D>(deserializer: D) -> Result<ObjectIdKey, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                        formatter.write_str("a valid object id field")
+                    }
+
+                    fn visit_str<E: serde::de::Error>(self, s: &str) -> Result<(), E> {
+                        if s == super::super::object_id::FIELD {
+                            Ok(())
+                        } else {
+                            Err(serde::de::Error::custom(
+                                "field was not $__bson_object_id in synthesized object id struct",
+                            ))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)?;
+                Ok(ObjectIdKey)
+            }
+        }
+
+        struct ObjectIdFromBytes(ObjectId);
+
+        impl<'de> Deserialize<'de> for ObjectIdFromBytes {
+            fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                struct FieldVisitor;
+
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = ObjectIdFromBytes;
+
+                    fn expecting(&self, formatter: &mut Formatter<'_>) -> Result<(), Error> {
+                        formatter.write_str("an object id of twelve bytes")
+                    }
+
+                    fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+                        ObjectId::from_bytes(v.to_vec())
+                            .map(ObjectIdFromBytes)
+                            .ok_or(serde::de::Error::custom("invalid object id"))
+                    }
+                }
+
+                deserializer.deserialize_bytes(FieldVisitor)
+            }
+        }
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct Person<'a> {
+        #[serde(rename = "_id")]
+        id: object_id::ObjectId,
+        first_name: &'a str,
+        middle_name: Option<String>,
+        last_name: String,
+        number: &'a [u8],
+        gid: uuid::Uuid,
+        has_cookies: bool,
+        birth_year: Option<f64>,
+    }
+
+    #[test]
+    fn deserialize_struct() {
+        let mut docbytes = Vec::new();
+        encode_document(
+            &mut docbytes,
+            &doc! {
+                "_id": ObjectId::with_string("abcdefabcdefabcdefabcdef").unwrap(),
+                "first_name": "Edward",
+                "middle_name": Bson::Null,
+                "last_name": "Teach",
+                "number": (BinarySubtype::BinaryOld, vec![7, 0, 0, 0, 8, 6, 7, 5, 3, 0, 9]),
+                "has_cookies": false,
+                "gid": (BinarySubtype::Uuid, b"12345678901234567890123456789012".to_vec()),
+                "birth_year": 15.0,
+            },
+        )
+        .expect("could not encode document");
+        let p: Person = from_bytes(&docbytes).expect("could not decode into Person struct");
+        assert_eq!(p.first_name, "Edward");
+        assert_eq!(p.middle_name, None);
+        assert_eq!(p.last_name, "Teach");
+        assert_eq!(p.id.to_hex(), "abcdefabcdefabcdefabcdef");
+        assert_eq!(p.number, &[8, 6, 7, 5, 3, 0, 9]);
+        assert_eq!(p.has_cookies, false);
+        assert_eq!(p.gid, uuid::Uuid::new(b"12345678901234567890123456789012".to_vec()));
+        assert_eq!(p.birth_year, Some(15.0));
+    }
+
+    #[test]
+    fn wrong_binary_type_for_uuid() {
+        let mut docbytes = Vec::new();
+        encode_document(
+            &mut docbytes,
+            &doc! {
+                "_id": ObjectId::with_string("abcdefabcdefabcdefabcdef").unwrap(),
+                "first_name": "Edward",
+                "last_name": "Teach",
+                "has cookies": true,
+                "number": (BinarySubtype::BinaryOld, vec![7, 0, 0, 0, 8, 6, 7, 5, 3, 0, 9]),
+                "gid": (BinarySubtype::Function, b"12345678901234567890123456789012".to_vec()),
+            },
+        )
+        .expect("could not encode document");
+
+        from_bytes::<Person>(&docbytes).expect_err("Should have failed to decode gid field");
+    }
+
+    #[test]
+    fn deserialize_map() {
+        let mut docbytes = Vec::new();
+        encode_document(
+            &mut docbytes,
+            &doc! {
+                "this": "that",
+                "three": "four",
+                "keymaster": "gatekeeper",
+
+            },
+        )
+        .expect("could not encode document");
+        let map: HashMap<&str, &str> = from_bytes(&docbytes).expect("could not decode into HashMap<&str, &str>");
+        assert_eq!(map.len(), 3);
+        assert_eq!(*map.get("this").expect("key not found"), "that");
+        assert_eq!(*map.get("three").expect("key not found"), "four");
+        assert_eq!(*map.get("keymaster").expect("key not found"), "gatekeeper");
+
+        let map: HashMap<String, String> =
+            from_bytes(&docbytes).expect("could not decode into HashMap<String, String>");
+        assert_eq!(map.len(), 3);
+        assert_eq!(map.get("this").expect("key not found"), "that");
+        assert_eq!(map.get("three").expect("key not found"), "four");
+        assert_eq!(map.get("keymaster").expect("key not found"), "gatekeeper");
+    }
+}

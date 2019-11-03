@@ -109,6 +109,10 @@ impl<'a> RawBsonDoc<'a> {
         self.get(key)
             .and_then(|bson| bson.as_i64().ok_or(ValueAccessError::UnexpectedType))
     }
+
+    pub fn as_bytes(self) -> &'a [u8] {
+        self.data
+    }
 }
 
 impl<'a> From<RawBsonDoc<'a>> for ordered::OrderedDocument {
@@ -252,6 +256,14 @@ impl<'a> RawBsonBinary<'a> {
     pub fn new(subtype: BinarySubtype, data: &'a [u8]) -> RawBsonBinary<'a> {
         RawBsonBinary { subtype, data }
     }
+
+    pub fn subtype(self) -> BinarySubtype {
+        self.subtype
+    }
+
+    pub fn as_bytes(self) -> &'a [u8] {
+        self.data
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -286,8 +298,16 @@ pub struct RawBson<'a> {
 impl<'a> RawBson<'a> {
     // This is not public.  A RawBson object can only be created by the .get() method
     // on RawBsonDoc
-    fn new(element_type: ElementType, data: &'a [u8]) -> RawBson<'a> {
+    pub(super) fn new(element_type: ElementType, data: &'a [u8]) -> RawBson<'a> {
         RawBson { element_type, data }
+    }
+
+    pub fn element_type(self) -> ElementType {
+        self.element_type
+    }
+
+    pub fn as_bytes(self) -> &'a [u8] {
+        self.data
     }
 
     pub fn as_f64(self) -> Option<f64> {
