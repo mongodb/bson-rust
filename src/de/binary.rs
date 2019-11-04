@@ -1,4 +1,5 @@
 use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
+use serde::forward_to_deserialize_any;
 
 use super::Error;
 use crate::raw::{ RawBsonBinary};
@@ -47,7 +48,7 @@ impl<'de> Deserializer<'de> for BinaryDeserializer<'de> {
         visitor.visit_map(self)
     }
 
-    serde::forward_to_deserialize_any!(
+    forward_to_deserialize_any!(
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         struct option unit newtype_struct
         ignored_any unit_struct tuple_struct tuple enum identifier
@@ -106,7 +107,7 @@ impl<'de> Deserializer<'de> for BinaryKeyDeserializer {
         visitor.visit_str(self.key)
     }
 
-    serde::forward_to_deserialize_any!(
+    forward_to_deserialize_any!(
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
         ignored_any unit_struct tuple_struct tuple enum identifier
@@ -133,7 +134,7 @@ impl<'de> Deserializer<'de> for BinarySubtypeDeserializer {
         visitor.visit_u8(self.subtype.into())
     }
 
-    serde::forward_to_deserialize_any!(
+    forward_to_deserialize_any!(
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
         ignored_any unit_struct tuple_struct tuple enum identifier
@@ -160,7 +161,7 @@ impl<'de> Deserializer<'de> for BinaryDataDeserializer<'de> {
         visitor.visit_borrowed_bytes(self.binary.as_bytes())
     }
 
-    serde::forward_to_deserialize_any!(
+    forward_to_deserialize_any!(
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
         ignored_any unit_struct tuple_struct tuple enum identifier

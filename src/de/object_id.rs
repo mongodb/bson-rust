@@ -1,6 +1,7 @@
 // ObjectId handling
 
 use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
+use serde::forward_to_deserialize_any;
 
 use super::Error;
 use crate::raw::{RawBson};
@@ -58,7 +59,7 @@ impl<'de> Deserializer<'de> for ObjectIdKeyDeserializer {
         visitor.visit_borrowed_str(FIELD)
     }
 
-    serde::forward_to_deserialize_any!(
+    forward_to_deserialize_any!(
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
         ignored_any unit_struct tuple_struct tuple enum identifier
@@ -86,7 +87,7 @@ impl<'de> Deserializer<'de> for ObjectIdValueDeserializer<'de> {
         }
     }
 
-    serde::forward_to_deserialize_any!(
+    forward_to_deserialize_any!(
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
         ignored_any unit_struct tuple_struct tuple enum identifier

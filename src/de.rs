@@ -1,5 +1,6 @@
-use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, Visitor};
 use serde::Deserialize;
+use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, Visitor};
+use serde::forward_to_deserialize_any;
 
 use std::convert::TryInto;
 use std::fmt::Debug;
@@ -93,6 +94,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::Integer64Bit => self.deserialize_i64(visitor),
             ElementType::MinKey => self.deserialize_unit(visitor),
             ElementType::MaxKey => self.deserialize_unit(visitor),
+            ElementType::Decimal128Bit => Err(Error::Unimplemented),
         }
     }
 
@@ -388,6 +390,8 @@ impl<'a> StrDeserializer<'a> {
         StrDeserializer { value }
     }
 }
+
+
 impl<'de> Deserializer<'de> for StrDeserializer<'de> {
     type Error = Error;
 
@@ -396,7 +400,7 @@ impl<'de> Deserializer<'de> for StrDeserializer<'de> {
         visitor.visit_borrowed_str(self.value)
     }
 
-    serde::forward_to_deserialize_any!(
+    forward_to_deserialize_any!(
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
         ignored_any unit_struct tuple_struct tuple enum identifier
