@@ -8,6 +8,7 @@ use crate::raw::{RawBson};
 use crate::spec::ElementType;
 
 pub static FIELD: &str = "$__bson_object_id";
+pub static FIELDS: &[&str] = &[FIELD];
 pub static NAME: &str = "$__bson_ObjectId";
 
 pub(super) struct ObjectIdDeserializer<'de> {
@@ -21,6 +22,46 @@ impl<'de> ObjectIdDeserializer<'de> {
     }
 }
 
+impl <'de> Deserializer<'de> for ObjectIdDeserializer<'de> {
+    type Error = Error;
+
+    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::ObjectId => self.deserialize_struct(NAME, FIELDS, visitor),
+            _ => Err(Error::MalformedDocument),
+        }
+    }
+
+    fn deserialize_bytes<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        match self.bson.element_type() {
+            ElementType::ObjectId => visitor.visit_borrowed_bytes(self.bson.as_bytes()),
+            _ => Err(Error::MalformedDocument),
+        }
+    }
+
+    fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        visitor.visit_map(self)
+    }
+
+    fn deserialize_struct<V: Visitor<'de>>(
+        self,
+        name: &'static str,
+        fields: &'static [&'static str],
+        visitor:V,
+    ) -> Result<V::Value, Self::Error> {
+        if name == NAME && fields == FIELDS {
+            visitor.visit_map(self)
+        } else {
+            Err(Error::MalformedDocument)
+        }
+    }
+
+    forward_to_deserialize_any!(
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+        byte_buf option unit newtype_struct
+        ignored_any unit_struct tuple_struct tuple enum identifier
+    );
+}
 impl<'de> MapAccess<'de> for ObjectIdDeserializer<'de> {
     type Error = Error;
 

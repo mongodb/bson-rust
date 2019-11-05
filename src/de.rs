@@ -78,9 +78,9 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::Utf8String => self.deserialize_str(visitor),
             ElementType::EmbeddedDocument => self.deserialize_map(visitor),
             ElementType::Array => self.deserialize_seq(visitor),
-            ElementType::Binary => self.deserialize_map(visitor),
+            ElementType::Binary => self.deserialize_bytes(visitor),
             ElementType::Undefined => self.deserialize_unit(visitor),
-            ElementType::ObjectId => self.deserialize_map(visitor),
+            ElementType::ObjectId => self.deserialize_struct(object_id::NAME, object_id::FIELDS, visitor),
             ElementType::Boolean => self.deserialize_bool(visitor),
             ElementType::UtcDatetime => Err(Error::Unimplemented),
             ElementType::NullValue => self.deserialize_unit(visitor),
@@ -297,9 +297,9 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     }
 
     fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        println!("deserialize map with type: {:?}", self.bson.element_type());
         match self.bson.element_type() {
             ElementType::EmbeddedDocument => {
-                println!("deserialize map with type: {:?}", self.bson.element_type());
                 let doc = self.bson.as_document().ok_or(Error::MalformedDocument)?;
                 let mapper = BsonDocumentMap::new(doc.into_iter());
                 Ok(visitor.visit_map(mapper)?)
@@ -327,8 +327,9 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
         fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
+        println!("deserializing struct with name {} and fields {:?}", name, fields);
         if name == object_id::NAME {
-            visitor.visit_map(object_id::ObjectIdDeserializer::new(self.bson))
+            object_id::ObjectIdDeserializer::new(self.bson).deserialize_struct(name, fields, visitor)
         } else if name == binary::NAME {
             self.bson
                 .as_binary()
@@ -672,8 +673,11 @@ mod tests {
                     }
                 }
 
-                static FIELDS: [&str; 1] = [object_id::FIELD];
-                deserializer.deserialize_struct(object_id::NAME, &FIELDS, ObjectIdVisitor)
+                deserializer.deserialize_struct(
+                    object_id::NAME,
+                    object_id::FIELDS,
+                    ObjectIdVisitor,
+                )
             }
         }
 
