@@ -1,6 +1,6 @@
-use serde::Deserialize;
 use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, Visitor};
 use serde::forward_to_deserialize_any;
+use serde::Deserialize;
 
 use std::convert::TryInto;
 use std::fmt::Debug;
@@ -94,6 +94,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::Integer64Bit => self.deserialize_i64(visitor),
             ElementType::MinKey => self.deserialize_unit(visitor),
             ElementType::MaxKey => self.deserialize_unit(visitor),
+            #[cfg(feature = "decimal128")]
             ElementType::Decimal128Bit => Err(Error::Unimplemented),
         }
     }
@@ -171,7 +172,9 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     fn deserialize_i32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.bson.element_type() {
             ElementType::Integer32Bit => visitor.visit_i32(self.bson.as_i32().ok_or(Error::MalformedDocument)?),
-            ElementType::Integer64Bit => visitor.visit_u64(self.bson.as_i64().ok_or(Error::MalformedDocument)?.try_into()?),
+            ElementType::Integer64Bit => {
+                visitor.visit_u64(self.bson.as_i64().ok_or(Error::MalformedDocument)?.try_into()?)
+            }
             _ => Err(Error::Unimplemented),
         }
     }
@@ -225,7 +228,9 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
         println!("deserialize string");
         match self.bson.element_type() {
             ElementType::Utf8String => visitor.visit_str(self.bson.as_str().ok_or(Error::MalformedDocument)?),
-            ElementType::JavaScriptCode => visitor.visit_str(self.bson.as_javascript().ok_or(Error::MalformedDocument)?),
+            ElementType::JavaScriptCode => {
+                visitor.visit_str(self.bson.as_javascript().ok_or(Error::MalformedDocument)?)
+            }
             _ => Err(Error::Unimplemented),
         }
     }
@@ -233,6 +238,12 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     fn deserialize_bytes<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         println!("deserializing bytes");
         match self.bson.element_type() {
+            ElementType::Utf8String => {
+                let raw_data = self.bson.as_bytes();
+                let len = i32::from_le_bytes(raw_data[0..4].try_into().expect("i32 needs 4 bytes"));
+                assert_eq!(raw_data.len(), len as usize + 4);
+                visitor.visit_borrowed_bytes(&raw_data[4..])
+            }
             ElementType::Binary => {
                 let binary = self.bson.as_binary().expect("was not binary");
                 let deserializer = binary::BinaryDeserializer::new(binary);
@@ -244,6 +255,12 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
 
     fn deserialize_byte_buf<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.bson.element_type() {
+            ElementType::Utf8String => {
+                let raw_data = self.bson.as_bytes();
+                let len = i32::from_le_bytes(raw_data[0..4].try_into().expect("i32 needs 4 bytes"));
+                assert_eq!(raw_data.len(), len as usize + 4);
+                visitor.visit_borrowed_bytes(&raw_data[4..])
+            }
             ElementType::Binary => {
                 let binary = self.bson.as_binary().expect("was not binary");
                 let deserializer = binary::BinaryDeserializer::new(binary);
@@ -287,11 +304,6 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
                 let mapper = BsonDocumentMap::new(doc.into_iter());
                 Ok(visitor.visit_map(mapper)?)
             }
-            ElementType::ObjectId => visitor.visit_map(object_id::ObjectIdDeserializer::new(self.bson)),
-            ElementType::Binary => match self.bson.as_binary() {
-                Some(binary) => visitor.visit_map(binary::BinaryDeserializer::new(binary)),
-                None => Err(Error::MalformedDocument),
-            },
             _ => Err(Error::MalformedDocument),
         }
     }
@@ -311,11 +323,21 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
 
     fn deserialize_struct<V: Visitor<'de>>(
         self,
-        name: &str,
-        _fields: &[&str],
+        name: &'static str,
+        fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        self.deserialize_map(visitor)
+        if name == object_id::NAME {
+            visitor.visit_map(object_id::ObjectIdDeserializer::new(self.bson))
+        } else if name == binary::NAME {
+            self.bson
+                .as_binary()
+                .map(binary::BinaryDeserializer::new)
+                .map(|de| de.deserialize_struct(name, fields, visitor))
+                .ok_or(Error::MalformedDocument)?
+        } else {
+            self.deserialize_map(visitor)
+        }
     }
 
     fn deserialize_enum<V: Visitor<'de>>(
@@ -379,8 +401,6 @@ impl<'de> MapAccess<'de> for BsonDocumentMap<'de> {
     }
 }
 
-
-
 struct StrDeserializer<'a> {
     value: &'a str,
 }
@@ -390,7 +410,6 @@ impl<'a> StrDeserializer<'a> {
         StrDeserializer { value }
     }
 }
-
 
 impl<'de> Deserializer<'de> for StrDeserializer<'de> {
     type Error = Error;
@@ -411,9 +430,9 @@ impl<'de> Deserializer<'de> for StrDeserializer<'de> {
 mod tests {
     use std::collections::HashMap;
 
-    use crate::spec::BinarySubtype;
-    use crate::{Bson, doc, encode_document};
     use crate::oid::ObjectId;
+    use crate::spec::BinarySubtype;
+    use crate::{doc, encode_document, Bson};
 
     use serde_derive::Deserialize;
 

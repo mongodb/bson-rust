@@ -2,7 +2,7 @@ use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
 use serde::forward_to_deserialize_any;
 
 use super::Error;
-use crate::raw::{ RawBsonBinary};
+use crate::raw::RawBsonBinary;
 use crate::spec::BinarySubtype;
 
 pub static SUBTYPE_FIELD: &str = "$__bson_binary_subtype";
@@ -11,12 +11,15 @@ pub static NAME: &str = "$__bson_Binary";
 
 pub(super) struct BinaryDeserializer<'de> {
     binary: RawBsonBinary<'de>,
-    visited: u8,
+    visiting: Visiting,
 }
 
 impl<'de> BinaryDeserializer<'de> {
     pub(super) fn new(binary: RawBsonBinary<'de>) -> BinaryDeserializer<'de> {
-        BinaryDeserializer { binary, visited: 0 }
+        BinaryDeserializer {
+            binary,
+            visiting: Visiting::New,
+        }
     }
 }
 
@@ -27,7 +30,7 @@ impl<'de> Deserializer<'de> for BinaryDeserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        Err(Error::Unimplemented)
+        self.deserialize_bytes(visitor)
     }
 
     fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Error>
@@ -39,7 +42,7 @@ impl<'de> Deserializer<'de> for BinaryDeserializer<'de> {
 
     fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value, Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         visitor.visit_bytes(self.binary.as_bytes())
     }
@@ -48,11 +51,31 @@ impl<'de> Deserializer<'de> for BinaryDeserializer<'de> {
         visitor.visit_map(self)
     }
 
+    fn deserialize_struct<V: Visitor<'de>>(
+        self,
+        name: &str,
+        fields: &[&str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error> {
+        if name == NAME {
+            visitor.visit_map(self)
+        } else {
+            Err(Error::MalformedDocument)
+        }
+    }
+
     forward_to_deserialize_any!(
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        struct option unit newtype_struct
+        option unit newtype_struct
         ignored_any unit_struct tuple_struct tuple enum identifier
     );
+}
+
+enum Visiting {
+    New,
+    Subtype,
+    Data,
+    Done,
 }
 
 impl<'de> MapAccess<'de> for BinaryDeserializer<'de> {
@@ -62,10 +85,20 @@ impl<'de> MapAccess<'de> for BinaryDeserializer<'de> {
     where
         K: DeserializeSeed<'de>,
     {
-        match self.visited {
-            0 => seed.deserialize(BinaryKeyDeserializer::new(SUBTYPE_FIELD)).map(Some),
-            1 => seed.deserialize(BinaryKeyDeserializer::new(DATA_FIELD)).map(Some),
-            _ => Ok(None),
+        match self.visiting {
+            Visiting::New => {
+                self.visiting = Visiting::Subtype;
+                seed.deserialize(BinaryKeyDeserializer::new(SUBTYPE_FIELD)).map(Some)
+            }
+            Visiting::Subtype => {
+                self.visiting = Visiting::Data;
+                seed.deserialize(BinaryKeyDeserializer::new(DATA_FIELD)).map(Some)
+            }
+            Visiting::Data => {
+                self.visiting = Visiting::Done;
+                Ok(None)
+            }
+            _ => Err(Error::MalformedDocument),
         }
     }
 
@@ -73,15 +106,9 @@ impl<'de> MapAccess<'de> for BinaryDeserializer<'de> {
     where
         V: DeserializeSeed<'de>,
     {
-        match self.visited {
-            0 => {
-                self.visited += 1;
-                seed.deserialize(BinarySubtypeDeserializer::new(self.binary.subtype()))
-            }
-            1 => {
-                self.visited += 1;
-                seed.deserialize(BinaryDataDeserializer::new(self.binary))
-            }
+        match self.visiting {
+            Visiting::Subtype => seed.deserialize(BinarySubtypeDeserializer::new(self.binary.subtype())),
+            Visiting::Data => seed.deserialize(BinaryDataDeserializer::new(self.binary)),
             _ => Err(Error::MalformedDocument),
         }
     }
