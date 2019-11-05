@@ -4,7 +4,7 @@ use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
 use serde::forward_to_deserialize_any;
 
 use super::Error;
-use crate::raw::{RawBson};
+use crate::raw::RawBson;
 use crate::spec::ElementType;
 
 pub static FIELD: &str = "$__bson_object_id";
@@ -22,7 +22,7 @@ impl<'de> ObjectIdDeserializer<'de> {
     }
 }
 
-impl <'de> Deserializer<'de> for ObjectIdDeserializer<'de> {
+impl<'de> Deserializer<'de> for ObjectIdDeserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -47,7 +47,7 @@ impl <'de> Deserializer<'de> for ObjectIdDeserializer<'de> {
         self,
         name: &'static str,
         fields: &'static [&'static str],
-        visitor:V,
+        visitor: V,
     ) -> Result<V::Value, Self::Error> {
         if name == NAME && fields == FIELDS {
             visitor.visit_map(self)
