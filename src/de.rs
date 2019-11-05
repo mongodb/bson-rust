@@ -673,11 +673,7 @@ mod tests {
                     }
                 }
 
-                deserializer.deserialize_struct(
-                    object_id::NAME,
-                    object_id::FIELDS,
-                    ObjectIdVisitor,
-                )
+                deserializer.deserialize_struct(object_id::NAME, object_id::FIELDS, ObjectIdVisitor)
             }
         }
 
