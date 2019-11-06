@@ -4,7 +4,9 @@ use std::time::Duration;
 use chrono::{DateTime, TimeZone, Utc};
 
 use crate::bson::Bson;
-use crate::ordered;
+use crate::{ordered};
+#[cfg(feature = "decimal128")]
+use crate::decimal128::Decimal128;
 use crate::spec::{BinarySubtype, ElementType};
 use crate::{oid, ValueAccessError, ValueAccessResult};
 
@@ -209,6 +211,10 @@ impl<'a> RawBsonArray<'a> {
 
     pub fn to_vec(self) -> Vec<RawBson<'a>> {
         self.into_iter().collect()
+    }
+
+    pub fn as_bytes(self) -> &'a [u8] {
+        self.doc.as_bytes()
     }
 }
 
@@ -489,6 +495,16 @@ impl<'a> RawBson<'a> {
             None
         }
     }
+
+    #[cfg(feature="decimal128")]
+    pub fn as_decimal128(self) -> Option<Decimal128> {
+        if let ElementType::Decimal128Bit = self.element_type {
+            assert_eq!(self.data.len(), 16);
+            Some(d128_from_slice(self.data))
+        } else {
+            None
+        }
+    }
 }
 
 impl<'a> From<RawBson<'a>> for Bson {
@@ -561,7 +577,7 @@ impl<'a> From<RawBson<'a>> for Bson {
                 Bson::JavaScriptCodeWithScope(String::from(js), scope.into())
             },
             #[cfg(feature = "decimal128")]
-            ElementType::Decimal128Bit => unimplemented!(),
+            ElementType::Decimal128Bit => Bson::Decimal128(rawbson.as_decimal128().expect("not a decimal 128")),
             ElementType::MaxKey => unimplemented!(),
             ElementType::MinKey => unimplemented!(),
         }
@@ -596,6 +612,13 @@ fn i64_from_slice(val: &[u8]) -> i64 {
 // This function panics if given a slice that is not eight bytes long.
 fn u64_from_slice(val: &[u8]) -> u64 {
     u64::from_le_bytes(val.try_into().expect("u64 is eight bytes"))
+}
+
+#[cfg(feature = "decimal128")]
+fn d128_from_slice(val: &[u8]) -> Decimal128 {
+    unsafe {
+        Decimal128::from_raw_bytes_le(val.try_into().expect("d128 is eight bytes"))
+    }
 }
 
 #[cfg(test)]

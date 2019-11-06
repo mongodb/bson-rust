@@ -20,16 +20,16 @@ impl<'de> Deserialize<'de> for ObjectId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>
     {
-        deserializer.deserialize_map(BsonVisitor).and_then(|bson| {
-                                                     if let Bson::ObjectId(oid) = bson {
-                                                         Ok(oid)
-                                                     } else {
-                                                         let err =
-                                                             format!("expected objectId extended document, found {}",
-                                                                     bson);
-                                                         Err(de::Error::invalid_type(Unexpected::Map, &&err[..]))
-                                                     }
-                                                 })
+        deserializer
+            .deserialize_map(BsonVisitor)
+            .and_then(|bson| {
+                if let Bson::ObjectId(oid) = bson {
+                    Ok(oid)
+                } else {
+                    let err = format!("expected objectId extended document, found {}", bson);
+                    Err(de::Error::invalid_type(Unexpected::Map, &&err[..]))
+                }
+            })
     }
 }
 
