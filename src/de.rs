@@ -95,7 +95,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::MinKey => self.deserialize_unit(visitor),
             ElementType::MaxKey => self.deserialize_unit(visitor),
             #[cfg(feature = "decimal128")]
-            ElementType::Decimal128Bit => Err(Error::Unimplemented),
+            ElementType::Decimal128Bit => self.deserialize_i128(visitor),
         }
     }
 
@@ -104,101 +104,137 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     }
 
     fn deserialize_u8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        match self.bson.element_type() {
+        let val = match self.bson.element_type() {
             ElementType::Integer32Bit => {
-                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
-                visitor.visit_u8(val.try_into()?)
+                self.bson.as_i32().ok_or(Error::MalformedDocument)?.try_into()?
             }
             ElementType::Integer64Bit => {
-                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
-                visitor.visit_u64(val.try_into()?)
+                self.bson.as_i64().ok_or(Error::MalformedDocument)?.try_into()?
             }
-            _ => Err(Error::Unimplemented),
-        }
+            #[cfg(feature = "decimal128")]
+            ElementType::Integer128Bit => {
+                self.bson.as_i128().ok_or(Error::MalformedDocument)?.try_into()?
+            }
+            _ => return Err(Error::Unimplemented),
+        };
+        visitor.visit_u8(val)
     }
 
     fn deserialize_i8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        match self.bson.element_type() {
+        let val = match self.bson.element_type() {
             ElementType::Integer32Bit => {
-                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
-                visitor.visit_i8(val.try_into()?)
+                self.bson.as_i32().ok_or(Error::MalformedDocument)?.try_into()?
             }
             ElementType::Integer64Bit => {
-                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
-                visitor.visit_u64(val.try_into()?)
+                self.bson.as_i64().ok_or(Error::MalformedDocument)?.try_into()?
             }
-            _ => Err(Error::Unimplemented),
-        }
+            #[cfg(feature = "decimal128")]
+            ElementType::Integer128Bit => {
+                self.bson.as_i128().ok_or(Error::MalformedDocument)?.try_into()?
+            }
+            _ => return Err(Error::Unimplemented),
+        };
+        visitor.visit_i8(val)
     }
+    
     fn deserialize_u16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        match self.bson.element_type() {
+        let val = match self.bson.element_type() {
             ElementType::Integer32Bit => {
-                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
-                visitor.visit_u16(val.try_into()?)
+                self.bson.as_i32().ok_or(Error::MalformedDocument)?.try_into()?
             }
             ElementType::Integer64Bit => {
-                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
-                visitor.visit_u64(val.try_into()?)
+                self.bson.as_i64().ok_or(Error::MalformedDocument)?.try_into()?
             }
-            _ => Err(Error::Unimplemented),
-        }
+            #[cfg(feature = "decimal128")]
+            ElementType::Integer128Bit => {
+                self.bson.as_i128().ok_or(Error::MalformedDocument)?.try_into()?
+            }
+            _ => return Err(Error::Unimplemented),
+        };
+        visitor.visit_u16(val)
     }
     fn deserialize_i16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        match self.bson.element_type() {
+        let val = match self.bson.element_type() {
             ElementType::Integer32Bit => {
-                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
-                visitor.visit_i16(val.try_into()?)
+                self.bson.as_i32().ok_or(Error::MalformedDocument)?.try_into()?
             }
             ElementType::Integer64Bit => {
-                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
-                visitor.visit_u64(val.try_into()?)
+                self.bson.as_i64().ok_or(Error::MalformedDocument)?.try_into()?
             }
-            _ => Err(Error::Unimplemented),
-        }
+            #[cfg(feature = "decimal128")]
+            ElementType::Integer128Bit => {
+                self.bson.as_i128().ok_or(Error::MalformedDocument)?.try_into()?
+            }
+            _ => return Err(Error::Unimplemented),
+        };
+        visitor.visit_i16(val)
     }
     fn deserialize_u32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        match self.bson.element_type() {
+        let val = match self.bson.element_type() {
             ElementType::Integer32Bit => {
-                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
-                visitor.visit_u32(val.try_into()?)
+                self.bson.as_i32().ok_or(Error::MalformedDocument)?.try_into()?
             }
             ElementType::Integer64Bit => {
-                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
-                visitor.visit_u64(val.try_into()?)
+                self.bson.as_i64().ok_or(Error::MalformedDocument)?.try_into()?
             }
-            _ => Err(Error::Unimplemented),
-        }
+            #[cfg(feature = "decimal128")]
+            ElementType::Integer128Bit => {
+                self.bson.as_i128().ok_or(Error::MalformedDocument)?.try_into()?
+            }
+            _ => return Err(Error::Unimplemented),
+        };
+        visitor.visit_u32(val)
     }
     fn deserialize_i32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        match self.bson.element_type() {
-            ElementType::Integer32Bit => visitor.visit_i32(self.bson.as_i32().ok_or(Error::MalformedDocument)?),
-            ElementType::Integer64Bit => {
-                visitor.visit_u64(self.bson.as_i64().ok_or(Error::MalformedDocument)?.try_into()?)
+        let val = match self.bson.element_type() {
+            ElementType::Integer32Bit => {
+                self.bson.as_i32().ok_or(Error::MalformedDocument)?
             }
-            _ => Err(Error::Unimplemented),
-        }
+            ElementType::Integer64Bit => {
+                self.bson.as_i64().ok_or(Error::MalformedDocument)?.try_into()?
+            }
+            #[cfg(feature = "decimal128")]
+            ElementType::Integer128Bit => {
+                self.bson.as_i128().ok_or(Error::MalformedDocument)?.try_into()?
+            }
+            _ => return Err(Error::Unimplemented),
+        };
+        visitor.visit_i32(val)
     }
 
     fn deserialize_u64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        match self.bson.element_type() {
+        let val = match self.bson.element_type() {
             ElementType::Integer32Bit => {
-                let val = self.bson.as_i32().ok_or(Error::MalformedDocument)?;
-                visitor.visit_u64(val.try_into()?)
+                self.bson.as_i32().ok_or(Error::MalformedDocument)?.try_into()?
             }
             ElementType::Integer64Bit => {
-                let val = self.bson.as_i64().ok_or(Error::MalformedDocument)?;
-                visitor.visit_u64(val.try_into()?)
+                self.bson.as_i64().ok_or(Error::MalformedDocument)?.try_into()?
             }
-            _ => Err(Error::Unimplemented),
-        }
+            #[cfg(feature = "decimal128")]
+            ElementType::Integer128Bit => {
+                self.bson.as_i128().ok_or(Error::MalformedDocument)?.try_into()?
+            }
+            _ => return Err(Error::Unimplemented),
+        };
+        visitor.visit_u64(val)
+
     }
 
     fn deserialize_i64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        match self.bson.element_type() {
-            ElementType::Integer32Bit => visitor.visit_i64(self.bson.as_i32().ok_or(Error::MalformedDocument)?.into()),
-            ElementType::Integer64Bit => visitor.visit_i64(self.bson.as_i64().ok_or(Error::MalformedDocument)?),
-            _ => Err(Error::Unimplemented),
-        }
+        let val = match self.bson.element_type() {
+            ElementType::Integer32Bit => {
+                self.bson.as_i32().ok_or(Error::MalformedDocument)?.into()
+            }
+            ElementType::Integer64Bit => {
+                self.bson.as_i64().ok_or(Error::MalformedDocument)?
+            }
+            #[cfg(feature = "decimal128")]
+            ElementType::Integer128Bit => {
+                self.bson.as_i128().ok_or(Error::MalformedDocument)?.try_into()?
+            }
+            _ => return Err(Error::Unimplemented),
+        };
+        visitor.visit_i64(val)
     }
 
     fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
