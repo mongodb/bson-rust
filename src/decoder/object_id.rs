@@ -7,7 +7,6 @@ use serde::export::Formatter;
 use crate::de::object_id;
 
 use crate::oid::ObjectId;
-use crate::de;
 use std::convert::TryInto;
 
 impl<'de> Deserialize<'de> for ObjectId {

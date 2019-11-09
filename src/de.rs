@@ -443,7 +443,7 @@ struct BsonDocumentMap<'de> {
 impl<'de> BsonDocumentMap<'de> {
     fn new(doc_iter: RawBsonDocIterator<'de>) -> Self {
         BsonDocumentMap {
-            doc_iter: doc_iter,
+            doc_iter,
             next: None,
         }
     }

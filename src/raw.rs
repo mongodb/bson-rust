@@ -223,8 +223,72 @@ impl<'a> RawBsonArray<'a> {
         RawBsonArray { doc }
     }
 
-    pub fn get(self, index: usize) -> Option<RawBson<'a>> {
-        self.into_iter().nth(index)
+    pub fn get(self, index: usize) -> RawValueAccessResult<'a, RawBson<'a>> {
+        self.into_iter().nth(index).ok_or(RawValueAccessError::NotPresent)
+    }
+
+    pub fn get_f64(self, index: usize) -> RawValueAccessResult<'a, f64> {
+        self.get(index)?.as_f64()
+    }
+
+    pub fn get_str(self, index: usize) -> RawValueAccessResult<'a, &'a str> {
+        self.get(index)?.as_str()
+    }
+
+    pub fn get_document(self, index: usize) -> RawValueAccessResult<'a, RawBsonDoc<'a>> {
+        self.get(index)?.as_document()
+    }
+
+    pub fn get_array(self, index: usize) -> RawValueAccessResult<'a, RawBsonArray<'a>> {
+        self.get(index)?.as_array()
+    }
+
+    pub fn get_binary(self, index: usize) -> RawValueAccessResult<'a, RawBsonBinary<'a>> {
+        self.get(index)?.as_binary()
+    }
+
+    pub fn get_object_id(self, index: usize) -> RawValueAccessResult<'a, oid::ObjectId> {
+        self.get(index)?.as_object_id()
+    }
+
+    pub fn get_bool(self, index: usize) -> RawValueAccessResult<'a, bool> {
+        self.get(index)?.as_bool()
+    }
+
+    pub fn get_utc_date_time(self, index: usize) -> RawValueAccessResult<'a, DateTime<Utc>> {
+        self.get(index)?.as_utc_date_time()
+    }
+
+    pub fn get_null(self, index: usize) -> RawValueAccessResult<'a, ()> {
+        self.get(index)?.as_null()
+    }
+
+    pub fn get_regex(self, index: usize) -> RawValueAccessResult<'a, RawBsonRegex<'a>> {
+        self.get(index)?.as_regex()
+    }
+
+    pub fn get_javascript(self, index: usize) -> RawValueAccessResult<'a, &'a str> {
+        self.get(index)?.as_javascript()
+    }
+
+    pub fn get_symbol(self, index: usize) -> RawValueAccessResult<'a, &'a str> {
+        self.get(index)?.as_symbol()
+    }
+
+    pub fn get_javascript_with_scope(self, index: usize) -> RawValueAccessResult<'a, (&'a str, RawBsonDoc<'a>)> {
+        self.get(index)?.as_javascript_with_scope()
+    }
+
+    pub fn get_i32(self, index: usize) -> RawValueAccessResult<'a, i32> {
+        self.get(index)?.as_i32()
+    }
+
+    pub fn get_timestamp(self, index: usize) -> RawValueAccessResult<'a, u64> {
+        self.get(index)?.as_timestamp()
+    }
+
+    pub fn get_i64(self, index: usize) -> RawValueAccessResult<'a, i64> {
+        self.get(index)?.as_i64()
     }
 
     pub fn to_vec(self) -> Vec<RawBson<'a>> {
@@ -699,7 +763,7 @@ mod tests {
         let bson = super::RawBson::new(ElementType::ObjectId, &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
         assert_eq!(
             bson.as_object_id(),
-            Some(oid::ObjectId::with_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]))
+            Ok(oid::ObjectId::with_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]))
         );
     }
     #[test]
@@ -779,9 +843,9 @@ mod tests {
             .as_array()
             .expect("result was not an array");
 
-        assert_eq!(array.get(0).and_then(RawBson::as_str), Some("binary"));
-        assert_eq!(array.get(3).and_then(RawBson::as_str), Some("notation"));
-        assert_eq!(array.get(4).and_then(RawBson::as_str), None);
+        assert_eq!(array.get_str(0), Ok("binary"));
+        assert_eq!(array.get_str(3), Ok("notation"));
+        assert_eq!(array.get_str(4), Err(RawValueAccessError::NotPresent));
 
         let binary: RawBsonBinary<'_> = rawdoc
             .get("binary")

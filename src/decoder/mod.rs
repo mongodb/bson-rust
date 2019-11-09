@@ -41,7 +41,7 @@ use crate::oid;
 use crate::spec::{self, BinarySubtype};
 
 use ::serde::de::Deserialize;
-use crate::raw::{RawBson, RawBsonDoc};
+use crate::raw::RawBsonDoc;
 
 const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 
