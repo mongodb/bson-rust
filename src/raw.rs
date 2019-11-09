@@ -15,6 +15,40 @@ pub struct RawBsonDoc<'a> {
     data: &'a [u8],
 }
 
+/// Error to indicate that either a value was empty or it contained an unexpected
+/// type, for use with the direct getters.
+#[derive(Debug, PartialEq)]
+pub enum RawValueAccessError<'a> {
+    /// Cannot find the expected field with the specified key
+    NotPresent,
+    /// Found a Bson value with the specified key, but not with the expected type
+    UnexpectedType,
+    /// Found a value where a utf-8 string was expected, but it was not valid
+    /// utf-8.  The error value includes the raw bytes as a &[u8]
+    EncodingError(&'a [u8]),
+}
+
+type RawValueAccessResult<'a, T> = Result<T, RawValueAccessError<'a>>;
+
+impl<'a> From<RawValueAccessError<'a>> for ValueAccessError {
+    fn from(src: RawValueAccessError<'a>) -> ValueAccessError {
+        match src {
+            RawValueAccessError::NotPresent => ValueAccessError::NotPresent,
+            RawValueAccessError::UnexpectedType => ValueAccessError::UnexpectedType,
+            RawValueAccessError::EncodingError(_) => ValueAccessError::UnexpectedType,
+        }
+    }
+}
+
+impl<'a> From<ValueAccessError> for RawValueAccessError<'a> {
+    fn from(src: ValueAccessError) -> RawValueAccessError<'a> {
+        match src {
+            ValueAccessError::NotPresent => RawValueAccessError::NotPresent,
+            ValueAccessError::UnexpectedType => RawValueAccessError::UnexpectedType,
+        }
+    }
+}
+
 impl<'a> RawBsonDoc<'a> {
     pub fn new(data: &'a [u8]) -> RawBsonDoc<'a> {
         let length = i32_from_slice(&data[..4]);
@@ -32,84 +66,68 @@ impl<'a> RawBsonDoc<'a> {
         Err(ValueAccessError::NotPresent)
     }
 
-    pub fn get_f64(self, key: &str) -> ValueAccessResult<f64> {
-        self.get(key)
-            .and_then(|bson| bson.as_f64().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_f64(self, key: &str) -> RawValueAccessResult<'a, f64> {
+        self.get(key)?.as_f64()
     }
 
-    pub fn get_str(self, key: &str) -> ValueAccessResult<&'a str> {
-        self.get(key)
-            .and_then(|bson| bson.as_str().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_str(self, key: &str) -> RawValueAccessResult<'a, &'a str> {
+        self.get(key)?.as_str()
     }
 
-    pub fn get_document(self, key: &str) -> ValueAccessResult<RawBsonDoc<'a>> {
-        self.get(key)
-            .and_then(|bson| bson.as_document().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_document(self, key: &str) -> RawValueAccessResult<'a, RawBsonDoc<'a>> {
+        self.get(key)?.as_document()
     }
 
-    pub fn get_array(self, key: &str) -> ValueAccessResult<RawBsonArray<'a>> {
-        self.get(key)
-            .and_then(|bson| bson.as_array().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_array(self, key: &str) -> RawValueAccessResult<'a, RawBsonArray<'a>> {
+        self.get(key)?.as_array()
     }
 
-    pub fn get_binary(self, key: &str) -> ValueAccessResult<RawBsonBinary<'a>> {
-        self.get(key)
-            .and_then(|bson| bson.as_binary().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_binary(self, key: &str) -> RawValueAccessResult<'a, RawBsonBinary<'a>> {
+        self.get(key)?.as_binary()
     }
 
-    pub fn get_object_id(self, key: &str) -> ValueAccessResult<oid::ObjectId> {
-        self.get(key)
-            .and_then(|bson| bson.as_object_id().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_object_id(self, key: &str) -> RawValueAccessResult<'a, oid::ObjectId> {
+        self.get(key)?.as_object_id()
     }
 
-    pub fn get_bool(self, key: &str) -> ValueAccessResult<bool> {
-        self.get(key)
-            .and_then(|bson| bson.as_bool().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_bool(self, key: &str) -> RawValueAccessResult<'a, bool> {
+        self.get(key)?.as_bool()
     }
 
-    pub fn get_utc_date_time(self, key: &str) -> ValueAccessResult<DateTime<Utc>> {
-        self.get(key)
-            .and_then(|bson| bson.as_utc_date_time().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_utc_date_time(self, key: &str) -> RawValueAccessResult<'a, DateTime<Utc>> {
+        self.get(key)?.as_utc_date_time()
     }
 
-    pub fn get_null(self, key: &str) -> ValueAccessResult<()> {
-        self.get(key)
-            .and_then(|bson| bson.as_null().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_null(self, key: &str) -> RawValueAccessResult<'a, ()> {
+        self.get(key)?.as_null()
     }
 
-    pub fn get_regex(self, key: &str) -> ValueAccessResult<RawBsonRegex<'a>> {
-        self.get(key)
-            .and_then(|bson| bson.as_regex().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_regex(self, key: &str) -> RawValueAccessResult<'a, RawBsonRegex<'a>> {
+        self.get(key)?.as_regex()
     }
 
-    pub fn get_javascript(self, key: &str) -> ValueAccessResult<&'a str> {
-        self.get(key)
-            .and_then(|bson| bson.as_javascript().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_javascript(self, key: &str) -> RawValueAccessResult<'a, &'a str> {
+        self.get(key)?.as_javascript()
     }
 
-    pub fn get_symbol(self, key: &str) -> ValueAccessResult<&'a str> {
-        self.get(key)
-            .and_then(|bson| bson.as_symbol().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_symbol(self, key: &str) -> RawValueAccessResult<'a, &'a str> {
+        self.get(key)?.as_symbol()
     }
 
-    pub fn get_javascript_with_scope(self, key: &str) -> ValueAccessResult<(&'a str, RawBsonDoc<'a>)> {
-        self.get(key)
-            .and_then(|bson| bson.as_javascript_with_scope().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_javascript_with_scope(self, key: &str) -> RawValueAccessResult<'a, (&'a str, RawBsonDoc<'a>)> {
+        self.get(key)?.as_javascript_with_scope()
     }
 
-    pub fn get_i32(self, key: &str) -> ValueAccessResult<i32> {
-        self.get(key)
-            .and_then(|bson| bson.as_i32().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_i32(self, key: &str) -> RawValueAccessResult<'a, i32> {
+        self.get(key)?.as_i32()
     }
 
-    pub fn get_timestamp(self, key: &str) -> ValueAccessResult<u64> {
-        self.get(key)
-            .and_then(|bson| bson.as_timestamp().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_timestamp(self, key: &str) -> RawValueAccessResult<'a, u64> {
+        self.get(key)?.as_timestamp()
     }
 
-    pub fn get_i64(self, key: &str) -> ValueAccessResult<i64> {
-        self.get(key)
-            .and_then(|bson| bson.as_i64().ok_or(ValueAccessError::UnexpectedType))
+    pub fn get_i64(self, key: &str) -> RawValueAccessResult<'a, i64> {
+        self.get(key)?.as_i64()
     }
 
     pub fn as_bytes(self) -> &'a [u8] {
@@ -316,43 +334,43 @@ impl<'a> RawBson<'a> {
         self.data
     }
 
-    pub fn as_f64(self) -> Option<f64> {
+    pub fn as_f64(self) -> RawValueAccessResult<'a, f64> {
         if let ElementType::FloatingPoint = self.element_type {
-            Some(f64::from_bits(u64::from_le_bytes(
+            Ok(f64::from_bits(u64::from_le_bytes(
                 self.data.try_into().expect("f64 should be 8 bytes long"),
             )))
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_str(self) -> Option<&'a str> {
+    pub fn as_str(self) -> RawValueAccessResult<'a, &'a str> {
         if let ElementType::Utf8String = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
             assert_eq!(self.data.len() as i32, length + 4);
-            Some(std::str::from_utf8(&self.data[4..4 + length as usize - 1]).ok()?)
+            self.try_to_str(&self.data[4..4 + length as usize - 1])
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_document(self) -> Option<RawBsonDoc<'a>> {
+    pub fn as_document(self) -> RawValueAccessResult<'a, RawBsonDoc<'a>> {
         if let ElementType::EmbeddedDocument = self.element_type {
-            Some(RawBsonDoc::new(self.data))
+            Ok(RawBsonDoc::new(self.data))
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_array(self) -> Option<RawBsonArray<'a>> {
+    pub fn as_array(self) -> RawValueAccessResult<'a, RawBsonArray<'a>> {
         if let ElementType::Array = self.element_type {
-            Some(RawBsonArray::new(self.data))
+            Ok(RawBsonArray::new(self.data))
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_binary(self) -> Option<RawBsonBinary<'a>> {
+    pub fn as_binary(self) -> RawValueAccessResult<'a, RawBsonBinary<'a>> {
         if let ElementType::Binary = self.element_type {
             let length = i32_from_slice(&self.data[0..4]);
             let subtype = BinarySubtype::from(self.data[4]); // TODO: This mishandles reserved values
@@ -365,41 +383,41 @@ impl<'a> RawBson<'a> {
                 }
                 _ => &self.data[5..],
             };
-            Some(RawBsonBinary::new(subtype, data))
+            Ok(RawBsonBinary::new(subtype, data))
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_object_id(self) -> Option<oid::ObjectId> {
+    pub fn as_object_id(self) -> RawValueAccessResult<'a, oid::ObjectId> {
         if let ElementType::ObjectId = self.element_type {
-            Some(oid::ObjectId::with_bytes(
+            Ok(oid::ObjectId::with_bytes(
                 self.data.try_into().expect("object id should be 12 bytes long"),
             ))
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_bool(self) -> Option<bool> {
+    pub fn as_bool(self) -> RawValueAccessResult<'a, bool> {
         if let ElementType::Boolean = self.element_type {
             assert_eq!(self.data.len(), 1);
             match self.data[0] {
-                0 => Some(false),
-                1 => Some(true),
-                _ => panic!("boolean must be 0 or 1"),
+                0 => Ok(false),
+                1 => Ok(true),
+                _ => Err(RawValueAccessError::EncodingError(self.data)),
             }
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_utc_date_time(self) -> Option<DateTime<Utc>> {
+    pub fn as_utc_date_time(self) -> RawValueAccessResult<'a, DateTime<Utc>> {
         if let ElementType::UtcDatetime = self.element_type {
             let millis = i64_from_slice(self.data);
             if millis >= 0 {
                 let duration = Duration::from_millis(millis as u64);
-                Some(Utc.timestamp(duration.as_secs().try_into().unwrap(), duration.subsec_nanos()))
+                Ok(Utc.timestamp(duration.as_secs().try_into().unwrap(), duration.subsec_nanos()))
             } else {
                 let duration = Duration::from_millis((-1 * millis).try_into().unwrap());
                 let mut secs: i64 = duration.as_secs().try_into().unwrap();
@@ -409,50 +427,50 @@ impl<'a> RawBson<'a> {
                     secs -= 1;
                     nanos = 1_000_000_000 - nanos;
                 }
-                Some(Utc.timestamp(secs, nanos))
+                Ok(Utc.timestamp(secs, nanos))
             }
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_null(self) -> Option<()> {
+    pub fn as_null(self) -> RawValueAccessResult<'a, ()> {
         if let ElementType::NullValue = self.element_type {
-            Some(())
+            Ok(())
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_regex(self) -> Option<RawBsonRegex<'a>> {
+    pub fn as_regex(self) -> RawValueAccessResult<'a, RawBsonRegex<'a>> {
         if let ElementType::RegularExpression = self.element_type {
-            Some(RawBsonRegex::new(self.data))
+            Ok(RawBsonRegex::new(self.data))
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_javascript(self) -> Option<&'a str> {
+    pub fn as_javascript(self) -> RawValueAccessResult<'a, &'a str> {
         if let ElementType::JavaScriptCode = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
             assert_eq!(self.data.len() as i32, length + 4);
-            Some(std::str::from_utf8(&self.data[4..4 + length as usize - 1]).ok()?)
+            self.try_to_str(&self.data[4..4 + length as usize - 1])
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_symbol(self) -> Option<&'a str> {
+    pub fn as_symbol(self) -> RawValueAccessResult<'a, &'a str> {
         if let ElementType::Symbol = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
             assert_eq!(self.data.len() as i32, length + 4);
-            Some(std::str::from_utf8(&self.data[4..4 + length as usize - 1]).ok()?)
+            self.try_to_str(&self.data[4..4 + length as usize - 1])
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_javascript_with_scope(self) -> Option<(&'a str, RawBsonDoc<'a>)> {
+    pub fn as_javascript_with_scope(self) -> RawValueAccessResult<'a, (&'a str, RawBsonDoc<'a>)> {
         if let ElementType::JavaScriptCodeWithScope = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
             assert_eq!(self.data.len() as i32, length);
@@ -463,47 +481,58 @@ impl<'a> RawBson<'a> {
             let doc_len = i32_from_slice(&self.data[doc_offset..doc_offset + 4]) as usize;
             assert_eq!(self.data.len(), doc_offset + doc_len);
             let doc = RawBsonDoc::new(&self.data[doc_offset..doc_offset + doc_len]);
-            Some((std::str::from_utf8(js).expect("js was not a string"), doc))
+            Ok((std::str::from_utf8(js).expect("js was not a string"), doc))
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
     }
 
-    pub fn as_i32(self) -> Option<i32> {
+    pub fn as_i32(self) -> RawValueAccessResult<'a, i32> {
         if let ElementType::Integer32Bit = self.element_type {
             assert_eq!(self.data.len(), 4);
-            Some(i32_from_slice(self.data))
+            Ok(i32_from_slice(self.data))
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
+
         }
     }
 
-    pub fn as_timestamp(self) -> Option<u64> {
+    pub fn as_timestamp(self) -> RawValueAccessResult<'a, u64> {
         if let ElementType::TimeStamp = self.element_type {
             assert_eq!(self.data.len(), 8);
-            Some(u64_from_slice(self.data))
+            Ok(u64_from_slice(self.data))
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
+
         }
     }
 
-    pub fn as_i64(self) -> Option<i64> {
+    pub fn as_i64(self) -> RawValueAccessResult<'a, i64> {
         if let ElementType::Integer64Bit = self.element_type {
             assert_eq!(self.data.len(), 8);
-            Some(i64_from_slice(self.data))
+            Ok(i64_from_slice(self.data))
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
+
         }
     }
 
     #[cfg(feature="decimal128")]
-    pub fn as_decimal128(self) -> Option<Decimal128> {
+    pub fn as_decimal128(self) -> RawValueAccessResult<'a, Decimal128> {
         if let ElementType::Decimal128Bit = self.element_type {
             assert_eq!(self.data.len(), 16);
-            Some(d128_from_slice(self.data))
+            Ok(d128_from_slice(self.data))
         } else {
-            None
+            Err(RawValueAccessError::UnexpectedType)
         }
+    }
+
+    fn try_to_str(&self, data: &'a [u8]) -> RawValueAccessResult<'a, &'a str> {
+        match std::str::from_utf8(data) {
+            Ok(s) => Ok(s),
+            Err(_) => Err(RawValueAccessError::EncodingError(data))
+        }
+
     }
 }
 

@@ -11,13 +11,13 @@ pub static FIELD: &str = "$__bson_object_id";
 pub static FIELDS: &[&str] = &[FIELD];
 pub static NAME: &str = "$__bson_ObjectId";
 
-pub(super) struct ObjectIdDeserializer<'de> {
+pub struct ObjectIdDeserializer<'de> {
     bson: RawBson<'de>,
     visited: bool,
 }
 
 impl<'de> ObjectIdDeserializer<'de> {
-    pub(super) fn new(bson: RawBson<'de>) -> ObjectIdDeserializer<'de> {
+    pub fn new(bson: RawBson<'de>) -> ObjectIdDeserializer<'de> {
         ObjectIdDeserializer { bson, visited: false }
     }
 }
@@ -34,7 +34,7 @@ impl<'de> Deserializer<'de> for ObjectIdDeserializer<'de> {
 
     fn deserialize_bytes<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.bson.element_type() {
-            ElementType::ObjectId => visitor.visit_borrowed_bytes(self.bson.as_bytes()),
+            ElementType::ObjectId => visitor.visit_bytes(self.bson.as_bytes()),
             _ => Err(Error::MalformedDocument),
         }
     }

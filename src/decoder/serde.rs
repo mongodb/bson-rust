@@ -12,10 +12,14 @@ use crate::bson::{Bson, TimeStamp, UtcDateTime};
 use crate::decimal128::Decimal128;
 use crate::oid::ObjectId;
 use crate::ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
-use crate::spec::BinarySubtype;
+use crate::spec::{BinarySubtype, ElementType};
+use crate::de::object_id;
+use crate::de::object_id::ObjectIdDeserializer;
+use crate::raw::RawBson;
 
 pub struct BsonVisitor;
 
+/*
 impl<'de> Deserialize<'de> for ObjectId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>
@@ -32,6 +36,7 @@ impl<'de> Deserialize<'de> for ObjectId {
             })
     }
 }
+*/
 
 impl<'de> Deserialize<'de> for OrderedDocument {
     /// Deserialize this value given this `Deserializer`.
@@ -270,6 +275,7 @@ impl<'de> Deserializer<'de> for Decoder {
             Bson::I32(v) => visitor.visit_i32(v),
             Bson::I64(v) => visitor.visit_i64(v),
             Bson::Binary(_, v) => visitor.visit_bytes(&v),
+            Bson::ObjectId(oid) => self.deserialize_struct(object_id::NAME, object_id::FIELDS, visitor),
             _ => {
                 let doc = value.to_extended_document();
                 let len = doc.len();
@@ -335,6 +341,21 @@ impl<'de> Deserializer<'de> for Decoder {
         visitor.visit_newtype_struct(self)
     }
 
+    fn deserialize_struct<V>(self, name: &'static str, fields: &'static [&'static str], visitor: V) -> DecoderResult<V::Value>
+    where
+        V: Visitor<'de>
+    {
+        if name == object_id::NAME {
+            let oid_bytes = self.value.ok_or(DecoderError::ExpectedField("object id"))?.as_object_id().expect("not object id").bytes();
+            let bson = RawBson::new(
+                ElementType::ObjectId,
+                &oid_bytes[..],
+            );
+            ObjectIdDeserializer::new(bson).deserialize_struct(name, fields, OwnedObjectIdDeserializer).map_err(serde::de::Error::custom)
+        } else {
+            self.deserialize_map(visitor)
+        }
+    }
     forward_to_deserialize! {
         deserialize_bool();
         deserialize_u8();
@@ -356,7 +377,7 @@ impl<'de> Deserializer<'de> for Decoder {
         deserialize_map();
         deserialize_unit_struct(name: &'static str);
         deserialize_tuple_struct(name: &'static str, len: usize);
-        deserialize_struct(name: &'static str, fields: &'static [&'static str]);
+        //deserialize_struct(name: &'static str, fields: &'static [&'static str]);
         deserialize_tuple(len: usize);
         deserialize_identifier();
         deserialize_ignored_any();

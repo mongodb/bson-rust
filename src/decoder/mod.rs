@@ -23,6 +23,7 @@
 
 mod error;
 mod serde;
+pub(crate) mod object_id;
 
 pub use self::error::{DecoderError, DecoderResult};
 pub use self::serde::Decoder;
@@ -40,6 +41,7 @@ use crate::oid;
 use crate::spec::{self, BinarySubtype};
 
 use ::serde::de::Deserialize;
+use crate::raw::{RawBson, RawBsonDoc};
 
 const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 
@@ -249,4 +251,39 @@ pub fn from_bson<'de, T>(bson: Bson) -> DecoderResult<T>
 {
     let de = Decoder::new(bson);
     Deserialize::deserialize(de)
+}
+
+pub fn from_raw_document<'de, T>(raw_document: RawBsonDoc<'de>) -> Result<T, crate::de::Error>
+where
+    T: Deserialize<'de>
+{
+    let mut de = crate::de::BsonDeserializer::from_rawdoc(raw_document);
+    T::deserialize(&mut de)
+}
+
+pub fn from_bytes<'de, T>(data: &'de [u8]) -> Result<T, crate::de::Error>
+where
+    T: Deserialize<'de>
+{
+    let raw_document = RawBsonDoc::new(data);
+    from_raw_document(raw_document)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ordered::OrderedDocument;
+    use crate::encode_document;
+    use crate::decoder::from_bytes;
+    use crate::oid::ObjectId;
+    #[test]
+    fn document_roundtrip() {
+        let mut bytes = vec![];
+        let document = doc! {
+            "_id": ObjectId::new().expect("oid"),
+            "greeting": "hello",
+        };
+        encode_document(&mut bytes, &document).expect("could not encode document");
+        let doc: OrderedDocument = from_bytes(&bytes).expect("could not decode bytes");
+        assert_eq!(doc, document);
+    }
 }
