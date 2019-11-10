@@ -5,6 +5,7 @@ use serde::de::{
     self, Deserialize, DeserializeSeed, Deserializer, EnumAccess, Error, MapAccess, SeqAccess, Unexpected,
     VariantAccess, Visitor,
 };
+use serde::forward_to_deserialize_any;
 
 use super::error::{DecoderError, DecoderResult};
 use crate::bson::{Bson, TimeStamp, UtcDateTime};
@@ -14,7 +15,7 @@ use crate::oid::ObjectId;
 use crate::ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
 use crate::spec::{BinarySubtype, ElementType};
 use crate::de::object_id;
-use crate::de::object_id::ObjectIdDeserializer;
+use crate::de::object_id::RawObjectIdDeserializer;
 use crate::raw::RawBson;
 
 pub struct BsonVisitor;
@@ -341,17 +342,19 @@ impl<'de> Deserializer<'de> for Decoder {
         visitor.visit_newtype_struct(self)
     }
 
-    fn deserialize_struct<V>(self, name: &'static str, fields: &'static [&'static str], visitor: V) -> DecoderResult<V::Value>
+    fn deserialize_struct<V>(mut self, name: &'static str, fields: &'static [&'static str], visitor: V) -> DecoderResult<V::Value>
     where
         V: Visitor<'de>
     {
         if name == object_id::NAME {
-            let oid_bytes = self.value.ok_or(DecoderError::ExpectedField("object id"))?.as_object_id().expect("not object id").bytes();
-            let bson = RawBson::new(
-                ElementType::ObjectId,
-                &oid_bytes[..],
-            );
-            ObjectIdDeserializer::new(bson).deserialize_struct(name, fields, OwnedObjectIdDeserializer).map_err(serde::de::Error::custom)
+            let val = match self.value.take() {
+                Some(Bson::ObjectId(oid)) => oid,
+                Some(_) => return Err(DecoderError::InvalidType("expected ObjectId".into())),
+                None => return Err(DecoderError::EndOfStream),
+            };
+            visitor.visit_map(
+                OwnedObjectIdDeserializer::new(val)
+            )
         } else {
             self.deserialize_map(visitor)
         }
@@ -384,6 +387,77 @@ impl<'de> Deserializer<'de> for Decoder {
         deserialize_byte_buf();
     }
 }
+
+struct OwnedObjectIdDeserializer {
+    value: Option<ObjectId>,
+    visited: bool,
+}
+
+impl OwnedObjectIdDeserializer {
+    pub fn new(value: ObjectId) -> OwnedObjectIdDeserializer {
+        OwnedObjectIdDeserializer {
+            value: Some(value),
+            visited: false
+        }
+    }
+}
+impl<'a, 'de: 'a> MapAccess<'de> for OwnedObjectIdDeserializer {
+    type Error = DecoderError;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<<K as DeserializeSeed<'de>>::Value>, Self::Error>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        println!("owned object id next key");
+        if self.visited {
+            Ok(None)
+        } else {
+            self.visited = true;
+            seed.deserialize(object_id::ObjectIdKeyDeserializer).map_err(serde::de::Error::custom).map(Some)
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> DecoderResult<V::Value>
+        where V: DeserializeSeed<'de>
+    {
+        let value = self.value.take().ok_or(DecoderError::EndOfStream)?;
+        let mut de = OwnedObjectIdValueDeserializer::new(value);
+        seed.deserialize(de)
+    }
+}
+
+struct OwnedObjectIdValueDeserializer {
+    value: Option<ObjectId>,
+}
+
+impl OwnedObjectIdValueDeserializer {
+    pub fn new(value: ObjectId) -> OwnedObjectIdValueDeserializer {
+        OwnedObjectIdValueDeserializer {
+            value: Some(value),
+        }
+    }
+}
+
+impl<'de> Deserializer<'de> for OwnedObjectIdValueDeserializer {
+    type Error = DecoderError;
+
+    fn deserialize_any<V>(mut self, visitor: V) -> DecoderResult<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        match self.value.take() {
+            Some(oid) => visitor.visit_bytes(&oid.bytes()),
+            _ => Err(DecoderError::EndOfStream),
+        }
+    }
+
+    forward_to_deserialize_any!(
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+        bytes byte_buf map struct option unit newtype_struct
+        ignored_any unit_struct tuple_struct tuple enum identifier
+    );
+}
+
 
 struct EnumDecoder {
     val: Bson,

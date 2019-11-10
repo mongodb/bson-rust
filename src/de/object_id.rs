@@ -11,18 +11,18 @@ pub static FIELD: &str = "$__bson_object_id";
 pub static FIELDS: &[&str] = &[FIELD];
 pub static NAME: &str = "$__bson_ObjectId";
 
-pub struct ObjectIdDeserializer<'de> {
+pub struct RawObjectIdDeserializer<'de> {
     bson: RawBson<'de>,
     visited: bool,
 }
 
-impl<'de> ObjectIdDeserializer<'de> {
-    pub fn new(bson: RawBson<'de>) -> ObjectIdDeserializer<'de> {
-        ObjectIdDeserializer { bson, visited: false }
+impl<'de> RawObjectIdDeserializer<'de> {
+    pub fn new(bson: RawBson<'de>) -> RawObjectIdDeserializer<'de> {
+        RawObjectIdDeserializer { bson, visited: false }
     }
 }
 
-impl<'de> Deserializer<'de> for ObjectIdDeserializer<'de> {
+impl<'de> Deserializer<'de> for RawObjectIdDeserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -62,7 +62,8 @@ impl<'de> Deserializer<'de> for ObjectIdDeserializer<'de> {
         ignored_any unit_struct tuple_struct tuple enum identifier
     );
 }
-impl<'de> MapAccess<'de> for ObjectIdDeserializer<'de> {
+
+impl<'de> MapAccess<'de> for RawObjectIdDeserializer<'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<<K as DeserializeSeed<'de>>::Value>, Self::Error>
@@ -88,7 +89,7 @@ impl<'de> MapAccess<'de> for ObjectIdDeserializer<'de> {
     }
 }
 
-struct ObjectIdKeyDeserializer;
+pub(crate) struct ObjectIdKeyDeserializer;
 
 impl<'de> Deserializer<'de> for ObjectIdKeyDeserializer {
     type Error = Error;

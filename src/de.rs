@@ -406,7 +406,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     ) -> Result<V::Value, Self::Error> {
         println!("deserializing struct with name {} and fields {:?}", name, fields);
         if name == object_id::NAME {
-            object_id::ObjectIdDeserializer::new(self.bson).deserialize_struct(name, fields, visitor)
+            object_id::RawObjectIdDeserializer::new(self.bson).deserialize_struct(name, fields, visitor)
         } else if name == binary::NAME {
             self.bson
                 .as_binary()
