@@ -1,5 +1,6 @@
 //! A BSON document represented as an associative HashMap with insertion ordering.
 
+use std::convert::TryInto;
 use std::error;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::iter::{Extend, FromIterator, Map};
@@ -9,7 +10,7 @@ use chrono::{DateTime, Utc};
 
 use linked_hash_map::{self, LinkedHashMap};
 
-use serde::de::{self, MapAccess, Visitor};
+use serde::de::{self, MapAccess, Visitor, Error};
 
 use crate::bson::{Array, Bson, Document};
 #[cfg(feature = "decimal128")]
@@ -537,15 +538,24 @@ impl<'de> Visitor<'de> for OrderedDocumentVisitor {
     fn visit_map<V>(self, mut visitor: V) -> Result<OrderedDocument, V::Error>
         where V: MapAccess<'de>
     {
+        println!("Using OrderedDocumentVisitor");
         let mut inner = match visitor.size_hint() {
             Some(size) => LinkedHashMap::with_capacity(size),
             None => LinkedHashMap::new(),
         };
 
         while let Some((key, value)) = visitor.next_entry()? {
-            inner.insert(key, value);
+            if key == crate::de::object_id::FIELD {
+                let value: Bson = value;
+                if let Bson::Binary(_, data) = value {
+                    inner.insert("$oid".into(), ObjectId::with_bytes(data[..].try_into().unwrap()).to_hex().into());
+                } else {
+                    return Err(V::Error::custom("expected binary object id"));
+                }
+            } else {
+                inner.insert(key, value);
+            };
         }
-
         Ok(inner.into())
     }
 }
