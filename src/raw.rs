@@ -4,9 +4,9 @@ use std::time::Duration;
 use chrono::{DateTime, TimeZone, Utc};
 
 use crate::bson::Bson;
-use crate::{ordered};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
+use crate::ordered;
 use crate::spec::{BinarySubtype, ElementType};
 use crate::{oid, ValueAccessError, ValueAccessResult};
 
@@ -557,7 +557,6 @@ impl<'a> RawBson<'a> {
             Ok(i32_from_slice(self.data))
         } else {
             Err(RawValueAccessError::UnexpectedType)
-
         }
     }
 
@@ -567,7 +566,6 @@ impl<'a> RawBson<'a> {
             Ok(u64_from_slice(self.data))
         } else {
             Err(RawValueAccessError::UnexpectedType)
-
         }
     }
 
@@ -577,11 +575,10 @@ impl<'a> RawBson<'a> {
             Ok(i64_from_slice(self.data))
         } else {
             Err(RawValueAccessError::UnexpectedType)
-
         }
     }
 
-    #[cfg(feature="decimal128")]
+    #[cfg(feature = "decimal128")]
     pub fn as_decimal128(self) -> RawValueAccessResult<'a, Decimal128> {
         if let ElementType::Decimal128Bit = self.element_type {
             assert_eq!(self.data.len(), 16);
@@ -594,9 +591,8 @@ impl<'a> RawBson<'a> {
     fn try_to_str(&self, data: &'a [u8]) -> RawValueAccessResult<'a, &'a str> {
         match std::str::from_utf8(data) {
             Ok(s) => Ok(s),
-            Err(_) => Err(RawValueAccessError::EncodingError(data))
+            Err(_) => Err(RawValueAccessError::EncodingError(data)),
         }
-
     }
 }
 
@@ -709,9 +705,7 @@ fn u64_from_slice(val: &[u8]) -> u64 {
 
 #[cfg(feature = "decimal128")]
 fn d128_from_slice(val: &[u8]) -> Decimal128 {
-    unsafe {
-        Decimal128::from_raw_bytes_le(val.try_into().expect("d128 is eight bytes"))
-    }
+    unsafe { Decimal128::from_raw_bytes_le(val.try_into().expect("d128 is eight bytes")) }
 }
 
 #[cfg(test)]
@@ -812,8 +806,6 @@ mod tests {
 
         let rawdoc = RawBsonDoc::new(&docbytes);
         let doc: Document = rawdoc.into();
-        println!("{:#?}", doc);
-        //assert!(false);
         assert_eq!(
             rawdoc
                 .get("f64")
@@ -912,8 +904,7 @@ mod tests {
             .as_javascript_with_scope()
             .expect("was not javascript with scope");
         assert_eq!(js, "console.log(msg);");
-        let (scope_key, scope_value_bson) = scopedoc.into_iter().next()
-            .expect("no next value in scope");
+        let (scope_key, scope_value_bson) = scopedoc.into_iter().next().expect("no next value in scope");
         assert_eq!(scope_key, "ok");
         let scope_value = scope_value_bson.as_bool().expect("not a boolean");
         assert_eq!(scope_value, true);

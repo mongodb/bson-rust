@@ -13,10 +13,8 @@ use crate::bson::{Bson, TimeStamp, UtcDateTime};
 use crate::decimal128::Decimal128;
 use crate::oid::ObjectId;
 use crate::ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
-use crate::spec::{BinarySubtype, ElementType};
+use crate::spec::BinarySubtype;
 use crate::de::object_id;
-use crate::de::object_id::RawObjectIdDeserializer;
-use crate::raw::RawBson;
 
 pub struct BsonVisitor;
 
@@ -196,6 +194,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
         Ok(Bson::Binary(BinarySubtype::Generic, v.to_vec()))
     }
 }
+
 
 /// Serde Decoder
 pub struct Decoder {
@@ -408,7 +407,6 @@ impl<'a, 'de: 'a> MapAccess<'de> for OwnedObjectIdDeserializer {
     where
         K: DeserializeSeed<'de>,
     {
-        println!("owned object id next key");
         if self.visited {
             Ok(None)
         } else {
@@ -421,7 +419,7 @@ impl<'a, 'de: 'a> MapAccess<'de> for OwnedObjectIdDeserializer {
         where V: DeserializeSeed<'de>
     {
         let value = self.value.take().ok_or(DecoderError::EndOfStream)?;
-        let mut de = OwnedObjectIdValueDeserializer::new(value);
+        let de = OwnedObjectIdValueDeserializer::new(value);
         seed.deserialize(de)
     }
 }

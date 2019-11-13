@@ -538,7 +538,6 @@ impl<'de> Visitor<'de> for OrderedDocumentVisitor {
     fn visit_map<V>(self, mut visitor: V) -> Result<OrderedDocument, V::Error>
         where V: MapAccess<'de>
     {
-        println!("Using OrderedDocumentVisitor");
         let mut inner = match visitor.size_hint() {
             Some(size) => LinkedHashMap::with_capacity(size),
             None => LinkedHashMap::new(),

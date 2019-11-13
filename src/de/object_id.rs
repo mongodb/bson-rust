@@ -70,7 +70,6 @@ impl<'de> MapAccess<'de> for RawObjectIdDeserializer<'de> {
     where
         K: DeserializeSeed<'de>,
     {
-        println!("object id next key");
         if self.visited {
             Ok(None)
         } else {
@@ -83,8 +82,6 @@ impl<'de> MapAccess<'de> for RawObjectIdDeserializer<'de> {
     where
         V: DeserializeSeed<'de>,
     {
-        println!("object id next value");
-
         seed.deserialize(ObjectIdValueDeserializer::new(self.bson))
     }
 }

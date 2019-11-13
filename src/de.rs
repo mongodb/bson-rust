@@ -83,7 +83,6 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        println!("deserialize any");
         match self.bson.element_type() {
             ElementType::FloatingPoint => self.deserialize_f64(visitor),
             ElementType::Utf8String => self.deserialize_str(visitor),
@@ -275,7 +274,6 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     }
 
     fn deserialize_str<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        println!("deserialize str");
         match self.bson.element_type() {
             ElementType::Utf8String => visitor.visit_borrowed_str(self.bson.as_str()?),
             ElementType::JavaScriptCode => {
@@ -288,7 +286,6 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     }
 
     fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        println!("deserialize string");
         match self.bson.element_type() {
             ElementType::Utf8String => visitor.visit_str(self.bson.as_str()?),
             ElementType::JavaScriptCode => {
@@ -300,7 +297,6 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     }
 
     fn deserialize_bytes<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        println!("deserializing bytes");
         match self.bson.element_type() {
             ElementType::Utf8String => {
                 let raw_data = self.bson.as_bytes();
@@ -374,7 +370,6 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     }
 
     fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        println!("deserialize map with type: {:?}", self.bson.element_type());
         match self.bson.element_type() {
             ElementType::EmbeddedDocument => {
                 let doc = self.bson.as_document()?;
@@ -404,7 +399,6 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
         fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        println!("deserializing struct with name {} and fields {:?}", name, fields);
         if name == object_id::NAME {
             object_id::RawObjectIdDeserializer::new(self.bson).deserialize_struct(name, fields, visitor)
         } else if name == binary::NAME {
@@ -456,7 +450,6 @@ impl<'de> MapAccess<'de> for BsonDocumentMap<'de> {
     where
         K: DeserializeSeed<'de>,
     {
-        println!("next key seed");
         match self.doc_iter.next() {
             Some((key, value)) => {
                 self.next = Some(value);
@@ -471,7 +464,6 @@ impl<'de> MapAccess<'de> for BsonDocumentMap<'de> {
     where
         V: DeserializeSeed<'de>,
     {
-        println!("next value seed");
         let bson = self.next.take().ok_or(Error::MalformedDocument)?;
         let mut deserializer = BsonDeserializer::from_rawbson(bson);
         seed.deserialize(&mut deserializer)
@@ -492,7 +484,6 @@ impl<'de> Deserializer<'de> for StrDeserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        println!("deserialize identifier");
         visitor.visit_borrowed_str(self.value)
     }
 
