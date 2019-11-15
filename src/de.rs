@@ -6,7 +6,7 @@ use std::convert::TryInto;
 use std::fmt::Debug;
 use std::num::TryFromIntError;
 
-use crate::raw::{RawBson, RawBsonDoc, RawBsonDocIterator, RawValueAccessError};
+use crate::raw::{RawBson, RawBsonDoc, RawBsonDocIterator, RawError};
 use crate::spec::ElementType;
 
 pub mod binary;
@@ -44,12 +44,13 @@ impl de::Error for Error {
     }
 }
 
-impl<'a> From<RawValueAccessError<'a>> for Error {
-    fn from(val: RawValueAccessError) -> Error {
+impl<'a> From<RawError<'a>> for Error {
+    fn from(val: RawError) -> Error {
         match val {
-            RawValueAccessError::EncodingError(_) => Error::EncodingError,
-            RawValueAccessError::UnexpectedType => Error::MalformedDocument,
-            RawValueAccessError::NotPresent => Error::NotFound,
+            RawError::Utf8EncodingError(_) => Error::EncodingError,
+            RawError::UnexpectedType => Error::MalformedDocument,
+            RawError::MalformedValue(_) => Error::MalformedDocument,
+            RawError::NotPresent => Error::NotFound,
         }
     }
 }
@@ -72,7 +73,7 @@ pub fn from_bytes<'a, T>(data: &'a [u8]) -> Result<T, Error>
 where
     T: Deserialize<'a>,
 {
-    let doc = RawBsonDoc::new(data);
+    let doc = RawBsonDoc::new(data)?;
     let mut deserializer = BsonDeserializer::from_rawdoc(doc);
     let t = T::deserialize(&mut deserializer)?;
     // TODO: Implement completion check.
@@ -451,11 +452,12 @@ impl<'de> MapAccess<'de> for BsonDocumentMap<'de> {
         K: DeserializeSeed<'de>,
     {
         match self.doc_iter.next() {
-            Some((key, value)) => {
+            Some(Ok((key, value))) => {
                 self.next = Some(value);
                 let deserializer = StrDeserializer::new(key);
                 Ok(Some(seed.deserialize(deserializer)?))
             }
+            Some(Err(err)) => Err(err.into()),
             None => Ok(None),
         }
     }
