@@ -10,11 +10,6 @@ use crate::ordered;
 use crate::spec::{BinarySubtype, ElementType};
 use crate::{oid, ValueAccessError};
 
-#[derive(Clone, Copy)]
-pub struct RawBsonDoc<'a> {
-    data: &'a [u8],
-}
-
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters.
 #[derive(Debug, PartialEq)]
@@ -53,6 +48,123 @@ impl<'a> From<ValueAccessError> for RawError<'a> {
             ValueAccessError::UnexpectedType => RawError::UnexpectedType,
         }
     }
+}
+
+#[derive(Clone)]
+pub struct RawBsonDocBuf {
+    data: Vec<u8>,
+}
+
+
+impl RawBsonDocBuf {
+    pub fn as_ref<'a>(&'a self) -> RawBsonDoc<'a> {
+        let &RawBsonDocBuf { ref data } = self;
+        RawBsonDoc { data }
+    }
+
+    pub fn new(data: Vec<u8>) -> RawResult<'static, RawBsonDocBuf> {
+        if data.len() < 5 {
+            return Err(RawError::MalformedValue("document too short".into()));
+        }
+        let length = i32_from_slice(&data[..4]);
+        if data.len() as i32 != length {
+            return Err(RawError::MalformedValue("document length incorrect".into()));
+        }
+        if data[data.len() - 1] != 0 {
+            return Err(RawError::MalformedValue("document not null-terminated".into()));
+        }
+        Ok(RawBsonDocBuf::new_unchecked(data))
+    }
+
+    pub fn new_unchecked(data: Vec<u8>) -> RawBsonDocBuf {
+        RawBsonDocBuf { data }
+    }
+
+    pub fn get<'a>(&'a self, key: &str) -> RawResult<'a, RawBson<'a>> {
+        self.as_ref().get(key)
+    }
+
+    pub fn get_f64<'a>(&'a self, key: &str) -> RawResult<'a, f64> {
+        self.as_ref().get_f64(key)
+    }
+
+    pub fn get_str<'a>(&'a self, key: &str) -> RawResult<'a, &'a str> {
+        self.as_ref().get_str(key)
+    }
+
+    pub fn get_document<'a>(&'a self, key: &str) -> RawResult<'a, RawBsonDoc<'a>> {
+        self.as_ref().get_document(key)
+    }
+
+    pub fn get_array<'a>(&'a self, key: &str) -> RawResult<'a, RawBsonArray<'a>> {
+        self.as_ref().get_array(key)
+    }
+
+    pub fn get_binary<'a>(&'a self, key: &str) -> RawResult<'a, RawBsonBinary<'a>> {
+        self.as_ref().get_binary(key)
+    }
+
+    pub fn get_object_id<'a>(&'a self, key: &str) -> RawResult<'a, oid::ObjectId> {
+        self.as_ref().get_object_id(key)
+    }
+
+    pub fn get_bool<'a>(&'a self, key: &str) -> RawResult<'a, bool> {
+        self.as_ref().get_bool(key)
+    }
+
+    pub fn get_utc_date_time<'a>(&'a self, key: &str) -> RawResult<'a, DateTime<Utc>> {
+        self.as_ref().get_utc_date_time(key)
+    }
+
+    pub fn get_null<'a>(&'a self, key: &str) -> RawResult<'a, ()> {
+        self.as_ref().get_null(key)
+    }
+
+    pub fn get_regex<'a>(&'a self, key: &str) -> RawResult<'a, RawBsonRegex<'a>> {
+        self.as_ref().get_regex(key)
+    }
+
+    pub fn get_javascript<'a>(&'a self, key: &str) -> RawResult<'a, &'a str> {
+        self.as_ref().get_javascript(key)
+    }
+
+    pub fn get_symbol<'a>(&'a self, key: &str) -> RawResult<'a, &'a str> {
+        self.as_ref().get_symbol(key)
+    }
+
+    pub fn get_javascript_with_scope<'a>(&'a self, key: &str) -> RawResult<'a, (&'a str, RawBsonDoc<'a>)> {
+        self.as_ref().get_javascript_with_scope(key)
+    }
+
+    pub fn get_i32<'a>(&'a self, key: &str) -> RawResult<'a, i32> {
+        self.as_ref().get_i32(key)
+    }
+
+    pub fn get_timestamp<'a>(&'a self, key: &str) -> RawResult<'a, u64> {
+        self.as_ref().get_timestamp(key)
+    }
+
+    pub fn get_i64<'a>(&'a self, key: &str) -> RawResult<'a, i64> {
+        self.as_ref().get_i64(key)
+    }
+
+    pub fn into_inner(self) -> Vec<u8> {
+        self.data
+    }
+
+    pub fn as_bytes<'a>(&'a self) -> &'a [u8] {
+        &self.data
+    }
+}
+
+/*
+impl<'a> TryFrom<RawBsonDoc<'a>> for ordered::OrderedDocument {
+impl<'a> IntoIterator for RawBsonDoc<'a> {
+*/
+
+#[derive(Clone, Copy)]
+pub struct RawBsonDoc<'a> {
+    data: &'a [u8],
 }
 
 impl<'a> RawBsonDoc<'a> {
