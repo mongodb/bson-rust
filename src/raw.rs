@@ -13,7 +13,7 @@ use crate::{oid, ValueAccessError};
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters.
 #[derive(Debug, PartialEq)]
-pub enum RawError<'a> {
+pub enum RawError {
     /// Cannot find a field with the specified key
     NotPresent,
 
@@ -24,14 +24,14 @@ pub enum RawError<'a> {
     MalformedValue(String),
 
     /// Found a value where a utf-8 string was expected, but it was not valid
-    /// utf-8.  The error value includes the raw bytes as a &[u8]
-    Utf8EncodingError(&'a [u8]),
+    /// utf-8.  The error value contains the malformed data as a string.
+    Utf8EncodingError(Vec<u8>),
 }
 
-type RawResult<'a, T> = Result<T, RawError<'a>>;
+type RawResult<T> = Result<T, RawError>;
 
-impl<'a> From<RawError<'a>> for ValueAccessError {
-    fn from(src: RawError<'a>) -> ValueAccessError {
+impl<'a> From<RawError> for ValueAccessError {
+    fn from(src: RawError) -> ValueAccessError {
         match src {
             RawError::NotPresent => ValueAccessError::NotPresent,
             RawError::UnexpectedType => ValueAccessError::UnexpectedType,
@@ -41,8 +41,8 @@ impl<'a> From<RawError<'a>> for ValueAccessError {
     }
 }
 
-impl<'a> From<ValueAccessError> for RawError<'a> {
-    fn from(src: ValueAccessError) -> RawError<'a> {
+impl<'a> From<ValueAccessError> for RawError {
+    fn from(src: ValueAccessError) -> RawError {
         match src {
             ValueAccessError::NotPresent => RawError::NotPresent,
             ValueAccessError::UnexpectedType => RawError::UnexpectedType,
@@ -62,7 +62,7 @@ impl RawBsonDocBuf {
         RawBsonDoc { data }
     }
 
-    pub fn new(data: Vec<u8>) -> RawResult<'static, RawBsonDocBuf> {
+    pub fn new(data: Vec<u8>) -> RawResult<RawBsonDocBuf> {
         if data.len() < 5 {
             return Err(RawError::MalformedValue("document too short".into()));
         }
@@ -80,71 +80,71 @@ impl RawBsonDocBuf {
         RawBsonDocBuf { data }
     }
 
-    pub fn get<'a>(&'a self, key: &str) -> RawResult<'a, RawBson<'a>> {
+    pub fn get<'a>(&'a self, key: &str) -> RawResult<RawBson<'a>> {
         self.as_ref().get(key)
     }
 
-    pub fn get_f64<'a>(&'a self, key: &str) -> RawResult<'a, f64> {
+    pub fn get_f64<'a>(&'a self, key: &str) -> RawResult<f64> {
         self.as_ref().get_f64(key)
     }
 
-    pub fn get_str<'a>(&'a self, key: &str) -> RawResult<'a, &'a str> {
+    pub fn get_str<'a>(&'a self, key: &str) -> RawResult<&'a str> {
         self.as_ref().get_str(key)
     }
 
-    pub fn get_document<'a>(&'a self, key: &str) -> RawResult<'a, RawBsonDoc<'a>> {
+    pub fn get_document<'a>(&'a self, key: &str) -> RawResult<RawBsonDoc<'a>> {
         self.as_ref().get_document(key)
     }
 
-    pub fn get_array<'a>(&'a self, key: &str) -> RawResult<'a, RawBsonArray<'a>> {
+    pub fn get_array<'a>(&'a self, key: &str) -> RawResult<RawBsonArray<'a>> {
         self.as_ref().get_array(key)
     }
 
-    pub fn get_binary<'a>(&'a self, key: &str) -> RawResult<'a, RawBsonBinary<'a>> {
+    pub fn get_binary<'a>(&'a self, key: &str) -> RawResult<RawBsonBinary<'a>> {
         self.as_ref().get_binary(key)
     }
 
-    pub fn get_object_id<'a>(&'a self, key: &str) -> RawResult<'a, oid::ObjectId> {
+    pub fn get_object_id<'a>(&'a self, key: &str) -> RawResult<oid::ObjectId> {
         self.as_ref().get_object_id(key)
     }
 
-    pub fn get_bool<'a>(&'a self, key: &str) -> RawResult<'a, bool> {
+    pub fn get_bool<'a>(&'a self, key: &str) -> RawResult<bool> {
         self.as_ref().get_bool(key)
     }
 
-    pub fn get_utc_date_time<'a>(&'a self, key: &str) -> RawResult<'a, DateTime<Utc>> {
+    pub fn get_utc_date_time<'a>(&'a self, key: &str) -> RawResult<DateTime<Utc>> {
         self.as_ref().get_utc_date_time(key)
     }
 
-    pub fn get_null<'a>(&'a self, key: &str) -> RawResult<'a, ()> {
+    pub fn get_null<'a>(&'a self, key: &str) -> RawResult<()> {
         self.as_ref().get_null(key)
     }
 
-    pub fn get_regex<'a>(&'a self, key: &str) -> RawResult<'a, RawBsonRegex<'a>> {
+    pub fn get_regex<'a>(&'a self, key: &str) -> RawResult<RawBsonRegex<'a>> {
         self.as_ref().get_regex(key)
     }
 
-    pub fn get_javascript<'a>(&'a self, key: &str) -> RawResult<'a, &'a str> {
+    pub fn get_javascript<'a>(&'a self, key: &str) -> RawResult<&'a str> {
         self.as_ref().get_javascript(key)
     }
 
-    pub fn get_symbol<'a>(&'a self, key: &str) -> RawResult<'a, &'a str> {
+    pub fn get_symbol<'a>(&'a self, key: &str) -> RawResult<&'a str> {
         self.as_ref().get_symbol(key)
     }
 
-    pub fn get_javascript_with_scope<'a>(&'a self, key: &str) -> RawResult<'a, (&'a str, RawBsonDoc<'a>)> {
+    pub fn get_javascript_with_scope<'a>(&'a self, key: &str) -> RawResult<(&'a str, RawBsonDoc<'a>)> {
         self.as_ref().get_javascript_with_scope(key)
     }
 
-    pub fn get_i32<'a>(&'a self, key: &str) -> RawResult<'a, i32> {
+    pub fn get_i32<'a>(&'a self, key: &str) -> RawResult<i32> {
         self.as_ref().get_i32(key)
     }
 
-    pub fn get_timestamp<'a>(&'a self, key: &str) -> RawResult<'a, u64> {
+    pub fn get_timestamp<'a>(&'a self, key: &str) -> RawResult<u64> {
         self.as_ref().get_timestamp(key)
     }
 
-    pub fn get_i64<'a>(&'a self, key: &str) -> RawResult<'a, i64> {
+    pub fn get_i64<'a>(&'a self, key: &str) -> RawResult<i64> {
         self.as_ref().get_i64(key)
     }
 
@@ -157,8 +157,15 @@ impl RawBsonDocBuf {
     }
 }
 
+impl TryFrom<RawBsonDocBuf> for ordered::OrderedDocument {
+    type Error = RawError;
+
+    fn try_from(rawdoc: RawBsonDocBuf) -> RawResult<ordered::OrderedDocument> {
+        ordered::OrderedDocument::try_from(rawdoc.as_ref())
+    }
+}
+
 /*
-impl<'a> TryFrom<RawBsonDoc<'a>> for ordered::OrderedDocument {
 impl<'a> IntoIterator for RawBsonDoc<'a> {
 */
 
@@ -185,7 +192,7 @@ impl<'a> RawBsonDoc<'a> {
     pub fn new_unchecked(data: &'a [u8]) -> RawBsonDoc<'a> {
         RawBsonDoc { data }
     }
-    pub fn get(self, key: &str) -> RawResult<'a, RawBson<'a>> {
+    pub fn get(self, key: &str) -> RawResult<RawBson<'a>> {
         for result in self.into_iter() {
             let (thiskey, bson) = result?;
             if thiskey == key {
@@ -195,67 +202,67 @@ impl<'a> RawBsonDoc<'a> {
         Err(RawError::NotPresent)
     }
 
-    pub fn get_f64(self, key: &str) -> RawResult<'a, f64> {
+    pub fn get_f64(self, key: &str) -> RawResult<f64> {
         self.get(key)?.as_f64()
     }
 
-    pub fn get_str(self, key: &str) -> RawResult<'a, &'a str> {
+    pub fn get_str(self, key: &str) -> RawResult<&'a str> {
         self.get(key)?.as_str()
     }
 
-    pub fn get_document(self, key: &str) -> RawResult<'a, RawBsonDoc<'a>> {
+    pub fn get_document(self, key: &str) -> RawResult<RawBsonDoc<'a>> {
         self.get(key)?.as_document()
     }
 
-    pub fn get_array(self, key: &str) -> RawResult<'a, RawBsonArray<'a>> {
+    pub fn get_array(self, key: &str) -> RawResult<RawBsonArray<'a>> {
         self.get(key)?.as_array()
     }
 
-    pub fn get_binary(self, key: &str) -> RawResult<'a, RawBsonBinary<'a>> {
+    pub fn get_binary(self, key: &str) -> RawResult<RawBsonBinary<'a>> {
         self.get(key)?.as_binary()
     }
 
-    pub fn get_object_id(self, key: &str) -> RawResult<'a, oid::ObjectId> {
+    pub fn get_object_id(self, key: &str) -> RawResult<oid::ObjectId> {
         self.get(key)?.as_object_id()
     }
 
-    pub fn get_bool(self, key: &str) -> RawResult<'a, bool> {
+    pub fn get_bool(self, key: &str) -> RawResult<bool> {
         self.get(key)?.as_bool()
     }
 
-    pub fn get_utc_date_time(self, key: &str) -> RawResult<'a, DateTime<Utc>> {
+    pub fn get_utc_date_time(self, key: &str) -> RawResult<DateTime<Utc>> {
         self.get(key)?.as_utc_date_time()
     }
 
-    pub fn get_null(self, key: &str) -> RawResult<'a, ()> {
+    pub fn get_null(self, key: &str) -> RawResult<()> {
         self.get(key)?.as_null()
     }
 
-    pub fn get_regex(self, key: &str) -> RawResult<'a, RawBsonRegex<'a>> {
+    pub fn get_regex(self, key: &str) -> RawResult<RawBsonRegex<'a>> {
         self.get(key)?.as_regex()
     }
 
-    pub fn get_javascript(self, key: &str) -> RawResult<'a, &'a str> {
+    pub fn get_javascript(self, key: &str) -> RawResult<&'a str> {
         self.get(key)?.as_javascript()
     }
 
-    pub fn get_symbol(self, key: &str) -> RawResult<'a, &'a str> {
+    pub fn get_symbol(self, key: &str) -> RawResult<&'a str> {
         self.get(key)?.as_symbol()
     }
 
-    pub fn get_javascript_with_scope(self, key: &str) -> RawResult<'a, (&'a str, RawBsonDoc<'a>)> {
+    pub fn get_javascript_with_scope(self, key: &str) -> RawResult<(&'a str, RawBsonDoc<'a>)> {
         self.get(key)?.as_javascript_with_scope()
     }
 
-    pub fn get_i32(self, key: &str) -> RawResult<'a, i32> {
+    pub fn get_i32(self, key: &str) -> RawResult<i32> {
         self.get(key)?.as_i32()
     }
 
-    pub fn get_timestamp(self, key: &str) -> RawResult<'a, u64> {
+    pub fn get_timestamp(self, key: &str) -> RawResult<u64> {
         self.get(key)?.as_timestamp()
     }
 
-    pub fn get_i64(self, key: &str) -> RawResult<'a, i64> {
+    pub fn get_i64(self, key: &str) -> RawResult<i64> {
         self.get(key)?.as_i64()
     }
 
@@ -265,9 +272,9 @@ impl<'a> RawBsonDoc<'a> {
 }
 
 impl<'a> TryFrom<RawBsonDoc<'a>> for ordered::OrderedDocument {
-    type Error = RawError<'a>;
+    type Error = RawError;
 
-    fn try_from(rawdoc: RawBsonDoc<'a>) -> RawResult<'a, ordered::OrderedDocument> {
+    fn try_from(rawdoc: RawBsonDoc<'a>) -> RawResult<ordered::OrderedDocument> {
         rawdoc
             .into_iter()
             .map(|res| {
@@ -279,7 +286,7 @@ impl<'a> TryFrom<RawBsonDoc<'a>> for ordered::OrderedDocument {
 
 impl<'a> IntoIterator for RawBsonDoc<'a> {
     type IntoIter = RawBsonDocIterator<'a>;
-    type Item = RawResult<'a, (&'a str, RawBson<'a>)>;
+    type Item = RawResult<(&'a str, RawBson<'a>)>;
 
     fn into_iter(self) -> RawBsonDocIterator<'a> {
         RawBsonDocIterator { doc: self, offset: 4 }
@@ -292,9 +299,9 @@ pub struct RawBsonDocIterator<'a> {
 }
 
 impl<'a> Iterator for RawBsonDocIterator<'a> {
-    type Item = RawResult<'a, (&'a str, RawBson<'a>)>;
+    type Item = RawResult<(&'a str, RawBson<'a>)>;
 
-    fn next(&mut self) -> Option<RawResult<'a, (&'a str, RawBson<'a>)>> {
+    fn next(&mut self) -> Option<RawResult<(&'a str, RawBson<'a>)>> {
         if self.offset == self.doc.data.len() - 1 {
             if self.doc.data[self.offset] == 0 {
                 // end of document marker
@@ -400,7 +407,7 @@ pub struct RawBsonArray<'a> {
 }
 
 impl<'a> RawBsonArray<'a> {
-    pub fn new(data: &'a [u8]) -> RawResult<'a, RawBsonArray<'a>> {
+    pub fn new(data: &'a [u8]) -> RawResult<RawBsonArray<'a>> {
         Ok(RawBsonArray::from_doc(RawBsonDoc::new(data)?))
     }
 
@@ -408,75 +415,75 @@ impl<'a> RawBsonArray<'a> {
         RawBsonArray { doc }
     }
 
-    pub fn get(self, index: usize) -> RawResult<'a, RawBson<'a>> {
+    pub fn get(self, index: usize) -> RawResult<RawBson<'a>> {
         self.into_iter().nth(index).ok_or(RawError::NotPresent)?
     }
 
-    pub fn get_f64(self, index: usize) -> RawResult<'a, f64> {
+    pub fn get_f64(self, index: usize) -> RawResult<f64> {
         self.get(index)?.as_f64()
     }
 
-    pub fn get_str(self, index: usize) -> RawResult<'a, &'a str> {
+    pub fn get_str(self, index: usize) -> RawResult<&'a str> {
         self.get(index)?.as_str()
     }
 
-    pub fn get_document(self, index: usize) -> RawResult<'a, RawBsonDoc<'a>> {
+    pub fn get_document(self, index: usize) -> RawResult<RawBsonDoc<'a>> {
         self.get(index)?.as_document()
     }
 
-    pub fn get_array(self, index: usize) -> RawResult<'a, RawBsonArray<'a>> {
+    pub fn get_array(self, index: usize) -> RawResult<RawBsonArray<'a>> {
         self.get(index)?.as_array()
     }
 
-    pub fn get_binary(self, index: usize) -> RawResult<'a, RawBsonBinary<'a>> {
+    pub fn get_binary(self, index: usize) -> RawResult<RawBsonBinary<'a>> {
         self.get(index)?.as_binary()
     }
 
-    pub fn get_object_id(self, index: usize) -> RawResult<'a, oid::ObjectId> {
+    pub fn get_object_id(self, index: usize) -> RawResult<oid::ObjectId> {
         self.get(index)?.as_object_id()
     }
 
-    pub fn get_bool(self, index: usize) -> RawResult<'a, bool> {
+    pub fn get_bool(self, index: usize) -> RawResult<bool> {
         self.get(index)?.as_bool()
     }
 
-    pub fn get_utc_date_time(self, index: usize) -> RawResult<'a, DateTime<Utc>> {
+    pub fn get_utc_date_time(self, index: usize) -> RawResult<DateTime<Utc>> {
         self.get(index)?.as_utc_date_time()
     }
 
-    pub fn get_null(self, index: usize) -> RawResult<'a, ()> {
+    pub fn get_null(self, index: usize) -> RawResult<()> {
         self.get(index)?.as_null()
     }
 
-    pub fn get_regex(self, index: usize) -> RawResult<'a, RawBsonRegex<'a>> {
+    pub fn get_regex(self, index: usize) -> RawResult<RawBsonRegex<'a>> {
         self.get(index)?.as_regex()
     }
 
-    pub fn get_javascript(self, index: usize) -> RawResult<'a, &'a str> {
+    pub fn get_javascript(self, index: usize) -> RawResult<&'a str> {
         self.get(index)?.as_javascript()
     }
 
-    pub fn get_symbol(self, index: usize) -> RawResult<'a, &'a str> {
+    pub fn get_symbol(self, index: usize) -> RawResult<&'a str> {
         self.get(index)?.as_symbol()
     }
 
-    pub fn get_javascript_with_scope(self, index: usize) -> RawResult<'a, (&'a str, RawBsonDoc<'a>)> {
+    pub fn get_javascript_with_scope(self, index: usize) -> RawResult<(&'a str, RawBsonDoc<'a>)> {
         self.get(index)?.as_javascript_with_scope()
     }
 
-    pub fn get_i32(self, index: usize) -> RawResult<'a, i32> {
+    pub fn get_i32(self, index: usize) -> RawResult<i32> {
         self.get(index)?.as_i32()
     }
 
-    pub fn get_timestamp(self, index: usize) -> RawResult<'a, u64> {
+    pub fn get_timestamp(self, index: usize) -> RawResult<u64> {
         self.get(index)?.as_timestamp()
     }
 
-    pub fn get_i64(self, index: usize) -> RawResult<'a, i64> {
+    pub fn get_i64(self, index: usize) -> RawResult<i64> {
         self.get(index)?.as_i64()
     }
 
-    pub fn to_vec(self) -> RawResult<'a, Vec<RawBson<'a>>> {
+    pub fn to_vec(self) -> RawResult<Vec<RawBson<'a>>> {
         self.into_iter().collect()
     }
 
@@ -486,9 +493,9 @@ impl<'a> RawBsonArray<'a> {
 }
 
 impl<'a> TryFrom<RawBsonArray<'a>> for Vec<Bson> {
-    type Error = RawError<'a>;
+    type Error = RawError;
 
-    fn try_from(arr: RawBsonArray<'a>) -> RawResult<'a, Vec<Bson>> {
+    fn try_from(arr: RawBsonArray<'a>) -> RawResult<Vec<Bson>> {
         arr.into_iter().map(|result| {
             let rawbson = result?;
             Bson::try_from(rawbson)
@@ -498,7 +505,7 @@ impl<'a> TryFrom<RawBsonArray<'a>> for Vec<Bson> {
 
 impl<'a> IntoIterator for RawBsonArray<'a> {
     type IntoIter = RawBsonArrayIterator<'a>;
-    type Item = RawResult<'a, RawBson<'a>>;
+    type Item = RawResult<RawBson<'a>>;
 
     fn into_iter(self) -> RawBsonArrayIterator<'a> {
         RawBsonArrayIterator {
@@ -514,9 +521,9 @@ pub struct RawBsonArrayIterator<'a> {
 }
 
 impl<'a> Iterator for RawBsonArrayIterator<'a> {
-    type Item = RawResult<'a, RawBson<'a>>;
+    type Item = RawResult<RawBson<'a>>;
 
-    fn next(&mut self) -> Option<RawResult<'a, RawBson<'a>>> {
+    fn next(&mut self) -> Option<RawResult<RawBson<'a>>> {
         let value = self.dociter.next().map(|result| {
 
             let (key, bson) = match result {
@@ -568,7 +575,7 @@ pub struct RawBsonRegex<'a> {
 }
 
 impl<'a> RawBsonRegex<'a> {
-    pub fn new(data: &'a [u8]) -> RawResult<'a, RawBsonRegex<'a>> {
+    pub fn new(data: &'a [u8]) -> RawResult<RawBsonRegex<'a>> {
         let mut splits = data.split(|x| *x == 0);
         let pattern = splits.next().ok_or(RawError::MalformedValue("no null-terminated string found for regex pattern".into()))?;
         let opts = splits.next().ok_or(RawError::MalformedValue("no null-terminated string found for regex options".into()))?;
@@ -605,7 +612,7 @@ impl<'a> RawBson<'a> {
         self.data
     }
 
-    pub fn as_f64(self) -> RawResult<'a, f64> {
+    pub fn as_f64(self) -> RawResult<f64> {
         if let ElementType::FloatingPoint = self.element_type {
             Ok(f64::from_bits(u64::from_le_bytes(
                 self.data.try_into().map_err(|_| RawError::MalformedValue("f64 should be 8 bytes long".into()))?,
@@ -615,7 +622,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_str(self) -> RawResult<'a, &'a str> {
+    pub fn as_str(self) -> RawResult<&'a str> {
         if let ElementType::Utf8String = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
             assert_eq!(self.data.len() as i32, length + 4);
@@ -625,7 +632,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_document(self) -> RawResult<'a, RawBsonDoc<'a>> {
+    pub fn as_document(self) -> RawResult<RawBsonDoc<'a>> {
         if let ElementType::EmbeddedDocument = self.element_type {
             RawBsonDoc::new(self.data)
         } else {
@@ -633,7 +640,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_array(self) -> RawResult<'a, RawBsonArray<'a>> {
+    pub fn as_array(self) -> RawResult<RawBsonArray<'a>> {
         if let ElementType::Array = self.element_type {
             RawBsonArray::new(self.data)
         } else {
@@ -641,7 +648,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_binary(self) -> RawResult<'a, RawBsonBinary<'a>> {
+    pub fn as_binary(self) -> RawResult<RawBsonBinary<'a>> {
         if let ElementType::Binary = self.element_type {
             let length = i32_from_slice(&self.data[0..4]);
             let subtype = BinarySubtype::from(self.data[4]); // TODO: This mishandles reserved values
@@ -664,7 +671,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_object_id(self) -> RawResult<'a, oid::ObjectId> {
+    pub fn as_object_id(self) -> RawResult<oid::ObjectId> {
         if let ElementType::ObjectId = self.element_type {
             Ok(oid::ObjectId::with_bytes(
                 self.data.try_into().map_err(|_| RawError::MalformedValue("object id should be 12 bytes long".into()))?,
@@ -674,7 +681,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_bool(self) -> RawResult<'a, bool> {
+    pub fn as_bool(self) -> RawResult<bool> {
         if let ElementType::Boolean = self.element_type {
             if self.data.len() != 1 {
                 Err(RawError::MalformedValue("boolean has length != 1".into()))
@@ -690,7 +697,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_utc_date_time(self) -> RawResult<'a, DateTime<Utc>> {
+    pub fn as_utc_date_time(self) -> RawResult<DateTime<Utc>> {
         if let ElementType::UtcDatetime = self.element_type {
             let millis = i64_from_slice(self.data);
             if millis >= 0 {
@@ -712,7 +719,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_null(self) -> RawResult<'a, ()> {
+    pub fn as_null(self) -> RawResult<()> {
         if let ElementType::NullValue = self.element_type {
             Ok(())
         } else {
@@ -720,7 +727,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_regex(self) -> RawResult<'a, RawBsonRegex<'a>> {
+    pub fn as_regex(self) -> RawResult<RawBsonRegex<'a>> {
         if let ElementType::RegularExpression = self.element_type {
             RawBsonRegex::new(self.data)
         } else {
@@ -728,7 +735,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_javascript(self) -> RawResult<'a, &'a str> {
+    pub fn as_javascript(self) -> RawResult<&'a str> {
         if let ElementType::JavaScriptCode = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
 
@@ -739,7 +746,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_symbol(self) -> RawResult<'a, &'a str> {
+    pub fn as_symbol(self) -> RawResult<&'a str> {
         if let ElementType::Symbol = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
             assert_eq!(self.data.len() as i32, length + 4);
@@ -749,7 +756,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_javascript_with_scope(self) -> RawResult<'a, (&'a str, RawBsonDoc<'a>)> {
+    pub fn as_javascript_with_scope(self) -> RawResult<(&'a str, RawBsonDoc<'a>)> {
         if let ElementType::JavaScriptCodeWithScope = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
             assert_eq!(self.data.len() as i32, length);
@@ -766,7 +773,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_i32(self) -> RawResult<'a, i32> {
+    pub fn as_i32(self) -> RawResult<i32> {
         if let ElementType::Integer32Bit = self.element_type {
             assert_eq!(self.data.len(), 4);
             Ok(i32_from_slice(self.data))
@@ -775,7 +782,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_timestamp(self) -> RawResult<'a, u64> {
+    pub fn as_timestamp(self) -> RawResult<u64> {
         if let ElementType::TimeStamp = self.element_type {
             assert_eq!(self.data.len(), 8);
             Ok(u64_from_slice(self.data))
@@ -784,7 +791,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_i64(self) -> RawResult<'a, i64> {
+    pub fn as_i64(self) -> RawResult<i64> {
         if let ElementType::Integer64Bit = self.element_type {
             assert_eq!(self.data.len(), 8);
             Ok(i64_from_slice(self.data))
@@ -794,7 +801,7 @@ impl<'a> RawBson<'a> {
     }
 
     #[cfg(feature = "decimal128")]
-    pub fn as_decimal128(self) -> RawResult<'a, Decimal128> {
+    pub fn as_decimal128(self) -> RawResult<Decimal128> {
         if let ElementType::Decimal128Bit = self.element_type {
             assert_eq!(self.data.len(), 16);
             Ok(d128_from_slice(self.data))
@@ -804,17 +811,17 @@ impl<'a> RawBson<'a> {
     }
 }
 
-fn try_to_str<'a>(data: &'a [u8]) -> RawResult<'a, &'a str> {
+fn try_to_str<'a>(data: &'a [u8]) -> RawResult<&'a str> {
     match std::str::from_utf8(data) {
         Ok(s) => Ok(s),
-        Err(_) => Err(RawError::Utf8EncodingError(data)),
+        Err(_) => Err(RawError::Utf8EncodingError(data.into())),
     }
 }
 
 impl<'a> TryFrom<RawBson<'a>> for Bson {
-    type Error = RawError<'a>;
+    type Error = RawError;
 
-    fn try_from(rawbson: RawBson<'a>) -> RawResult<'a, Bson> {
+    fn try_from(rawbson: RawBson<'a>) -> RawResult<Bson> {
         Ok(match rawbson.element_type {
             ElementType::FloatingPoint => {
                 Bson::FloatingPoint(rawbson.as_f64()?)

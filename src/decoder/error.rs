@@ -37,7 +37,7 @@ pub enum DecoderError {
     Unknown(String),
 }
 
-impl From<RawError<'_>> for DecoderError {
+impl From<RawError> for DecoderError {
     fn from(err: RawError) -> DecoderError {
         DecoderError::custom(format!("{:?}", err))
     }

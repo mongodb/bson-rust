@@ -44,7 +44,7 @@ impl de::Error for Error {
     }
 }
 
-impl<'a> From<RawError<'a>> for Error {
+impl From<RawError> for Error {
     fn from(val: RawError) -> Error {
         match val {
             RawError::Utf8EncodingError(_) => Error::EncodingError,
