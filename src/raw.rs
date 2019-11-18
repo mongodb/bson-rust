@@ -73,11 +73,7 @@ impl RawBsonDocBuf {
         if data[data.len() - 1] != 0 {
             return Err(RawError::MalformedValue("document not null-terminated".into()));
         }
-        let doc = RawBsonDocBuf::new_unchecked(data);
-        for value in &doc {
-            value?;
-        }
-        Ok(doc)
+        Ok(RawBsonDocBuf::new_unchecked(data))
     }
 
     pub fn new_unchecked(data: Vec<u8>) -> RawBsonDocBuf {
@@ -195,12 +191,7 @@ impl<'a> RawBsonDoc<'a> {
         if data[data.len() - 1] != 0 {
             return Err(RawError::MalformedValue("document not null-terminated".into()));
         }
-        let doc = RawBsonDoc::new_unchecked(data);
-        // Verify top-level structure by iterating
-        for value in doc {
-            value?;
-        }
-        Ok(doc)
+        Ok(RawBsonDoc::new_unchecked(data))
     }
 
     pub fn new_unchecked(data: &'a [u8]) -> RawBsonDoc<'a> {
