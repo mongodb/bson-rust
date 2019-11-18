@@ -39,7 +39,7 @@ use crate::bson::{Array, Bson, Document};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::oid;
-use crate::raw::RawBsonDoc;
+use crate::raw::{RawBsonDoc, RawBsonDocBuf};
 use crate::spec::{self, BinarySubtype};
 
 use ::serde::de::{Deserialize, Error};
@@ -239,20 +239,27 @@ pub fn from_bson<'de, T>(bson: Bson) -> DecoderResult<T>
     Deserialize::deserialize(de)
 }
 
-pub fn from_raw_document<'de, T>(raw_document: RawBsonDoc<'de>) -> Result<T, crate::de::Error>
+pub fn from_rawdoc_buf<'de, T>(rawdoc_buf: &'de RawBsonDocBuf) -> Result<T, crate::de::Error>
 where
-    T: Deserialize<'de>
+    T: Deserialize<'de>,
 {
-    let mut de = crate::de::BsonDeserializer::from_rawdoc(raw_document);
+    from_rawdoc(rawdoc_buf.as_ref())
+}
+
+pub fn from_rawdoc<'de, T>(rawdoc: RawBsonDoc<'de>) -> Result<T, crate::de::Error>
+where
+    T: Deserialize<'de>,
+{
+    let mut de = crate::de::BsonDeserializer::from_rawdoc(rawdoc);
     T::deserialize(&mut de)
 }
 
 pub fn from_bytes<'de, T>(data: &'de [u8]) -> Result<T, crate::de::Error>
 where
-    T: Deserialize<'de>
+    T: Deserialize<'de>,
 {
     let raw_document = RawBsonDoc::new(data)?;
-    from_raw_document(raw_document)
+    from_rawdoc(raw_document)
 }
 
 #[cfg(test)]

@@ -46,7 +46,7 @@ pub use self::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
 #[cfg(feature = "decimal128")]
 pub use self::decimal128::Decimal128;
 pub use self::decoder::{decode_document, decode_document_utf8_lossy, from_bson, from_bytes, from_raw_document, Decoder, DecoderError, DecoderResult};
-pub use self::encoder::{encode_document, to_bson, Encoder, EncoderError, EncoderResult};
+pub use self::encoder::{encode_document, to_bson, Encoder, EncoderError, EncoderResult, from_bytes, from_rawdoc, from_rawdoc_buf};
 pub use self::ordered::{ValueAccessError, ValueAccessResult};
 
 #[macro_use]
