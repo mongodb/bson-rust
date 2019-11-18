@@ -73,7 +73,11 @@ impl RawBsonDocBuf {
         if data[data.len() - 1] != 0 {
             return Err(RawError::MalformedValue("document not null-terminated".into()));
         }
-        Ok(RawBsonDocBuf::new_unchecked(data))
+        let doc = RawBsonDocBuf::new_unchecked(data);
+        for value in &doc {
+            value?;
+        }
+        Ok(doc)
     }
 
     pub fn new_unchecked(data: Vec<u8>) -> RawBsonDocBuf {
@@ -165,9 +169,14 @@ impl TryFrom<RawBsonDocBuf> for ordered::OrderedDocument {
     }
 }
 
-/*
-impl<'a> IntoIterator for RawBsonDoc<'a> {
-*/
+impl<'a> IntoIterator for &'a RawBsonDocBuf {
+    type IntoIter = RawBsonDocIterator<'a>;
+    type Item = RawResult<(&'a str, RawBson<'a>)>;
+
+    fn into_iter(self) -> RawBsonDocIterator<'a> {
+        RawBsonDocIterator { doc: self.as_ref(), offset: 4 }
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct RawBsonDoc<'a> {
@@ -186,12 +195,18 @@ impl<'a> RawBsonDoc<'a> {
         if data[data.len() - 1] != 0 {
             return Err(RawError::MalformedValue("document not null-terminated".into()));
         }
-        Ok(RawBsonDoc::new_unchecked(data))
+        let doc = RawBsonDoc::new_unchecked(data);
+        // Verify top-level structure by iterating
+        for value in doc {
+            value?;
+        }
+        Ok(doc)
     }
 
     pub fn new_unchecked(data: &'a [u8]) -> RawBsonDoc<'a> {
         RawBsonDoc { data }
     }
+
     pub fn get(self, key: &str) -> RawResult<RawBson<'a>> {
         for result in self.into_iter() {
             let (thiskey, bson) = result?;

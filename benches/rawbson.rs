@@ -1,4 +1,5 @@
 use std::io::{Cursor, Read};
+use std::convert::TryInto;
 use bson::{Document, raw::RawBsonDoc, doc, decode_document};
 use criterion::{
     BenchmarkId,
@@ -38,7 +39,7 @@ fn access_deep_from_bytes(c: &mut Criterion) {
                 let mut reader = Cursor::new(inbytes);
                 let mut bytes = Vec::new();
                 reader.read_to_end(&mut bytes).unwrap();
-                let mut rawdoc = RawBsonDoc::new(&bytes);
+                let mut rawdoc = RawBsonDoc::new(&bytes).expect("invalid document");
                 while let Ok(val) = rawdoc.get_document("value") {
                     rawdoc = val;
                 }
@@ -79,7 +80,7 @@ fn access_broad_from_bytes(c: &mut Criterion) {
                 let mut reader = Cursor::new(&inbytes);
                 let mut bytes = Vec::new();
                 reader.read_to_end(&mut bytes).unwrap();
-                let rawdoc = RawBsonDoc::new(&bytes);
+                let rawdoc = RawBsonDoc::new(&bytes).expect("invalid document");
                 for key in keys_to_get {
                     rawdoc.get_str(&key).unwrap();
                 }
@@ -113,11 +114,12 @@ fn iter_broad_from_bytes(c: &mut Criterion) {
                 let mut reader = Cursor::new(&inbytes);
                 let mut bytes = Vec::new();
                 reader.read_to_end(&mut bytes).unwrap();
-                let rawdoc = RawBsonDoc::new(&bytes);
+                let rawdoc = RawBsonDoc::new(&bytes).expect("invalid document");
                 let mut i = 0;
-                for (key, value) in rawdoc {
-                    i += 1;
-                    
+                for result in rawdoc {
+                    if result.is_ok() {
+                        i += 1;
+                    }
                 }
                 assert_eq!(i, SIZE);
             }));
@@ -148,7 +150,7 @@ fn access_deep_from_type(c: &mut Criterion) {
                 let mut reader = Cursor::new(inbytes);
                 let mut bytes = Vec::new();
                 reader.read_to_end(&mut bytes).unwrap();
-                let mut rawdoc = RawBsonDoc::new(&bytes);
+                let mut rawdoc = RawBsonDoc::new(&bytes).expect("invalid document");
                 while let Ok(val) = rawdoc.get_document("value") {
                     rawdoc = val;
                 }
@@ -188,7 +190,7 @@ fn access_broad_from_type(c: &mut Criterion) {
                 let mut reader = Cursor::new(inbytes);
                 let mut bytes = Vec::new();
                 reader.read_to_end(&mut bytes).unwrap();
-                let rawdoc = RawBsonDoc::new(&bytes);
+                let rawdoc = RawBsonDoc::new(&bytes).expect("invalid document");
 
                 b.iter(|| {
                     for key in keys_to_get {
@@ -227,13 +229,13 @@ fn iter_broad_from_type(c: &mut Criterion) {
         let mut reader = Cursor::new(inbytes);
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).unwrap();
-        let rawdoc = RawBsonDoc::new(&bytes);
+        let rawdoc = RawBsonDoc::new(&bytes).expect("invalid document");
                 
         b.iter(|| {
                 let mut i = 0;
-                for (key, value) in rawdoc {
+                for result in rawdoc {
+                    let (key, value) = result.expect("invalid bson");
                     i += 1;
-                    
                 }
                 assert_eq!(i, SIZE);
         });
@@ -271,8 +273,8 @@ fn construct_bson_deep(c: &mut Criterion) {
         let mut reader = Cursor::new(inbytes);
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).unwrap();
-        let rawdoc = RawBsonDoc::new(&bytes);
-        let doc: Document = rawdoc.into();
+        let rawdoc = RawBsonDoc::new(&bytes).expect("invalid document");
+        let doc: Document = rawdoc.try_into().expect("could not convert document");
     }));
     group.finish();
 }
@@ -295,8 +297,8 @@ fn construct_bson_broad(c: &mut Criterion) {
         let mut reader = Cursor::new(inbytes);
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).unwrap();
-        let rawdoc = RawBsonDoc::new(&bytes);
-        let doc: Document = rawdoc.into();
+        let rawdoc = RawBsonDoc::new(&bytes).expect("invalid document");
+        let doc: Document = rawdoc.try_into().expect("invalid document");
     }));
     group.finish();
 }

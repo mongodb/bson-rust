@@ -16,4 +16,5 @@ script:
     - cargo build -v
     - cargo test -v --no-fail-fast
     - cargo test -v --no-fail-fast --features u2i
+    - cargo bench -v
     - cd serde-tests && cargo test -v --no-fail-fast
