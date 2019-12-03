@@ -1,4 +1,4 @@
-use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, Visitor};
+use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, Visitor, SeqAccess};
 use serde::forward_to_deserialize_any;
 use serde::Deserialize;
 
@@ -6,10 +6,11 @@ use std::convert::TryInto;
 use std::fmt::Debug;
 use std::num::TryFromIntError;
 
-use crate::raw::{RawBson, RawBsonDoc, RawBsonDocIterator, RawError};
+use crate::raw::{RawBson, RawBsonDoc, RawBsonDocIterator, RawError, RawBsonArrayIterator};
 use crate::spec::ElementType;
 
 pub mod binary;
+pub mod js;
 pub mod object_id;
 
 #[derive(Debug)]
@@ -95,11 +96,11 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::Boolean => self.deserialize_bool(visitor),
             ElementType::UtcDatetime => Err(Error::Unimplemented),
             ElementType::NullValue => self.deserialize_unit(visitor),
-            ElementType::DbPointer => Err(Error::Unimplemented),  // deserialize (&str, ObjectId), (&str, &[u8]), or struct
+            ElementType::DbPointer => Err(Error::Unimplemented),  // deserialize (&str, ObjectId), or struct
             ElementType::RegularExpression => Err(Error::Unimplemented), // deserialize (&str, &str) or struct
             ElementType::JavaScriptCode => self.deserialize_str(visitor),
             ElementType::Symbol => self.deserialize_str(visitor),
-            ElementType::JavaScriptCodeWithScope => Err(Error::Unimplemented), // deserialize (&'str, Map) or struct
+            ElementType::JavaScriptCodeWithScope => self.deserialize_struct(js::WITH_SCOPE_NAME, js::WITH_SCOPE_FIELDS, visitor), // deserialize (&'str, Map) or struct
             ElementType::Integer32Bit => self.deserialize_i32(visitor),
             ElementType::TimeStamp => self.deserialize_u64(visitor),
             ElementType::Integer64Bit => self.deserialize_i64(visitor),
@@ -271,7 +272,18 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     }
 
     fn deserialize_char<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        Err(Error::Unimplemented)
+        let s = self.bson.as_str()?;
+        let mut chars = s.chars();
+        let char = match chars.next() {
+            Some(char) => char,
+            None => return Err(Error::MalformedDocument),
+        };
+        if chars.next().is_none() {
+            visitor.visit_char(char)
+        } else {
+            // Got multiple characters.
+            Err(Error::MalformedDocument)
+        }
     }
 
     fn deserialize_str<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -282,7 +294,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             }
             ElementType::Symbol => visitor.visit_borrowed_str(self.bson.as_symbol()?),
 
-            _ => Err(Error::Unimplemented),
+            _ => Err(Error::MalformedDocument),
         }
     }
 
@@ -358,16 +370,30 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
         }
     }
 
-    fn deserialize_unit_struct<V: Visitor<'de>>(self, name: &str, visitor: V) -> Result<V::Value, Self::Error> {
-        Err(Error::Unimplemented)
+    fn deserialize_unit_struct<V: Visitor<'de>>(self, _name: &str, visitor: V) -> Result<V::Value, Self::Error> {
+        self.deserialize_unit(visitor)
     }
 
     fn deserialize_newtype_struct<V: Visitor<'de>>(self, name: &str, visitor: V) -> Result<V::Value, Self::Error> {
-        Err(Error::Unimplemented)
+        visitor.visit_newtype_struct(self)
     }
 
     fn deserialize_seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        Err(Error::Unimplemented)
+        match self.bson.element_type() {
+            ElementType::Array => {
+                let arr = self.bson.as_array()?;
+                let sequencer = BsonArraySequencer::new(arr.into_iter());
+                visitor.visit_seq(sequencer)
+            }
+            /*
+            ElementType::DbPointer => {}
+            ElementType::RegularExpression => {}
+            ElementType::JavaScriptCodeWithScope => {}
+            */
+            _ => {
+                Err::<V::Value, Self::Error>(Error::Unimplemented)
+            }
+        }
     }
 
     fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -375,14 +401,23 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::EmbeddedDocument => {
                 let doc = self.bson.as_document()?;
                 let mapper = BsonDocumentMap::new(doc.into_iter());
-                Ok(visitor.visit_map(mapper)?)
+                visitor.visit_map(mapper)
             }
             _ => Err(Error::MalformedDocument),
         }
     }
 
     fn deserialize_tuple<V: Visitor<'de>>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error> {
-        Err(Error::Unimplemented)
+        match self.bson.element_type() {
+            ElementType::Array => {
+                self.deserialize_seq(visitor)
+            }
+            ElementType::RegularExpression => {
+                let regex = self.bson.as_regex()?;
+                Err(Error::MalformedDocument)
+            }
+            _ => Err(Error::MalformedDocument),
+        }
     }
 
     fn deserialize_tuple_struct<V: Visitor<'de>>(
@@ -407,6 +442,11 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
                 .as_binary()
                 .map(binary::BinaryDeserializer::new)
                 .map(|de| de.deserialize_struct(name, fields, visitor))?
+        } else if name == js::WITH_SCOPE_NAME {
+            self.bson
+                .as_javascript_with_scope()
+                .map(js::JavaScriptWithScopeDeserializer::new)
+                .map(|de| de.deserialize_struct(name, fields, visitor))?
         } else {
             self.deserialize_map(visitor)
         }
@@ -427,6 +467,34 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
 
     fn deserialize_identifier<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         Err(Error::Unimplemented)
+    }
+}
+
+struct BsonArraySequencer<'de> {
+    arr_iter: RawBsonArrayIterator<'de>,
+}
+
+impl<'de> BsonArraySequencer<'de> {
+    fn new(arr_iter: RawBsonArrayIterator<'de>) -> Self {
+        BsonArraySequencer { arr_iter }
+    }
+}
+
+impl<'de> SeqAccess<'de> for BsonArraySequencer<'de> {
+    type Error = Error;
+
+    fn next_element_seed<E>(&mut self, seed: E) -> Result<Option<E::Value>, Self::Error>
+    where
+        E: DeserializeSeed<'de>,
+    {
+        match self.arr_iter.next() {
+            Some(Ok(bson)) => {
+                let mut deserializer = BsonDeserializer::from_rawbson(bson);
+                seed.deserialize(&mut deserializer).map(Some)
+            }
+            Some(Err(err)) => Err(err.into()),
+            None => Ok(None),
+        }
     }
 }
 
@@ -774,5 +842,19 @@ mod tests {
         assert_eq!(map.get("this").expect("key not found"), "that");
         assert_eq!(map.get("three").expect("key not found"), "four");
         assert_eq!(map.get("keymaster").expect("key not found"), "gatekeeper");
+    }
+
+    #[test]
+    fn deserialize_seq() {
+        let mut docbytes = Vec::new();
+        encode_document(&mut docbytes, &doc!{"array": [1i32, 2i64, 3i32, "abc"]});
+        let map: HashMap<String, Vec<Bson>> = from_bytes(&docbytes).expect("could not decode into HashMap<String, Vec<Bson>");
+        assert_eq!(map.len(), 1);
+        let arr = map.get("array").expect("key not found");
+        assert_eq!(arr.get(0).expect("no index 0"), &Bson::I32(1));
+        assert_eq!(arr.get(1).expect("no index 1"), &Bson::I64(2));
+        assert_eq!(arr.get(2).expect("no index 2"), &Bson::I32(3));
+        assert_eq!(arr.get(3).expect("no index 3"), &Bson::String("abc".into()));
+        assert!(arr.get(4).is_none());
     }
 }

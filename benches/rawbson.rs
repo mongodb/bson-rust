@@ -43,7 +43,7 @@ fn access_deep_from_bytes(c: &mut Criterion) {
                 while let Ok(val) = rawdoc.get_document("value") {
                     rawdoc = val;
                 }
-                rawdoc.get_i64("value").unwrap(); 
+                rawdoc.get_i64("value").unwrap();
             }),
         );
         group.bench_with_input(BenchmarkId::new("parsed", depth), &inbytes,
@@ -154,7 +154,7 @@ fn access_deep_from_type(c: &mut Criterion) {
                 while let Ok(val) = rawdoc.get_document("value") {
                     rawdoc = val;
                 }
-                rawdoc.get_i64("value").unwrap(); 
+                rawdoc.get_i64("value").unwrap();
             }),
         );
         group.bench_with_input(BenchmarkId::new("parsed", depth), &inbytes,
@@ -230,7 +230,7 @@ fn iter_broad_from_type(c: &mut Criterion) {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).unwrap();
         let rawdoc = RawBsonDoc::new(&bytes).expect("invalid document");
-                
+
         b.iter(|| {
                 let mut i = 0;
                 for result in rawdoc {

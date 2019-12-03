@@ -55,7 +55,6 @@ pub struct RawBsonDocBuf {
     data: Vec<u8>,
 }
 
-
 impl RawBsonDocBuf {
     pub fn as_ref<'a>(&'a self) -> RawBsonDoc<'a> {
         let &RawBsonDocBuf { ref data } = self;
@@ -316,12 +315,9 @@ impl<'a> Iterator for RawBsonDocIterator<'a> {
                 return Some(Err(RawError::MalformedValue("document not null terminated".into())));
             }
         }
-        let key = {
-            let mut splits = self.doc.data[self.offset + 1..].split(|x| *x == 0);
-            match splits.next() {
-                Some(k) => k,
-                None => return Some(Err(RawError::MalformedValue("no null-terminated key found".into()))),
-            }
+        let key = match read_nullterminated(&self.doc.data[self.offset + 1..]) {
+            Ok(key) => key,
+            Err(err) => return Some(Err(err)),
         };
         let valueoffset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
         let element_type = match ElementType::from(self.doc.data[self.offset]) {
@@ -358,9 +354,14 @@ impl<'a> Iterator for RawBsonDocIterator<'a> {
             ElementType::UtcDatetime => 8,
             ElementType::NullValue => 0,
             ElementType::RegularExpression => {
-                let mut splits = self.doc.data[valueoffset..].splitn(3, |x| *x == 0);
-                let regex = splits.next()?;
-                let options = splits.next()?;
+                let regex = match read_nullterminated(&self.doc.data[valueoffset..]) {
+                    Ok(regex) => regex,
+                    Err(err) => return Some(Err(err)),
+                };
+                let options = match read_nullterminated(&self.doc.data[valueoffset + regex.len() + 1..]) {
+                    Ok(options) => options,
+                    Err(err) => return Some(Err(err)),
+                };
                 regex.len() + options.len() + 2
             }
             ElementType::DbPointer => {
@@ -396,12 +397,8 @@ impl<'a> Iterator for RawBsonDocIterator<'a> {
         };
         let nextoffset = valueoffset + element_size;
         self.offset = nextoffset;
-        let keystr = match try_to_str(key) {
-            Ok(key) => key,
-            Err(err) => return Some(Err(err)),
-        };
         Some(Ok((
-            keystr,
+            key,
             RawBson::new(element_type, &self.doc.data[valueoffset..nextoffset]),
         )))
     }
@@ -576,24 +573,19 @@ impl<'a> RawBsonBinary<'a> {
 
 #[derive(Clone, Copy)]
 pub struct RawBsonRegex<'a> {
-    pattern: &'a [u8],
-    opts: &'a [u8],
+    pattern: &'a str,
+    opts: &'a str,
 }
 
 impl<'a> RawBsonRegex<'a> {
     pub fn new(data: &'a [u8]) -> RawResult<RawBsonRegex<'a>> {
-        let mut splits = data.split(|x| *x == 0);
-        let pattern = splits.next().ok_or(RawError::MalformedValue("no null-terminated string found for regex pattern".into()))?;
-        let opts = splits.next().ok_or(RawError::MalformedValue("no null-terminated string found for regex options".into()))?;
-        Ok(RawBsonRegex { pattern, opts })
-    }
-
-    pub fn pattern(self) -> &'a str {
-        try_to_str(self.pattern).expect("invalid utf8")
-    }
-
-    pub fn opts(self) -> &'a str {
-        std::str::from_utf8(self.opts).expect("invalid utf8")
+        let pattern = read_nullterminated(data)?;
+        let opts = read_nullterminated(&data[pattern.len() + 1..])?;
+        if pattern.len() + opts.len() == data.len() - 2 {
+            Ok(RawBsonRegex { pattern, opts })
+        } else {
+            Err(RawError::MalformedValue("expected two null-terminated strings".into()))
+        }
     }
 }
 
@@ -630,9 +622,7 @@ impl<'a> RawBson<'a> {
 
     pub fn as_str(self) -> RawResult<&'a str> {
         if let ElementType::Utf8String = self.element_type {
-            let length = i32_from_slice(&self.data[..4]);
-            assert_eq!(self.data.len() as i32, length + 4);
-            try_to_str(&self.data[4..4 + length as usize - 1])
+            read_lenencoded(self.data)
         } else {
             Err(RawError::UnexpectedType)
         }
@@ -743,10 +733,7 @@ impl<'a> RawBson<'a> {
 
     pub fn as_javascript(self) -> RawResult<&'a str> {
         if let ElementType::JavaScriptCode = self.element_type {
-            let length = i32_from_slice(&self.data[..4]);
-
-            assert_eq!(self.data.len() as i32, length + 4);
-            try_to_str(&self.data[4..4 + length as usize - 1])
+            read_lenencoded(self.data)
         } else {
             Err(RawError::UnexpectedType)
         }
@@ -754,9 +741,7 @@ impl<'a> RawBson<'a> {
 
     pub fn as_symbol(self) -> RawResult<&'a str> {
         if let ElementType::Symbol = self.element_type {
-            let length = i32_from_slice(&self.data[..4]);
-            assert_eq!(self.data.len() as i32, length + 4);
-            try_to_str(&self.data[4..4 + length as usize - 1])
+            read_lenencoded(self.data)
         } else {
             Err(RawError::UnexpectedType)
         }
@@ -767,13 +752,10 @@ impl<'a> RawBson<'a> {
             let length = i32_from_slice(&self.data[..4]);
             assert_eq!(self.data.len() as i32, length);
 
-            let js_len = i32_from_slice(&self.data[4..8]) as usize;
-            let js = &self.data[8..8 + js_len - 1];
-            let doc_offset = 8 + js_len;
-            let doc_len = i32_from_slice(&self.data[doc_offset..doc_offset + 4]) as usize;
-            assert_eq!(self.data.len(), doc_offset + doc_len);
-            let doc = RawBsonDoc::new(&self.data[doc_offset..doc_offset + doc_len])?;
-            Ok((try_to_str(js)?, doc))
+            let js = read_lenencoded(&self.data[4..])?;
+            let doc = RawBsonDoc::new(&self.data[9 + js.len()..])?;
+
+            Ok((js, doc))
         } else {
             Err(RawError::UnexpectedType)
         }
@@ -870,8 +852,8 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
             ElementType::RegularExpression => {
                 let rawregex = rawbson.as_regex()?;
                 Bson::RegExp(
-                    String::from(rawregex.pattern()),
-                    String::from(rawregex.opts()),
+                    String::from(rawregex.pattern),
+                    String::from(rawregex.opts),
                 )
             }
             ElementType::JavaScriptCode => Bson::JavaScriptCode(String::from(
@@ -933,6 +915,22 @@ fn u64_from_slice(val: &[u8]) -> u64 {
 #[cfg(feature = "decimal128")]
 fn d128_from_slice(val: &[u8]) -> Decimal128 {
     unsafe { Decimal128::from_raw_bytes_le(val.try_into().expect("d128 is eight bytes")) }
+}
+
+fn read_nullterminated(buf: &[u8]) -> RawResult<&str> {
+    let mut splits = buf.splitn(2, |x| *x == 0);
+    let value = splits.next().ok_or(RawError::MalformedValue("no value".into()))?;
+    if splits.next().is_some() {
+        Ok(try_to_str(value)?)
+    } else {
+        Err(RawError::MalformedValue("expected null terminator".into()))
+    }
+}
+
+fn read_lenencoded(buf: &[u8]) -> RawResult<&str> {
+    let length = i32_from_slice(&buf[..4]);
+    assert!(buf.len() as i32 >= length + 4);
+    try_to_str(&buf[4..4 + length as usize - 1])
 }
 
 #[cfg(test)]
@@ -1031,7 +1029,9 @@ mod tests {
             "end": "END",
         });
 
+
         let rawdoc = RawBsonDoc::new_unchecked(&docbytes);
+
         let doc: Document = rawdoc.try_into().expect("invalid bson");
         assert_eq!(
             rawdoc
@@ -1061,7 +1061,6 @@ mod tests {
             .expect("no key array")
             .as_array()
             .expect("result was not an array");
-
         assert_eq!(array.get_str(0), Ok("binary"));
         assert_eq!(array.get_str(3), Ok("notation"));
         assert_eq!(array.get_str(4), Err(RawError::NotPresent));
@@ -1108,8 +1107,8 @@ mod tests {
             .expect("no key regex")
             .as_regex()
             .expect("was not regex");
-        assert_eq!(regex.pattern(), r"end\s*$");
-        assert_eq!(regex.opts(), "i");
+        assert_eq!(regex.pattern, r"end\s*$");
+        assert_eq!(regex.opts, "i");
 
         let js = rawdoc
             .get("javascript")
