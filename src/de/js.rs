@@ -1,4 +1,4 @@
-use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
+use serde::de::{DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde::forward_to_deserialize_any;
 
 use super::Error;
@@ -50,7 +50,7 @@ impl<'de> JavaScriptWithScopeDeserializer<'de> {
         JavaScriptWithScopeDeserializer {
             js: data.0,
             scope: data.1,
-            visiting: ScopedVisiting::New,
+            visiting: ScopedVisiting::Js,
         }
     }
 }
@@ -62,7 +62,7 @@ impl<'de> Deserializer<'de> for JavaScriptWithScopeDeserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.deserialize_str(visitor)
+        self.deserialize_seq(visitor)
     }
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Error>
@@ -77,6 +77,24 @@ impl<'de> Deserializer<'de> for JavaScriptWithScopeDeserializer<'de> {
         V: Visitor<'de>,
     {
         visitor.visit_str(self.js)
+    }
+
+    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_seq(self)
+    }
+
+    fn deserialize_tuple<V>(self, ct: usize, visitor: V) -> Result<V::Value, Error>
+    where
+        V: Visitor<'de>,
+    {
+        if ct != 2 {
+            Err(Error::MalformedDocument)
+        } else {
+            visitor.visit_seq(self)
+        }
     }
 
     fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -97,18 +115,40 @@ impl<'de> Deserializer<'de> for JavaScriptWithScopeDeserializer<'de> {
     }
 
     forward_to_deserialize_any!(
-        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char bytes byte_buf seq
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char bytes byte_buf
         option unit newtype_struct
-        ignored_any unit_struct tuple_struct tuple enum identifier
+        ignored_any unit_struct tuple_struct enum identifier
     );
 }
 
 enum ScopedVisiting {
-    New,
-    Data,
+    Js,
     Scope,
     Done,
 }
+
+impl<'de> SeqAccess<'de> for JavaScriptWithScopeDeserializer<'de> {
+    type Error = Error;
+
+    fn next_element_seed<E>(&mut self, seed: E) -> Result<Option<E::Value>, Error>
+    where
+        E: DeserializeSeed<'de>,
+    {
+        match self.visiting {
+            ScopedVisiting::Js =>{
+                self.visiting = ScopedVisiting::Scope;
+                seed.deserialize(JavaScriptWithScopeJsDeserializer::new(self.js)).map(Some)
+            }
+            ScopedVisiting::Scope => {
+                self.visiting = ScopedVisiting::Done;
+                seed.deserialize(&mut BsonDeserializer::from_rawdoc(self.scope)).map(Some)
+            }
+            ScopedVisiting::Done => Ok(None),
+        }
+    }
+}
+
+
 
 impl<'de> MapAccess<'de> for JavaScriptWithScopeDeserializer<'de> {
     type Error = Error;
@@ -118,18 +158,8 @@ impl<'de> MapAccess<'de> for JavaScriptWithScopeDeserializer<'de> {
         K: DeserializeSeed<'de>,
     {
         match self.visiting {
-            ScopedVisiting::New => {
-                self.visiting = ScopedVisiting::Data;
-                seed.deserialize(JavaScriptKeyDeserializer::new(DATA_FIELD)).map(Some)
-            }
-            ScopedVisiting::Data => {
-                self.visiting = ScopedVisiting::Scope;
-                seed.deserialize(JavaScriptKeyDeserializer::new(SCOPE_FIELD)).map(Some)
-            }
-            ScopedVisiting::Scope => {
-                self.visiting = ScopedVisiting::Done;
-                Ok(None)
-            }
+            ScopedVisiting::Js => seed.deserialize(JavaScriptKeyDeserializer::new(DATA_FIELD)).map(Some),
+            ScopedVisiting::Scope => seed.deserialize(JavaScriptKeyDeserializer::new(SCOPE_FIELD)).map(Some),
             ScopedVisiting::Done => Ok(None),
         }
     }
@@ -139,9 +169,15 @@ impl<'de> MapAccess<'de> for JavaScriptWithScopeDeserializer<'de> {
         V: DeserializeSeed<'de>,
     {
         match self.visiting {
-            ScopedVisiting::Data => seed.deserialize(JavaScriptWithScopeJsDeserializer::new(self.js)),
-            ScopedVisiting::Scope => seed.deserialize(&mut BsonDeserializer::from_rawdoc(self.scope)),
-            _ => Err(Error::MalformedDocument),
+            ScopedVisiting::Js => {
+                self.visiting = ScopedVisiting::Scope;
+                seed.deserialize(JavaScriptWithScopeJsDeserializer::new(self.js))
+            }
+            ScopedVisiting::Scope => {
+                self.visiting = ScopedVisiting::Done;
+                seed.deserialize(&mut BsonDeserializer::from_rawdoc(self.scope))
+            }
+            ScopedVisiting::Done => Err(Error::MalformedDocument),
         }
     }
 }

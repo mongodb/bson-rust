@@ -574,7 +574,9 @@ mod tests {
 
     use serde_derive::Deserialize;
 
+    use crate::raw::RawBsonDoc;
     use super::from_bytes;
+    use crate::decoder::from_rawdoc;
 
     mod uuid {
         use serde::de::Visitor;
@@ -847,7 +849,7 @@ mod tests {
     #[test]
     fn deserialize_seq() {
         let mut docbytes = Vec::new();
-        encode_document(&mut docbytes, &doc!{"array": [1i32, 2i64, 3i32, "abc"]});
+        encode_document(&mut docbytes, &doc!{"array": [1i32, 2i64, 3i32, "abc"]}).expect("could not encode document");
         let map: HashMap<String, Vec<Bson>> = from_bytes(&docbytes).expect("could not decode into HashMap<String, Vec<Bson>");
         assert_eq!(map.len(), 1);
         let arr = map.get("array").expect("key not found");
@@ -857,4 +859,18 @@ mod tests {
         assert_eq!(arr.get(3).expect("no index 3"), &Bson::String("abc".into()));
         assert!(arr.get(4).is_none());
     }
+
+    #[test]
+    fn deserialize_js_with_scope() {
+        let mut docbytes = Vec::new();
+        encode_document(&mut docbytes, &doc!{"js_with_scope": (String::from("console.log(value);"), doc!{"value": "Hello world"})})
+            .expect("could not encode document");
+        let rawdoc = RawBsonDoc::new(&docbytes).expect("Invalid document");
+        assert!(rawdoc.get_javascript_with_scope("js_with_scope").is_ok());
+        let map: HashMap<&str, (&str, HashMap<&str, &str>)> = from_rawdoc(rawdoc).expect("could not decode js with scope");
+        assert_eq!(map.get("js_with_scope").expect("no key js_with_scope").0, "console.log(value);");
+        assert_eq!(map.get("js_with_scope").expect("no key js_with_scope").1.get("value"), Some(&"Hello world"));
+    }
+
+
 }
