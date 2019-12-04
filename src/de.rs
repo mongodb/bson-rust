@@ -1,4 +1,4 @@
-use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, Visitor, SeqAccess};
+use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde::forward_to_deserialize_any;
 use serde::Deserialize;
 
@@ -6,7 +6,7 @@ use std::convert::TryInto;
 use std::fmt::Debug;
 use std::num::TryFromIntError;
 
-use crate::raw::{RawBson, RawBsonDoc, RawBsonDocIterator, RawError, RawBsonArrayIterator};
+use crate::raw::{RawBson, RawBsonArrayIterator, RawBsonDoc, RawBsonDocIterator, RawError};
 use crate::spec::ElementType;
 
 pub mod binary;
@@ -96,11 +96,13 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::Boolean => self.deserialize_bool(visitor),
             ElementType::UtcDatetime => Err(Error::Unimplemented),
             ElementType::NullValue => self.deserialize_unit(visitor),
-            ElementType::DbPointer => Err(Error::Unimplemented),  // deserialize (&str, ObjectId), or struct
+            ElementType::DbPointer => Err(Error::Unimplemented), // deserialize (&str, ObjectId), or struct
             ElementType::RegularExpression => Err(Error::Unimplemented), // deserialize (&str, &str) or struct
             ElementType::JavaScriptCode => self.deserialize_str(visitor),
             ElementType::Symbol => self.deserialize_str(visitor),
-            ElementType::JavaScriptCodeWithScope => self.deserialize_struct(js::WITH_SCOPE_NAME, js::WITH_SCOPE_FIELDS, visitor), // deserialize (&'str, Map) or struct
+            ElementType::JavaScriptCodeWithScope => {
+                self.deserialize_struct(js::WITH_SCOPE_NAME, js::WITH_SCOPE_FIELDS, visitor)
+            } // deserialize (&'str, Map) or struct
             ElementType::Integer32Bit => self.deserialize_i32(visitor),
             ElementType::TimeStamp => self.deserialize_u64(visitor),
             ElementType::Integer64Bit => self.deserialize_i64(visitor),
@@ -118,26 +120,17 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     #[cfg(feature = "u2i")]
     fn deserialize_u8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         let val = match self.bson.element_type() {
-            ElementType::Integer32Bit => {
-                self.bson.as_i32()?.try_into()?
-            }
-            ElementType::Integer64Bit => {
-                self.bson.as_i64()?.try_into()?
-            }
+            ElementType::Integer32Bit => self.bson.as_i32()?.try_into()?,
+            ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
             _ => return Err(Error::Unimplemented),
         };
         visitor.visit_u8(val)
     }
 
-
     fn deserialize_i8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         let val = match self.bson.element_type() {
-            ElementType::Integer32Bit => {
-                self.bson.as_i32()?.try_into()?
-            }
-            ElementType::Integer64Bit => {
-                self.bson.as_i64()?.try_into()?
-            }
+            ElementType::Integer32Bit => self.bson.as_i32()?.try_into()?,
+            ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
             _ => return Err(Error::Unimplemented),
         };
         visitor.visit_i8(val)
@@ -146,24 +139,16 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     #[cfg(feature = "u2i")]
     fn deserialize_u16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         let val = match self.bson.element_type() {
-            ElementType::Integer32Bit => {
-                self.bson.as_i32()?.try_into()?
-            }
-            ElementType::Integer64Bit => {
-                self.bson.as_i64()?.try_into()?
-            }
+            ElementType::Integer32Bit => self.bson.as_i32()?.try_into()?,
+            ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
             _ => return Err(Error::Unimplemented),
         };
         visitor.visit_u16(val)
     }
     fn deserialize_i16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         let val = match self.bson.element_type() {
-            ElementType::Integer32Bit => {
-                self.bson.as_i32()?.try_into()?
-            }
-            ElementType::Integer64Bit => {
-                self.bson.as_i64()?.try_into()?
-            }
+            ElementType::Integer32Bit => self.bson.as_i32()?.try_into()?,
+            ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
             _ => return Err(Error::Unimplemented),
         };
         visitor.visit_i16(val)
@@ -172,12 +157,8 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     #[cfg(feature = "u2i")]
     fn deserialize_u32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         let val = match self.bson.element_type() {
-            ElementType::Integer32Bit => {
-                self.bson.as_i32()?.try_into()?
-            }
-            ElementType::Integer64Bit => {
-                self.bson.as_i64()?.try_into()?
-            }
+            ElementType::Integer32Bit => self.bson.as_i32()?.try_into()?,
+            ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
             _ => return Err(Error::Unimplemented),
         };
         visitor.visit_u32(val)
@@ -185,12 +166,8 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
 
     fn deserialize_i32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         let val = match self.bson.element_type() {
-            ElementType::Integer32Bit => {
-                self.bson.as_i32()?
-            }
-            ElementType::Integer64Bit => {
-                self.bson.as_i64()?.try_into()?
-            }
+            ElementType::Integer32Bit => self.bson.as_i32()?,
+            ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
             _ => return Err(Error::Unimplemented),
         };
         visitor.visit_i32(val)
@@ -199,26 +176,17 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     #[cfg(feature = "u2i")]
     fn deserialize_u64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         let val = match self.bson.element_type() {
-            ElementType::Integer32Bit => {
-                self.bson.as_i32()?.try_into()?
-            }
-            ElementType::Integer64Bit => {
-                self.bson.as_i64()?.try_into()?
-            }
+            ElementType::Integer32Bit => self.bson.as_i32()?.try_into()?,
+            ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
             _ => return Err(Error::Unimplemented),
         };
         visitor.visit_u64(val)
-
     }
 
     fn deserialize_i64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         let val = match self.bson.element_type() {
-            ElementType::Integer32Bit => {
-                self.bson.as_i32()?.into()
-            }
-            ElementType::Integer64Bit => {
-                self.bson.as_i64()?
-            }
+            ElementType::Integer32Bit => self.bson.as_i32()?.into(),
+            ElementType::Integer64Bit => self.bson.as_i64()?,
             _ => return Err(Error::Unimplemented),
         };
         visitor.visit_i64(val)
@@ -226,12 +194,8 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
 
     fn deserialize_i128<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         let val = match self.bson.element_type() {
-            ElementType::Integer32Bit => {
-                self.bson.as_i32()?.into()
-            }
-            ElementType::Integer64Bit => {
-                self.bson.as_i64()?.into()
-            }
+            ElementType::Integer32Bit => self.bson.as_i32()?.into(),
+            ElementType::Integer64Bit => self.bson.as_i64()?.into(),
             _ => return Err(Error::Unimplemented),
         };
         visitor.visit_i128(val)
@@ -240,28 +204,32 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     #[cfg(feature = "u2i")]
     fn deserialize_u128<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         let val = match self.bson.element_type() {
-            ElementType::Integer32Bit => {
-                self.bson.as_i32()?.try_into()?
-            }
-            ElementType::Integer64Bit => {
-                self.bson.as_i64()?.try_into()?
-            }
+            ElementType::Integer32Bit => self.bson.as_i32()?.try_into()?,
+            ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
             _ => return Err(Error::MalformedDocument),
         };
         visitor.visit_u128(val)
     }
 
     #[cfg(not(feature = "u2i"))]
-    fn deserialize_u8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> { Err(Error::MalformedDocument) }
+    fn deserialize_u8<V: Visitor<'de>>(self, _visitor: V) -> Result<V::Value, Self::Error> {
+        Err(Error::MalformedDocument)
+    }
 
     #[cfg(not(feature = "u2i"))]
-    fn deserialize_u16<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> { Err(Error::MalformedDocument) }
+    fn deserialize_u16<V: Visitor<'de>>(self, _visitor: V) -> Result<V::Value, Self::Error> {
+        Err(Error::MalformedDocument)
+    }
 
     #[cfg(not(feature = "u2i"))]
-    fn deserialize_u32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> { Err(Error::MalformedDocument) }
+    fn deserialize_u32<V: Visitor<'de>>(self, _visitor: V) -> Result<V::Value, Self::Error> {
+        Err(Error::MalformedDocument)
+    }
 
     #[cfg(not(feature = "u2i"))]
-    fn deserialize_u64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> { Err(Error::MalformedDocument) }
+    fn deserialize_u64<V: Visitor<'de>>(self, _visitor: V) -> Result<V::Value, Self::Error> {
+        Err(Error::MalformedDocument)
+    }
 
     fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         visitor.visit_f64(self.bson.as_f64()?.into())
@@ -289,9 +257,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     fn deserialize_str<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.bson.element_type() {
             ElementType::Utf8String => visitor.visit_borrowed_str(self.bson.as_str()?),
-            ElementType::JavaScriptCode => {
-                visitor.visit_borrowed_str(self.bson.as_javascript()?)
-            }
+            ElementType::JavaScriptCode => visitor.visit_borrowed_str(self.bson.as_javascript()?),
             ElementType::Symbol => visitor.visit_borrowed_str(self.bson.as_symbol()?),
 
             _ => Err(Error::MalformedDocument),
@@ -301,9 +267,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     fn deserialize_string<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.bson.element_type() {
             ElementType::Utf8String => visitor.visit_str(self.bson.as_str()?),
-            ElementType::JavaScriptCode => {
-                visitor.visit_str(self.bson.as_javascript()?)
-            }
+            ElementType::JavaScriptCode => visitor.visit_str(self.bson.as_javascript()?),
             ElementType::Symbol => visitor.visit_str(self.bson.as_symbol()?),
             _ => Err(Error::Unimplemented),
         }
@@ -374,7 +338,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
         self.deserialize_unit(visitor)
     }
 
-    fn deserialize_newtype_struct<V: Visitor<'de>>(self, name: &str, visitor: V) -> Result<V::Value, Self::Error> {
+    fn deserialize_newtype_struct<V: Visitor<'de>>(self, _name: &str, visitor: V) -> Result<V::Value, Self::Error> {
         visitor.visit_newtype_struct(self)
     }
 
@@ -385,14 +349,10 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
                 let sequencer = BsonArraySequencer::new(arr.into_iter());
                 visitor.visit_seq(sequencer)
             }
-            /*
-            ElementType::DbPointer => {}
-            ElementType::RegularExpression => {}
-            ElementType::JavaScriptCodeWithScope => {}
-            */
-            _ => {
-                Err::<V::Value, Self::Error>(Error::Unimplemented)
-            }
+            // ElementType::DbPointer => {}
+            // ElementType::RegularExpression => {}
+            // ElementType::JavaScriptCodeWithScope => {}
+            _ => Err::<V::Value, Self::Error>(Error::Unimplemented),
         }
     }
 
@@ -409,12 +369,10 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
 
     fn deserialize_tuple<V: Visitor<'de>>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error> {
         match self.bson.element_type() {
-            ElementType::Array => {
-                self.deserialize_seq(visitor)
-            }
+            ElementType::Array => self.deserialize_seq(visitor),
             ElementType::RegularExpression => {
-                let regex = self.bson.as_regex()?;
-                Err(Error::MalformedDocument)
+                let _regex = self.bson.as_regex()?;
+                Err(Error::Unimplemented)
             }
             ElementType::JavaScriptCodeWithScope => {
                 js::JavaScriptWithScopeDeserializer::new(self.bson.as_javascript_with_scope()?)
@@ -426,11 +384,11 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
 
     fn deserialize_tuple_struct<V: Visitor<'de>>(
         self,
-        name: &str,
+        _name: &str,
         len: usize,
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        Err(Error::Unimplemented)
+        self.deserialize_tuple(len, visitor)
     }
 
     fn deserialize_struct<V: Visitor<'de>>(
@@ -458,19 +416,19 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
 
     fn deserialize_enum<V: Visitor<'de>>(
         self,
-        name: &str,
-        fields: &[&str],
-        visitor: V,
+        _name: &str,
+        _fields: &[&str],
+        _visitor: V,
     ) -> Result<V::Value, Self::Error> {
         Err(Error::Unimplemented)
     }
 
     fn deserialize_ignored_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        Err(Error::Unimplemented)
+        self.deserialize_unit(visitor)
     }
 
     fn deserialize_identifier<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        Err(Error::Unimplemented)
+        self.deserialize_str(visitor)
     }
 }
 
@@ -509,10 +467,7 @@ struct BsonDocumentMap<'de> {
 
 impl<'de> BsonDocumentMap<'de> {
     fn new(doc_iter: RawBsonDocIterator<'de>) -> Self {
-        BsonDocumentMap {
-            doc_iter,
-            next: None,
-        }
+        BsonDocumentMap { doc_iter, next: None }
     }
 }
 
@@ -578,9 +533,9 @@ mod tests {
 
     use serde_derive::Deserialize;
 
-    use crate::raw::RawBsonDoc;
     use super::from_bytes;
     use crate::decoder::from_rawdoc;
+    use crate::raw::RawBsonDoc;
 
     mod uuid {
         use serde::de::Visitor;
@@ -762,7 +717,6 @@ mod tests {
         }
     }
 
-
     #[derive(Debug, Deserialize)]
     struct Person<'a> {
         #[serde(rename = "_id")]
@@ -853,8 +807,9 @@ mod tests {
     #[test]
     fn deserialize_seq() {
         let mut docbytes = Vec::new();
-        encode_document(&mut docbytes, &doc!{"array": [1i32, 2i64, 3i32, "abc"]}).expect("could not encode document");
-        let map: HashMap<String, Vec<Bson>> = from_bytes(&docbytes).expect("could not decode into HashMap<String, Vec<Bson>");
+        encode_document(&mut docbytes, &doc! {"array": [1i32, 2i64, 3i32, "abc"]}).expect("could not encode document");
+        let map: HashMap<String, Vec<Bson>> =
+            from_bytes(&docbytes).expect("could not decode into HashMap<String, Vec<Bson>");
         assert_eq!(map.len(), 1);
         let arr = map.get("array").expect("key not found");
         assert_eq!(arr.get(0).expect("no index 0"), &Bson::I32(1));
@@ -867,15 +822,23 @@ mod tests {
     #[test]
     fn deserialize_js_with_scope() {
         let mut docbytes = Vec::new();
-        encode_document(&mut docbytes, &doc!{"js_with_scope": (String::from("console.log(value);"), doc!{"value": "Hello world"})})
-            .expect("could not encode document");
+        encode_document(
+            &mut docbytes,
+            &doc! {"js_with_scope": (String::from("console.log(value);"), doc!{"value": "Hello world"})},
+        )
+        .expect("could not encode document");
         let rawdoc = RawBsonDoc::new(&docbytes).expect("Invalid document");
         assert!(rawdoc.get_javascript_with_scope("js_with_scope").is_ok());
-        let map: HashMap<&str, (&str, HashMap<&str, &str>)> = from_rawdoc(rawdoc).expect("could not decode js with scope");
-        assert_eq!(map.get("js_with_scope").expect("no key js_with_scope").0, "console.log(value);");
+        let map: HashMap<&str, (&str, HashMap<&str, &str>)> =
+            from_rawdoc(rawdoc).expect("could not decode js with scope");
+        assert_eq!(
+            map.get("js_with_scope").expect("no key js_with_scope").0,
+            "console.log(value);"
+        );
         assert_eq!(
             map.get("js_with_scope")
-                .expect("no key js_with_scope").1
+                .expect("no key js_with_scope")
+                .1
                 .get("value")
                 .expect("no key value"),
             &"Hello world",

@@ -104,7 +104,7 @@ impl<'de> Deserializer<'de> for JavaScriptWithScopeDeserializer<'de> {
     fn deserialize_struct<V: Visitor<'de>>(
         self,
         name: &str,
-        fields: &[&str],
+        _fields: &[&str],
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         if name == NAME {
@@ -135,20 +135,20 @@ impl<'de> SeqAccess<'de> for JavaScriptWithScopeDeserializer<'de> {
         E: DeserializeSeed<'de>,
     {
         match self.visiting {
-            ScopedVisiting::Js =>{
+            ScopedVisiting::Js => {
                 self.visiting = ScopedVisiting::Scope;
-                seed.deserialize(JavaScriptWithScopeJsDeserializer::new(self.js)).map(Some)
+                seed.deserialize(JavaScriptWithScopeJsDeserializer::new(self.js))
+                    .map(Some)
             }
             ScopedVisiting::Scope => {
                 self.visiting = ScopedVisiting::Done;
-                seed.deserialize(&mut BsonDeserializer::from_rawdoc(self.scope)).map(Some)
+                seed.deserialize(&mut BsonDeserializer::from_rawdoc(self.scope))
+                    .map(Some)
             }
             ScopedVisiting::Done => Ok(None),
         }
     }
 }
-
-
 
 impl<'de> MapAccess<'de> for JavaScriptWithScopeDeserializer<'de> {
     type Error = Error;
@@ -182,33 +182,6 @@ impl<'de> MapAccess<'de> for JavaScriptWithScopeDeserializer<'de> {
     }
 }
 
-struct JavaScriptWithScopeKeyDeserializer {
-    key: &'static str,
-}
-
-impl JavaScriptWithScopeKeyDeserializer {
-    fn new(key: &'static str) -> JavaScriptWithScopeKeyDeserializer {
-        JavaScriptWithScopeKeyDeserializer { key }
-    }
-}
-
-impl<'de> Deserializer<'de> for JavaScriptWithScopeKeyDeserializer {
-    type Error = Error;
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
-    where
-        V: Visitor<'de>,
-    {
-        visitor.visit_str(self.key)
-    }
-
-    forward_to_deserialize_any!(
-        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
-        ignored_any unit_struct tuple_struct tuple enum identifier
-    );
-}
-
 struct JavaScriptWithScopeJsDeserializer<'de> {
     data: &'de str,
 }
@@ -231,14 +204,14 @@ impl<'de> Deserializer<'de> for JavaScriptWithScopeJsDeserializer<'de> {
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         visitor.visit_borrowed_str(self.data)
     }
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Error>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         visitor.visit_str(self.data)
     }

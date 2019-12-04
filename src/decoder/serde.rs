@@ -275,7 +275,7 @@ impl<'de> Deserializer<'de> for Decoder {
             Bson::I32(v) => visitor.visit_i32(v),
             Bson::I64(v) => visitor.visit_i64(v),
             Bson::Binary(_, v) => visitor.visit_bytes(&v),
-            Bson::ObjectId(oid) => self.deserialize_struct(object_id::NAME, object_id::FIELDS, visitor),
+            Bson::ObjectId(_oid) => self.deserialize_struct(object_id::NAME, object_id::FIELDS, visitor),
             _ => {
                 let doc = value.to_extended_document();
                 let len = doc.len();
@@ -341,7 +341,7 @@ impl<'de> Deserializer<'de> for Decoder {
         visitor.visit_newtype_struct(self)
     }
 
-    fn deserialize_struct<V>(mut self, name: &'static str, fields: &'static [&'static str], visitor: V) -> DecoderResult<V::Value>
+    fn deserialize_struct<V>(mut self, name: &'static str, _fields: &'static [&'static str], visitor: V) -> DecoderResult<V::Value>
     where
         V: Visitor<'de>
     {

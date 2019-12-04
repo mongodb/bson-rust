@@ -54,7 +54,7 @@ impl<'de> Deserializer<'de> for BinaryDeserializer<'de> {
     fn deserialize_struct<V: Visitor<'de>>(
         self,
         name: &str,
-        fields: &[&str],
+        _fields: &[&str],
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         if name == NAME {
