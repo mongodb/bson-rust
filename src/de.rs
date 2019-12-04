@@ -416,6 +416,10 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
                 let regex = self.bson.as_regex()?;
                 Err(Error::MalformedDocument)
             }
+            ElementType::JavaScriptCodeWithScope => {
+                js::JavaScriptWithScopeDeserializer::new(self.bson.as_javascript_with_scope()?)
+                    .deserialize_tuple(len, visitor)
+            }
             _ => Err(Error::MalformedDocument),
         }
     }
@@ -869,8 +873,12 @@ mod tests {
         assert!(rawdoc.get_javascript_with_scope("js_with_scope").is_ok());
         let map: HashMap<&str, (&str, HashMap<&str, &str>)> = from_rawdoc(rawdoc).expect("could not decode js with scope");
         assert_eq!(map.get("js_with_scope").expect("no key js_with_scope").0, "console.log(value);");
-        assert_eq!(map.get("js_with_scope").expect("no key js_with_scope").1.get("value"), Some(&"Hello world"));
+        assert_eq!(
+            map.get("js_with_scope")
+                .expect("no key js_with_scope").1
+                .get("value")
+                .expect("no key value"),
+            &"Hello world",
+        );
     }
-
-
 }
