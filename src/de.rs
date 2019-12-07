@@ -13,6 +13,7 @@ pub mod binary;
 pub mod js;
 pub mod object_id;
 pub mod regexp;
+pub mod utc_datetime;
 
 #[derive(Debug)]
 pub enum Error {
@@ -95,7 +96,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::Undefined => self.deserialize_unit(visitor),
             ElementType::ObjectId => self.deserialize_struct(object_id::NAME, object_id::FIELDS, visitor),
             ElementType::Boolean => self.deserialize_bool(visitor),
-            ElementType::UtcDatetime => Err(Error::Unimplemented),
+            ElementType::UtcDatetime => self.deserialize_struct(visitor),
             ElementType::NullValue => self.deserialize_unit(visitor),
             ElementType::DbPointer => Err(Error::Unimplemented), // deserialize (&str, ObjectId), or struct
             ElementType::RegularExpression => Err(Error::Unimplemented), // deserialize (&str, &str) or struct
@@ -179,6 +180,8 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
         let val = match self.bson.element_type() {
             ElementType::Integer32Bit => self.bson.as_i32()?.try_into()?,
             ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
+            ElementType::TimeStamp => self.bson.as_timestamp()?,
+            ElementType::UtcDatetime => self.bson.as_utc_date_time()?.timestamp_millis().try_into()?,
             _ => return Err(Error::Unimplemented),
         };
         visitor.visit_u64(val)
@@ -188,6 +191,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
         let val = match self.bson.element_type() {
             ElementType::Integer32Bit => self.bson.as_i32()?.into(),
             ElementType::Integer64Bit => self.bson.as_i64()?,
+            ElementType::UtcDatetime => self.bson.as_utc_date_time()?.timestamp_millis(),
             _ => return Err(Error::Unimplemented),
         };
         visitor.visit_i64(val)
@@ -207,7 +211,8 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
         let val = match self.bson.element_type() {
             ElementType::Integer32Bit => self.bson.as_i32()?.try_into()?,
             ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
-            _ => return Err(Error::MalformedDocument),
+            ElementType::TimeStamp => self.bson.as_timestamp()?.into(),
+            _ => return Err(Error::MalformedDocument)
         };
         visitor.visit_u128(val)
     }
@@ -228,8 +233,12 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     }
 
     #[cfg(not(feature = "u2i"))]
-    fn deserialize_u64<V: Visitor<'de>>(self, _visitor: V) -> Result<V::Value, Self::Error> {
-        Err(Error::MalformedDocument)
+    fn deserialize_u64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        let val = match self.bson.element_type() {
+            ElementType::TimeStamp => self.bson.as_timestamp()?,
+            _ => return Err(Error::MalformedDocument)
+        };
+        visitor.visit_u64(self.bson.as_u64()?.into())
     }
 
     fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -350,9 +359,6 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
                 let sequencer = BsonArraySequencer::new(arr.into_iter());
                 visitor.visit_seq(sequencer)
             }
-            // ElementType::DbPointer => {}
-            // ElementType::RegularExpression => {}
-            // ElementType::JavaScriptCodeWithScope => {}
             _ => Err::<V::Value, Self::Error>(Error::Unimplemented),
         }
     }
@@ -540,13 +546,14 @@ mod tests {
 
     use crate::oid::ObjectId;
     use crate::spec::BinarySubtype;
-    use crate::{doc, encode_document, Bson};
+    use crate::{doc, encode_document, Bson, UtcDateTime};
 
     use serde_derive::Deserialize;
 
     use super::from_bytes;
     use crate::decoder::from_rawdoc;
-    use crate::raw::RawBsonDoc;
+    use crate::raw::{RawBsonDoc, RawBsonDocBuf};
+    use chrono::Utc;
 
     mod uuid {
         use serde::de::Visitor;
@@ -875,5 +882,43 @@ mod tests {
             map.get("regexp").expect("no key regexp").1,
             "i"
         );
+    }
+
+    #[test]
+    fn deserialize_utc_datetime_as_chrono_datetime() {
+        let mut docbytes = Vec::new();
+        encode_document(
+            &mut docbytes,
+            &doc! {"utc_datetime": Bson::UtcDatetime(Utc::now())},
+        )
+            .expect("could not encode document");
+        let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
+        assert!(rawdoc.get_utc_date_time("utc_datetime").is_ok());
+        let map: HashMap<&str, UtcDateTime> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime");
+        let &UtcDateTime(ref dt) = map.get("utc_datetime").expect("no key utc_datetime");
+        let elapsed = Utc::now().signed_duration_since(*dt);
+        // The previous now was less than half a second ago
+        assert!(elapsed.num_milliseconds() > 0);
+        assert!(elapsed.num_milliseconds() < 500);
+    }
+
+    #[test]
+    fn deserialize_utc_datetime_as_u64() {
+        let mut docbytes = Vec::new();
+        encode_document(
+            &mut docbytes,
+            &doc! {"utc_datetime": Bson::UtcDatetime(Utc::now())},
+        )
+            .expect("could not encode document");
+        let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
+        assert!(rawdoc.get_utc_date_time("utc_datetime").is_ok());
+        let map: HashMap<&str, UtcDateTime> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime");
+        let &UtcDateTime(ref dt) = map.get("utc_datetime").expect("no key utc_datetime");
+        let elapsed = Utc::now().signed_duration_since(*dt);
+        // The previous now was less than half a second ago
+        assert!(elapsed.num_milliseconds() > 0);
+        assert!(elapsed.num_milliseconds() < 500);
+        let map: HashMap<&str, u64> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime as u64");
+        let time = map.get("utc_datetime").expect("no key utc_datetime");
     }
 }
