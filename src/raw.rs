@@ -119,8 +119,8 @@ impl RawBsonDocBuf {
         self.as_ref().get_null(key)
     }
 
-    pub fn get_regex<'a>(&'a self, key: &str) -> RawResult<RawBsonRegex<'a>> {
-        self.as_ref().get_regex(key)
+    pub fn get_regexp<'a>(&'a self, key: &str) -> RawResult<RawBsonRegexp<'a>> {
+        self.as_ref().get_regexp(key)
     }
 
     pub fn get_javascript<'a>(&'a self, key: &str) -> RawResult<&'a str> {
@@ -246,8 +246,8 @@ impl<'a> RawBsonDoc<'a> {
         self.get(key)?.as_null()
     }
 
-    pub fn get_regex(self, key: &str) -> RawResult<RawBsonRegex<'a>> {
-        self.get(key)?.as_regex()
+    pub fn get_regexp(self, key: &str) -> RawResult<RawBsonRegexp<'a>> {
+        self.get(key)?.as_regexp()
     }
 
     pub fn get_javascript(self, key: &str) -> RawResult<&'a str> {
@@ -470,8 +470,8 @@ impl<'a> RawBsonArray<'a> {
         self.get(index)?.as_null()
     }
 
-    pub fn get_regex(self, index: usize) -> RawResult<RawBsonRegex<'a>> {
-        self.get(index)?.as_regex()
+    pub fn get_regexp(self, index: usize) -> RawResult<RawBsonRegexp<'a>> {
+        self.get(index)?.as_regexp()
     }
 
     pub fn get_javascript(self, index: usize) -> RawResult<&'a str> {
@@ -584,20 +584,28 @@ impl<'a> RawBsonBinary<'a> {
 }
 
 #[derive(Clone, Copy)]
-pub struct RawBsonRegex<'a> {
+pub struct RawBsonRegexp<'a> {
     pattern: &'a str,
-    opts: &'a str,
+    options: &'a str,
 }
 
-impl<'a> RawBsonRegex<'a> {
-    pub fn new(data: &'a [u8]) -> RawResult<RawBsonRegex<'a>> {
+impl<'a> RawBsonRegexp<'a> {
+    pub fn new(data: &'a [u8]) -> RawResult<RawBsonRegexp<'a>> {
         let pattern = read_nullterminated(data)?;
         let opts = read_nullterminated(&data[pattern.len() + 1..])?;
         if pattern.len() + opts.len() == data.len() - 2 {
-            Ok(RawBsonRegex { pattern, opts })
+            Ok(RawBsonRegexp { pattern, options: opts })
         } else {
             Err(RawError::MalformedValue("expected two null-terminated strings".into()))
         }
+    }
+
+    pub fn pattern(self) -> &'a str {
+        self.pattern
+    }
+
+    pub fn options(self) -> &'a str {
+        self.options
     }
 }
 
@@ -737,9 +745,9 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_regex(self) -> RawResult<RawBsonRegex<'a>> {
+    pub fn as_regexp(self) -> RawResult<RawBsonRegexp<'a>> {
         if let ElementType::RegularExpression = self.element_type {
-            RawBsonRegex::new(self.data)
+            RawBsonRegexp::new(self.data)
         } else {
             Err(RawError::UnexpectedType)
         }
@@ -856,8 +864,8 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
             ElementType::UtcDatetime => Bson::UtcDatetime(rawbson.as_utc_date_time()?),
             ElementType::NullValue => Bson::Null,
             ElementType::RegularExpression => {
-                let rawregex = rawbson.as_regex()?;
-                Bson::RegExp(String::from(rawregex.pattern), String::from(rawregex.opts))
+                let rawregex = rawbson.as_regexp()?;
+                Bson::RegExp(String::from(rawregex.pattern), String::from(rawregex.options))
             }
             ElementType::JavaScriptCode => Bson::JavaScriptCode(String::from(rawbson.as_javascript()?)),
             ElementType::Integer32Bit => Bson::I32(rawbson.as_i32()?),
@@ -1104,10 +1112,10 @@ mod tests {
         let regex = rawdoc
             .get("regex")
             .expect("no key regex")
-            .as_regex()
+            .as_regexp()
             .expect("was not regex");
         assert_eq!(regex.pattern, r"end\s*$");
-        assert_eq!(regex.opts, "i");
+        assert_eq!(regex.options, "i");
 
         let js = rawdoc
             .get("javascript")

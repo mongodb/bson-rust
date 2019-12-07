@@ -12,6 +12,7 @@ use crate::spec::ElementType;
 pub mod binary;
 pub mod js;
 pub mod object_id;
+pub mod regexp;
 
 #[derive(Debug)]
 pub enum Error {
@@ -370,14 +371,15 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     fn deserialize_tuple<V: Visitor<'de>>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error> {
         match self.bson.element_type() {
             ElementType::Array => self.deserialize_seq(visitor),
-            ElementType::RegularExpression => {
-                let _regex = self.bson.as_regex()?;
-                Err(Error::Unimplemented)
-            }
             ElementType::JavaScriptCodeWithScope => {
                 js::JavaScriptWithScopeDeserializer::new(self.bson.as_javascript_with_scope()?)
                     .deserialize_tuple(len, visitor)
             }
+            ElementType::RegularExpression => {
+                regexp::RegexpDeserializer::new(self.bson.as_regexp()?)
+                    .deserialize_tuple(len, visitor)
+            }
+
             _ => Err(Error::MalformedDocument),
         }
     }
@@ -398,17 +400,26 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         if name == object_id::NAME {
-            object_id::RawObjectIdDeserializer::new(self.bson).deserialize_struct(name, fields, visitor)
-        } else if name == binary::NAME {
+            object_id::RawObjectIdDeserializer::new(self.bson)
+                .deserialize_struct(name, fields, visitor)
+        } else if name == binary::NAME  {
             self.bson
                 .as_binary()
+                .map_err(Error::from)
                 .map(binary::BinaryDeserializer::new)
-                .map(|de| de.deserialize_struct(name, fields, visitor))?
+                .and_then(|de| de.deserialize_struct(name, fields, visitor))
         } else if name == js::WITH_SCOPE_NAME {
             self.bson
                 .as_javascript_with_scope()
+                .map_err(Error::from)
                 .map(js::JavaScriptWithScopeDeserializer::new)
-                .map(|de| de.deserialize_struct(name, fields, visitor))?
+                .and_then(|de| de.deserialize_struct(name, fields, visitor))
+        } else if name == regexp::NAME {
+            self.bson
+                .as_regexp()
+                .map_err(Error::from)
+                .map(regexp::RegexpDeserializer::new)
+                .and_then(|de| de.deserialize_struct(name, fields, visitor))
         } else {
             self.deserialize_map(visitor)
         }
@@ -826,7 +837,7 @@ mod tests {
             &mut docbytes,
             &doc! {"js_with_scope": (String::from("console.log(value);"), doc!{"value": "Hello world"})},
         )
-        .expect("could not encode document");
+            .expect("could not encode document");
         let rawdoc = RawBsonDoc::new(&docbytes).expect("Invalid document");
         assert!(rawdoc.get_javascript_with_scope("js_with_scope").is_ok());
         let map: HashMap<&str, (&str, HashMap<&str, &str>)> =
@@ -842,6 +853,27 @@ mod tests {
                 .get("value")
                 .expect("no key value"),
             &"Hello world",
+        );
+    }
+
+    #[test]
+    fn deserialize_regexp() {
+        let mut docbytes = Vec::new();
+        encode_document(
+            &mut docbytes,
+            &doc! {"regexp": (String::from("^_id$"), String::from("i")) },
+        )
+            .expect("could not encode document");
+        let rawdoc = RawBsonDoc::new(&docbytes).expect("Invalid document");
+        assert!(rawdoc.get_regexp("regexp").is_ok());
+        let map: HashMap<&str, (&str, &str)> = from_rawdoc(rawdoc).expect("could not decode regexp");
+        assert_eq!(
+            map.get("regexp").expect("no key regexp").0,
+            "^_id$"
+        );
+        assert_eq!(
+            map.get("regexp").expect("no key regexp").1,
+            "i"
         );
     }
 }
