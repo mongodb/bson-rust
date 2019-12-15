@@ -57,7 +57,7 @@ impl<'de> Deserializer<'de> for UtcDateTimeDeserializer {
         where
             V: Visitor<'de>,
     {
-        self.deserialize_struct(visitor)
+        self.deserialize_struct(NAME, FIELDS, visitor)
     }
 
     fn deserialize_i64< V>(self, visitor: V) -> Result<V::Value, Error>
@@ -71,7 +71,7 @@ impl<'de> Deserializer<'de> for UtcDateTimeDeserializer {
         where
             V: Visitor<'de>,
     {
-        visitor.visit_u64(TryFrom::try_from(self.data).map_err(|err| Error::custom(err)))
+        visitor.visit_u64(TryFrom::try_from(self.data).map_err(|err| Error::MalformedDocument)?)
     }
 
     fn deserialize_map< V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -140,15 +140,15 @@ impl<'de> Deserializer<'de> for UtcDateTimeFieldDeserializer {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
-        self.deserialize_i64(self.data)
+        self.deserialize_i64(visitor)
     }
 
     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value, Error>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         visitor.visit_i64(self.data)
     }
@@ -159,3 +159,4 @@ impl<'de> Deserializer<'de> for UtcDateTimeFieldDeserializer {
         ignored_any unit_struct tuple_struct tuple enum identifier
     );
 }
+

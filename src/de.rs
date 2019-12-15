@@ -2,7 +2,7 @@ use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visit
 use serde::forward_to_deserialize_any;
 use serde::Deserialize;
 
-use std::convert::TryInto;
+use std::convert::{TryInto, TryFrom};
 use std::fmt::Debug;
 use std::num::TryFromIntError;
 
@@ -25,6 +25,7 @@ pub enum Error {
     IntConversion(TryFromIntError),
     Internal(String),
     NotFound,
+    TmPErroR,
 }
 
 impl From<TryFromIntError> for Error {
@@ -68,7 +69,7 @@ impl<'de> BsonDeserializer<'de> {
     }
 
     pub fn from_rawbson(bson: RawBson<'de>) -> Self {
-        BsonDeserializer { bson: bson.into() }
+        BsonDeserializer { bson }
     }
 }
 
@@ -96,7 +97,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::Undefined => self.deserialize_unit(visitor),
             ElementType::ObjectId => self.deserialize_struct(object_id::NAME, object_id::FIELDS, visitor),
             ElementType::Boolean => self.deserialize_bool(visitor),
-            ElementType::UtcDatetime => self.deserialize_struct(visitor),
+            ElementType::UtcDatetime => self.deserialize_struct(utc_datetime::NAME, utc_datetime::FIELDS, visitor),
             ElementType::NullValue => self.deserialize_unit(visitor),
             ElementType::DbPointer => Err(Error::Unimplemented), // deserialize (&str, ObjectId), or struct
             ElementType::RegularExpression => Err(Error::Unimplemented), // deserialize (&str, &str) or struct
@@ -238,7 +239,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::TimeStamp => self.bson.as_timestamp()?,
             _ => return Err(Error::MalformedDocument)
         };
-        visitor.visit_u64(self.bson.as_u64()?.into())
+        visitor.visit_u64(self.bson.as_i64()?.try_into()?)
     }
 
     fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -340,7 +341,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     fn deserialize_unit<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.bson.element_type() {
             ElementType::NullValue => visitor.visit_unit(),
-            _ => Err(Error::MalformedDocument),
+            _ => Err(Error::TmPErroR),
         }
     }
 
@@ -370,7 +371,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
                 let mapper = BsonDocumentMap::new(doc.into_iter());
                 visitor.visit_map(mapper)
             }
-            _ => Err(Error::MalformedDocument),
+            _ => Err(Error::TmPErroR),
         }
     }
 
@@ -386,7 +387,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
                     .deserialize_tuple(len, visitor)
             }
 
-            _ => Err(Error::MalformedDocument),
+            _ => Err(Error::TmPErroR),
         }
     }
 
@@ -413,6 +414,13 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
                 .as_binary()
                 .map_err(Error::from)
                 .map(binary::BinaryDeserializer::new)
+                .and_then(|de| de.deserialize_struct(name, fields, visitor))
+        } else if name == utc_datetime::NAME {
+            self.bson
+                .as_utc_date_time()
+                .map_err(Error::from)
+                .map(|dt| dt.timestamp_millis())
+                .map(utc_datetime::UtcDateTimeDeserializer::new)
                 .and_then(|de| de.deserialize_struct(name, fields, visitor))
         } else if name == js::WITH_SCOPE_NAME {
             self.bson
@@ -441,7 +449,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     }
 
     fn deserialize_ignored_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        self.deserialize_unit(visitor)
+        visitor.visit_unit()
     }
 
     fn deserialize_identifier<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -495,6 +503,7 @@ impl<'de> MapAccess<'de> for BsonDocumentMap<'de> {
     where
         K: DeserializeSeed<'de>,
     {
+        use crate::Bson;
         match self.doc_iter.next() {
             Some(Ok((key, value))) => {
                 self.next = Some(value);
@@ -510,7 +519,7 @@ impl<'de> MapAccess<'de> for BsonDocumentMap<'de> {
     where
         V: DeserializeSeed<'de>,
     {
-        let bson = self.next.take().ok_or(Error::MalformedDocument)?;
+        let bson = self.next.take().ok_or(Error::Eof)?;
         let mut deserializer = BsonDeserializer::from_rawbson(bson);
         seed.deserialize(&mut deserializer)
     }
@@ -553,7 +562,7 @@ mod tests {
     use super::from_bytes;
     use crate::decoder::from_rawdoc;
     use crate::raw::{RawBsonDoc, RawBsonDocBuf};
-    use chrono::Utc;
+    use chrono::{DateTime, Utc};
 
     mod uuid {
         use serde::de::Visitor;
@@ -618,7 +627,6 @@ mod tests {
                             ));
                         }
                         let data_value: BinaryDataFromBytes = map.next_value()?;
-                        // Handle old vs new uuid parsing...
                         Ok(Uuid { data: data_value.data })
                     }
                 }
@@ -885,6 +893,28 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_utc_datetime_to_struct() {
+        #[derive(Deserialize)]
+        struct Dateish {
+            #[serde(with="chrono::serde::ts_milliseconds")]
+            utc_datetime: DateTime<Utc>
+        }
+        let mut docbytes = Vec::new();
+        encode_document(
+            &mut docbytes,
+            &doc! {"utc_datetime": Bson::UtcDatetime(Utc::now())},
+        )
+            .expect("could not encode document");
+        let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
+        assert!(rawdoc.get_utc_date_time("utc_datetime").is_ok());
+        let value: Dateish = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime");
+        let elapsed = Utc::now().signed_duration_since(value.dt);
+        // The previous now was less than half a second ago
+        assert!(elapsed.num_milliseconds() >= 0);
+        assert!(elapsed.num_milliseconds() < 500);
+    }
+
+    #[test]
     fn deserialize_utc_datetime_as_chrono_datetime() {
         let mut docbytes = Vec::new();
         encode_document(
@@ -894,16 +924,19 @@ mod tests {
             .expect("could not encode document");
         let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
         assert!(rawdoc.get_utc_date_time("utc_datetime").is_ok());
-        let map: HashMap<&str, UtcDateTime> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime");
-        let &UtcDateTime(ref dt) = map.get("utc_datetime").expect("no key utc_datetime");
+        let map: HashMap<&str, Bson> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime");
+
+        let dt = map.get("utc_datetime").expect("no key utc_datetime");
+        println!("{:?}", dt);
+        let dt = dt.as_utc_date_time().expect("Not a date time object");
         let elapsed = Utc::now().signed_duration_since(*dt);
         // The previous now was less than half a second ago
-        assert!(elapsed.num_milliseconds() > 0);
+        assert!(elapsed.num_milliseconds() >= 0);
         assert!(elapsed.num_milliseconds() < 500);
     }
 
     #[test]
-    fn deserialize_utc_datetime_as_u64() {
+    fn deserialize_utc_datetime_as_i64() {
         let mut docbytes = Vec::new();
         encode_document(
             &mut docbytes,
@@ -912,13 +945,7 @@ mod tests {
             .expect("could not encode document");
         let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
         assert!(rawdoc.get_utc_date_time("utc_datetime").is_ok());
-        let map: HashMap<&str, UtcDateTime> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime");
-        let &UtcDateTime(ref dt) = map.get("utc_datetime").expect("no key utc_datetime");
-        let elapsed = Utc::now().signed_duration_since(*dt);
-        // The previous now was less than half a second ago
-        assert!(elapsed.num_milliseconds() > 0);
-        assert!(elapsed.num_milliseconds() < 500);
-        let map: HashMap<&str, u64> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime as u64");
+        let map: HashMap<&str, i64> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime as i64");
         let time = map.get("utc_datetime").expect("no key utc_datetime");
     }
 }
