@@ -100,7 +100,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::UtcDatetime => self.deserialize_struct(utc_datetime::NAME, utc_datetime::FIELDS, visitor),
             ElementType::NullValue => self.deserialize_unit(visitor),
             ElementType::DbPointer => Err(Error::Unimplemented), // deserialize (&str, ObjectId), or struct
-            ElementType::RegularExpression => Err(Error::Unimplemented), // deserialize (&str, &str) or struct
+            ElementType::RegularExpression => self.deserialize_struct(regexp::NAME, regexp::FIELDS, visitor),
             ElementType::JavaScriptCode => self.deserialize_str(visitor),
             ElementType::Symbol => self.deserialize_str(visitor),
             ElementType::JavaScriptCodeWithScope => {
@@ -908,7 +908,7 @@ mod tests {
         let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
         assert!(rawdoc.get_utc_date_time("utc_datetime").is_ok());
         let value: Dateish = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime");
-        let elapsed = Utc::now().signed_duration_since(value.dt);
+        let elapsed = Utc::now().signed_duration_since(value.utc_datetime);
         // The previous now was less than half a second ago
         assert!(elapsed.num_milliseconds() >= 0);
         assert!(elapsed.num_milliseconds() < 500);
@@ -919,7 +919,42 @@ mod tests {
         let mut docbytes = Vec::new();
         encode_document(
             &mut docbytes,
-            &doc! {"utc_datetime": Bson::UtcDatetime(Utc::now())},
+            &doc! {"utc_datetime": Utc::now()},
+        )
+            .expect("could not encode document");
+        let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
+        assert!(rawdoc.get_utc_date_time("utc_datetime").is_ok());
+        let map: HashMap<&str, UtcDateTime> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime");
+
+        let dt = map.get("utc_datetime").expect("no key utc_datetime");
+        println!("{:?}", dt);
+        let dt = dt.0;
+        let elapsed = Utc::now().signed_duration_since(dt);
+        // The previous now was less than half a second ago
+        assert!(elapsed.num_milliseconds() >= 0);
+        assert!(elapsed.num_milliseconds() < 500);
+    }
+
+    #[test]
+    fn deserialize_object_id_as_bson() {
+        let mut docbytes = Vec::new();
+        encode_document(
+            &mut docbytes,
+            &doc! { "object_id": ObjectId::with_string("123456123456123456123456").unwrap() }
+        )
+            .expect("could not encode document");
+        let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
+        assert!(rawdoc.get_object_id("object_id").is_ok());
+        let map: HashMap<&str, Bson> = from_rawdoc(rawdoc.as_ref()).expect("could not decode object_id");
+        assert_eq!(map.get("object_id").unwrap(), &Bson::ObjectId(ObjectId::with_string("123456123456123456123456").unwrap()));
+    }
+
+    #[test]
+    fn deserialize_utc_datetime_as_bson() {
+        let mut docbytes = Vec::new();
+        encode_document(
+            &mut docbytes,
+            &doc! {"utc_datetime": Utc::now()},
         )
             .expect("could not encode document");
         let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
@@ -927,8 +962,7 @@ mod tests {
         let map: HashMap<&str, Bson> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime");
 
         let dt = map.get("utc_datetime").expect("no key utc_datetime");
-        println!("{:?}", dt);
-        let dt = dt.as_utc_date_time().expect("Not a date time object");
+        let dt = dt.as_utc_date_time().expect("value was not of type Bson::UtcDatetime");
         let elapsed = Utc::now().signed_duration_since(*dt);
         // The previous now was less than half a second ago
         assert!(elapsed.num_milliseconds() >= 0);

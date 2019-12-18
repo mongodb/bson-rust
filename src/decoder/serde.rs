@@ -15,6 +15,8 @@ use crate::oid::ObjectId;
 use crate::ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
 use crate::spec::BinarySubtype;
 use crate::de::object_id;
+use crate::de::utc_datetime;
+use chrono::{Utc, TimeZone};
 
 pub struct BsonVisitor;
 
@@ -58,6 +60,7 @@ impl<'de> Deserialize<'de> for Bson {
     fn deserialize<D>(deserializer: D) -> Result<Bson, D::Error>
         where D: Deserializer<'de>
     {
+        dbg!("DE");
         deserializer.deserialize_any(BsonVisitor)
     }
 }
@@ -183,6 +186,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_map<V>(self, visitor: V) -> Result<Bson, V::Error>
         where V: MapAccess<'de>
     {
+        dbg!("MAP");
         let values = OrderedDocumentVisitor::new().visit_map(visitor)?;
         Ok(Bson::from_extended_document(values.into()))
     }
@@ -276,6 +280,7 @@ impl<'de> Deserializer<'de> for Decoder {
             Bson::I64(v) => visitor.visit_i64(v),
             Bson::Binary(_, v) => visitor.visit_bytes(&v),
             Bson::ObjectId(_oid) => self.deserialize_struct(object_id::NAME, object_id::FIELDS, visitor),
+            Bson::UtcDatetime(dt) => self.deserialize_struct(utc_datetime::NAME, utc_datetime::FIELDS, visitor),
             _ => {
                 let doc = value.to_extended_document();
                 let len = doc.len();
@@ -354,6 +359,15 @@ impl<'de> Deserializer<'de> for Decoder {
             visitor.visit_map(
                 OwnedObjectIdDeserializer::new(val)
             )
+        } else if name == utc_datetime::NAME {
+            let val = match self.value.take() {
+                Some(Bson::UtcDatetime(dt)) => dt,
+                Some(_) => return Err(DecoderError::InvalidType("expected UtcDateTime".into())),
+                None => return Err(DecoderError::EndOfStream),
+            };
+            visitor.visit_map(
+                utc_datetime::UtcDateTimeDeserializer::new(val.timestamp_millis())
+            ).map_err(|err| DecoderError::Unknown(format!("{}", err)))
         } else {
             self.deserialize_map(visitor)
         }
@@ -400,6 +414,7 @@ impl OwnedObjectIdDeserializer {
         }
     }
 }
+
 impl<'a, 'de: 'a> MapAccess<'de> for OwnedObjectIdDeserializer {
     type Error = DecoderError;
 
@@ -707,13 +722,70 @@ impl<'de> Deserialize<'de> for Decimal128 {
     }
 }
 
+
 impl<'de> Deserialize<'de> for UtcDateTime {
+
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>
     {
-        match Bson::deserialize(deserializer)? {
-            Bson::UtcDatetime(dt) => Ok(UtcDateTime(dt)),
-            _ => Err(D::Error::custom("expecting UtcDateTime")),
+        struct UtcDateTimeVisitor;
+
+        impl<'de> Visitor<'de> for UtcDateTimeVisitor {
+            type Value = UtcDateTime;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("expecting a UtcDateTime")
+            }
+
+            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                let value = map.next_key::<UtcDateTimeKey>()?;
+                if value.is_none() {
+                    return Err(serde::de::Error::custom(
+                        "No UtcDateTime key found in synthesized struct",
+                    ));
+                }
+                let val = map.next_value::<i64>()?;
+                Ok(UtcDateTime(Utc.timestamp_millis(val)))
+            }
         }
+        let visitor = UtcDateTimeVisitor;
+
+        deserializer.deserialize_struct(utc_datetime::NAME, utc_datetime::FIELDS, visitor)
+    }
+}
+
+
+struct UtcDateTimeKey;
+
+impl<'de> Deserialize<'de> for UtcDateTimeKey {
+
+    fn deserialize<D>(deserializer: D) -> Result<UtcDateTimeKey, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct FieldVisitor;
+
+        impl<'de> Visitor<'de> for FieldVisitor {
+            type Value = UtcDateTimeKey;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a valid utc datetime field")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, s: &str) -> Result<UtcDateTimeKey, E> {
+                if s == utc_datetime::FIELD {
+                    Ok(UtcDateTimeKey)
+                } else {
+                    Err(serde::de::Error::custom(
+                        "field was not $__bson_utc_datetime in synthesized object id struct",
+                    ))
+                }
+            }
+        }
+
+        deserializer.deserialize_identifier(FieldVisitor)
     }
 }

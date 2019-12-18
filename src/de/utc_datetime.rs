@@ -6,7 +6,7 @@ use crate::raw::RawBsonRegexp;
 use std::convert::TryFrom;
 
 pub static NAME: &str = "$__bson_UtcDateTime";
-pub static FIELD: &str = "$__bson_utcdatetime_datetime";
+pub static FIELD: &str = "$__bson_utcdatetime";
 pub static FIELDS: &'static [&'static str] = &[FIELD];
 
 struct UtcDateTimeKeyDeserializer {
@@ -36,13 +36,13 @@ impl<'de> Deserializer<'de> for UtcDateTimeKeyDeserializer {
     );
 }
 
-pub(super) struct UtcDateTimeDeserializer {
+pub struct UtcDateTimeDeserializer {
     data: i64,
     visited: bool,
 }
 
 impl UtcDateTimeDeserializer {
-    pub(super) fn new(data: i64) -> UtcDateTimeDeserializer {
+    pub fn new(data: i64) -> UtcDateTimeDeserializer {
         UtcDateTimeDeserializer {
             data,
             visited: false,
@@ -108,7 +108,7 @@ impl<'de> MapAccess<'de> for UtcDateTimeDeserializer {
     {
         match self.visited {
             false => seed.deserialize(UtcDateTimeKeyDeserializer::new(FIELD)).map(Some),
-            true => Err(Error::MalformedDocument),
+            true => Ok(None),
         }
     }
 

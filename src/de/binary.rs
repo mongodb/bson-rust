@@ -158,7 +158,8 @@ impl<'de> Deserializer<'de> for BinarySubtypeDeserializer {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u8(self.subtype.into())
+        let subtype: u8 = self.subtype.into();
+        visitor.visit_i32(subtype as i32)
     }
 
     forward_to_deserialize_any!(
