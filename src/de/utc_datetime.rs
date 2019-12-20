@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::convert::TryInto;
 
 use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
 use serde::forward_to_deserialize_any;
@@ -68,7 +68,7 @@ impl<'de> Deserializer<'de> for UtcDateTimeDeserializer {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u64(TryFrom::try_from(self.data).map_err(|err| Error::MalformedDocument)?)
+        visitor.visit_u64(self.data.try_into()?)
     }
 
     fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
