@@ -1,9 +1,9 @@
-use serde::de::{DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor};
+use std::convert::TryFrom;
+
+use serde::de::{DeserializeSeed, Deserializer, MapAccess, Visitor};
 use serde::forward_to_deserialize_any;
 
 use super::Error;
-use crate::raw::RawBsonRegexp;
-use std::convert::TryFrom;
 
 pub static NAME: &str = "$__bson_UtcDateTime";
 pub static FIELD: &str = "$__bson_utcdatetime";
@@ -23,8 +23,8 @@ impl<'de> Deserializer<'de> for UtcDateTimeKeyDeserializer {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         visitor.visit_str(self.key)
     }
@@ -43,10 +43,7 @@ pub struct UtcDateTimeDeserializer {
 
 impl UtcDateTimeDeserializer {
     pub fn new(data: i64) -> UtcDateTimeDeserializer {
-        UtcDateTimeDeserializer {
-            data,
-            visited: false,
-        }
+        UtcDateTimeDeserializer { data, visited: false }
     }
 }
 
@@ -54,31 +51,31 @@ impl<'de> Deserializer<'de> for UtcDateTimeDeserializer {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
-        where
-            V: Visitor<'de>,
+    where
+        V: Visitor<'de>,
     {
         self.deserialize_struct(NAME, FIELDS, visitor)
     }
 
-    fn deserialize_i64< V>(self, visitor: V) -> Result<V::Value, Error>
-        where
-            V: Visitor<'de>,
+    fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value, Error>
+    where
+        V: Visitor<'de>,
     {
         visitor.visit_i64(self.data)
     }
 
-    fn deserialize_u64< V>(self, visitor: V) -> Result<V::Value, Error>
-        where
-            V: Visitor<'de>,
+    fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value, Error>
+    where
+        V: Visitor<'de>,
     {
         visitor.visit_u64(TryFrom::try_from(self.data).map_err(|err| Error::MalformedDocument)?)
     }
 
-    fn deserialize_map< V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+    fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         visitor.visit_map(self)
     }
 
-    fn deserialize_struct< V: Visitor<'de>>(
+    fn deserialize_struct<V: Visitor<'de>>(
         self,
         name: &str,
         _fields: &[&str],
@@ -98,13 +95,12 @@ impl<'de> Deserializer<'de> for UtcDateTimeDeserializer {
     );
 }
 
-
 impl<'de> MapAccess<'de> for UtcDateTimeDeserializer {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
-        where
-            K: DeserializeSeed<'de>,
+    where
+        K: DeserializeSeed<'de>,
     {
         match self.visited {
             false => seed.deserialize(UtcDateTimeKeyDeserializer::new(FIELD)).map(Some),
@@ -113,8 +109,8 @@ impl<'de> MapAccess<'de> for UtcDateTimeDeserializer {
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
-        where
-            V: DeserializeSeed<'de>,
+    where
+        V: DeserializeSeed<'de>,
     {
         match self.visited {
             false => {
@@ -159,4 +155,3 @@ impl<'de> Deserializer<'de> for UtcDateTimeFieldDeserializer {
         ignored_any unit_struct tuple_struct tuple enum identifier
     );
 }
-

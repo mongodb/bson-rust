@@ -2,7 +2,7 @@ use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visit
 use serde::forward_to_deserialize_any;
 use serde::Deserialize;
 
-use std::convert::{TryInto, TryFrom};
+use std::convert::TryInto;
 use std::fmt::Debug;
 use std::num::TryFromIntError;
 
@@ -213,7 +213,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
             ElementType::Integer32Bit => self.bson.as_i32()?.try_into()?,
             ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
             ElementType::TimeStamp => self.bson.as_timestamp()?.into(),
-            _ => return Err(Error::MalformedDocument)
+            _ => return Err(Error::MalformedDocument),
         };
         visitor.visit_u128(val)
     }
@@ -237,9 +237,10 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
     fn deserialize_u64<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         let val = match self.bson.element_type() {
             ElementType::TimeStamp => self.bson.as_timestamp()?,
-            _ => return Err(Error::MalformedDocument)
+            ElementType::Integer64Bit => self.bson.as_i64()?.try_into()?,
+            _ => return Err(Error::MalformedDocument),
         };
-        visitor.visit_u64(self.bson.as_i64()?.try_into()?)
+        visitor.visit_u64(val)
     }
 
     fn deserialize_f32<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
@@ -383,8 +384,7 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
                     .deserialize_tuple(len, visitor)
             }
             ElementType::RegularExpression => {
-                regexp::RegexpDeserializer::new(self.bson.as_regexp()?)
-                    .deserialize_tuple(len, visitor)
+                regexp::RegexpDeserializer::new(self.bson.as_regexp()?).deserialize_tuple(len, visitor)
             }
 
             _ => Err(Error::TmPErroR),
@@ -407,9 +407,8 @@ impl<'a, 'de: 'a> Deserializer<'de> for &'a mut BsonDeserializer<'de> {
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         if name == object_id::NAME {
-            object_id::RawObjectIdDeserializer::new(self.bson)
-                .deserialize_struct(name, fields, visitor)
-        } else if name == binary::NAME  {
+            object_id::RawObjectIdDeserializer::new(self.bson).deserialize_struct(name, fields, visitor)
+        } else if name == binary::NAME {
             self.bson
                 .as_binary()
                 .map_err(Error::from)
@@ -503,7 +502,6 @@ impl<'de> MapAccess<'de> for BsonDocumentMap<'de> {
     where
         K: DeserializeSeed<'de>,
     {
-        use crate::Bson;
         match self.doc_iter.next() {
             Some(Ok((key, value))) => {
                 self.next = Some(value);
@@ -705,7 +703,9 @@ mod tests {
                         Ok(BinarySubtypeFromU8::new(byte))
                     }
                     fn visit_i32<E: serde::de::Error>(self, int: i32) -> Result<BinarySubtypeFromU8, E> {
-                        Ok(BinarySubtypeFromU8::new(int.try_into().map_err(|_| E::custom("non-byte integer"))?))
+                        Ok(BinarySubtypeFromU8::new(
+                            int.try_into().map_err(|_| E::custom("non-byte integer"))?,
+                        ))
                     }
                 }
 
@@ -856,7 +856,7 @@ mod tests {
             &mut docbytes,
             &doc! {"js_with_scope": (String::from("console.log(value);"), doc!{"value": "Hello world"})},
         )
-            .expect("could not encode document");
+        .expect("could not encode document");
         let rawdoc = RawBsonDoc::new(&docbytes).expect("Invalid document");
         assert!(rawdoc.get_javascript_with_scope("js_with_scope").is_ok());
         let map: HashMap<&str, (&str, HashMap<&str, &str>)> =
@@ -882,32 +882,23 @@ mod tests {
             &mut docbytes,
             &doc! {"regexp": (String::from("^_id$"), String::from("i")) },
         )
-            .expect("could not encode document");
+        .expect("could not encode document");
         let rawdoc = RawBsonDoc::new(&docbytes).expect("Invalid document");
         assert!(rawdoc.get_regexp("regexp").is_ok());
         let map: HashMap<&str, (&str, &str)> = from_rawdoc(rawdoc).expect("could not decode regexp");
-        assert_eq!(
-            map.get("regexp").expect("no key regexp").0,
-            "^_id$"
-        );
-        assert_eq!(
-            map.get("regexp").expect("no key regexp").1,
-            "i"
-        );
+        assert_eq!(map.get("regexp").expect("no key regexp").0, "^_id$");
+        assert_eq!(map.get("regexp").expect("no key regexp").1, "i");
     }
 
     #[test]
     fn deserialize_utc_datetime_to_struct() {
         #[derive(Deserialize)]
         struct Dateish {
-            #[serde(with="chrono::serde::ts_milliseconds")]
-            utc_datetime: DateTime<Utc>
+            #[serde(with = "chrono::serde::ts_milliseconds")]
+            utc_datetime: DateTime<Utc>,
         }
         let mut docbytes = Vec::new();
-        encode_document(
-            &mut docbytes,
-            &doc! {"utc_datetime": Bson::UtcDatetime(Utc::now())},
-        )
+        encode_document(&mut docbytes, &doc! {"utc_datetime": Bson::UtcDatetime(Utc::now())})
             .expect("could not encode document");
         let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
         assert!(rawdoc.get_utc_date_time("utc_datetime").is_ok());
@@ -921,11 +912,7 @@ mod tests {
     #[test]
     fn deserialize_utc_datetime_as_chrono_datetime() {
         let mut docbytes = Vec::new();
-        encode_document(
-            &mut docbytes,
-            &doc! {"utc_datetime": Utc::now()},
-        )
-            .expect("could not encode document");
+        encode_document(&mut docbytes, &doc! {"utc_datetime": Utc::now()}).expect("could not encode document");
         let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
         assert!(rawdoc.get_utc_date_time("utc_datetime").is_ok());
         let map: HashMap<&str, UtcDateTime> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime");
@@ -944,23 +931,22 @@ mod tests {
         let mut docbytes = Vec::new();
         encode_document(
             &mut docbytes,
-            &doc! { "object_id": ObjectId::with_string("123456123456123456123456").unwrap() }
+            &doc! { "object_id": ObjectId::with_string("123456123456123456123456").unwrap() },
         )
-            .expect("could not encode document");
+        .expect("could not encode document");
         let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
         assert!(rawdoc.get_object_id("object_id").is_ok());
         let map: HashMap<&str, Bson> = from_rawdoc(rawdoc.as_ref()).expect("could not decode object_id");
-        assert_eq!(map.get("object_id").unwrap(), &Bson::ObjectId(ObjectId::with_string("123456123456123456123456").unwrap()));
+        assert_eq!(
+            map.get("object_id").unwrap(),
+            &Bson::ObjectId(ObjectId::with_string("123456123456123456123456").unwrap())
+        );
     }
 
     #[test]
     fn deserialize_utc_datetime_as_bson() {
         let mut docbytes = Vec::new();
-        encode_document(
-            &mut docbytes,
-            &doc! {"utc_datetime": Utc::now()},
-        )
-            .expect("could not encode document");
+        encode_document(&mut docbytes, &doc! {"utc_datetime": Utc::now()}).expect("could not encode document");
         let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
         assert!(rawdoc.get_utc_date_time("utc_datetime").is_ok());
         let map: HashMap<&str, Bson> = from_rawdoc(rawdoc.as_ref()).expect("could not decode utc_datetime");
@@ -976,10 +962,7 @@ mod tests {
     #[test]
     fn deserialize_utc_datetime_as_i64() {
         let mut docbytes = Vec::new();
-        encode_document(
-            &mut docbytes,
-            &doc! {"utc_datetime": Bson::UtcDatetime(Utc::now())},
-        )
+        encode_document(&mut docbytes, &doc! {"utc_datetime": Bson::UtcDatetime(Utc::now())})
             .expect("could not encode document");
         let rawdoc = RawBsonDocBuf::new(docbytes).expect("invalid document");
         assert!(rawdoc.get_utc_date_time("utc_datetime").is_ok());

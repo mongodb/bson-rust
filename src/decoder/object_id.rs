@@ -11,8 +11,8 @@ use std::convert::TryInto;
 
 impl<'de> Deserialize<'de> for ObjectId {
     fn deserialize<D>(deserializer: D) -> Result<ObjectId, D::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         struct ObjectIdVisitor;
 
@@ -24,8 +24,8 @@ impl<'de> Deserialize<'de> for ObjectId {
             }
 
             fn visit_map<V>(self, mut map: V) -> Result<ObjectId, V::Error>
-                where
-                    V: MapAccess<'de>,
+            where
+                V: MapAccess<'de>,
             {
                 let value = map.next_key::<ObjectIdKey>()?;
                 if value.is_none() {
@@ -46,8 +46,8 @@ struct ObjectIdKey;
 
 impl<'de> Deserialize<'de> for ObjectIdKey {
     fn deserialize<D>(deserializer: D) -> Result<ObjectIdKey, D::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         struct FieldVisitor;
 
@@ -78,8 +78,8 @@ struct ObjectIdFromBytes(ObjectId);
 
 impl<'de> Deserialize<'de> for ObjectIdFromBytes {
     fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         struct FieldVisitor;
 
@@ -91,7 +91,9 @@ impl<'de> Deserialize<'de> for ObjectIdFromBytes {
             }
 
             fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
-                Ok(ObjectIdFromBytes(ObjectId::with_bytes(v.try_into().map_err(serde::de::Error::custom)?)))
+                Ok(ObjectIdFromBytes(ObjectId::with_bytes(
+                    v.try_into().map_err(serde::de::Error::custom)?,
+                )))
             }
         }
 

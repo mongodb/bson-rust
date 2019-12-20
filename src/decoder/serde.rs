@@ -244,28 +244,23 @@ impl<'de> Deserializer<'de> for Decoder {
             Bson::String(v) => visitor.visit_string(v),
             Bson::Array(v) => {
                 let len = v.len();
-                visitor.visit_seq(SeqDecoder { iter: v.into_iter(),
-                                               len: len })
+                visitor.visit_seq(SeqDecoder { iter: v.into_iter(), len })
             }
             Bson::Document(v) => {
                 let len = v.len();
-                visitor.visit_map(MapDecoder { iter: v.into_iter(),
-                                               value: None,
-                                               len: len })
+                visitor.visit_map(MapDecoder { iter: v.into_iter(), value: None, len })
             }
             Bson::Boolean(v) => visitor.visit_bool(v),
             Bson::Null => visitor.visit_unit(),
             Bson::I32(v) => visitor.visit_i32(v),
             Bson::I64(v) => visitor.visit_i64(v),
             Bson::Binary(_, v) => visitor.visit_bytes(&v),
-            Bson::ObjectId(_oid) => self.deserialize_struct(object_id::NAME, object_id::FIELDS, visitor),
-            Bson::UtcDatetime(dt) => self.deserialize_struct(utc_datetime::NAME, utc_datetime::FIELDS, visitor),
+            Bson::ObjectId(_) => self.deserialize_struct(object_id::NAME, object_id::FIELDS, visitor),
+            Bson::UtcDatetime(_) => self.deserialize_struct(utc_datetime::NAME, utc_datetime::FIELDS, visitor),
             _ => {
                 let doc = value.to_extended_document();
                 let len = doc.len();
-                visitor.visit_map(MapDecoder { iter: doc.into_iter(),
-                                               value: None,
-                                               len: len })
+                visitor.visit_map(MapDecoder { iter: doc.into_iter(), value: None, len })
             }
         }
     }

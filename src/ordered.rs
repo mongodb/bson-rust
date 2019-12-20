@@ -6,7 +6,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::iter::{Extend, FromIterator, Map};
 use std::marker::PhantomData;
 
-use chrono::{DateTime, Utc, TimeZone};
+use chrono::{DateTime, Utc};
 
 use linked_hash_map::{self, LinkedHashMap};
 
