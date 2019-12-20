@@ -552,7 +552,6 @@ impl<'de> Visitor<'de> for OrderedDocumentVisitor {
                     return Err(V::Error::custom("expected binary object id"));
                 }
             } else if key == crate::de::binary::SUBTYPE_FIELD {
-                dbg!("SUB");
                 match binary_holder.0 {
                     None => {
                         if let Bson::I32(subtype) = value {

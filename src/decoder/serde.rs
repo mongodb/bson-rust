@@ -20,25 +20,6 @@ use chrono::{Utc, TimeZone};
 
 pub struct BsonVisitor;
 
-/*
-impl<'de> Deserialize<'de> for ObjectId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
-    {
-        deserializer
-            .deserialize_map(BsonVisitor)
-            .and_then(|bson| {
-                if let Bson::ObjectId(oid) = bson {
-                    Ok(oid)
-                } else {
-                    let err = format!("expected objectId extended document, found {}", bson);
-                    Err(de::Error::invalid_type(Unexpected::Map, &&err[..]))
-                }
-            })
-    }
-}
-*/
-
 impl<'de> Deserialize<'de> for OrderedDocument {
     /// Deserialize this value given this `Deserializer`.
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -60,7 +41,6 @@ impl<'de> Deserialize<'de> for Bson {
     fn deserialize<D>(deserializer: D) -> Result<Bson, D::Error>
         where D: Deserializer<'de>
     {
-        dbg!("DE");
         deserializer.deserialize_any(BsonVisitor)
     }
 }
@@ -186,7 +166,6 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_map<V>(self, visitor: V) -> Result<Bson, V::Error>
         where V: MapAccess<'de>
     {
-        dbg!("MAP");
         let values = OrderedDocumentVisitor::new().visit_map(visitor)?;
         Ok(Bson::from_extended_document(values.into()))
     }

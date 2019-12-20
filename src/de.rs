@@ -572,6 +572,7 @@ mod tests {
         use serde::Deserializer;
 
         use crate::spec::BinarySubtype;
+        use std::convert::TryInto;
 
         #[derive(Clone, Debug, Eq, PartialEq)]
         pub(super) struct Uuid {
@@ -702,6 +703,9 @@ mod tests {
 
                     fn visit_u8<E: serde::de::Error>(self, byte: u8) -> Result<BinarySubtypeFromU8, E> {
                         Ok(BinarySubtypeFromU8::new(byte))
+                    }
+                    fn visit_i32<E: serde::de::Error>(self, int: i32) -> Result<BinarySubtypeFromU8, E> {
+                        Ok(BinarySubtypeFromU8::new(int.try_into().map_err(|_| E::custom("non-byte integer"))?))
                     }
                 }
 
