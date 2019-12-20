@@ -32,7 +32,7 @@ use serde_json::{Value, json};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::oid;
-use crate::ordered::OrderedDocument;
+pub use crate::doc::Document;
 use crate::spec::{BinarySubtype, ElementType};
 
 /// Possible BSON value types.
@@ -81,8 +81,6 @@ pub enum Bson {
 
 /// Alias for `Vec<Bson>`.
 pub type Array = Vec<Bson>;
-/// Alias for `OrderedDocument`.
-pub type Document = OrderedDocument;
 
 impl Default for Bson {
     fn default() -> Self {

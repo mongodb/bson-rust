@@ -47,7 +47,7 @@ pub use self::bson::{Array, Bson, Document, TimeStamp, UtcDateTime};
 pub use self::decimal128::Decimal128;
 pub use self::decoder::{decode_document, decode_document_utf8_lossy, from_bson, Decoder, DecoderError, DecoderResult};
 pub use self::encoder::{encode_document, to_bson, Encoder, EncoderError, EncoderResult};
-pub use self::ordered::{ValueAccessError, ValueAccessResult};
+pub use self::doc::{ValueAccessError, ValueAccessResult};
 
 #[macro_use]
 pub mod macros;
@@ -58,5 +58,11 @@ pub mod decimal128;
 mod decoder;
 mod encoder;
 pub mod oid;
-pub mod ordered;
+pub mod doc;
 pub mod spec;
+
+#[deprecated(since = "0.15.0", note = "use doc instead")]
+pub mod ordered {
+    //! A BSON document represented as an associative HashMap with insertion ordering.
+    pub use crate::doc::*;
+}

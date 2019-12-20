@@ -1,21 +1,26 @@
 //! A BSON document represented as an associative HashMap with insertion ordering.
-
 use std::error;
 use std::fmt::{self, Debug, Display, Formatter};
-use std::iter::{Extend, FromIterator, Map};
+use std::iter::{Extend, FromIterator};
 use std::marker::PhantomData;
+use std::cmp::Ordering;
+use std::ops::RangeFull;
+use std::io::{Write, Read};
 
 use chrono::{DateTime, Utc};
 
-use linked_hash_map::{self, LinkedHashMap};
+use indexmap::IndexMap;
+pub use indexmap::map::{Keys, Values, IntoIter, Iter, IterMut, ValuesMut, Drain, Entry};
 
 use serde::de::{self, MapAccess, Visitor};
 
-use crate::bson::{Array, Bson, Document};
+use crate::bson::{Array, Bson};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::oid::ObjectId;
 use crate::spec::BinarySubtype;
+use crate::encoder::{encode_document, EncoderResult};
+use crate::decoder::{decode_document, decode_document_utf8_lossy, DecoderResult};
 
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters.
@@ -54,19 +59,22 @@ impl error::Error for ValueAccessError {
     }
 }
 
+#[deprecated(since = "0.15.0", note = "use Document instead")]
+pub type OrderedDocument = Document;
+
 /// A BSON document represented as an associative HashMap with insertion ordering.
 #[derive(Clone, PartialEq)]
-pub struct OrderedDocument {
-    inner: LinkedHashMap<String, Bson>,
+pub struct Document {
+    inner: IndexMap<String, Bson>,
 }
 
-impl Default for OrderedDocument {
+impl Default for Document {
     fn default() -> Self {
         Document::new()
     }
 }
 
-impl Display for OrderedDocument {
+impl Display for Document {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         fmt.write_str("{")?;
 
@@ -86,69 +94,47 @@ impl Display for OrderedDocument {
     }
 }
 
-impl Debug for OrderedDocument {
+impl Debug for Document {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "OrderedDocument({:?})", self.inner)
     }
 }
 
-/// An iterator over OrderedDocument entries.
-pub struct OrderedDocumentIntoIterator {
-    inner: LinkedHashMap<String, Bson>,
-}
+#[deprecated(since = "0.15.0", note = "use IntoIter instead")]
+pub type OrderedDocumentIntoIterator = IntoIter<String, Bson>;
+#[deprecated(since = "0.15.0", note = "use Iter instead")]
+pub type OrderedDocumentIterator<'a> = Iter<'a, String, Bson>;
 
-/// An owning iterator over OrderedDocument entries.
-pub struct OrderedDocumentIterator<'a> {
-    inner: linked_hash_map::Iter<'a, String, Bson>,
-}
-
-/// An iterator over an OrderedDocument's keys.
-pub struct Keys<'a> {
-    inner: Map<OrderedDocumentIterator<'a>, fn((&'a String, &'a Bson)) -> &'a String>,
-}
-
-/// An iterator over an OrderedDocument's values.
-pub struct Values<'a> {
-    inner: Map<OrderedDocumentIterator<'a>, fn((&'a String, &'a Bson)) -> &'a Bson>,
-}
-
-impl<'a> Iterator for Keys<'a> {
-    type Item = &'a String;
-
-    fn next(&mut self) -> Option<(&'a String)> {
-        self.inner.next()
-    }
-}
-
-impl<'a> Iterator for Values<'a> {
-    type Item = &'a Bson;
-
-    fn next(&mut self) -> Option<(&'a Bson)> {
-        self.inner.next()
-    }
-}
-
-impl IntoIterator for OrderedDocument {
+impl IntoIterator for Document {
     type Item = (String, Bson);
-    type IntoIter = OrderedDocumentIntoIterator;
+    type IntoIter = IntoIter<String, Bson>;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIntoIterator { inner: self.inner }
+        self.inner.into_iter()
     }
 }
 
-impl<'a> IntoIterator for &'a OrderedDocument {
+impl<'a> IntoIterator for &'a Document {
     type Item = (&'a String, &'a Bson);
-    type IntoIter = OrderedDocumentIterator<'a>;
+    type IntoIter = Iter<'a, String, Bson>;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIterator { inner: self.inner.iter() }
+        self.inner.iter()
     }
 }
 
-impl FromIterator<(String, Bson)> for OrderedDocument {
+impl<'a> IntoIterator for &'a mut Document {
+    type Item = (&'a String, &'a mut Bson);
+    type IntoIter = IterMut<'a, String, Bson>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.iter_mut()
+    }
+}
+
+impl FromIterator<(String, Bson)> for Document {
     fn from_iter<T: IntoIterator<Item = (String, Bson)>>(iter: T) -> Self {
-        let mut doc = OrderedDocument::new();
+        let mut doc = Document::new();
         for (k, v) in iter {
             doc.insert(k, v);
         }
@@ -156,30 +142,32 @@ impl FromIterator<(String, Bson)> for OrderedDocument {
     }
 }
 
-impl<'a> Iterator for OrderedDocumentIntoIterator {
-    type Item = (String, Bson);
-
-    fn next(&mut self) -> Option<(String, Bson)> {
-        self.inner.pop_front()
+impl Document {
+    /// Creates a new empty Document.
+    pub fn new() -> Document {
+        Document { inner: IndexMap::new() }
     }
-}
 
-impl<'a> Iterator for OrderedDocumentIterator<'a> {
-    type Item = (&'a String, &'a Bson);
-
-    fn next(&mut self) -> Option<(&'a String, &'a Bson)> {
-        self.inner.next()
+    /// Create a new Document with capacity. (Does not allocate if n is zero.)
+    /// Computes in O(n) time.
+    pub fn with_capacity(n: usize) -> Document {
+        Document {
+            inner: IndexMap::with_capacity(n)
+        }
     }
-}
 
-impl OrderedDocument {
-    /// Creates a new empty OrderedDocument.
-    pub fn new() -> OrderedDocument {
-        OrderedDocument { inner: LinkedHashMap::new() }
+    /// Computes in O(1) time.
+    pub fn capacity(&self) -> usize {
+        self.inner.capacity()
     }
 
     /// Gets an iterator over the entries of the map.
-    pub fn iter<'a>(&'a self) -> OrderedDocumentIterator<'a> {
+    pub fn iter<'a>(&'a self) -> Iter<'a, String, Bson> {
+        self.into_iter()
+    }
+
+    /// Gets an iterator over the entries of the map.
+    pub fn iter_mut(&mut self) -> IterMut<'_, String, Bson> {
         self.into_iter()
     }
 
@@ -188,14 +176,31 @@ impl OrderedDocument {
         self.inner.clear();
     }
 
+    /// Reserve capacity for `additional` more key-value pairs.
+    ///
+    /// FIXME Not implemented fully yet.
+    pub fn reserve(&mut self, additional: usize) {
+        self.inner.reserve(additional);
+    }
+
     /// Returns a reference to the Bson corresponding to the key.
     pub fn get(&self, key: &str) -> Option<&Bson> {
         self.inner.get(key)
     }
 
+    /// Returns a reference to the Bson corresponding to the key.
+    pub fn get_full(&self, key: &str) -> Option<(usize, &String, &Bson)> {
+        self.inner.get_full(key)
+    }
+
     /// Gets a mutable reference to the Bson corresponding to the key
     pub fn get_mut(&mut self, key: &str) -> Option<&mut Bson> {
         self.inner.get_mut(key)
+    }
+
+    /// Gets a mutable reference to the Bson corresponding to the key
+    pub fn get_mut_full(&mut self, key: &str) -> Option<(usize, &String, &mut Bson)> {
+        self.inner.get_full_mut(key)
     }
 
     /// Get a floating point value for this key if it exists and has
@@ -433,23 +438,13 @@ impl OrderedDocument {
     }
 
     /// Gets a collection of all keys in the document.
-    pub fn keys<'a>(&'a self) -> Keys<'a> {
-        fn first<A, B>((a, _): (A, B)) -> A {
-            a
-        }
-        let first: fn((&'a String, &'a Bson)) -> &'a String = first;
-
-        Keys { inner: self.iter().map(first) }
+    pub fn keys(&self) -> Keys<String, Bson> {
+        self.inner.keys()
     }
 
     /// Gets a collection of all values in the document.
-    pub fn values<'a>(&'a self) -> Values<'a> {
-        fn second<A, B>((_, b): (A, B)) -> B {
-            b
-        }
-        let second: fn((&'a String, &'a Bson)) -> &'a Bson = second;
-
-        Values { inner: self.iter().map(second) }
+    pub fn value(&self) -> Values<String, Bson> {
+        self.inner.values()
     }
 
     /// Returns the number of elements in the document.
@@ -475,71 +470,243 @@ impl OrderedDocument {
         self.inner.insert(key, val)
     }
 
+    /// Sets the value of the entry with the OccupiedEntry's key,
+    /// and returns the entry's old value.
+    pub fn insert_bson_full(&mut self, key: String, value: Bson) -> (usize, Option<Bson>) {
+        self.inner.insert_full(key, value)
+    }
+
     /// Takes the value of the entry out of the document, and returns it.
+    ///
+    /// **NOTE:** This is equivalent to `.swap_remove(key)`, if you need to
+    /// preserve the order of the keys in the map, use `.shift_remove(key)`
+    /// instead.
+    ///
+    /// Computes in **O(1)** time (average).
     pub fn remove(&mut self, key: &str) -> Option<Bson> {
         self.inner.remove(key)
     }
 
-    pub fn entry(&mut self, k: String) -> Entry {
-        Entry { inner: self.inner.entry(k) }
+    /// Takes the value of the entry out of the document, and returns it.
+    ///
+    /// Like `Vec::swap_remove`, the pair is removed by swapping it with the
+    /// last element of the map and popping it off. **This perturbs
+    /// the postion of what used to be the last element!**
+    ///
+    /// Return `None` if `key` is not in map.
+    ///
+    /// Computes in **O(1)** time (average).
+    pub fn swap_remove(&mut self, key: &str) -> Option<Bson> {
+        self.inner.swap_remove(key)
+    }
+
+    /// Takes the value of the entry out of the document, and returns it.
+    ///
+    /// Like `Vec::swap_remove`, the pair is removed by swapping it with the
+    /// last element of the map and popping it off. **This perturbs
+    /// the postion of what used to be the last element!**
+    ///
+    /// Return `None` if `key` is not in map.
+    ///
+    /// Computes in **O(1)** time (average).
+    pub fn swap_remove_full(&mut self, key: &str) -> Option<(usize, String, Bson)> {
+        self.inner.swap_remove_full(key)
+    }
+
+    /// Takes the value of the entry out of the document, and returns it.
+    ///
+    /// Like `Vec::remove`, the pair is removed by shifting all of the
+    /// elements that follow it, preserving their relative order.
+    /// **This perturbs the index of all of those elements!**
+    ///
+    /// Return `None` if `key` is not in map.
+    ///
+    /// Computes in **O(n)** time (average).
+    pub fn shift_remove(&mut self, key: &str) -> Option<Bson> {
+        self.inner.shift_remove(key)
+    }
+
+    /// Takes the value of the entry out of the document, and returns it.
+    ///
+    /// Like `Vec::remove`, the pair is removed by shifting all of the
+    /// elements that follow it, preserving their relative order.
+    /// **This perturbs the index of all of those elements!**
+    ///
+    /// Return `None` if `key` is not in map.
+    ///
+    /// Computes in **O(n)** time (average).
+    pub fn shift_remove_full(&mut self, key: &str) -> Option<(usize, String, Bson)> {
+        self.inner.shift_remove_full(key)
+    }
+
+    /// Remove the last key-value pair
+    /// Computes in O(1) time (average).
+    pub fn pop(&mut self) -> Option<(String, Bson)> {
+        self.inner.pop()
+    }
+
+    /// Scan through each key-value pair in the map and keep those where the
+    /// closure `keep` returns `true`.
+    ///
+    /// The elements are visited in order, and remaining elements keep their
+    /// order.
+    ///
+    /// Computes in **O(n)** time (average).
+    pub fn retain<F>(&mut self, keep: F)
+        where F: FnMut(&String, &mut Bson) -> bool
+    {
+        self.inner.retain(keep)
+    }
+
+    /// Sort the map’s key-value pairs by the default ordering of the keys.
+    ///
+    /// See `sort_by` for details.
+    pub fn sort_keys(&mut self) {
+        self.inner.sort_keys()
+    }
+
+     /// Sort the map’s key-value pairs in place using the comparison
+    /// function `compare`.
+    ///
+    /// The comparison function receives two key and value pairs to compare (you
+    /// can sort by keys or values or their combination as needed).
+    ///
+    /// Computes in **O(n log n + c)** time and **O(n)** space where *n* is
+    /// the length of the map and *c* the capacity. The sort is stable.
+    pub fn sort_by<F>(&mut self, compare: F)
+        where F: FnMut(&String, &Bson, &String, &Bson) -> Ordering
+    {
+        self.inner.sort_by(compare)
+    }
+
+    /// Sort the key-value pairs of the map and return a by value iterator of
+    /// the key-value pairs with the result.
+    ///
+    /// The sort is stable.
+    pub fn sorted_by<F>(self, compare: F) -> IntoIter<String, Bson>
+        where F: FnMut(&String, &Bson, &String, &Bson) -> Ordering
+    {
+        self.inner.sorted_by(compare)
+    }
+
+    /// Clears the `IndexMap`, returning all key-value pairs as a drain iterator.
+    /// Keeps the allocated memory for reuse.
+    pub fn drain(&mut self, range: RangeFull) -> Drain<String, Bson> {
+        self.inner.drain(range)
+    }
+
+    /// Get the given key’s corresponding entry in the map for insertion and/or
+    /// in-place manipulation.
+    ///
+    /// Computes in **O(1)** time (amortized average).
+    pub fn entry(&mut self, k: String) -> Entry<String, Bson> {
+        self.inner.entry(k)
+    }
+
+    pub fn extend(&mut self, iter: impl Into<Document>) {
+        self.inner.extend(iter.into());
+    }
+
+    /// Get a key-value pair by index
+    ///
+    /// Valid indices are *0 <= index < self.len()*
+    ///
+    /// Computes in **O(1)** time.
+    pub fn get_index(&self, index: usize) -> Option<(&String, &Bson)> {
+        self.inner.get_index(index)
+    }
+
+    /// Get a key-value pair by index
+    ///
+    /// Valid indices are *0 <= index < self.len()*
+    ///
+    /// Computes in **O(1)** time.
+    pub fn get_index_mut(&mut self, index: usize) -> Option<(&mut String, &mut Bson)> {
+        self.inner.get_index_mut(index)
+    }
+
+    /// Remove the key-value pair by index
+    ///
+    /// Valid indices are *0 <= index < self.len()*
+    ///
+    /// Like `Vec::swap_remove`, the pair is removed by swapping it with the
+    /// last element of the map and popping it off. **This perturbs
+    /// the postion of what used to be the last element!**
+    ///
+    /// Computes in **O(1)** time (average).
+    pub fn swap_remove_index(&mut self, index: usize) -> Option<(String, Bson)> {
+        self.inner.swap_remove_index(index)
+    }
+
+    /// Remove the key-value pair by index
+    ///
+    /// Valid indices are *0 <= index < self.len()*
+    ///
+    /// Like `Vec::remove`, the pair is removed by shifting all of the
+    /// elements that follow it, preserving their relative order.
+    /// **This perturbs the index of all of those elements!**
+    ///
+    /// Computes in **O(n)** time (average).
+    pub fn shift_remove_index(&mut self, index: usize) -> Option<(String, Bson)> {
+        self.inner.shift_remove_index(index)
+    }
+
+    /// Attempt to encode a Document into a byte stream.
+    pub fn encode(&self, writer: &mut impl Write) -> EncoderResult<()> {
+        encode_document(writer, self)
+    }
+
+    /// Attempt to decode a Document from a byte stream.
+    pub fn decode(reader: &mut impl Read) -> DecoderResult<Document> {
+        decode_document(reader)
+    }
+
+    /// Attempt to decode a Document that may contain invalid UTF-8 strings from a byte stream.
+    pub fn decode_utf8_lossy(reader: &mut impl Read) -> DecoderResult<Document> {
+        decode_document_utf8_lossy(reader)
     }
 }
 
-pub struct Entry<'a> {
-    inner: linked_hash_map::Entry<'a, String, Bson>,
-}
-
-impl<'a> Entry<'a> {
-    pub fn key(&self) -> &str {
-        self.inner.key()
-    }
-
-    pub fn or_insert(self, default: Bson) -> &'a mut Bson {
-        self.inner.or_insert(default)
-    }
-
-    pub fn or_insert_with<F: FnOnce() -> Bson>(self, default: F) -> &'a mut Bson {
-        self.inner.or_insert_with(default)
+impl From<IndexMap<String, Bson>> for Document {
+    fn from(tree: IndexMap<String, Bson>) -> Document {
+        Document { inner: tree }
     }
 }
 
-impl From<LinkedHashMap<String, Bson>> for OrderedDocument {
-    fn from(tree: LinkedHashMap<String, Bson>) -> OrderedDocument {
-        OrderedDocument { inner: tree }
+#[deprecated(since = "0.15.0", note = "use DocumentVisitor instead")]
+pub type OrderedDocumentVisitor = DocumentVisitor;
+
+pub struct DocumentVisitor {
+    marker: PhantomData<Document>,
+}
+
+impl DocumentVisitor {
+    pub fn new() -> DocumentVisitor {
+        DocumentVisitor { marker: PhantomData }
     }
 }
 
-pub struct OrderedDocumentVisitor {
-    marker: PhantomData<OrderedDocument>,
-}
-
-impl OrderedDocumentVisitor {
-    pub fn new() -> OrderedDocumentVisitor {
-        OrderedDocumentVisitor { marker: PhantomData }
-    }
-}
-
-impl<'de> Visitor<'de> for OrderedDocumentVisitor {
-    type Value = OrderedDocument;
+impl<'de> Visitor<'de> for DocumentVisitor {
+    type Value = Document;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "expecting ordered document")
     }
 
     #[inline]
-    fn visit_unit<E>(self) -> Result<OrderedDocument, E>
+    fn visit_unit<E>(self) -> Result<Document, E>
         where E: de::Error
     {
-        Ok(OrderedDocument::new())
+        Ok(Document::new())
     }
 
     #[inline]
-    fn visit_map<V>(self, mut visitor: V) -> Result<OrderedDocument, V::Error>
+    fn visit_map<V>(self, mut visitor: V) -> Result<Document, V::Error>
         where V: MapAccess<'de>
     {
         let mut inner = match visitor.size_hint() {
-            Some(size) => LinkedHashMap::with_capacity(size),
-            None => LinkedHashMap::new(),
+            Some(size) => IndexMap::with_capacity(size),
+            None => IndexMap::new(),
         };
 
         while let Some((key, value)) = visitor.next_entry()? {
@@ -550,7 +717,7 @@ impl<'de> Visitor<'de> for OrderedDocumentVisitor {
     }
 }
 
-impl Extend<(String, Bson)> for OrderedDocument {
+impl Extend<(String, Bson)> for Document {
     fn extend<T: IntoIterator<Item = (String, Bson)>>(&mut self, iter: T) {
         for (k, v) in iter {
             self.insert(k, v);

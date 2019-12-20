@@ -11,7 +11,7 @@ use crate::bson::{Bson, TimeStamp, UtcDateTime};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::oid::ObjectId;
-use crate::ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
+use crate::doc::{Document, IntoIter, DocumentVisitor};
 use crate::spec::BinarySubtype;
 
 pub struct BsonVisitor;
@@ -33,7 +33,7 @@ impl<'de> Deserialize<'de> for ObjectId {
     }
 }
 
-impl<'de> Deserialize<'de> for OrderedDocument {
+impl<'de> Deserialize<'de> for Document {
     /// Deserialize this value given this `Deserializer`.
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>
@@ -179,7 +179,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     fn visit_map<V>(self, visitor: V) -> Result<Bson, V::Error>
         where V: MapAccess<'de>
     {
-        let values = OrderedDocumentVisitor::new().visit_map(visitor)?;
+        let values = DocumentVisitor::new().visit_map(visitor)?;
         Ok(Bson::from_extended_document(values.into()))
     }
 
@@ -504,7 +504,7 @@ impl<'de> SeqAccess<'de> for SeqDecoder {
 }
 
 struct MapDecoder {
-    iter: OrderedDocumentIntoIterator,
+    iter: IntoIter<String, Bson>,
     value: Option<Bson>,
     len: usize,
 }
