@@ -31,7 +31,6 @@ pub use self::{
 
 use std::{io::Write, mem};
 
-use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::Timelike;
 
 #[cfg(feature = "decimal128")]
@@ -43,31 +42,40 @@ use crate::{
 use ::serde::Serialize;
 
 fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
-    writer.write_i32::<LittleEndian>(s.len() as i32 + 1)?;
+    writer.write_all(&(s.len() as i32 + 1).to_le_bytes())?;
     writer.write_all(s.as_bytes())?;
-    writer.write_u8(0)?;
+    writer.write_all(b"\0")?;
     Ok(())
 }
 
 fn write_cstring<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
     writer.write_all(s.as_bytes())?;
-    writer.write_u8(0)?;
+    writer.write_all(b"\0")?;
     Ok(())
 }
 
 #[inline]
 pub(crate) fn write_i32<W: Write + ?Sized>(writer: &mut W, val: i32) -> Result<()> {
-    writer.write_i32::<LittleEndian>(val).map_err(From::from)
+    writer
+        .write_all(&val.to_le_bytes())
+        .map(|_| ())
+        .map_err(From::from)
 }
 
 #[inline]
 fn write_i64<W: Write + ?Sized>(writer: &mut W, val: i64) -> Result<()> {
-    writer.write_i64::<LittleEndian>(val).map_err(From::from)
+    writer
+        .write_all(&val.to_le_bytes())
+        .map(|_| ())
+        .map_err(From::from)
 }
 
 #[inline]
 fn write_f64<W: Write + ?Sized>(writer: &mut W, val: f64) -> Result<()> {
-    writer.write_f64::<LittleEndian>(val).map_err(From::from)
+    writer
+        .write_all(&val.to_le_bytes())
+        .map(|_| ())
+        .map_err(From::from)
 }
 
 #[cfg(feature = "decimal128")]
@@ -88,7 +96,7 @@ fn serialize_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> Result<()
         (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
     )?;
     writer.write_all(&buf)?;
-    writer.write_u8(0)?;
+    writer.write_all(b"\0")?;
     Ok(())
 }
 
@@ -97,7 +105,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
     key: &str,
     val: &Bson,
 ) -> Result<()> {
-    writer.write_u8(val.element_type() as u8)?;
+    writer.write_all(&[val.element_type() as u8])?;
     write_cstring(writer, key)?;
 
     match *val {
@@ -106,7 +114,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
         Bson::Array(ref v) => serialize_array(writer, &v),
         Bson::Document(ref v) => v.to_writer(writer),
         Bson::Boolean(v) => writer
-            .write_u8(if v { 0x01 } else { 0x00 })
+            .write_all(&[if v { 0x01 } else { 0x00 }])
             .map_err(From::from),
         Bson::RegularExpression(Regex {
             ref pattern,
@@ -139,7 +147,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
             };
 
             write_i32(writer, len as i32)?;
-            writer.write_u8(From::from(subtype))?;
+            writer.write_all(&[subtype.into()])?;
 
             if let BinarySubtype::BinaryOld = subtype {
                 write_i32(writer, len as i32 - 4)?;

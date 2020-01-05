@@ -31,7 +31,6 @@ pub use self::{
 
 use std::io::Read;
 
-use byteorder::{LittleEndian, ReadBytesExt};
 use chrono::{
     offset::{LocalResult, TimeZone},
     Utc,
@@ -79,7 +78,7 @@ where
 }
 
 fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<String> {
-    let len = reader.read_i32::<LittleEndian>()?;
+    let len = read_i32(reader)?;
 
     // UTF-8 String must have at least 1 byte (the last 0x00).
     if len < 1 {
@@ -100,7 +99,7 @@ fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<Str
     };
 
     // read the null terminator
-    if reader.read_u8()? != 0 {
+    if read_u8(reader)? != 0 {
         return Err(Error::invalid_length(
             len as usize,
             &"contents of string longer than provided length",
@@ -114,7 +113,7 @@ fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> Result<String> {
     let mut v = Vec::new();
 
     loop {
-        let c = reader.read_u8()?;
+        let c = read_u8(reader)?;
         if c == 0 {
             break;
         }
@@ -125,13 +124,31 @@ fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> Result<String> {
 }
 
 #[inline]
+fn read_u8<R: Read + ?Sized>(reader: &mut R) -> Result<u8> {
+    let mut buf = [0; 1];
+    reader.read_exact(&mut buf)?;
+    Ok(u8::from_le_bytes(buf))
+}
+
+#[inline]
 pub(crate) fn read_i32<R: Read + ?Sized>(reader: &mut R) -> Result<i32> {
-    reader.read_i32::<LittleEndian>().map_err(From::from)
+    let mut buf = [0; 4];
+    reader.read_exact(&mut buf)?;
+    Ok(i32::from_le_bytes(buf))
 }
 
 #[inline]
 fn read_i64<R: Read + ?Sized>(reader: &mut R) -> Result<i64> {
-    reader.read_i64::<LittleEndian>().map_err(From::from)
+    let mut buf = [0; 8];
+    reader.read_exact(&mut buf)?;
+    Ok(i64::from_le_bytes(buf))
+}
+
+#[inline]
+fn read_f64<R: Read + ?Sized>(reader: &mut R) -> Result<f64> {
+    let mut buf = [0; 8];
+    reader.read_exact(&mut buf)?;
+    Ok(f64::from_le_bytes(buf))
 }
 
 /// Placeholder decoder for `Decimal128`. Reads 128 bits and just stores them, does no validation or
@@ -165,7 +182,7 @@ fn deserialize_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Resu
         "array length longer than contents",
         |cursor| {
             loop {
-                let tag = cursor.read_u8()?;
+                let tag = read_u8(cursor)?;
                 if tag == 0 {
                     break;
                 }
@@ -189,7 +206,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
     let key = read_cstring(reader)?;
 
     let val = match ElementType::from(tag) {
-        Some(ElementType::Double) => Bson::Double(reader.read_f64::<LittleEndian>()?),
+        Some(ElementType::Double) => Bson::Double(read_f64(reader)?),
         Some(ElementType::String) => read_string(reader, utf8_lossy).map(Bson::String)?,
         Some(ElementType::EmbeddedDocument) => Document::from_reader(reader).map(Bson::Document)?,
         Some(ElementType::Array) => deserialize_array(reader, utf8_lossy).map(Bson::Array)?,
@@ -201,7 +218,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
                     &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
                 ));
             }
-            let subtype = BinarySubtype::from(reader.read_u8()?);
+            let subtype = BinarySubtype::from(read_u8(reader)?);
 
             // Skip length data in old binary.
             if let BinarySubtype::BinaryOld = subtype {
@@ -225,12 +242,12 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::ObjectId) => {
             let mut objid = [0; 12];
             for x in &mut objid {
-                *x = reader.read_u8()?;
+                *x = read_u8(reader)?;
             }
             Bson::ObjectId(oid::ObjectId::with_bytes(objid))
         }
         Some(ElementType::Boolean) => {
-            let val = reader.read_u8()?;
+            let val = read_u8(reader)?;
             if val > 1 {
                 return Err(Error::invalid_value(
                     Unexpected::Unsigned(val as u64),
