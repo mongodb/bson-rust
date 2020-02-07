@@ -1,7 +1,12 @@
 //! ObjectId
 
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::{error, fmt, io, result};
+use std::{
+    error,
+    fmt,
+    io,
+    result,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use byteorder::{BigEndian, ByteOrder};
 
@@ -53,7 +58,9 @@ impl fmt::Display for Error {
             Error::ArgumentError(ref inner) => inner.fmt(fmt),
             Error::FromHexError(ref inner) => inner.fmt(fmt),
             Error::IoError(ref inner) => inner.fmt(fmt),
-            Error::HostnameError => fmt.write_str("Failed to retrieve hostname for OID generation."),
+            Error::HostnameError => {
+                fmt.write_str("Failed to retrieve hostname for OID generation.")
+            }
         }
     }
 }
@@ -116,7 +123,9 @@ impl ObjectId {
     pub fn with_string(s: &str) -> Result<ObjectId> {
         let bytes: Vec<u8> = hex::decode(s.as_bytes())?;
         if bytes.len() != 12 {
-            Err(Error::ArgumentError("Provided string must be a 12-byte hexadecimal string.".to_owned()))
+            Err(Error::ArgumentError(
+                "Provided string must be a 12-byte hexadecimal string.".to_owned(),
+            ))
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
             byte_array[..].copy_from_slice(&bytes[..]);

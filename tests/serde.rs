@@ -1,4 +1,4 @@
-use bson::{Bson, Decoder, Encoder, bson, doc};
+use bson::{bson, doc, Bson, Decoder, Encoder};
 use serde::{Deserialize, Serialize};
 use serde_derive::{Deserialize, Serialize};
 
@@ -61,10 +61,15 @@ fn test_ser_timestamp() {
         ts: TimeStamp,
     }
 
-    let foo = Foo { ts: TimeStamp { t: 12, i: 10 } };
+    let foo = Foo {
+        ts: TimeStamp { t: 12, i: 10 },
+    };
 
     let x = bson::to_bson(&foo).unwrap();
-    assert_eq!(x.as_document().unwrap(), &doc! { "ts": Bson::TimeStamp(0x0000_000C_0000_000A) });
+    assert_eq!(
+        x.as_document().unwrap(),
+        &doc! { "ts": Bson::TimeStamp(0x0000_000C_0000_000A) }
+    );
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
@@ -81,7 +86,8 @@ fn test_de_timestamp() {
 
     let foo: Foo = bson::from_bson(Bson::Document(doc! {
         "ts": Bson::TimeStamp(0x0000_000C_0000_000A),
-    })).unwrap();
+    }))
+    .unwrap();
 
     assert_eq!(foo.ts, TimeStamp { t: 12, i: 10 });
 }
@@ -98,12 +104,19 @@ fn test_ser_datetime() {
 
     let now = Utc::now();
     // FIXME: Due to BSON's datetime precision
-    let now = now.with_nanosecond(now.nanosecond() / 1000000 * 1000000).unwrap();
+    let now = now
+        .with_nanosecond(now.nanosecond() / 1000000 * 1000000)
+        .unwrap();
 
-    let foo = Foo { date: From::from(now) };
+    let foo = Foo {
+        date: From::from(now),
+    };
 
     let x = bson::to_bson(&foo).unwrap();
-    assert_eq!(x.as_document().unwrap(), &doc! { "date": (Bson::UtcDatetime(now)) });
+    assert_eq!(
+        x.as_document().unwrap(),
+        &doc! { "date": (Bson::UtcDatetime(now)) }
+    );
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
@@ -133,10 +146,17 @@ fn test_byte_vec() {
         pub challenge: &'a [u8],
     }
 
-    let x = AuthChallenge { challenge: b"18762b98b7c34c25bf9dc3154e4a5ca3", };
+    let x = AuthChallenge {
+        challenge: b"18762b98b7c34c25bf9dc3154e4a5ca3",
+    };
 
     let b = bson::to_bson(&x).unwrap();
-    assert_eq!(b, Bson::Document(doc! { "challenge": (Bson::Binary(bson::spec::BinarySubtype::Generic, x.challenge.to_vec()))}));
+    assert_eq!(
+        b,
+        Bson::Document(
+            doc! { "challenge": (Bson::Binary(bson::spec::BinarySubtype::Generic, x.challenge.to_vec()))}
+        )
+    );
 
     // let mut buf = Vec::new();
     // bson::encode_document(&mut buf, b.as_document().unwrap()).unwrap();
@@ -153,11 +173,15 @@ fn test_serde_bytes() {
         data: Vec<u8>,
     }
 
-    let x = Foo { data: b"12345abcde".to_vec(), };
+    let x = Foo {
+        data: b"12345abcde".to_vec(),
+    };
 
     let b = bson::to_bson(&x).unwrap();
-    assert_eq!(b.as_document().unwrap(),
-               &doc! {"data": Bson::Binary(bson::spec::BinarySubtype::Generic, b"12345abcde".to_vec())});
+    assert_eq!(
+        b.as_document().unwrap(),
+        &doc! {"data": Bson::Binary(bson::spec::BinarySubtype::Generic, b"12345abcde".to_vec())}
+    );
 
     let f = bson::from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
@@ -185,10 +209,7 @@ fn test_serde_tuple_struct() {
 
     let name_1 = Name(String::from("Graydon"), String::from("Hoare"));
     let b = bson::to_bson(&name_1).unwrap();
-    assert_eq!(b, bson!([
-        name_1.0.clone(),
-        name_1.1.clone(),
-    ]));
+    assert_eq!(b, bson!([name_1.0.clone(), name_1.1.clone(),]));
 
     let (first, last) = (String::from("Donald"), String::from("Knuth"));
     let de = bson!([first.clone(), last.clone()]);

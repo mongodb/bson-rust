@@ -1,5 +1,4 @@
-use std::fmt::Display;
-use std::{error, fmt, io};
+use std::{error, fmt, fmt::Display, io};
 
 use serde::ser;
 
@@ -25,14 +24,19 @@ impl fmt::Display for EncoderError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             EncoderError::IoError(ref inner) => inner.fmt(fmt),
-            EncoderError::InvalidMapKeyType(ref bson) => write!(fmt, "Invalid map key type: {:?}", bson),
+            EncoderError::InvalidMapKeyType(ref bson) => {
+                write!(fmt, "Invalid map key type: {:?}", bson)
+            }
             EncoderError::Unknown(ref inner) => inner.fmt(fmt),
-            EncoderError::UnsupportedUnsignedType => fmt.write_str("BSON does not support unsigned type"),
+            EncoderError::UnsupportedUnsignedType => {
+                fmt.write_str("BSON does not support unsigned type")
+            }
             EncoderError::UnsignedTypesValueExceedsRange(value) => write!(
-                                                                          fmt,
-                                                                          "BSON does not support unsigned types.
-                 An attempt to encode the value: {} in a signed type failed due to the value's size.",
-                                                                          value
+                fmt,
+                "BSON does not support unsigned types.
+                 An attempt to encode the value: {} in a signed type failed due to the value's \
+                 size.",
+                value
             ),
         }
     }
@@ -45,8 +49,10 @@ impl error::Error for EncoderError {
             EncoderError::InvalidMapKeyType(_) => "Invalid map key type",
             EncoderError::Unknown(ref inner) => inner,
             EncoderError::UnsupportedUnsignedType => "BSON does not support unsigned type",
-            EncoderError::UnsignedTypesValueExceedsRange(_) => "BSON does not support unsigned types.
-                 An attempt to encode the value: {} in a signed type failed due to the values size.",
+            EncoderError::UnsignedTypesValueExceedsRange(_) => {
+                "BSON does not support unsigned types.
+                 An attempt to encode the value: {} in a signed type failed due to the values size."
+            }
         }
     }
 

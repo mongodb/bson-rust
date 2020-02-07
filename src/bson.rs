@@ -21,19 +21,22 @@
 
 //! BSON definition
 
-use std::fmt::{self, Debug, Display};
-use std::ops::{Deref, DerefMut};
+use std::{
+    fmt::{self, Debug, Display},
+    ops::{Deref, DerefMut},
+};
 
-use chrono::offset::TimeZone;
-use chrono::{DateTime, Timelike, Utc};
+use chrono::{offset::TimeZone, DateTime, Timelike, Utc};
 use hex;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
-use crate::oid;
-use crate::ordered::OrderedDocument;
-use crate::spec::{BinarySubtype, ElementType};
+use crate::{
+    oid,
+    ordered::OrderedDocument,
+    spec::{BinarySubtype, ElementType},
+};
 
 /// Possible BSON value types.
 #[derive(Clone, PartialEq)]
@@ -50,11 +53,12 @@ pub enum Bson {
     Boolean(bool),
     /// Null value
     Null,
-    /// Regular expression - The first cstring is the regex pattern, the second is the regex options string.
-    /// Options are identified by characters, which must be stored in alphabetical order.
-    /// Valid options are 'i' for case insensitive matching, 'm' for multiline matching, 'x' for verbose mode,
-    /// 'l' to make \w, \W, etc. locale dependent, 's' for dotall mode ('.' matches everything), and 'u' to
-    /// make \w, \W, etc. match unicode.
+    /// Regular expression - The first cstring is the regex pattern, the second is the regex
+    /// options string. Options are identified by characters, which must be stored in
+    /// alphabetical order. Valid options are 'i' for case insensitive matching, 'm' for
+    /// multiline matching, 'x' for verbose mode, 'l' to make \w, \W, etc. locale dependent,
+    /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
+    /// unicode.
     RegExp(String, String),
     /// JavaScript code
     JavaScriptCode(String),
@@ -112,7 +116,9 @@ impl Debug for Bson {
 
                 write!(f, "TimeStamp({}, {})", time, inc)
             }
-            Bson::Binary(t, ref vec) => write!(f, "BinData({}, 0x{})", u8::from(t), hex::encode(vec)),
+            Bson::Binary(t, ref vec) => {
+                write!(f, "BinData({}, 0x{})", u8::from(t), hex::encode(vec))
+            }
             Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
             Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
             Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
@@ -146,7 +152,9 @@ impl Display for Bson {
             Bson::Boolean(b) => write!(fmt, "{}", b),
             Bson::Null => write!(fmt, "null"),
             Bson::RegExp(ref pat, ref opt) => write!(fmt, "/{}/{}", pat, opt),
-            Bson::JavaScriptCode(ref s) | Bson::JavaScriptCodeWithScope(ref s, _) => fmt.write_str(&s),
+            Bson::JavaScriptCode(ref s) | Bson::JavaScriptCodeWithScope(ref s, _) => {
+                fmt.write_str(&s)
+            }
             Bson::I32(i) => write!(fmt, "{}", i),
             Bson::I64(i) => write!(fmt, "{}", i),
             Bson::TimeStamp(i) => {
@@ -155,7 +163,9 @@ impl Display for Bson {
 
                 write!(fmt, "Timestamp({}, {})", time, inc)
             }
-            Bson::Binary(t, ref vec) => write!(fmt, "BinData({}, 0x{})", u8::from(t), hex::encode(vec)),
+            Bson::Binary(t, ref vec) => {
+                write!(fmt, "BinData({}, 0x{})", u8::from(t), hex::encode(vec))
+            }
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
@@ -221,7 +231,7 @@ impl From<(BinarySubtype, Vec<u8>)> for Bson {
 
 impl<T> From<&T> for Bson
 where
-    T: Clone + Into<Bson>
+    T: Clone + Into<Bson>,
 {
     fn from(t: &T) -> Bson {
         t.clone().into()
@@ -230,7 +240,7 @@ where
 
 impl<T> From<Vec<T>> for Bson
 where
-    T: Into<Bson>
+    T: Into<Bson>,
 {
     fn from(v: Vec<T>) -> Bson {
         Bson::Array(v.into_iter().map(|val| val.into()).collect())
@@ -239,7 +249,7 @@ where
 
 impl<T> From<&[T]> for Bson
 where
-    T: Clone + Into<Bson>
+    T: Clone + Into<Bson>,
 {
     fn from(s: &[T]) -> Bson {
         Bson::Array(s.into_iter().cloned().map(|val| val.into()).collect())
@@ -307,15 +317,18 @@ impl From<DateTime<Utc>> for Bson {
 impl From<Value> for Bson {
     fn from(a: Value) -> Bson {
         match a {
-            Value::Number(x) => x.as_i64()
-                                 .map(Bson::from)
-                                 .or_else(|| x.as_u64().map(Bson::from))
-                                 .or_else(|| x.as_f64().map(Bson::from))
-                                 .unwrap_or_else(|| panic!("Invalid number value: {}", x)),
+            Value::Number(x) => x
+                .as_i64()
+                .map(Bson::from)
+                .or_else(|| x.as_u64().map(Bson::from))
+                .or_else(|| x.as_f64().map(Bson::from))
+                .unwrap_or_else(|| panic!("Invalid number value: {}", x)),
             Value::String(x) => x.into(),
             Value::Bool(x) => x.into(),
             Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from).collect()),
-            Value::Object(x) => Bson::from_extended_document(x.into_iter().map(|(k, v)| (k, v.into())).collect()),
+            Value::Object(x) => {
+                Bson::from_extended_document(x.into_iter().map(|(k, v)| (k, v.into())).collect())
+            }
             Value::Null => Bson::Null,
         }
     }
@@ -489,7 +502,9 @@ impl Bson {
         if values.len() == 2 {
             if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
                 return Bson::RegExp(pat.to_owned(), opt.to_owned());
-            } else if let (Ok(code), Ok(scope)) = (values.get_str("$code"), values.get_document("$scope")) {
+            } else if let (Ok(code), Ok(scope)) =
+                (values.get_str("$code"), values.get_document("$scope"))
+            {
                 return Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned());
             } else if let (Ok(t), Ok(i)) = (values.get_i32("t"), values.get_i32("i")) {
                 let timestamp = ((t as i64) << 32) + (i as i64);
@@ -499,17 +514,24 @@ impl Bson {
                 return Bson::TimeStamp(timestamp);
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
-                return Bson::Binary(From::from(ttype), hex::decode(hex.as_bytes()).expect("$binary value is not a valid Hex encoded bytes"));
+                return Bson::Binary(
+                    From::from(ttype),
+                    hex::decode(hex.as_bytes())
+                        .expect("$binary value is not a valid Hex encoded bytes"),
+                );
             }
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {
                 return Bson::JavaScriptCode(code.to_owned());
             } else if let Ok(hex) = values.get_str("$oid") {
                 return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
-            } else if let Ok(long) = values.get_document("$date")
-                                           .and_then(|inner| inner.get_i64("$numberLong"))
+            } else if let Ok(long) = values
+                .get_document("$date")
+                .and_then(|inner| inner.get_i64("$numberLong"))
             {
-                return Bson::UtcDatetime(Utc.timestamp(long / 1000, ((long % 1000) * 1_000_000) as u32));
+                return Bson::UtcDatetime(
+                    Utc.timestamp(long / 1000, ((long % 1000) * 1_000_000) as u32),
+                );
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
             } else if let Ok(dec) = values.get_str("$numberDecimal") {
@@ -528,7 +550,9 @@ impl Bson {
         if values.len() == 2 {
             if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
                 return Bson::RegExp(pat.to_owned(), opt.to_owned());
-            } else if let (Ok(code), Ok(scope)) = (values.get_str("$code"), values.get_document("$scope")) {
+            } else if let (Ok(code), Ok(scope)) =
+                (values.get_str("$code"), values.get_document("$scope"))
+            {
                 return Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned());
             } else if let (Ok(t), Ok(i)) = (values.get_i32("t"), values.get_i32("i")) {
                 let timestamp = ((t as i64) << 32) + (i as i64);
@@ -538,17 +562,24 @@ impl Bson {
                 return Bson::TimeStamp(timestamp);
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
-                return Bson::Binary(From::from(ttype), hex::decode(hex.as_bytes()).expect("$binary value is not a valid Hex encoded bytes"));
+                return Bson::Binary(
+                    From::from(ttype),
+                    hex::decode(hex.as_bytes())
+                        .expect("$binary value is not a valid Hex encoded bytes"),
+                );
             }
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {
                 return Bson::JavaScriptCode(code.to_owned());
             } else if let Ok(hex) = values.get_str("$oid") {
                 return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
-            } else if let Ok(long) = values.get_document("$date")
-                                           .and_then(|inner| inner.get_i64("$numberLong"))
+            } else if let Ok(long) = values
+                .get_document("$date")
+                .and_then(|inner| inner.get_i64("$numberLong"))
             {
-                return Bson::UtcDatetime(Utc.timestamp(long / 1000, ((long % 1000) * 1_000_000) as u32));
+                return Bson::UtcDatetime(
+                    Utc.timestamp(long / 1000, ((long % 1000) * 1_000_000) as u32),
+                );
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
             }
@@ -568,7 +599,8 @@ impl Bson {
         }
     }
 
-    /// If `Bson` is `FloatingPoint`, return a mutable reference to its value. Returns `None` otherwise
+    /// If `Bson` is `FloatingPoint`, return a mutable reference to its value. Returns `None`
+    /// otherwise
     pub fn as_f64_mut(&mut self) -> Option<&mut f64> {
         match *self {
             Bson::FloatingPoint(ref mut v) => Some(v),
@@ -696,7 +728,8 @@ impl Bson {
         }
     }
 
-    /// If `Bson` is `UtcDateTime`, return a mutable reference to its value. Returns `None` otherwise
+    /// If `Bson` is `UtcDateTime`, return a mutable reference to its value. Returns `None`
+    /// otherwise
     pub fn as_utc_date_time_mut(&mut self) -> Option<&mut DateTime<Utc>> {
         match *self {
             Bson::UtcDatetime(ref mut v) => Some(v),

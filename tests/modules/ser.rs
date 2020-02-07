@@ -1,10 +1,8 @@
 use assert_matches::assert_matches;
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
-use bson::oid::ObjectId;
-use bson::{from_bson, to_bson, Bson, EncoderError, EncoderResult};
-use std::collections::BTreeMap;
-use std::{u16, u32, u64, u8};
+use bson::{from_bson, oid::ObjectId, to_bson, Bson, EncoderError, EncoderResult};
+use std::{collections::BTreeMap, u16, u32, u64, u8};
 
 #[test]
 fn floating_point() {
@@ -141,7 +139,10 @@ fn uint64_u2i() {
     assert_eq!(deser_min, u64::MIN);
 
     let obj_max: EncoderResult<Bson> = to_bson(&u64::MAX);
-    assert_matches!(obj_max, Err(EncoderError::UnsignedTypesValueExceedsRange(u64::MAX)));
+    assert_matches!(
+        obj_max,
+        Err(EncoderError::UnsignedTypesValueExceedsRange(u64::MAX))
+    );
 }
 
 #[test]

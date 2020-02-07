@@ -34,8 +34,9 @@ impl ToF64 for u64 {
 
 /// Serialize unsigned types to `Bson::FloatingPoint`
 pub fn serialize<T, S>(v: &T, s: S) -> Result<S::Ok, S::Error>
-    where T: ToF64,
-          S: Serializer
+where
+    T: ToF64,
+    S: Serializer,
 {
     s.serialize_f64(v.to_f64())
 }
@@ -72,8 +73,9 @@ impl FromF64 for u64 {
 
 /// Deserialize unsigned types to `Bson::FloatingPoint`
 pub fn deserialize<'de, T, D>(d: D) -> Result<T, D::Error>
-    where D: Deserializer<'de>,
-          T: FromF64
+where
+    D: Deserializer<'de>,
+    T: FromF64,
 {
     f64::deserialize(d).map(T::from_f64)
 }
