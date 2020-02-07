@@ -100,7 +100,7 @@ functions:
         working_dir: "src"
         script: |
           ${PREPARE_SHELL}
-          .evergreen/run-tests-u2i-serde.sh
+          .evergreen/run-tests-serde.sh
 
   "check rustfmt":
     - command: shell.exec
@@ -129,6 +129,11 @@ functions:
           ${PREPARE_SHELL}
           echo '{"results": [{ "status": "FAIL", "test_file": "Build", "log_raw": "No test-results.json found was created"  } ]}' > ${PROJECT_DIRECTORY}/test-results.json
 
+  "cleanup":
+    - command: shell.exec
+      params:
+        script: |
+            # Nothing needs to be done here
 pre:
   - func: "fetch source"
   - func: "install dependencies"
@@ -157,6 +162,7 @@ tasks:
     commands:
       - func: "check clippy"
 
+buildvariants:
 -
   name: "tests"
   display_name: "Tests"
@@ -164,9 +170,8 @@ tasks:
     - ubuntu1804-test
   tasks:
     - name: "test"
-	- name: "test-u2i"
-	- name: "test-serde"
-
+    - name: "test-u2i"
+    - name: "test-serde"
 -
   name: "lint"
   display_name: "Lint"
@@ -175,4 +180,3 @@ tasks:
   tasks:
     - name: "check-clippy"
     - name: "check-rustfmt"
-
