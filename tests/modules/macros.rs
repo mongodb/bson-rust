@@ -102,7 +102,7 @@ fn non_trailing_comma() {
         "b": { "ok": "then" }
     };
 
-    let expected = "{{ a: \"foo\", b: {{ ok: \"then\" }} }}".to_string();
+    let expected = "{ a: \"foo\", b: { ok: \"then\" } }".to_string();
     assert_eq!(expected, format!("{}", doc));
 }
 
@@ -113,7 +113,7 @@ fn non_trailing_comma_with_rockets() {
         "b" => { "ok": "then" }
     };
 
-    let expected = "{{ a: \"foo\", b: {{ ok: \"then\" }} }}".to_string();
+    let expected = "{ a: \"foo\", b: { ok: \"then\" } }".to_string();
     assert_eq!(expected, format!("{}", doc));
 }
 
