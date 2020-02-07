@@ -1,7 +1,4 @@
-use bson::oid::ObjectId;
-use bson::spec::BinarySubtype;
-use bson::Bson;
-use bson::doc;
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Bson};
 use chrono::offset::Utc;
 use hex;
 
@@ -40,14 +37,16 @@ fn standard_format() {
         "date": Bson::UtcDatetime(date),
     };
 
-    let expected = format!("{{ float: 2.4, string: \"hello\", array: [\"testing\", 1, true, [1, 2]], doc: {{ \
-                 fish: \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, \
-                 regexp: /s[ao]d/i, with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, \
-                 i64: -55, timestamp: Timestamp(0, 229999444), binary: BinData(5, \
-                 0x{}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}",
-                hex::encode("thingies"),
-                hex::encode(id_string),
-                date);
+    let expected = format!(
+        "{{ float: 2.4, string: \"hello\", array: [\"testing\", 1, true, [1, 2]], doc: {{ fish: \
+         \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, regexp: /s[ao]d/i, \
+         with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, i64: -55, \
+         timestamp: Timestamp(0, 229999444), binary: BinData(5, 0x{}), _id: ObjectId(\"{}\"), \
+         date: Date(\"{}\") }}",
+        hex::encode("thingies"),
+        hex::encode(id_string),
+        date
+    );
 
     assert_eq!(expected, format!("{}", doc));
 }
@@ -88,21 +87,23 @@ fn rocket_format() {
         "date" => Bson::UtcDatetime(date),
     };
 
-    let expected = format!("{{ float: 2.4, string: \"hello\", array: [\"testing\", 1, true, [\"nested\", 2]], doc: {{ \
-                 fish: \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, \
-                 regexp: /s[ao]d/i, with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, \
-                 i64: -55, timestamp: Timestamp(0, 229999444), binary: BinData(5, \
-                 0x{}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}",
-                hex::encode("thingies"),
-                hex::encode(id_string),
-                date);
+    let expected = format!(
+        "{{ float: 2.4, string: \"hello\", array: [\"testing\", 1, true, [\"nested\", 2]], doc: \
+         {{ fish: \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, regexp: /s[ao]d/i, \
+         with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, i64: -55, \
+         timestamp: Timestamp(0, 229999444), binary: BinData(5, 0x{}), _id: ObjectId(\"{}\"), \
+         date: Date(\"{}\") }}",
+        hex::encode("thingies"),
+        hex::encode(id_string),
+        date
+    );
 
     assert_eq!(expected, format!("{}", doc));
 }
 
 #[test]
 fn non_trailing_comma() {
-    let doc = doc!{
+    let doc = doc! {
         "a": "foo",
         "b": { "ok": "then" }
     };
@@ -113,7 +114,7 @@ fn non_trailing_comma() {
 
 #[test]
 fn non_trailing_comma_with_rockets() {
-    let doc = doc!{
+    let doc = doc! {
         "a" => "foo",
         "b" => { "ok": "then" }
     };
@@ -162,11 +163,15 @@ fn recursive_macro() {
                             // Match array items
                             match arr[0] {
                                 Bson::String(ref s) => assert_eq!("seal", s),
-                                _ => panic!("String 'seal' was not inserted into inner array correctly."),
+                                _ => panic!(
+                                    "String 'seal' was not inserted into inner array correctly."
+                                ),
                             }
                             match arr[1] {
                                 Bson::Boolean(ref b) => assert!(!b),
-                                _ => panic!("Boolean 'false' was not inserted into inner array correctly."),
+                                _ => panic!(
+                                    "Boolean 'false' was not inserted into inner array correctly."
+                                ),
                             }
                         }
                         _ => panic!("Inner array was not inserted correctly."),

@@ -78,11 +78,12 @@ pub enum ElementType {
     UtcDatetime = ELEMENT_TYPE_UTC_DATETIME,
     /// Null value
     NullValue = ELEMENT_TYPE_NULL_VALUE,
-    /// Regular expression - The first cstring is the regex pattern, the second is the regex options string.
-    /// Options are identified by characters, which must be stored in alphabetical order.
-    /// Valid options are 'i' for case insensitive matching, 'm' for multiline matching, 'x' for verbose mode,
-    /// 'l' to make \w, \W, etc. locale dependent, 's' for dotall mode ('.' matches everything), and 'u' to
-    /// make \w, \W, etc. match unicode.
+    /// Regular expression - The first cstring is the regex pattern, the second is the regex
+    /// options string. Options are identified by characters, which must be stored in
+    /// alphabetical order. Valid options are 'i' for case insensitive matching, 'm' for
+    /// multiline matching, 'x' for verbose mode, 'l' to make \w, \W, etc. locale dependent,
+    /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
+    /// unicode.
     RegularExpression = ELEMENT_TYPE_REGULAR_EXPRESSION,
     /// Deprecated.
     DbPointer = ELEMENT_TYPE_DBPOINTER,
@@ -111,30 +112,30 @@ impl ElementType {
     pub fn from(tag: u8) -> Option<ElementType> {
         use self::ElementType::*;
         Some(match tag {
-                 ELEMENT_TYPE_FLOATING_POINT => FloatingPoint,
-                 ELEMENT_TYPE_UTF8_STRING => Utf8String,
-                 ELEMENT_TYPE_EMBEDDED_DOCUMENT => EmbeddedDocument,
-                 ELEMENT_TYPE_ARRAY => Array,
-                 ELEMENT_TYPE_BINARY => Binary,
-                 ELEMENT_TYPE_UNDEFINED => Undefined,
-                 ELEMENT_TYPE_OBJECT_ID => ObjectId,
-                 ELEMENT_TYPE_BOOLEAN => Boolean,
-                 ELEMENT_TYPE_UTC_DATETIME => UtcDatetime,
-                 ELEMENT_TYPE_NULL_VALUE => NullValue,
-                 ELEMENT_TYPE_REGULAR_EXPRESSION => RegularExpression,
-                 ELEMENT_TYPE_DBPOINTER => DbPointer,
-                 ELEMENT_TYPE_JAVASCRIPT_CODE => JavaScriptCode,
-                 ELEMENT_TYPE_SYMBOL => Symbol,
-                 ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE => JavaScriptCodeWithScope,
-                 ELEMENT_TYPE_32BIT_INTEGER => Integer32Bit,
-                 ELEMENT_TYPE_TIMESTAMP => TimeStamp,
-                 ELEMENT_TYPE_64BIT_INTEGER => Integer64Bit,
-                 #[cfg(feature = "decimal128")]
-                 ELEMENT_TYPE_128BIT_DECIMAL => Decimal128Bit,
-                 ELEMENT_TYPE_MAXKEY => MaxKey,
-                 ELEMENT_TYPE_MINKEY => MinKey,
-                 _ => return None,
-             })
+            ELEMENT_TYPE_FLOATING_POINT => FloatingPoint,
+            ELEMENT_TYPE_UTF8_STRING => Utf8String,
+            ELEMENT_TYPE_EMBEDDED_DOCUMENT => EmbeddedDocument,
+            ELEMENT_TYPE_ARRAY => Array,
+            ELEMENT_TYPE_BINARY => Binary,
+            ELEMENT_TYPE_UNDEFINED => Undefined,
+            ELEMENT_TYPE_OBJECT_ID => ObjectId,
+            ELEMENT_TYPE_BOOLEAN => Boolean,
+            ELEMENT_TYPE_UTC_DATETIME => UtcDatetime,
+            ELEMENT_TYPE_NULL_VALUE => NullValue,
+            ELEMENT_TYPE_REGULAR_EXPRESSION => RegularExpression,
+            ELEMENT_TYPE_DBPOINTER => DbPointer,
+            ELEMENT_TYPE_JAVASCRIPT_CODE => JavaScriptCode,
+            ELEMENT_TYPE_SYMBOL => Symbol,
+            ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE => JavaScriptCodeWithScope,
+            ELEMENT_TYPE_32BIT_INTEGER => Integer32Bit,
+            ELEMENT_TYPE_TIMESTAMP => TimeStamp,
+            ELEMENT_TYPE_64BIT_INTEGER => Integer64Bit,
+            #[cfg(feature = "decimal128")]
+            ELEMENT_TYPE_128BIT_DECIMAL => Decimal128Bit,
+            ELEMENT_TYPE_MAXKEY => MaxKey,
+            ELEMENT_TYPE_MINKEY => MinKey,
+            _ => return None,
+        })
     }
 }
 

@@ -24,12 +24,12 @@
 mod error;
 mod serde;
 
-pub use self::error::{EncoderError, EncoderResult};
-pub use self::serde::Encoder;
+pub use self::{
+    error::{EncoderError, EncoderResult},
+    serde::Encoder,
+};
 
-use std::io::Write;
-use std::iter::IntoIterator;
-use std::mem;
+use std::{io::Write, iter::IntoIterator, mem};
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::Timelike;
@@ -80,8 +80,10 @@ fn encode_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> EncoderResul
         encode_bson(&mut buf, &key.to_string(), val)?;
     }
 
-    write_i32(writer,
-              (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32)?;
+    write_i32(
+        writer,
+        (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
+    )?;
     writer.write_all(&buf)?;
     writer.write_u8(0)?;
     Ok(())
@@ -91,17 +93,24 @@ fn encode_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> EncoderResul
 ///
 /// Can encode any type which is iterable as `(key: &str, value: &Bson)` pairs,
 /// which generally means most maps.
-pub fn encode_document<'a, S: AsRef<str> + 'a, W: Write + ?Sized, D: IntoIterator<Item = (&'a S, &'a Bson)>>(
+pub fn encode_document<
+    'a,
+    S: AsRef<str> + 'a,
+    W: Write + ?Sized,
+    D: IntoIterator<Item = (&'a S, &'a Bson)>,
+>(
     writer: &mut W,
-    doc: D)
-    -> EncoderResult<()> {
+    doc: D,
+) -> EncoderResult<()> {
     let mut buf = Vec::new();
     for (key, val) in doc.into_iter() {
         encode_bson(&mut buf, key.as_ref(), val)?;
     }
 
-    write_i32(writer,
-              (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32)?;
+    write_i32(
+        writer,
+        (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
+    )?;
     writer.write_all(&buf)?;
     writer.write_u8(0)?;
     Ok(())
@@ -116,7 +125,9 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         Bson::String(ref v) => write_string(writer, &v),
         Bson::Array(ref v) => encode_array(writer, &v),
         Bson::Document(ref v) => encode_document(writer, v),
-        Bson::Boolean(v) => writer.write_u8(if v { 0x01 } else { 0x00 }).map_err(From::from),
+        Bson::Boolean(v) => writer
+            .write_u8(if v { 0x01 } else { 0x00 })
+            .map_err(From::from),
         Bson::RegExp(ref pat, ref opt) => {
             write_cstring(writer, pat)?;
             write_cstring(writer, opt)
@@ -139,7 +150,10 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
             writer.write_u8(From::from(subtype))?;
             writer.write_all(data).map_err(From::from)
         }
-        Bson::UtcDatetime(ref v) => write_i64(writer, (v.timestamp() * 1000) + (v.nanosecond() / 1_000_000) as i64),
+        Bson::UtcDatetime(ref v) => write_i64(
+            writer,
+            (v.timestamp() * 1000) + (v.nanosecond() / 1_000_000) as i64,
+        ),
         Bson::Null => Ok(()),
         Bson::Symbol(ref v) => write_string(writer, &v),
         #[cfg(feature = "decimal128")]
@@ -149,7 +163,8 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
 
 /// Encode a `T` Serializable into a BSON `Value`.
 pub fn to_bson<T: ?Sized>(value: &T) -> EncoderResult<Bson>
-    where T: Serialize
+where
+    T: Serialize,
 {
     let ser = Encoder::new();
     value.serialize(ser)

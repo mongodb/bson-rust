@@ -1,10 +1,6 @@
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
-use bson::doc;
-use bson::oid::ObjectId;
-use bson::spec::BinarySubtype;
-use bson::ValueAccessError;
-use bson::{Bson, Document};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Bson, Document, ValueAccessError};
 use chrono::Utc;
 
 #[test]
@@ -14,7 +10,11 @@ fn ordered_insert() {
     doc.insert("second".to_owned(), Bson::String("foo".to_owned()));
     doc.insert("alphanumeric".to_owned(), Bson::String("bar".to_owned()));
 
-    let expected_keys = vec!["first".to_owned(), "second".to_owned(), "alphanumeric".to_owned()];
+    let expected_keys = vec![
+        "first".to_owned(),
+        "second".to_owned(),
+        "alphanumeric".to_owned(),
+    ];
 
     let keys: Vec<_> = doc.iter().map(|(key, _)| key.to_owned()).collect();
     assert_eq!(expected_keys, keys);
@@ -27,7 +27,11 @@ fn ordered_insert_shorthand() {
     doc.insert("second", "foo");
     doc.insert("alphanumeric", "bar".to_owned());
 
-    let expected_keys = vec!["first".to_owned(), "second".to_owned(), "alphanumeric".to_owned()];
+    let expected_keys = vec![
+        "first".to_owned(),
+        "second".to_owned(),
+        "alphanumeric".to_owned(),
+    ];
 
     let keys: Vec<_> = doc.iter().map(|(key, _)| key.to_owned()).collect();
     assert_eq!(expected_keys, keys);
@@ -63,12 +67,18 @@ fn test_getters() {
 
     assert_eq!(None, doc.get("nonsense"));
     assert_eq!(Err(ValueAccessError::NotPresent), doc.get_str("nonsense"));
-    assert_eq!(Err(ValueAccessError::UnexpectedType), doc.get_str("floating_point"));
+    assert_eq!(
+        Err(ValueAccessError::UnexpectedType),
+        doc.get_str("floating_point")
+    );
 
     assert_eq!(Some(&Bson::FloatingPoint(10.0)), doc.get("floating_point"));
     assert_eq!(Ok(10.0), doc.get_f64("floating_point"));
 
-    assert_eq!(Some(&Bson::String("a value".to_string())), doc.get("string"));
+    assert_eq!(
+        Some(&Bson::String("a value".to_string())),
+        doc.get("string")
+    );
     assert_eq!(Ok("a value"), doc.get_str("string"));
 
     let array = vec![Bson::I32(10), Bson::I32(20), Bson::I32(30)];
@@ -97,12 +107,18 @@ fn test_getters() {
     assert_eq!(Some(&Bson::TimeStamp(100)), doc.get("timestamp"));
     assert_eq!(Ok(100i64), doc.get_time_stamp("timestamp"));
 
-    assert_eq!(Some(&Bson::UtcDatetime(datetime.clone())), doc.get("datetime"));
+    assert_eq!(
+        Some(&Bson::UtcDatetime(datetime.clone())),
+        doc.get("datetime")
+    );
     assert_eq!(Ok(&datetime), doc.get_utc_datetime("datetime"));
 
     test_decimal128(&mut doc);
 
-    assert_eq!(Some(&Bson::UtcDatetime(datetime.clone())), doc.get("datetime"));
+    assert_eq!(
+        Some(&Bson::UtcDatetime(datetime.clone())),
+        doc.get("datetime")
+    );
     assert_eq!(Ok(&datetime), doc.get_utc_datetime("datetime"));
 
     let object_id = ObjectId::new().unwrap();
@@ -110,8 +126,10 @@ fn test_getters() {
     assert_eq!(Some(&Bson::ObjectId(object_id.clone())), doc.get("_id"));
     assert_eq!(Ok(&object_id), doc.get_object_id("_id"));
 
-    assert_eq!(Some(&Bson::Binary(BinarySubtype::Generic, binary.clone())),
-               doc.get("binary"));
+    assert_eq!(
+        Some(&Bson::Binary(BinarySubtype::Generic, binary.clone())),
+        doc.get("binary")
+    );
     assert_eq!(Ok(&binary), doc.get_binary_generic("binary"));
 }
 
@@ -155,11 +173,13 @@ fn entry() {
         assert_eq!(v, &mut Bson::Null);
     }
 
-    assert_eq!(doc,
-               doc! {
-                   "first": 1i32,
-                   "second": "foo",
-                   "alphanumeric": "bar",
-                   "fourth": Bson::Null,
-               },);
+    assert_eq!(
+        doc,
+        doc! {
+            "first": 1i32,
+            "second": "foo",
+            "alphanumeric": "bar",
+            "fourth": Bson::Null,
+        },
+    );
 }

@@ -1,5 +1,4 @@
-use std::fmt::Display;
-use std::{error, fmt, io, string};
+use std::{error, fmt, fmt::Display, io, string};
 
 use serde::de::{self, Expected, Unexpected};
 
@@ -53,16 +52,22 @@ impl fmt::Display for DecoderError {
         match *self {
             DecoderError::IoError(ref inner) => inner.fmt(fmt),
             DecoderError::FromUtf8Error(ref inner) => inner.fmt(fmt),
-            DecoderError::UnrecognizedElementType(tag) => write!(fmt, "unrecognized element type `{}`", tag),
+            DecoderError::UnrecognizedElementType(tag) => {
+                write!(fmt, "unrecognized element type `{}`", tag)
+            }
             DecoderError::InvalidArrayKey(ref want, ref got) => {
                 write!(fmt, "invalid array key: expected `{}`, got `{}`", want, got)
             }
-            DecoderError::ExpectedField(field_type) => write!(fmt, "expected a field of type `{}`", field_type),
+            DecoderError::ExpectedField(field_type) => {
+                write!(fmt, "expected a field of type `{}`", field_type)
+            }
             DecoderError::UnknownField(ref field) => write!(fmt, "unknown field `{}`", field),
             DecoderError::SyntaxError(ref inner) => inner.fmt(fmt),
             DecoderError::EndOfStream => fmt.write_str("end of stream"),
             DecoderError::InvalidType(ref desc) => desc.fmt(fmt),
-            DecoderError::InvalidLength(ref len, ref desc) => write!(fmt, "expecting length {}, {}", len, desc),
+            DecoderError::InvalidLength(ref len, ref desc) => {
+                write!(fmt, "expecting length {}, {}", len, desc)
+            }
             DecoderError::DuplicatedField(ref field) => write!(fmt, "duplicated field `{}`", field),
             DecoderError::UnknownVariant(ref var) => write!(fmt, "unknown variant `{}`", var),
             DecoderError::InvalidValue(ref desc) => desc.fmt(fmt),

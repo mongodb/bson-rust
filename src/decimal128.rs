@@ -1,7 +1,6 @@
 //! [BSON Decimal128](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst) data type representation
 
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 use decimal::d128;
 
@@ -26,7 +25,9 @@ impl Decimal128 {
     /// let dec128 = Decimal128::from_str("1.05E+3");
     /// ```
     pub fn from_str(s: &str) -> Decimal128 {
-        Decimal128 { inner: s.parse::<d128>().expect("Invalid Decimal128 string"), }
+        Decimal128 {
+            inner: s.parse::<d128>().expect("Invalid Decimal128 string"),
+        }
     }
 
     /// Construct a `Decimal128` from a `i32` number.
@@ -38,7 +39,9 @@ impl Decimal128 {
     /// let dec128 = Decimal128::from_i32(num);
     /// ```
     pub fn from_i32(d: i32) -> Decimal128 {
-        Decimal128 { inner: From::from(d) }
+        Decimal128 {
+            inner: From::from(d),
+        }
     }
 
     /// Construct a `Decimal128` from a `u32` number.
@@ -50,7 +53,9 @@ impl Decimal128 {
     /// let dec128 = Decimal128::from_u32(num);
     /// ```
     pub fn from_u32(d: u32) -> Decimal128 {
-        Decimal128 { inner: From::from(d) }
+        Decimal128 {
+            inner: From::from(d),
+        }
     }
 
     /// Construct a `Decimal128` from a `i32` number.
@@ -89,7 +94,9 @@ impl Decimal128 {
     /// let dec128 = Decimal128::zero();
     /// ```
     pub fn zero() -> Decimal128 {
-        Decimal128 { inner: d128::zero() }
+        Decimal128 {
+            inner: d128::zero(),
+        }
     }
 
     #[doc(hidden)]
@@ -98,7 +105,9 @@ impl Decimal128 {
             raw.reverse();
         }
 
-        Decimal128 { inner: d128::from_raw_bytes(raw), }
+        Decimal128 {
+            inner: d128::from_raw_bytes(raw),
+        }
     }
 
     #[doc(hidden)]

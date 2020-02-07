@@ -24,20 +24,26 @@
 mod error;
 mod serde;
 
-pub use self::error::{DecoderError, DecoderResult};
-pub use self::serde::Decoder;
+pub use self::{
+    error::{DecoderError, DecoderResult},
+    serde::Decoder,
+};
 
 use std::io::Read;
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use chrono::offset::{LocalResult, TimeZone};
-use chrono::Utc;
+use chrono::{
+    offset::{LocalResult, TimeZone},
+    Utc,
+};
 
-use crate::bson::{Array, Bson, Document};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
-use crate::oid;
-use crate::spec::{self, BinarySubtype};
+use crate::{
+    bson::{Array, Bson, Document},
+    oid,
+    spec::{self, BinarySubtype},
+};
 
 use ::serde::de::Deserialize;
 
@@ -48,7 +54,10 @@ fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderRes
 
     // UTF-8 String must have at least 1 byte (the last 0x00).
     if len < 1 {
-        return Err(DecoderError::InvalidLength(len as usize, format!("invalid length {} for UTF-8 string", len)));
+        return Err(DecoderError::InvalidLength(
+            len as usize,
+            format!("invalid length {} for UTF-8 string", len),
+        ));
     }
 
     let s = if utf8_lossy {
@@ -186,7 +195,10 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
         Some(Binary) => {
             let len = read_i32(reader)?;
             if len < 0 || len > MAX_BSON_SIZE {
-                return Err(DecoderError::InvalidLength(len as usize, format!("Invalid binary length of {}", len)));
+                return Err(DecoderError::InvalidLength(
+                    len as usize,
+                    format!("Invalid binary length of {}", len),
+                ));
             }
             let subtype = BinarySubtype::from(reader.read_u8()?);
             let mut data = Vec::with_capacity(len as usize);
@@ -226,7 +238,11 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
 
             let sec = time / 1000;
             let tmp_msec = time % 1000;
-            let msec = if tmp_msec < 0 { 1000 - tmp_msec } else { tmp_msec };
+            let msec = if tmp_msec < 0 {
+                1000 - tmp_msec
+            } else {
+                tmp_msec
+            };
 
             match Utc.timestamp_opt(sec, (msec as u32) * 1_000_000) {
                 LocalResult::None => Err(DecoderError::InvalidTimestamp(time)),
@@ -245,7 +261,8 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
 
 /// Decode a BSON `Value` into a `T` Deserializable.
 pub fn from_bson<'de, T>(bson: Bson) -> DecoderResult<T>
-    where T: Deserialize<'de>
+where
+    T: Deserialize<'de>,
 {
     let de = Decoder::new(bson);
     Deserialize::deserialize(de)

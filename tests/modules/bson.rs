@@ -1,10 +1,13 @@
-use serde_json::{Value, json};
-use bson::{Bson, Document, doc, oid::ObjectId, spec::BinarySubtype};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Bson, Document};
+use serde_json::{json, Value};
 
 #[test]
 fn to_json() {
     let mut doc = Document::new();
-    doc.insert("_id", Bson::ObjectId(ObjectId::with_bytes(*b"abcdefghijkl")));
+    doc.insert(
+        "_id",
+        Bson::ObjectId(ObjectId::with_bytes(*b"abcdefghijkl")),
+    );
     doc.insert("first", Bson::I32(1));
     doc.insert("second", Bson::String("foo".to_owned()));
     doc.insert("alphanumeric", Bson::String("bar".to_owned()));
@@ -50,28 +53,54 @@ fn from_impls() {
     assert_eq!(Bson::from(1.5f32), Bson::FloatingPoint(1.5));
     assert_eq!(Bson::from(2.25f64), Bson::FloatingPoint(2.25));
     assert_eq!(Bson::from("data"), Bson::String(String::from("data")));
-    assert_eq!(Bson::from(String::from("data")), Bson::String(String::from("data")));
-    assert_eq!(Bson::from(doc!{}), Bson::Document(Document::new()));
+    assert_eq!(
+        Bson::from(String::from("data")),
+        Bson::String(String::from("data"))
+    );
+    assert_eq!(Bson::from(doc! {}), Bson::Document(Document::new()));
     assert_eq!(Bson::from(false), Bson::Boolean(false));
-    assert_eq!(Bson::from((String::from("\\s+$"), String::from("i"))), Bson::RegExp(String::from("\\s+$"), String::from("i")));
-    assert_eq!(Bson::from((String::from("alert(\"hi\");"), doc!{})), Bson::JavaScriptCodeWithScope(String::from("alert(\"hi\");"), doc!{}));
+    assert_eq!(
+        Bson::from((String::from("\\s+$"), String::from("i"))),
+        Bson::RegExp(String::from("\\s+$"), String::from("i"))
+    );
+    assert_eq!(
+        Bson::from((String::from("alert(\"hi\");"), doc! {})),
+        Bson::JavaScriptCodeWithScope(String::from("alert(\"hi\");"), doc! {})
+    );
     //
-    assert_eq!(Bson::from((BinarySubtype::Generic, vec![1, 2, 3])), Bson::Binary(BinarySubtype::Generic, vec![1, 2, 3]));
+    assert_eq!(
+        Bson::from((BinarySubtype::Generic, vec![1, 2, 3])),
+        Bson::Binary(BinarySubtype::Generic, vec![1, 2, 3])
+    );
     assert_eq!(Bson::from(-48i32), Bson::I32(-48));
     assert_eq!(Bson::from(-96i64), Bson::I64(-96));
     assert_eq!(Bson::from(152u32), Bson::I32(152));
     assert_eq!(Bson::from(4096u64), Bson::I64(4096));
 
     let oid = ObjectId::new().unwrap();
-    assert_eq!(Bson::from(b"abcdefghijkl"), Bson::ObjectId(ObjectId::with_bytes(*b"abcdefghijkl")));
+    assert_eq!(
+        Bson::from(b"abcdefghijkl"),
+        Bson::ObjectId(ObjectId::with_bytes(*b"abcdefghijkl"))
+    );
     assert_eq!(Bson::from(oid.clone()), Bson::ObjectId(oid.clone()));
-    assert_eq!(Bson::from(vec![1, 2, 3]), Bson::Array(vec![Bson::I32(1), Bson::I32(2), Bson::I32(3)]));
-    assert_eq!(Bson::from(json!({"_id": {"$oid": oid.to_hex()}, "name": ["bson-rs"]})), Bson::Document(doc!{"_id": &oid, "name": ["bson-rs"]}));
+    assert_eq!(
+        Bson::from(vec![1, 2, 3]),
+        Bson::Array(vec![Bson::I32(1), Bson::I32(2), Bson::I32(3)])
+    );
+    assert_eq!(
+        Bson::from(json!({"_id": {"$oid": oid.to_hex()}, "name": ["bson-rs"]})),
+        Bson::Document(doc! {"_id": &oid, "name": ["bson-rs"]})
+    );
 
     // References
     assert_eq!(Bson::from(&24i32), Bson::I32(24));
-    assert_eq!(Bson::from(&String::from("data")), Bson::String(String::from("data")));
+    assert_eq!(
+        Bson::from(&String::from("data")),
+        Bson::String(String::from("data"))
+    );
     assert_eq!(Bson::from(&oid), Bson::ObjectId(oid));
-    assert_eq!(Bson::from(&doc!{"a": "b"}), Bson::Document(doc!{"a": "b"}));
-
+    assert_eq!(
+        Bson::from(&doc! {"a": "b"}),
+        Bson::Document(doc! {"a": "b"})
+    );
 }

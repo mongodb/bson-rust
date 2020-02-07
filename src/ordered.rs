@@ -1,9 +1,11 @@
 //! A BSON document represented as an associative HashMap with insertion ordering.
 
-use std::error;
-use std::fmt::{self, Debug, Display, Formatter};
-use std::iter::{Extend, FromIterator, Map};
-use std::marker::PhantomData;
+use std::{
+    error,
+    fmt::{self, Debug, Display, Formatter},
+    iter::{Extend, FromIterator, Map},
+    marker::PhantomData,
+};
 
 use chrono::{DateTime, Utc};
 
@@ -11,11 +13,13 @@ use linked_hash_map::{self, LinkedHashMap};
 
 use serde::de::{self, MapAccess, Visitor};
 
-use crate::bson::{Array, Bson, Document};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
-use crate::oid::ObjectId;
-use crate::spec::BinarySubtype;
+use crate::{
+    bson::{Array, Bson, Document},
+    oid::ObjectId,
+    spec::BinarySubtype,
+};
 
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters.
@@ -34,7 +38,9 @@ impl Debug for ValueAccessError {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             ValueAccessError::NotPresent => write!(f, "ValueAccessError: field is not present"),
-            ValueAccessError::UnexpectedType => write!(f, "ValueAccessError: field does not have the expected type"),
+            ValueAccessError::UnexpectedType => {
+                write!(f, "ValueAccessError: field does not have the expected type")
+            }
         }
     }
 }
@@ -142,7 +148,9 @@ impl<'a> IntoIterator for &'a OrderedDocument {
     type IntoIter = OrderedDocumentIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIterator { inner: self.inner.iter() }
+        OrderedDocumentIterator {
+            inner: self.inner.iter(),
+        }
     }
 }
 
@@ -175,7 +183,9 @@ impl<'a> Iterator for OrderedDocumentIterator<'a> {
 impl OrderedDocument {
     /// Creates a new empty OrderedDocument.
     pub fn new() -> OrderedDocument {
-        OrderedDocument { inner: LinkedHashMap::new() }
+        OrderedDocument {
+            inner: LinkedHashMap::new(),
+        }
     }
 
     /// Gets an iterator over the entries of the map.
@@ -364,7 +374,8 @@ impl OrderedDocument {
         }
     }
 
-    /// Get a mutable reference to a time stamp value for this key if it exists and has the correct type.
+    /// Get a mutable reference to a time stamp value for this key if it exists and has the correct
+    /// type.
     pub fn get_time_stamp_mut(&mut self, key: &str) -> ValueAccessResult<&mut i64> {
         match self.get_mut(key) {
             Some(&mut Bson::TimeStamp(ref mut v)) => Ok(v),
@@ -373,7 +384,8 @@ impl OrderedDocument {
         }
     }
 
-    /// Get a reference to a generic binary value for this key if it exists and has the correct type.
+    /// Get a reference to a generic binary value for this key if it exists and has the correct
+    /// type.
     pub fn get_binary_generic(&self, key: &str) -> ValueAccessResult<&Vec<u8>> {
         match self.get(key) {
             Some(&Bson::Binary(BinarySubtype::Generic, ref v)) => Ok(v),
@@ -382,7 +394,8 @@ impl OrderedDocument {
         }
     }
 
-    /// Get a mutable reference generic binary value for this key if it exists and has the correct type.
+    /// Get a mutable reference generic binary value for this key if it exists and has the correct
+    /// type.
     pub fn get_binary_generic_mut(&mut self, key: &str) -> ValueAccessResult<&mut Vec<u8>> {
         match self.get_mut(key) {
             Some(&mut Bson::Binary(BinarySubtype::Generic, ref mut v)) => Ok(v),
@@ -400,7 +413,8 @@ impl OrderedDocument {
         }
     }
 
-    /// Get a mutable reference to an object id value for this key if it exists and has the correct type.
+    /// Get a mutable reference to an object id value for this key if it exists and has the correct
+    /// type.
     pub fn get_object_id_mut(&mut self, key: &str) -> ValueAccessResult<&mut ObjectId> {
         match self.get_mut(key) {
             Some(&mut Bson::ObjectId(ref mut v)) => Ok(v),
@@ -418,7 +432,8 @@ impl OrderedDocument {
         }
     }
 
-    /// Get a mutable reference to a UTC datetime value for this key if it exists and has the correct type.
+    /// Get a mutable reference to a UTC datetime value for this key if it exists and has the
+    /// correct type.
     pub fn get_utc_datetime_mut(&mut self, key: &str) -> ValueAccessResult<&mut DateTime<Utc>> {
         match self.get_mut(key) {
             Some(&mut Bson::UtcDatetime(ref mut v)) => Ok(v),
@@ -439,7 +454,9 @@ impl OrderedDocument {
         }
         let first: fn((&'a String, &'a Bson)) -> &'a String = first;
 
-        Keys { inner: self.iter().map(first) }
+        Keys {
+            inner: self.iter().map(first),
+        }
     }
 
     /// Gets a collection of all values in the document.
@@ -449,7 +466,9 @@ impl OrderedDocument {
         }
         let second: fn((&'a String, &'a Bson)) -> &'a Bson = second;
 
-        Values { inner: self.iter().map(second) }
+        Values {
+            inner: self.iter().map(second),
+        }
     }
 
     /// Returns the number of elements in the document.
@@ -481,7 +500,9 @@ impl OrderedDocument {
     }
 
     pub fn entry(&mut self, k: String) -> Entry {
-        Entry { inner: self.inner.entry(k) }
+        Entry {
+            inner: self.inner.entry(k),
+        }
     }
 }
 
@@ -515,7 +536,9 @@ pub struct OrderedDocumentVisitor {
 
 impl OrderedDocumentVisitor {
     pub fn new() -> OrderedDocumentVisitor {
-        OrderedDocumentVisitor { marker: PhantomData }
+        OrderedDocumentVisitor {
+            marker: PhantomData,
+        }
     }
 }
 
@@ -528,14 +551,16 @@ impl<'de> Visitor<'de> for OrderedDocumentVisitor {
 
     #[inline]
     fn visit_unit<E>(self) -> Result<OrderedDocument, E>
-        where E: de::Error
+    where
+        E: de::Error,
     {
         Ok(OrderedDocument::new())
     }
 
     #[inline]
     fn visit_map<V>(self, mut visitor: V) -> Result<OrderedDocument, V::Error>
-        where V: MapAccess<'de>
+    where
+        V: MapAccess<'de>,
     {
         let mut inner = match visitor.size_hint() {
             Some(size) => LinkedHashMap::with_capacity(size),
