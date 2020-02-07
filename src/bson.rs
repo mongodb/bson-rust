@@ -159,7 +159,7 @@ impl Display for Bson {
             Bson::I64(i) => write!(fmt, "{}", i),
             Bson::TimeStamp(i) => {
                 let time = (i >> 32) as i32;
-                let inc = (i & 0xFFFFFFFF) as i32;
+                let inc = (i & 0xFFFF_FFFF) as i32;
 
                 write!(fmt, "Timestamp({}, {})", time, inc)
             }
@@ -252,7 +252,7 @@ where
     T: Clone + Into<Bson>,
 {
     fn from(s: &[T]) -> Bson {
-        Bson::Array(s.into_iter().cloned().map(|val| val.into()).collect())
+        Bson::Array(s.iter().cloned().map(|val| val.into()).collect())
     }
 }
 
@@ -372,7 +372,7 @@ impl From<Bson> for Value {
             Bson::ObjectId(v) => json!({"$oid": v.to_string()}),
             Bson::UtcDatetime(v) => json!({
                 "$date": {
-                    "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1000000) as i64)
+                    "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1_000_000) as i64)
                 }
             }),
             // FIXME: Don't know what is the best way to encode Symbol type
@@ -475,7 +475,7 @@ impl Bson {
             Bson::UtcDatetime(ref v) => {
                 doc! {
                     "$date": {
-                        "$numberLong" => (v.timestamp() * 1000) + v.nanosecond() as i64 / 1000000,
+                        "$numberLong" => (v.timestamp() * 1000) + v.nanosecond() as i64 / 1_000_000,
                     }
                 }
             }

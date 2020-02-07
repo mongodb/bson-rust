@@ -30,15 +30,13 @@
 //! use bson::{decode_document, encode_document, Bson, Document};
 //! use std::io::Cursor;
 //!
-//! fn main() {
-//!     let mut doc = Document::new();
-//!     doc.insert("foo".to_owned(), Bson::String("bar".to_owned()));
+//! let mut doc = Document::new();
+//! doc.insert("foo".to_owned(), Bson::String("bar".to_owned()));
 //!
-//!     let mut buf = Vec::new();
-//!     encode_document(&mut buf, &doc).unwrap();
+//! let mut buf = Vec::new();
+//! encode_document(&mut buf, &doc).unwrap();
 //!
-//!     let doc = decode_document(&mut Cursor::new(&buf[..])).unwrap();
-//! }
+//! let doc = decode_document(&mut Cursor::new(&buf[..])).unwrap();
 //! ```
 
 #[cfg(feature = "decimal128")]

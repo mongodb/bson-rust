@@ -7,10 +7,7 @@ fn standard_format() {
     let id_string = "thisismyname";
     let string_bytes: Vec<_> = id_string.bytes().collect();
     let mut bytes = [0; 12];
-
-    for i in 0..12 {
-        bytes[i] = string_bytes[i];
-    }
+    bytes[..12].clone_from_slice(&string_bytes[..12]);
 
     let id = ObjectId::with_bytes(bytes);
     let date = Utc::now();
@@ -31,7 +28,7 @@ fn standard_format() {
         "code": Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
         "i32": 12,
         "i64": -55,
-        "timestamp": Bson::TimeStamp(229999444),
+        "timestamp": Bson::TimeStamp(229_999_444),
         "binary": Bson::Binary(BinarySubtype::Md5, "thingies".to_owned().into_bytes()),
         "_id": id,
         "date": Bson::UtcDatetime(date),
@@ -57,10 +54,7 @@ fn rocket_format() {
     let id_string = "thisismyname";
     let string_bytes: Vec<_> = id_string.bytes().collect();
     let mut bytes = [0; 12];
-
-    for i in 0..12 {
-        bytes[i] = string_bytes[i];
-    }
+    bytes[..12].clone_from_slice(&string_bytes[..12]);
 
     let id = ObjectId::with_bytes(bytes);
     let date = Utc::now();
@@ -81,7 +75,7 @@ fn rocket_format() {
         "code" => Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
         "i32" => 12,
         "i64" => -55,
-        "timestamp" => Bson::TimeStamp(229999444),
+        "timestamp" => Bson::TimeStamp(229_999_444),
         "binary" => Bson::Binary(BinarySubtype::Md5, "thingies".to_owned().into_bytes()),
         "_id" => id,
         "date" => Bson::UtcDatetime(date),
@@ -108,7 +102,7 @@ fn non_trailing_comma() {
         "b": { "ok": "then" }
     };
 
-    let expected = format!("{{ a: \"foo\", b: {{ ok: \"then\" }} }}");
+    let expected = "{{ a: \"foo\", b: {{ ok: \"then\" }} }}".to_string();
     assert_eq!(expected, format!("{}", doc));
 }
 
@@ -119,11 +113,12 @@ fn non_trailing_comma_with_rockets() {
         "b" => { "ok": "then" }
     };
 
-    let expected = format!("{{ a: \"foo\", b: {{ ok: \"then\" }} }}");
+    let expected = "{{ a: \"foo\", b: {{ ok: \"then\" }} }}".to_string();
     assert_eq!(expected, format!("{}", doc));
 }
 
 #[test]
+#[allow(clippy::float_cmp)]
 fn recursive_macro() {
     let doc = doc! {
         "a": "foo",

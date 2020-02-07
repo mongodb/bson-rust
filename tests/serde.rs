@@ -1,3 +1,5 @@
+#![allow(clippy::blacklisted_name)]
+
 use bson::{bson, doc, Bson, Decoder, Encoder};
 use serde::{Deserialize, Serialize};
 use serde_derive::{Deserialize, Serialize};
@@ -105,7 +107,7 @@ fn test_ser_datetime() {
     let now = Utc::now();
     // FIXME: Due to BSON's datetime precision
     let now = now
-        .with_nanosecond(now.nanosecond() / 1000000 * 1000000)
+        .with_nanosecond(now.nanosecond() / 1_000_000 * 1_000_000)
         .unwrap();
 
     let foo = Foo {
@@ -209,7 +211,7 @@ fn test_serde_tuple_struct() {
 
     let name_1 = Name(String::from("Graydon"), String::from("Hoare"));
     let b = bson::to_bson(&name_1).unwrap();
-    assert_eq!(b, bson!([name_1.0.clone(), name_1.1.clone(),]));
+    assert_eq!(b, bson!([name_1.0.clone(), name_1.1]));
 
     let (first, last) = (String::from("Donald"), String::from("Knuth"));
     let de = bson!([first.clone(), last.clone()]);
@@ -245,6 +247,7 @@ fn test_serde_tuple_variant() {
         ThreeDim(f64, f64, f64),
     }
 
+    #[allow(clippy::approx_constant)]
     let (x1, y1) = (3.14, -2.71);
     let p1 = Point::TwoDim(x1, y1);
     let b = bson::to_bson(&p1).unwrap();

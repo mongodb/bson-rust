@@ -108,20 +108,22 @@ pub struct OrderedDocumentIterator<'a> {
     inner: linked_hash_map::Iter<'a, String, Bson>,
 }
 
+type DocumentMap<'a, T> = Map<OrderedDocumentIterator<'a>, fn((&'a String, &'a Bson)) -> T>;
+
 /// An iterator over an OrderedDocument's keys.
 pub struct Keys<'a> {
-    inner: Map<OrderedDocumentIterator<'a>, fn((&'a String, &'a Bson)) -> &'a String>,
+    inner: DocumentMap<'a, &'a String>,
 }
 
 /// An iterator over an OrderedDocument's values.
 pub struct Values<'a> {
-    inner: Map<OrderedDocumentIterator<'a>, fn((&'a String, &'a Bson)) -> &'a Bson>,
+    inner: DocumentMap<'a, &'a Bson>,
 }
 
 impl<'a> Iterator for Keys<'a> {
     type Item = &'a String;
 
-    fn next(&mut self) -> Option<(&'a String)> {
+    fn next(&mut self) -> Option<&'a String> {
         self.inner.next()
     }
 }
@@ -129,7 +131,7 @@ impl<'a> Iterator for Keys<'a> {
 impl<'a> Iterator for Values<'a> {
     type Item = &'a Bson;
 
-    fn next(&mut self) -> Option<(&'a Bson)> {
+    fn next(&mut self) -> Option<&'a Bson> {
         self.inner.next()
     }
 }
@@ -189,7 +191,7 @@ impl OrderedDocument {
     }
 
     /// Gets an iterator over the entries of the map.
-    pub fn iter<'a>(&'a self) -> OrderedDocumentIterator<'a> {
+    pub fn iter(&self) -> OrderedDocumentIterator {
         self.into_iter()
     }
 
@@ -535,6 +537,7 @@ pub struct OrderedDocumentVisitor {
 }
 
 impl OrderedDocumentVisitor {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> OrderedDocumentVisitor {
         OrderedDocumentVisitor {
             marker: PhantomData,

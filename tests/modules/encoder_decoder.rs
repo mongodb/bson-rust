@@ -275,7 +275,7 @@ fn test_encode_decode_object_id() {
 
 #[test]
 fn test_encode_utc_date_time() {
-    let src = Utc.timestamp(1286705410, 0);
+    let src = Utc.timestamp(1_286_705_410, 0);
     let dst = vec![
         18, 0, 0, 0, 9, 107, 101, 121, 0, 208, 111, 158, 149, 43, 1, 0, 0, 0,
     ];
@@ -311,7 +311,7 @@ fn test_encode_decode_symbol() {
 
 #[test]
 fn test_decode_utc_date_time_overflows() {
-    let t = 1530492218 * 1_000 + 999;
+    let t = 1_530_492_218 * 1_000 + 999;
 
     let mut raw0 = vec![0x09, b'A', 0x00];
     raw0.write_i64::<LittleEndian>(t).unwrap();
@@ -324,7 +324,7 @@ fn test_decode_utc_date_time_overflows() {
 
     let decoded = decode_document(&mut Cursor::new(raw)).unwrap();
 
-    let expected = doc! { "A" => Utc.timestamp(1530492218, 999 * 1_000_000)};
+    let expected = doc! { "A" => Utc.timestamp(1_530_492_218, 999 * 1_000_000)};
     assert_eq!(decoded, expected);
 }
 

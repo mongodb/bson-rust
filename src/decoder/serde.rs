@@ -216,7 +216,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
         V: MapAccess<'de>,
     {
         let values = OrderedDocumentVisitor::new().visit_map(visitor)?;
-        Ok(Bson::from_extended_document(values.into()))
+        Ok(Bson::from_extended_document(values))
     }
 
     #[inline]
@@ -296,7 +296,7 @@ impl<'de> Deserializer<'de> for Decoder {
                 let len = v.len();
                 visitor.visit_seq(SeqDecoder {
                     iter: v.into_iter(),
-                    len: len,
+                    len,
                 })
             }
             Bson::Document(v) => {
@@ -304,7 +304,7 @@ impl<'de> Deserializer<'de> for Decoder {
                 visitor.visit_map(MapDecoder {
                     iter: v.into_iter(),
                     value: None,
-                    len: len,
+                    len,
                 })
             }
             Bson::Boolean(v) => visitor.visit_bool(v),
@@ -318,7 +318,7 @@ impl<'de> Deserializer<'de> for Decoder {
                 visitor.visit_map(MapDecoder {
                     iter: doc.into_iter(),
                     value: None,
-                    len: len,
+                    len,
                 })
             }
         }
@@ -477,7 +477,7 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
             };
             de.deserialize_any(visitor)
         } else {
-            return Err(DecoderError::InvalidType("expected a tuple".to_owned()));
+            Err(DecoderError::InvalidType("expected a tuple".to_owned()))
         }
     }
 
@@ -497,7 +497,7 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
             };
             de.deserialize_any(visitor)
         } else {
-            return Err(DecoderError::InvalidType("expected a struct".to_owned()));
+            Err(DecoderError::InvalidType("expected a struct".to_owned()))
         }
     }
 }

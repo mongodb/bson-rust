@@ -101,15 +101,12 @@ impl ObjectId {
         let counter = ObjectId::gen_count()?;
 
         let mut buf: [u8; 12] = [0; 12];
-        for i in 0..TIMESTAMP_SIZE {
-            buf[TIMESTAMP_OFFSET + i] = timestamp[i];
-        }
-        for i in 0..PROCESS_ID_SIZE {
-            buf[PROCESS_ID_OFFSET + i] = process_id[i];
-        }
-        for i in 0..COUNTER_SIZE {
-            buf[COUNTER_OFFSET + i] = counter[i];
-        }
+        buf[TIMESTAMP_OFFSET..(TIMESTAMP_SIZE + TIMESTAMP_OFFSET)]
+            .clone_from_slice(&timestamp[..TIMESTAMP_SIZE]);
+        buf[PROCESS_ID_OFFSET..(PROCESS_ID_SIZE + PROCESS_ID_OFFSET)]
+            .clone_from_slice(&process_id[..PROCESS_ID_SIZE]);
+        buf[COUNTER_OFFSET..(COUNTER_SIZE + COUNTER_OFFSET)]
+            .clone_from_slice(&counter[..COUNTER_SIZE]);
 
         Ok(ObjectId::with_bytes(buf))
     }
@@ -155,9 +152,9 @@ impl ObjectId {
     /// Retrieves the increment counter from an ObjectId.
     pub fn counter(&self) -> u32 {
         let mut buf: [u8; 4] = [0; 4];
-        for i in 0..COUNTER_SIZE {
-            buf[i + 1] = self.id[COUNTER_OFFSET + i];
-        }
+        buf[1..=COUNTER_SIZE]
+            .clone_from_slice(&self.id[COUNTER_OFFSET..(COUNTER_SIZE + COUNTER_OFFSET)]);
+
         BigEndian::read_u32(&buf)
     }
 
@@ -235,9 +232,7 @@ fn count_generated_is_big_endian() {
     let count_bytes = count_res.unwrap();
 
     let mut buf: [u8; 4] = [0; 4];
-    for i in 0..COUNTER_SIZE {
-        buf[i + 1] = count_bytes[i];
-    }
+    buf[1..=COUNTER_SIZE].clone_from_slice(&count_bytes[..COUNTER_SIZE]);
 
     let count = BigEndian::read_u32(&buf);
     assert_eq!(start as u32, count);

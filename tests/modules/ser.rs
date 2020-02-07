@@ -5,6 +5,7 @@ use bson::{from_bson, oid::ObjectId, to_bson, Bson, EncoderError, EncoderResult}
 use std::{collections::BTreeMap, u16, u32, u64, u8};
 
 #[test]
+#[allow(clippy::float_cmp)]
 fn floating_point() {
     let obj = Bson::FloatingPoint(240.5);
     let f: f64 = from_bson(obj.clone()).unwrap();
@@ -27,7 +28,7 @@ fn string() {
 #[test]
 fn arr() {
     let obj = Bson::Array(vec![Bson::I32(0), Bson::I32(1), Bson::I32(2), Bson::I32(3)]);
-    let arr: Vec<i32> = from_bson(obj.clone().clone()).unwrap();
+    let arr: Vec<i32> = from_bson(obj.clone()).unwrap();
     assert_eq!(arr, vec![0i32, 1i32, 2i32, 3i32]);
 
     let deser: Bson = to_bson(&arr).unwrap();
