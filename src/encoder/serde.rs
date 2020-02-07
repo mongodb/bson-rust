@@ -76,6 +76,7 @@ pub struct Encoder;
 
 impl Encoder {
     /// Construct a new `Serializer`.
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Encoder {
         Encoder
     }

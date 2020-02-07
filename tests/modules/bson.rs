@@ -11,7 +11,7 @@ fn to_json() {
     doc.insert("first", Bson::I32(1));
     doc.insert("second", Bson::String("foo".to_owned()));
     doc.insert("alphanumeric", Bson::String("bar".to_owned()));
-    let data: Value = Bson::Document(doc).clone().into();
+    let data: Value = Bson::Document(doc).into();
 
     assert!(data.is_object());
     let obj = data.as_object().unwrap();
