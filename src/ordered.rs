@@ -1,6 +1,5 @@
 //! A BSON document represented as an associative HashMap with insertion ordering.
 
-use std::convert::TryInto;
 use std::error;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::iter::{Extend, FromIterator, Map};
@@ -10,7 +9,7 @@ use chrono::{DateTime, Utc};
 
 use linked_hash_map::{self, LinkedHashMap};
 
-use serde::de::{self, MapAccess, Visitor, Error};
+use serde::de::{self, MapAccess, Visitor};
 
 use crate::bson::{Array, Bson, Document};
 #[cfg(feature = "decimal128")]
@@ -543,37 +542,10 @@ impl<'de> Visitor<'de> for OrderedDocumentVisitor {
             None => LinkedHashMap::new(),
         };
 
-        let mut binary_holder: (Option<BinarySubtype>, Option<Vec<u8>>) = (None, None);
-        while let Some((key, value)) = visitor.next_entry().expect("NOOO") {
-            if key == crate::de::object_id::FIELD {
-                if let Bson::Binary(_, data) = value {
-                    inner.insert("$oid".into(), ObjectId::with_bytes(data[..].try_into().unwrap()).to_hex().into());
-                } else {
-                    return Err(V::Error::custom("expected binary object id"));
-                }
-            } else if key == crate::de::binary::SUBTYPE_FIELD {
-                match binary_holder.0 {
-                    None => {
-                        if let Bson::I32(subtype) = value {
-                            binary_holder.0 = Some(BinarySubtype::from(subtype as u8));
-                        } else {
-                            return Err(V::Error::custom("expected binary subtype as Bson::I32"))
-                        }
-                    }
-                    Some(_) => {
-                        return Err(V::Error::custom("got unexpected duplicate binary subtype"));
-                    }
-                }
-            } else if key == crate::de::utc_datetime::FIELD {
-                if let Bson::I64(millis) = value {
-                    inner.insert("$date".into(), bson!({ "$numberLong": millis }));
-                } else {
-                    return Err(V::Error::custom("expected utc_datetime milliseconds as Bson::I64"));
-                }
-            } else {
-                inner.insert(key, value);
-            };
+        while let Some((key, value)) = visitor.next_entry()? {
+            inner.insert(key, value);
         }
+
         Ok(inner.into())
     }
 }
