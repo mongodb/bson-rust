@@ -115,7 +115,7 @@ pub struct Values<'a> {
 impl<'a> Iterator for Keys<'a> {
     type Item = &'a String;
 
-    fn next(&mut self) -> Option<(&'a String)> {
+    fn next(&mut self) -> Option<&'a String> {
         self.inner.next()
     }
 }
@@ -123,7 +123,7 @@ impl<'a> Iterator for Keys<'a> {
 impl<'a> Iterator for Values<'a> {
     type Item = &'a Bson;
 
-    fn next(&mut self) -> Option<(&'a Bson)> {
+    fn next(&mut self) -> Option<&'a Bson> {
         self.inner.next()
     }
 }
