@@ -5,7 +5,6 @@ use serde::de::{
     self, Deserialize, DeserializeSeed, Deserializer, EnumAccess, Error, MapAccess, SeqAccess, Unexpected,
     VariantAccess, Visitor,
 };
-use serde::forward_to_deserialize_any;
 
 use super::error::{DecoderError, DecoderResult};
 use crate::bson::{Bson, TimeStamp, UtcDateTime};
@@ -14,11 +13,25 @@ use crate::decimal128::Decimal128;
 use crate::oid::ObjectId;
 use crate::ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor};
 use crate::spec::BinarySubtype;
-use crate::de::object_id;
-use crate::de::utc_datetime;
-use chrono::{Utc, TimeZone};
 
 pub struct BsonVisitor;
+
+impl<'de> Deserialize<'de> for ObjectId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer<'de>
+    {
+        deserializer.deserialize_map(BsonVisitor).and_then(|bson| {
+                                                     if let Bson::ObjectId(oid) = bson {
+                                                         Ok(oid)
+                                                     } else {
+                                                         let err =
+                                                             format!("expected objectId extended document, found {}",
+                                                                     bson);
+                                                         Err(de::Error::invalid_type(Unexpected::Map, &&err[..]))
+                                                     }
+                                                 })
+    }
+}
 
 impl<'de> Deserialize<'de> for OrderedDocument {
     /// Deserialize this value given this `Deserializer`.
@@ -178,7 +191,6 @@ impl<'de> Visitor<'de> for BsonVisitor {
     }
 }
 
-
 /// Serde Decoder
 pub struct Decoder {
     value: Option<Bson>,
@@ -244,23 +256,26 @@ impl<'de> Deserializer<'de> for Decoder {
             Bson::String(v) => visitor.visit_string(v),
             Bson::Array(v) => {
                 let len = v.len();
-                visitor.visit_seq(SeqDecoder { iter: v.into_iter(), len })
+                visitor.visit_seq(SeqDecoder { iter: v.into_iter(),
+                                               len: len })
             }
             Bson::Document(v) => {
                 let len = v.len();
-                visitor.visit_map(MapDecoder { iter: v.into_iter(), value: None, len })
+                visitor.visit_map(MapDecoder { iter: v.into_iter(),
+                                               value: None,
+                                               len: len })
             }
             Bson::Boolean(v) => visitor.visit_bool(v),
             Bson::Null => visitor.visit_unit(),
             Bson::I32(v) => visitor.visit_i32(v),
             Bson::I64(v) => visitor.visit_i64(v),
             Bson::Binary(_, v) => visitor.visit_bytes(&v),
-            Bson::ObjectId(_) => self.deserialize_struct(object_id::NAME, object_id::FIELDS, visitor),
-            Bson::UtcDatetime(_) => self.deserialize_struct(utc_datetime::NAME, utc_datetime::FIELDS, visitor),
             _ => {
                 let doc = value.to_extended_document();
                 let len = doc.len();
-                visitor.visit_map(MapDecoder { iter: doc.into_iter(), value: None, len })
+                visitor.visit_map(MapDecoder { iter: doc.into_iter(),
+                                               value: None,
+                                               len: len })
             }
         }
     }
@@ -320,32 +335,6 @@ impl<'de> Deserializer<'de> for Decoder {
         visitor.visit_newtype_struct(self)
     }
 
-    fn deserialize_struct<V>(mut self, name: &'static str, _fields: &'static [&'static str], visitor: V) -> DecoderResult<V::Value>
-    where
-        V: Visitor<'de>
-    {
-        if name == object_id::NAME {
-            let val = match self.value.take() {
-                Some(Bson::ObjectId(oid)) => oid,
-                Some(_) => return Err(DecoderError::InvalidType("expected ObjectId".into())),
-                None => return Err(DecoderError::EndOfStream),
-            };
-            visitor.visit_map(
-                OwnedObjectIdDeserializer::new(val)
-            )
-        } else if name == utc_datetime::NAME {
-            let val = match self.value.take() {
-                Some(Bson::UtcDatetime(dt)) => dt,
-                Some(_) => return Err(DecoderError::InvalidType("expected UtcDateTime".into())),
-                None => return Err(DecoderError::EndOfStream),
-            };
-            visitor.visit_map(
-                utc_datetime::UtcDateTimeDeserializer::new(val.timestamp_millis())
-            ).map_err(|err| DecoderError::Unknown(format!("{}", err)))
-        } else {
-            self.deserialize_map(visitor)
-        }
-    }
     forward_to_deserialize! {
         deserialize_bool();
         deserialize_u8();
@@ -367,84 +356,13 @@ impl<'de> Deserializer<'de> for Decoder {
         deserialize_map();
         deserialize_unit_struct(name: &'static str);
         deserialize_tuple_struct(name: &'static str, len: usize);
-        //deserialize_struct(name: &'static str, fields: &'static [&'static str]);
+        deserialize_struct(name: &'static str, fields: &'static [&'static str]);
         deserialize_tuple(len: usize);
         deserialize_identifier();
         deserialize_ignored_any();
         deserialize_byte_buf();
     }
 }
-
-struct OwnedObjectIdDeserializer {
-    value: Option<ObjectId>,
-    visited: bool,
-}
-
-impl OwnedObjectIdDeserializer {
-    pub fn new(value: ObjectId) -> OwnedObjectIdDeserializer {
-        OwnedObjectIdDeserializer {
-            value: Some(value),
-            visited: false
-        }
-    }
-}
-
-impl<'a, 'de: 'a> MapAccess<'de> for OwnedObjectIdDeserializer {
-    type Error = DecoderError;
-
-    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<<K as DeserializeSeed<'de>>::Value>, Self::Error>
-    where
-        K: DeserializeSeed<'de>,
-    {
-        if self.visited {
-            Ok(None)
-        } else {
-            self.visited = true;
-            seed.deserialize(object_id::ObjectIdKeyDeserializer).map_err(serde::de::Error::custom).map(Some)
-        }
-    }
-
-    fn next_value_seed<V>(&mut self, seed: V) -> DecoderResult<V::Value>
-        where V: DeserializeSeed<'de>
-    {
-        let value = self.value.take().ok_or(DecoderError::EndOfStream)?;
-        let de = OwnedObjectIdValueDeserializer::new(value);
-        seed.deserialize(de)
-    }
-}
-
-struct OwnedObjectIdValueDeserializer {
-    value: Option<ObjectId>,
-}
-
-impl OwnedObjectIdValueDeserializer {
-    pub fn new(value: ObjectId) -> OwnedObjectIdValueDeserializer {
-        OwnedObjectIdValueDeserializer {
-            value: Some(value),
-        }
-    }
-}
-
-impl<'de> Deserializer<'de> for OwnedObjectIdValueDeserializer {
-    type Error = DecoderError;
-
-    fn deserialize_any<V>(mut self, visitor: V) -> DecoderResult<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        match self.value.take() {
-            Some(oid) => visitor.visit_bytes(&oid.bytes()),
-            _ => Err(DecoderError::EndOfStream),
-        }
-    }
-
-    forward_to_deserialize_any!(
-        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
-        ignored_any unit_struct tuple_struct tuple enum identifier
-    );
-}
-
 
 struct EnumDecoder {
     val: Bson,
@@ -696,70 +614,13 @@ impl<'de> Deserialize<'de> for Decimal128 {
     }
 }
 
-
 impl<'de> Deserialize<'de> for UtcDateTime {
-
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer<'de>
     {
-        struct UtcDateTimeVisitor;
-
-        impl<'de> Visitor<'de> for UtcDateTimeVisitor {
-            type Value = UtcDateTime;
-
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("expecting a UtcDateTime")
-            }
-
-            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
-            where
-                M: MapAccess<'de>,
-            {
-                let value = map.next_key::<UtcDateTimeKey>()?;
-                if value.is_none() {
-                    return Err(serde::de::Error::custom(
-                        "No UtcDateTime key found in synthesized struct",
-                    ));
-                }
-                let val = map.next_value::<i64>()?;
-                Ok(UtcDateTime(Utc.timestamp_millis(val)))
-            }
+        match Bson::deserialize(deserializer)? {
+            Bson::UtcDatetime(dt) => Ok(UtcDateTime(dt)),
+            _ => Err(D::Error::custom("expecting UtcDateTime")),
         }
-        let visitor = UtcDateTimeVisitor;
-
-        deserializer.deserialize_struct(utc_datetime::NAME, utc_datetime::FIELDS, visitor)
-    }
-}
-
-
-struct UtcDateTimeKey;
-
-impl<'de> Deserialize<'de> for UtcDateTimeKey {
-
-    fn deserialize<D>(deserializer: D) -> Result<UtcDateTimeKey, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct FieldVisitor;
-
-        impl<'de> Visitor<'de> for FieldVisitor {
-            type Value = UtcDateTimeKey;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a valid utc datetime field")
-            }
-
-            fn visit_str<E: serde::de::Error>(self, s: &str) -> Result<UtcDateTimeKey, E> {
-                if s == utc_datetime::FIELD {
-                    Ok(UtcDateTimeKey)
-                } else {
-                    Err(serde::de::Error::custom(
-                        "field was not $__bson_utc_datetime in synthesized object id struct",
-                    ))
-                }
-            }
-        }
-
-        deserializer.deserialize_identifier(FieldVisitor)
     }
 }

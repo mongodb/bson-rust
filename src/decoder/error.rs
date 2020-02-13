@@ -1,8 +1,7 @@
 use std::fmt::Display;
 use std::{error, fmt, io, string};
 
-use serde::de::{self, Error, Expected, Unexpected};
-use crate::raw::RawError;
+use serde::de::{self, Expected, Unexpected};
 
 /// Possible errors that can arise during decoding.
 #[derive(Debug)]
@@ -35,12 +34,6 @@ pub enum DecoderError {
     AmbiguousTimestamp(i64),
 
     Unknown(String),
-}
-
-impl From<RawError> for DecoderError {
-    fn from(err: RawError) -> DecoderError {
-        DecoderError::custom(format!("{:?}", err))
-    }
 }
 
 impl From<io::Error> for DecoderError {

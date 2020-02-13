@@ -23,12 +23,10 @@
 
 mod error;
 mod serde;
-pub(crate) mod object_id;
 
 pub use self::error::{DecoderError, DecoderResult};
 pub use self::serde::Decoder;
 
-use std::convert::TryInto;
 use std::io::Read;
 
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -39,10 +37,9 @@ use crate::bson::{Array, Bson, Document};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::oid;
-use crate::raw::{RawBsonDoc, RawBsonDocBuf};
 use crate::spec::{self, BinarySubtype};
 
-use ::serde::de::{Deserialize, Error};
+use ::serde::de::Deserialize;
 
 const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 
@@ -105,10 +102,25 @@ fn read_f128<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Decimal128> {
 
 /// Attempt to decode a `Document` from a byte stream.
 pub fn decode_document<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
-    let mut data = Vec::new();
-    reader.read_to_end(&mut data)?;
-    let rawdoc = RawBsonDoc::new(&data)?;
-    rawdoc.try_into().map_err(|e| DecoderError::custom(format!("{:?}", e)))
+    let mut doc = Document::new();
+
+    // disregard the length: using Read::take causes infinite type recursion
+    read_i32(reader)?;
+
+    loop {
+        let tag = reader.read_u8()?;
+
+        if tag == 0 {
+            break;
+        }
+
+        let key = read_cstring(reader)?;
+        let val = decode_bson(reader, tag, false)?;
+
+        doc.insert(key, val);
+    }
+
+    Ok(doc)
 }
 
 /// Attempt to decode a `Document` that may contain invalid UTF-8 strings from a byte stream.
@@ -237,46 +249,4 @@ pub fn from_bson<'de, T>(bson: Bson) -> DecoderResult<T>
 {
     let de = Decoder::new(bson);
     Deserialize::deserialize(de)
-}
-
-pub fn from_rawdoc_buf<'de, T>(rawdoc_buf: &'de RawBsonDocBuf) -> Result<T, crate::de::Error>
-where
-    T: Deserialize<'de>,
-{
-    from_rawdoc(rawdoc_buf.as_ref())
-}
-
-pub fn from_rawdoc<'de, T>(rawdoc: RawBsonDoc<'de>) -> Result<T, crate::de::Error>
-where
-    T: Deserialize<'de>,
-{
-    let mut de = crate::de::BsonDeserializer::from_rawdoc(rawdoc);
-    T::deserialize(&mut de)
-}
-
-pub fn from_bytes<'de, T>(data: &'de [u8]) -> Result<T, crate::de::Error>
-where
-    T: Deserialize<'de>,
-{
-    let raw_document = RawBsonDoc::new(data)?;
-    from_rawdoc(raw_document)
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::ordered::OrderedDocument;
-    use crate::encode_document;
-    use crate::decoder::from_bytes;
-    use crate::oid::ObjectId;
-    #[test]
-    fn document_roundtrip() {
-        let mut bytes = vec![];
-        let document = doc! {
-            "_id": ObjectId::new().expect("oid"),
-            "greeting": "hello",
-        };
-        encode_document(&mut bytes, &document).expect("could not encode document");
-        let doc: OrderedDocument = from_bytes(&bytes).expect("could not decode bytes");
-        assert_eq!(doc, document);
-    }
 }
