@@ -96,7 +96,7 @@ impl Display for Document {
 
 impl Debug for Document {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "OrderedDocument({:?})", self.inner)
+        write!(f, "Document({:?})", self.inner)
     }
 }
 
