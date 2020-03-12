@@ -17,6 +17,7 @@ use crate::decimal128::Decimal128;
 use crate::{
     bson::{Array, Bson, Document, TimeStamp, UtcDateTime},
     oid::ObjectId,
+    spec::BinarySubtype,
 };
 
 use super::{to_bson, EncoderError, EncoderResult};
@@ -62,7 +63,7 @@ impl Serialize for Bson {
             Bson::Null => serializer.serialize_unit(),
             Bson::I32(v) => serializer.serialize_i32(v),
             Bson::I64(v) => serializer.serialize_i64(v),
-            Bson::Binary(_, ref v) => serializer.serialize_bytes(v),
+            Bson::Binary(BinarySubtype::Generic, ref v) => serializer.serialize_bytes(v),
             _ => {
                 let doc = self.to_extended_document();
                 doc.serialize(serializer)
