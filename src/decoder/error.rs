@@ -81,8 +81,16 @@ impl fmt::Display for DecoderError {
 impl error::Error for DecoderError {
     fn description(&self) -> &str {
         match *self {
-            DecoderError::IoError(ref inner) => inner.description(),
-            DecoderError::FromUtf8Error(ref inner) => inner.description(),
+            DecoderError::IoError(ref inner) =>
+            {
+                #[allow(deprecated)]
+                inner.description()
+            }
+            DecoderError::FromUtf8Error(ref inner) =>
+            {
+                #[allow(deprecated)]
+                inner.description()
+            }
             DecoderError::UnrecognizedElementType(_) => "unrecognized element type",
             DecoderError::InvalidArrayKey(..) => "invalid array key",
             DecoderError::ExpectedField(_) => "expected a field",
