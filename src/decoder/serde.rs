@@ -312,10 +312,11 @@ impl<'de> Deserializer<'de> for Decoder {
             Bson::I32(v) => visitor.visit_i32(v),
             Bson::I64(v) => visitor.visit_i64(v),
             Bson::Binary(BinarySubtype::Generic, v) => visitor.visit_bytes(&v),
-            binary @ Bson::Binary(..) => visitor.visit_map(MapDecoder { iter: binary.to_extended_document()
-                                                                                    .into_iter(),
-                                                                        value: None,
-                                                                        len: 2 }),
+            binary @ Bson::Binary(..) => visitor.visit_map(MapDecoder {
+                iter: binary.to_extended_document().into_iter(),
+                value: None,
+                len: 2,
+            }),
             _ => {
                 let doc = value.to_extended_document();
                 let len = doc.len();
