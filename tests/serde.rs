@@ -1,6 +1,6 @@
 #![allow(clippy::blacklisted_name)]
 
-use bson::{bson, doc, Bson, Decoder, Encoder};
+use bson::{bson, doc, spec::BinarySubtype, Bson, Decoder, Encoder};
 use serde::{Deserialize, Serialize};
 use serde_derive::{Deserialize, Serialize};
 
@@ -138,6 +138,48 @@ fn test_compat_u2f() {
 
     let de_foo = bson::from_bson::<Foo>(b).unwrap();
     assert_eq!(de_foo, foo);
+}
+
+#[test]
+fn test_binary_generic_roundtrip() {
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    pub struct Foo {
+        data: Bson,
+    }
+
+    let x = Foo {
+        data: Bson::Binary(BinarySubtype::Generic, b"12345abcde".to_vec()),
+    };
+
+    let b = bson::to_bson(&x).unwrap();
+    assert_eq!(
+        b.as_document().unwrap(),
+        &doc! {"data": Bson::Binary(BinarySubtype::Generic, b"12345abcde".to_vec())}
+    );
+
+    let f = bson::from_bson::<Foo>(b).unwrap();
+    assert_eq!(x, f);
+}
+
+#[test]
+fn test_binary_non_generic_roundtrip() {
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    pub struct Foo {
+        data: Bson,
+    }
+
+    let x = Foo {
+        data: Bson::Binary(BinarySubtype::BinaryOld, b"12345abcde".to_vec()),
+    };
+
+    let b = bson::to_bson(&x).unwrap();
+    assert_eq!(
+        b.as_document().unwrap(),
+        &doc! {"data": Bson::Binary(BinarySubtype::BinaryOld, b"12345abcde".to_vec())}
+    );
+
+    let f = bson::from_bson::<Foo>(b).unwrap();
+    assert_eq!(x, f);
 }
 
 #[test]
