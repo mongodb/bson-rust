@@ -182,7 +182,6 @@ impl Serializer for Encoder {
     }
 
     fn serialize_bytes(self, value: &[u8]) -> EncoderResult<Bson> {
-        use crate::spec::BinarySubtype;
         // let mut state = self.serialize_seq(Some(value.len()))?;
         // for byte in value {
         //     state.serialize_element(byte)?;
