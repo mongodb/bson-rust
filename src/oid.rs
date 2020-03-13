@@ -69,8 +69,16 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::ArgumentError(ref inner) => &inner,
-            Error::FromHexError(ref inner) => inner.description(),
-            Error::IoError(ref inner) => inner.description(),
+            Error::FromHexError(ref inner) =>
+            {
+                #[allow(deprecated)]
+                inner.description()
+            }
+            Error::IoError(ref inner) =>
+            {
+                #[allow(deprecated)]
+                inner.description()
+            }
             Error::HostnameError => "Failed to retrieve hostname for OID generation.",
         }
     }

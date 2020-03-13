@@ -45,7 +45,11 @@ impl fmt::Display for EncoderError {
 impl error::Error for EncoderError {
     fn description(&self) -> &str {
         match *self {
-            EncoderError::IoError(ref inner) => inner.description(),
+            EncoderError::IoError(ref inner) =>
+            {
+                #[allow(deprecated)]
+                inner.description()
+            }
             EncoderError::InvalidMapKeyType(_) => "Invalid map key type",
             EncoderError::Unknown(ref inner) => inner,
             EncoderError::UnsupportedUnsignedType => "BSON does not support unsigned type",
