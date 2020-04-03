@@ -58,7 +58,7 @@ pub enum Bson {
     /// JavaScript code
     JavaScriptCode(String),
     /// JavaScript code w/ scope
-    JavaScriptCodeWithScope(String, Document),
+    JavaScriptCodeWithScope(JavaScriptCodeWithScope),
     /// 32-bit integer
     I32(i32),
     /// 64-bit integer
@@ -100,8 +100,8 @@ impl Debug for Bson {
             Bson::Null => write!(f, "Null"),
             Bson::RegExp(ref regex) => write!(f, "RegExp({:?})", regex),
             Bson::JavaScriptCode(ref s) => write!(f, "JavaScriptCode({:?})", s),
-            Bson::JavaScriptCodeWithScope(ref s, ref scope) => {
-                write!(f, "JavaScriptCodeWithScope({:?}, {:?})", s, scope)
+            Bson::JavaScriptCodeWithScope(ref code_with_scope) => {
+                write!(f, "JavaScriptCodeWithScope({:?})", code_with_scope)
             }
             Bson::I32(v) => write!(f, "I32({:?})", v),
             Bson::I64(v) => write!(f, "I64({:?})", v),
@@ -150,8 +150,9 @@ impl Display for Bson {
                 ref pattern,
                 ref options,
             }) => write!(fmt, "/{}/{}", pattern, options),
-            Bson::JavaScriptCode(ref s) | Bson::JavaScriptCodeWithScope(ref s, _) => {
-                fmt.write_str(&s)
+            Bson::JavaScriptCode(ref code)
+            | Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { ref code, .. }) => {
+                fmt.write_str(&code)
             }
             Bson::I32(i) => write!(fmt, "{}", i),
             Bson::I64(i) => write!(fmt, "{}", i),
@@ -215,9 +216,9 @@ impl From<RegExp> for Bson {
     }
 }
 
-impl From<(String, Document)> for Bson {
-    fn from((code, scope): (String, Document)) -> Bson {
-        Bson::JavaScriptCodeWithScope(code, scope)
+impl From<JavaScriptCodeWithScope> for Bson {
+    fn from(code_with_scope: JavaScriptCodeWithScope) -> Bson {
+        Bson::JavaScriptCodeWithScope(code_with_scope)
     }
 }
 
@@ -346,7 +347,7 @@ impl From<Bson> for Value {
                 "$options": options
             }),
             Bson::JavaScriptCode(code) => json!({ "$code": code }),
-            Bson::JavaScriptCodeWithScope(code, scope) => json!({
+            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope }) => json!({
                 "$code": code,
                 "scope": scope
             }),
@@ -425,7 +426,10 @@ impl Bson {
                     "$code": code.clone(),
                 }
             }
-            Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
+            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                ref code,
+                ref scope,
+            }) => {
                 doc! {
                     "$code": code.clone(),
                     "$scope": scope.clone(),
@@ -488,7 +492,10 @@ impl Bson {
             } else if let (Ok(code), Ok(scope)) =
                 (values.get_str("$code"), values.get_document("$scope"))
             {
-                return Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned());
+                return Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                    code: code.to_owned(),
+                    scope: scope.to_owned(),
+                });
             } else if let (Ok(t), Ok(i)) = (values.get_i32("t"), values.get_i32("i")) {
                 let timestamp = ((t as i64) << 32) + (i as i64);
                 return Bson::TimeStamp(timestamp);
@@ -539,7 +546,10 @@ impl Bson {
             } else if let (Ok(code), Ok(scope)) =
                 (values.get_str("$code"), values.get_document("$scope"))
             {
-                return Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned());
+                return Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                    code: code.to_owned(),
+                    scope: scope.to_owned(),
+                });
             } else if let (Ok(t), Ok(i)) = (values.get_i32("t"), values.get_i32("i")) {
                 let timestamp = ((t as i64) << 32) + (i as i64);
                 return Bson::TimeStamp(timestamp);
@@ -798,4 +808,10 @@ pub struct RegExp {
     /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
     /// unicode.
     pub options: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct JavaScriptCodeWithScope {
+    pub code: String,
+    pub scope: Document,
 }

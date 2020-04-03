@@ -145,6 +145,56 @@ fn test_de_regex() {
 }
 
 #[test]
+fn test_ser_code_with_scope() {
+    use bson::JavaScriptCodeWithScope;
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo {
+        code_with_scope: JavaScriptCodeWithScope,
+    }
+
+    let code_with_scope = JavaScriptCodeWithScope {
+        code: "x".into(),
+        scope: doc! { "x": 12 },
+    };
+
+    let foo = Foo {
+        code_with_scope: code_with_scope.clone(),
+    };
+
+    let x = bson::to_bson(&foo).unwrap();
+    assert_eq!(
+        x.as_document().unwrap(),
+        &doc! { "code_with_scope": Bson::JavaScriptCodeWithScope(code_with_scope) }
+    );
+
+    let xfoo: Foo = bson::from_bson(x).unwrap();
+    assert_eq!(xfoo, foo);
+}
+
+#[test]
+fn test_de_code_with_scope() {
+    use bson::JavaScriptCodeWithScope;
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct Foo {
+        code_with_scope: JavaScriptCodeWithScope,
+    }
+
+    let code_with_scope = JavaScriptCodeWithScope {
+        code: "x".into(),
+        scope: doc! { "x": 12 },
+    };
+
+    let foo: Foo = bson::from_bson(Bson::Document(doc! {
+        "code_with_scope": Bson::JavaScriptCodeWithScope(code_with_scope.clone()),
+    }))
+    .unwrap();
+
+    assert_eq!(foo.code_with_scope, code_with_scope);
+}
+
+#[test]
 fn test_ser_datetime() {
     use bson::UtcDateTime;
     use chrono::{Timelike, Utc};

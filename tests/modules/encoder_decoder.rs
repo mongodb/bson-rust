@@ -8,6 +8,7 @@ use bson::{
     oid::ObjectId,
     spec::BinarySubtype,
     Bson,
+    JavaScriptCodeWithScope,
     RegExp,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
@@ -173,7 +174,10 @@ fn test_encode_decode_javascript_code() {
 
 #[test]
 fn test_encode_decode_javascript_code_with_scope() {
-    let src = Bson::JavaScriptCodeWithScope("1".to_owned(), doc! {});
+    let src = Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+        code: "1".to_owned(),
+        scope: doc! {},
+    });
     let dst = vec![
         25, 0, 0, 0, 15, 107, 101, 121, 0, 15, 0, 0, 0, 2, 0, 0, 0, 49, 0, 5, 0, 0, 0, 0, 0,
     ];

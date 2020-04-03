@@ -34,7 +34,7 @@ use std::{io::Write, iter::IntoIterator, mem};
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::Timelike;
 
-use crate::bson::{Bson, RegExp};
+use crate::bson::{Bson, JavaScriptCodeWithScope, RegExp};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use ::serde::Serialize;
@@ -137,7 +137,10 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         }
         Bson::JavaScriptCode(ref code) => write_string(writer, &code),
         Bson::ObjectId(ref id) => writer.write_all(&id.bytes()).map_err(From::from),
-        Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
+        Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+            ref code,
+            ref scope,
+        }) => {
             let mut buf = Vec::new();
             write_string(&mut buf, code)?;
             encode_document(&mut buf, scope)?;

@@ -15,7 +15,7 @@ use serde::ser::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Bson, Document, RegExp, TimeStamp, UtcDateTime},
+    bson::{Array, Bson, Document, JavaScriptCodeWithScope, RegExp, TimeStamp, UtcDateTime},
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -503,6 +503,17 @@ impl Serialize for RegExp {
         S: Serializer,
     {
         let doc = Bson::RegExp(self.clone());
+        doc.serialize(serializer)
+    }
+}
+
+impl Serialize for JavaScriptCodeWithScope {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let doc = Bson::JavaScriptCodeWithScope(self.clone());
         doc.serialize(serializer)
     }
 }

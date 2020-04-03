@@ -18,7 +18,7 @@ use super::error::{DecoderError, DecoderResult};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Bson, RegExp, TimeStamp, UtcDateTime},
+    bson::{Bson, JavaScriptCodeWithScope, RegExp, TimeStamp, UtcDateTime},
     oid::ObjectId,
     ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor},
     spec::BinarySubtype,
@@ -697,6 +697,18 @@ impl<'de> Deserialize<'de> for RegExp {
         match Bson::deserialize(deserializer)? {
             Bson::RegExp(regex) => Ok(regex),
             _ => Err(D::Error::custom("expecting RegExp")),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for JavaScriptCodeWithScope {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match Bson::deserialize(deserializer)? {
+            Bson::JavaScriptCodeWithScope(code_with_scope) => Ok(code_with_scope),
+            _ => Err(D::Error::custom("expecting JavaScriptCodeWithScope")),
         }
     }
 }

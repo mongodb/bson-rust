@@ -1,4 +1,12 @@
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Bson, Document, RegExp};
+use bson::{
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    Bson,
+    Document,
+    JavaScriptCodeWithScope,
+    RegExp,
+};
 use serde_json::{json, Value};
 
 #[test]
@@ -70,8 +78,14 @@ fn from_impls() {
         })
     );
     assert_eq!(
-        Bson::from((String::from("alert(\"hi\");"), doc! {})),
-        Bson::JavaScriptCodeWithScope(String::from("alert(\"hi\");"), doc! {})
+        Bson::from(JavaScriptCodeWithScope {
+            code: String::from("alert(\"hi\");"),
+            scope: doc! {}
+        }),
+        Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+            code: String::from("alert(\"hi\");"),
+            scope: doc! {}
+        })
     );
     //
     assert_eq!(
