@@ -82,13 +82,13 @@ macro_rules! bson {
 
     // Insert the current entry followed by trailing comma.
     (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
-        $object.insert_bson(($($key)+).into(), $value);
+        $object.insert::<_, $crate::Bson>(($($key)+), $value);
         $crate::bson!(@object $object () ($($rest)*) ($($rest)*));
     };
 
     // Insert the last entry without trailing comma.
     (@object $object:ident [$($key:tt)+] ($value:expr)) => {
-        $object.insert_bson(($($key)+).into(), $value);
+        $object.insert::<_, $crate::Bson>(($($key)+), $value);
     };
 
     // Next value is `null`.
