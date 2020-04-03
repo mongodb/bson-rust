@@ -42,7 +42,7 @@ macro_rules! bdoc {
         let mut document = bson::Document::new();
 
         $(
-            document.insert_bson($key.to_owned(), bson!($val));
+            document.insert::<_, Bson>($key.to_owned(), bson!($val));
         )*
 
         Bson::Document(document)
