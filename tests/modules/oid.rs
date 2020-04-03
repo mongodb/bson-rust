@@ -15,24 +15,6 @@ fn deserialize() {
 }
 
 #[test]
-fn timestamp() {
-    let time: u32 = 2_000_000;
-    let oid = ObjectId::with_timestamp(time);
-    let timestamp = oid.timestamp();
-    assert_eq!(time, timestamp);
-}
-
-#[test]
-fn timestamp_is_big_endian() {
-    let time: u32 = 3_857_379;
-    let oid = ObjectId::with_timestamp(time);
-    assert_eq!(0x00u8, oid.bytes()[0]);
-    assert_eq!(0x3Au8, oid.bytes()[1]);
-    assert_eq!(0xDBu8, oid.bytes()[2]);
-    assert_eq!(0xE3u8, oid.bytes()[3]);
-}
-
-#[test]
 fn string_oid() {
     let s = "123456789012123456789012";
     let oid_res = ObjectId::with_string(s);
