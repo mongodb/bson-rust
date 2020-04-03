@@ -800,7 +800,7 @@ impl From<DateTime<Utc>> for UtcDateTime {
     }
 }
 
-/// Represents a BSON regular expression.
+/// Represents a BSON regular expression value.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RegExp {
     /// The regex pattern to match.
@@ -816,14 +816,19 @@ pub struct RegExp {
     pub options: String,
 }
 
+/// Represents a BSON code with scope value.
 #[derive(Debug, Clone, PartialEq)]
 pub struct JavaScriptCodeWithScope {
     pub code: String,
     pub scope: Document,
 }
 
+/// Represents a BSON binary value.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Binary {
+    /// The subtype of the bytes.
     pub subtype: BinarySubtype,
+
+    /// The binary bytes.
     pub bytes: Vec<u8>,
 }
