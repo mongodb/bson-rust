@@ -34,7 +34,7 @@ use std::{io::Write, iter::IntoIterator, mem};
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::Timelike;
 
-use crate::bson::{Bson, JavaScriptCodeWithScope, RegExp};
+use crate::bson::{Binary, Bson, JavaScriptCodeWithScope, RegExp};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use ::serde::Serialize;
@@ -151,10 +151,10 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         Bson::I32(v) => write_i32(writer, v),
         Bson::I64(v) => write_i64(writer, v),
         Bson::TimeStamp(v) => write_i64(writer, v),
-        Bson::Binary(subtype, ref data) => {
-            write_i32(writer, data.len() as i32)?;
+        Bson::Binary(Binary { subtype, ref bytes }) => {
+            write_i32(writer, bytes.len() as i32)?;
             writer.write_u8(From::from(subtype))?;
-            writer.write_all(data).map_err(From::from)
+            writer.write_all(bytes).map_err(From::from)
         }
         Bson::UtcDatetime(ref v) => write_i64(
             writer,

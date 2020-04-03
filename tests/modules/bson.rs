@@ -2,6 +2,7 @@ use bson::{
     doc,
     oid::ObjectId,
     spec::BinarySubtype,
+    Binary,
     Bson,
     Document,
     JavaScriptCodeWithScope,
@@ -89,8 +90,14 @@ fn from_impls() {
     );
     //
     assert_eq!(
-        Bson::from((BinarySubtype::Generic, vec![1, 2, 3])),
-        Bson::Binary(BinarySubtype::Generic, vec![1, 2, 3])
+        Bson::from(Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: vec![1, 2, 3]
+        }),
+        Bson::Binary(Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: vec![1, 2, 3]
+        })
     );
     assert_eq!(Bson::from(-48i32), Bson::I32(-48));
     assert_eq!(Bson::from(-96i64), Bson::I64(-96));

@@ -15,7 +15,16 @@ use serde::ser::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Bson, Document, JavaScriptCodeWithScope, RegExp, TimeStamp, UtcDateTime},
+    bson::{
+        Array,
+        Binary,
+        Bson,
+        Document,
+        JavaScriptCodeWithScope,
+        RegExp,
+        TimeStamp,
+        UtcDateTime,
+    },
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -63,7 +72,10 @@ impl Serialize for Bson {
             Bson::Null => serializer.serialize_unit(),
             Bson::I32(v) => serializer.serialize_i32(v),
             Bson::I64(v) => serializer.serialize_i64(v),
-            Bson::Binary(BinarySubtype::Generic, ref v) => serializer.serialize_bytes(v),
+            Bson::Binary(Binary {
+                subtype: BinarySubtype::Generic,
+                ref bytes,
+            }) => serializer.serialize_bytes(bytes),
             _ => {
                 let doc = self.to_extended_document();
                 doc.serialize(serializer)
@@ -187,7 +199,10 @@ impl Serializer for Encoder {
         //     state.serialize_element(byte)?;
         // }
         // state.end()
-        Ok(Bson::Binary(BinarySubtype::Generic, value.to_vec()))
+        Ok(Bson::Binary(Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: value.to_vec(),
+        }))
     }
 
     #[inline]
@@ -514,6 +529,17 @@ impl Serialize for JavaScriptCodeWithScope {
         S: Serializer,
     {
         let doc = Bson::JavaScriptCodeWithScope(self.clone());
+        doc.serialize(serializer)
+    }
+}
+
+impl Serialize for Binary {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let doc = Bson::Binary(self.clone());
         doc.serialize(serializer)
     }
 }

@@ -18,7 +18,7 @@ use super::error::{DecoderError, DecoderResult};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Bson, JavaScriptCodeWithScope, RegExp, TimeStamp, UtcDateTime},
+    bson::{Binary, Bson, JavaScriptCodeWithScope, RegExp, TimeStamp, UtcDateTime},
     oid::ObjectId,
     ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor},
     spec::BinarySubtype,
@@ -224,7 +224,10 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Ok(Bson::Binary(BinarySubtype::Generic, v.to_vec()))
+        Ok(Bson::Binary(Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: v.to_vec(),
+        }))
     }
 }
 
@@ -311,7 +314,10 @@ impl<'de> Deserializer<'de> for Decoder {
             Bson::Null => visitor.visit_unit(),
             Bson::I32(v) => visitor.visit_i32(v),
             Bson::I64(v) => visitor.visit_i64(v),
-            Bson::Binary(BinarySubtype::Generic, v) => visitor.visit_bytes(&v),
+            Bson::Binary(Binary {
+                subtype: BinarySubtype::Generic,
+                ref bytes,
+            }) => visitor.visit_bytes(&bytes),
             binary @ Bson::Binary(..) => visitor.visit_map(MapDecoder {
                 iter: binary.to_extended_document().into_iter(),
                 value: None,
@@ -709,6 +715,18 @@ impl<'de> Deserialize<'de> for JavaScriptCodeWithScope {
         match Bson::deserialize(deserializer)? {
             Bson::JavaScriptCodeWithScope(code_with_scope) => Ok(code_with_scope),
             _ => Err(D::Error::custom("expecting JavaScriptCodeWithScope")),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Binary {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match Bson::deserialize(deserializer)? {
+            Bson::Binary(binary) => Ok(binary),
+            _ => Err(D::Error::custom("expecting Binary")),
         }
     }
 }

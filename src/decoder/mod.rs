@@ -40,7 +40,7 @@ use chrono::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Bson, Document, JavaScriptCodeWithScope, RegExp},
+    bson::{Array, Binary, Bson, Document, JavaScriptCodeWithScope, RegExp},
     oid,
     spec::{self, BinarySubtype},
 };
@@ -204,9 +204,9 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
                 ));
             }
             let subtype = BinarySubtype::from(reader.read_u8()?);
-            let mut data = Vec::with_capacity(len as usize);
-            reader.take(len as u64).read_to_end(&mut data)?;
-            Ok(Bson::Binary(subtype, data))
+            let mut bytes = Vec::with_capacity(len as usize);
+            reader.take(len as u64).read_to_end(&mut bytes)?;
+            Ok(Bson::Binary(Binary { subtype, bytes }))
         }
         Some(ElementType::ObjectId) => {
             let mut objid = [0; 12];

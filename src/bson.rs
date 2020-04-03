@@ -66,7 +66,7 @@ pub enum Bson {
     /// Timestamp
     TimeStamp(i64),
     /// Binary data
-    Binary(BinarySubtype, Vec<u8>),
+    Binary(Binary),
     /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId(oid::ObjectId),
     /// UTC datetime
@@ -111,9 +111,12 @@ impl Debug for Bson {
 
                 write!(f, "TimeStamp({}, {})", time, inc)
             }
-            Bson::Binary(t, ref vec) => {
-                write!(f, "BinData({}, 0x{})", u8::from(t), hex::encode(vec))
-            }
+            Bson::Binary(Binary { subtype, ref bytes }) => write!(
+                f,
+                "BinData({}, 0x{})",
+                u8::from(subtype),
+                hex::encode(bytes)
+            ),
             Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
             Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
             Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
@@ -162,9 +165,12 @@ impl Display for Bson {
 
                 write!(fmt, "Timestamp({}, {})", time, inc)
             }
-            Bson::Binary(t, ref vec) => {
-                write!(fmt, "BinData({}, 0x{})", u8::from(t), hex::encode(vec))
-            }
+            Bson::Binary(Binary { subtype, ref bytes }) => write!(
+                fmt,
+                "BinData({}, 0x{})",
+                u8::from(subtype),
+                hex::encode(bytes)
+            ),
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
@@ -222,9 +228,9 @@ impl From<JavaScriptCodeWithScope> for Bson {
     }
 }
 
-impl From<(BinarySubtype, Vec<u8>)> for Bson {
-    fn from((ty, data): (BinarySubtype, Vec<u8>)) -> Bson {
-        Bson::Binary(ty, data)
+impl From<Binary> for Bson {
+    fn from(binary: Binary) -> Bson {
+        Bson::Binary(binary)
     }
 }
 
@@ -361,11 +367,11 @@ impl From<Bson> for Value {
                     "i": inc
                 })
             }
-            Bson::Binary(t, ref v) => {
-                let tval: u8 = From::from(t);
+            Bson::Binary(Binary { subtype, ref bytes }) => {
+                let tval: u8 = From::from(subtype);
                 json!({
                     "type": tval,
-                    "$binary": hex::encode(v),
+                    "$binary": hex::encode(bytes),
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_string()}),
@@ -444,10 +450,10 @@ impl Bson {
                     "i": inc
                 }
             }
-            Bson::Binary(t, ref v) => {
-                let tval: u8 = From::from(t);
+            Bson::Binary(Binary { subtype, ref bytes }) => {
+                let tval: u8 = From::from(subtype);
                 doc! {
-                    "$binary": hex::encode(v),
+                    "$binary": hex::encode(bytes),
                     "type": tval as i64,
                 }
             }
@@ -504,11 +510,11 @@ impl Bson {
                 return Bson::TimeStamp(timestamp);
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
-                return Bson::Binary(
-                    From::from(ttype),
-                    hex::decode(hex.as_bytes())
+                return Bson::Binary(Binary {
+                    subtype: From::from(ttype),
+                    bytes: hex::decode(hex.as_bytes())
                         .expect("$binary value is not a valid Hex encoded bytes"),
-                );
+                });
             }
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {
@@ -558,11 +564,11 @@ impl Bson {
                 return Bson::TimeStamp(timestamp);
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
-                return Bson::Binary(
-                    From::from(ttype),
-                    hex::decode(hex.as_bytes())
+                return Bson::Binary(Binary {
+                    subtype: From::from(ttype),
+                    bytes: hex::decode(hex.as_bytes())
                         .expect("$binary value is not a valid Hex encoded bytes"),
-                );
+                });
             }
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {
@@ -814,4 +820,10 @@ pub struct RegExp {
 pub struct JavaScriptCodeWithScope {
     pub code: String,
     pub scope: Document,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Binary {
+    pub subtype: BinarySubtype,
+    pub bytes: Vec<u8>,
 }

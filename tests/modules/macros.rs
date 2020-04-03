@@ -1,4 +1,4 @@
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Bson, RegExp};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, RegExp};
 use chrono::offset::Utc;
 use hex;
 
@@ -29,7 +29,7 @@ fn standard_format() {
         "i32": 12,
         "i64": -55,
         "timestamp": Bson::TimeStamp(229_999_444),
-        "binary": Bson::Binary(BinarySubtype::Md5, "thingies".to_owned().into_bytes()),
+        "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "_id": id,
         "date": Bson::UtcDatetime(date),
     };
@@ -76,7 +76,7 @@ fn rocket_format() {
         "i32" => 12,
         "i64" => -55,
         "timestamp" => Bson::TimeStamp(229_999_444),
-        "binary" => Bson::Binary(BinarySubtype::Md5, "thingies".to_owned().into_bytes()),
+        "binary" => Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "_id" => id,
         "date" => Bson::UtcDatetime(date),
     };

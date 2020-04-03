@@ -1,6 +1,6 @@
 #![allow(clippy::blacklisted_name)]
 
-use bson::{bson, doc, spec::BinarySubtype, Bson, Decoder, Encoder};
+use bson::{bson, doc, spec::BinarySubtype, Binary, Bson, Decoder, Encoder};
 use serde::{Deserialize, Serialize};
 use serde_derive::{Deserialize, Serialize};
 
@@ -248,13 +248,16 @@ fn test_binary_generic_roundtrip() {
     }
 
     let x = Foo {
-        data: Bson::Binary(BinarySubtype::Generic, b"12345abcde".to_vec()),
+        data: Bson::Binary(Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: b"12345abcde".to_vec(),
+        }),
     };
 
     let b = bson::to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
-        &doc! {"data": Bson::Binary(BinarySubtype::Generic, b"12345abcde".to_vec())}
+        &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::Generic, bytes: b"12345abcde".to_vec() })}
     );
 
     let f = bson::from_bson::<Foo>(b).unwrap();
@@ -269,13 +272,64 @@ fn test_binary_non_generic_roundtrip() {
     }
 
     let x = Foo {
-        data: Bson::Binary(BinarySubtype::BinaryOld, b"12345abcde".to_vec()),
+        data: Bson::Binary(Binary {
+            subtype: BinarySubtype::BinaryOld,
+            bytes: b"12345abcde".to_vec(),
+        }),
     };
 
     let b = bson::to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
-        &doc! {"data": Bson::Binary(BinarySubtype::BinaryOld, b"12345abcde".to_vec())}
+        &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::BinaryOld, bytes: b"12345abcde".to_vec() })}
+    );
+
+    let f = bson::from_bson::<Foo>(b).unwrap();
+    assert_eq!(x, f);
+}
+
+#[test]
+fn test_binary_helper_generic_roundtrip() {
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    pub struct Foo {
+        data: Binary,
+    }
+
+    let x = Foo {
+        data: Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: b"12345abcde".to_vec(),
+        },
+    };
+
+    let b = bson::to_bson(&x).unwrap();
+    assert_eq!(
+        b.as_document().unwrap(),
+        &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::Generic, bytes: b"12345abcde".to_vec() })}
+    );
+
+    let f = bson::from_bson::<Foo>(b).unwrap();
+    assert_eq!(x, f);
+}
+
+#[test]
+fn test_binary_helper_non_generic_roundtrip() {
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    pub struct Foo {
+        data: Binary,
+    }
+
+    let x = Foo {
+        data: Binary {
+            subtype: BinarySubtype::BinaryOld,
+            bytes: b"12345abcde".to_vec(),
+        },
+    };
+
+    let b = bson::to_bson(&x).unwrap();
+    assert_eq!(
+        b.as_document().unwrap(),
+        &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::BinaryOld, bytes: b"12345abcde".to_vec() })}
     );
 
     let f = bson::from_bson::<Foo>(b).unwrap();
@@ -298,7 +352,7 @@ fn test_byte_vec() {
     assert_eq!(
         b,
         Bson::Document(
-            doc! { "challenge": (Bson::Binary(bson::spec::BinarySubtype::Generic, x.challenge.to_vec()))}
+            doc! { "challenge": (Bson::Binary(Binary { subtype: bson::spec::BinarySubtype::Generic, bytes: x.challenge.to_vec() }))}
         )
     );
 
@@ -324,7 +378,7 @@ fn test_serde_bytes() {
     let b = bson::to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
-        &doc! {"data": Bson::Binary(bson::spec::BinarySubtype::Generic, b"12345abcde".to_vec())}
+        &doc! {"data": Bson::Binary(Binary { subtype: bson::spec::BinarySubtype::Generic, bytes: b"12345abcde".to_vec() })}
     );
 
     let f = bson::from_bson::<Foo>(b).unwrap();

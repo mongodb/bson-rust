@@ -1,6 +1,6 @@
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Bson, Document, ValueAccessError};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Document, ValueAccessError};
 use chrono::Utc;
 
 #[test]
@@ -62,7 +62,7 @@ fn test_getters() {
         "i32": 1i32,
         "i64": 1i64,
         "datetime": cloned_dt,
-        "binary": (BinarySubtype::Generic, binary.clone())
+        "binary": Binary { subtype: BinarySubtype::Generic, bytes: binary.clone() }
     };
 
     assert_eq!(None, doc.get("nonsense"));
@@ -121,7 +121,10 @@ fn test_getters() {
     assert_eq!(Ok(&object_id), doc.get_object_id("_id"));
 
     assert_eq!(
-        Some(&Bson::Binary(BinarySubtype::Generic, binary.clone())),
+        Some(&Bson::Binary(Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: binary.clone()
+        })),
         doc.get("binary")
     );
     assert_eq!(Ok(&binary), doc.get_binary_generic("binary"));

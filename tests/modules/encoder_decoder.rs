@@ -7,6 +7,7 @@ use bson::{
     encode_document,
     oid::ObjectId,
     spec::BinarySubtype,
+    Binary,
     Bson,
     JavaScriptCodeWithScope,
     RegExp,
@@ -247,7 +248,10 @@ fn test_encode_decode_timestamp() {
 
 #[test]
 fn test_encode_binary_generic() {
-    let src = (BinarySubtype::Generic, vec![0, 1, 2, 3, 4]);
+    let src = Binary {
+        subtype: BinarySubtype::Generic,
+        bytes: vec![0, 1, 2, 3, 4],
+    };
     let dst = vec![
         20, 0, 0, 0, 5, 107, 101, 121, 0, 5, 0, 0, 0, 0, 0, 1, 2, 3, 4, 0,
     ];
