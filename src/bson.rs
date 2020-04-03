@@ -53,13 +53,8 @@ pub enum Bson {
     Boolean(bool),
     /// Null value
     Null,
-    /// Regular expression - The first cstring is the regex pattern, the second is the regex
-    /// options string. Options are identified by characters, which must be stored in
-    /// alphabetical order. Valid options are 'i' for case insensitive matching, 'm' for
-    /// multiline matching, 'x' for verbose mode, 'l' to make \w, \W, etc. locale dependent,
-    /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
-    /// unicode.
-    RegExp(String, String),
+    /// Regular expression
+    RegExp(RegExp),
     /// JavaScript code
     JavaScriptCode(String),
     /// JavaScript code w/ scope
@@ -103,7 +98,7 @@ impl Debug for Bson {
             Bson::Document(ref doc) => write!(f, "Document({:?})", doc),
             Bson::Boolean(b) => write!(f, "Boolean({:?})", b),
             Bson::Null => write!(f, "Null"),
-            Bson::RegExp(ref pat, ref opt) => write!(f, "RegExp(/{:?}/{:?})", pat, opt),
+            Bson::RegExp(ref regex) => write!(f, "RegExp({:?})", regex),
             Bson::JavaScriptCode(ref s) => write!(f, "JavaScriptCode({:?})", s),
             Bson::JavaScriptCodeWithScope(ref s, ref scope) => {
                 write!(f, "JavaScriptCodeWithScope({:?}, {:?})", s, scope)
@@ -151,7 +146,10 @@ impl Display for Bson {
             Bson::Document(ref doc) => write!(fmt, "{}", doc),
             Bson::Boolean(b) => write!(fmt, "{}", b),
             Bson::Null => write!(fmt, "null"),
-            Bson::RegExp(ref pat, ref opt) => write!(fmt, "/{}/{}", pat, opt),
+            Bson::RegExp(RegExp {
+                ref pattern,
+                ref options,
+            }) => write!(fmt, "/{}/{}", pattern, options),
             Bson::JavaScriptCode(ref s) | Bson::JavaScriptCodeWithScope(ref s, _) => {
                 fmt.write_str(&s)
             }
@@ -211,9 +209,9 @@ impl From<bool> for Bson {
     }
 }
 
-impl From<(String, String)> for Bson {
-    fn from((pat, opt): (String, String)) -> Bson {
-        Bson::RegExp(pat, opt)
+impl From<RegExp> for Bson {
+    fn from(regex: RegExp) -> Bson {
+        Bson::RegExp(regex)
     }
 }
 
@@ -343,9 +341,9 @@ impl From<Bson> for Value {
             Bson::Document(v) => json!(v),
             Bson::Boolean(v) => json!(v),
             Bson::Null => Value::Null,
-            Bson::RegExp(pat, opt) => json!({
-                "$regex": pat,
-                "$options": opt
+            Bson::RegExp(RegExp { pattern, options }) => json!({
+                "$regex": pattern,
+                "$options": options
             }),
             Bson::JavaScriptCode(code) => json!({ "$code": code }),
             Bson::JavaScriptCodeWithScope(code, scope) => json!({
@@ -413,10 +411,13 @@ impl Bson {
     #[doc(hidden)]
     pub fn to_extended_document(&self) -> Document {
         match *self {
-            Bson::RegExp(ref pat, ref opt) => {
+            Bson::RegExp(RegExp {
+                ref pattern,
+                ref options,
+            }) => {
                 doc! {
-                    "$regex": pat.clone(),
-                    "$options": opt.clone(),
+                    "$regex": pattern.clone(),
+                    "$options": options.clone(),
                 }
             }
             Bson::JavaScriptCode(ref code) => {
@@ -480,7 +481,10 @@ impl Bson {
     pub fn from_extended_document(values: Document) -> Bson {
         if values.len() == 2 {
             if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
-                return Bson::RegExp(pat.to_owned(), opt.to_owned());
+                return Bson::RegExp(RegExp {
+                    pattern: pat.to_owned(),
+                    options: opt.to_owned(),
+                });
             } else if let (Ok(code), Ok(scope)) =
                 (values.get_str("$code"), values.get_document("$scope"))
             {
@@ -528,7 +532,10 @@ impl Bson {
     pub fn from_extended_document(values: Document) -> Bson {
         if values.len() == 2 {
             if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
-                return Bson::RegExp(pat.to_owned(), opt.to_owned());
+                return Bson::RegExp(RegExp {
+                    pattern: pat.to_owned(),
+                    options: opt.to_owned(),
+                });
             } else if let (Ok(code), Ok(scope)) =
                 (values.get_str("$code"), values.get_document("$scope"))
             {
@@ -775,4 +782,20 @@ impl From<DateTime<Utc>> for UtcDateTime {
     fn from(x: DateTime<Utc>) -> Self {
         UtcDateTime(x)
     }
+}
+
+/// Represents a BSON regular expression.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RegExp {
+    /// The regex pattern to match.
+    pub pattern: String,
+
+    /// The options for the regex.
+    ///
+    /// Options are identified by characters, which must be stored in
+    /// alphabetical order. Valid options are 'i' for case insensitive matching, 'm' for
+    /// multiline matching, 'x' for verbose mode, 'l' to make \w, \W, etc. locale dependent,
+    /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
+    /// unicode.
+    pub options: String,
 }

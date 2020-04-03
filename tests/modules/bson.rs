@@ -1,4 +1,4 @@
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Bson, Document};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Bson, Document, RegExp};
 use serde_json::{json, Value};
 
 #[test]
@@ -60,8 +60,14 @@ fn from_impls() {
     assert_eq!(Bson::from(doc! {}), Bson::Document(Document::new()));
     assert_eq!(Bson::from(false), Bson::Boolean(false));
     assert_eq!(
-        Bson::from((String::from("\\s+$"), String::from("i"))),
-        Bson::RegExp(String::from("\\s+$"), String::from("i"))
+        Bson::from(RegExp {
+            pattern: String::from("\\s+$"),
+            options: String::from("i")
+        }),
+        Bson::RegExp(RegExp {
+            pattern: String::from("\\s+$"),
+            options: String::from("i")
+        })
     );
     assert_eq!(
         Bson::from((String::from("alert(\"hi\");"), doc! {})),

@@ -18,7 +18,7 @@ use super::error::{DecoderError, DecoderResult};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Bson, TimeStamp, UtcDateTime},
+    bson::{Bson, RegExp, TimeStamp, UtcDateTime},
     oid::ObjectId,
     ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor},
     spec::BinarySubtype,
@@ -685,6 +685,18 @@ impl<'de> Deserialize<'de> for TimeStamp {
                 })
             }
             _ => Err(D::Error::custom("expecting TimeStamp")),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for RegExp {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match Bson::deserialize(deserializer)? {
+            Bson::RegExp(regex) => Ok(regex),
+            _ => Err(D::Error::custom("expecting RegExp")),
         }
     }
 }

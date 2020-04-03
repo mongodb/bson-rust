@@ -95,6 +95,56 @@ fn test_de_timestamp() {
 }
 
 #[test]
+fn test_ser_regex() {
+    use bson::RegExp;
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo {
+        regex: RegExp,
+    }
+
+    let regex = RegExp {
+        pattern: "12".into(),
+        options: "10".into(),
+    };
+
+    let foo = Foo {
+        regex: regex.clone(),
+    };
+
+    let x = bson::to_bson(&foo).unwrap();
+    assert_eq!(
+        x.as_document().unwrap(),
+        &doc! { "regex": Bson::RegExp(regex) }
+    );
+
+    let xfoo: Foo = bson::from_bson(x).unwrap();
+    assert_eq!(xfoo, foo);
+}
+
+#[test]
+fn test_de_regex() {
+    use bson::RegExp;
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct Foo {
+        regex: RegExp,
+    }
+
+    let regex = RegExp {
+        pattern: "12".into(),
+        options: "10".into(),
+    };
+
+    let foo: Foo = bson::from_bson(Bson::Document(doc! {
+        "regex": Bson::RegExp(regex.clone()),
+    }))
+    .unwrap();
+
+    assert_eq!(foo.regex, regex);
+}
+
+#[test]
 fn test_ser_datetime() {
     use bson::UtcDateTime;
     use chrono::{Timelike, Utc};

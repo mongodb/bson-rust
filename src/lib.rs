@@ -42,7 +42,7 @@
 #[cfg(feature = "decimal128")]
 pub use self::decimal128::Decimal128;
 pub use self::{
-    bson::{Array, Bson, Document, TimeStamp, UtcDateTime},
+    bson::{Array, Bson, Document, RegExp, TimeStamp, UtcDateTime},
     decoder::{
         decode_document,
         decode_document_utf8_lossy,

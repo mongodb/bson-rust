@@ -15,7 +15,7 @@ use serde::ser::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Bson, Document, TimeStamp, UtcDateTime},
+    bson::{Array, Bson, Document, RegExp, TimeStamp, UtcDateTime},
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -492,6 +492,17 @@ impl Serialize for TimeStamp {
     {
         let ts = ((self.t.to_le() as u64) << 32) | (self.i.to_le() as u64);
         let doc = Bson::TimeStamp(ts as i64);
+        doc.serialize(serializer)
+    }
+}
+
+impl Serialize for RegExp {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let doc = Bson::RegExp(self.clone());
         doc.serialize(serializer)
     }
 }

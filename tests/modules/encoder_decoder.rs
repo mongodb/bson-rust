@@ -8,6 +8,7 @@ use bson::{
     oid::ObjectId,
     spec::BinarySubtype,
     Bson,
+    RegExp,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::{offset::TimeZone, Utc};
@@ -137,7 +138,10 @@ fn test_encode_decode_null() {
 
 #[test]
 fn test_encode_decode_regexp() {
-    let src = Bson::RegExp("1".to_owned(), "2".to_owned());
+    let src = Bson::RegExp(RegExp {
+        pattern: "1".to_owned(),
+        options: "2".to_owned(),
+    });
     let dst = vec![14, 0, 0, 0, 11, 107, 101, 121, 0, 49, 0, 50, 0, 0];
 
     let doc = doc! { "key": src };
