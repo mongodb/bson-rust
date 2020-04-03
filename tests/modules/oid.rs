@@ -2,19 +2,6 @@ use bson::oid::ObjectId;
 use hex;
 
 #[test]
-fn deserialize() {
-    let bytes: [u8; 12] = [
-        0xDEu8, 0xADu8, 0xBEu8, 0xEFu8, // timestamp is 3735928559
-        0xEFu8, 0xCDu8, 0xABu8, 0xFAu8, 0x29u8, 0x11u8, 0x22u8,
-        0x33u8, // increment is 1122867
-    ];
-
-    let oid = ObjectId::with_bytes(bytes);
-    assert_eq!(3_735_928_559 as u32, oid.timestamp());
-    assert_eq!(1_122_867 as u32, oid.counter());
-}
-
-#[test]
 fn string_oid() {
     let s = "123456789012123456789012";
     let oid_res = ObjectId::with_string(s);

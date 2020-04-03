@@ -143,20 +143,6 @@ impl ObjectId {
         self.id
     }
 
-    /// Retrieves the timestamp (seconds since epoch) from an ObjectId.
-    pub fn timestamp(&self) -> u32 {
-        BigEndian::read_u32(&self.id)
-    }
-
-    /// Retrieves the increment counter from an ObjectId.
-    pub fn counter(&self) -> u32 {
-        let mut buf: [u8; 4] = [0; 4];
-        buf[1..=COUNTER_SIZE]
-            .clone_from_slice(&self.id[COUNTER_OFFSET..(COUNTER_SIZE + COUNTER_OFFSET)]);
-
-        BigEndian::read_u32(&buf)
-    }
-
     /// Convert the objectId to hex representation.
     pub fn to_hex(&self) -> String {
         hex::encode(self.id)
