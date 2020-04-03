@@ -34,7 +34,6 @@ pub enum Error {
     ArgumentError(String),
     FromHexError(FromHexError),
     IoError(io::Error),
-    HostnameError,
 }
 
 impl From<FromHexError> for Error {
@@ -58,9 +57,6 @@ impl fmt::Display for Error {
             Error::ArgumentError(ref inner) => inner.fmt(fmt),
             Error::FromHexError(ref inner) => inner.fmt(fmt),
             Error::IoError(ref inner) => inner.fmt(fmt),
-            Error::HostnameError => {
-                fmt.write_str("Failed to retrieve hostname for OID generation.")
-            }
         }
     }
 }
@@ -79,7 +75,6 @@ impl error::Error for Error {
                 #[allow(deprecated)]
                 inner.description()
             }
-            Error::HostnameError => "Failed to retrieve hostname for OID generation.",
         }
     }
 
@@ -88,7 +83,6 @@ impl error::Error for Error {
             Error::ArgumentError(_) => None,
             Error::FromHexError(ref inner) => Some(inner),
             Error::IoError(ref inner) => Some(inner),
-            Error::HostnameError => None,
         }
     }
 }
