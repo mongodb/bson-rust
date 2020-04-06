@@ -1,8 +1,9 @@
-use std::collections::{BTreeMap, HashSet};
-use serde::{Deserialize, Serialize, Deserializer};
-use serde::de::Unexpected;
+#![allow(clippy::cognitive_complexity)]
 
-use bson::{Bson, Encoder, Decoder, DecoderError};
+use serde::{de::Unexpected, Deserialize, Deserializer, Serialize};
+use std::collections::{BTreeMap, HashSet};
+
+use bson::{Bson, Decoder, DecoderError, Encoder};
 
 macro_rules! bson {
     ([]) => {{ bson::Bson::Array(Vec::new()) }};
@@ -49,10 +50,12 @@ macro_rules! bdoc {
 }
 
 macro_rules! t {
-    ($e:expr) => (match $e {
-        Ok(t) => t,
-        Err(e) => panic!("Failed with {:?}", e),
-    })
+    ($e:expr) => {
+        match $e {
+            Ok(t) => t,
+            Err(e) => panic!("Failed with {:?}", e),
+        }
+    };
 }
 
 macro_rules! encode( ($t:expr) => ({
@@ -110,15 +113,19 @@ fn nested() {
 
     let v = Foo {
         a: 2,
-        b: Bar { a: "test".to_string() },
+        b: Bar {
+            a: "test".to_string(),
+        },
     };
-    assert_eq!(encode!(v),
-               bdoc! {
-                   "a" => (2 as i64),
-                   "b" => {
-                       "a" => "test"
-                   }
-               });
+    assert_eq!(
+        encode!(v),
+        bdoc! {
+            "a" => (2 as i64),
+            "b" => {
+                "a" => "test"
+            }
+        }
+    );
     assert_eq!(v, decode!(encode!(v)));
 }
 
@@ -130,8 +137,10 @@ fn application_decode_error() {
         fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Range10, D::Error> {
             let x: usize = Deserialize::deserialize(d)?;
             if x > 10 {
-                Err(serde::de::Error::invalid_value(Unexpected::Unsigned(x as u64),
-                                                    &"more than 10"))
+                Err(serde::de::Error::invalid_value(
+                    Unexpected::Unsigned(x as u64),
+                    &"more than 10",
+                ))
             } else {
                 Ok(Range10(x))
             }
@@ -156,11 +165,15 @@ fn array() {
         a: Vec<i32>,
     }
 
-    let v = Foo { a: vec![1, 2, 3, 4] };
-    assert_eq!(encode!(v),
-               bdoc! {
-                   "a" => [1, 2, 3, 4]
-               });
+    let v = Foo {
+        a: vec![1, 2, 3, 4],
+    };
+    assert_eq!(
+        encode!(v),
+        bdoc! {
+            "a" => [1, 2, 3, 4]
+        }
+    );
     assert_eq!(v, decode!(encode!(v)));
 }
 
@@ -172,10 +185,12 @@ fn tuple() {
     }
 
     let v = Foo { a: (1, 2, 3, 4) };
-    assert_eq!(encode!(v),
-               bdoc! {
-                   "a" => [1, 2, 3, 4]
-               });
+    assert_eq!(
+        encode!(v),
+        bdoc! {
+            "a" => [1, 2, 3, 4]
+        }
+    );
     assert_eq!(v, decode!(encode!(v)));
 }
 
@@ -194,31 +209,33 @@ fn inner_structs_with_options() {
 
     let v = Foo {
         a: Some(Box::new(Foo {
-                             a: None,
-                             b: Bar {
-                                 a: "foo".to_string(),
-                                 b: 4.5,
-                             },
-                         })),
+            a: None,
+            b: Bar {
+                a: "foo".to_string(),
+                b: 4.5,
+            },
+        })),
         b: Bar {
             a: "bar".to_string(),
             b: 1.0,
         },
     };
-    assert_eq!(encode!(v),
-               bdoc! {
-                   "a" => {
-                       "a" => (Bson::Null),
-                       "b" => {
-                           "a" => "foo",
-                           "b" => (4.5)
-                       }
-                   },
-                   "b" => {
-                       "a" => "bar",
-                       "b" => (1.0)
-                   }
-               });
+    assert_eq!(
+        encode!(v),
+        bdoc! {
+            "a" => {
+                "a" => (Bson::Null),
+                "b" => {
+                    "a" => "foo",
+                    "b" => (4.5)
+                }
+            },
+            "b" => {
+                "a" => "bar",
+                "b" => (1.0)
+            }
+        }
+    );
     assert_eq!(v, decode!(encode!(v)));
 }
 
@@ -226,7 +243,7 @@ fn inner_structs_with_options() {
 fn inner_structs_with_skippable_options() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo {
-        #[serde(skip_serializing_if="Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         a: Option<Box<Foo>>,
         b: Bar,
     }
@@ -238,30 +255,32 @@ fn inner_structs_with_skippable_options() {
 
     let v = Foo {
         a: Some(Box::new(Foo {
-                             a: None,
-                             b: Bar {
-                                 a: "foo".to_string(),
-                                 b: 4.5,
-                             },
-                         })),
+            a: None,
+            b: Bar {
+                a: "foo".to_string(),
+                b: 4.5,
+            },
+        })),
         b: Bar {
             a: "bar".to_string(),
             b: 1.0,
         },
     };
-    assert_eq!(encode!(v),
-               bdoc! {
-                   "a" => {
-                   "b" => {
-                           "a" => "foo",
-                           "b" => (4.5)
-                       }
-                   },
-                   "b" => {
-                       "a" => "bar",
-                       "b" => (1.0)
-                   }
-               });
+    assert_eq!(
+        encode!(v),
+        bdoc! {
+            "a" => {
+            "b" => {
+                    "a" => "foo",
+                    "b" => (4.5)
+                }
+            },
+            "b" => {
+                "a" => "bar",
+                "b" => (1.0)
+            }
+        }
+    );
     assert_eq!(v, decode!(encode!(v)));
 }
 
@@ -286,14 +305,16 @@ fn hashmap() {
             s
         },
     };
-    assert_eq!(encode!(v),
-               bdoc! {
+    assert_eq!(
+        encode!(v),
+        bdoc! {
             "map" => {
                 "bar" => 4,
                 "foo" => 10
             },
             "set" => ["a"]
-        });
+        }
+    );
     assert_eq!(v, decode!(encode!(v)));
 }
 
@@ -306,11 +327,15 @@ fn tuple_struct() {
         whee: Foo,
     }
 
-    let v = Bar { whee: Foo(1, "foo".to_string(), 4.5) };
-    assert_eq!(encode!(v),
-               bdoc! {
+    let v = Bar {
+        whee: Foo(1, "foo".to_string(), 4.5),
+    };
+    assert_eq!(
+        encode!(v),
+        bdoc! {
             "whee" => [1, "foo", (4.5)]
-        });
+        }
+    );
     assert_eq!(v, decode!(encode!(v)));
 }
 
@@ -325,14 +350,17 @@ fn table_array() {
         a: i32,
     }
 
-    let v = Foo { a: vec![Bar { a: 1 }, Bar { a: 2 }] };
-    assert_eq!(encode!(v),
-               bdoc! {
+    let v = Foo {
+        a: vec![Bar { a: 1 }, Bar { a: 2 }],
+    };
+    assert_eq!(
+        encode!(v),
+        bdoc! {
             "a" => [{"a" => 1}, {"a" => 2}]
-        });
+        }
+    );
     assert_eq!(v, decode!(encode!(v)));
 }
-
 
 #[test]
 fn type_conversion() {
@@ -341,7 +369,7 @@ fn type_conversion() {
         bar: i32,
     }
 
-    let d = Decoder::new(bdoc!{
+    let d = Decoder::new(bdoc! {
         "bar" => 1
     });
     let a: Result<Foo, DecoderError> = Deserialize::deserialize(d);
@@ -355,7 +383,7 @@ fn missing_errors() {
         bar: i32,
     }
 
-    let d = Decoder::new(bdoc!{});
+    let d = Decoder::new(bdoc! {});
     let a: Result<Foo, DecoderError> = Deserialize::deserialize(d);
 
     assert!(a.is_err());
@@ -399,21 +427,35 @@ fn parse_enum() {
     assert_eq!(encode!(v), bdoc! { "a" => { "Pair" => [ 12, 42] } });
     assert_eq!(v, decode!(encode!(v)));
 
-    let v = Foo { a: E::Last(Foo2 { test: "test".to_string() }) };
-    assert_eq!(encode!(v),
-               bdoc! { "a" => { "Last" => { "test" => "test" } } });
+    let v = Foo {
+        a: E::Last(Foo2 {
+            test: "test".to_string(),
+        }),
+    };
+    assert_eq!(
+        encode!(v),
+        bdoc! { "a" => { "Last" => { "test" => "test" } } }
+    );
     assert_eq!(v, decode!(encode!(v)));
 
-    let v = Foo { a: E::Vector(vec![12, 42]) };
+    let v = Foo {
+        a: E::Vector(vec![12, 42]),
+    };
     assert_eq!(encode!(v), bdoc! { "a" => { "Vector" => [ 12, 42 ] } });
     assert_eq!(v, decode!(encode!(v)));
 
-    let v = Foo { a: E::Named { a: 12 } };
+    let v = Foo {
+        a: E::Named { a: 12 },
+    };
     assert_eq!(encode!(v), bdoc! { "a" => { "Named" => { "a" => 12 } } });
     assert_eq!(v, decode!(encode!(v)));
-    let v = Foo { a: E::MultiNamed { a: 12, b: 42 } };
-    assert_eq!(encode!(v),
-               bdoc! { "a" => { "MultiNamed" => { "a" => 12, "b" => 42 } } });
+    let v = Foo {
+        a: E::MultiNamed { a: 12, b: 42 },
+    };
+    assert_eq!(
+        encode!(v),
+        bdoc! { "a" => { "MultiNamed" => { "a" => 12, "b" => 42 } } }
+    );
     assert_eq!(v, decode!(encode!(v)));
 }
 
@@ -500,7 +542,9 @@ fn unused_fields5() {
         a: Vec<String>,
     }
 
-    let v = Foo { a: vec!["a".to_string()] };
+    let v = Foo {
+        a: vec!["a".to_string()],
+    };
     let d = Decoder::new(bdoc! {
         "a" => ["a"]
     });
@@ -532,7 +576,9 @@ fn unused_fields7() {
         a: i32,
     }
 
-    let v = Foo { a: vec![Bar { a: 1 }] };
+    let v = Foo {
+        a: vec![Bar { a: 1 }],
+    };
     let d = Decoder::new(bdoc! {
         "a" => [{"a" => 1, "b" => 2}]
     });
@@ -550,7 +596,7 @@ fn empty_arrays() {
     struct Bar;
 
     let v = Foo { a: vec![] };
-    let d = Decoder::new(bdoc!{});
+    let d = Decoder::new(bdoc! {});
     assert_eq!(v, t!(Deserialize::deserialize(d)));
 }
 
@@ -564,7 +610,7 @@ fn empty_arrays2() {
     struct Bar;
 
     let v = Foo { a: None };
-    let d = Decoder::new(bdoc!{});
+    let d = Decoder::new(bdoc! {});
     assert_eq!(v, t!(Deserialize::deserialize(d)));
 
     let v = Foo { a: Some(vec![]) };
