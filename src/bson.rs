@@ -599,15 +599,6 @@ impl Bson {
         }
     }
 
-    /// If `Bson` is `FloatingPoint`, return a mutable reference to its value. Returns `None`
-    /// otherwise
-    pub fn as_f64_mut(&mut self) -> Option<&mut f64> {
-        match *self {
-            Bson::FloatingPoint(ref mut v) => Some(v),
-            _ => None,
-        }
-    }
-
     /// If `Bson` is `String`, return its value. Returns `None` otherwise
     pub fn as_str(&self) -> Option<&str> {
         match *self {
@@ -664,14 +655,6 @@ impl Bson {
         }
     }
 
-    /// If `Bson` is `Boolean`, return a mutable reference to its value. Returns `None` otherwise
-    pub fn as_bool_mut(&mut self) -> Option<&mut bool> {
-        match *self {
-            Bson::Boolean(ref mut v) => Some(v),
-            _ => None,
-        }
-    }
-
     /// If `Bson` is `I32`, return its value. Returns `None` otherwise
     pub fn as_i32(&self) -> Option<i32> {
         match *self {
@@ -680,26 +663,10 @@ impl Bson {
         }
     }
 
-    /// If `Bson` is `I32`, return a mutable reference to its value. Returns `None` otherwise
-    pub fn as_i32_mut(&mut self) -> Option<&mut i32> {
-        match *self {
-            Bson::I32(ref mut v) => Some(v),
-            _ => None,
-        }
-    }
-
     /// If `Bson` is `I64`, return its value. Returns `None` otherwise
     pub fn as_i64(&self) -> Option<i64> {
         match *self {
             Bson::I64(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    /// If `Bson` is `I64`, return a mutable reference to its value. Returns `None` otherwise
-    pub fn as_i64_mut(&mut self) -> Option<&mut i64> {
-        match *self {
-            Bson::I64(ref mut v) => Some(v),
             _ => None,
         }
     }
@@ -757,14 +724,6 @@ impl Bson {
     pub fn as_timestamp(&self) -> Option<i64> {
         match *self {
             Bson::TimeStamp(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    /// If `Bson` is `TimeStamp`, return a mutable reference to its value. Returns `None` otherwise
-    pub fn as_timestamp_mut(&mut self) -> Option<&mut i64> {
-        match *self {
-            Bson::TimeStamp(ref mut v) => Some(v),
             _ => None,
         }
     }
