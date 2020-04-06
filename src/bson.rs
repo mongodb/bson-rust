@@ -54,7 +54,7 @@ pub enum Bson {
     /// Null value
     Null,
     /// Regular expression
-    RegExp(RegExp),
+    Regex(Regex),
     /// JavaScript code
     JavaScriptCode(String),
     /// JavaScript code w/ scope
@@ -98,7 +98,7 @@ impl Debug for Bson {
             Bson::Document(ref doc) => write!(f, "Document({:?})", doc),
             Bson::Boolean(b) => write!(f, "Boolean({:?})", b),
             Bson::Null => write!(f, "Null"),
-            Bson::RegExp(ref regex) => write!(f, "RegExp({:?})", regex),
+            Bson::Regex(ref regex) => write!(f, "Regex({:?})", regex),
             Bson::JavaScriptCode(ref s) => write!(f, "JavaScriptCode({:?})", s),
             Bson::JavaScriptCodeWithScope(ref code_with_scope) => {
                 write!(f, "JavaScriptCodeWithScope({:?})", code_with_scope)
@@ -149,7 +149,7 @@ impl Display for Bson {
             Bson::Document(ref doc) => write!(fmt, "{}", doc),
             Bson::Boolean(b) => write!(fmt, "{}", b),
             Bson::Null => write!(fmt, "null"),
-            Bson::RegExp(RegExp {
+            Bson::Regex(Regex {
                 ref pattern,
                 ref options,
             }) => write!(fmt, "/{}/{}", pattern, options),
@@ -216,9 +216,9 @@ impl From<bool> for Bson {
     }
 }
 
-impl From<RegExp> for Bson {
-    fn from(regex: RegExp) -> Bson {
-        Bson::RegExp(regex)
+impl From<Regex> for Bson {
+    fn from(regex: Regex) -> Bson {
+        Bson::Regex(regex)
     }
 }
 
@@ -348,7 +348,7 @@ impl From<Bson> for Value {
             Bson::Document(v) => json!(v),
             Bson::Boolean(v) => json!(v),
             Bson::Null => Value::Null,
-            Bson::RegExp(RegExp { pattern, options }) => json!({
+            Bson::Regex(Regex { pattern, options }) => json!({
                 "$regex": pattern,
                 "$options": options
             }),
@@ -398,7 +398,7 @@ impl Bson {
             Bson::Document(..) => ElementType::EmbeddedDocument,
             Bson::Boolean(..) => ElementType::Boolean,
             Bson::Null => ElementType::NullValue,
-            Bson::RegExp(..) => ElementType::RegularExpression,
+            Bson::Regex(..) => ElementType::RegularExpression,
             Bson::JavaScriptCode(..) => ElementType::JavaScriptCode,
             Bson::JavaScriptCodeWithScope(..) => ElementType::JavaScriptCodeWithScope,
             Bson::I32(..) => ElementType::Integer32Bit,
@@ -418,7 +418,7 @@ impl Bson {
     #[doc(hidden)]
     pub fn to_extended_document(&self) -> Document {
         match *self {
-            Bson::RegExp(RegExp {
+            Bson::Regex(Regex {
                 ref pattern,
                 ref options,
             }) => {
@@ -491,7 +491,7 @@ impl Bson {
     pub fn from_extended_document(values: Document) -> Bson {
         if values.len() == 2 {
             if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
-                return Bson::RegExp(RegExp {
+                return Bson::Regex(Regex {
                     pattern: pat.to_owned(),
                     options: opt.to_owned(),
                 });
@@ -545,7 +545,7 @@ impl Bson {
     pub fn from_extended_document(values: Document) -> Bson {
         if values.len() == 2 {
             if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
-                return Bson::RegExp(RegExp {
+                return Bson::Regex(Regex {
                     pattern: pat.to_owned(),
                     options: opt.to_owned(),
                 });
@@ -802,7 +802,7 @@ impl From<DateTime<Utc>> for UtcDateTime {
 
 /// Represents a BSON regular expression value.
 #[derive(Debug, Clone, PartialEq)]
-pub struct RegExp {
+pub struct Regex {
     /// The regex pattern to match.
     pub pattern: String,
 

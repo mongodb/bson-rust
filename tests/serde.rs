@@ -96,14 +96,14 @@ fn test_de_timestamp() {
 
 #[test]
 fn test_ser_regex() {
-    use bson::RegExp;
+    use bson::Regex;
 
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo {
-        regex: RegExp,
+        regex: Regex,
     }
 
-    let regex = RegExp {
+    let regex = Regex {
         pattern: "12".into(),
         options: "10".into(),
     };
@@ -115,7 +115,7 @@ fn test_ser_regex() {
     let x = bson::to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "regex": Bson::RegExp(regex) }
+        &doc! { "regex": Bson::Regex(regex) }
     );
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
@@ -124,20 +124,20 @@ fn test_ser_regex() {
 
 #[test]
 fn test_de_regex() {
-    use bson::RegExp;
+    use bson::Regex;
 
     #[derive(Deserialize, PartialEq, Debug)]
     struct Foo {
-        regex: RegExp,
+        regex: Regex,
     }
 
-    let regex = RegExp {
+    let regex = Regex {
         pattern: "12".into(),
         options: "10".into(),
     };
 
     let foo: Foo = bson::from_bson(Bson::Document(doc! {
-        "regex": Bson::RegExp(regex.clone()),
+        "regex": Bson::Regex(regex.clone()),
     }))
     .unwrap();
 

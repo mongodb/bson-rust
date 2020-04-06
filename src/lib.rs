@@ -48,7 +48,7 @@ pub use self::{
         Bson,
         Document,
         JavaScriptCodeWithScope,
-        RegExp,
+        Regex,
         TimeStamp,
         UtcDateTime,
     },

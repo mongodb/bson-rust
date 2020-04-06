@@ -21,7 +21,7 @@ use crate::{
         Bson,
         Document,
         JavaScriptCodeWithScope,
-        RegExp,
+        Regex,
         TimeStamp,
         UtcDateTime,
     },
@@ -511,13 +511,13 @@ impl Serialize for TimeStamp {
     }
 }
 
-impl Serialize for RegExp {
+impl Serialize for Regex {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let doc = Bson::RegExp(self.clone());
+        let doc = Bson::Regex(self.clone());
         doc.serialize(serializer)
     }
 }

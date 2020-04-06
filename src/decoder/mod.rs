@@ -40,7 +40,7 @@ use chrono::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Binary, Bson, Document, JavaScriptCodeWithScope, RegExp},
+    bson::{Array, Binary, Bson, Document, JavaScriptCodeWithScope, Regex},
     oid,
     spec::{self, BinarySubtype},
 };
@@ -220,7 +220,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
         Some(ElementType::RegularExpression) => {
             let pattern = read_cstring(reader)?;
             let options = read_cstring(reader)?;
-            Ok(Bson::RegExp(RegExp { pattern, options }))
+            Ok(Bson::Regex(Regex { pattern, options }))
         }
         Some(ElementType::JavaScriptCode) => {
             read_string(reader, utf8_lossy).map(Bson::JavaScriptCode)

@@ -6,7 +6,7 @@ use bson::{
     Bson,
     Document,
     JavaScriptCodeWithScope,
-    RegExp,
+    Regex,
 };
 use serde_json::{json, Value};
 
@@ -69,11 +69,11 @@ fn from_impls() {
     assert_eq!(Bson::from(doc! {}), Bson::Document(Document::new()));
     assert_eq!(Bson::from(false), Bson::Boolean(false));
     assert_eq!(
-        Bson::from(RegExp {
+        Bson::from(Regex {
             pattern: String::from("\\s+$"),
             options: String::from("i")
         }),
-        Bson::RegExp(RegExp {
+        Bson::Regex(Regex {
             pattern: String::from("\\s+$"),
             options: String::from("i")
         })

@@ -10,7 +10,7 @@ use bson::{
     Binary,
     Bson,
     JavaScriptCodeWithScope,
-    RegExp,
+    Regex,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::{offset::TimeZone, Utc};
@@ -140,7 +140,7 @@ fn test_encode_decode_null() {
 
 #[test]
 fn test_encode_decode_regexp() {
-    let src = Bson::RegExp(RegExp {
+    let src = Bson::Regex(Regex {
         pattern: "1".to_owned(),
         options: "2".to_owned(),
     });

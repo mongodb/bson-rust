@@ -1,4 +1,4 @@
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, RegExp};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex};
 use chrono::offset::Utc;
 use hex;
 
@@ -23,7 +23,7 @@ fn standard_format() {
         },
         "bool": true,
         "null": null,
-        "regexp": Bson::RegExp(RegExp { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
+        "regexp": Bson::Regex(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
         "with_wrapped_parens": (-20),
         "code": Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
         "i32": 12,
@@ -70,7 +70,7 @@ fn rocket_format() {
         },
         "bool" => true,
         "null" => null,
-        "regexp" => Bson::RegExp(RegExp { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
+        "regexp" => Bson::Regex(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
         "with_wrapped_parens" => (-20),
         "code" => Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
         "i32" => 12,
