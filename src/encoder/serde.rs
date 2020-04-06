@@ -15,16 +15,7 @@ use serde::ser::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{
-        Array,
-        Binary,
-        Bson,
-        Document,
-        JavaScriptCodeWithScope,
-        Regex,
-        TimeStamp,
-        UtcDateTime,
-    },
+    bson::{Array, Binary, Bson, Document, JavaScriptCodeWithScope, Regex, TimeStamp, UtcDateTime},
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -506,8 +497,8 @@ impl Serialize for TimeStamp {
         S: Serializer,
     {
         let ts = ((self.t.to_le() as u64) << 32) | (self.i.to_le() as u64);
-        let doc = Bson::TimeStamp(ts as i64);
-        doc.serialize(serializer)
+        let value = Bson::TimeStamp(ts as i64);
+        value.serialize(serializer)
     }
 }
 
@@ -517,8 +508,8 @@ impl Serialize for Regex {
     where
         S: Serializer,
     {
-        let doc = Bson::Regex(self.clone());
-        doc.serialize(serializer)
+        let value = Bson::Regex(self.clone());
+        value.serialize(serializer)
     }
 }
 
@@ -528,8 +519,8 @@ impl Serialize for JavaScriptCodeWithScope {
     where
         S: Serializer,
     {
-        let doc = Bson::JavaScriptCodeWithScope(self.clone());
-        doc.serialize(serializer)
+        let value = Bson::JavaScriptCodeWithScope(self.clone());
+        value.serialize(serializer)
     }
 }
 
@@ -539,8 +530,8 @@ impl Serialize for Binary {
     where
         S: Serializer,
     {
-        let doc = Bson::Binary(self.clone());
-        doc.serialize(serializer)
+        let value = Bson::Binary(self.clone());
+        value.serialize(serializer)
     }
 }
 
@@ -551,8 +542,8 @@ impl Serialize for Decimal128 {
     where
         S: Serializer,
     {
-        let doc = Bson::Decimal128(self.clone());
-        doc.serialize(serializer)
+        let balue = Bson::Decimal128(self.clone());
+        value.serialize(serializer)
     }
 }
 
@@ -563,7 +554,7 @@ impl Serialize for UtcDateTime {
         S: Serializer,
     {
         // Cloning a `DateTime` is extremely cheap
-        let doc = Bson::UtcDatetime(self.0);
-        doc.serialize(serializer)
+        let value = Bson::UtcDatetime(self.0);
+        value.serialize(serializer)
     }
 }
