@@ -158,7 +158,7 @@ fn int64() {
 
 #[test]
 fn oid() {
-    let oid = ObjectId::new().unwrap();
+    let oid = ObjectId::new();
     let obj = Bson::ObjectId(oid.clone());
     let s: BTreeMap<String, String> = from_bson(obj.clone()).unwrap();
 

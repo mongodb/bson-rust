@@ -77,7 +77,7 @@ fn from_impls() {
     assert_eq!(Bson::from(152u32), Bson::I32(152));
     assert_eq!(Bson::from(4096u64), Bson::I64(4096));
 
-    let oid = ObjectId::new().unwrap();
+    let oid = ObjectId::new();
     assert_eq!(
         Bson::from(b"abcdefghijkl"),
         Bson::ObjectId(ObjectId::with_bytes(*b"abcdefghijkl"))
