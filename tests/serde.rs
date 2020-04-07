@@ -64,13 +64,16 @@ fn test_ser_timestamp() {
     }
 
     let foo = Foo {
-        ts: TimeStamp { t: 12, i: 10 },
+        ts: TimeStamp {
+            time: 12,
+            increment: 10,
+        },
     };
 
     let x = bson::to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "ts": Bson::TimeStamp(0x0000_000C_0000_000A) }
+        &doc! { "ts": Bson::TimeStamp(TimeStamp { time: 0x0000_000C, increment: 0x0000_000A }) }
     );
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
@@ -87,11 +90,17 @@ fn test_de_timestamp() {
     }
 
     let foo: Foo = bson::from_bson(Bson::Document(doc! {
-        "ts": Bson::TimeStamp(0x0000_000C_0000_000A),
+        "ts": Bson::TimeStamp(TimeStamp { time: 0x0000_000C, increment: 0x0000_000A }),
     }))
     .unwrap();
 
-    assert_eq!(foo.ts, TimeStamp { t: 12, i: 10 });
+    assert_eq!(
+        foo.ts,
+        TimeStamp {
+            time: 12,
+            increment: 10
+        }
+    );
 }
 
 #[test]

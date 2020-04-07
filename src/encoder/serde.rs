@@ -496,8 +496,7 @@ impl Serialize for TimeStamp {
     where
         S: Serializer,
     {
-        let ts = ((self.t.to_le() as u64) << 32) | (self.i.to_le() as u64);
-        let value = Bson::TimeStamp(ts as i64);
+        let value = Bson::TimeStamp(*self);
         value.serialize(serializer)
     }
 }
@@ -542,7 +541,7 @@ impl Serialize for Decimal128 {
     where
         S: Serializer,
     {
-        let balue = Bson::Decimal128(self.clone());
+        let value = Bson::Decimal128(self.clone());
         value.serialize(serializer)
     }
 }

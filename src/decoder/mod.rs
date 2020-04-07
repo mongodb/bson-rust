@@ -40,7 +40,7 @@ use chrono::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Binary, Bson, Document, JavaScriptCodeWithScope, Regex},
+    bson::{Array, Binary, Bson, Document, JavaScriptCodeWithScope, Regex, TimeStamp},
     oid,
     spec::{self, BinarySubtype},
 };
@@ -239,7 +239,9 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
         }
         Some(ElementType::Integer32Bit) => read_i32(reader).map(Bson::I32),
         Some(ElementType::Integer64Bit) => read_i64(reader).map(Bson::I64),
-        Some(ElementType::TimeStamp) => read_i64(reader).map(Bson::TimeStamp),
+        Some(ElementType::TimeStamp) => {
+            read_i64(reader).map(|val| Bson::TimeStamp(TimeStamp::from_le_i64(val)))
+        }
         Some(ElementType::UtcDatetime) => {
             // The int64 is UTC milliseconds since the Unix epoch.
             let time = read_i64(reader)?;

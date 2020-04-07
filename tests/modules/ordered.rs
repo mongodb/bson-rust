@@ -1,6 +1,15 @@
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Document, ValueAccessError};
+use bson::{
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    Binary,
+    Bson,
+    Document,
+    TimeStamp,
+    ValueAccessError,
+};
 use chrono::Utc;
 
 #[test]
@@ -103,9 +112,27 @@ fn test_getters() {
     assert_eq!(Some(&Bson::I64(1)), doc.get("i64"));
     assert_eq!(Ok(1i64), doc.get_i64("i64"));
 
-    doc.insert("timestamp".to_string(), Bson::TimeStamp(100));
-    assert_eq!(Some(&Bson::TimeStamp(100)), doc.get("timestamp"));
-    assert_eq!(Ok(100i64), doc.get_time_stamp("timestamp"));
+    doc.insert(
+        "timestamp".to_string(),
+        Bson::TimeStamp(TimeStamp {
+            time: 0,
+            increment: 100,
+        }),
+    );
+    assert_eq!(
+        Some(&Bson::TimeStamp(TimeStamp {
+            time: 0,
+            increment: 100
+        })),
+        doc.get("timestamp")
+    );
+    assert_eq!(
+        Ok(TimeStamp {
+            time: 0,
+            increment: 100,
+        }),
+        doc.get_time_stamp("timestamp")
+    );
 
     assert_eq!(Some(&Bson::UtcDatetime(datetime)), doc.get("datetime"));
     assert_eq!(Ok(&datetime), doc.get_utc_datetime("datetime"));
@@ -158,7 +185,12 @@ fn entry() {
         let first_entry = doc.entry("first".to_owned());
         assert_eq!(first_entry.key(), "first");
 
-        let v = first_entry.or_insert_with(|| Bson::TimeStamp(27));
+        let v = first_entry.or_insert_with(|| {
+            Bson::TimeStamp(TimeStamp {
+                time: 0,
+                increment: 27,
+            })
+        });
         assert_eq!(v, &mut Bson::I32(1));
     }
 

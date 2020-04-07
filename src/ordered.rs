@@ -16,7 +16,7 @@ use serde::de::{self, MapAccess, Visitor};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Binary, Bson, Document},
+    bson::{Array, Binary, Bson, Document, TimeStamp},
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -368,9 +368,9 @@ impl OrderedDocument {
     }
 
     /// Get a time stamp value for this key if it exists and has the correct type.
-    pub fn get_time_stamp(&self, key: &str) -> ValueAccessResult<i64> {
+    pub fn get_time_stamp(&self, key: &str) -> ValueAccessResult<TimeStamp> {
         match self.get(key) {
-            Some(&Bson::TimeStamp(v)) => Ok(v),
+            Some(&Bson::TimeStamp(timestamp)) => Ok(timestamp),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -378,9 +378,9 @@ impl OrderedDocument {
 
     /// Get a mutable reference to a time stamp value for this key if it exists and has the correct
     /// type.
-    pub fn get_time_stamp_mut(&mut self, key: &str) -> ValueAccessResult<&mut i64> {
+    pub fn get_time_stamp_mut(&mut self, key: &str) -> ValueAccessResult<&mut TimeStamp> {
         match self.get_mut(key) {
-            Some(&mut Bson::TimeStamp(ref mut v)) => Ok(v),
+            Some(&mut Bson::TimeStamp(ref mut timestamp)) => Ok(timestamp),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }

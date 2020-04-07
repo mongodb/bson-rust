@@ -682,14 +682,7 @@ impl<'de> Deserialize<'de> for TimeStamp {
         D: Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
-            Bson::TimeStamp(ts) => {
-                let ts = ts.to_le();
-
-                Ok(TimeStamp {
-                    t: ((ts as u64) >> 32) as u32,
-                    i: (ts & 0xFFFF_FFFF) as u32,
-                })
-            }
+            Bson::TimeStamp(timestamp) => Ok(timestamp),
             _ => Err(D::Error::custom("expecting TimeStamp")),
         }
     }

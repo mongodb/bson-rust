@@ -39,7 +39,7 @@ use crate::{
 };
 
 /// Possible BSON value types.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Bson {
     /// 64-bit binary floating point
     FloatingPoint(f64),
@@ -64,7 +64,7 @@ pub enum Bson {
     /// 64-bit integer
     I64(i64),
     /// Timestamp
-    TimeStamp(i64),
+    TimeStamp(TimeStamp),
     /// Binary data
     Binary(Binary),
     /// [ObjectId](http://dochub.mongodb.org/core/objectids)
@@ -86,43 +86,6 @@ pub type Document = OrderedDocument;
 impl Default for Bson {
     fn default() -> Self {
         Bson::Null
-    }
-}
-
-impl Debug for Bson {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Bson::FloatingPoint(p) => write!(f, "FloatingPoint({:?})", p),
-            Bson::String(ref s) => write!(f, "String({:?})", s),
-            Bson::Array(ref vec) => write!(f, "Array({:?})", vec),
-            Bson::Document(ref doc) => write!(f, "Document({:?})", doc),
-            Bson::Boolean(b) => write!(f, "Boolean({:?})", b),
-            Bson::Null => write!(f, "Null"),
-            Bson::Regex(ref regex) => write!(f, "Regex({:?})", regex),
-            Bson::JavaScriptCode(ref s) => write!(f, "JavaScriptCode({:?})", s),
-            Bson::JavaScriptCodeWithScope(ref code_with_scope) => {
-                write!(f, "JavaScriptCodeWithScope({:?})", code_with_scope)
-            }
-            Bson::I32(v) => write!(f, "I32({:?})", v),
-            Bson::I64(v) => write!(f, "I64({:?})", v),
-            Bson::TimeStamp(i) => {
-                let time = (i >> 32) as i32;
-                let inc = (i & 0xFFFF_FFFF) as i32;
-
-                write!(f, "TimeStamp({}, {})", time, inc)
-            }
-            Bson::Binary(Binary { subtype, ref bytes }) => write!(
-                f,
-                "BinData({}, 0x{})",
-                u8::from(subtype),
-                hex::encode(bytes)
-            ),
-            Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
-            Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
-            Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
-            #[cfg(feature = "decimal128")]
-            Bson::Decimal128(ref d) => write!(f, "Decimal128({:?})", d),
-        }
     }
 }
 
@@ -159,11 +122,8 @@ impl Display for Bson {
             }
             Bson::I32(i) => write!(fmt, "{}", i),
             Bson::I64(i) => write!(fmt, "{}", i),
-            Bson::TimeStamp(i) => {
-                let time = (i >> 32) as i32;
-                let inc = (i & 0xFFFF_FFFF) as i32;
-
-                write!(fmt, "Timestamp({}, {})", time, inc)
+            Bson::TimeStamp(TimeStamp { time, increment }) => {
+                write!(fmt, "Timestamp({}, {})", time, increment)
             }
             Bson::Binary(Binary { subtype, ref bytes }) => write!(
                 fmt,
@@ -359,14 +319,10 @@ impl From<Bson> for Value {
             }),
             Bson::I32(v) => v.into(),
             Bson::I64(v) => v.into(),
-            Bson::TimeStamp(v) => {
-                let time = v >> 32;
-                let inc = v & 0x0000_FFFF;
-                json!({
-                    "t": time,
-                    "i": inc
-                })
-            }
+            Bson::TimeStamp(TimeStamp { time, increment }) => json!({
+                "t": time,
+                "i": increment
+            }),
             Bson::Binary(Binary { subtype, ref bytes }) => {
                 let tval: u8 = From::from(subtype);
                 json!({
@@ -441,13 +397,10 @@ impl Bson {
                     "$scope": scope.clone(),
                 }
             }
-            Bson::TimeStamp(v) => {
-                let time = (v >> 32) as i32;
-                let inc = (v & 0xFFFF_FFFF) as i32;
-
+            Bson::TimeStamp(TimeStamp { time, increment }) => {
                 doc! {
                     "t": time,
-                    "i": inc
+                    "i": increment
                 }
             }
             Bson::Binary(Binary { subtype, ref bytes }) => {
@@ -502,12 +455,20 @@ impl Bson {
                     code: code.to_owned(),
                     scope: scope.to_owned(),
                 });
-            } else if let (Ok(t), Ok(i)) = (values.get_i32("t"), values.get_i32("i")) {
-                let timestamp = ((t as i64) << 32) + (i as i64);
-                return Bson::TimeStamp(timestamp);
-            } else if let (Ok(t), Ok(i)) = (values.get_i64("t"), values.get_i64("i")) {
-                let timestamp = (t << 32) + i;
-                return Bson::TimeStamp(timestamp);
+            } else if let (Ok(time), Ok(increment)) = (values.get_i32("t"), values.get_i32("i")) {
+                if time >= 0 && increment >= 0 {
+                    return Bson::TimeStamp(TimeStamp {
+                        time: time as u32,
+                        increment: increment as u32,
+                    });
+                }
+            } else if let (Ok(time), Ok(increment)) = (values.get_i64("t"), values.get_i64("i")) {
+                if time >= 0 && increment >= 0 {
+                    return Bson::TimeStamp(TimeStamp {
+                        time: time as u32,
+                        increment: increment as u32,
+                    });
+                }
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
                 return Bson::Binary(Binary {
@@ -556,12 +517,20 @@ impl Bson {
                     code: code.to_owned(),
                     scope: scope.to_owned(),
                 });
-            } else if let (Ok(t), Ok(i)) = (values.get_i32("t"), values.get_i32("i")) {
-                let timestamp = ((t as i64) << 32) + (i as i64);
-                return Bson::TimeStamp(timestamp);
-            } else if let (Ok(t), Ok(i)) = (values.get_i64("t"), values.get_i64("i")) {
-                let timestamp = (t << 32) + i;
-                return Bson::TimeStamp(timestamp);
+            } else if let (Ok(time), Ok(increment)) = (values.get_i32("t"), values.get_i32("i")) {
+                if time >= 0 && increment >= 0 {
+                    return Bson::TimeStamp(TimeStamp {
+                        time: time as u32,
+                        increment: increment as u32,
+                    });
+                }
+            } else if let (Ok(time), Ok(increment)) = (values.get_i64("t"), values.get_i64("i")) {
+                if time >= 0 && increment >= 0 {
+                    return Bson::TimeStamp(TimeStamp {
+                        time: time as u32,
+                        increment: increment as u32,
+                    });
+                }
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
                 return Bson::Binary(Binary {
@@ -723,9 +692,9 @@ impl Bson {
     }
 
     /// If `Bson` is `TimeStamp`, return its value. Returns `None` otherwise
-    pub fn as_timestamp(&self) -> Option<i64> {
+    pub fn as_timestamp(&self) -> Option<TimeStamp> {
         match *self {
-            Bson::TimeStamp(v) => Some(v),
+            Bson::TimeStamp(timestamp) => Some(timestamp),
             _ => None,
         }
     }
@@ -739,23 +708,29 @@ impl Bson {
     }
 }
 
-/// `TimeStamp` representation in struct for serde serialization
-///
-/// Just a helper for convenience
-///
-/// ```rust,ignore
-/// use serde::{Serialize, Deserialize};
-/// use bson::TimeStamp;
-///
-/// #[derive(Serialize, Deserialize)]
-/// struct Foo {
-///     timestamp: TimeStamp,
-/// }
-/// ```
+/// Represents a BSON timestamp value.
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub struct TimeStamp {
-    pub t: u32,
-    pub i: u32,
+    pub time: u32,
+    pub increment: u32,
+}
+
+impl TimeStamp {
+    pub(crate) fn to_le_i64(self) -> i64 {
+        let upper = (self.time.to_le() as u64) << 32;
+        let lower = self.increment.to_le() as u64;
+
+        (upper | lower) as i64
+    }
+
+    pub(crate) fn from_le_i64(val: i64) -> Self {
+        let ts = val.to_le();
+
+        TimeStamp {
+            time: ((ts as u64) >> 32) as u32,
+            increment: (ts & 0xFFFF_FFFF) as u32,
+        }
+    }
 }
 
 /// `DateTime` representation in struct for serde serialization

@@ -150,7 +150,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         }
         Bson::I32(v) => write_i32(writer, v),
         Bson::I64(v) => write_i64(writer, v),
-        Bson::TimeStamp(v) => write_i64(writer, v),
+        Bson::TimeStamp(ts) => write_i64(writer, ts.to_le_i64()),
         Bson::Binary(Binary { subtype, ref bytes }) => {
             write_i32(writer, bytes.len() as i32)?;
             writer.write_u8(From::from(subtype))?;

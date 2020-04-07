@@ -11,6 +11,7 @@ use bson::{
     Bson,
     JavaScriptCodeWithScope,
     Regex,
+    TimeStamp,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::{offset::TimeZone, Utc};
@@ -230,7 +231,10 @@ fn test_encode_decode_i64() {
 
 #[test]
 fn test_encode_decode_timestamp() {
-    let src = Bson::TimeStamp(100);
+    let src = Bson::TimeStamp(TimeStamp {
+        time: 0,
+        increment: 100,
+    });
     let dst = vec![
         18, 0, 0, 0, 17, 107, 101, 121, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0,
     ];
