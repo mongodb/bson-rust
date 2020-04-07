@@ -463,7 +463,11 @@ impl Bson {
                     });
                 }
             } else if let (Ok(time), Ok(increment)) = (values.get_i64("t"), values.get_i64("i")) {
-                if time >= 0 && increment >= 0 {
+                if time >= 0
+                    && time < std::u32::MAX as i64
+                    && increment >= 0
+                    && increment < std::u32::MAX as i64
+                {
                     return Bson::TimeStamp(TimeStamp {
                         time: time as u32,
                         increment: increment as u32,
@@ -525,7 +529,11 @@ impl Bson {
                     });
                 }
             } else if let (Ok(time), Ok(increment)) = (values.get_i64("t"), values.get_i64("i")) {
-                if time >= 0 && increment >= 0 {
+                if time >= 0
+                    && time < std::u32::MAX as i64
+                    && increment >= 0
+                    && increment < std::u32::MAX as i64
+                {
                     return Bson::TimeStamp(TimeStamp {
                         time: time as u32,
                         increment: increment as u32,
@@ -711,7 +719,11 @@ impl Bson {
 /// Represents a BSON timestamp value.
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub struct TimeStamp {
+    /// The number of seconds since the Unix epoch.
     pub time: u32,
+
+    /// An incrementing value to order timestamps with the same number of seconds in the `time`
+    /// field.
     pub increment: u32,
 }
 
