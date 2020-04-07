@@ -3,7 +3,6 @@
 use std::{
     error,
     fmt,
-    io,
     result,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -33,18 +32,11 @@ static OID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub enum Error {
     ArgumentError(String),
     FromHexError(FromHexError),
-    IoError(io::Error),
 }
 
 impl From<FromHexError> for Error {
     fn from(err: FromHexError) -> Error {
         Error::FromHexError(err)
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::IoError(err)
     }
 }
 
@@ -56,7 +48,6 @@ impl fmt::Display for Error {
         match *self {
             Error::ArgumentError(ref inner) => inner.fmt(fmt),
             Error::FromHexError(ref inner) => inner.fmt(fmt),
-            Error::IoError(ref inner) => inner.fmt(fmt),
         }
     }
 }
@@ -70,11 +61,6 @@ impl error::Error for Error {
                 #[allow(deprecated)]
                 inner.description()
             }
-            Error::IoError(ref inner) =>
-            {
-                #[allow(deprecated)]
-                inner.description()
-            }
         }
     }
 
@@ -82,7 +68,6 @@ impl error::Error for Error {
         match *self {
             Error::ArgumentError(_) => None,
             Error::FromHexError(ref inner) => Some(inner),
-            Error::IoError(ref inner) => Some(inner),
         }
     }
 }
