@@ -138,15 +138,6 @@ impl ObjectId {
         }
     }
 
-    /// Creates a dummy ObjectId with a specific generation time.
-    /// This method should only be used to do range queries on a field
-    /// containing ObjectId instances.
-    pub fn with_timestamp(time: u32) -> ObjectId {
-        let mut buf: [u8; 12] = [0; 12];
-        BigEndian::write_u32(&mut buf, time);
-        ObjectId::with_bytes(buf)
-    }
-
     /// Returns the raw byte representation of an ObjectId.
     pub fn bytes(&self) -> [u8; 12] {
         self.id
