@@ -7,7 +7,11 @@ use bson::{
     encode_document,
     oid::ObjectId,
     spec::BinarySubtype,
+    Binary,
     Bson,
+    JavaScriptCodeWithScope,
+    Regex,
+    TimeStamp,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::{offset::TimeZone, Utc};
@@ -137,7 +141,10 @@ fn test_encode_decode_null() {
 
 #[test]
 fn test_encode_decode_regexp() {
-    let src = Bson::RegExp("1".to_owned(), "2".to_owned());
+    let src = Bson::Regex(Regex {
+        pattern: "1".to_owned(),
+        options: "2".to_owned(),
+    });
     let dst = vec![14, 0, 0, 0, 11, 107, 101, 121, 0, 49, 0, 50, 0, 0];
 
     let doc = doc! { "key": src };
@@ -169,7 +176,10 @@ fn test_encode_decode_javascript_code() {
 
 #[test]
 fn test_encode_decode_javascript_code_with_scope() {
-    let src = Bson::JavaScriptCodeWithScope("1".to_owned(), doc! {});
+    let src = Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+        code: "1".to_owned(),
+        scope: doc! {},
+    });
     let dst = vec![
         25, 0, 0, 0, 15, 107, 101, 121, 0, 15, 0, 0, 0, 2, 0, 0, 0, 49, 0, 5, 0, 0, 0, 0, 0,
     ];
@@ -221,7 +231,10 @@ fn test_encode_decode_i64() {
 
 #[test]
 fn test_encode_decode_timestamp() {
-    let src = Bson::TimeStamp(100);
+    let src = Bson::TimeStamp(TimeStamp {
+        time: 0,
+        increment: 100,
+    });
     let dst = vec![
         18, 0, 0, 0, 17, 107, 101, 121, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0,
     ];
@@ -239,7 +252,10 @@ fn test_encode_decode_timestamp() {
 
 #[test]
 fn test_encode_binary_generic() {
-    let src = (BinarySubtype::Generic, vec![0, 1, 2, 3, 4]);
+    let src = Binary {
+        subtype: BinarySubtype::Generic,
+        bytes: vec![0, 1, 2, 3, 4],
+    };
     let dst = vec![
         20, 0, 0, 0, 5, 107, 101, 121, 0, 5, 0, 0, 0, 0, 0, 1, 2, 3, 4, 0,
     ];

@@ -34,7 +34,7 @@ use std::{io::Write, iter::IntoIterator, mem};
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::Timelike;
 
-use crate::bson::Bson;
+use crate::bson::{Binary, Bson, JavaScriptCodeWithScope, Regex};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use ::serde::Serialize;
@@ -128,13 +128,19 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         Bson::Boolean(v) => writer
             .write_u8(if v { 0x01 } else { 0x00 })
             .map_err(From::from),
-        Bson::RegExp(ref pat, ref opt) => {
-            write_cstring(writer, pat)?;
-            write_cstring(writer, opt)
+        Bson::Regex(Regex {
+            ref pattern,
+            ref options,
+        }) => {
+            write_cstring(writer, pattern)?;
+            write_cstring(writer, options)
         }
         Bson::JavaScriptCode(ref code) => write_string(writer, &code),
         Bson::ObjectId(ref id) => writer.write_all(&id.bytes()).map_err(From::from),
-        Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
+        Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+            ref code,
+            ref scope,
+        }) => {
             let mut buf = Vec::new();
             write_string(&mut buf, code)?;
             encode_document(&mut buf, scope)?;
@@ -144,11 +150,11 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         }
         Bson::I32(v) => write_i32(writer, v),
         Bson::I64(v) => write_i64(writer, v),
-        Bson::TimeStamp(v) => write_i64(writer, v),
-        Bson::Binary(subtype, ref data) => {
-            write_i32(writer, data.len() as i32)?;
+        Bson::TimeStamp(ts) => write_i64(writer, ts.to_le_i64()),
+        Bson::Binary(Binary { subtype, ref bytes }) => {
+            write_i32(writer, bytes.len() as i32)?;
             writer.write_u8(From::from(subtype))?;
-            writer.write_all(data).map_err(From::from)
+            writer.write_all(bytes).map_err(From::from)
         }
         Bson::UtcDatetime(ref v) => write_i64(
             writer,

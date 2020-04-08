@@ -1,4 +1,13 @@
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Bson, Document};
+use bson::{
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    Binary,
+    Bson,
+    Document,
+    JavaScriptCodeWithScope,
+    Regex,
+};
 use serde_json::{json, Value};
 
 #[test]
@@ -60,17 +69,35 @@ fn from_impls() {
     assert_eq!(Bson::from(doc! {}), Bson::Document(Document::new()));
     assert_eq!(Bson::from(false), Bson::Boolean(false));
     assert_eq!(
-        Bson::from((String::from("\\s+$"), String::from("i"))),
-        Bson::RegExp(String::from("\\s+$"), String::from("i"))
+        Bson::from(Regex {
+            pattern: String::from("\\s+$"),
+            options: String::from("i")
+        }),
+        Bson::Regex(Regex {
+            pattern: String::from("\\s+$"),
+            options: String::from("i")
+        })
     );
     assert_eq!(
-        Bson::from((String::from("alert(\"hi\");"), doc! {})),
-        Bson::JavaScriptCodeWithScope(String::from("alert(\"hi\");"), doc! {})
+        Bson::from(JavaScriptCodeWithScope {
+            code: String::from("alert(\"hi\");"),
+            scope: doc! {}
+        }),
+        Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+            code: String::from("alert(\"hi\");"),
+            scope: doc! {}
+        })
     );
     //
     assert_eq!(
-        Bson::from((BinarySubtype::Generic, vec![1, 2, 3])),
-        Bson::Binary(BinarySubtype::Generic, vec![1, 2, 3])
+        Bson::from(Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: vec![1, 2, 3]
+        }),
+        Bson::Binary(Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: vec![1, 2, 3]
+        })
     );
     assert_eq!(Bson::from(-48i32), Bson::I32(-48));
     assert_eq!(Bson::from(-96i64), Bson::I64(-96));

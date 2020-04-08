@@ -15,7 +15,7 @@ use serde::ser::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Bson, Document, TimeStamp, UtcDateTime},
+    bson::{Array, Binary, Bson, Document, JavaScriptCodeWithScope, Regex, TimeStamp, UtcDateTime},
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -63,7 +63,10 @@ impl Serialize for Bson {
             Bson::Null => serializer.serialize_unit(),
             Bson::I32(v) => serializer.serialize_i32(v),
             Bson::I64(v) => serializer.serialize_i64(v),
-            Bson::Binary(BinarySubtype::Generic, ref v) => serializer.serialize_bytes(v),
+            Bson::Binary(Binary {
+                subtype: BinarySubtype::Generic,
+                ref bytes,
+            }) => serializer.serialize_bytes(bytes),
             _ => {
                 let doc = self.to_extended_document();
                 doc.serialize(serializer)
@@ -187,7 +190,10 @@ impl Serializer for Encoder {
         //     state.serialize_element(byte)?;
         // }
         // state.end()
-        Ok(Bson::Binary(BinarySubtype::Generic, value.to_vec()))
+        Ok(Bson::Binary(Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: value.to_vec(),
+        }))
     }
 
     #[inline]
@@ -490,9 +496,41 @@ impl Serialize for TimeStamp {
     where
         S: Serializer,
     {
-        let ts = ((self.t.to_le() as u64) << 32) | (self.i.to_le() as u64);
-        let doc = Bson::TimeStamp(ts as i64);
-        doc.serialize(serializer)
+        let value = Bson::TimeStamp(*self);
+        value.serialize(serializer)
+    }
+}
+
+impl Serialize for Regex {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let value = Bson::Regex(self.clone());
+        value.serialize(serializer)
+    }
+}
+
+impl Serialize for JavaScriptCodeWithScope {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let value = Bson::JavaScriptCodeWithScope(self.clone());
+        value.serialize(serializer)
+    }
+}
+
+impl Serialize for Binary {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let value = Bson::Binary(self.clone());
+        value.serialize(serializer)
     }
 }
 
@@ -503,8 +541,8 @@ impl Serialize for Decimal128 {
     where
         S: Serializer,
     {
-        let doc = Bson::Decimal128(self.clone());
-        doc.serialize(serializer)
+        let value = Bson::Decimal128(self.clone());
+        value.serialize(serializer)
     }
 }
 
@@ -515,7 +553,7 @@ impl Serialize for UtcDateTime {
         S: Serializer,
     {
         // Cloning a `DateTime` is extremely cheap
-        let doc = Bson::UtcDatetime(self.0);
-        doc.serialize(serializer)
+        let value = Bson::UtcDatetime(self.0);
+        value.serialize(serializer)
     }
 }

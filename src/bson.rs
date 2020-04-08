@@ -39,7 +39,7 @@ use crate::{
 };
 
 /// Possible BSON value types.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Bson {
     /// 64-bit binary floating point
     FloatingPoint(f64),
@@ -53,25 +53,20 @@ pub enum Bson {
     Boolean(bool),
     /// Null value
     Null,
-    /// Regular expression - The first cstring is the regex pattern, the second is the regex
-    /// options string. Options are identified by characters, which must be stored in
-    /// alphabetical order. Valid options are 'i' for case insensitive matching, 'm' for
-    /// multiline matching, 'x' for verbose mode, 'l' to make \w, \W, etc. locale dependent,
-    /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
-    /// unicode.
-    RegExp(String, String),
+    /// Regular expression
+    Regex(Regex),
     /// JavaScript code
     JavaScriptCode(String),
     /// JavaScript code w/ scope
-    JavaScriptCodeWithScope(String, Document),
+    JavaScriptCodeWithScope(JavaScriptCodeWithScope),
     /// 32-bit integer
     I32(i32),
     /// 64-bit integer
     I64(i64),
     /// Timestamp
-    TimeStamp(i64),
+    TimeStamp(TimeStamp),
     /// Binary data
-    Binary(BinarySubtype, Vec<u8>),
+    Binary(Binary),
     /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId(oid::ObjectId),
     /// UTC datetime
@@ -91,40 +86,6 @@ pub type Document = OrderedDocument;
 impl Default for Bson {
     fn default() -> Self {
         Bson::Null
-    }
-}
-
-impl Debug for Bson {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Bson::FloatingPoint(p) => write!(f, "FloatingPoint({:?})", p),
-            Bson::String(ref s) => write!(f, "String({:?})", s),
-            Bson::Array(ref vec) => write!(f, "Array({:?})", vec),
-            Bson::Document(ref doc) => write!(f, "Document({:?})", doc),
-            Bson::Boolean(b) => write!(f, "Boolean({:?})", b),
-            Bson::Null => write!(f, "Null"),
-            Bson::RegExp(ref pat, ref opt) => write!(f, "RegExp(/{:?}/{:?})", pat, opt),
-            Bson::JavaScriptCode(ref s) => write!(f, "JavaScriptCode({:?})", s),
-            Bson::JavaScriptCodeWithScope(ref s, ref scope) => {
-                write!(f, "JavaScriptCodeWithScope({:?}, {:?})", s, scope)
-            }
-            Bson::I32(v) => write!(f, "I32({:?})", v),
-            Bson::I64(v) => write!(f, "I64({:?})", v),
-            Bson::TimeStamp(i) => {
-                let time = (i >> 32) as i32;
-                let inc = (i & 0xFFFF_FFFF) as i32;
-
-                write!(f, "TimeStamp({}, {})", time, inc)
-            }
-            Bson::Binary(t, ref vec) => {
-                write!(f, "BinData({}, 0x{})", u8::from(t), hex::encode(vec))
-            }
-            Bson::ObjectId(ref id) => write!(f, "ObjectId({:?})", id),
-            Bson::UtcDatetime(date_time) => write!(f, "UtcDatetime({:?})", date_time),
-            Bson::Symbol(ref sym) => write!(f, "Symbol({:?})", sym),
-            #[cfg(feature = "decimal128")]
-            Bson::Decimal128(ref d) => write!(f, "Decimal128({:?})", d),
-        }
     }
 }
 
@@ -151,21 +112,25 @@ impl Display for Bson {
             Bson::Document(ref doc) => write!(fmt, "{}", doc),
             Bson::Boolean(b) => write!(fmt, "{}", b),
             Bson::Null => write!(fmt, "null"),
-            Bson::RegExp(ref pat, ref opt) => write!(fmt, "/{}/{}", pat, opt),
-            Bson::JavaScriptCode(ref s) | Bson::JavaScriptCodeWithScope(ref s, _) => {
-                fmt.write_str(&s)
+            Bson::Regex(Regex {
+                ref pattern,
+                ref options,
+            }) => write!(fmt, "/{}/{}", pattern, options),
+            Bson::JavaScriptCode(ref code)
+            | Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { ref code, .. }) => {
+                fmt.write_str(&code)
             }
             Bson::I32(i) => write!(fmt, "{}", i),
             Bson::I64(i) => write!(fmt, "{}", i),
-            Bson::TimeStamp(i) => {
-                let time = (i >> 32) as i32;
-                let inc = (i & 0xFFFF_FFFF) as i32;
-
-                write!(fmt, "Timestamp({}, {})", time, inc)
+            Bson::TimeStamp(TimeStamp { time, increment }) => {
+                write!(fmt, "Timestamp({}, {})", time, increment)
             }
-            Bson::Binary(t, ref vec) => {
-                write!(fmt, "BinData({}, 0x{})", u8::from(t), hex::encode(vec))
-            }
+            Bson::Binary(Binary { subtype, ref bytes }) => write!(
+                fmt,
+                "BinData({}, 0x{})",
+                u8::from(subtype),
+                hex::encode(bytes)
+            ),
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
@@ -211,21 +176,21 @@ impl From<bool> for Bson {
     }
 }
 
-impl From<(String, String)> for Bson {
-    fn from((pat, opt): (String, String)) -> Bson {
-        Bson::RegExp(pat, opt)
+impl From<Regex> for Bson {
+    fn from(regex: Regex) -> Bson {
+        Bson::Regex(regex)
     }
 }
 
-impl From<(String, Document)> for Bson {
-    fn from((code, scope): (String, Document)) -> Bson {
-        Bson::JavaScriptCodeWithScope(code, scope)
+impl From<JavaScriptCodeWithScope> for Bson {
+    fn from(code_with_scope: JavaScriptCodeWithScope) -> Bson {
+        Bson::JavaScriptCodeWithScope(code_with_scope)
     }
 }
 
-impl From<(BinarySubtype, Vec<u8>)> for Bson {
-    fn from((ty, data): (BinarySubtype, Vec<u8>)) -> Bson {
-        Bson::Binary(ty, data)
+impl From<Binary> for Bson {
+    fn from(binary: Binary) -> Bson {
+        Bson::Binary(binary)
     }
 }
 
@@ -343,30 +308,26 @@ impl From<Bson> for Value {
             Bson::Document(v) => json!(v),
             Bson::Boolean(v) => json!(v),
             Bson::Null => Value::Null,
-            Bson::RegExp(pat, opt) => json!({
-                "$regex": pat,
-                "$options": opt
+            Bson::Regex(Regex { pattern, options }) => json!({
+                "$regex": pattern,
+                "$options": options
             }),
             Bson::JavaScriptCode(code) => json!({ "$code": code }),
-            Bson::JavaScriptCodeWithScope(code, scope) => json!({
+            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope }) => json!({
                 "$code": code,
                 "scope": scope
             }),
             Bson::I32(v) => v.into(),
             Bson::I64(v) => v.into(),
-            Bson::TimeStamp(v) => {
-                let time = v >> 32;
-                let inc = v & 0x0000_FFFF;
-                json!({
-                    "t": time,
-                    "i": inc
-                })
-            }
-            Bson::Binary(t, ref v) => {
-                let tval: u8 = From::from(t);
+            Bson::TimeStamp(TimeStamp { time, increment }) => json!({
+                "t": time,
+                "i": increment
+            }),
+            Bson::Binary(Binary { subtype, ref bytes }) => {
+                let tval: u8 = From::from(subtype);
                 json!({
                     "type": tval,
-                    "$binary": hex::encode(v),
+                    "$binary": hex::encode(bytes),
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_string()}),
@@ -393,7 +354,7 @@ impl Bson {
             Bson::Document(..) => ElementType::EmbeddedDocument,
             Bson::Boolean(..) => ElementType::Boolean,
             Bson::Null => ElementType::NullValue,
-            Bson::RegExp(..) => ElementType::RegularExpression,
+            Bson::Regex(..) => ElementType::RegularExpression,
             Bson::JavaScriptCode(..) => ElementType::JavaScriptCode,
             Bson::JavaScriptCodeWithScope(..) => ElementType::JavaScriptCodeWithScope,
             Bson::I32(..) => ElementType::Integer32Bit,
@@ -413,10 +374,13 @@ impl Bson {
     #[doc(hidden)]
     pub fn to_extended_document(&self) -> Document {
         match *self {
-            Bson::RegExp(ref pat, ref opt) => {
+            Bson::Regex(Regex {
+                ref pattern,
+                ref options,
+            }) => {
                 doc! {
-                    "$regex": pat.clone(),
-                    "$options": opt.clone(),
+                    "$regex": pattern.clone(),
+                    "$options": options.clone(),
                 }
             }
             Bson::JavaScriptCode(ref code) => {
@@ -424,25 +388,25 @@ impl Bson {
                     "$code": code.clone(),
                 }
             }
-            Bson::JavaScriptCodeWithScope(ref code, ref scope) => {
+            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                ref code,
+                ref scope,
+            }) => {
                 doc! {
                     "$code": code.clone(),
                     "$scope": scope.clone(),
                 }
             }
-            Bson::TimeStamp(v) => {
-                let time = (v >> 32) as i32;
-                let inc = (v & 0xFFFF_FFFF) as i32;
-
+            Bson::TimeStamp(TimeStamp { time, increment }) => {
                 doc! {
                     "t": time,
-                    "i": inc
+                    "i": increment
                 }
             }
-            Bson::Binary(t, ref v) => {
-                let tval: u8 = From::from(t);
+            Bson::Binary(Binary { subtype, ref bytes }) => {
+                let tval: u8 = From::from(subtype);
                 doc! {
-                    "$binary": hex::encode(v),
+                    "$binary": hex::encode(bytes),
                     "type": tval as i64,
                 }
             }
@@ -480,24 +444,42 @@ impl Bson {
     pub fn from_extended_document(values: Document) -> Bson {
         if values.len() == 2 {
             if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
-                return Bson::RegExp(pat.to_owned(), opt.to_owned());
+                return Bson::Regex(Regex {
+                    pattern: pat.to_owned(),
+                    options: opt.to_owned(),
+                });
             } else if let (Ok(code), Ok(scope)) =
                 (values.get_str("$code"), values.get_document("$scope"))
             {
-                return Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned());
-            } else if let (Ok(t), Ok(i)) = (values.get_i32("t"), values.get_i32("i")) {
-                let timestamp = ((t as i64) << 32) + (i as i64);
-                return Bson::TimeStamp(timestamp);
-            } else if let (Ok(t), Ok(i)) = (values.get_i64("t"), values.get_i64("i")) {
-                let timestamp = (t << 32) + i;
-                return Bson::TimeStamp(timestamp);
+                return Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                    code: code.to_owned(),
+                    scope: scope.to_owned(),
+                });
+            } else if let (Ok(time), Ok(increment)) = (values.get_i32("t"), values.get_i32("i")) {
+                if time >= 0 && increment >= 0 {
+                    return Bson::TimeStamp(TimeStamp {
+                        time: time as u32,
+                        increment: increment as u32,
+                    });
+                }
+            } else if let (Ok(time), Ok(increment)) = (values.get_i64("t"), values.get_i64("i")) {
+                if time >= 0
+                    && time <= std::u32::MAX as i64
+                    && increment >= 0
+                    && increment <= std::u32::MAX as i64
+                {
+                    return Bson::TimeStamp(TimeStamp {
+                        time: time as u32,
+                        increment: increment as u32,
+                    });
+                }
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
-                return Bson::Binary(
-                    From::from(ttype),
-                    hex::decode(hex.as_bytes())
+                return Bson::Binary(Binary {
+                    subtype: From::from(ttype),
+                    bytes: hex::decode(hex.as_bytes())
                         .expect("$binary value is not a valid Hex encoded bytes"),
-                );
+                });
             }
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {
@@ -528,24 +510,42 @@ impl Bson {
     pub fn from_extended_document(values: Document) -> Bson {
         if values.len() == 2 {
             if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
-                return Bson::RegExp(pat.to_owned(), opt.to_owned());
+                return Bson::Regex(Regex {
+                    pattern: pat.to_owned(),
+                    options: opt.to_owned(),
+                });
             } else if let (Ok(code), Ok(scope)) =
                 (values.get_str("$code"), values.get_document("$scope"))
             {
-                return Bson::JavaScriptCodeWithScope(code.to_owned(), scope.to_owned());
-            } else if let (Ok(t), Ok(i)) = (values.get_i32("t"), values.get_i32("i")) {
-                let timestamp = ((t as i64) << 32) + (i as i64);
-                return Bson::TimeStamp(timestamp);
-            } else if let (Ok(t), Ok(i)) = (values.get_i64("t"), values.get_i64("i")) {
-                let timestamp = (t << 32) + i;
-                return Bson::TimeStamp(timestamp);
+                return Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                    code: code.to_owned(),
+                    scope: scope.to_owned(),
+                });
+            } else if let (Ok(time), Ok(increment)) = (values.get_i32("t"), values.get_i32("i")) {
+                if time >= 0 && increment >= 0 {
+                    return Bson::TimeStamp(TimeStamp {
+                        time: time as u32,
+                        increment: increment as u32,
+                    });
+                }
+            } else if let (Ok(time), Ok(increment)) = (values.get_i64("t"), values.get_i64("i")) {
+                if time >= 0
+                    && time <= std::u32::MAX as i64
+                    && increment >= 0
+                    && increment <= std::u32::MAX as i64
+                {
+                    return Bson::TimeStamp(TimeStamp {
+                        time: time as u32,
+                        increment: increment as u32,
+                    });
+                }
             } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
                 let ttype = t as u8;
-                return Bson::Binary(
-                    From::from(ttype),
-                    hex::decode(hex.as_bytes())
+                return Bson::Binary(Binary {
+                    subtype: From::from(ttype),
+                    bytes: hex::decode(hex.as_bytes())
                         .expect("$binary value is not a valid Hex encoded bytes"),
-                );
+                });
             }
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {
@@ -700,9 +700,9 @@ impl Bson {
     }
 
     /// If `Bson` is `TimeStamp`, return its value. Returns `None` otherwise
-    pub fn as_timestamp(&self) -> Option<i64> {
+    pub fn as_timestamp(&self) -> Option<TimeStamp> {
         match *self {
-            Bson::TimeStamp(v) => Some(v),
+            Bson::TimeStamp(timestamp) => Some(timestamp),
             _ => None,
         }
     }
@@ -716,23 +716,33 @@ impl Bson {
     }
 }
 
-/// `TimeStamp` representation in struct for serde serialization
-///
-/// Just a helper for convenience
-///
-/// ```rust,ignore
-/// use serde::{Serialize, Deserialize};
-/// use bson::TimeStamp;
-///
-/// #[derive(Serialize, Deserialize)]
-/// struct Foo {
-///     timestamp: TimeStamp,
-/// }
-/// ```
+/// Represents a BSON timestamp value.
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub struct TimeStamp {
-    pub t: u32,
-    pub i: u32,
+    /// The number of seconds since the Unix epoch.
+    pub time: u32,
+
+    /// An incrementing value to order timestamps with the same number of seconds in the `time`
+    /// field.
+    pub increment: u32,
+}
+
+impl TimeStamp {
+    pub(crate) fn to_le_i64(self) -> i64 {
+        let upper = (self.time.to_le() as u64) << 32;
+        let lower = self.increment.to_le() as u64;
+
+        (upper | lower) as i64
+    }
+
+    pub(crate) fn from_le_i64(val: i64) -> Self {
+        let ts = val.to_le();
+
+        TimeStamp {
+            time: ((ts as u64) >> 32) as u32,
+            increment: (ts & 0xFFFF_FFFF) as u32,
+        }
+    }
 }
 
 /// `DateTime` representation in struct for serde serialization
@@ -775,4 +785,37 @@ impl From<DateTime<Utc>> for UtcDateTime {
     fn from(x: DateTime<Utc>) -> Self {
         UtcDateTime(x)
     }
+}
+
+/// Represents a BSON regular expression value.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Regex {
+    /// The regex pattern to match.
+    pub pattern: String,
+
+    /// The options for the regex.
+    ///
+    /// Options are identified by characters, which must be stored in
+    /// alphabetical order. Valid options are 'i' for case insensitive matching, 'm' for
+    /// multiline matching, 'x' for verbose mode, 'l' to make \w, \W, etc. locale dependent,
+    /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
+    /// unicode.
+    pub options: String,
+}
+
+/// Represents a BSON code with scope value.
+#[derive(Debug, Clone, PartialEq)]
+pub struct JavaScriptCodeWithScope {
+    pub code: String,
+    pub scope: Document,
+}
+
+/// Represents a BSON binary value.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Binary {
+    /// The subtype of the bytes.
+    pub subtype: BinarySubtype,
+
+    /// The binary bytes.
+    pub bytes: Vec<u8>,
 }

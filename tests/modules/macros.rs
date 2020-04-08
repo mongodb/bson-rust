@@ -1,4 +1,4 @@
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Bson};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex, TimeStamp};
 use chrono::offset::Utc;
 use hex;
 
@@ -23,13 +23,13 @@ fn standard_format() {
         },
         "bool": true,
         "null": null,
-        "regexp": Bson::RegExp("s[ao]d".to_owned(), "i".to_owned()),
+        "regexp": Bson::Regex(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
         "with_wrapped_parens": (-20),
         "code": Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
         "i32": 12,
         "i64": -55,
-        "timestamp": Bson::TimeStamp(229_999_444),
-        "binary": Bson::Binary(BinarySubtype::Md5, "thingies".to_owned().into_bytes()),
+        "timestamp": Bson::TimeStamp(TimeStamp { time: 0, increment: 229_999_444 }),
+        "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "_id": id,
         "date": Bson::UtcDatetime(date),
     };
@@ -70,13 +70,13 @@ fn rocket_format() {
         },
         "bool" => true,
         "null" => null,
-        "regexp" => Bson::RegExp("s[ao]d".to_owned(), "i".to_owned()),
+        "regexp" => Bson::Regex(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
         "with_wrapped_parens" => (-20),
         "code" => Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
         "i32" => 12,
         "i64" => -55,
-        "timestamp" => Bson::TimeStamp(229_999_444),
-        "binary" => Bson::Binary(BinarySubtype::Md5, "thingies".to_owned().into_bytes()),
+        "timestamp" => Bson::TimeStamp(TimeStamp { time: 0, increment: 229_999_444 }),
+        "binary" => Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "_id" => id,
         "date" => Bson::UtcDatetime(date),
     };
