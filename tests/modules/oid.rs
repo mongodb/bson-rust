@@ -27,33 +27,19 @@ fn byte_string_oid() {
 
 #[test]
 fn oid_equals() {
-    let oid_res = ObjectId::new();
-    assert!(oid_res.is_ok());
-    let oid = oid_res.unwrap();
+    let oid = ObjectId::new();
     assert_eq!(oid, oid);
 }
 
 #[test]
 fn oid_not_equals() {
-    let oid1_res = ObjectId::new();
-    let oid2_res = ObjectId::new();
-    assert!(oid1_res.is_ok());
-    assert!(oid2_res.is_ok());
-
-    let oid1 = oid1_res.unwrap();
-    let oid2 = oid2_res.unwrap();
-    assert!(oid1 != oid2);
+    assert!(ObjectId::new() != ObjectId::new());
 }
 
 // check that the last byte in objectIDs is increasing
 #[test]
 fn counter_increasing() {
-    let oid1_res = ObjectId::new();
-    let oid2_res = ObjectId::new();
-    assert!(oid1_res.is_ok());
-    assert!(oid2_res.is_ok());
-
-    let oid1_bytes = oid1_res.unwrap().bytes();
-    let oid2_bytes = oid2_res.unwrap().bytes();
+    let oid1_bytes = ObjectId::new().bytes();
+    let oid2_bytes = ObjectId::new().bytes();
     assert!(oid1_bytes[11] < oid2_bytes[11]);
 }

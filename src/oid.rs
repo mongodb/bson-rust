@@ -3,7 +3,6 @@
 use std::{
     error,
     fmt,
-    io,
     result,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -33,19 +32,11 @@ static OID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub enum Error {
     ArgumentError(String),
     FromHexError(FromHexError),
-    IoError(io::Error),
-    HostnameError,
 }
 
 impl From<FromHexError> for Error {
     fn from(err: FromHexError) -> Error {
         Error::FromHexError(err)
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::IoError(err)
     }
 }
 
@@ -57,10 +48,6 @@ impl fmt::Display for Error {
         match *self {
             Error::ArgumentError(ref inner) => inner.fmt(fmt),
             Error::FromHexError(ref inner) => inner.fmt(fmt),
-            Error::IoError(ref inner) => inner.fmt(fmt),
-            Error::HostnameError => {
-                fmt.write_str("Failed to retrieve hostname for OID generation.")
-            }
         }
     }
 }
@@ -74,12 +61,6 @@ impl error::Error for Error {
                 #[allow(deprecated)]
                 inner.description()
             }
-            Error::IoError(ref inner) =>
-            {
-                #[allow(deprecated)]
-                inner.description()
-            }
-            Error::HostnameError => "Failed to retrieve hostname for OID generation.",
         }
     }
 
@@ -87,8 +68,6 @@ impl error::Error for Error {
         match *self {
             Error::ArgumentError(_) => None,
             Error::FromHexError(ref inner) => Some(inner),
-            Error::IoError(ref inner) => Some(inner),
-            Error::HostnameError => None,
         }
     }
 }
@@ -99,14 +78,20 @@ pub struct ObjectId {
     id: [u8; 12],
 }
 
+impl Default for ObjectId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ObjectId {
     /// Generates a new ObjectID, represented in bytes.
     /// See the [docs](http://docs.mongodb.org/manual/reference/object-id/)
     /// for more information.
-    pub fn new() -> Result<ObjectId> {
+    pub fn new() -> ObjectId {
         let timestamp = ObjectId::gen_timestamp();
         let process_id = ObjectId::gen_process_id();
-        let counter = ObjectId::gen_count()?;
+        let counter = ObjectId::gen_count();
 
         let mut buf: [u8; 12] = [0; 12];
         buf[TIMESTAMP_OFFSET..(TIMESTAMP_SIZE + TIMESTAMP_OFFSET)]
@@ -116,7 +101,7 @@ impl ObjectId {
         buf[COUNTER_OFFSET..(COUNTER_SIZE + COUNTER_OFFSET)]
             .clone_from_slice(&counter[..COUNTER_SIZE]);
 
-        Ok(ObjectId::with_bytes(buf))
+        ObjectId::with_bytes(buf)
     }
 
     /// Constructs a new ObjectId wrapper around the raw byte representation.
@@ -169,7 +154,7 @@ impl ObjectId {
 
     // Gets an incremental 3-byte count.
     // Represented in Big Endian.
-    fn gen_count() -> Result<[u8; 3]> {
+    fn gen_count() -> [u8; 3] {
         // Init oid counter
         if OID_COUNTER.load(Ordering::SeqCst) == 0 {
             let start = thread_rng().gen_range(0, MAX_U24 + 1);
@@ -190,7 +175,7 @@ impl ObjectId {
         let mut buf: [u8; 8] = [0; 8];
         BigEndian::write_u64(&mut buf, u_int);
         let buf_u24: [u8; 3] = [buf[5], buf[6], buf[7]];
-        Ok(buf_u24)
+        buf_u24
     }
 }
 
@@ -212,9 +197,7 @@ fn count_generated_is_big_endian() {
     OID_COUNTER.store(start, Ordering::SeqCst);
 
     // Test count generates correct value 1122866
-    let count_res = ObjectId::gen_count();
-    assert!(count_res.is_ok());
-    let count_bytes = count_res.unwrap();
+    let count_bytes = ObjectId::gen_count();
 
     let mut buf: [u8; 4] = [0; 4];
     buf[1..=COUNTER_SIZE].clone_from_slice(&count_bytes[..COUNTER_SIZE]);
@@ -223,9 +206,7 @@ fn count_generated_is_big_endian() {
     assert_eq!(start as u32, count);
 
     // Test OID formats count correctly as big endian
-    let oid_res = ObjectId::new();
-    assert!(oid_res.is_ok());
-    let oid = oid_res.unwrap();
+    let oid = ObjectId::new();
 
     assert_eq!(0x11u8, oid.bytes()[COUNTER_OFFSET]);
     assert_eq!(0x22u8, oid.bytes()[COUNTER_OFFSET + 1]);
