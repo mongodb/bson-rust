@@ -464,9 +464,9 @@ impl Bson {
                 }
             } else if let (Ok(time), Ok(increment)) = (values.get_i64("t"), values.get_i64("i")) {
                 if time >= 0
-                    && time < std::u32::MAX as i64
+                    && time <= std::u32::MAX as i64
                     && increment >= 0
-                    && increment < std::u32::MAX as i64
+                    && increment <= std::u32::MAX as i64
                 {
                     return Bson::TimeStamp(TimeStamp {
                         time: time as u32,
@@ -530,9 +530,9 @@ impl Bson {
                 }
             } else if let (Ok(time), Ok(increment)) = (values.get_i64("t"), values.get_i64("i")) {
                 if time >= 0
-                    && time < std::u32::MAX as i64
+                    && time <= std::u32::MAX as i64
                     && increment >= 0
-                    && increment < std::u32::MAX as i64
+                    && increment <= std::u32::MAX as i64
                 {
                     return Bson::TimeStamp(TimeStamp {
                         time: time as u32,
