@@ -559,6 +559,12 @@ impl Bson {
                 return Bson::UtcDatetime(
                     Utc.timestamp(long / 1000, ((long % 1000) * 1_000_000) as u32),
                 );
+            } else if let Ok(string) = values
+                .get_str("$date")
+            {
+                if let Ok(date) = chrono::DateTime::parse_from_rfc3339(string) {
+                    return Bson::UtcDatetime(date.into())
+                }
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
             }
