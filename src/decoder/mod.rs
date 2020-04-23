@@ -40,7 +40,7 @@ use chrono::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Binary, Bson, Document, JavaScriptCodeWithScope, Regex, TimeStamp},
+    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, TimeStamp},
     oid,
     spec::{self, BinarySubtype},
 };
@@ -263,11 +263,21 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
         Some(ElementType::Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol),
         #[cfg(feature = "decimal128")]
         Some(ElementType::Decimal128Bit) => read_f128(reader).map(Bson::Decimal128),
-        Some(ElementType::Undefined)
-        | Some(ElementType::DbPointer)
-        | Some(ElementType::MaxKey)
-        | Some(ElementType::MinKey)
-        | None => Err(DecoderError::UnrecognizedElementType(tag)),
+        Some(ElementType::Undefined) => Ok(Bson::Undefined),
+        Some(ElementType::DbPointer) => {
+            let namespace = read_string(reader, utf8_lossy)?;
+            let mut objid = [0; 12];
+            for x in &mut objid {
+                *x = reader.read_u8()?;
+            }
+            Ok(Bson::DbPointer(DbPointer {
+                namespace: namespace,
+                id: oid::ObjectId::with_bytes(objid),
+            }))
+        }
+        Some(ElementType::MaxKey) => Ok(Bson::MaxKey),
+        Some(ElementType::MinKey) => Ok(Bson::MinKey),
+        None => Err(DecoderError::UnrecognizedElementType(tag)),
     }
 }
 

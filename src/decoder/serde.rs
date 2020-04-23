@@ -18,7 +18,7 @@ use super::error::{DecoderError, DecoderResult};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Binary, Bson, JavaScriptCodeWithScope, Regex, TimeStamp, UtcDateTime},
+    bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, TimeStamp, UtcDateTime},
     oid::ObjectId,
     ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor},
     spec::BinarySubtype,
@@ -745,6 +745,18 @@ impl<'de> Deserialize<'de> for UtcDateTime {
         match Bson::deserialize(deserializer)? {
             Bson::UtcDatetime(dt) => Ok(UtcDateTime(dt)),
             _ => Err(D::Error::custom("expecting UtcDateTime")),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for DbPointer {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match Bson::deserialize(deserializer)? {
+            Bson::DbPointer(db_pointer) => Ok(db_pointer),
+            _ => Err(D::Error::custom("expecting DbPointer")),
         }
     }
 }
