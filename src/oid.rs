@@ -13,8 +13,6 @@ use hex::{self, FromHexError};
 
 use rand::{thread_rng, Rng};
 
-use time;
-
 const TIMESTAMP_SIZE: usize = 4;
 const PROCESS_ID_SIZE: usize = 5;
 const COUNTER_SIZE: usize = 3;
