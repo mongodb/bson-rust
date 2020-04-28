@@ -1,6 +1,5 @@
 use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex, TimeStamp};
 use chrono::offset::Utc;
-use hex;
 
 #[test]
 fn standard_format() {

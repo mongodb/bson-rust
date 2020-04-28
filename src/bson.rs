@@ -27,7 +27,6 @@ use std::{
 };
 
 use chrono::{offset::TimeZone, DateTime, Timelike, Utc};
-use hex;
 use serde_json::{json, Value};
 
 #[cfg(feature = "decimal128")]

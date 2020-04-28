@@ -1,5 +1,4 @@
 use bson::oid::ObjectId;
-use hex;
 
 #[test]
 fn string_oid() {

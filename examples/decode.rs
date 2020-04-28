@@ -1,5 +1,3 @@
-use bson;
-
 use std::fs::File;
 
 fn main() {
