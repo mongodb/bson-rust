@@ -271,7 +271,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
                 *x = reader.read_u8()?;
             }
             Ok(Bson::DbPointer(DbPointer {
-                namespace: namespace,
+                namespace,
                 id: oid::ObjectId::with_bytes(objid),
             }))
         }
