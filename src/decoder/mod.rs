@@ -45,7 +45,7 @@ use crate::{
     spec::{self, BinarySubtype},
 };
 
-use serde::de::Deserialize;
+use ::serde::de::Deserialize;
 
 const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 
