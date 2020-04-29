@@ -366,7 +366,7 @@ impl From<Bson> for Value {
             Bson::DbPointer(DbPointer {
                 ref namespace,
                 ref id,
-            }) => json!({ "$ref": namespace, "$id": id.to_string() }),
+            }) => json!({ "$dbPointer": { "$ref": namespace, "$id": id.to_string() } }),
         }
     }
 }
@@ -484,8 +484,10 @@ impl Bson {
                 ref id,
             }) => {
                 doc! {
-                    "$ref": namespace,
-                    "$id": id.to_string(),
+                    "$dbPointer": {
+                        "$ref": namespace,
+                        "$id": id.to_string()
+                    }
                 }
             }
             _ => panic!("Attempted conversion of invalid data type: {}", self),
@@ -535,12 +537,6 @@ impl Bson {
                     bytes: hex::decode(hex.as_bytes())
                         .expect("$binary value is not a valid Hex encoded bytes"),
                 });
-            } else if let (Ok(namespace), Ok(id)) = (values.get_str("$ref"), values.get_str("$id"))
-            {
-                return Bson::DbPointer(DbPointer {
-                    namespace: namespace.to_owned(),
-                    id: oid::ObjectId::with_string(id).unwrap(),
-                });
             }
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {
@@ -569,6 +565,15 @@ impl Bson {
             } else if let Ok(max) = values.get_i64("$maxKey") {
                 if max == 1 {
                     return Bson::MaxKey;
+                }
+            } else if let Ok(db_pointer) = values.get_document("$dbPointer") {
+                if let (Ok(namespace), Ok(id)) =
+                    (db_pointer.get_str("$ref"), db_pointer.get_str("$id"))
+                {
+                    return Bson::DbPointer(DbPointer {
+                        namespace: namespace.to_owned(),
+                        id: oid::ObjectId::with_string(id).unwrap(),
+                    });
                 }
             }
         }
@@ -619,12 +624,6 @@ impl Bson {
                     bytes: hex::decode(hex.as_bytes())
                         .expect("$binary value is not a valid Hex encoded bytes"),
                 });
-            } else if let (Ok(namespace), Ok(id)) = (values.get_str("$ref"), values.get_str("$id"))
-            {
-                return Bson::DbPointer(DbPointer {
-                    namespace: namespace.to_owned(),
-                    id: oid::ObjectId::with_string(id).unwrap(),
-                });
             }
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {
@@ -651,6 +650,15 @@ impl Bson {
             } else if let Ok(max) = values.get_i64("$maxKey") {
                 if max == 1 {
                     return Bson::MaxKey;
+                }
+            } else if let Ok(db_pointer) = values.get_document("$dbPointer") {
+                if let (Ok(namespace), Ok(id)) =
+                    (db_pointer.get_str("$ref"), db_pointer.get_str("$id"))
+                {
+                    return Bson::DbPointer(DbPointer {
+                        namespace: namespace.to_owned(),
+                        id: oid::ObjectId::with_string(id).unwrap(),
+                    });
                 }
             }
         }
@@ -807,7 +815,7 @@ impl Bson {
     }
 
     pub fn as_db_pointer(&self) -> Option<&DbPointer> {
-        match *self {
+        match self {
             Bson::DbPointer(ref db_pointer) => Some(db_pointer),
             _ => None,
         }

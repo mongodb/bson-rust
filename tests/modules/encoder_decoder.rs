@@ -436,8 +436,10 @@ fn test_encode_decode_max_key() {
 #[test]
 fn test_encode_decode_db_pointer() {
     let src = Bson::from_extended_document(doc! {
-        "$ref": "db.coll",
-        "$id": "507f1f77bcf86cd799439011"
+        "$dbPointer": {
+            "$ref": "db.coll",
+            "$id": "507f1f77bcf86cd799439011"
+        }
     });
     let dst = vec![
         34, 0, 0, 0, 12, 107, 101, 121, 0, 8, 0, 0, 0, 100, 98, 46, 99, 111, 108, 108, 0, 80, 127,

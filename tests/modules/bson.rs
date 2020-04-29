@@ -132,8 +132,10 @@ fn from_impls() {
     );
 
     let db_pointer = Bson::from_extended_document(doc! {
-        "$ref": "db.coll",
-        "$id": "507f1f77bcf86cd799439011"
+        "$dbPointer": {
+            "$ref": "db.coll",
+            "$id": "507f1f77bcf86cd799439011"
+        }
     });
     let db_pointer = db_pointer.as_db_pointer().unwrap();
     assert_eq!(Bson::from(db_pointer), Bson::DbPointer(db_pointer.clone()));

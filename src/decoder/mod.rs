@@ -267,9 +267,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
         Some(ElementType::DbPointer) => {
             let namespace = read_string(reader, utf8_lossy)?;
             let mut objid = [0; 12];
-            for x in &mut objid {
-                *x = reader.read_u8()?;
-            }
+            reader.read_exact(&mut objid)?;
             Ok(Bson::DbPointer(DbPointer {
                 namespace,
                 id: oid::ObjectId::with_bytes(objid),

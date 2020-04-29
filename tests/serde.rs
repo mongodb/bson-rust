@@ -474,8 +474,10 @@ fn test_ser_db_pointer() {
     }
 
     let db_pointer = Bson::from_extended_document(doc! {
-        "$ref": "db.coll",
-        "$id": "507f1f77bcf86cd799439011"
+        "$dbPointer": {
+            "$ref": "db.coll",
+            "$id": "507f1f77bcf86cd799439011"
+        }
     });
     let db_pointer = db_pointer.as_db_pointer().unwrap();
 
@@ -503,8 +505,10 @@ fn test_de_db_pointer() {
     }
 
     let db_pointer = Bson::from_extended_document(doc! {
-        "$ref": "db.coll",
-        "$id": "507f1f77bcf86cd799439011"
+        "$dbPointer": {
+            "$ref": "db.coll",
+            "$id": "507f1f77bcf86cd799439011"
+        }
     });
     let db_pointer = db_pointer.as_db_pointer().unwrap();
 
