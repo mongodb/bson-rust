@@ -45,7 +45,7 @@ use crate::{
     spec::{self, BinarySubtype},
 };
 
-use ::serde::de::Deserialize;
+use serde::de::Deserialize;
 
 const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 
@@ -267,13 +267,7 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
         Some(ElementType::DbPointer) => {
             let namespace = read_string(reader, utf8_lossy)?;
             let mut objid = [0; 12];
-<<<<<<< HEAD
             reader.read_exact(&mut objid)?;
-=======
-            for x in &mut objid {
-                *x = reader.read_u8()?;
-            }
->>>>>>> d86326db7097718e42413261f939229a1efe654b
             Ok(Bson::DbPointer(DbPointer {
                 namespace,
                 id: oid::ObjectId::with_bytes(objid),
