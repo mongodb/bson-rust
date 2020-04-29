@@ -537,6 +537,12 @@ impl Bson {
                     bytes: hex::decode(hex.as_bytes())
                         .expect("$binary value is not a valid Hex encoded bytes"),
                 });
+            } else if let (Ok(namespace), Ok(id)) = (values.get_str("$ref"), values.get_str("$id"))
+            {
+                return Bson::DbPointer(DbPointer {
+                    namespace: namespace.to_owned(),
+                    id: oid::ObjectId::with_string(id).unwrap(),
+                });
             }
         } else if values.len() == 1 {
             if let Ok(code) = values.get_str("$code") {
@@ -623,6 +629,12 @@ impl Bson {
                     subtype: From::from(ttype),
                     bytes: hex::decode(hex.as_bytes())
                         .expect("$binary value is not a valid Hex encoded bytes"),
+                });
+            } else if let (Ok(namespace), Ok(id)) = (values.get_str("$ref"), values.get_str("$id"))
+            {
+                return Bson::DbPointer(DbPointer {
+                    namespace: namespace.to_owned(),
+                    id: oid::ObjectId::with_string(id).unwrap(),
                 });
             }
         } else if values.len() == 1 {
