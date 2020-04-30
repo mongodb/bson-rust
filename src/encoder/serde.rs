@@ -15,7 +15,17 @@ use serde::ser::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Binary, Bson, Document, JavaScriptCodeWithScope, Regex, TimeStamp, UtcDateTime},
+    bson::{
+        Array,
+        Binary,
+        Bson,
+        DbPointer,
+        Document,
+        JavaScriptCodeWithScope,
+        Regex,
+        TimeStamp,
+        UtcDateTime,
+    },
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -554,6 +564,17 @@ impl Serialize for UtcDateTime {
     {
         // Cloning a `DateTime` is extremely cheap
         let value = Bson::UtcDatetime(self.0);
+        value.serialize(serializer)
+    }
+}
+
+impl Serialize for DbPointer {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let value = Bson::DbPointer(self.clone());
         value.serialize(serializer)
     }
 }

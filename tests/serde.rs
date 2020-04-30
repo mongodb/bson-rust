@@ -463,3 +463,59 @@ fn test_serde_tuple_variant() {
     let p2 = bson::from_bson::<Point>(de).unwrap();
     assert_eq!(p2, Point::ThreeDim(x2, y2, z2));
 }
+
+#[test]
+fn test_ser_db_pointer() {
+    use bson::DbPointer;
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo {
+        db_pointer: DbPointer,
+    }
+
+    let db_pointer = Bson::from_extended_document(doc! {
+        "$dbPointer": {
+            "$ref": "db.coll",
+            "$id": "507f1f77bcf86cd799439011"
+        }
+    });
+    let db_pointer = db_pointer.as_db_pointer().unwrap();
+
+    let foo = Foo {
+        db_pointer: db_pointer.clone(),
+    };
+
+    let x = bson::to_bson(&foo).unwrap();
+    assert_eq!(
+        x.as_document().unwrap(),
+        &doc! {"db_pointer": Bson::DbPointer(db_pointer.clone()) }
+    );
+
+    let xfoo: Foo = bson::from_bson(x).unwrap();
+    assert_eq!(xfoo, foo);
+}
+
+#[test]
+fn test_de_db_pointer() {
+    use bson::DbPointer;
+
+    #[derive(Deserialize, PartialEq, Debug)]
+    struct Foo {
+        db_pointer: DbPointer,
+    }
+
+    let db_pointer = Bson::from_extended_document(doc! {
+        "$dbPointer": {
+            "$ref": "db.coll",
+            "$id": "507f1f77bcf86cd799439011"
+        }
+    });
+    let db_pointer = db_pointer.as_db_pointer().unwrap();
+
+    let foo: Foo = bson::from_bson(Bson::Document(
+        doc! {"db_pointer": Bson::DbPointer(db_pointer.clone())},
+    ))
+    .unwrap();
+
+    assert_eq!(foo.db_pointer, db_pointer.clone());
+}

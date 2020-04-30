@@ -384,3 +384,75 @@ fn test_illegal_size() {
     ];
     assert!(decode_document(&mut Cursor::new(&buffer[..])).is_err());
 }
+
+#[test]
+fn test_encode_decode_undefined() {
+    let src = Bson::Undefined;
+    let dst = vec![10, 0, 0, 0, 6, 107, 101, 121, 0, 0];
+
+    let doc = doc! { "key": src };
+
+    let mut buf = Vec::new();
+    encode_document(&mut buf, &doc).unwrap();
+
+    assert_eq!(buf, dst);
+
+    let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
+    assert_eq!(decoded, doc);
+}
+
+#[test]
+fn test_encode_decode_min_key() {
+    let src = Bson::MinKey;
+    let dst = vec![10, 0, 0, 0, 255, 107, 101, 121, 0, 0];
+
+    let doc = doc! { "key": src };
+
+    let mut buf = Vec::new();
+    encode_document(&mut buf, &doc).unwrap();
+
+    assert_eq!(buf, dst);
+
+    let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
+    assert_eq!(decoded, doc);
+}
+
+#[test]
+fn test_encode_decode_max_key() {
+    let src = Bson::MaxKey;
+    let dst = vec![10, 0, 0, 0, 127, 107, 101, 121, 0, 0];
+
+    let doc = doc! {"key": src };
+
+    let mut buf = Vec::new();
+    encode_document(&mut buf, &doc).unwrap();
+
+    assert_eq!(buf, dst);
+
+    let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
+    assert_eq!(decoded, doc);
+}
+
+#[test]
+fn test_encode_decode_db_pointer() {
+    let src = Bson::from_extended_document(doc! {
+        "$dbPointer": {
+            "$ref": "db.coll",
+            "$id": "507f1f77bcf86cd799439011"
+        }
+    });
+    let dst = vec![
+        34, 0, 0, 0, 12, 107, 101, 121, 0, 8, 0, 0, 0, 100, 98, 46, 99, 111, 108, 108, 0, 80, 127,
+        31, 119, 188, 248, 108, 215, 153, 67, 144, 17, 0,
+    ];
+
+    let doc = doc! { "key": src };
+
+    let mut buf = Vec::new();
+    encode_document(&mut buf, &doc).unwrap();
+
+    assert_eq!(buf, dst);
+
+    let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
+    assert_eq!(decoded, doc);
+}

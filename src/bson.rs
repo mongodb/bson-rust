@@ -75,6 +75,14 @@ pub enum Bson {
     /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
     #[cfg(feature = "decimal128")]
     Decimal128(Decimal128),
+    /// Undefined value (Deprecated)
+    Undefined,
+    /// Max key
+    MaxKey,
+    /// Min key
+    MinKey,
+    /// DBPointer (Deprecated)
+    DbPointer(DbPointer),
 }
 
 /// Alias for `Vec<Bson>`.
@@ -135,6 +143,13 @@ impl Display for Bson {
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
             #[cfg(feature = "decimal128")]
             Bson::Decimal128(ref d) => write!(fmt, "Decimal128({})", d),
+            Bson::Undefined => write!(fmt, "undefined"),
+            Bson::MinKey => write!(fmt, "MinKey"),
+            Bson::MaxKey => write!(fmt, "MaxKey"),
+            Bson::DbPointer(DbPointer {
+                ref namespace,
+                ref id,
+            }) => write!(fmt, "DBPointer({}, {})", namespace, id),
         }
     }
 }
@@ -278,6 +293,12 @@ impl From<DateTime<Utc>> for Bson {
     }
 }
 
+impl From<DbPointer> for Bson {
+    fn from(a: DbPointer) -> Bson {
+        Bson::DbPointer(a)
+    }
+}
+
 impl From<Value> for Bson {
     fn from(a: Value) -> Bson {
         match a {
@@ -339,6 +360,13 @@ impl From<Bson> for Value {
             Bson::Symbol(v) => json!({ "$symbol": v }),
             #[cfg(feature = "decimal128")]
             Bson::Decimal128(ref v) => json!({ "$numberDecimal": v.to_string() }),
+            Bson::Undefined => json!({ "$undefined": true }),
+            Bson::MinKey => json!({ "$minKey": 1 }),
+            Bson::MaxKey => json!({ "$maxKey": 1 }),
+            Bson::DbPointer(DbPointer {
+                ref namespace,
+                ref id,
+            }) => json!({ "$dbPointer": { "$ref": namespace, "$id": id.to_string() } }),
         }
     }
 }
@@ -365,6 +393,10 @@ impl Bson {
             Bson::Symbol(..) => ElementType::Symbol,
             #[cfg(feature = "decimal128")]
             Bson::Decimal128(..) => ElementType::Decimal128Bit,
+            Bson::Undefined => ElementType::Undefined,
+            Bson::MaxKey => ElementType::MaxKey,
+            Bson::MinKey => ElementType::MinKey,
+            Bson::DbPointer(..) => ElementType::DbPointer,
         }
     }
 
@@ -432,6 +464,32 @@ impl Bson {
                     "$numberDecimal" => (v.to_string())
                 }
             }
+            Bson::Undefined => {
+                doc! {
+                    "$undefined": true,
+                }
+            }
+            Bson::MinKey => {
+                doc! {
+                    "$minKey": 1,
+                }
+            }
+            Bson::MaxKey => {
+                doc! {
+                    "$maxKey": 1,
+                }
+            }
+            Bson::DbPointer(DbPointer {
+                ref namespace,
+                ref id,
+            }) => {
+                doc! {
+                    "$dbPointer": {
+                        "$ref": namespace,
+                        "$id": id.to_string()
+                    }
+                }
+            }
             _ => panic!("Attempted conversion of invalid data type: {}", self),
         }
     }
@@ -496,6 +554,27 @@ impl Bson {
                 return Bson::Symbol(sym.to_owned());
             } else if let Ok(dec) = values.get_str("$numberDecimal") {
                 return Bson::Decimal128(dec.parse::<Decimal128>().unwrap());
+            } else if let Ok(undefined) = values.get_bool("$undefined") {
+                if undefined {
+                    return Bson::Undefined;
+                }
+            } else if let Ok(min) = values.get_i64("$minKey") {
+                if min == 1 {
+                    return Bson::MinKey;
+                }
+            } else if let Ok(max) = values.get_i64("$maxKey") {
+                if max == 1 {
+                    return Bson::MaxKey;
+                }
+            } else if let Ok(db_pointer) = values.get_document("$dbPointer") {
+                if let (Ok(namespace), Ok(id)) =
+                    (db_pointer.get_str("$ref"), db_pointer.get_str("$id"))
+                {
+                    return Bson::DbPointer(DbPointer {
+                        namespace: namespace.to_owned(),
+                        id: oid::ObjectId::with_string(id).unwrap(),
+                    });
+                }
             }
         }
 
@@ -560,6 +639,27 @@ impl Bson {
                 );
             } else if let Ok(sym) = values.get_str("$symbol") {
                 return Bson::Symbol(sym.to_owned());
+            } else if let Ok(undefined) = values.get_bool("$undefined") {
+                if undefined {
+                    return Bson::Undefined;
+                }
+            } else if let Ok(min) = values.get_i64("$minKey") {
+                if min == 1 {
+                    return Bson::MinKey;
+                }
+            } else if let Ok(max) = values.get_i64("$maxKey") {
+                if max == 1 {
+                    return Bson::MaxKey;
+                }
+            } else if let Ok(db_pointer) = values.get_document("$dbPointer") {
+                if let (Ok(namespace), Ok(id)) =
+                    (db_pointer.get_str("$ref"), db_pointer.get_str("$id"))
+                {
+                    return Bson::DbPointer(DbPointer {
+                        namespace: namespace.to_owned(),
+                        id: oid::ObjectId::with_string(id).unwrap(),
+                    });
+                }
             }
         }
 
@@ -713,6 +813,13 @@ impl Bson {
             _ => None,
         }
     }
+
+    pub fn as_db_pointer(&self) -> Option<&DbPointer> {
+        match self {
+            Bson::DbPointer(ref db_pointer) => Some(db_pointer),
+            _ => None,
+        }
+    }
 }
 
 /// Represents a BSON timestamp value.
@@ -817,4 +924,11 @@ pub struct Binary {
 
     /// The binary bytes.
     pub bytes: Vec<u8>,
+}
+
+/// Represents a DBPointer. (Deprecated)
+#[derive(Debug, Clone, PartialEq)]
+pub struct DbPointer {
+    pub(crate) namespace: String,
+    pub(crate) id: oid::ObjectId,
 }
