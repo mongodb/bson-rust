@@ -136,11 +136,12 @@ impl ObjectId {
     // Generates a new timestamp representing the current seconds since epoch.
     // Represented in Big Endian.
     fn gen_timestamp() -> [u8; 4] {
-        let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
-                                         .expect("system clock is before 1970")
-                                         .as_secs()
-                                         .try_into()
-                                         .expect("FIXME before 2038");
+        let timestamp = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("system clock is before 1970")
+            .as_secs()
+            .try_into()
+            .expect("FIXME before 2038");
 
         let mut buf: [u8; 4] = [0; 4];
         BigEndian::write_u32(&mut buf, timestamp);
