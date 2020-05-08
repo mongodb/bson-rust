@@ -1,4 +1,4 @@
-//! Convert unsigned types to/from `Bson::FloatingPoint`
+//! Convert unsigned types to/from `Bson::Double`
 
 use serde::{Deserialize, Deserializer, Serializer};
 
@@ -32,7 +32,7 @@ impl ToF64 for u64 {
     }
 }
 
-/// Serialize unsigned types to `Bson::FloatingPoint`
+/// Serialize unsigned types to `Bson::Double`
 pub fn serialize<T, S>(v: &T, s: S) -> Result<S::Ok, S::Error>
 where
     T: ToF64,
@@ -71,7 +71,7 @@ impl FromF64 for u64 {
     }
 }
 
-/// Deserialize unsigned types to `Bson::FloatingPoint`
+/// Deserialize unsigned types to `Bson::Double`
 pub fn deserialize<'de, T, D>(d: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,

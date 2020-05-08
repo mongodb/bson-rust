@@ -206,7 +206,7 @@ fn test_compat_u2f() {
 
     let foo = Foo { x: 20 };
     let b = bson::to_bson(&foo).unwrap();
-    assert_eq!(b, Bson::Document(doc! { "x": Bson::FloatingPoint(20.0) }));
+    assert_eq!(b, Bson::Document(doc! { "x": Bson::Double(20.0) }));
 
     let de_foo = bson::from_bson::<Foo>(b).unwrap();
     assert_eq!(de_foo, foo);

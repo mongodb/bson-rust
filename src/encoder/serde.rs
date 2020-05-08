@@ -17,12 +17,12 @@ use crate::{
         Array,
         Binary,
         Bson,
+        DateTime,
         DbPointer,
         Document,
         JavaScriptCodeWithScope,
         Regex,
-        TimeStamp,
-        UtcDateTime,
+        Timestamp,
     },
     oid::ObjectId,
     spec::BinarySubtype,
@@ -63,11 +63,11 @@ impl Serialize for Bson {
         S: Serializer,
     {
         match *self {
-            Bson::FloatingPoint(v) => serializer.serialize_f64(v),
+            Bson::Double(v) => serializer.serialize_f64(v),
             Bson::String(ref v) => serializer.serialize_str(v),
             Bson::Array(ref v) => v.serialize(serializer),
             Bson::Document(ref v) => v.serialize(serializer),
-            Bson::Boolean(v) => serializer.serialize_bool(v),
+            Bson::Bool(v) => serializer.serialize_bool(v),
             Bson::Null => serializer.serialize_unit(),
             Bson::I32(v) => serializer.serialize_i32(v),
             Bson::I64(v) => serializer.serialize_i64(v),
@@ -108,7 +108,7 @@ impl Serializer for Encoder {
 
     #[inline]
     fn serialize_bool(self, value: bool) -> EncoderResult<Bson> {
-        Ok(Bson::Boolean(value))
+        Ok(Bson::Bool(value))
     }
 
     #[inline]
@@ -187,7 +187,7 @@ impl Serializer for Encoder {
 
     #[inline]
     fn serialize_f64(self, value: f64) -> EncoderResult<Bson> {
-        Ok(Bson::FloatingPoint(value))
+        Ok(Bson::Double(value))
     }
 
     #[inline]
@@ -508,13 +508,13 @@ impl SerializeStructVariant for StructVariantSerializer {
     }
 }
 
-impl Serialize for TimeStamp {
+impl Serialize for Timestamp {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let value = Bson::TimeStamp(*self);
+        let value = Bson::Timestamp(*self);
         value.serialize(serializer)
     }
 }
@@ -564,14 +564,14 @@ impl Serialize for Decimal128 {
     }
 }
 
-impl Serialize for UtcDateTime {
+impl Serialize for DateTime {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         // Cloning a `DateTime` is extremely cheap
-        let value = Bson::UtcDatetime(self.0);
+        let value = Bson::DateTime(self.0);
         value.serialize(serializer)
     }
 }

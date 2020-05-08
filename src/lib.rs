@@ -188,15 +188,8 @@
 
 pub use self::{
     bson::{
-        Array,
-        Binary,
-        Bson,
-        DbPointer,
-        Document,
-        JavaScriptCodeWithScope,
-        Regex,
-        TimeStamp,
-        UtcDateTime,
+        Array, Binary, Bson, DateTime, DbPointer, Document, JavaScriptCodeWithScope, Regex,
+        Timestamp,
     },
     decimal128::Decimal128,
     decoder::{from_bson, Decoder, DecoderError, DecoderResult},

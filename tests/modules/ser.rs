@@ -7,7 +7,7 @@ use std::{collections::BTreeMap, u16, u32, u64, u8};
 #[test]
 #[allow(clippy::float_cmp)]
 fn floating_point() {
-    let obj = Bson::FloatingPoint(240.5);
+    let obj = Bson::Double(240.5);
     let f: f64 = from_bson(obj.clone()).unwrap();
     assert_eq!(f, 240.5);
 
@@ -37,7 +37,7 @@ fn arr() {
 
 #[test]
 fn boolean() {
-    let obj = Bson::Boolean(true);
+    let obj = Bson::Bool(true);
     let b: bool = from_bson(obj.clone()).unwrap();
     assert_eq!(b, true);
 

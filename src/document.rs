@@ -217,7 +217,7 @@ impl Document {
     /// the correct type.
     pub fn get_f64(&self, key: &str) -> ValueAccessResult<f64> {
         match self.get(key) {
-            Some(&Bson::FloatingPoint(v)) => Ok(v),
+            Some(&Bson::Double(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -227,7 +227,7 @@ impl Document {
     /// the correct type.
     pub fn get_f64_mut(&mut self, key: &str) -> ValueAccessResult<&mut f64> {
         match self.get_mut(key) {
-            Some(&mut Bson::FloatingPoint(ref mut v)) => Ok(v),
+            Some(&mut Bson::Double(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -314,7 +314,7 @@ impl Document {
     /// Get a bool value for this key if it exists and has the correct type.
     pub fn get_bool(&self, key: &str) -> ValueAccessResult<bool> {
         match self.get(key) {
-            Some(&Bson::Boolean(v)) => Ok(v),
+            Some(&Bson::Bool(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -323,7 +323,7 @@ impl Document {
     /// Get a mutable reference to a bool value for this key if it exists and has the correct type.
     pub fn get_bool_mut(&mut self, key: &str) -> ValueAccessResult<&mut bool> {
         match self.get_mut(key) {
-            Some(&mut Bson::Boolean(ref mut v)) => Ok(v),
+            Some(&mut Bson::Bool(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -371,9 +371,9 @@ impl Document {
     }
 
     /// Get a time stamp value for this key if it exists and has the correct type.
-    pub fn get_time_stamp(&self, key: &str) -> ValueAccessResult<TimeStamp> {
+    pub fn get_timestamp(&self, key: &str) -> ValueAccessResult<Timestamp> {
         match self.get(key) {
-            Some(&Bson::TimeStamp(timestamp)) => Ok(timestamp),
+            Some(&Bson::Timestamp(timestamp)) => Ok(timestamp),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -381,9 +381,9 @@ impl Document {
 
     /// Get a mutable reference to a time stamp value for this key if it exists and has the correct
     /// type.
-    pub fn get_time_stamp_mut(&mut self, key: &str) -> ValueAccessResult<&mut TimeStamp> {
+    pub fn get_timestamp_mut(&mut self, key: &str) -> ValueAccessResult<&mut Timestamp> {
         match self.get_mut(key) {
-            Some(&mut Bson::TimeStamp(ref mut timestamp)) => Ok(timestamp),
+            Some(&mut Bson::Timestamp(ref mut timestamp)) => Ok(timestamp),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -435,9 +435,9 @@ impl Document {
     }
 
     /// Get a reference to a UTC datetime value for this key if it exists and has the correct type.
-    pub fn get_utc_datetime(&self, key: &str) -> ValueAccessResult<&DateTime<Utc>> {
+    pub fn get_datetime(&self, key: &str) -> ValueAccessResult<&DateTime<Utc>> {
         match self.get(key) {
-            Some(&Bson::UtcDatetime(ref v)) => Ok(v),
+            Some(&Bson::DateTime(ref v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -445,9 +445,9 @@ impl Document {
 
     /// Get a mutable reference to a UTC datetime value for this key if it exists and has the
     /// correct type.
-    pub fn get_utc_datetime_mut(&mut self, key: &str) -> ValueAccessResult<&mut DateTime<Utc>> {
+    pub fn get_datetime_mut(&mut self, key: &str) -> ValueAccessResult<&mut DateTime<Utc>> {
         match self.get_mut(key) {
-            Some(&mut Bson::UtcDatetime(ref mut v)) => Ok(v),
+            Some(&mut Bson::DateTime(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }

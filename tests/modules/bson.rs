@@ -1,12 +1,5 @@
 use bson::{
-    doc,
-    oid::ObjectId,
-    spec::BinarySubtype,
-    Binary,
-    Bson,
-    Document,
-    JavaScriptCodeWithScope,
-    Regex,
+    doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Document, JavaScriptCodeWithScope, Regex,
 };
 use serde_json::{json, Value};
 
@@ -59,15 +52,15 @@ fn document_default() {
 
 #[test]
 fn from_impls() {
-    assert_eq!(Bson::from(1.5f32), Bson::FloatingPoint(1.5));
-    assert_eq!(Bson::from(2.25f64), Bson::FloatingPoint(2.25));
+    assert_eq!(Bson::from(1.5f32), Bson::Double(1.5));
+    assert_eq!(Bson::from(2.25f64), Bson::Double(2.25));
     assert_eq!(Bson::from("data"), Bson::String(String::from("data")));
     assert_eq!(
         Bson::from(String::from("data")),
         Bson::String(String::from("data"))
     );
     assert_eq!(Bson::from(doc! {}), Bson::Document(Document::new()));
-    assert_eq!(Bson::from(false), Bson::Boolean(false));
+    assert_eq!(Bson::from(false), Bson::Bool(false));
     assert_eq!(
         Bson::from(Regex {
             pattern: String::from("\\s+$"),

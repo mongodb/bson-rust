@@ -3,15 +3,8 @@ use std::io::{Cursor, Write};
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
 use bson::{
-    doc,
-    oid::ObjectId,
-    spec::BinarySubtype,
-    Binary,
-    Bson,
-    Document,
-    JavaScriptCodeWithScope,
-    Regex,
-    TimeStamp,
+    doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Document, JavaScriptCodeWithScope,
+    Regex, TimeStamp,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::{offset::TimeZone, Utc};
@@ -56,7 +49,7 @@ fn test_encode_decode_utf8_string() {
 
 #[test]
 fn test_encode_decode_array() {
-    let src = vec![Bson::FloatingPoint(1.01), Bson::String("xyz".to_owned())];
+    let src = vec![Bson::Double(1.01), Bson::String("xyz".to_owned())];
     let dst = vec![
         37, 0, 0, 0, 4, 107, 101, 121, 0, 27, 0, 0, 0, 1, 48, 0, 41, 92, 143, 194, 245, 40, 240,
         63, 2, 49, 0, 4, 0, 0, 0, 120, 121, 122, 0, 0, 0,
@@ -216,7 +209,7 @@ fn test_encode_decode_i64() {
 
 #[test]
 fn test_encode_decode_timestamp() {
-    let src = Bson::TimeStamp(TimeStamp {
+    let src = Bson::Timestamp(Timestamp {
         time: 0,
         increment: 100,
     });

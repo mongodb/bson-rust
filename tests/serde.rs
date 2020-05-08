@@ -57,15 +57,15 @@ fn test_de_map() {
 
 #[test]
 fn test_ser_timestamp() {
-    use bson::TimeStamp;
+    use bson::Timestamp;
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
-        ts: TimeStamp,
+        ts: Timestamp,
     }
 
     let foo = Foo {
-        ts: TimeStamp {
+        ts: Timestamp {
             time: 12,
             increment: 10,
         },
@@ -74,7 +74,7 @@ fn test_ser_timestamp() {
     let x = bson::to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "ts": Bson::TimeStamp(TimeStamp { time: 0x0000_000C, increment: 0x0000_000A }) }
+        &doc! { "ts": Bson::Timestamp(Timestamp { time: 0x0000_000C, increment: 0x0000_000A }) }
     );
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
@@ -83,21 +83,21 @@ fn test_ser_timestamp() {
 
 #[test]
 fn test_de_timestamp() {
-    use bson::TimeStamp;
+    use bson::Timestamp;
 
     #[derive(Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
-        ts: TimeStamp,
+        ts: Timestamp,
     }
 
     let foo: Foo = bson::from_bson(Bson::Document(doc! {
-        "ts": Bson::TimeStamp(TimeStamp { time: 0x0000_000C, increment: 0x0000_000A }),
+        "ts": Bson::Timestamp(Timestamp { time: 0x0000_000C, increment: 0x0000_000A }),
     }))
     .unwrap();
 
     assert_eq!(
         foo.ts,
-        TimeStamp {
+        Timestamp {
             time: 12,
             increment: 10
         }
@@ -206,12 +206,12 @@ fn test_de_code_with_scope() {
 
 #[test]
 fn test_ser_datetime() {
-    use bson::UtcDateTime;
+    use bson::DateTime;
     use chrono::{Timelike, Utc};
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
-        date: UtcDateTime,
+        date: DateTime,
     }
 
     let now = Utc::now();
@@ -227,7 +227,7 @@ fn test_ser_datetime() {
     let x = bson::to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "date": (Bson::UtcDatetime(now)) }
+        &doc! { "date": (Bson::DateTime(now)) }
     );
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
@@ -244,7 +244,7 @@ fn test_compat_u2f() {
 
     let foo = Foo { x: 20 };
     let b = bson::to_bson(&foo).unwrap();
-    assert_eq!(b, Bson::Document(doc! { "x": (Bson::FloatingPoint(20.0)) }));
+    assert_eq!(b, Bson::Document(doc! { "x": (Bson::Double(20.0)) }));
 
     let de_foo = bson::from_bson::<Foo>(b).unwrap();
     assert_eq!(de_foo, foo);

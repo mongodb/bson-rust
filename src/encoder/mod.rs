@@ -101,11 +101,11 @@ pub(crate) fn encode_bson<W: Write + ?Sized>(
     write_cstring(writer, key)?;
 
     match *val {
-        Bson::FloatingPoint(v) => write_f64(writer, v),
+        Bson::Double(v) => write_f64(writer, v),
         Bson::String(ref v) => write_string(writer, &v),
         Bson::Array(ref v) => encode_array(writer, &v),
         Bson::Document(ref v) => v.encode(writer),
-        Bson::Boolean(v) => writer
+        Bson::Bool(v) => writer
             .write_u8(if v { 0x01 } else { 0x00 })
             .map_err(From::from),
         Bson::Regex(Regex {
@@ -130,7 +130,7 @@ pub(crate) fn encode_bson<W: Write + ?Sized>(
         }
         Bson::I32(v) => write_i32(writer, v),
         Bson::I64(v) => write_i64(writer, v),
-        Bson::TimeStamp(ts) => write_i64(writer, ts.to_le_i64()),
+        Bson::Timestamp(ts) => write_i64(writer, ts.to_le_i64()),
         Bson::Binary(Binary { subtype, ref bytes }) => {
             let len = if let BinarySubtype::BinaryOld = subtype {
                 bytes.len() + 4
@@ -147,7 +147,7 @@ pub(crate) fn encode_bson<W: Write + ?Sized>(
 
             writer.write_all(bytes).map_err(From::from)
         }
-        Bson::UtcDatetime(ref v) => write_i64(
+        Bson::DateTime(ref v) => write_i64(
             writer,
             (v.timestamp() * 1000) + (v.nanosecond() / 1_000_000) as i64,
         ),

@@ -1,4 +1,4 @@
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex, TimeStamp};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex, Timestamp};
 use chrono::offset::Utc;
 use pretty_assertions::assert_eq;
 
@@ -28,10 +28,10 @@ fn standard_format() {
         "code": Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
         "i32": 12,
         "i64": -55,
-        "timestamp": Bson::TimeStamp(TimeStamp { time: 0, increment: 229_999_444 }),
+        "timestamp": Bson::Timestamp(Timestamp { time: 0, increment: 229_999_444 }),
         "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "_id": id,
-        "date": Bson::UtcDatetime(date),
+        "date": Bson::DateTime(date),
     };
 
     let expected = format!(
@@ -105,9 +105,9 @@ fn recursive_macro() {
                                 ),
                             }
                             match arr.get(1) {
-                                Some(Bson::Boolean(ref b)) => assert!(!b),
+                                Some(Bson::Bool(ref b)) => assert!(!b),
                                 _ => panic!(
-                                    "Boolean 'false' was not inserted into inner array correctly."
+                                    "Bool 'false' was not inserted into inner array correctly."
                                 ),
                             }
                         }
@@ -116,7 +116,7 @@ fn recursive_macro() {
 
                     // Inner floating point
                     match inner_doc.get("jelly") {
-                        Some(&Bson::FloatingPoint(ref fp)) => assert_eq!(42.0, *fp),
+                        Some(&Bson::Double(ref fp)) => assert_eq!(42.0, *fp),
                         _ => panic!("Floating point 42.0 was not inserted correctly."),
                     }
                 }

@@ -1,14 +1,7 @@
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
 use bson::{
-    doc,
-    oid::ObjectId,
-    spec::BinarySubtype,
-    Binary,
-    Bson,
-    Document,
-    TimeStamp,
-    ValueAccessError,
+    doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Document, Timestamp, ValueAccessError,
 };
 use chrono::Utc;
 
@@ -81,7 +74,7 @@ fn test_getters() {
         doc.get_str("floating_point")
     );
 
-    assert_eq!(Some(&Bson::FloatingPoint(10.0)), doc.get("floating_point"));
+    assert_eq!(Some(&Bson::Double(10.0)), doc.get("floating_point"));
     assert_eq!(Ok(10.0), doc.get_f64("floating_point"));
 
     assert_eq!(
@@ -98,7 +91,7 @@ fn test_getters() {
     assert_eq!(Some(&Bson::Document(embedded.clone())), doc.get("doc"));
     assert_eq!(Ok(&embedded), doc.get_document("doc"));
 
-    assert_eq!(Some(&Bson::Boolean(true)), doc.get("bool"));
+    assert_eq!(Some(&Bson::Bool(true)), doc.get("bool"));
     assert_eq!(Ok(true), doc.get_bool("bool"));
 
     doc.insert("null".to_string(), Bson::Null);
@@ -114,33 +107,33 @@ fn test_getters() {
 
     doc.insert(
         "timestamp".to_string(),
-        Bson::TimeStamp(TimeStamp {
+        Bson::Timestamp(Timestamp {
             time: 0,
             increment: 100,
         }),
     );
     assert_eq!(
-        Some(&Bson::TimeStamp(TimeStamp {
+        Some(&Bson::Timestamp(Timestamp {
             time: 0,
             increment: 100
         })),
         doc.get("timestamp")
     );
     assert_eq!(
-        Ok(TimeStamp {
+        Ok(Timestamp {
             time: 0,
             increment: 100,
         }),
-        doc.get_time_stamp("timestamp")
+        doc.get_timestamp("timestamp")
     );
 
-    assert_eq!(Some(&Bson::UtcDatetime(datetime)), doc.get("datetime"));
-    assert_eq!(Ok(&datetime), doc.get_utc_datetime("datetime"));
+    assert_eq!(Some(&Bson::DateTime(datetime)), doc.get("datetime"));
+    assert_eq!(Ok(&datetime), doc.get_datetime("datetime"));
 
     test_decimal128(&mut doc);
 
-    assert_eq!(Some(&Bson::UtcDatetime(datetime)), doc.get("datetime"));
-    assert_eq!(Ok(&datetime), doc.get_utc_datetime("datetime"));
+    assert_eq!(Some(&Bson::DateTime(datetime)), doc.get("datetime"));
+    assert_eq!(Ok(&datetime), doc.get_datetime("datetime"));
 
     let object_id = ObjectId::new();
     doc.insert("_id".to_string(), Bson::ObjectId(object_id.clone()));
@@ -186,7 +179,7 @@ fn entry() {
         assert_eq!(first_entry.key(), "first");
 
         let v = first_entry.or_insert_with(|| {
-            Bson::TimeStamp(TimeStamp {
+            Bson::Timestamp(Timestamp {
                 time: 0,
                 increment: 27,
             })
