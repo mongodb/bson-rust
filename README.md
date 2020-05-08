@@ -191,7 +191,7 @@ that is also less error prone.
 
 ## Breaking Changes
 
-In the BSON specification, _unsigned integer types_ are unsupported; for example, `u32`. In the older version of this crate (< `v0.8.0`), if you uses `serde` to serialize _unsigned integer types_ into BSON, it will store them with `Bson::FloatingPoint` type. From `v0.8.0`, we removed this behavior and simply returned an error when you want to serialize _unsigned integer types_ to BSON. [#72](https://github.com/zonyitoo/bson-rs/pull/72)
+In the BSON specification, _unsigned integer types_ are unsupported; for example, `u32`. In the older version of this crate (< `v0.8.0`), if you uses `serde` to serialize _unsigned integer types_ into BSON, it will store them with `Bson::Double` type. From `v0.8.0`, we removed this behavior and simply returned an error when you want to serialize _unsigned integer types_ to BSON. [#72](https://github.com/zonyitoo/bson-rs/pull/72)
 
 For backward compatibility, we've provided a mod `bson::compat::u2f` to explicitly serialize _unsigned integer types_ into BSON's floating point value as follows:
 
