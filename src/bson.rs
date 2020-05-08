@@ -846,7 +846,8 @@ impl Bson {
         }
     }
 
-    /// If `Bson` is `String`, return a mutable reference to its value as a `str`. Returns `None` otherwise
+    /// If `Bson` is `String`, return a mutable reference to its value as a `str`. Returns `None`
+    /// otherwise
     pub fn as_str_mut(&mut self) -> Option<&mut str> {
         match *self {
             Bson::String(ref mut s) => Some(s),

@@ -1,7 +1,14 @@
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
 use bson::{
-    doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Document, Timestamp, ValueAccessError,
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    Binary,
+    Bson,
+    Document,
+    Timestamp,
+    ValueAccessError,
 };
 use chrono::Utc;
 

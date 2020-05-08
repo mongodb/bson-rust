@@ -1,5 +1,12 @@
 use bson::{
-    doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Document, JavaScriptCodeWithScope, Regex,
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    Binary,
+    Bson,
+    Document,
+    JavaScriptCodeWithScope,
+    Regex,
 };
 use serde_json::{json, Value};
 
