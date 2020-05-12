@@ -1,5 +1,6 @@
 use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex, TimeStamp};
 use chrono::offset::Utc;
+use pretty_assertions::assert_eq;
 
 #[test]
 fn standard_format() {
@@ -39,7 +40,7 @@ fn standard_format() {
          with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, i64: -55, \
          timestamp: Timestamp(0, 229999444), binary: BinData(5, 0x{}), _id: ObjectId(\"{}\"), \
          date: Date(\"{}\") }}",
-        hex::encode("thingies"),
+        base64::encode("thingies"),
         hex::encode(id_string),
         date
     );

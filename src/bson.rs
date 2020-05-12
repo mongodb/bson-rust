@@ -26,14 +26,14 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use chrono::{offset::TimeZone, DateTime, Timelike, Utc};
+use chrono::{DateTime, Datelike, SecondsFormat, TimeZone, Utc};
 use serde_json::{json, Value};
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 pub use crate::document::Document;
 use crate::{
-    oid,
+    oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
 };
 
@@ -134,7 +134,7 @@ impl Display for Bson {
                 fmt,
                 "BinData({}, 0x{})",
                 u8::from(subtype),
-                hex::encode(bytes)
+                base64::encode(bytes)
             ),
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
@@ -302,16 +302,22 @@ impl From<Value> for Bson {
         match a {
             Value::Number(x) => x
                 .as_i64()
-                .map(Bson::from)
+                .map(|i| {
+                    if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
+                        Bson::I32(i as i32)
+                    } else {
+                        Bson::I64(i)
+                    }
+                })
                 .or_else(|| x.as_u64().map(Bson::from))
                 .or_else(|| x.as_f64().map(Bson::from))
                 .unwrap_or_else(|| panic!("Invalid number value: {}", x)),
             Value::String(x) => x.into(),
             Value::Bool(x) => x.into(),
             Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from).collect()),
-            Value::Object(x) => {
-                Bson::from_extended_document(x.into_iter().map(|(k, v)| (k, v.into())).collect())
-            }
+            Value::Object(x) => Bson::from_extended_document(
+                x.into_iter().map(|(k, v)| (k, Bson::from(v))).collect(),
+            ),
             Value::Null => Bson::Null,
         }
     }
@@ -319,42 +325,85 @@ impl From<Value> for Bson {
 
 impl From<Bson> for Value {
     fn from(bson: Bson) -> Self {
-        match bson {
+        bson.into_relaxed_extjson()
+    }
+}
+
+impl Bson {
+    pub fn into_relaxed_extjson(self) -> Value {
+        match self {
+            Bson::FloatingPoint(v) if v.is_nan() => {
+                let s = if v.is_sign_negative() { "-NaN" } else { "NaN" };
+
+                json!({ "$numberDouble": s })
+            }
+            Bson::FloatingPoint(v) if v.is_infinite() => {
+                let s = if v.is_sign_negative() {
+                    "-Infinity"
+                } else {
+                    "Infinity"
+                };
+
+                json!({ "$numberDouble": s })
+            }
             Bson::FloatingPoint(v) => json!(v),
             Bson::String(v) => json!(v),
             Bson::Array(v) => json!(v),
-            Bson::Document(v) => json!(v),
+            Bson::Document(v) => {
+                Value::Object(v.into_iter().map(|(k, v)| (k, Value::from(v))).collect())
+            }
             Bson::Boolean(v) => json!(v),
             Bson::Null => Value::Null,
-            Bson::Regex(Regex { pattern, options }) => json!({
-                "$regex": pattern,
-                "$options": options
-            }),
+            Bson::Regex(Regex { pattern, options }) => {
+                let mut chars: Vec<_> = options.chars().collect();
+                chars.sort();
+
+                let options: String = chars.into_iter().collect();
+
+                json!({
+                    "$regularExpression": {
+                        "pattern": pattern,
+                        "options": options,
+                    }
+                })
+            }
             Bson::JavaScriptCode(code) => json!({ "$code": code }),
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope }) => json!({
                 "$code": code,
-                "scope": scope
+                "$scope": scope,
             }),
             Bson::I32(v) => v.into(),
             Bson::I64(v) => v.into(),
             Bson::TimeStamp(TimeStamp { time, increment }) => json!({
-                "t": time,
-                "i": increment
+                "$timestamp": {
+                    "t": time,
+                    "i": increment,
+                }
             }),
             Bson::Binary(Binary { subtype, ref bytes }) => {
                 let tval: u8 = From::from(subtype);
                 json!({
-                    "type": tval,
-                    "$binary": hex::encode(bytes),
+                    "$binary": {
+                        "base64": base64::encode(bytes),
+                        "subType": hex::encode([tval.into()]),
+                    }
                 })
             }
-            Bson::ObjectId(v) => json!({"$oid": v.to_string()}),
+            Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
+            Bson::UtcDatetime(v) if v.timestamp_millis() >= 0 && v.year() <= 99999 => {
+                let seconds_format = if v.timestamp_subsec_millis() == 0 {
+                    SecondsFormat::Secs
+                } else {
+                    SecondsFormat::Millis
+                };
+
+                json!({
+                    "$date": v.to_rfc3339_opts(seconds_format, true),
+                })
+            }
             Bson::UtcDatetime(v) => json!({
-                "$date": {
-                    "$numberLong": (v.timestamp() * 1000) + ((v.nanosecond() / 1_000_000) as i64)
-                }
+                "$date": { "$numberLong": v.timestamp_millis().to_string() },
             }),
-            // FIXME: Don't know what is the best way to encode Symbol type
             Bson::Symbol(v) => json!({ "$symbol": v }),
             #[cfg(feature = "decimal128")]
             Bson::Decimal128(ref v) => json!({ "$numberDecimal": v.to_string() }),
@@ -364,12 +413,54 @@ impl From<Bson> for Value {
             Bson::DbPointer(DbPointer {
                 ref namespace,
                 ref id,
-            }) => json!({ "$dbPointer": { "$ref": namespace, "$id": id.to_string() } }),
+            }) => json!({
+                "$dbPointer": {
+                    "$ref": namespace,
+                    "$id": {
+                        "$oid": id.to_hex()
+                    }
+                }
+            }),
         }
     }
-}
 
-impl Bson {
+    pub fn into_canonical_extjson(self) -> Value {
+        match self {
+            Bson::I32(i) => json!({ "$numberInt": i.to_string() }),
+            Bson::I64(i) => json!({ "$numberLong": i.to_string() }),
+            Bson::FloatingPoint(f) if f.is_normal() => {
+                let mut s = f.to_string();
+                if f.fract() == 0.0 {
+                    s.push_str(".0");
+                }
+
+                json!({ "$numberDouble": s })
+            }
+            Bson::FloatingPoint(f) if f == 0.0 => {
+                let s = if f.is_sign_negative() { "-0.0" } else { "0.0" };
+
+                json!({ "$numberDouble": s })
+            }
+            Bson::UtcDatetime(date) => {
+                json!({ "$date": { "$numberLong": date.timestamp_millis().to_string() } })
+            }
+            Bson::Array(arr) => {
+                Value::Array(arr.into_iter().map(Bson::into_canonical_extjson).collect())
+            }
+            Bson::Document(arr) => Value::Object(
+                arr.into_iter()
+                    .map(|(k, v)| (k, v.into_canonical_extjson()))
+                    .collect(),
+            ),
+            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope }) => json!({
+                "$code": code,
+                "$scope": Bson::Document(scope).into_canonical_extjson(),
+            }),
+
+            other => other.into_relaxed_extjson(),
+        }
+    }
+
     /// Get the `ElementType` of this value.
     pub fn element_type(&self) -> ElementType {
         match *self {
@@ -400,16 +491,22 @@ impl Bson {
 
     /// Converts to extended format.
     /// This function mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
-    #[doc(hidden)]
-    pub fn to_extended_document(&self) -> Document {
+    pub(crate) fn to_extended_document(&self) -> Document {
         match *self {
             Bson::Regex(Regex {
                 ref pattern,
                 ref options,
             }) => {
+                let mut chars: Vec<_> = options.chars().collect();
+                chars.sort();
+
+                let options: String = chars.into_iter().collect();
+
                 doc! {
-                    "$regex": pattern.clone(),
-                    "$options": options.clone(),
+                    "$regularExpression": {
+                        "pattern": pattern.clone(),
+                        "options": options,
+                    }
                 }
             }
             Bson::JavaScriptCode(ref code) => {
@@ -428,15 +525,19 @@ impl Bson {
             }
             Bson::TimeStamp(TimeStamp { time, increment }) => {
                 doc! {
-                    "t": time,
-                    "i": increment
+                    "$timestamp": {
+                        "t": time,
+                        "i": increment,
+                    }
                 }
             }
             Bson::Binary(Binary { subtype, ref bytes }) => {
                 let tval: u8 = From::from(subtype);
                 doc! {
-                    "$binary": hex::encode(bytes),
-                    "type": tval as i64,
+                    "$binary": {
+                        "base64": base64::encode(bytes),
+                        "subType": hex::encode([tval]),
+                    }
                 }
             }
             Bson::ObjectId(ref v) => {
@@ -444,13 +545,20 @@ impl Bson {
                     "$oid": v.to_string(),
                 }
             }
-            Bson::UtcDatetime(ref v) => {
+            Bson::UtcDatetime(v) if v.timestamp_millis() >= 0 && v.year() <= 99999 => {
+                let seconds_format = if v.timestamp_subsec_millis() == 0 {
+                    SecondsFormat::Secs
+                } else {
+                    SecondsFormat::Millis
+                };
+
                 doc! {
-                    "$date": {
-                        "$numberLong": (v.timestamp() * 1000) + v.nanosecond() as i64 / 1_000_000,
-                    }
+                    "$date": v.to_rfc3339_opts(seconds_format, true),
                 }
             }
+            Bson::UtcDatetime(v) => doc! {
+                "$date": { "$numberLong": v.timestamp_millis().to_string() },
+            },
             Bson::Symbol(ref v) => {
                 doc! {
                     "$symbol": v.to_owned(),
@@ -484,7 +592,9 @@ impl Bson {
                 doc! {
                     "$dbPointer": {
                         "$ref": namespace,
-                        "$id": id.to_string()
+                        "$id": {
+                            "$oid": id.to_string()
+                        }
                     }
                 }
             }
@@ -492,176 +602,233 @@ impl Bson {
         }
     }
 
-    /// Converts from extended format.
-    /// This function is mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
-    #[cfg(feature = "decimal128")]
-    #[doc(hidden)]
-    pub fn from_extended_document(values: Document) -> Bson {
-        if values.len() == 2 {
-            if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
-                return Bson::Regex(Regex {
-                    pattern: pat.to_owned(),
-                    options: opt.to_owned(),
-                });
-            } else if let (Ok(code), Ok(scope)) =
-                (values.get_str("$code"), values.get_document("$scope"))
-            {
-                return Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
-                    code: code.to_owned(),
-                    scope: scope.to_owned(),
-                });
-            } else if let (Ok(time), Ok(increment)) = (values.get_i32("t"), values.get_i32("i")) {
-                if time >= 0 && increment >= 0 {
-                    return Bson::TimeStamp(TimeStamp {
-                        time: time as u32,
-                        increment: increment as u32,
-                    });
-                }
-            } else if let (Ok(time), Ok(increment)) = (values.get_i64("t"), values.get_i64("i")) {
-                if time >= 0
-                    && time <= std::u32::MAX as i64
-                    && increment >= 0
-                    && increment <= std::u32::MAX as i64
-                {
-                    return Bson::TimeStamp(TimeStamp {
-                        time: time as u32,
-                        increment: increment as u32,
-                    });
-                }
-            } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
-                let ttype = t as u8;
-                return Bson::Binary(Binary {
-                    subtype: From::from(ttype),
-                    bytes: hex::decode(hex.as_bytes())
-                        .expect("$binary value is not a valid Hex encoded bytes"),
-                });
-            }
-        } else if values.len() == 1 {
-            if let Ok(code) = values.get_str("$code") {
-                return Bson::JavaScriptCode(code.to_owned());
-            } else if let Ok(hex) = values.get_str("$oid") {
-                return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
-            } else if let Ok(long) = values
-                .get_document("$date")
-                .and_then(|inner| inner.get_i64("$numberLong"))
-            {
-                return Bson::UtcDatetime(
-                    Utc.timestamp(long / 1000, ((long % 1000) * 1_000_000) as u32),
-                );
-            } else if let Ok(sym) = values.get_str("$symbol") {
-                return Bson::Symbol(sym.to_owned());
-            } else if let Ok(dec) = values.get_str("$numberDecimal") {
-                return Bson::Decimal128(dec.parse::<Decimal128>().unwrap());
-            } else if let Ok(undefined) = values.get_bool("$undefined") {
-                if undefined {
-                    return Bson::Undefined;
-                }
-            } else if let Ok(min) = values.get_i64("$minKey") {
-                if min == 1 {
-                    return Bson::MinKey;
-                }
-            } else if let Ok(max) = values.get_i64("$maxKey") {
-                if max == 1 {
-                    return Bson::MaxKey;
-                }
-            } else if let Ok(db_pointer) = values.get_document("$dbPointer") {
-                if let (Ok(namespace), Ok(id)) =
-                    (db_pointer.get_str("$ref"), db_pointer.get_str("$id"))
-                {
-                    return Bson::DbPointer(DbPointer {
-                        namespace: namespace.to_owned(),
-                        id: oid::ObjectId::with_string(id).unwrap(),
-                    });
-                }
-            }
+    pub(crate) fn from_extended_document(doc: Document) -> Bson {
+        if doc.len() > 2 {
+            return Bson::Document(doc);
         }
 
-        Bson::Document(values)
-    }
+        let keys: Vec<_> = doc.keys().map(|s| s.as_str()).collect();
 
-    /// Converts from extended format.
-    /// This function is mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
-    #[cfg(not(feature = "decimal128"))]
-    #[doc(hidden)]
-    pub fn from_extended_document(values: Document) -> Bson {
-        if values.len() == 2 {
-            if let (Ok(pat), Ok(opt)) = (values.get_str("$regex"), values.get_str("$options")) {
-                return Bson::Regex(Regex {
-                    pattern: pat.to_owned(),
-                    options: opt.to_owned(),
-                });
-            } else if let (Ok(code), Ok(scope)) =
-                (values.get_str("$code"), values.get_document("$scope"))
-            {
-                return Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
-                    code: code.to_owned(),
-                    scope: scope.to_owned(),
-                });
-            } else if let (Ok(time), Ok(increment)) = (values.get_i32("t"), values.get_i32("i")) {
-                if time >= 0 && increment >= 0 {
-                    return Bson::TimeStamp(TimeStamp {
-                        time: time as u32,
-                        increment: increment as u32,
-                    });
+        match keys.as_slice() {
+            ["$oid"] => {
+                if let Ok(oid) = doc.get_str("$oid") {
+                    if let Ok(oid) = ObjectId::with_string(oid) {
+                        return Bson::ObjectId(oid);
+                    }
                 }
-            } else if let (Ok(time), Ok(increment)) = (values.get_i64("t"), values.get_i64("i")) {
-                if time >= 0
-                    && time <= std::u32::MAX as i64
-                    && increment >= 0
-                    && increment <= std::u32::MAX as i64
-                {
-                    return Bson::TimeStamp(TimeStamp {
-                        time: time as u32,
-                        increment: increment as u32,
-                    });
-                }
-            } else if let (Ok(hex), Ok(t)) = (values.get_str("$binary"), values.get_i64("type")) {
-                let ttype = t as u8;
-                return Bson::Binary(Binary {
-                    subtype: From::from(ttype),
-                    bytes: hex::decode(hex.as_bytes())
-                        .expect("$binary value is not a valid Hex encoded bytes"),
-                });
             }
-        } else if values.len() == 1 {
-            if let Ok(code) = values.get_str("$code") {
-                return Bson::JavaScriptCode(code.to_owned());
-            } else if let Ok(hex) = values.get_str("$oid") {
-                return Bson::ObjectId(oid::ObjectId::with_string(hex).unwrap());
-            } else if let Ok(long) = values
-                .get_document("$date")
-                .and_then(|inner| inner.get_i64("$numberLong"))
-            {
-                return Bson::UtcDatetime(
-                    Utc.timestamp(long / 1000, ((long % 1000) * 1_000_000) as u32),
-                );
-            } else if let Ok(sym) = values.get_str("$symbol") {
-                return Bson::Symbol(sym.to_owned());
-            } else if let Ok(undefined) = values.get_bool("$undefined") {
-                if undefined {
-                    return Bson::Undefined;
+
+            ["$symbol"] => {
+                if let Ok(symbol) = doc.get_str("$symbol") {
+                    return Bson::Symbol(symbol.into());
                 }
-            } else if let Ok(min) = values.get_i64("$minKey") {
-                if min == 1 {
+            }
+
+            ["$numberInt"] => {
+                if let Ok(i) = doc.get_str("$numberInt") {
+                    if let Ok(i) = i.parse() {
+                        return Bson::I32(i);
+                    }
+                }
+            }
+
+            ["$numberLong"] => {
+                if let Ok(i) = doc.get_str("$numberLong") {
+                    if let Ok(i) = i.parse() {
+                        return Bson::I64(i);
+                    }
+                }
+            }
+
+            ["$numberDouble"] => match doc.get_str("$numberDouble") {
+                Ok("Infinity") => return Bson::FloatingPoint(f64::INFINITY),
+                Ok("-Infinity") => return Bson::FloatingPoint(f64::NEG_INFINITY),
+                Ok("NaN") => return Bson::FloatingPoint(f64::NAN),
+                Ok(other) => {
+                    if let Ok(d) = other.parse() {
+                        return Bson::FloatingPoint(d);
+                    }
+                }
+                _ => {}
+            },
+
+            #[cfg(feature = "decimal128")]
+            ["$numberDecimal"] => {
+                if let Ok(d) = doc.get_str("$numberDecimal") {
+                    if let Ok(d) = d.parse() {
+                        return Bson::Decimal128(d);
+                    }
+                }
+            }
+
+            ["$binary"] => {
+                if let Ok(binary) = doc.get_document("$binary") {
+                    if let Ok(bytes) = binary.get_str("base64") {
+                        if let Ok(bytes) = base64::decode(bytes) {
+                            if let Ok(subtype) = binary.get_str("subType") {
+                                if let Ok(subtype) = hex::decode(subtype) {
+                                    if subtype.len() == 1 {
+                                        return Bson::Binary(Binary {
+                                            bytes,
+                                            subtype: subtype[0].into(),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            ["$code"] => {
+                if let Ok(code) = doc.get_str("$code") {
+                    return Bson::JavaScriptCode(code.into());
+                }
+            }
+
+            ["$code", "$scope"] => {
+                if let Ok(code) = doc.get_str("$code") {
+                    if let Ok(scope) = doc.get_document("$scope") {
+                        return Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                            code: code.into(),
+                            scope: scope.clone(),
+                        });
+                    }
+                }
+            }
+
+            ["$timestamp"] => {
+                if let Ok(timestamp) = doc.get_document("$timestamp") {
+                    if let Ok(t) = timestamp.get_i32("t") {
+                        if let Ok(i) = timestamp.get_i32("i") {
+                            return Bson::TimeStamp(TimeStamp {
+                                time: t as u32,
+                                increment: i as u32,
+                            });
+                        }
+                    }
+
+                    if let Ok(t) = timestamp.get_i64("t") {
+                        if let Ok(i) = timestamp.get_i64("i") {
+                            if t >= 0 && i >= 0 {
+                                if t <= (u32::MAX as i64) && i <= (u32::MAX as i64) {
+                                    return Bson::TimeStamp(TimeStamp {
+                                        time: t as u32,
+                                        increment: i as u32,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            ["$regularExpression"] => {
+                if let Ok(regex) = doc.get_document("$regularExpression") {
+                    if let Ok(pattern) = regex.get_str("pattern") {
+                        if let Ok(options) = regex.get_str("options") {
+                            let mut options: Vec<_> = options.chars().collect();
+                            options.sort();
+
+                            return Bson::Regex(Regex {
+                                pattern: pattern.into(),
+                                options: options.into_iter().collect(),
+                            });
+                        }
+                    }
+                }
+            }
+
+            ["$dbPointer"] => {
+                if let Ok(db_pointer) = doc.get_document("$dbPointer") {
+                    if let Ok(ns) = db_pointer.get_str("$ref") {
+                        if let Ok(id) = db_pointer.get_object_id("$id") {
+                            return Bson::DbPointer(DbPointer {
+                                namespace: ns.into(),
+                                id: id.clone(),
+                            });
+                        }
+                    }
+                }
+            }
+
+            ["$date"] => {
+                if let Ok(date) = doc.get_i64("$date") {
+                    let mut num_secs = date / 1000;
+                    let mut num_millis = date % 1000;
+
+                    // The chrono API only lets us create a DateTime with an i64 number of
+                    // seconds and a u32 number of nanoseconds. In the
+                    // case of a negative timestamp, this means that we
+                    // need to turn the negative fractional part into a positive and
+                    // shift the number of seconds down. For example:
+                    //
+                    //     date       = -4300 ms
+                    //     num_secs   = date / 1000 = -4300 / 1000 = -4
+                    //     num_millis = date % 1000 = -4300 % 1000 = -300
+                    //
+                    // Since num_millis is less than 0:
+                    //     num_secs   = num_secs -1 = -4 - 1 = -5
+                    //     num_millis = num_nanos + 1000 = -300 + 1000 = 700
+                    //
+                    // Instead of -4 seconds and -300 milliseconds, we now have -5 seconds
+                    // and +700 milliseconds, which expresses
+                    // the same timestamp, but in a way we can
+                    // crate a DateTime with.
+                    if num_millis < 0 {
+                        num_secs -= 1;
+                        num_millis += 1000;
+                    };
+
+                    return Bson::UtcDatetime(
+                        Utc.timestamp(num_secs, num_millis as u32 * 1_000_000),
+                    );
+                }
+
+                if let Ok(date) = doc.get_str("$date") {
+                    if let Ok(date) = DateTime::parse_from_rfc3339(date) {
+                        return Bson::UtcDatetime(date.into());
+                    }
+                }
+            }
+
+            ["$minKey"] => {
+                let min_key = doc.get("$minKey");
+
+                if min_key == Some(&Bson::I32(1)) || min_key == Some(&Bson::I64(1)) {
                     return Bson::MinKey;
                 }
-            } else if let Ok(max) = values.get_i64("$maxKey") {
-                if max == 1 {
+            }
+
+            ["$maxKey"] => {
+                let max_key = doc.get("$maxKey");
+
+                if max_key == Some(&Bson::I32(1)) || max_key == Some(&Bson::I64(1)) {
                     return Bson::MaxKey;
                 }
-            } else if let Ok(db_pointer) = values.get_document("$dbPointer") {
-                if let (Ok(namespace), Ok(id)) =
-                    (db_pointer.get_str("$ref"), db_pointer.get_str("$id"))
-                {
-                    return Bson::DbPointer(DbPointer {
-                        namespace: namespace.to_owned(),
-                        id: oid::ObjectId::with_string(id).unwrap(),
-                    });
+            }
+
+            ["$undefined"] => {
+                if doc.get("$undefined") == Some(&Bson::Boolean(true)) {
+                    return Bson::Undefined;
                 }
             }
-        }
 
-        Bson::Document(values)
+            _ => {}
+        };
+
+        Bson::Document(
+            doc.into_iter()
+                .map(|(k, v)| {
+                    let v = match v {
+                        Bson::Document(v) => Bson::from_extended_document(v),
+                        other => other,
+                    };
+
+                    (k, v)
+                })
+                .collect(),
+        )
     }
 }
 
