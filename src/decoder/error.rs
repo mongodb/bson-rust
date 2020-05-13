@@ -37,18 +37,6 @@ pub enum DecoderError {
     /// An ambiguous timestamp was encountered while decoding.
     AmbiguousTimestamp(i64),
 
-    /// Returned when an index into an array was expected, but got a something else instead.
-    /// BSON arrays are expected to be stored as subdocuments with numbered keys. If the input data
-    /// contains one which is stored with a different format for its keys, this error will be
-    /// returned.
-    InvalidArrayKey {
-        /// The key that was encountered in the input data.
-        actual_key: String,
-
-        /// The index the key was expected to correspond to.
-        expected_key: usize,
-    },
-
     /// A general error encountered during deserialization.
     /// See: https://docs.serde.rs/serde/de/trait.Error.html
     DeserializationError {
@@ -81,14 +69,6 @@ impl fmt::Display for DecoderError {
                 fmt,
                 "unrecognized element type for key \"{}\": `{}`",
                 key, element_type
-            ),
-            DecoderError::InvalidArrayKey {
-                ref actual_key,
-                ref expected_key,
-            } => write!(
-                fmt,
-                "invalid array key: expected `{}`, got `{}`",
-                expected_key, actual_key
             ),
             DecoderError::SyntaxError { ref message } => message.fmt(fmt),
             DecoderError::EndOfStream => fmt.write_str("end of stream"),

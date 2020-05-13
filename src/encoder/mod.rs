@@ -34,9 +34,12 @@ use std::{io::Write, iter::IntoIterator, mem};
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::Timelike;
 
-use crate::bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
+use crate::{
+    bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex},
+    spec::BinarySubtype,
+};
 use ::serde::Serialize;
 
 fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> EncoderResult<()> {
@@ -152,8 +155,19 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         Bson::I64(v) => write_i64(writer, v),
         Bson::TimeStamp(ts) => write_i64(writer, ts.to_le_i64()),
         Bson::Binary(Binary { subtype, ref bytes }) => {
-            write_i32(writer, bytes.len() as i32)?;
+            let len = if let BinarySubtype::BinaryOld = subtype {
+                bytes.len() + 4
+            } else {
+                bytes.len()
+            };
+
+            write_i32(writer, len as i32)?;
             writer.write_u8(From::from(subtype))?;
+
+            if let BinarySubtype::BinaryOld = subtype {
+                write_i32(writer, len as i32 - 4)?;
+            };
+
             writer.write_all(bytes).map_err(From::from)
         }
         Bson::UtcDatetime(ref v) => write_i64(

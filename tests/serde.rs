@@ -480,6 +480,7 @@ fn test_ser_db_pointer() {
             "$id": { "$oid": "507f1f77bcf86cd799439011" },
         }
     }));
+
     let db_pointer = db_pointer.as_db_pointer().unwrap();
 
     let foo = Foo {
