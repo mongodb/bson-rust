@@ -385,7 +385,7 @@ impl Bson {
                 json!({
                     "$binary": {
                         "base64": base64::encode(bytes),
-                        "subType": hex::encode([tval.into()]),
+                        "subType": hex::encode([tval]),
                     }
                 })
             }
@@ -710,13 +710,12 @@ impl Bson {
 
                     if let Ok(t) = timestamp.get_i64("t") {
                         if let Ok(i) = timestamp.get_i64("i") {
-                            if t >= 0 && i >= 0 {
-                                if t <= (u32::MAX as i64) && i <= (u32::MAX as i64) {
-                                    return Bson::TimeStamp(TimeStamp {
-                                        time: t as u32,
-                                        increment: i as u32,
-                                    });
-                                }
+                            if t >= 0 && i >= 0 && t <= (u32::MAX as i64) && i <= (u32::MAX as i64)
+                            {
+                                return Bson::TimeStamp(TimeStamp {
+                                    time: t as u32,
+                                    increment: i as u32,
+                                });
                             }
                         }
                     }

@@ -98,14 +98,14 @@ fn recursive_macro() {
                             assert_eq!(2, arr.len());
 
                             // Match array items
-                            match arr[0] {
-                                Bson::String(ref s) => assert_eq!("seal", s),
+                            match arr.get(0) {
+                                Some(Bson::String(ref s)) => assert_eq!("seal", s),
                                 _ => panic!(
                                     "String 'seal' was not inserted into inner array correctly."
                                 ),
                             }
-                            match arr[1] {
-                                Bson::Boolean(ref b) => assert!(!b),
+                            match arr.get(1) {
+                                Some(Bson::Boolean(ref b)) => assert!(!b),
                                 _ => panic!(
                                     "Boolean 'false' was not inserted into inner array correctly."
                                 ),
@@ -132,8 +132,8 @@ fn recursive_macro() {
             assert_eq!(1, arr.len());
 
             // Integer type
-            match arr[0] {
-                Bson::I32(ref i) => assert_eq!(-7, *i),
+            match arr.get(0) {
+                Some(Bson::I32(ref i)) => assert_eq!(-7, *i),
                 _ => panic!("I32 '-7' was not inserted correctly."),
             }
         }
@@ -146,8 +146,8 @@ fn recursive_macro() {
             assert_eq!(1, arr.len());
 
             // Nested document
-            match arr[0] {
-                Bson::Document(ref doc) => {
+            match arr.get(0) {
+                Some(Bson::Document(ref doc)) => {
                     // String
                     match doc.get("apple") {
                         Some(&Bson::String(ref s)) => assert_eq!("ripe", s),
