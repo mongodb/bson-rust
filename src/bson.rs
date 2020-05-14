@@ -491,6 +491,8 @@ impl Bson {
 
     /// Converts to extended format.
     /// This function mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    // TODO RUST-426: Investigate either removing this from the serde implementation or unifying
+    // with the extended JSON implementation.
     pub(crate) fn to_extended_document(&self) -> Document {
         match *self {
             Bson::Regex(Regex {
