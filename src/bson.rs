@@ -449,7 +449,7 @@ impl Bson {
             Bson::UtcDatetime(ref v) => {
                 doc! {
                     "$date": {
-                        "$numberLong" => (v.timestamp() * 1000) + v.nanosecond() as i64 / 1_000_000,
+                        "$numberLong": (v.timestamp() * 1000) + v.nanosecond() as i64 / 1_000_000,
                     }
                 }
             }
@@ -461,7 +461,7 @@ impl Bson {
             #[cfg(feature = "decimal128")]
             Bson::Decimal128(ref v) => {
                 doc! {
-                    "$numberDecimal" => (v.to_string())
+                    "$numberDecimal": (v.to_string())
                 }
             }
             Bson::Undefined => {

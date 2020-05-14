@@ -340,7 +340,7 @@ fn test_decode_utc_date_time_overflows() {
 
     let decoded = decode_document(&mut Cursor::new(raw)).unwrap();
 
-    let expected = doc! { "A" => Utc.timestamp(1_530_492_218, 999 * 1_000_000)};
+    let expected = doc! { "A": Utc.timestamp(1_530_492_218, 999 * 1_000_000)};
     assert_eq!(decoded, expected);
 }
 
@@ -366,7 +366,7 @@ fn test_encode_decode_decimal128() {
         26, 0, 0, 0, 19, 107, 101, 121, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 34, 0,
     ];
 
-    let doc = doc! { "key" => val };
+    let doc = doc! { "key": val };
 
     let mut buf = Vec::new();
     encode_document(&mut buf, &doc).unwrap();
