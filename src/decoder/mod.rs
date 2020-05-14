@@ -123,9 +123,7 @@ pub fn decode_document<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Docume
             break;
         }
 
-        let key = read_cstring(reader)?;
-        let val = decode_bson(reader, tag, false)?;
-
+        let (key, val) = decode_bson_kvp(reader, tag, false)?;
         doc.insert(key, val);
     }
 
@@ -146,8 +144,7 @@ pub fn decode_document_utf8_lossy<R: Read + ?Sized>(reader: &mut R) -> DecoderRe
             break;
         }
 
-        let key = read_cstring(reader)?;
-        let val = decode_bson(reader, tag, true)?;
+        let (key, val) = decode_bson_kvp(reader, tag, true)?;
 
         doc.insert(key, val);
     }
@@ -167,8 +164,7 @@ fn decode_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderRe
             break;
         }
 
-        // check that the key is as expected
-        let key = read_cstring(reader)?;
+        let (key, val) = decode_bson_kvp(reader, tag, utf8_lossy)?;
         match key.parse::<usize>() {
             Err(..) => return Err(DecoderError::InvalidArrayKey(arr.len(), key)),
             Ok(idx) => {
@@ -177,24 +173,25 @@ fn decode_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderRe
                 }
             }
         }
-
-        let val = decode_bson(reader, tag, utf8_lossy)?;
         arr.push(val)
     }
 
     Ok(arr)
 }
 
-fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> DecoderResult<Bson> {
+fn decode_bson_kvp<R: Read + ?Sized>(
+    reader: &mut R,
+    tag: u8,
+    utf8_lossy: bool,
+) -> DecoderResult<(String, Bson)> {
     use spec::ElementType;
+    let key = read_cstring(reader)?;
 
-    match ElementType::from(tag) {
-        Some(ElementType::FloatingPoint) => {
-            Ok(Bson::FloatingPoint(reader.read_f64::<LittleEndian>()?))
-        }
-        Some(ElementType::Utf8String) => read_string(reader, utf8_lossy).map(Bson::String),
-        Some(ElementType::EmbeddedDocument) => decode_document(reader).map(Bson::Document),
-        Some(ElementType::Array) => decode_array(reader, utf8_lossy).map(Bson::Array),
+    let val = match ElementType::from(tag) {
+        Some(ElementType::FloatingPoint) => Bson::FloatingPoint(reader.read_f64::<LittleEndian>()?),
+        Some(ElementType::Utf8String) => read_string(reader, utf8_lossy).map(Bson::String)?,
+        Some(ElementType::EmbeddedDocument) => decode_document(reader).map(Bson::Document)?,
+        Some(ElementType::Array) => decode_array(reader, utf8_lossy).map(Bson::Array)?,
         Some(ElementType::Binary) => {
             let len = read_i32(reader)?;
             if len < 0 || len > MAX_BSON_SIZE {
@@ -206,24 +203,24 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
             let subtype = BinarySubtype::from(reader.read_u8()?);
             let mut bytes = Vec::with_capacity(len as usize);
             reader.take(len as u64).read_to_end(&mut bytes)?;
-            Ok(Bson::Binary(Binary { subtype, bytes }))
+            Bson::Binary(Binary { subtype, bytes })
         }
         Some(ElementType::ObjectId) => {
             let mut objid = [0; 12];
             for x in &mut objid {
                 *x = reader.read_u8()?;
             }
-            Ok(Bson::ObjectId(oid::ObjectId::with_bytes(objid)))
+            Bson::ObjectId(oid::ObjectId::with_bytes(objid))
         }
-        Some(ElementType::Boolean) => Ok(Bson::Boolean(reader.read_u8()? != 0)),
-        Some(ElementType::NullValue) => Ok(Bson::Null),
+        Some(ElementType::Boolean) => Bson::Boolean(reader.read_u8()? != 0),
+        Some(ElementType::NullValue) => Bson::Null,
         Some(ElementType::RegularExpression) => {
             let pattern = read_cstring(reader)?;
             let options = read_cstring(reader)?;
-            Ok(Bson::Regex(Regex { pattern, options }))
+            Bson::Regex(Regex { pattern, options })
         }
         Some(ElementType::JavaScriptCode) => {
-            read_string(reader, utf8_lossy).map(Bson::JavaScriptCode)
+            read_string(reader, utf8_lossy).map(Bson::JavaScriptCode)?
         }
         Some(ElementType::JavaScriptCodeWithScope) => {
             // disregard the length:
@@ -232,15 +229,12 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
 
             let code = read_string(reader, utf8_lossy)?;
             let scope = decode_document(reader)?;
-            Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
-                code,
-                scope,
-            }))
+            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope })
         }
-        Some(ElementType::Integer32Bit) => read_i32(reader).map(Bson::I32),
-        Some(ElementType::Integer64Bit) => read_i64(reader).map(Bson::I64),
+        Some(ElementType::Integer32Bit) => read_i32(reader).map(Bson::I32)?,
+        Some(ElementType::Integer64Bit) => read_i64(reader).map(Bson::I64)?,
         Some(ElementType::TimeStamp) => {
-            read_i64(reader).map(|val| Bson::TimeStamp(TimeStamp::from_le_i64(val)))
+            read_i64(reader).map(|val| Bson::TimeStamp(TimeStamp::from_le_i64(val)))?
         }
         Some(ElementType::UtcDatetime) => {
             // The int64 is UTC milliseconds since the Unix epoch.
@@ -255,28 +249,35 @@ fn decode_bson<R: Read + ?Sized>(reader: &mut R, tag: u8, utf8_lossy: bool) -> D
             };
 
             match Utc.timestamp_opt(sec, (msec as u32) * 1_000_000) {
-                LocalResult::None => Err(DecoderError::InvalidTimestamp(time)),
-                LocalResult::Ambiguous(..) => Err(DecoderError::AmbiguousTimestamp(time)),
-                LocalResult::Single(t) => Ok(Bson::UtcDatetime(t)),
+                LocalResult::None => return Err(DecoderError::InvalidTimestamp(time)),
+                LocalResult::Ambiguous(..) => return Err(DecoderError::AmbiguousTimestamp(time)),
+                LocalResult::Single(t) => Bson::UtcDatetime(t),
             }
         }
-        Some(ElementType::Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol),
+        Some(ElementType::Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol)?,
         #[cfg(feature = "decimal128")]
-        Some(ElementType::Decimal128Bit) => read_f128(reader).map(Bson::Decimal128),
-        Some(ElementType::Undefined) => Ok(Bson::Undefined),
+        Some(ElementType::Decimal128Bit) => read_f128(reader).map(Bson::Decimal128)?,
+        Some(ElementType::Undefined) => Bson::Undefined,
         Some(ElementType::DbPointer) => {
             let namespace = read_string(reader, utf8_lossy)?;
             let mut objid = [0; 12];
             reader.read_exact(&mut objid)?;
-            Ok(Bson::DbPointer(DbPointer {
+            Bson::DbPointer(DbPointer {
                 namespace,
                 id: oid::ObjectId::with_bytes(objid),
-            }))
+            })
         }
-        Some(ElementType::MaxKey) => Ok(Bson::MaxKey),
-        Some(ElementType::MinKey) => Ok(Bson::MinKey),
-        None => Err(DecoderError::UnrecognizedElementType(tag)),
-    }
+        Some(ElementType::MaxKey) => Bson::MaxKey,
+        Some(ElementType::MinKey) => Bson::MinKey,
+        None => {
+            return Err(DecoderError::UnrecognizedElementType {
+                key: "".to_string(),
+                element_type: tag,
+            })
+        }
+    };
+
+    Ok((key, val))
 }
 
 /// Decode a BSON `Value` into a `T` Deserializable.
