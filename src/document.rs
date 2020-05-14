@@ -16,7 +16,7 @@ use serde::de::{self, MapAccess, Visitor};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Binary, Bson, Document, TimeStamp},
+    bson::{Array, Binary, Bson, TimeStamp},
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -62,17 +62,17 @@ impl error::Error for ValueAccessError {
 
 /// A BSON document represented as an associative HashMap with insertion ordering.
 #[derive(Clone, PartialEq)]
-pub struct OrderedDocument {
+pub struct Document {
     inner: LinkedHashMap<String, Bson>,
 }
 
-impl Default for OrderedDocument {
+impl Default for Document {
     fn default() -> Self {
         Document::new()
     }
 }
 
-impl Display for OrderedDocument {
+impl Display for Document {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         fmt.write_str("{")?;
 
@@ -92,30 +92,30 @@ impl Display for OrderedDocument {
     }
 }
 
-impl Debug for OrderedDocument {
+impl Debug for Document {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "OrderedDocument({:?})", self.inner)
+        write!(f, "Document({:?})", self.inner)
     }
 }
 
-/// An iterator over OrderedDocument entries.
-pub struct OrderedDocumentIntoIterator {
+/// An iterator over Document entries.
+pub struct DocumentIntoIterator {
     inner: LinkedHashMap<String, Bson>,
 }
 
-/// An owning iterator over OrderedDocument entries.
-pub struct OrderedDocumentIterator<'a> {
+/// An owning iterator over Document entries.
+pub struct DocumentIterator<'a> {
     inner: linked_hash_map::Iter<'a, String, Bson>,
 }
 
-type DocumentMap<'a, T> = Map<OrderedDocumentIterator<'a>, fn((&'a String, &'a Bson)) -> T>;
+type DocumentMap<'a, T> = Map<DocumentIterator<'a>, fn((&'a String, &'a Bson)) -> T>;
 
-/// An iterator over an OrderedDocument's keys.
+/// An iterator over an Document's keys.
 pub struct Keys<'a> {
     inner: DocumentMap<'a, &'a String>,
 }
 
-/// An iterator over an OrderedDocument's values.
+/// An iterator over an Document's values.
 pub struct Values<'a> {
     inner: DocumentMap<'a, &'a Bson>,
 }
@@ -136,29 +136,29 @@ impl<'a> Iterator for Values<'a> {
     }
 }
 
-impl IntoIterator for OrderedDocument {
+impl IntoIterator for Document {
     type Item = (String, Bson);
-    type IntoIter = OrderedDocumentIntoIterator;
+    type IntoIter = DocumentIntoIterator;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIntoIterator { inner: self.inner }
+        DocumentIntoIterator { inner: self.inner }
     }
 }
 
-impl<'a> IntoIterator for &'a OrderedDocument {
+impl<'a> IntoIterator for &'a Document {
     type Item = (&'a String, &'a Bson);
-    type IntoIter = OrderedDocumentIterator<'a>;
+    type IntoIter = DocumentIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIterator {
+        DocumentIterator {
             inner: self.inner.iter(),
         }
     }
 }
 
-impl FromIterator<(String, Bson)> for OrderedDocument {
+impl FromIterator<(String, Bson)> for Document {
     fn from_iter<T: IntoIterator<Item = (String, Bson)>>(iter: T) -> Self {
-        let mut doc = OrderedDocument::new();
+        let mut doc = Document::new();
         for (k, v) in iter {
             doc.insert(k, v);
         }
@@ -166,7 +166,7 @@ impl FromIterator<(String, Bson)> for OrderedDocument {
     }
 }
 
-impl<'a> Iterator for OrderedDocumentIntoIterator {
+impl<'a> Iterator for DocumentIntoIterator {
     type Item = (String, Bson);
 
     fn next(&mut self) -> Option<(String, Bson)> {
@@ -174,7 +174,7 @@ impl<'a> Iterator for OrderedDocumentIntoIterator {
     }
 }
 
-impl<'a> Iterator for OrderedDocumentIterator<'a> {
+impl<'a> Iterator for DocumentIterator<'a> {
     type Item = (&'a String, &'a Bson);
 
     fn next(&mut self) -> Option<(&'a String, &'a Bson)> {
@@ -182,16 +182,16 @@ impl<'a> Iterator for OrderedDocumentIterator<'a> {
     }
 }
 
-impl OrderedDocument {
-    /// Creates a new empty OrderedDocument.
-    pub fn new() -> OrderedDocument {
-        OrderedDocument {
+impl Document {
+    /// Creates a new empty Document.
+    pub fn new() -> Document {
+        Document {
             inner: LinkedHashMap::new(),
         }
     }
 
     /// Gets an iterator over the entries of the map.
-    pub fn iter(&self) -> OrderedDocumentIterator {
+    pub fn iter(&self) -> DocumentIterator {
         self.into_iter()
     }
 
@@ -526,42 +526,42 @@ impl<'a> Entry<'a> {
     }
 }
 
-impl From<LinkedHashMap<String, Bson>> for OrderedDocument {
-    fn from(tree: LinkedHashMap<String, Bson>) -> OrderedDocument {
-        OrderedDocument { inner: tree }
+impl From<LinkedHashMap<String, Bson>> for Document {
+    fn from(tree: LinkedHashMap<String, Bson>) -> Document {
+        Document { inner: tree }
     }
 }
 
-pub struct OrderedDocumentVisitor {
-    marker: PhantomData<OrderedDocument>,
+pub struct DocumentVisitor {
+    marker: PhantomData<Document>,
 }
 
-impl OrderedDocumentVisitor {
+impl DocumentVisitor {
     #[allow(clippy::new_without_default)]
-    pub fn new() -> OrderedDocumentVisitor {
-        OrderedDocumentVisitor {
+    pub fn new() -> DocumentVisitor {
+        DocumentVisitor {
             marker: PhantomData,
         }
     }
 }
 
-impl<'de> Visitor<'de> for OrderedDocumentVisitor {
-    type Value = OrderedDocument;
+impl<'de> Visitor<'de> for DocumentVisitor {
+    type Value = Document;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "expecting ordered document")
     }
 
     #[inline]
-    fn visit_unit<E>(self) -> Result<OrderedDocument, E>
+    fn visit_unit<E>(self) -> Result<Document, E>
     where
         E: de::Error,
     {
-        Ok(OrderedDocument::new())
+        Ok(Document::new())
     }
 
     #[inline]
-    fn visit_map<V>(self, mut visitor: V) -> Result<OrderedDocument, V::Error>
+    fn visit_map<V>(self, mut visitor: V) -> Result<Document, V::Error>
     where
         V: MapAccess<'de>,
     {
@@ -578,7 +578,7 @@ impl<'de> Visitor<'de> for OrderedDocumentVisitor {
     }
 }
 
-impl Extend<(String, Bson)> for OrderedDocument {
+impl Extend<(String, Bson)> for Document {
     fn extend<T: IntoIterator<Item = (String, Bson)>>(&mut self, iter: T) {
         for (k, v) in iter {
             self.insert(k, v);

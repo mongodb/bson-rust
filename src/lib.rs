@@ -61,8 +61,8 @@ pub use self::{
         DecoderError,
         DecoderResult,
     },
+    document::{ValueAccessError, ValueAccessResult},
     encoder::{encode_document, to_bson, Encoder, EncoderError, EncoderResult},
-    ordered::{ValueAccessError, ValueAccessResult},
 };
 
 #[macro_use]
@@ -72,7 +72,7 @@ pub mod compat;
 #[cfg(feature = "decimal128")]
 pub mod decimal128;
 mod decoder;
+pub mod document;
 mod encoder;
 pub mod oid;
-pub mod ordered;
 pub mod spec;
