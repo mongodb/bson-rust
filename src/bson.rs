@@ -665,21 +665,8 @@ impl Bson {
             }
 
             ["$binary"] => {
-                if let Ok(binary) = doc.get_document("$binary") {
-                    if let Ok(bytes) = binary.get_str("base64") {
-                        if let Ok(bytes) = base64::decode(bytes) {
-                            if let Ok(subtype) = binary.get_str("subType") {
-                                if let Ok(subtype) = hex::decode(subtype) {
-                                    if subtype.len() == 1 {
-                                        return Bson::Binary(Binary {
-                                            bytes,
-                                            subtype: subtype[0].into(),
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
+                if let Some(binary) = Binary::from_extended_doc(&doc) {
+                    return Bson::Binary(binary);
                 }
             }
 
@@ -1089,6 +1076,25 @@ pub struct Binary {
 
     /// The binary bytes.
     pub bytes: Vec<u8>,
+}
+
+impl Binary {
+    fn from_extended_doc(doc: &Document) -> Option<Self> {
+        let binary = doc.get_document("$binary").ok()?;
+        let bytes = binary.get_str("base64").ok()?;
+        let bytes = base64::decode(bytes).ok()?;
+        let subtype = binary.get_str("subType").ok()?;
+        let subtype = hex::decode(subtype).ok()?;
+
+        if subtype.len() == 1 {
+            Some(Self {
+                bytes,
+                subtype: subtype[0].into(),
+            })
+        } else {
+            None
+        }
+    }
 }
 
 /// Represents a DBPointer. (Deprecated)
