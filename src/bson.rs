@@ -609,7 +609,8 @@ impl Bson {
             return Bson::Document(doc);
         }
 
-        let keys: Vec<_> = doc.keys().map(|s| s.as_str()).collect();
+        let mut keys: Vec<_> = doc.keys().map(|s| s.as_str()).collect();
+        keys.sort();
 
         match keys.as_slice() {
             ["$oid"] => {
