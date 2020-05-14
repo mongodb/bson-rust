@@ -27,6 +27,7 @@ static OID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// Errors that can occur during OID construction and generation.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     ArgumentError(String),
     FromHexError(FromHexError),
