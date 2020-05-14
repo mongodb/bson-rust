@@ -6,6 +6,7 @@ use crate::bson::Bson;
 
 /// Possible errors that can arise during encoding.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum EncoderError {
     IoError(io::Error),
     InvalidMapKeyType(Bson),

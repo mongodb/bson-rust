@@ -4,6 +4,7 @@ use serde::de::{self, Expected, Unexpected};
 
 /// Possible errors that can arise during decoding.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum DecoderError {
     IoError(io::Error),
     FromUtf8Error(string::FromUtf8Error),
