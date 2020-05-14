@@ -271,7 +271,7 @@ fn decode_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::MinKey) => Bson::MinKey,
         None => {
             return Err(DecoderError::UnrecognizedElementType {
-                key: "".to_string(),
+                key,
                 element_type: tag,
             })
         }
