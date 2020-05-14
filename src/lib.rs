@@ -39,6 +39,8 @@
 //! let doc = decode_document(&mut Cursor::new(&buf[..])).unwrap();
 //! ```
 
+#![allow(clippy::cognitive_complexity)]
+
 #[cfg(feature = "decimal128")]
 pub use self::decimal128::Decimal128;
 pub use self::{
