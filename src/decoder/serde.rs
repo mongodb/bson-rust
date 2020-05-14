@@ -19,8 +19,8 @@ use super::error::{DecoderError, DecoderResult};
 use crate::decimal128::Decimal128;
 use crate::{
     bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, TimeStamp, UtcDateTime},
+    document::{Document, DocumentIntoIterator, DocumentVisitor},
     oid::ObjectId,
-    ordered::{OrderedDocument, OrderedDocumentIntoIterator, OrderedDocumentVisitor},
     spec::BinarySubtype,
 };
 
@@ -42,7 +42,7 @@ impl<'de> Deserialize<'de> for ObjectId {
     }
 }
 
-impl<'de> Deserialize<'de> for OrderedDocument {
+impl<'de> Deserialize<'de> for Document {
     /// Deserialize this value given this `Deserializer`.
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -215,7 +215,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         V: MapAccess<'de>,
     {
-        let values = OrderedDocumentVisitor::new().visit_map(visitor)?;
+        let values = DocumentVisitor::new().visit_map(visitor)?;
         Ok(Bson::from_extended_document(values))
     }
 
@@ -591,7 +591,7 @@ impl<'de> SeqAccess<'de> for SeqDecoder {
 }
 
 struct MapDecoder {
-    iter: OrderedDocumentIntoIterator,
+    iter: DocumentIntoIterator,
     value: Option<Bson>,
     len: usize,
 }
