@@ -73,6 +73,8 @@ fn run_test(test: TestFile) {
 
         // native_to_bson( bson_to_native(cB) ) = cB
 
+        // Rust doesn't format f64 with exponential notation by default, and the spec doesn't give
+        // guidance on when to use it.
         if !description.contains("1.2345678921232E+18") {
             assert_eq!(
                 hex::encode(native_to_bson_bson_to_native_cv).to_lowercase(),
@@ -84,6 +86,8 @@ fn run_test(test: TestFile) {
 
         // native_to_canonical_extended_json( bson_to_native(cB) ) = cEJ
 
+        // Rust doesn't format f64 with exponential notation by default, and the spec doesn't give
+        // guidance on when to use it.
         if !description.contains("1.2345678921232E+18") && test.bson_type != "0x13" {
             assert_eq!(
                 Bson::Document(bson_to_native_cb.clone()).into_canonical_extjson(),
@@ -113,6 +117,8 @@ fn run_test(test: TestFile) {
         let native_to_canonical_extended_json_bson_to_native_cej =
             json_to_native_cej.clone().into_canonical_extjson();
 
+        // Rust doesn't format f64 with exponential notation by default, and the spec doesn't give
+        // guidance on when to use it.
         if !description.contains("1.2345678921232E+18") {
             assert_eq!(
                 native_to_canonical_extended_json_bson_to_native_cej, cej,
@@ -131,6 +137,7 @@ fn run_test(test: TestFile) {
             )
             .unwrap();
 
+            // TODO RUST-36: Enable decimal128 tests.
             if test.bson_type != "0x13" {
                 assert_eq!(
                     hex::encode(native_to_bson_json_to_native_cej).to_lowercase(),
@@ -171,6 +178,7 @@ fn run_test(test: TestFile) {
             let native_to_canonical_extended_json_json_to_native_dej =
                 json_to_native_dej.clone().into_canonical_extjson();
 
+            // TODO RUST-36: Enable decimal128 tests.
             if test.bson_type != "0x13" {
                 assert_eq!(
                     native_to_canonical_extended_json_json_to_native_dej, cej,
@@ -189,6 +197,7 @@ fn run_test(test: TestFile) {
                 )
                 .unwrap();
 
+                // TODO RUST-36: Enable decimal128 tests.
                 if test.bson_type != "0x13" {
                     assert_eq!(
                         hex::encode(native_to_bson_json_to_native_dej).to_lowercase(),
