@@ -14,7 +14,7 @@ fn standard_format() {
     let doc = doc! {
         "float": 2.4,
         "string": "hello",
-        "array" => ["testing", 1, true, [1, 2]],
+        "array": ["testing", 1, true, [1, 2]],
         "doc": {
             "fish": "in",
             "a": "barrel",
@@ -47,69 +47,11 @@ fn standard_format() {
     assert_eq!(expected, format!("{}", doc));
 }
 
-// Support rocket format for backwards-compatibility with pre-0.10.
-#[test]
-fn rocket_format() {
-    let id_string = "thisismyname";
-    let string_bytes: Vec<_> = id_string.bytes().collect();
-    let mut bytes = [0; 12];
-    bytes[..12].clone_from_slice(&string_bytes[..12]);
-
-    let id = ObjectId::with_bytes(bytes);
-    let date = Utc::now();
-
-    let doc = doc! {
-        "float" => 2.4,
-        "string" => "hello",
-        "array" => ["testing", 1, true, ["nested", 2]],
-        "doc" => {
-            "fish" => "in",
-            "a" => "barrel",
-            "!" => 1,
-        },
-        "bool" => true,
-        "null" => null,
-        "regexp" => Bson::Regex(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
-        "with_wrapped_parens" => (-20),
-        "code" => Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
-        "i32" => 12,
-        "i64" => -55,
-        "timestamp" => Bson::TimeStamp(TimeStamp { time: 0, increment: 229_999_444 }),
-        "binary" => Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
-        "_id" => id,
-        "date" => Bson::UtcDatetime(date),
-    };
-
-    let expected = format!(
-        "{{ float: 2.4, string: \"hello\", array: [\"testing\", 1, true, [\"nested\", 2]], doc: \
-         {{ fish: \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, regexp: /s[ao]d/i, \
-         with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, i64: -55, \
-         timestamp: Timestamp(0, 229999444), binary: BinData(5, 0x{}), _id: ObjectId(\"{}\"), \
-         date: Date(\"{}\") }}",
-        hex::encode("thingies"),
-        hex::encode(id_string),
-        date
-    );
-
-    assert_eq!(expected, format!("{}", doc));
-}
-
 #[test]
 fn non_trailing_comma() {
     let doc = doc! {
         "a": "foo",
         "b": { "ok": "then" }
-    };
-
-    let expected = "{ a: \"foo\", b: { ok: \"then\" } }".to_string();
-    assert_eq!(expected, format!("{}", doc));
-}
-
-#[test]
-fn non_trailing_comma_with_rockets() {
-    let doc = doc! {
-        "a" => "foo",
-        "b" => { "ok": "then" }
     };
 
     let expected = "{ a: \"foo\", b: { ok: \"then\" } }".to_string();
