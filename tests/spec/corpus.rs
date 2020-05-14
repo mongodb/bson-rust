@@ -203,13 +203,12 @@ fn run_test(test: TestFile) {
         // native_to_relaxed_extended_json( json_to_native(rEJ) ) = rEJ
 
         if let Some(ref rej) = valid.relaxed_extjson {
-            let json_to_native_rej: Bson = cej.clone().into();
+            let rej: serde_json::Value = serde_json::from_str(rej).unwrap();
+
+            let json_to_native_rej: Bson = rej.clone().into();
 
             let native_to_relaxed_extended_json_bson_to_native_rej =
                 json_to_native_rej.clone().into_relaxed_extjson();
-
-            // Round-trip JSON to ensure that whitespace is the same.
-            let rej: serde_json::Value = serde_json::from_str(rej).unwrap();
 
             assert_eq!(
                 native_to_relaxed_extended_json_bson_to_native_rej, rej,
