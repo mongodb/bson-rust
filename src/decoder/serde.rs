@@ -1,8 +1,17 @@
 use std::{fmt, vec};
 
 use serde::de::{
-    self, Deserialize, DeserializeSeed, Deserializer, EnumAccess, Error, MapAccess, SeqAccess,
-    Unexpected, VariantAccess, Visitor,
+    self,
+    Deserialize,
+    DeserializeSeed,
+    Deserializer,
+    EnumAccess,
+    Error,
+    MapAccess,
+    SeqAccess,
+    Unexpected,
+    VariantAccess,
+    Visitor,
 };
 
 use super::error::{DecoderError, DecoderResult};
