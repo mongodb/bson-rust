@@ -7,7 +7,7 @@ use serde::de::{self, Expected, Unexpected};
 pub enum DecoderError {
     IoError(io::Error),
     FromUtf8Error(string::FromUtf8Error),
-    UnrecognizedElementType { key: String, element_type: u8 },
+    UnrecognizedDocumentElementType { key: String, element_type: u8 },
     InvalidArrayKey(usize, String),
     // A field was expected, but none was found.
     ExpectedField(&'static str),
@@ -52,7 +52,7 @@ impl fmt::Display for DecoderError {
         match *self {
             DecoderError::IoError(ref inner) => inner.fmt(fmt),
             DecoderError::FromUtf8Error(ref inner) => inner.fmt(fmt),
-            DecoderError::UnrecognizedElementType {
+            DecoderError::UnrecognizedDocumentElementType {
                 ref key,
                 element_type,
             } => write!(
@@ -96,7 +96,7 @@ impl error::Error for DecoderError {
                 #[allow(deprecated)]
                 inner.description()
             }
-            DecoderError::UnrecognizedElementType { .. } => "unrecognized element type",
+            DecoderError::UnrecognizedDocumentElementType { .. } => "unrecognized element type",
             DecoderError::InvalidArrayKey(..) => "invalid array key",
             DecoderError::ExpectedField(_) => "expected a field",
             DecoderError::UnknownField(_) => "found an unknown field",

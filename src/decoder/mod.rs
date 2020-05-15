@@ -270,7 +270,7 @@ fn decode_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::MaxKey) => Bson::MaxKey,
         Some(ElementType::MinKey) => Bson::MinKey,
         None => {
-            return Err(DecoderError::UnrecognizedElementType {
+            return Err(DecoderError::UnrecognizedDocumentElementType {
                 key,
                 element_type: tag,
             })
