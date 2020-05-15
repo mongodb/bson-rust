@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use bson::Bson;
 use pretty_assertions::assert_eq;
 use serde_derive::Deserialize;
@@ -75,23 +77,42 @@ fn run_test(test: TestFile) {
 
         // Rust doesn't format f64 with exponential notation by default, and the spec doesn't give
         // guidance on when to use it.
-        if !description.contains("1.2345678921232E+18") {
-            assert_eq!(
-                hex::encode(native_to_bson_bson_to_native_cv).to_lowercase(),
-                valid.canonical_bson.to_lowercase(),
-                "{}",
-                description,
-            );
-        }
+        assert_eq!(
+            hex::encode(native_to_bson_bson_to_native_cv).to_lowercase(),
+            valid.canonical_bson.to_lowercase(),
+            "{}",
+            description,
+        );
 
         // native_to_canonical_extended_json( bson_to_native(cB) ) = cEJ
 
         // Rust doesn't format f64 with exponential notation by default, and the spec doesn't give
         // guidance on when to use it.
-        if !description.contains("1.2345678921232E+18") && test.bson_type != "0x13" {
+        let mut cej_updated_float = cej.clone();
+
+        if let Some(ref key) = test.test_key {
+            if let Some(serde_json::Value::Object(subdoc)) = cej_updated_float.get_mut(key) {
+                if let Some(&mut serde_json::Value::String(ref mut s)) =
+                    subdoc.get_mut("$numberDouble")
+                {
+                    if s.to_lowercase().contains('e') {
+                        let d = f64::from_str(s).unwrap();
+                        let mut fixed_string = format!("{}", d);
+
+                        if d.fract() == 0.0 {
+                            fixed_string.push_str(".0");
+                        }
+
+                        std::mem::replace(s, fixed_string);
+                    }
+                }
+            }
+        }
+
+        if test.bson_type == "0x13" {
             assert_eq!(
                 Bson::Document(bson_to_native_cb.clone()).into_canonical_extjson(),
-                cej,
+                cej_updated_float,
                 "{}",
                 description
             );
@@ -119,13 +140,11 @@ fn run_test(test: TestFile) {
 
         // Rust doesn't format f64 with exponential notation by default, and the spec doesn't give
         // guidance on when to use it.
-        if !description.contains("1.2345678921232E+18") {
-            assert_eq!(
-                native_to_canonical_extended_json_bson_to_native_cej, cej,
-                "{}",
-                description,
-            );
-        }
+        assert_eq!(
+            native_to_canonical_extended_json_bson_to_native_cej, cej_updated_float,
+            "{}",
+            description,
+        );
 
         // native_to_bson( json_to_native(cEJ) ) = cB (unless lossy)
 
