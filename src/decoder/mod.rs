@@ -130,28 +130,6 @@ pub fn decode_document<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Docume
     Ok(doc)
 }
 
-/// Attempt to decode a `Document` that may contain invalid UTF-8 strings from a byte stream.
-pub fn decode_document_utf8_lossy<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
-    let mut doc = Document::new();
-
-    // disregard the length: using Read::take causes infinite type recursion
-    read_i32(reader)?;
-
-    loop {
-        let tag = reader.read_u8()?;
-
-        if tag == 0 {
-            break;
-        }
-
-        let (key, val) = decode_bson_kvp(reader, tag, true)?;
-
-        doc.insert(key, val);
-    }
-
-    Ok(doc)
-}
-
 fn decode_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderResult<Array> {
     let mut arr = Array::new();
 
