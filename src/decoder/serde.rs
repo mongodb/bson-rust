@@ -312,6 +312,7 @@ impl<'de> Deserializer<'de> for Decoder {
             }
             Bson::Boolean(v) => visitor.visit_bool(v),
             Bson::Null => visitor.visit_unit(),
+            Bson::Undefined => visitor.visit_unit(),
             Bson::I32(v) => visitor.visit_i32(v),
             Bson::I64(v) => visitor.visit_i64(v),
             Bson::Binary(Binary {
@@ -342,6 +343,7 @@ impl<'de> Deserializer<'de> for Decoder {
     {
         match self.value {
             Some(Bson::Null) => visitor.visit_none(),
+            Some(Bson::Undefined) => visitor.visit_none(),
             Some(_) => visitor.visit_some(self),
             None => Err(DecoderError::EndOfStream),
         }
