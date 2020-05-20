@@ -2,7 +2,6 @@
 use bson::decimal128::Decimal128;
 use bson::{
     decode_document,
-    decode_document_utf8_lossy,
     doc,
     encode_document,
     oid::ObjectId,
@@ -52,21 +51,6 @@ fn test_encode_decode_utf8_string() {
 
     let decoded = decode_document(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
-}
-
-#[test]
-fn test_encode_decode_utf8_string_invalid() {
-    let bytes = b"\x80\xae".to_vec();
-    let src = unsafe { String::from_utf8_unchecked(bytes) };
-
-    let doc = doc! { "key": src };
-
-    let mut buf = Vec::new();
-    encode_document(&mut buf, &doc).unwrap();
-
-    let expected = doc! { "key": "��" };
-    let decoded = decode_document_utf8_lossy(&mut Cursor::new(buf)).unwrap();
-    assert_eq!(decoded, expected);
 }
 
 #[test]

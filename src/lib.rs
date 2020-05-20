@@ -53,14 +53,7 @@ pub use self::{
         TimeStamp,
         UtcDateTime,
     },
-    decoder::{
-        decode_document,
-        decode_document_utf8_lossy,
-        from_bson,
-        Decoder,
-        DecoderError,
-        DecoderResult,
-    },
+    decoder::{decode_document, from_bson, Decoder, DecoderError, DecoderResult},
     document::{ValueAccessError, ValueAccessResult},
     encoder::{encode_document, to_bson, Encoder, EncoderError, EncoderResult},
 };
