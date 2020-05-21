@@ -69,7 +69,7 @@ fn dec128() {
 }
 
 #[test]
-#[cfg_attr(feature = "u2i", ignore)]
+#[cfg(not(feature = "u2i"))]
 fn uint8() {
     let obj_min: EncoderResult<Bson> = to_bson(&u8::MIN);
     assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));
@@ -88,7 +88,7 @@ fn uint8_u2i() {
 }
 
 #[test]
-#[cfg_attr(feature = "u2i", ignore)]
+#[cfg(not(feature = "u2i"))]
 fn uint16() {
     let obj_min: EncoderResult<Bson> = to_bson(&u16::MIN);
     assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));
@@ -107,7 +107,7 @@ fn uint16_u2i() {
 }
 
 #[test]
-#[cfg_attr(feature = "u2i", ignore)]
+#[cfg(not(feature = "u2i"))]
 fn uint32() {
     let obj_min: EncoderResult<Bson> = to_bson(&u32::MIN);
     assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));
@@ -126,7 +126,7 @@ fn uint32_u2i() {
 }
 
 #[test]
-#[cfg_attr(feature = "u2i", ignore)]
+#[cfg(not(feature = "u2i"))]
 fn uint64() {
     let obj_min: EncoderResult<Bson> = to_bson(&u64::MIN);
     assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));

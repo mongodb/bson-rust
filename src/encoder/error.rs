@@ -8,10 +8,32 @@ use crate::bson::Bson;
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum EncoderError {
+    /// A `std::io::Error` encountered while serializing.
     IoError(io::Error),
-    InvalidMapKeyType(Bson),
-    Unknown(String),
+
+    /// A key could not be serialized to a BSON string.
+    InvalidMapKeyType {
+        /// The value that could not be used as a key.
+        key: Bson,
+    },
+
+    /// A general error that ocurred during serialization.
+    /// See: https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom
+    SerializationError {
+        /// A message describing the error.
+        message: String,
+    },
+
+    #[cfg(not(feature = "u2i"))]
+    /// Returned when serialization of an unsigned integer was attempted. BSON only supports
+    /// 32-bit and 64-bit signed integers.
+    ///
+    /// To allow serialization of unsigned integers as signed integers, enable the "u2i" feature
+    /// flag.
     UnsupportedUnsignedType,
+
+    #[cfg(feature = "u2i")]
+    /// An unsigned integer type could not fit into a signed integer type.
     UnsignedTypesValueExceedsRange(u64),
 }
 
@@ -25,13 +47,15 @@ impl fmt::Display for EncoderError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             EncoderError::IoError(ref inner) => inner.fmt(fmt),
-            EncoderError::InvalidMapKeyType(ref bson) => {
-                write!(fmt, "Invalid map key type: {:?}", bson)
+            EncoderError::InvalidMapKeyType { ref key } => {
+                write!(fmt, "Invalid map key type: {}", key)
             }
-            EncoderError::Unknown(ref inner) => inner.fmt(fmt),
+            EncoderError::SerializationError { ref message } => message.fmt(fmt),
+            #[cfg(not(feature = "u2i"))]
             EncoderError::UnsupportedUnsignedType => {
                 fmt.write_str("BSON does not support unsigned type")
             }
+            #[cfg(feature = "u2i")]
             EncoderError::UnsignedTypesValueExceedsRange(value) => write!(
                 fmt,
                 "BSON does not support unsigned types.
@@ -51,12 +75,14 @@ impl error::Error for EncoderError {
                 #[allow(deprecated)]
                 inner.description()
             }
-            EncoderError::InvalidMapKeyType(_) => "Invalid map key type",
-            EncoderError::Unknown(ref inner) => inner,
+            EncoderError::InvalidMapKeyType { .. } => "Invalid map key type",
+            EncoderError::SerializationError { ref message } => message.as_str(),
+            #[cfg(not(feature = "u2i"))]
             EncoderError::UnsupportedUnsignedType => "BSON does not support unsigned type",
+            #[cfg(feature = "u2i")]
             EncoderError::UnsignedTypesValueExceedsRange(_) => {
                 "BSON does not support unsigned types.
-                 An attempt to encode the value: {} in a signed type failed due to the values size."
+                 An attempt to encode the value in a signed type failed due to the values size."
             }
         }
     }
@@ -71,7 +97,9 @@ impl error::Error for EncoderError {
 
 impl ser::Error for EncoderError {
     fn custom<T: Display>(msg: T) -> EncoderError {
-        EncoderError::Unknown(msg.to_string())
+        EncoderError::SerializationError {
+            message: msg.to_string(),
+        }
     }
 }
 
