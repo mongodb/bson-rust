@@ -45,7 +45,7 @@ use crate::{
     spec::{self, BinarySubtype},
 };
 
-use ::serde::de::Deserialize;
+use ::serde::de::{Deserialize, Error};
 
 const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 
@@ -54,9 +54,9 @@ fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderRes
 
     // UTF-8 String must have at least 1 byte (the last 0x00).
     if len < 1 {
-        return Err(DecoderError::InvalidLength(
+        return Err(DecoderError::invalid_length(
             len as usize,
-            format!("invalid length {} for UTF-8 string", len),
+            &"UTF-8 string must have at least 1 byte",
         ));
     }
 
@@ -166,10 +166,18 @@ fn decode_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderRe
 
         let (key, val) = decode_bson_kvp(reader, tag, utf8_lossy)?;
         match key.parse::<usize>() {
-            Err(..) => return Err(DecoderError::InvalidArrayKey(arr.len(), key)),
+            Err(..) => {
+                return Err(DecoderError::InvalidArrayKey {
+                    actual_key: key,
+                    expected_key: arr.len(),
+                })
+            }
             Ok(idx) => {
                 if idx != arr.len() {
-                    return Err(DecoderError::InvalidArrayKey(arr.len(), key));
+                    return Err(DecoderError::InvalidArrayKey {
+                        actual_key: key,
+                        expected_key: arr.len(),
+                    });
                 }
             }
         }
@@ -195,9 +203,9 @@ fn decode_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::Binary) => {
             let len = read_i32(reader)?;
             if len < 0 || len > MAX_BSON_SIZE {
-                return Err(DecoderError::InvalidLength(
+                return Err(DecoderError::invalid_length(
                     len as usize,
-                    format!("Invalid binary length of {}", len),
+                    &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
                 ));
             }
             let subtype = BinarySubtype::from(reader.read_u8()?);

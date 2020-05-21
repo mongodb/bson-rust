@@ -365,8 +365,11 @@ impl<'de> Deserializer<'de> for Decoder {
                     decoder: VariantDecoder { val: None },
                 });
             }
-            Some(_) => {
-                return Err(DecoderError::InvalidType("expected an enum".to_owned()));
+            Some(v) => {
+                return Err(DecoderError::invalid_type(
+                    v.as_unexpected(),
+                    &"expected an enum",
+                ));
             }
             None => {
                 return Err(DecoderError::EndOfStream);
@@ -378,16 +381,17 @@ impl<'de> Deserializer<'de> for Decoder {
         let (variant, value) = match iter.next() {
             Some(v) => v,
             None => {
-                return Err(DecoderError::SyntaxError(
-                    "expected a variant name".to_owned(),
-                ))
+                return Err(DecoderError::SyntaxError {
+                    message: "expected a variant name".to_owned(),
+                })
             }
         };
 
         // enums are encoded in json as maps with a single key:value pair
         match iter.next() {
-            Some(_) => Err(DecoderError::InvalidType(
-                "expected a single key:value pair".to_owned(),
+            Some((k, _)) => Err(DecoderError::invalid_value(
+                Unexpected::Map,
+                &format!("expected map with a single key, got extra key \"{}\"", k).as_str(),
             )),
             None => visitor.visit_enum(EnumDecoder {
                 val: Bson::String(variant),
@@ -481,14 +485,18 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
     where
         V: Visitor<'de>,
     {
-        if let Bson::Array(fields) = self.val.take().ok_or(DecoderError::EndOfStream)? {
-            let de = SeqDecoder {
-                len: fields.len(),
-                iter: fields.into_iter(),
-            };
-            de.deserialize_any(visitor)
-        } else {
-            Err(DecoderError::InvalidType("expected a tuple".to_owned()))
+        match self.val.take().ok_or(DecoderError::EndOfStream)? {
+            Bson::Array(fields) => {
+                let de = SeqDecoder {
+                    len: fields.len(),
+                    iter: fields.into_iter(),
+                };
+                de.deserialize_any(visitor)
+            }
+            other => Err(DecoderError::invalid_type(
+                other.as_unexpected(),
+                &"expected a tuple",
+            )),
         }
     }
 
@@ -500,15 +508,19 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
     where
         V: Visitor<'de>,
     {
-        if let Bson::Document(fields) = self.val.take().ok_or(DecoderError::EndOfStream)? {
-            let de = MapDecoder {
-                len: fields.len(),
-                iter: fields.into_iter(),
-                value: None,
-            };
-            de.deserialize_any(visitor)
-        } else {
-            Err(DecoderError::InvalidType("expected a struct".to_owned()))
+        match self.val.take().ok_or(DecoderError::EndOfStream)? {
+            Bson::Document(fields) => {
+                let de = MapDecoder {
+                    len: fields.len(),
+                    iter: fields.into_iter(),
+                    value: None,
+                };
+                de.deserialize_any(visitor)
+            }
+            ref other => Err(DecoderError::invalid_type(
+                other.as_unexpected(),
+                &"expected a struct",
+            )),
         }
     }
 }
@@ -611,7 +623,6 @@ impl<'de> MapAccess<'de> for MapDecoder {
                 let de = Decoder::new(Bson::String(key));
                 match seed.deserialize(de) {
                     Ok(val) => Ok(Some(val)),
-                    Err(DecoderError::UnknownField(_)) => Ok(None),
                     Err(e) => Err(e),
                 }
             }
