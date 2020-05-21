@@ -586,6 +586,21 @@ fn unused_fields7() {
 }
 
 #[test]
+fn unused_fields_deny() {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(deny_unknown_fields)]
+    struct Foo {
+        a: i32,
+    }
+
+    let d = Decoder::new(bdoc! {
+        "a" => 1,
+        "b" => 2
+    });
+    Foo::deserialize(d).expect_err("extra fields should cause failure");
+}
+
+#[test]
 fn empty_arrays() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo {
