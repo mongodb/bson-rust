@@ -19,25 +19,171 @@
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-//! BSON is a binary format in which zero or more key/value pairs are stored as a single entity.
-//! We call this entity a document.
+//! BSON, short for Binary JSON, is a binary-encoded serialization of JSON-like documents.
+//! Like JSON, BSON supports the embedding of documents and arrays within other documents
+//! and arrays. BSON also contains extensions that allow representation of data types that
+//! are not part of the JSON spec. For example, BSON has a datetime type and a binary data type.
 //!
-//! This library supports version 1.0 of the [BSON standard](http://bsonspec.org/spec.html).
+//! ```text
+//! // JSON equivalent
+//! {"hello": "world"}
 //!
-//! ## Basic usage
+//! // BSON encoding
+//! \x16\x00\x00\x00                   // total document size
+//! \x02                               // 0x02 = type String
+//! hello\x00                          // field name
+//! \x06\x00\x00\x00world\x00          // field value
+//! \x00                               // 0x00 = type EOO ('end of object')
+//! ```
+//!
+//! BSON is the primary data represenation for [MongoDB](https://www.mongodb.com/), and this crate is used in the
+//! [`mongodb`](https://docs.rs/mongodb/0.10.0/mongodb/) driver crate in its API and implementation.
+//!
+//! For more information about BSON itself, see [bsonspec.org](http://bsonspec.org).
+//!
+//! ## BSON values
+//!
+//! Many different types can be represented as a BSON value, including 32-bit and 64-bit signed
+//! integers, 64 bit floating point numbers, strings, datetimes, embedded documents, and more. To
+//! see a full list of possible BSON values, see the [BSON specification](http://bsonspec.org/spec.html). The various
+//! possible BSON values are modeled in this crate by the [`Bson`](enum.Bson.html) enum.
+//!
+//! ### Creating [`Bson`](enum.Bson.html) instances
+//!
+//! [`Bson`](enum.Bson.html) values can be instantiated directly or via the
+//! [`bson!`](macro.bson.html) macro:
 //!
 //! ```rust
-//! use bson::{Bson, Document};
-//! use std::io::Cursor;
+//! # use bson::{bson, Bson};
+//! let string = Bson::String("hello world".to_string());
+//! let int = Bson::I32(5);
+//! let array = Bson::Array(vec![Bson::I32(5), Bson::Boolean(false)]);
 //!
-//! let mut doc = Document::new();
-//! doc.insert("foo".to_owned(), Bson::String("bar".to_owned()));
+//! let string: Bson = "hello world".into();
+//! let int: Bson = (5 as i32).into();
 //!
-//! let mut buf = Vec::new();
-//! doc.encode(&mut buf).unwrap();
-//!
-//! let doc = Document::decode(&mut Cursor::new(&buf[..])).unwrap();
+//! let string: Bson = bson!("hello world");
+//! let int: Bson = bson!(5);
+//! let array = bson!([5, false]);
 //! ```
+//! [`bson!`](macro.bson.html) has supports both array and object literals, and it automatically
+//! converts any values specified to [`Bson`](enum.Bson.html), provided they are either `Serialize`
+//! or `Into<Bson>`.
+//!
+//! ### [`Bson`](enum.Bson.html) value unwrapping
+//!
+//! [`Bson`](enum.Bson.html) has a number of helper methods for accessing the underlying native Rust
+//! types. These helpers can be useful in cirumstances in which a the specific type of a BSON value
+//! is known ahead of time.
+//!
+//! e.g.:
+//! ```rust
+//! # use bson::{bson, Bson};
+//! let value = Bson::I32(5);
+//! let int = value.as_i32(); // Some(5)
+//! let bool = value.as_bool(); // None
+//!
+//! let value = bson!([true]);
+//! let array = value.as_array(); // Some(&Vec<Bson>)
+//! ```
+//!
+//! ## BSON documents
+//!
+//! BSON documents are ordered maps of UTF-8 encoded strings to BSON values. They are logically
+//! similar to JSON objects in that they can contain subdocuments, arrays, and values of several
+//! different types. This crate models BSON documents via the
+//! [`Document`](document/struct.Document.html) struct.
+//!
+//! ### Creating [`Document`](document/struct.Document.html)s
+//!
+//! [`Document`](document/struct.Document.html)s can be created directly either from a byte
+//! reader containing BSON data or via the `doc!` macro:
+//! ```rust
+//! # use bson::doc;
+//! # use std::io::Read;
+//! let mut bytes = hex::decode("0C0000001069000100000000").unwrap();
+//! let doc = bson::decode_document(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
+//!
+//! let doc = doc! {
+//!    "hello": "world",
+//!    "int": 5,
+//!    "subdoc": { "cat": true },
+//! };
+//! ```
+//! [`doc!`](macro.doc.html) works similarly to [`bson!`](macro.bson.html), except that it always
+//! returns a [`Document`](document/struct.Document.html) rather than a [`Bson`](enum.Bson.html).
+//!
+//! ### [`Document`](document/struct.Document.html) member access
+//!
+//! [`Document`](document/struct.Document.html) has a number of methods on it to facilitate member
+//! access:
+//!
+//! ```rust
+//! # use bson::doc;
+//! let doc = doc! {
+//!    "string": "string",
+//!    "bool": true,
+//!    "i32": 5,
+//!    "doc": { "x": true },
+//! };
+//!
+//! // attempt get values as untyped Bson
+//! let none = doc.get("asdfadsf"); // None
+//! let value = doc.get("string"); // Some(&Bson::String("string"))
+//!
+//! // attempt to get values with explcit typing
+//! let string = doc.get_str("string"); // Ok("string")
+//! let subdoc = doc.get_document("doc"); // Some(Document({ "x": true }))
+//! let error = doc.get_i64("i32"); // Err(...)
+//! ```
+//!
+//! ## Modeling BSON with strongly typed data structures
+//!
+//! While it is possible to work with documents and BSON values directly, it will often introduce a
+//! lot of boilerplate for verifying the necessary keys are present and their values are the correct
+//! types. [`serde`](https://serde.rs/) provides a powerful way of mapping BSON data into Rust data structures largely
+//! automatically, removing the need for all that boilerplate.
+//!
+//! e.g.:
+//! ```rust
+//! # use serde_derive::{Deserialize, Serialize};
+//! # use bson::{bson, Bson};
+//! #[derive(Serialize, Deserialize)]
+//! struct Person {
+//!     name: String,
+//!     age: u8,
+//!     phones: Vec<String>,
+//! }
+//!
+//! fn typed_example() {
+//!     // Some BSON input data as a `Bson`.
+//!     let bson_data: Bson = bson!({
+//!         "name": "John Doe",
+//!         "age": 43,
+//!         "phones": [
+//!             "+44 1234567",
+//!             "+44 2345678"
+//!         ]
+//!     });
+//!
+//!     // Deserialize the Person struct from the BSON data, automatically
+//!     // verifying that the necessary keys are present and that they are of
+//!     // the correct types.
+//!     let mut person: Person = bson::from_bson(bson_data).unwrap();
+//!
+//!     // Do things just like with any other Rust data structure.
+//!     println!("Redacting {}'s record.", person.name);
+//!     person.name = "REDACTED".to_string();
+//!
+//!     // Get a serialized version of the input data as a `Bson`.
+//!     let redacted_bson = bson::to_bson(&person).unwrap();
+//! }
+//! ```
+//!
+//! Any types that implement `Serialize` and `Deserialize` can be used in this way. Doing so helps
+//! separate the "business logic" that operates over the data from the (de)serialization logic that
+//! translates the data to/from its serialized form. This can lead to more clear and concise code
+//! that is also less error prone.
 
 #![allow(clippy::cognitive_complexity)]
 
@@ -45,14 +191,7 @@
 pub use self::decimal128::Decimal128;
 pub use self::{
     bson::{
-        Array,
-        Binary,
-        Bson,
-        DbPointer,
-        Document,
-        JavaScriptCodeWithScope,
-        Regex,
-        TimeStamp,
+        Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, TimeStamp,
         UtcDateTime,
     },
     decoder::{from_bson, Decoder, DecoderError, DecoderResult},
@@ -61,7 +200,7 @@ pub use self::{
 };
 
 #[macro_use]
-pub mod macros;
+mod macros;
 mod bson;
 pub mod compat;
 #[cfg(feature = "decimal128")]
