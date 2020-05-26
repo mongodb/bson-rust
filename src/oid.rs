@@ -52,17 +52,6 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::ArgumentError(ref inner) => &inner,
-            Error::FromHexError(ref inner) =>
-            {
-                #[allow(deprecated)]
-                inner.description()
-            }
-        }
-    }
-
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::ArgumentError(_) => None,

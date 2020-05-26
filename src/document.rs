@@ -55,11 +55,7 @@ impl Display for ValueAccessError {
     }
 }
 
-impl error::Error for ValueAccessError {
-    fn description(&self) -> &str {
-        "Error to indicate that either a value was empty or it contained an unexpected type"
-    }
-}
+impl error::Error for ValueAccessError {}
 
 /// A BSON document represented as an associative HashMap with insertion ordering.
 #[derive(Clone, PartialEq)]

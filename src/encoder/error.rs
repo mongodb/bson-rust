@@ -68,25 +68,6 @@ impl fmt::Display for EncoderError {
 }
 
 impl error::Error for EncoderError {
-    fn description(&self) -> &str {
-        match *self {
-            EncoderError::IoError(ref inner) =>
-            {
-                #[allow(deprecated)]
-                inner.description()
-            }
-            EncoderError::InvalidMapKeyType { .. } => "Invalid map key type",
-            EncoderError::SerializationError { ref message } => message.as_str(),
-            #[cfg(not(feature = "u2i"))]
-            EncoderError::UnsupportedUnsignedType => "BSON does not support unsigned type",
-            #[cfg(feature = "u2i")]
-            EncoderError::UnsignedTypesValueExceedsRange(_) => {
-                "BSON does not support unsigned types.
-                 An attempt to encode the value in a signed type failed due to the values size."
-            }
-        }
-    }
-
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             EncoderError::IoError(ref inner) => Some(inner),

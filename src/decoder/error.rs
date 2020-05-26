@@ -100,27 +100,6 @@ impl fmt::Display for DecoderError {
 }
 
 impl error::Error for DecoderError {
-    fn description(&self) -> &str {
-        match *self {
-            DecoderError::IoError(ref inner) =>
-            {
-                #[allow(deprecated)]
-                inner.description()
-            }
-            DecoderError::FromUtf8Error(ref inner) =>
-            {
-                #[allow(deprecated)]
-                inner.description()
-            }
-            DecoderError::UnrecognizedDocumentElementType { .. } => "unrecognized element type",
-            DecoderError::InvalidArrayKey { .. } => "invalid array key",
-            DecoderError::SyntaxError { ref message } => message.as_str(),
-            DecoderError::EndOfStream => "end of stream",
-            DecoderError::DeserializationError { ref message } => message.as_str(),
-            DecoderError::InvalidTimestamp(..) => "no such local time",
-            DecoderError::AmbiguousTimestamp(..) => "ambiguous local time",
-        }
-    }
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             DecoderError::IoError(ref inner) => Some(inner),
