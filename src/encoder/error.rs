@@ -8,7 +8,7 @@ use crate::bson::Bson;
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum EncoderError {
-    /// A `std::io::Error` encountered while serializing.
+    /// A [`std::io::Error`](https://doc.rust-lang.org/std/io/struct.Error.html) encountered while serializing.
     IoError(io::Error),
 
     /// A key could not be serialized to a BSON string.

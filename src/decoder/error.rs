@@ -8,11 +8,11 @@ use serde::de;
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum DecoderError {
-    /// A `std::io::Error` encountered while deserializing.
+    /// A [`std::io::Error`](https://doc.rust-lang.org/std/io/struct.Error.html) encountered while deserializing.
     IoError(io::Error),
 
-    /// A `std::string::FromUtf8Error` encountered while decoding a UTF-8 String from the input
-    /// data.
+    /// A [`std::string::FromUtf8Error`](https://doc.rust-lang.org/std/string/struct.FromUtf8Error.html) encountered
+    /// while decoding a UTF-8 String from the input data.
     FromUtf8Error(string::FromUtf8Error),
 
     /// While decoding a `Document` from bytes, an unexpected or unsupported element type was
