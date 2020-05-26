@@ -330,6 +330,7 @@ impl From<Bson> for Value {
 }
 
 impl Bson {
+    /// Converts the Bson value into its relaxed extended JSON representation.
     pub fn into_relaxed_extjson(self) -> Value {
         match self {
             Bson::FloatingPoint(v) if v.is_nan() => {
@@ -424,6 +425,7 @@ impl Bson {
         }
     }
 
+    /// Converts the Bson value into its canonical extended JSON representation.
     pub fn into_canonical_extjson(self) -> Value {
         match self {
             Bson::I32(i) => json!({ "$numberInt": i.to_string() }),

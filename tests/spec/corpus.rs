@@ -75,8 +75,6 @@ fn run_test(test: TestFile) {
 
         // native_to_bson( bson_to_native(cB) ) = cB
 
-        // Rust doesn't format f64 with exponential notation by default, and the spec doesn't give
-        // guidance on when to use it.
         assert_eq!(
             hex::encode(native_to_bson_bson_to_native_cv).to_lowercase(),
             valid.canonical_bson.to_lowercase(),
@@ -86,10 +84,11 @@ fn run_test(test: TestFile) {
 
         // native_to_canonical_extended_json( bson_to_native(cB) ) = cEJ
 
-        // Rust doesn't format f64 with exponential notation by default, and the spec doesn't give
-        // guidance on when to use it.
         let mut cej_updated_float = cej.clone();
 
+        // Rust doesn't format f64 with exponential notation by default, and the spec doesn't give
+        // guidance on when to use it, so we manually parse any $numberDouble fields with
+        // exponential notation and replace them with non-exponential notation.
         if let Some(ref key) = test.test_key {
             if let Some(serde_json::Value::Object(subdoc)) = cej_updated_float.get_mut(key) {
                 if let Some(&mut serde_json::Value::String(ref mut s)) =
@@ -138,8 +137,6 @@ fn run_test(test: TestFile) {
         let native_to_canonical_extended_json_bson_to_native_cej =
             json_to_native_cej.clone().into_canonical_extjson();
 
-        // Rust doesn't format f64 with exponential notation by default, and the spec doesn't give
-        // guidance on when to use it.
         assert_eq!(
             native_to_canonical_extended_json_bson_to_native_cej, cej_updated_float,
             "{}",
