@@ -89,7 +89,7 @@ fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<String> {
 }
 
 #[inline]
-fn read_i32<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i32> {
+pub(crate) fn read_i32<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i32> {
     reader.read_i32::<LittleEndian>().map_err(From::from)
 }
 
@@ -107,27 +107,6 @@ fn read_f128<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Decimal128> {
     reader.read_exact(&mut local_buf)?;
     let val = unsafe { Decimal128::from_raw_bytes_le(local_buf) };
     Ok(val)
-}
-
-/// Attempt to decode a `Document` from a byte stream.
-pub fn decode_document<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
-    let mut doc = Document::new();
-
-    // disregard the length: using Read::take causes infinite type recursion
-    read_i32(reader)?;
-
-    loop {
-        let tag = reader.read_u8()?;
-
-        if tag == 0 {
-            break;
-        }
-
-        let (key, val) = decode_bson_kvp(reader, tag, false)?;
-        doc.insert(key, val);
-    }
-
-    Ok(doc)
 }
 
 fn decode_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderResult<Array> {
@@ -149,7 +128,7 @@ fn decode_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderRe
     Ok(arr)
 }
 
-fn decode_bson_kvp<R: Read + ?Sized>(
+pub(crate) fn decode_bson_kvp<R: Read + ?Sized>(
     reader: &mut R,
     tag: u8,
     utf8_lossy: bool,
@@ -160,7 +139,9 @@ fn decode_bson_kvp<R: Read + ?Sized>(
     let val = match ElementType::from(tag) {
         Some(ElementType::FloatingPoint) => Bson::FloatingPoint(reader.read_f64::<LittleEndian>()?),
         Some(ElementType::Utf8String) => read_string(reader, utf8_lossy).map(Bson::String)?,
-        Some(ElementType::EmbeddedDocument) => decode_document(reader).map(Bson::Document)?,
+        Some(ElementType::EmbeddedDocument) => {
+            Document::decode_document(reader).map(Bson::Document)?
+        }
         Some(ElementType::Array) => decode_array(reader, utf8_lossy).map(Bson::Array)?,
         Some(ElementType::Binary) => {
             let mut len = read_i32(reader)?;
@@ -212,7 +193,7 @@ fn decode_bson_kvp<R: Read + ?Sized>(
             read_i32(reader)?;
 
             let code = read_string(reader, utf8_lossy)?;
-            let scope = decode_document(reader)?;
+            let scope = Document::decode_document(reader)?;
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope })
         }
         Some(ElementType::Integer32Bit) => read_i32(reader).map(Bson::I32)?,

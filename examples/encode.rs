@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use bson::{decode_document, encode_document, oid, Array, Bson, Document};
+use bson::{oid, Array, Bson, Document};
 
 fn main() {
     let mut doc = Document::new();
@@ -16,10 +16,10 @@ fn main() {
     doc.insert("array".to_string(), Bson::Array(arr));
 
     let mut buf = Vec::new();
-    encode_document(&mut buf, &doc).unwrap();
+    doc.encode_document(&mut buf).unwrap();
 
     println!("Encoded: {:?}", buf);
 
-    let doc = decode_document(&mut Cursor::new(&buf[..])).unwrap();
+    let doc = Document::decode_document(&mut Cursor::new(&buf[..])).unwrap();
     println!("Decoded: {:?}", doc);
 }

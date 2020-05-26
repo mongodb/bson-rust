@@ -29,7 +29,7 @@ pub use self::{
     serde::Encoder,
 };
 
-use std::{io::Write, iter::IntoIterator, mem};
+use std::{io::Write, mem};
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::Timelike;
@@ -56,7 +56,7 @@ fn write_cstring<W: Write + ?Sized>(writer: &mut W, s: &str) -> EncoderResult<()
 }
 
 #[inline]
-fn write_i32<W: Write + ?Sized>(writer: &mut W, val: i32) -> EncoderResult<()> {
+pub(crate) fn write_i32<W: Write + ?Sized>(writer: &mut W, val: i32) -> EncoderResult<()> {
     writer.write_i32::<LittleEndian>(val).map_err(From::from)
 }
 
@@ -92,34 +92,11 @@ fn encode_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> EncoderResul
     Ok(())
 }
 
-/// Attempt to encode a `Document` into a byte stream.
-///
-/// Can encode any type which is iterable as `(key: &str, value: &Bson)` pairs,
-/// which generally means most maps.
-pub fn encode_document<
-    'a,
-    S: AsRef<str> + 'a,
-    W: Write + ?Sized,
-    D: IntoIterator<Item = (&'a S, &'a Bson)>,
->(
+pub(crate) fn encode_bson<W: Write + ?Sized>(
     writer: &mut W,
-    doc: D,
+    key: &str,
+    val: &Bson,
 ) -> EncoderResult<()> {
-    let mut buf = Vec::new();
-    for (key, val) in doc.into_iter() {
-        encode_bson(&mut buf, key.as_ref(), val)?;
-    }
-
-    write_i32(
-        writer,
-        (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
-    )?;
-    writer.write_all(&buf)?;
-    writer.write_u8(0)?;
-    Ok(())
-}
-
-fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> EncoderResult<()> {
     writer.write_u8(val.element_type() as u8)?;
     write_cstring(writer, key)?;
 
@@ -127,7 +104,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         Bson::FloatingPoint(v) => write_f64(writer, v),
         Bson::String(ref v) => write_string(writer, &v),
         Bson::Array(ref v) => encode_array(writer, &v),
-        Bson::Document(ref v) => encode_document(writer, v),
+        Bson::Document(ref v) => v.encode_document(writer),
         Bson::Boolean(v) => writer
             .write_u8(if v { 0x01 } else { 0x00 })
             .map_err(From::from),
@@ -146,7 +123,7 @@ fn encode_bson<W: Write + ?Sized>(writer: &mut W, key: &str, val: &Bson) -> Enco
         }) => {
             let mut buf = Vec::new();
             write_string(&mut buf, code)?;
-            encode_document(&mut buf, scope)?;
+            scope.encode_document(&mut buf)?;
 
             write_i32(writer, buf.len() as i32 + 4)?;
             writer.write_all(&buf).map_err(From::from)

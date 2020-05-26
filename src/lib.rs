@@ -27,16 +27,16 @@
 //! ## Basic usage
 //!
 //! ```rust
-//! use bson::{decode_document, encode_document, Bson, Document};
+//! use bson::{Bson, Document};
 //! use std::io::Cursor;
 //!
 //! let mut doc = Document::new();
 //! doc.insert("foo".to_owned(), Bson::String("bar".to_owned()));
 //!
 //! let mut buf = Vec::new();
-//! encode_document(&mut buf, &doc).unwrap();
+//! doc.encode_document(&mut buf).unwrap();
 //!
-//! let doc = decode_document(&mut Cursor::new(&buf[..])).unwrap();
+//! let doc = Document::decode_document(&mut Cursor::new(&buf[..])).unwrap();
 //! ```
 
 #![allow(clippy::cognitive_complexity)]
@@ -55,9 +55,9 @@ pub use self::{
         TimeStamp,
         UtcDateTime,
     },
-    decoder::{decode_document, from_bson, Decoder, DecoderError, DecoderResult},
+    decoder::{from_bson, Decoder, DecoderError, DecoderResult},
     document::{ValueAccessError, ValueAccessResult},
-    encoder::{encode_document, to_bson, Encoder, EncoderError, EncoderResult},
+    encoder::{to_bson, Encoder, EncoderError, EncoderResult},
 };
 
 #[macro_use]
