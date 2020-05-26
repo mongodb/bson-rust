@@ -1,39 +1,60 @@
 use std::{error, fmt, fmt::Display, io, string};
 
-use serde::de::{self, Expected, Unexpected};
+use crate::Bson;
+use de::Unexpected;
+use serde::de;
 
 /// Possible errors that can arise during decoding.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum DecoderError {
+    /// A [`std::io::Error`](https://doc.rust-lang.org/std/io/struct.Error.html) encountered while deserializing.
     IoError(io::Error),
+
+    /// A [`std::string::FromUtf8Error`](https://doc.rust-lang.org/std/string/struct.FromUtf8Error.html) encountered
+    /// while decoding a UTF-8 String from the input data.
     FromUtf8Error(string::FromUtf8Error),
-    UnrecognizedDocumentElementType { key: String, element_type: u8 },
-    InvalidArrayKey(usize, String),
-    // A field was expected, but none was found.
-    ExpectedField(&'static str),
-    // An unexpected field was found.
-    UnknownField(String),
-    // There was an error with the syntactical structure of the BSON.
-    SyntaxError(String),
-    // The end of the BSON input was reached too soon.
+
+    /// While decoding a `Document` from bytes, an unexpected or unsupported element type was
+    /// encountered.
+    UnrecognizedDocumentElementType {
+        /// The key at which an unexpected/unsupported element type was encountered.
+        key: String,
+
+        /// The encountered element type.
+        element_type: u8,
+    },
+
+    /// There was an error with the syntactical structure of the BSON.
+    SyntaxError { message: String },
+
+    /// The end of the BSON input was reached too soon.
     EndOfStream,
-    // Invalid Type
-    InvalidType(String),
-    // Invalid Length
-    InvalidLength(usize, String),
-    // Duplicated Field
-    DuplicatedField(&'static str),
-    // Unknown Variant
-    UnknownVariant(String),
-    // Invalid value
-    InvalidValue(String),
-    // Invalid timestamp
+
+    /// An invalid timestamp was encountered while decoding.
     InvalidTimestamp(i64),
-    // Ambiguous timestamp
+
+    /// An ambiguous timestamp was encountered while decoding.
     AmbiguousTimestamp(i64),
 
-    Unknown(String),
+    /// Returned when an index into an array was expected, but got a something else instead.
+    /// BSON arrays are expected to be stored as subdocuments with numbered keys. If the input data
+    /// contains one which is stored with a different format for its keys, this error will be
+    /// returned.
+    InvalidArrayKey {
+        /// The key that was encountered in the input data.
+        actual_key: String,
+
+        /// The index the key was expected to correspond to.
+        expected_key: usize,
+    },
+
+    /// A general error encountered during deserialization.
+    /// See: https://docs.serde.rs/serde/de/trait.Error.html
+    DeserializationError {
+        /// A message describing the error.
+        message: String,
+    },
 }
 
 impl From<io::Error> for DecoderError {
@@ -61,23 +82,17 @@ impl fmt::Display for DecoderError {
                 "unrecognized element type for key \"{}\": `{}`",
                 key, element_type
             ),
-            DecoderError::InvalidArrayKey(ref want, ref got) => {
-                write!(fmt, "invalid array key: expected `{}`, got `{}`", want, got)
-            }
-            DecoderError::ExpectedField(field_type) => {
-                write!(fmt, "expected a field of type `{}`", field_type)
-            }
-            DecoderError::UnknownField(ref field) => write!(fmt, "unknown field `{}`", field),
-            DecoderError::SyntaxError(ref inner) => inner.fmt(fmt),
+            DecoderError::InvalidArrayKey {
+                ref actual_key,
+                ref expected_key,
+            } => write!(
+                fmt,
+                "invalid array key: expected `{}`, got `{}`",
+                expected_key, actual_key
+            ),
+            DecoderError::SyntaxError { ref message } => message.fmt(fmt),
             DecoderError::EndOfStream => fmt.write_str("end of stream"),
-            DecoderError::InvalidType(ref desc) => desc.fmt(fmt),
-            DecoderError::InvalidLength(ref len, ref desc) => {
-                write!(fmt, "expecting length {}, {}", len, desc)
-            }
-            DecoderError::DuplicatedField(ref field) => write!(fmt, "duplicated field `{}`", field),
-            DecoderError::UnknownVariant(ref var) => write!(fmt, "unknown variant `{}`", var),
-            DecoderError::InvalidValue(ref desc) => desc.fmt(fmt),
-            DecoderError::Unknown(ref inner) => inner.fmt(fmt),
+            DecoderError::DeserializationError { ref message } => message.fmt(fmt),
             DecoderError::InvalidTimestamp(ref i) => write!(fmt, "no such local time {}", i),
             DecoderError::AmbiguousTimestamp(ref i) => write!(fmt, "ambiguous local time {}", i),
         }
@@ -85,34 +100,6 @@ impl fmt::Display for DecoderError {
 }
 
 impl error::Error for DecoderError {
-    fn description(&self) -> &str {
-        match *self {
-            DecoderError::IoError(ref inner) =>
-            {
-                #[allow(deprecated)]
-                inner.description()
-            }
-            DecoderError::FromUtf8Error(ref inner) =>
-            {
-                #[allow(deprecated)]
-                inner.description()
-            }
-            DecoderError::UnrecognizedDocumentElementType { .. } => "unrecognized element type",
-            DecoderError::InvalidArrayKey(..) => "invalid array key",
-            DecoderError::ExpectedField(_) => "expected a field",
-            DecoderError::UnknownField(_) => "found an unknown field",
-            DecoderError::SyntaxError(ref inner) => inner,
-            DecoderError::EndOfStream => "end of stream",
-            DecoderError::InvalidType(ref desc) => desc,
-            DecoderError::InvalidLength(_, ref desc) => desc,
-            DecoderError::DuplicatedField(_) => "duplicated field",
-            DecoderError::UnknownVariant(_) => "unknown variant",
-            DecoderError::InvalidValue(ref desc) => desc,
-            DecoderError::Unknown(ref inner) => inner,
-            DecoderError::InvalidTimestamp(..) => "no such local time",
-            DecoderError::AmbiguousTimestamp(..) => "ambiguous local time",
-        }
-    }
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             DecoderError::IoError(ref inner) => Some(inner),
@@ -124,37 +111,41 @@ impl error::Error for DecoderError {
 
 impl de::Error for DecoderError {
     fn custom<T: Display>(msg: T) -> DecoderError {
-        DecoderError::Unknown(msg.to_string())
-    }
-
-    fn invalid_type(_unexp: Unexpected, exp: &dyn Expected) -> DecoderError {
-        DecoderError::InvalidType(exp.to_string())
-    }
-
-    fn invalid_value(_unexp: Unexpected, exp: &dyn Expected) -> DecoderError {
-        DecoderError::InvalidValue(exp.to_string())
-    }
-
-    fn invalid_length(len: usize, exp: &dyn Expected) -> DecoderError {
-        DecoderError::InvalidLength(len, exp.to_string())
-    }
-
-    fn unknown_variant(variant: &str, _expected: &'static [&'static str]) -> DecoderError {
-        DecoderError::UnknownVariant(variant.to_string())
-    }
-
-    fn unknown_field(field: &str, _expected: &'static [&'static str]) -> DecoderError {
-        DecoderError::UnknownField(String::from(field))
-    }
-
-    fn missing_field(field: &'static str) -> DecoderError {
-        DecoderError::ExpectedField(field)
-    }
-
-    fn duplicate_field(field: &'static str) -> DecoderError {
-        DecoderError::DuplicatedField(field)
+        DecoderError::DeserializationError {
+            message: msg.to_string(),
+        }
     }
 }
 
 /// Alias for `Result<T, DecoderError>`.
 pub type DecoderResult<T> = Result<T, DecoderError>;
+
+impl Bson {
+    /// Method for converting a given `Bson` value to a `serde::de::Unexpected` for error reporting.
+    pub(crate) fn as_unexpected(&self) -> Unexpected {
+        match self {
+            Bson::Array(_) => Unexpected::Seq,
+            Bson::Binary(b) => Unexpected::Bytes(b.bytes.as_slice()),
+            Bson::Boolean(b) => Unexpected::Bool(*b),
+            Bson::DbPointer(_) => Unexpected::Other("dbpointer"),
+            Bson::Document(_) => Unexpected::Map,
+            Bson::FloatingPoint(f) => Unexpected::Float(*f),
+            Bson::I32(i) => Unexpected::Signed(*i as i64),
+            Bson::I64(i) => Unexpected::Signed(*i),
+            Bson::JavaScriptCode(_) => Unexpected::Other("javascript code"),
+            Bson::JavaScriptCodeWithScope(_) => Unexpected::Other("javascript code with scope"),
+            Bson::MaxKey => Unexpected::Other("maxkey"),
+            Bson::MinKey => Unexpected::Other("minkey"),
+            Bson::Null => Unexpected::Unit,
+            Bson::Undefined => Unexpected::Other("undefined"),
+            Bson::ObjectId(_) => Unexpected::Other("objectid"),
+            Bson::Regex(_) => Unexpected::Other("regex"),
+            Bson::String(s) => Unexpected::Str(s.as_str()),
+            Bson::Symbol(_) => Unexpected::Other("symbol"),
+            Bson::TimeStamp(_) => Unexpected::Other("timestamp"),
+            Bson::UtcDatetime(_) => Unexpected::Other("datetime"),
+            #[cfg(feature = "decimal128")]
+            Bson::Decimal128(_) => Unexpected::Other("decimal128"),
+        }
+    }
+}

@@ -29,7 +29,10 @@ static OID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
-    ArgumentError(String),
+    /// An invalid argument was passed in.
+    ArgumentError { message: String },
+
+    /// An error occured parsing a hex string.
     FromHexError(FromHexError),
 }
 
@@ -45,27 +48,16 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::ArgumentError(ref inner) => inner.fmt(fmt),
+            Error::ArgumentError { ref message } => message.fmt(fmt),
             Error::FromHexError(ref inner) => inner.fmt(fmt),
         }
     }
 }
 
 impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::ArgumentError(ref inner) => &inner,
-            Error::FromHexError(ref inner) =>
-            {
-                #[allow(deprecated)]
-                inner.description()
-            }
-        }
-    }
-
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
-            Error::ArgumentError(_) => None,
+            Error::ArgumentError { .. } => None,
             Error::FromHexError(ref inner) => Some(inner),
         }
     }
@@ -112,9 +104,9 @@ impl ObjectId {
     pub fn with_string(s: &str) -> Result<ObjectId> {
         let bytes: Vec<u8> = hex::decode(s.as_bytes())?;
         if bytes.len() != 12 {
-            Err(Error::ArgumentError(
-                "Provided string must be a 12-byte hexadecimal string.".to_owned(),
-            ))
+            Err(Error::ArgumentError {
+                message: "Provided string must be a 12-byte hexadecimal string.".to_owned(),
+            })
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
             byte_array[..].copy_from_slice(&bytes[..]);
