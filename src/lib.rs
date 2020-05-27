@@ -62,13 +62,12 @@
 //! let string: Bson = "hello world".into();
 //! let int: Bson = (5 as i32).into();
 //!
-//! let string: Bson = bson!("hello world");
-//! let int: Bson = bson!(5);
+//! let string = bson!("hello world");
+//! let int = bson!(5);
 //! let array = bson!([5, false]);
 //! ```
 //! [`bson!`](macro.bson.html) has supports both array and object literals, and it automatically
-//! converts any values specified to [`Bson`](enum.Bson.html), provided they are either `Serialize`
-//! or `Into<Bson>`.
+//! converts any values specified to [`Bson`](enum.Bson.html), provided they are `Into<Bson>`.
 //!
 //! ### [`Bson`](enum.Bson.html) value unwrapping
 //!
