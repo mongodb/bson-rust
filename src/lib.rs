@@ -190,7 +190,14 @@
 pub use self::decimal128::Decimal128;
 pub use self::{
     bson::{
-        Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, TimeStamp,
+        Array,
+        Binary,
+        Bson,
+        DbPointer,
+        Document,
+        JavaScriptCodeWithScope,
+        Regex,
+        TimeStamp,
         UtcDateTime,
     },
     decoder::{from_bson, Decoder, DecoderError, DecoderResult},
