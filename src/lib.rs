@@ -36,7 +36,7 @@
 //! \x00                               // 0x00 = type EOO ('end of object')
 //! ```
 //!
-//! BSON is the primary data represenation for [MongoDB](https://www.mongodb.com/), and this crate is used in the
+//! BSON is the primary data representation for [MongoDB](https://www.mongodb.com/), and this crate is used in the
 //! [`mongodb`](https://docs.rs/mongodb/0.10.0/mongodb/) driver crate in its API and implementation.
 //!
 //! For more information about BSON itself, see [bsonspec.org](http://bsonspec.org).
@@ -73,7 +73,7 @@
 //! ### [`Bson`](enum.Bson.html) value unwrapping
 //!
 //! [`Bson`](enum.Bson.html) has a number of helper methods for accessing the underlying native Rust
-//! types. These helpers can be useful in cirumstances in which a the specific type of a BSON value
+//! types. These helpers can be useful in circumstances in which the specific type of a BSON value
 //! is known ahead of time.
 //!
 //! e.g.:
@@ -131,7 +131,7 @@
 //! let none = doc.get("asdfadsf"); // None
 //! let value = doc.get("string"); // Some(&Bson::String("string"))
 //!
-//! // attempt to get values with explcit typing
+//! // attempt to get values with explicit typing
 //! let string = doc.get_str("string"); // Ok("string")
 //! let subdoc = doc.get_document("doc"); // Some(Document({ "x": true }))
 //! let error = doc.get_i64("i32"); // Err(...)
