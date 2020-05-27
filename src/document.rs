@@ -511,7 +511,7 @@ impl Document {
     }
 
     /// Attempts to encode the `Document` into a byte stream.
-    pub fn encode_document<W: Write + ?Sized>(&self, writer: &mut W) -> EncoderResult<()> {
+    pub fn encode<W: Write + ?Sized>(&self, writer: &mut W) -> EncoderResult<()> {
         let mut buf = Vec::new();
         for (key, val) in self.into_iter() {
             encode_bson(&mut buf, key.as_ref(), val)?;
@@ -527,7 +527,7 @@ impl Document {
     }
 
     /// Attempts to decode a `Document` from a byte stream.
-    pub fn decode_document<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
+    pub fn decode<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
         let mut doc = Document::new();
 
         // disregard the length: using Read::take causes infinite type recursion

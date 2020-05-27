@@ -27,11 +27,11 @@ fn test_encode_decode_floating_point() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -46,11 +46,11 @@ fn test_encode_decode_utf8_string() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -65,16 +65,16 @@ fn test_encode_decode_array() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
 #[test]
-fn test_encode_decode_document() {
+fn test_encode_decode() {
     let src = doc! { "subkey": 1 };
     let dst = vec![
         27, 0, 0, 0, 3, 107, 101, 121, 0, 17, 0, 0, 0, 16, 115, 117, 98, 107, 101, 121, 0, 1, 0, 0,
@@ -84,11 +84,11 @@ fn test_encode_decode_document() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -100,11 +100,11 @@ fn test_encode_decode_boolean() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -116,11 +116,11 @@ fn test_encode_decode_null() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -135,11 +135,11 @@ fn test_encode_decode_regexp() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -151,11 +151,11 @@ fn test_encode_decode_javascript_code() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -172,11 +172,11 @@ fn test_encode_decode_javascript_code_with_scope() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -188,11 +188,11 @@ fn test_encode_decode_i32() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -206,11 +206,11 @@ fn test_encode_decode_i64() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -227,11 +227,11 @@ fn test_encode_decode_timestamp() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -248,11 +248,11 @@ fn test_encode_binary_generic() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -266,11 +266,11 @@ fn test_encode_decode_object_id() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -284,11 +284,11 @@ fn test_encode_utc_date_time() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -302,11 +302,11 @@ fn test_encode_decode_symbol() {
     let doc = doc! { "key": symbol };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -323,7 +323,7 @@ fn test_decode_utc_date_time_overflows() {
     raw.write_all(&raw0).unwrap();
     raw.write_u8(0).unwrap();
 
-    let decoded = Document::decode_document(&mut Cursor::new(raw)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(raw)).unwrap();
 
     let expected = doc! { "A": Utc.timestamp(1_530_492_218, 999 * 1_000_000)};
     assert_eq!(decoded, expected);
@@ -333,14 +333,14 @@ fn test_decode_utc_date_time_overflows() {
 fn test_decode_invalid_utf8_string_issue64() {
     let buffer = b"\x13\x00\x00\x00\x02\x01\x00\x00\x00\x00\x00\x00\x00foo\x00\x13\x05\x00\x00\x00";
 
-    assert!(Document::decode_document(&mut Cursor::new(buffer)).is_err());
+    assert!(Document::decode(&mut Cursor::new(buffer)).is_err());
 }
 
 #[test]
 fn test_decode_multiply_overflows_issue64() {
     let buffer = b"*\xc9*\xc9\t\x00\x00\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\x01\t\x00\x00\x01\x10";
 
-    assert!(Document::decode_document(&mut Cursor::new(&buffer[..])).is_err());
+    assert!(Document::decode(&mut Cursor::new(&buffer[..])).is_err());
 }
 
 #[cfg(feature = "decimal128")]
@@ -354,11 +354,11 @@ fn test_encode_decode_decimal128() {
     let doc = doc! { "key": val };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -367,7 +367,7 @@ fn test_illegal_size() {
     let buffer = [
         0x06, 0xcc, 0xf9, 0x0a, 0x05, 0x00, 0x00, 0x03, 0x00, 0xff, 0xff,
     ];
-    assert!(Document::decode_document(&mut Cursor::new(&buffer[..])).is_err());
+    assert!(Document::decode(&mut Cursor::new(&buffer[..])).is_err());
 }
 
 #[test]
@@ -378,11 +378,11 @@ fn test_encode_decode_undefined() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -394,11 +394,11 @@ fn test_encode_decode_min_key() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -410,11 +410,11 @@ fn test_encode_decode_max_key() {
     let doc = doc! {"key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }
 
@@ -434,10 +434,10 @@ fn test_encode_decode_db_pointer() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.encode_document(&mut buf).unwrap();
+    doc.encode(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let decoded = Document::decode_document(&mut Cursor::new(buf)).unwrap();
+    let decoded = Document::decode(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, doc);
 }

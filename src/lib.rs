@@ -34,9 +34,9 @@
 //! doc.insert("foo".to_owned(), Bson::String("bar".to_owned()));
 //!
 //! let mut buf = Vec::new();
-//! doc.encode_document(&mut buf).unwrap();
+//! doc.encode(&mut buf).unwrap();
 //!
-//! let doc = Document::decode_document(&mut Cursor::new(&buf[..])).unwrap();
+//! let doc = Document::decode(&mut Cursor::new(&buf[..])).unwrap();
 //! ```
 
 #![allow(clippy::cognitive_complexity)]

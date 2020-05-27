@@ -367,9 +367,9 @@ fn test_byte_vec() {
     );
 
     // let mut buf = Vec::new();
-    // bson::encode_document(&mut buf, b.as_document().unwrap()).unwrap();
+    // b.as_document().unwrap().encode(&mut buf).unwrap();
 
-    // let xb = bson::decode_document(&mut Cursor::new(buf)).unwrap();
+    // let xb = Document::decode(&mut Cursor::new(buf)).unwrap();
     // assert_eq!(b.as_document().unwrap(), &xb);
 }
 

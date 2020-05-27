@@ -139,9 +139,7 @@ pub(crate) fn decode_bson_kvp<R: Read + ?Sized>(
     let val = match ElementType::from(tag) {
         Some(ElementType::FloatingPoint) => Bson::FloatingPoint(reader.read_f64::<LittleEndian>()?),
         Some(ElementType::Utf8String) => read_string(reader, utf8_lossy).map(Bson::String)?,
-        Some(ElementType::EmbeddedDocument) => {
-            Document::decode_document(reader).map(Bson::Document)?
-        }
+        Some(ElementType::EmbeddedDocument) => Document::decode(reader).map(Bson::Document)?,
         Some(ElementType::Array) => decode_array(reader, utf8_lossy).map(Bson::Array)?,
         Some(ElementType::Binary) => {
             let mut len = read_i32(reader)?;
@@ -193,7 +191,7 @@ pub(crate) fn decode_bson_kvp<R: Read + ?Sized>(
             read_i32(reader)?;
 
             let code = read_string(reader, utf8_lossy)?;
-            let scope = Document::decode_document(reader)?;
+            let scope = Document::decode(reader)?;
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope })
         }
         Some(ElementType::Integer32Bit) => read_i32(reader).map(Bson::I32)?,
