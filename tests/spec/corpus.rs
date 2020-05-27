@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use bson::Bson;
+use bson::{Bson, Document};
 use pretty_assertions::assert_eq;
 use serde_derive::Deserialize;
 
@@ -59,7 +59,7 @@ fn run_test(test: TestFile) {
     for valid in test.valid {
         let description = format!("{}: {}", test.description, valid.description);
 
-        let bson_to_native_cb = bson::decode_document(
+        let bson_to_native_cb = Document::decode(
             &mut hex::decode(&valid.canonical_bson)
                 .expect(&description)
                 .as_slice(),
@@ -67,7 +67,8 @@ fn run_test(test: TestFile) {
         .expect(&description);
 
         let mut native_to_bson_bson_to_native_cv = Vec::new();
-        bson::encode_document(&mut native_to_bson_bson_to_native_cv, &bson_to_native_cb)
+        bson_to_native_cb
+            .encode(&mut native_to_bson_bson_to_native_cv)
             .expect(&description);
 
         let cej: serde_json::Value =
@@ -147,11 +148,11 @@ fn run_test(test: TestFile) {
 
         if valid.lossy != Some(true) {
             let mut native_to_bson_json_to_native_cej = Vec::new();
-            bson::encode_document(
-                &mut native_to_bson_json_to_native_cej,
-                json_to_native_cej.as_document().unwrap(),
-            )
-            .unwrap();
+            json_to_native_cej
+                .as_document()
+                .unwrap()
+                .encode(&mut native_to_bson_json_to_native_cej)
+                .unwrap();
 
             // TODO RUST-36: Enable decimal128 tests.
             if test.bson_type != "0x13" {
@@ -168,11 +169,12 @@ fn run_test(test: TestFile) {
 
         if let Some(db) = valid.degenerate_bson {
             let bson_to_native_db =
-                bson::decode_document(&mut hex::decode(&db).expect(&description).as_slice())
+                Document::decode(&mut hex::decode(&db).expect(&description).as_slice())
                     .expect(&description);
 
             let mut native_to_bson_bson_to_native_db = Vec::new();
-            bson::encode_document(&mut native_to_bson_bson_to_native_db, &bson_to_native_db)
+            bson_to_native_db
+                .encode(&mut native_to_bson_bson_to_native_db)
                 .unwrap();
 
             assert_eq!(
@@ -207,11 +209,11 @@ fn run_test(test: TestFile) {
 
             if valid.lossy != Some(true) {
                 let mut native_to_bson_json_to_native_dej = Vec::new();
-                bson::encode_document(
-                    &mut native_to_bson_json_to_native_dej,
-                    json_to_native_dej.as_document().unwrap(),
-                )
-                .unwrap();
+                json_to_native_dej
+                    .as_document()
+                    .unwrap()
+                    .encode(&mut native_to_bson_json_to_native_dej)
+                    .unwrap();
 
                 // TODO RUST-36: Enable decimal128 tests.
                 if test.bson_type != "0x13" {
