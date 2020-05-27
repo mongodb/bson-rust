@@ -26,7 +26,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use chrono::{DateTime, Datelike, SecondsFormat, TimeZone, Utc};
+use chrono::{Datelike, SecondsFormat, TimeZone, Utc};
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
@@ -354,7 +354,7 @@ impl Bson {
             Bson::Document(v) => {
                 Value::Object(v.into_iter().map(|(k, v)| (k, Value::from(v))).collect())
             }
-            Bson::Boolean(v) => json!(v),
+            Bson::Bool(v) => json!(v),
             Bson::Null => Value::Null,
             Bson::Regex(Regex { pattern, options }) => {
                 let mut chars: Vec<_> = options.chars().collect();
@@ -392,7 +392,7 @@ impl Bson {
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
-            Bson::UtcDatetime(v) if v.timestamp_millis() >= 0 && v.year() <= 99999 => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.year() <= 99999 => {
                 let seconds_format = if v.timestamp_subsec_millis() == 0 {
                     SecondsFormat::Secs
                 } else {
@@ -782,7 +782,7 @@ impl Bson {
                 }
 
                 if let Ok(date) = doc.get_str("$date") {
-                    if let Ok(date) = DateTime::parse_from_rfc3339(date) {
+                    if let Ok(date) = chrono::DateTime::parse_from_rfc3339(date) {
                         return Bson::DateTime(date.into());
                     }
                 }
@@ -805,7 +805,7 @@ impl Bson {
             }
 
             ["$undefined"] => {
-                if doc.get("$undefined") == Some(&Bson::Boolean(true)) {
+                if doc.get("$undefined") == Some(&Bson::Bool(true)) {
                     return Bson::Undefined;
                 }
             }
