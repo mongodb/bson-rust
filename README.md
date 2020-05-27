@@ -83,7 +83,7 @@ let array = bson!([5, false]);
 ```
 [`bson!`](https://docs.rs/bson/latest/bson/macro.bson.html) has supports both array and object literals, and it automatically converts any values specified to [`Bson`](https://docs.rs/bson/latest/bson/enum.Bson.html), provided they are `Into<Bson>`.
 
-#### [`Bson`](enum.Bson.html) value unwrapping
+#### [`Bson`](https://docs.rs/bson/latest/bson/enum.Bson.html) value unwrapping
 
 [`Bson`](https://docs.rs/bson/latest/bson/enum.Bson.html) has a number of helper methods for accessing the underlying native Rust types. These helpers can be useful in circumstances in which the specific type of a BSON value
 is known ahead of time.
