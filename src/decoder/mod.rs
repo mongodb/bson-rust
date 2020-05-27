@@ -142,23 +142,7 @@ fn decode_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> DecoderRe
             break;
         }
 
-        let (key, val) = decode_bson_kvp(reader, tag, utf8_lossy)?;
-        match key.parse::<usize>() {
-            Err(..) => {
-                return Err(DecoderError::InvalidArrayKey {
-                    actual_key: key,
-                    expected_key: arr.len(),
-                })
-            }
-            Ok(idx) => {
-                if idx != arr.len() {
-                    return Err(DecoderError::InvalidArrayKey {
-                        actual_key: key,
-                        expected_key: arr.len(),
-                    });
-                }
-            }
-        }
+        let (_, val) = decode_bson_kvp(reader, tag, utf8_lossy)?;
         arr.push(val)
     }
 
@@ -179,7 +163,7 @@ fn decode_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::EmbeddedDocument) => decode_document(reader).map(Bson::Document)?,
         Some(ElementType::Array) => decode_array(reader, utf8_lossy).map(Bson::Array)?,
         Some(ElementType::Binary) => {
-            let len = read_i32(reader)?;
+            let mut len = read_i32(reader)?;
             if len < 0 || len > MAX_BSON_SIZE {
                 return Err(DecoderError::invalid_length(
                     len as usize,
@@ -187,7 +171,15 @@ fn decode_bson_kvp<R: Read + ?Sized>(
                 ));
             }
             let subtype = BinarySubtype::from(reader.read_u8()?);
+
+            // Skip length data in old binary.
+            if let BinarySubtype::BinaryOld = subtype {
+                read_i32(reader)?;
+                len -= 4;
+            }
+
             let mut bytes = Vec::with_capacity(len as usize);
+
             reader.take(len as u64).read_to_end(&mut bytes)?;
             Bson::Binary(Binary { subtype, bytes })
         }
@@ -202,8 +194,14 @@ fn decode_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::NullValue) => Bson::Null,
         Some(ElementType::RegularExpression) => {
             let pattern = read_cstring(reader)?;
-            let options = read_cstring(reader)?;
-            Bson::Regex(Regex { pattern, options })
+
+            let mut options: Vec<_> = read_cstring(reader)?.chars().collect();
+            options.sort();
+
+            Bson::Regex(Regex {
+                pattern,
+                options: options.into_iter().collect(),
+            })
         }
         Some(ElementType::JavaScriptCode) => {
             read_string(reader, utf8_lossy).map(Bson::JavaScriptCode)?
@@ -226,10 +224,11 @@ fn decode_bson_kvp<R: Read + ?Sized>(
             // The int64 is UTC milliseconds since the Unix epoch.
             let time = read_i64(reader)?;
 
-            let sec = time / 1000;
+            let mut sec = time / 1000;
             let tmp_msec = time % 1000;
             let msec = if tmp_msec < 0 {
-                1000 - tmp_msec
+                sec -= 1;
+                1000 + tmp_msec
             } else {
                 tmp_msec
             };

@@ -1,3 +1,5 @@
+use std::io::{Cursor, Write};
+
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
 use bson::{
@@ -14,7 +16,7 @@ use bson::{
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::{offset::TimeZone, Utc};
-use std::io::{Cursor, Write};
+use serde_json::json;
 
 #[test]
 fn test_encode_decode_floating_point() {
@@ -419,12 +421,12 @@ fn test_encode_decode_max_key() {
 
 #[test]
 fn test_encode_decode_db_pointer() {
-    let src = Bson::from_extended_document(doc! {
+    let src = Bson::from(json!({
         "$dbPointer": {
             "$ref": "db.coll",
-            "$id": "507f1f77bcf86cd799439011"
+            "$id": { "$oid": "507f1f77bcf86cd799439011" },
         }
-    });
+    }));
     let dst = vec![
         34, 0, 0, 0, 12, 107, 101, 121, 0, 8, 0, 0, 0, 100, 98, 46, 99, 111, 108, 108, 0, 80, 127,
         31, 119, 188, 248, 108, 215, 153, 67, 144, 17, 0,

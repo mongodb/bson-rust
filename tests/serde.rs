@@ -3,6 +3,7 @@
 use bson::{bson, doc, spec::BinarySubtype, Binary, Bson, Decoder, Encoder};
 use serde::{Deserialize, Serialize};
 use serde_derive::{Deserialize, Serialize};
+use serde_json::json;
 
 use std::collections::BTreeMap;
 
@@ -114,7 +115,7 @@ fn test_ser_regex() {
 
     let regex = Regex {
         pattern: "12".into(),
-        options: "10".into(),
+        options: "01".into(),
     };
 
     let foo = Foo {
@@ -142,7 +143,7 @@ fn test_de_regex() {
 
     let regex = Regex {
         pattern: "12".into(),
-        options: "10".into(),
+        options: "01".into(),
     };
 
     let foo: Foo = bson::from_bson(Bson::Document(doc! {
@@ -473,12 +474,13 @@ fn test_ser_db_pointer() {
         db_pointer: DbPointer,
     }
 
-    let db_pointer = Bson::from_extended_document(doc! {
+    let db_pointer = Bson::from(json!({
         "$dbPointer": {
             "$ref": "db.coll",
-            "$id": "507f1f77bcf86cd799439011"
+            "$id": { "$oid": "507f1f77bcf86cd799439011" },
         }
-    });
+    }));
+
     let db_pointer = db_pointer.as_db_pointer().unwrap();
 
     let foo = Foo {
@@ -504,12 +506,12 @@ fn test_de_db_pointer() {
         db_pointer: DbPointer,
     }
 
-    let db_pointer = Bson::from_extended_document(doc! {
+    let db_pointer = Bson::from(json!({
         "$dbPointer": {
             "$ref": "db.coll",
-            "$id": "507f1f77bcf86cd799439011"
+            "$id": { "$oid": "507f1f77bcf86cd799439011" },
         }
-    });
+    }));
     let db_pointer = db_pointer.as_db_pointer().unwrap();
 
     let foo: Foo = bson::from_bson(Bson::Document(

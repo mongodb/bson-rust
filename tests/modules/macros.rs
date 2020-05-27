@@ -1,5 +1,6 @@
 use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex, TimeStamp};
 use chrono::offset::Utc;
+use pretty_assertions::assert_eq;
 
 #[test]
 fn standard_format() {
@@ -39,7 +40,7 @@ fn standard_format() {
          with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, i64: -55, \
          timestamp: Timestamp(0, 229999444), binary: BinData(5, 0x{}), _id: ObjectId(\"{}\"), \
          date: Date(\"{}\") }}",
-        hex::encode("thingies"),
+        base64::encode("thingies"),
         hex::encode(id_string),
         date
     );
@@ -97,14 +98,14 @@ fn recursive_macro() {
                             assert_eq!(2, arr.len());
 
                             // Match array items
-                            match arr[0] {
-                                Bson::String(ref s) => assert_eq!("seal", s),
+                            match arr.get(0) {
+                                Some(Bson::String(ref s)) => assert_eq!("seal", s),
                                 _ => panic!(
                                     "String 'seal' was not inserted into inner array correctly."
                                 ),
                             }
-                            match arr[1] {
-                                Bson::Boolean(ref b) => assert!(!b),
+                            match arr.get(1) {
+                                Some(Bson::Boolean(ref b)) => assert!(!b),
                                 _ => panic!(
                                     "Boolean 'false' was not inserted into inner array correctly."
                                 ),
@@ -131,8 +132,8 @@ fn recursive_macro() {
             assert_eq!(1, arr.len());
 
             // Integer type
-            match arr[0] {
-                Bson::I32(ref i) => assert_eq!(-7, *i),
+            match arr.get(0) {
+                Some(Bson::I32(ref i)) => assert_eq!(-7, *i),
                 _ => panic!("I32 '-7' was not inserted correctly."),
             }
         }
@@ -145,8 +146,8 @@ fn recursive_macro() {
             assert_eq!(1, arr.len());
 
             // Nested document
-            match arr[0] {
-                Bson::Document(ref doc) => {
+            match arr.get(0) {
+                Some(Bson::Document(ref doc)) => {
                     // String
                     match doc.get("apple") {
                         Some(&Bson::String(ref s)) => assert_eq!("ripe", s),
