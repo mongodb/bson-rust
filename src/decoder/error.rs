@@ -67,7 +67,7 @@ impl fmt::Display for DecoderError {
                 element_type,
             } => write!(
                 fmt,
-                "unrecognized element type for key \"{}\": `{}`",
+                "unrecognized element type for key \"{}\": `{:#x}`",
                 key, element_type
             ),
             DecoderError::SyntaxError { ref message } => message.fmt(fmt),
@@ -124,7 +124,6 @@ impl Bson {
             Bson::Symbol(_) => Unexpected::Other("symbol"),
             Bson::TimeStamp(_) => Unexpected::Other("timestamp"),
             Bson::UtcDatetime(_) => Unexpected::Other("datetime"),
-            #[cfg(feature = "decimal128")]
             Bson::Decimal128(_) => Unexpected::Other("decimal128"),
         }
     }
