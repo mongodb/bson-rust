@@ -3,9 +3,13 @@
 use std::{
     error,
     fmt::{self, Debug, Display, Formatter},
-    iter::{Extend, FromIterator, Map},
+    io::{Read, Write},
+    iter::{Extend, FromIterator, IntoIterator, Map},
     marker::PhantomData,
+    mem,
 };
+
+use byteorder::{ReadBytesExt, WriteBytesExt};
 
 use chrono::{DateTime, Utc};
 
@@ -17,6 +21,8 @@ use serde::de::{self, MapAccess, Visitor};
 use crate::decimal128::Decimal128;
 use crate::{
     bson::{Array, Binary, Bson, TimeStamp},
+    decoder::{decode_bson_kvp, read_i32, DecoderResult},
+    encoder::{encode_bson, write_i32, EncoderResult},
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -502,6 +508,43 @@ impl Document {
         Entry {
             inner: self.inner.entry(k),
         }
+    }
+
+    /// Attempts to encode the `Document` into a byte stream.
+    pub fn encode<W: Write + ?Sized>(&self, writer: &mut W) -> EncoderResult<()> {
+        let mut buf = Vec::new();
+        for (key, val) in self.into_iter() {
+            encode_bson(&mut buf, key.as_ref(), val)?;
+        }
+
+        write_i32(
+            writer,
+            (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
+        )?;
+        writer.write_all(&buf)?;
+        writer.write_u8(0)?;
+        Ok(())
+    }
+
+    /// Attempts to decode a `Document` from a byte stream.
+    pub fn decode<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
+        let mut doc = Document::new();
+
+        // disregard the length: using Read::take causes infinite type recursion
+        read_i32(reader)?;
+
+        loop {
+            let tag = reader.read_u8()?;
+
+            if tag == 0 {
+                break;
+            }
+
+            let (key, val) = decode_bson_kvp(reader, tag, false)?;
+            doc.insert(key, val);
+        }
+
+        Ok(doc)
     }
 }
 
