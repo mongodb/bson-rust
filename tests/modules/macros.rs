@@ -30,6 +30,7 @@ fn standard_format() {
         "i64": -55,
         "timestamp": Bson::TimeStamp(TimeStamp { time: 0, increment: 229_999_444 }),
         "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
+        "encrypted": Binary { subtype: BinarySubtype::Encrypted, bytes: "secret".to_owned().into_bytes() },
         "_id": id,
         "date": Bson::UtcDatetime(date),
     };
@@ -38,9 +39,10 @@ fn standard_format() {
         "{{ float: 2.4, string: \"hello\", array: [\"testing\", 1, true, [1, 2]], doc: {{ fish: \
          \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, regexp: /s[ao]d/i, \
          with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, i64: -55, \
-         timestamp: Timestamp(0, 229999444), binary: BinData(5, 0x{}), _id: ObjectId(\"{}\"), \
-         date: Date(\"{}\") }}",
+         timestamp: Timestamp(0, 229999444), binary: BinData(5, 0x{}), encrypted: BinData(6, \
+         0x{}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}",
         base64::encode("thingies"),
+        base64::encode("secret"),
         hex::encode(id_string),
         date
     );
