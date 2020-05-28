@@ -101,7 +101,7 @@
 //! # use bson::{doc, Document};
 //! # use std::io::Read;
 //! let mut bytes = hex::decode("0C0000001069000100000000").unwrap();
-//! let doc = Document::decode(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
+//! let doc = Document::deserialize(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
 //!
 //! let doc = doc! {
 //!    "hello": "world",
@@ -199,18 +199,17 @@ pub use self::{
         Timestamp,
     },
     decimal128::Decimal128,
-    decoder::{from_bson, Decoder, DecoderError, DecoderResult},
-    document::{ValueAccessError, ValueAccessResult},
-    encoder::{to_bson, Encoder, EncoderError, EncoderResult},
+    de::{from_bson, Deserializer},
+    ser::{to_bson, Serializer},
 };
 
 #[macro_use]
 mod macros;
 mod bson;
 pub mod compat;
+pub mod de;
 pub mod decimal128;
-mod decoder;
 pub mod document;
-mod encoder;
 pub mod oid;
+pub mod ser;
 pub mod spec;

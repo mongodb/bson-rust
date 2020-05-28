@@ -6,5 +6,5 @@ use bson::Document;
 use std::io::Cursor;
 
 fuzz_target!(|buf: &[u8]| {
-    let _ = Document::decode(&mut Cursor::new(&buf[..]));
+    let _ = Document::deserialize(&mut Cursor::new(&buf[..]));
 });
