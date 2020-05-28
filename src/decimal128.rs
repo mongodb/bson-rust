@@ -16,7 +16,7 @@ use std::fmt;
 pub struct Decimal128 {
     #[cfg(not(feature = "decimal128"))]
     /// BSON bytes containing the decimal128. Stored for round tripping.
-    pub(crate) bytes: Vec<u8>,
+    pub(crate) bytes: [u8; 128 / 8],
 
     #[cfg(feature = "decimal128")]
     inner: decimal::d128,

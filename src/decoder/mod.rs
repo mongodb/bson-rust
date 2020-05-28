@@ -102,7 +102,7 @@ fn read_i64<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i64> {
 #[cfg(not(feature = "decimal128"))]
 #[inline]
 fn read_f128<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Decimal128> {
-    let mut buf = vec![0u8; 128 / 8];
+    let mut buf = [0u8; 128 / 8];
     reader.read_exact(&mut buf)?;
     Ok(Decimal128 { bytes: buf })
 }

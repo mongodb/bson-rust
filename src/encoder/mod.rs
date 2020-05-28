@@ -155,7 +155,7 @@ pub(crate) fn encode_bson<W: Write + ?Sized>(
         Bson::Symbol(ref v) => write_string(writer, &v),
         #[cfg(not(feature = "decimal128"))]
         Bson::Decimal128(ref v) => {
-            writer.write_all(v.bytes.as_slice())?;
+            writer.write_all(&v.bytes)?;
             Ok(())
         }
         #[cfg(feature = "decimal128")]
