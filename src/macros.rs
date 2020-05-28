@@ -178,10 +178,10 @@ macro_rules! bson {
         $crate::Bson::Document($crate::doc!{$($tt)+});
     };
 
-    // Any Serialize type: numbers, strings, struct literals, variables etc.
+    // Any Into<Bson> type.
     // Must be below every other rule.
     ($other:expr) => {
-        ::std::convert::From::from($other)
+        $crate::Bson::from($other)
     };
 }
 
