@@ -44,9 +44,12 @@ use crate::{
     Decimal128,
 };
 
-use ::serde::de::{self, Error as _};
+use ::serde::de::{self, Deserialize, Error as _, Unexpected};
 
 const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
+pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
+const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
+const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
 fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> crate::de::Result<String> {
     let len = reader.read_i32::<LittleEndian>()?;
@@ -68,7 +71,14 @@ fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> crate::de:
         reader.take(len as u64 - 1).read_to_string(&mut s)?;
         s
     };
-    reader.read_u8()?; // The last 0x00
+
+    // read the null terminator
+    if reader.read_u8()? != 0 {
+        return Err(DecoderError::invalid_length(
+            len as usize,
+            &"contents of string longer than provided length",
+        ));
+    }
 
     Ok(s)
 }
@@ -123,18 +133,27 @@ fn deserialize_array<R: Read + ?Sized>(
     utf8_lossy: bool,
 ) -> crate::de::Result<Array> {
     let mut arr = Array::new();
+    let length = read_i32(reader)?;
 
-    // disregard the length: using Read::take causes infinite type recursion
-    read_i32(reader)?;
+    let mut buf = vec![0u8; (length as usize) - 4];
+    reader.read_exact(&mut buf)?;
 
+    let mut cursor = std::io::Cursor::new(buf);
     loop {
-        let tag = reader.read_u8()?;
+        let tag = cursor.read_u8()?;
         if tag == 0 {
             break;
         }
 
-        let (_, val) = deserialize_bson_kvp(reader, tag, utf8_lossy)?;
+        let (_, val) = deserialize_bson_kvp(&mut cursor, tag, utf8_lossy)?;
         arr.push(val)
+    }
+
+    if cursor.position() != (length - 4) as u64 {
+        return Err(DecoderError::invalid_length(
+            length as usize,
+            &"array length longer than contents",
+        ));
     }
 
     Ok(arr)
@@ -165,7 +184,15 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
 
             // Skip length data in old binary.
             if let BinarySubtype::BinaryOld = subtype {
-                read_i32(reader)?;
+                let data_len = read_i32(reader)?;
+
+                if data_len + 4 != len {
+                    return Err(DecoderError::invalid_length(
+                        data_len as usize,
+                        &"0x02 length did not match top level binary length",
+                    ));
+                }
+
                 len -= 4;
             }
 
@@ -181,7 +208,17 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             }
             Bson::ObjectId(oid::ObjectId::with_bytes(objid))
         }
-        Some(ElementType::Boolean) => Bson::Boolean(reader.read_u8()? != 0),
+        Some(ElementType::Boolean) => {
+            let val = reader.read_u8()?;
+            if val > 1 {
+                return Err(DecoderError::invalid_value(
+                    Unexpected::Unsigned(val as u64),
+                    &"boolean must be stored as 0 or 1",
+                ));
+            }
+
+            Bson::Boolean(val != 0)
+        }
         Some(ElementType::Null) => Bson::Null,
         Some(ElementType::RegularExpression) => {
             let pattern = read_cstring(reader)?;
@@ -198,12 +235,29 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             read_string(reader, utf8_lossy).map(Bson::JavaScriptCode)?
         }
         Some(ElementType::JavaScriptCodeWithScope) => {
-            // disregard the length:
-            //     using Read::take causes infinite type recursion
-            read_i32(reader)?;
+            let length = read_i32(reader)?;
+            if length < MIN_CODE_WITH_SCOPE_SIZE {
+                return Err(DecoderError::invalid_length(
+                    length as usize,
+                    &format!(
+                        "code with scope length must be at least {}",
+                        MIN_CODE_WITH_SCOPE_SIZE
+                    )
+                    .as_str(),
+                ));
+            } else if length > MAX_BSON_SIZE {
+                return Err(DecoderError::invalid_length(
+                    length as usize,
+                    &"code with scope length too large",
+                ));
+            }
 
-            let code = read_string(reader, utf8_lossy)?;
-            let scope = Document::from_reader(reader)?;
+            let mut buf = vec![0u8; (length - 4) as usize];
+            reader.read_exact(&mut buf)?;
+
+            let mut slice = buf.as_slice();
+            let code = read_string(&mut slice, utf8_lossy)?;
+            let scope = Document::from_reader(&mut slice)?;
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope })
         }
         Some(ElementType::Int32) => read_i32(reader).map(Bson::Int32)?,

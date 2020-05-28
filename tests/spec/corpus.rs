@@ -247,6 +247,18 @@ fn run_test(test: TestFile) {
             );
         }
     }
+
+    for decode_error in test.decode_errors {
+        // No meaningful definition of "byte count" for an arbitrary reader.
+        if decode_error.description
+            == "Stated length less than byte count, with garbage after envelope"
+        {
+            continue;
+        }
+        println!("{}", decode_error.description);
+        let bson = hex::decode(decode_error.bson).expect("should decode from hex");
+        Document::decode(&mut bson.as_slice()).expect_err(decode_error.description.as_str());
+    }
 }
 
 #[test]
