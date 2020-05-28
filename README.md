@@ -108,10 +108,8 @@ BSON documents are ordered maps of UTF-8 encoded strings to BSON values. They ar
 [`Document`](https://docs.rs/bson/latest/bson/document/struct.Document.html)s can be created directly either from a byte
 reader containing BSON data or via the `doc!` macro:
 ```rust
-# use bson::doc;
-# use std::io::Read;
 let mut bytes = hex::decode("0C0000001069000100000000").unwrap();
-let doc = bson::decode_document(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
+let doc = Document::decode(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
 
 let doc = doc! {
    "hello": "world",
