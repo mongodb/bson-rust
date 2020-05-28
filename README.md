@@ -75,7 +75,7 @@ let int = Bson::I32(5);
 let array = Bson::Array(vec![Bson::I32(5), Bson::Boolean(false)]);
 
 let string: Bson = "hello world".into();
-let int: Bson = (5 as i32).into();
+let int: Bson = 5i32.into();
 
 let string = bson!("hello world");
 let int = bson!(5);
