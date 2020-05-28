@@ -52,10 +52,6 @@ struct ParseError {
 }
 
 fn run_test(test: TestFile) {
-    if test.bson_type == "0x13" && !cfg!(feature = "decimal128") {
-        return;
-    }
-
     for valid in test.valid {
         let description = format!("{}: {}", test.description, valid.description);
 
@@ -70,6 +66,12 @@ fn run_test(test: TestFile) {
         bson_to_native_cb
             .encode(&mut native_to_bson_bson_to_native_cv)
             .expect(&description);
+
+        // TODO RUST-36: Enable decimal128 tests.
+        // extJSON not implemented for decimal128 without the feature flag, so we must stop here.
+        if test.bson_type == "0x13" && !cfg!(feature = "decimal128") {
+            continue;
+        }
 
         let cej: serde_json::Value =
             serde_json::from_str(&valid.canonical_extjson).expect(&description);
@@ -109,7 +111,8 @@ fn run_test(test: TestFile) {
             }
         }
 
-        if test.bson_type == "0x13" {
+        // TODO RUST-36: Enable decimal128 tests.
+        if test.bson_type != "0x13" {
             assert_eq!(
                 Bson::Document(bson_to_native_cb.clone()).into_canonical_extjson(),
                 cej_updated_float,

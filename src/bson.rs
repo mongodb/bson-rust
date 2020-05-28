@@ -29,12 +29,11 @@ use std::{
 use chrono::{DateTime, Datelike, SecondsFormat, TimeZone, Utc};
 use serde_json::{json, Value};
 
-#[cfg(feature = "decimal128")]
-use crate::decimal128::Decimal128;
 pub use crate::document::Document;
 use crate::{
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
+    Decimal128,
 };
 
 /// Possible BSON value types.
@@ -73,7 +72,6 @@ pub enum Bson {
     /// Symbol (Deprecated)
     Symbol(String),
     /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
-    #[cfg(feature = "decimal128")]
     Decimal128(Decimal128),
     /// Undefined value (Deprecated)
     Undefined,
@@ -139,8 +137,7 @@ impl Display for Bson {
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
-            #[cfg(feature = "decimal128")]
-            Bson::Decimal128(ref d) => write!(fmt, "Decimal128({})", d),
+            Bson::Decimal128(ref d) => write!(fmt, "{}", d),
             Bson::Undefined => write!(fmt, "undefined"),
             Bson::MinKey => write!(fmt, "MinKey"),
             Bson::MaxKey => write!(fmt, "MaxKey"),
@@ -331,6 +328,10 @@ impl From<Bson> for Value {
 
 impl Bson {
     /// Converts the Bson value into its [relaxed extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    ///
+    /// Note: extended json encoding for `Decimal128` values is not supported without the
+    /// "decimal128" feature flag. If this method is called on a case which contains a
+    /// `Decimal128` value, it will panic.
     pub fn into_relaxed_extjson(self) -> Value {
         match self {
             Bson::FloatingPoint(v) if v.is_nan() => {
@@ -408,6 +409,11 @@ impl Bson {
             Bson::Symbol(v) => json!({ "$symbol": v }),
             #[cfg(feature = "decimal128")]
             Bson::Decimal128(ref v) => json!({ "$numberDecimal": v.to_string() }),
+            #[cfg(not(feature = "decimal128"))]
+            Bson::Decimal128(_) => panic!(
+                "Decimal128 extended JSON not implemented yet. Use the decimal128 feature to \
+                 enable experimental support for it."
+            ),
             Bson::Undefined => json!({ "$undefined": true }),
             Bson::MinKey => json!({ "$minKey": 1 }),
             Bson::MaxKey => json!({ "$maxKey": 1 }),
@@ -426,6 +432,10 @@ impl Bson {
     }
 
     /// Converts the Bson value into its [canonical extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    ///
+    /// Note: extended json encoding for `Decimal128` values is not supported without the
+    /// "decimal128" feature flag. If this method is called on a case which contains a
+    /// `Decimal128` value, it will panic.
     pub fn into_canonical_extjson(self) -> Value {
         match self {
             Bson::I32(i) => json!({ "$numberInt": i.to_string() }),
@@ -482,7 +492,6 @@ impl Bson {
             Bson::ObjectId(..) => ElementType::ObjectId,
             Bson::UtcDatetime(..) => ElementType::UtcDatetime,
             Bson::Symbol(..) => ElementType::Symbol,
-            #[cfg(feature = "decimal128")]
             Bson::Decimal128(..) => ElementType::Decimal128Bit,
             Bson::Undefined => ElementType::Undefined,
             Bson::MaxKey => ElementType::MaxKey,

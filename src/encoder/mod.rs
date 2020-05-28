@@ -153,6 +153,11 @@ pub(crate) fn encode_bson<W: Write + ?Sized>(
         ),
         Bson::Null => Ok(()),
         Bson::Symbol(ref v) => write_string(writer, &v),
+        #[cfg(not(feature = "decimal128"))]
+        Bson::Decimal128(ref v) => {
+            writer.write_all(&v.bytes)?;
+            Ok(())
+        }
         #[cfg(feature = "decimal128")]
         Bson::Decimal128(ref v) => write_f128(writer, v.clone()),
         Bson::Undefined => Ok(()),

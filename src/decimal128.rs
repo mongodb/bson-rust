@@ -1,15 +1,28 @@
 //! [BSON Decimal128](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst) data type representation
 
-use std::{fmt, str::FromStr};
-
+#[cfg(feature = "decimal128")]
 use decimal::d128;
+use std::fmt;
 
-/// Decimal128 type
+/// Decimal128 type.
+///
+/// Currently, this type does not have any functionality and can only be serialized and
+/// deserialized from existing documents that contain BSON decimal128s.
+///
+/// Experimental functionality can be enabled through the usage of the `"decimal128"`
+/// feature flag. Note that the API and behavior of such functionality are unstable and
+/// subject to change.
 #[derive(Clone, PartialEq, PartialOrd)]
 pub struct Decimal128 {
-    inner: d128,
+    #[cfg(not(feature = "decimal128"))]
+    /// BSON bytes containing the decimal128. Stored for round tripping.
+    pub(crate) bytes: [u8; 128 / 8],
+
+    #[cfg(feature = "decimal128")]
+    inner: decimal::d128,
 }
 
+#[cfg(feature = "decimal128")]
 impl Decimal128 {
     /// Construct a `Decimal128` from string.
     ///
@@ -180,48 +193,66 @@ impl Decimal128 {
 }
 
 impl fmt::Debug for Decimal128 {
+    #[cfg(feature = "decimal128")]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Decimal(\"{:?}\")", self.inner)
+        write!(f, "Decimal128(\"{:?}\")", self.inner)
+    }
+
+    #[cfg(not(feature = "decimal128"))]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Decimal128(...)")
     }
 }
 
 impl fmt::Display for Decimal128 {
+    #[cfg(feature = "decimal128")]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.inner)
     }
+
+    #[cfg(not(feature = "decimal128"))]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
+#[cfg(feature = "decimal128")]
 impl fmt::LowerHex for Decimal128 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         <d128 as fmt::LowerHex>::fmt(&self.inner, f)
     }
 }
 
+#[cfg(feature = "decimal128")]
 impl fmt::LowerExp for Decimal128 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         <d128 as fmt::LowerExp>::fmt(&self.inner, f)
     }
 }
 
-impl FromStr for Decimal128 {
+#[cfg(feature = "decimal128")]
+impl std::str::FromStr for Decimal128 {
     type Err = ();
     fn from_str(s: &str) -> Result<Decimal128, ()> {
         Ok(Decimal128::from_str(s))
     }
 }
 
+#[cfg(feature = "decimal128")]
 impl Into<d128> for Decimal128 {
     fn into(self) -> d128 {
         self.inner
     }
 }
 
+#[cfg(feature = "decimal128")]
 impl From<d128> for Decimal128 {
     fn from(d: d128) -> Decimal128 {
         Decimal128 { inner: d }
     }
 }
 
+#[cfg(feature = "decimal128")]
 impl Default for Decimal128 {
     fn default() -> Decimal128 {
         Decimal128::zero()
@@ -229,6 +260,7 @@ impl Default for Decimal128 {
 }
 
 #[cfg(test)]
+#[cfg(feature = "decimal128")]
 mod test {
     use super::*;
 

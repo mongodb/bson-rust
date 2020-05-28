@@ -186,8 +186,6 @@
 
 #![allow(clippy::cognitive_complexity)]
 
-#[cfg(feature = "decimal128")]
-pub use self::decimal128::Decimal128;
 pub use self::{
     bson::{
         Array,
@@ -200,6 +198,7 @@ pub use self::{
         TimeStamp,
         UtcDateTime,
     },
+    decimal128::Decimal128,
     decoder::{from_bson, Decoder, DecoderError, DecoderResult},
     document::{ValueAccessError, ValueAccessResult},
     encoder::{to_bson, Encoder, EncoderError, EncoderResult},
@@ -209,7 +208,6 @@ pub use self::{
 mod macros;
 mod bson;
 pub mod compat;
-#[cfg(feature = "decimal128")]
 pub mod decimal128;
 mod decoder;
 pub mod document;

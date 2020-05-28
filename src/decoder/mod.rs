@@ -37,12 +37,11 @@ use chrono::{
     Utc,
 };
 
-#[cfg(feature = "decimal128")]
-use crate::decimal128::Decimal128;
 use crate::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, TimeStamp},
     oid,
     spec::{self, BinarySubtype},
+    Decimal128,
 };
 
 use ::serde::de::{Deserialize, Error};
@@ -96,6 +95,16 @@ pub(crate) fn read_i32<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i32> {
 #[inline]
 fn read_i64<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<i64> {
     reader.read_i64::<LittleEndian>().map_err(From::from)
+}
+
+/// Placeholder decoder for `Decimal128`. Reads 128 bits and just stores them, does no validation or
+/// parsing.
+#[cfg(not(feature = "decimal128"))]
+#[inline]
+fn read_f128<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Decimal128> {
+    let mut buf = [0u8; 128 / 8];
+    reader.read_exact(&mut buf)?;
+    Ok(Decimal128 { bytes: buf })
 }
 
 #[cfg(feature = "decimal128")]
@@ -219,7 +228,6 @@ pub(crate) fn decode_bson_kvp<R: Read + ?Sized>(
             }
         }
         Some(ElementType::Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol)?,
-        #[cfg(feature = "decimal128")]
         Some(ElementType::Decimal128Bit) => read_f128(reader).map(Bson::Decimal128)?,
         Some(ElementType::Undefined) => Bson::Undefined,
         Some(ElementType::DbPointer) => {
