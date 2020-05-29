@@ -1,6 +1,7 @@
 //! A BSON document represented as an associative HashMap with insertion ordering.
 
 use std::{
+    convert::{TryFrom, TryInto},
     error,
     fmt::{self, Debug, Display, Formatter},
     io::{Read, Write},
@@ -100,6 +101,29 @@ impl Debug for Document {
         write!(f, "Document({:?})", self.inner)
     }
 }
+
+impl Document {
+    pub(crate) fn from_ext_json(
+        obj: serde_json::Map<String, serde_json::Value>,
+    ) -> DecoderResult<Self> {
+        Ok(obj
+            .into_iter()
+            .map(|(k, v)| -> DecoderResult<(String, Bson)> {
+                let value: Bson = v.clone().try_into()?;
+                Ok((k.clone(), value))
+            })
+            .collect::<DecoderResult<Vec<(String, Bson)>>>()?
+            .into_iter()
+            .collect())
+    }
+}
+
+// impl TryFrom<serde_json::Value> for Document {
+//     type Error = crate::DecoderError;
+//     fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+//         unimplemented!()
+//     }
+// }
 
 /// An iterator over Document entries.
 pub struct DocumentIntoIterator {

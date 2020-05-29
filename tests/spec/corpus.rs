@@ -56,7 +56,6 @@ struct ParseError {
 
 fn run_test(test: TestFile) {
     for valid in test.valid {
-        continue;
         let description = format!("{}: {}", test.description, valid.description);
 
         let bson_to_native_cb = Document::from_reader(
@@ -253,8 +252,6 @@ fn run_test(test: TestFile) {
     }
 
     for decode_error in test.decode_errors {
-        continue;
-
         // No meaningful definition of "byte count" for an arbitrary reader.
         if decode_error.description
             == "Stated length less than byte count, with garbage after envelope"
@@ -271,8 +268,18 @@ fn run_test(test: TestFile) {
             continue;
         }
 
-        println!("parse error test: {}", parse_error.description);
+        // no special support for dbref convention
+        if parse_error.description.contains("DBRef") {
+            continue;
+        }
 
+        if !cfg!(feature = "decimal128") && parse_error.description.contains("$numberDecimal") {
+            continue;
+        }
+
+        println!("==\n{}", parse_error.description);
+
+        // println!("{}", parse_error.string);
         let json: serde_json::Value =
             serde_json::from_str(parse_error.string.as_str()).expect(&parse_error.description);
 
