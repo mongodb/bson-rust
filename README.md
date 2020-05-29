@@ -71,8 +71,8 @@ possible BSON values are modeled in this crate by the [`Bson`](https://docs.rs/b
 
 ```rust
 let string = Bson::String("hello world".to_string());
-let int = Bson::I32(5);
-let array = Bson::Array(vec![Bson::I32(5), Bson::Boolean(false)]);
+let int = Bson::Int32(5);
+let array = Bson::Array(vec![Bson::Int32(5), Bson::Boolean(false)]);
 
 let string: Bson = "hello world".into();
 let int: Bson = 5i32.into();
@@ -90,7 +90,7 @@ is known ahead of time.
 
 e.g.:
 ```rust
-let value = Bson::I32(5);
+let value = Bson::Int32(5);
 let int = value.as_i32(); // Some(5)
 let bool = value.as_bool(); // None
 
