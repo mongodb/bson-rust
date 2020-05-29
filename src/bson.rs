@@ -130,7 +130,7 @@ impl Display for Bson {
             }
             Bson::Binary(Binary { subtype, ref bytes }) => write!(
                 fmt,
-                "BinData({}, 0x{})",
+                "BinData({:#x}, {})",
                 u8::from(subtype),
                 base64::encode(bytes)
             ),
