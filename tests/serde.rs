@@ -367,9 +367,9 @@ fn test_byte_vec() {
     );
 
     // let mut buf = Vec::new();
-    // b.as_document().unwrap().serialize_to(&mut buf).unwrap();
+    // b.as_document().unwrap().to_writer(&mut buf).unwrap();
 
-    // let xb = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
+    // let xb = Document::from_reader(&mut Cursor::new(buf)).unwrap();
     // assert_eq!(b.as_document().unwrap(), &xb);
 }
 

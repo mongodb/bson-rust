@@ -511,7 +511,7 @@ impl Document {
     }
 
     /// Attempts to serialize the `Document` into a byte stream.
-    pub fn serialize_to<W: Write + ?Sized>(&self, writer: &mut W) -> crate::ser::Result<()> {
+    pub fn to_writer<W: Write + ?Sized>(&self, writer: &mut W) -> crate::ser::Result<()> {
         let mut buf = Vec::new();
         for (key, val) in self.into_iter() {
             serialize_bson(&mut buf, key.as_ref(), val)?;
@@ -527,7 +527,7 @@ impl Document {
     }
 
     /// Attempts to deserialize a `Document` from a byte stream.
-    pub fn deserialize_from<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
+    pub fn from_reader<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
         let mut doc = Document::new();
 
         // disregard the length: using Read::take causes infinite type recursion

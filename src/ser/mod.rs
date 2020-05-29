@@ -104,7 +104,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
         Bson::Double(v) => write_f64(writer, v),
         Bson::String(ref v) => write_string(writer, &v),
         Bson::Array(ref v) => serialize_array(writer, &v),
-        Bson::Document(ref v) => v.serialize_to(writer),
+        Bson::Document(ref v) => v.to_writer(writer),
         Bson::Boolean(v) => writer
             .write_u8(if v { 0x01 } else { 0x00 })
             .map_err(From::from),
@@ -123,7 +123,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
         }) => {
             let mut buf = Vec::new();
             write_string(&mut buf, code)?;
-            scope.serialize_to(&mut buf)?;
+            scope.to_writer(&mut buf)?;
 
             write_i32(writer, buf.len() as i32 + 4)?;
             writer.write_all(&buf).map_err(From::from)

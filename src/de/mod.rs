@@ -151,9 +151,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
     let val = match ElementType::from(tag) {
         Some(ElementType::Double) => Bson::Double(reader.read_f64::<LittleEndian>()?),
         Some(ElementType::String) => read_string(reader, utf8_lossy).map(Bson::String)?,
-        Some(ElementType::EmbeddedDocument) => {
-            Document::deserialize_from(reader).map(Bson::Document)?
-        }
+        Some(ElementType::EmbeddedDocument) => Document::from_reader(reader).map(Bson::Document)?,
         Some(ElementType::Array) => deserialize_array(reader, utf8_lossy).map(Bson::Array)?,
         Some(ElementType::Binary) => {
             let mut len = read_i32(reader)?;
@@ -205,7 +203,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             read_i32(reader)?;
 
             let code = read_string(reader, utf8_lossy)?;
-            let scope = Document::deserialize_from(reader)?;
+            let scope = Document::from_reader(reader)?;
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope })
         }
         Some(ElementType::Int32) => read_i32(reader).map(Bson::Int32)?,
