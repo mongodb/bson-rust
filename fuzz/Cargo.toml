@@ -22,5 +22,5 @@ name = "fuzz_target_1"
 path = "fuzz_targets/fuzz_target_1.rs"
 
 [[bin]]
-name = "decode"
-path = "fuzz_targets/decode.rs"
+name = "deserialize"
+path = "fuzz_targets/deserialize.rs"

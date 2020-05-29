@@ -18,8 +18,8 @@ fn main() {
     let mut buf = Vec::new();
     doc.serialize_doc(&mut buf).unwrap();
 
-    println!("Encoded: {:?}", buf);
+    println!("Serialized: {:?}", buf);
 
     let doc = Document::deserialize(&mut Cursor::new(&buf[..])).unwrap();
-    println!("Decoded: {:?}", doc);
+    println!("Deserialized: {:?}", doc);
 }
