@@ -60,9 +60,9 @@ const BINARY_SUBTYPE_MD5: u8 = 0x05;
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum ElementType {
     /// 64-bit binary floating point
-    FloatingPoint = ELEMENT_TYPE_FLOATING_POINT,
+    Double = ELEMENT_TYPE_FLOATING_POINT,
     /// UTF-8 string
-    Utf8String = ELEMENT_TYPE_UTF8_STRING,
+    String = ELEMENT_TYPE_UTF8_STRING,
     /// Embedded document
     EmbeddedDocument = ELEMENT_TYPE_EMBEDDED_DOCUMENT,
     /// Array
@@ -73,12 +73,12 @@ pub enum ElementType {
     Undefined = ELEMENT_TYPE_UNDEFINED,
     /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId = ELEMENT_TYPE_OBJECT_ID,
-    /// Boolean value
+    /// Bool value
     Boolean = ELEMENT_TYPE_BOOLEAN,
     /// UTC datetime
-    UtcDatetime = ELEMENT_TYPE_UTC_DATETIME,
+    DateTime = ELEMENT_TYPE_UTC_DATETIME,
     /// Null value
-    NullValue = ELEMENT_TYPE_NULL_VALUE,
+    Null = ELEMENT_TYPE_NULL_VALUE,
     /// Regular expression - The first cstring is the regex pattern, the second is the regex
     /// options string. Options are identified by characters, which must be stored in
     /// alphabetical order. Valid options are 'i' for case insensitive matching, 'm' for
@@ -95,13 +95,13 @@ pub enum ElementType {
     /// JavaScript code w/ scope
     JavaScriptCodeWithScope = ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE,
     /// 32-bit integer
-    Integer32Bit = ELEMENT_TYPE_32BIT_INTEGER,
+    Int32 = ELEMENT_TYPE_32BIT_INTEGER,
     /// Timestamp
-    TimeStamp = ELEMENT_TYPE_TIMESTAMP,
+    Timestamp = ELEMENT_TYPE_TIMESTAMP,
     /// 64-bit integer
-    Integer64Bit = ELEMENT_TYPE_64BIT_INTEGER,
+    Int64 = ELEMENT_TYPE_64BIT_INTEGER,
     /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
-    Decimal128Bit = ELEMENT_TYPE_128BIT_DECIMAL,
+    Decimal128 = ELEMENT_TYPE_128BIT_DECIMAL,
     MaxKey = ELEMENT_TYPE_MAXKEY,
     MinKey = ELEMENT_TYPE_MINKEY,
 }
@@ -112,25 +112,25 @@ impl ElementType {
     pub fn from(tag: u8) -> Option<ElementType> {
         use self::ElementType::*;
         Some(match tag {
-            ELEMENT_TYPE_FLOATING_POINT => FloatingPoint,
-            ELEMENT_TYPE_UTF8_STRING => Utf8String,
+            ELEMENT_TYPE_FLOATING_POINT => Self::Double,
+            ELEMENT_TYPE_UTF8_STRING => Self::String,
             ELEMENT_TYPE_EMBEDDED_DOCUMENT => EmbeddedDocument,
             ELEMENT_TYPE_ARRAY => Array,
             ELEMENT_TYPE_BINARY => Binary,
             ELEMENT_TYPE_UNDEFINED => Undefined,
             ELEMENT_TYPE_OBJECT_ID => ObjectId,
             ELEMENT_TYPE_BOOLEAN => Boolean,
-            ELEMENT_TYPE_UTC_DATETIME => UtcDatetime,
-            ELEMENT_TYPE_NULL_VALUE => NullValue,
+            ELEMENT_TYPE_UTC_DATETIME => Self::DateTime,
+            ELEMENT_TYPE_NULL_VALUE => Self::Null,
             ELEMENT_TYPE_REGULAR_EXPRESSION => RegularExpression,
             ELEMENT_TYPE_DBPOINTER => DbPointer,
             ELEMENT_TYPE_JAVASCRIPT_CODE => JavaScriptCode,
             ELEMENT_TYPE_SYMBOL => Symbol,
             ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE => JavaScriptCodeWithScope,
-            ELEMENT_TYPE_32BIT_INTEGER => Integer32Bit,
-            ELEMENT_TYPE_TIMESTAMP => TimeStamp,
-            ELEMENT_TYPE_64BIT_INTEGER => Integer64Bit,
-            ELEMENT_TYPE_128BIT_DECIMAL => Decimal128Bit,
+            ELEMENT_TYPE_32BIT_INTEGER => Int32,
+            ELEMENT_TYPE_TIMESTAMP => Timestamp,
+            ELEMENT_TYPE_64BIT_INTEGER => Int64,
+            ELEMENT_TYPE_128BIT_DECIMAL => Decimal128,
             ELEMENT_TYPE_MAXKEY => MaxKey,
             ELEMENT_TYPE_MINKEY => MinKey,
             _ => return None,

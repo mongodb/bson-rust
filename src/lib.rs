@@ -56,8 +56,8 @@
 //! ```rust
 //! # use bson::{bson, Bson};
 //! let string = Bson::String("hello world".to_string());
-//! let int = Bson::I32(5);
-//! let array = Bson::Array(vec![Bson::I32(5), Bson::Boolean(false)]);
+//! let int = Bson::Int32(5);
+//! let array = Bson::Array(vec![Bson::Int32(5), Bson::Boolean(false)]);
 //!
 //! let string: Bson = "hello world".into();
 //! let int: Bson = 5i32.into();
@@ -78,7 +78,7 @@
 //! e.g.:
 //! ```rust
 //! # use bson::{bson, Bson};
-//! let value = Bson::I32(5);
+//! let value = Bson::Int32(5);
 //! let int = value.as_i32(); // Some(5)
 //! let bool = value.as_bool(); // None
 //!
@@ -191,12 +191,12 @@ pub use self::{
         Array,
         Binary,
         Bson,
+        DateTime,
         DbPointer,
         Document,
         JavaScriptCodeWithScope,
         Regex,
-        TimeStamp,
-        UtcDateTime,
+        Timestamp,
     },
     decimal128::Decimal128,
     decoder::{from_bson, Decoder, DecoderError, DecoderResult},

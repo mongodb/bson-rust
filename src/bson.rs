@@ -26,7 +26,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use chrono::{DateTime, Datelike, SecondsFormat, TimeZone, Utc};
+use chrono::{Datelike, SecondsFormat, TimeZone, Utc};
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
@@ -40,7 +40,7 @@ use crate::{
 #[derive(Clone, Debug, PartialEq)]
 pub enum Bson {
     /// 64-bit binary floating point
-    FloatingPoint(f64),
+    Double(f64),
     /// UTF-8 string
     String(String),
     /// Array
@@ -52,23 +52,23 @@ pub enum Bson {
     /// Null value
     Null,
     /// Regular expression
-    Regex(Regex),
+    RegularExpression(Regex),
     /// JavaScript code
     JavaScriptCode(String),
     /// JavaScript code w/ scope
     JavaScriptCodeWithScope(JavaScriptCodeWithScope),
-    /// 32-bit integer
-    I32(i32),
-    /// 64-bit integer
-    I64(i64),
+    /// 32-bit signed integer
+    Int32(i32),
+    /// 64-bit signed integer
+    Int64(i64),
     /// Timestamp
-    TimeStamp(TimeStamp),
+    Timestamp(Timestamp),
     /// Binary data
     Binary(Binary),
     /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId(oid::ObjectId),
     /// UTC datetime
-    UtcDatetime(DateTime<Utc>),
+    DateTime(chrono::DateTime<Utc>),
     /// Symbol (Deprecated)
     Symbol(String),
     /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
@@ -95,7 +95,7 @@ impl Default for Bson {
 impl Display for Bson {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Bson::FloatingPoint(f) => write!(fmt, "{}", f),
+            Bson::Double(f) => write!(fmt, "{}", f),
             Bson::String(ref s) => write!(fmt, "\"{}\"", s),
             Bson::Array(ref vec) => {
                 fmt.write_str("[")?;
@@ -115,7 +115,7 @@ impl Display for Bson {
             Bson::Document(ref doc) => write!(fmt, "{}", doc),
             Bson::Boolean(b) => write!(fmt, "{}", b),
             Bson::Null => write!(fmt, "null"),
-            Bson::Regex(Regex {
+            Bson::RegularExpression(Regex {
                 ref pattern,
                 ref options,
             }) => write!(fmt, "/{}/{}", pattern, options),
@@ -123,9 +123,9 @@ impl Display for Bson {
             | Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { ref code, .. }) => {
                 fmt.write_str(&code)
             }
-            Bson::I32(i) => write!(fmt, "{}", i),
-            Bson::I64(i) => write!(fmt, "{}", i),
-            Bson::TimeStamp(TimeStamp { time, increment }) => {
+            Bson::Int32(i) => write!(fmt, "{}", i),
+            Bson::Int64(i) => write!(fmt, "{}", i),
+            Bson::Timestamp(Timestamp { time, increment }) => {
                 write!(fmt, "Timestamp({}, {})", time, increment)
             }
             Bson::Binary(Binary { subtype, ref bytes }) => write!(
@@ -135,7 +135,7 @@ impl Display for Bson {
                 base64::encode(bytes)
             ),
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
-            Bson::UtcDatetime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
+            Bson::DateTime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
             Bson::Decimal128(ref d) => write!(fmt, "{}", d),
             Bson::Undefined => write!(fmt, "undefined"),
@@ -151,13 +151,13 @@ impl Display for Bson {
 
 impl From<f32> for Bson {
     fn from(a: f32) -> Bson {
-        Bson::FloatingPoint(a as f64)
+        Bson::Double(a as f64)
     }
 }
 
 impl From<f64> for Bson {
     fn from(a: f64) -> Bson {
-        Bson::FloatingPoint(a)
+        Bson::Double(a)
     }
 }
 
@@ -187,7 +187,7 @@ impl From<bool> for Bson {
 
 impl From<Regex> for Bson {
     fn from(regex: Regex) -> Bson {
-        Bson::Regex(regex)
+        Bson::RegularExpression(regex)
     }
 }
 
@@ -248,25 +248,25 @@ impl<T: Into<Bson>> ::std::iter::FromIterator<T> for Bson {
 
 impl From<i32> for Bson {
     fn from(a: i32) -> Bson {
-        Bson::I32(a)
+        Bson::Int32(a)
     }
 }
 
 impl From<i64> for Bson {
     fn from(a: i64) -> Bson {
-        Bson::I64(a)
+        Bson::Int64(a)
     }
 }
 
 impl From<u32> for Bson {
     fn from(a: u32) -> Bson {
-        Bson::I32(a as i32)
+        Bson::Int32(a as i32)
     }
 }
 
 impl From<u64> for Bson {
     fn from(a: u64) -> Bson {
-        Bson::I64(a as i64)
+        Bson::Int64(a as i64)
     }
 }
 
@@ -282,9 +282,9 @@ impl From<oid::ObjectId> for Bson {
     }
 }
 
-impl From<DateTime<Utc>> for Bson {
-    fn from(a: DateTime<Utc>) -> Bson {
-        Bson::UtcDatetime(a)
+impl From<chrono::DateTime<Utc>> for Bson {
+    fn from(a: chrono::DateTime<Utc>) -> Bson {
+        Bson::DateTime(a)
     }
 }
 
@@ -301,9 +301,9 @@ impl From<Value> for Bson {
                 .as_i64()
                 .map(|i| {
                     if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
-                        Bson::I32(i as i32)
+                        Bson::Int32(i as i32)
                     } else {
-                        Bson::I64(i)
+                        Bson::Int64(i)
                     }
                 })
                 .or_else(|| x.as_u64().map(Bson::from))
@@ -334,12 +334,12 @@ impl Bson {
     /// `Decimal128` value, it will panic.
     pub fn into_relaxed_extjson(self) -> Value {
         match self {
-            Bson::FloatingPoint(v) if v.is_nan() => {
+            Bson::Double(v) if v.is_nan() => {
                 let s = if v.is_sign_negative() { "-NaN" } else { "NaN" };
 
                 json!({ "$numberDouble": s })
             }
-            Bson::FloatingPoint(v) if v.is_infinite() => {
+            Bson::Double(v) if v.is_infinite() => {
                 let s = if v.is_sign_negative() {
                     "-Infinity"
                 } else {
@@ -348,7 +348,7 @@ impl Bson {
 
                 json!({ "$numberDouble": s })
             }
-            Bson::FloatingPoint(v) => json!(v),
+            Bson::Double(v) => json!(v),
             Bson::String(v) => json!(v),
             Bson::Array(v) => json!(v),
             Bson::Document(v) => {
@@ -356,7 +356,7 @@ impl Bson {
             }
             Bson::Boolean(v) => json!(v),
             Bson::Null => Value::Null,
-            Bson::Regex(Regex { pattern, options }) => {
+            Bson::RegularExpression(Regex { pattern, options }) => {
                 let mut chars: Vec<_> = options.chars().collect();
                 chars.sort();
 
@@ -374,9 +374,9 @@ impl Bson {
                 "$code": code,
                 "$scope": scope,
             }),
-            Bson::I32(v) => v.into(),
-            Bson::I64(v) => v.into(),
-            Bson::TimeStamp(TimeStamp { time, increment }) => json!({
+            Bson::Int32(v) => v.into(),
+            Bson::Int64(v) => v.into(),
+            Bson::Timestamp(Timestamp { time, increment }) => json!({
                 "$timestamp": {
                     "t": time,
                     "i": increment,
@@ -392,7 +392,7 @@ impl Bson {
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
-            Bson::UtcDatetime(v) if v.timestamp_millis() >= 0 && v.year() <= 99999 => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.year() <= 99999 => {
                 let seconds_format = if v.timestamp_subsec_millis() == 0 {
                     SecondsFormat::Secs
                 } else {
@@ -403,7 +403,7 @@ impl Bson {
                     "$date": v.to_rfc3339_opts(seconds_format, true),
                 })
             }
-            Bson::UtcDatetime(v) => json!({
+            Bson::DateTime(v) => json!({
                 "$date": { "$numberLong": v.timestamp_millis().to_string() },
             }),
             Bson::Symbol(v) => json!({ "$symbol": v }),
@@ -438,9 +438,9 @@ impl Bson {
     /// `Decimal128` value, it will panic.
     pub fn into_canonical_extjson(self) -> Value {
         match self {
-            Bson::I32(i) => json!({ "$numberInt": i.to_string() }),
-            Bson::I64(i) => json!({ "$numberLong": i.to_string() }),
-            Bson::FloatingPoint(f) if f.is_normal() => {
+            Bson::Int32(i) => json!({ "$numberInt": i.to_string() }),
+            Bson::Int64(i) => json!({ "$numberLong": i.to_string() }),
+            Bson::Double(f) if f.is_normal() => {
                 let mut s = f.to_string();
                 if f.fract() == 0.0 {
                     s.push_str(".0");
@@ -448,12 +448,12 @@ impl Bson {
 
                 json!({ "$numberDouble": s })
             }
-            Bson::FloatingPoint(f) if f == 0.0 => {
+            Bson::Double(f) if f == 0.0 => {
                 let s = if f.is_sign_negative() { "-0.0" } else { "0.0" };
 
                 json!({ "$numberDouble": s })
             }
-            Bson::UtcDatetime(date) => {
+            Bson::DateTime(date) => {
                 json!({ "$date": { "$numberLong": date.timestamp_millis().to_string() } })
             }
             Bson::Array(arr) => {
@@ -476,23 +476,23 @@ impl Bson {
     /// Get the `ElementType` of this value.
     pub fn element_type(&self) -> ElementType {
         match *self {
-            Bson::FloatingPoint(..) => ElementType::FloatingPoint,
-            Bson::String(..) => ElementType::Utf8String,
+            Bson::Double(..) => ElementType::Double,
+            Bson::String(..) => ElementType::String,
             Bson::Array(..) => ElementType::Array,
             Bson::Document(..) => ElementType::EmbeddedDocument,
             Bson::Boolean(..) => ElementType::Boolean,
-            Bson::Null => ElementType::NullValue,
-            Bson::Regex(..) => ElementType::RegularExpression,
+            Bson::Null => ElementType::Null,
+            Bson::RegularExpression(..) => ElementType::RegularExpression,
             Bson::JavaScriptCode(..) => ElementType::JavaScriptCode,
             Bson::JavaScriptCodeWithScope(..) => ElementType::JavaScriptCodeWithScope,
-            Bson::I32(..) => ElementType::Integer32Bit,
-            Bson::I64(..) => ElementType::Integer64Bit,
-            Bson::TimeStamp(..) => ElementType::TimeStamp,
+            Bson::Int32(..) => ElementType::Int32,
+            Bson::Int64(..) => ElementType::Int64,
+            Bson::Timestamp(..) => ElementType::Timestamp,
             Bson::Binary(..) => ElementType::Binary,
             Bson::ObjectId(..) => ElementType::ObjectId,
-            Bson::UtcDatetime(..) => ElementType::UtcDatetime,
+            Bson::DateTime(..) => ElementType::DateTime,
             Bson::Symbol(..) => ElementType::Symbol,
-            Bson::Decimal128(..) => ElementType::Decimal128Bit,
+            Bson::Decimal128(..) => ElementType::Decimal128,
             Bson::Undefined => ElementType::Undefined,
             Bson::MaxKey => ElementType::MaxKey,
             Bson::MinKey => ElementType::MinKey,
@@ -506,7 +506,7 @@ impl Bson {
     // with the extended JSON implementation.
     pub(crate) fn to_extended_document(&self) -> Document {
         match *self {
-            Bson::Regex(Regex {
+            Bson::RegularExpression(Regex {
                 ref pattern,
                 ref options,
             }) => {
@@ -536,7 +536,7 @@ impl Bson {
                     "$scope": scope.clone(),
                 }
             }
-            Bson::TimeStamp(TimeStamp { time, increment }) => {
+            Bson::Timestamp(Timestamp { time, increment }) => {
                 doc! {
                     "$timestamp": {
                         "t": time,
@@ -558,7 +558,7 @@ impl Bson {
                     "$oid": v.to_string(),
                 }
             }
-            Bson::UtcDatetime(v) if v.timestamp_millis() >= 0 && v.year() <= 99999 => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.year() <= 99999 => {
                 let seconds_format = if v.timestamp_subsec_millis() == 0 {
                     SecondsFormat::Secs
                 } else {
@@ -569,7 +569,7 @@ impl Bson {
                     "$date": v.to_rfc3339_opts(seconds_format, true),
                 }
             }
-            Bson::UtcDatetime(v) => doc! {
+            Bson::DateTime(v) => doc! {
                 "$date": { "$numberLong": v.timestamp_millis().to_string() },
             },
             Bson::Symbol(ref v) => {
@@ -641,7 +641,7 @@ impl Bson {
             ["$numberInt"] => {
                 if let Ok(i) = doc.get_str("$numberInt") {
                     if let Ok(i) = i.parse() {
-                        return Bson::I32(i);
+                        return Bson::Int32(i);
                     }
                 }
             }
@@ -649,18 +649,18 @@ impl Bson {
             ["$numberLong"] => {
                 if let Ok(i) = doc.get_str("$numberLong") {
                     if let Ok(i) = i.parse() {
-                        return Bson::I64(i);
+                        return Bson::Int64(i);
                     }
                 }
             }
 
             ["$numberDouble"] => match doc.get_str("$numberDouble") {
-                Ok("Infinity") => return Bson::FloatingPoint(f64::INFINITY),
-                Ok("-Infinity") => return Bson::FloatingPoint(f64::NEG_INFINITY),
-                Ok("NaN") => return Bson::FloatingPoint(f64::NAN),
+                Ok("Infinity") => return Bson::Double(f64::INFINITY),
+                Ok("-Infinity") => return Bson::Double(f64::NEG_INFINITY),
+                Ok("NaN") => return Bson::Double(f64::NAN),
                 Ok(other) => {
                     if let Ok(d) = other.parse() {
-                        return Bson::FloatingPoint(d);
+                        return Bson::Double(d);
                     }
                 }
                 _ => {}
@@ -702,7 +702,7 @@ impl Bson {
                 if let Ok(timestamp) = doc.get_document("$timestamp") {
                     if let Ok(t) = timestamp.get_i32("t") {
                         if let Ok(i) = timestamp.get_i32("i") {
-                            return Bson::TimeStamp(TimeStamp {
+                            return Bson::Timestamp(Timestamp {
                                 time: t as u32,
                                 increment: i as u32,
                             });
@@ -713,7 +713,7 @@ impl Bson {
                         if let Ok(i) = timestamp.get_i64("i") {
                             if t >= 0 && i >= 0 && t <= (u32::MAX as i64) && i <= (u32::MAX as i64)
                             {
-                                return Bson::TimeStamp(TimeStamp {
+                                return Bson::Timestamp(Timestamp {
                                     time: t as u32,
                                     increment: i as u32,
                                 });
@@ -730,7 +730,7 @@ impl Bson {
                             let mut options: Vec<_> = options.chars().collect();
                             options.sort();
 
-                            return Bson::Regex(Regex {
+                            return Bson::RegularExpression(Regex {
                                 pattern: pattern.into(),
                                 options: options.into_iter().collect(),
                             });
@@ -778,14 +778,12 @@ impl Bson {
                         num_millis += 1000;
                     };
 
-                    return Bson::UtcDatetime(
-                        Utc.timestamp(num_secs, num_millis as u32 * 1_000_000),
-                    );
+                    return Bson::DateTime(Utc.timestamp(num_secs, num_millis as u32 * 1_000_000));
                 }
 
                 if let Ok(date) = doc.get_str("$date") {
-                    if let Ok(date) = DateTime::parse_from_rfc3339(date) {
-                        return Bson::UtcDatetime(date.into());
+                    if let Ok(date) = chrono::DateTime::parse_from_rfc3339(date) {
+                        return Bson::DateTime(date.into());
                     }
                 }
             }
@@ -793,7 +791,7 @@ impl Bson {
             ["$minKey"] => {
                 let min_key = doc.get("$minKey");
 
-                if min_key == Some(&Bson::I32(1)) || min_key == Some(&Bson::I64(1)) {
+                if min_key == Some(&Bson::Int32(1)) || min_key == Some(&Bson::Int64(1)) {
                     return Bson::MinKey;
                 }
             }
@@ -801,7 +799,7 @@ impl Bson {
             ["$maxKey"] => {
                 let max_key = doc.get("$maxKey");
 
-                if max_key == Some(&Bson::I32(1)) || max_key == Some(&Bson::I64(1)) {
+                if max_key == Some(&Bson::Int32(1)) || max_key == Some(&Bson::Int64(1)) {
                     return Bson::MaxKey;
                 }
             }
@@ -832,15 +830,15 @@ impl Bson {
 
 /// Value helpers
 impl Bson {
-    /// If `Bson` is `FloatingPoint`, return its value. Returns `None` otherwise
+    /// If `Bson` is `Double`, return its value as an `f64`. Returns `None` otherwise
     pub fn as_f64(&self) -> Option<f64> {
         match *self {
-            Bson::FloatingPoint(v) => Some(v),
+            Bson::Double(v) => Some(v),
             _ => None,
         }
     }
 
-    /// If `Bson` is `String`, return its value. Returns `None` otherwise
+    /// If `Bson` is `String`, return its value as a `&str`. Returns `None` otherwise
     pub fn as_str(&self) -> Option<&str> {
         match *self {
             Bson::String(ref s) => Some(s),
@@ -848,7 +846,8 @@ impl Bson {
         }
     }
 
-    /// If `Bson` is `String`, return a mutable reference to its value. Returns `None` otherwise
+    /// If `Bson` is `String`, return a mutable reference to its value as a `str`. Returns `None`
+    /// otherwise
     pub fn as_str_mut(&mut self) -> Option<&mut str> {
         match *self {
             Bson::String(ref mut s) => Some(s),
@@ -888,7 +887,7 @@ impl Bson {
         }
     }
 
-    /// If `Bson` is `Boolean`, return its value. Returns `None` otherwise
+    /// If `Bson` is `Bool`, return its value. Returns `None` otherwise
     pub fn as_bool(&self) -> Option<bool> {
         match *self {
             Bson::Boolean(v) => Some(v),
@@ -899,7 +898,7 @@ impl Bson {
     /// If `Bson` is `I32`, return its value. Returns `None` otherwise
     pub fn as_i32(&self) -> Option<i32> {
         match *self {
-            Bson::I32(v) => Some(v),
+            Bson::Int32(v) => Some(v),
             _ => None,
         }
     }
@@ -907,7 +906,7 @@ impl Bson {
     /// If `Bson` is `I64`, return its value. Returns `None` otherwise
     pub fn as_i64(&self) -> Option<i64> {
         match *self {
-            Bson::I64(v) => Some(v),
+            Bson::Int64(v) => Some(v),
             _ => None,
         }
     }
@@ -928,19 +927,19 @@ impl Bson {
         }
     }
 
-    /// If `Bson` is `UtcDateTime`, return its value. Returns `None` otherwise
-    pub fn as_utc_date_time(&self) -> Option<&DateTime<Utc>> {
+    /// If `Bson` is `DateTime`, return its value. Returns `None` otherwise
+    pub fn as_datetime(&self) -> Option<&chrono::DateTime<Utc>> {
         match *self {
-            Bson::UtcDatetime(ref v) => Some(v),
+            Bson::DateTime(ref v) => Some(v),
             _ => None,
         }
     }
 
-    /// If `Bson` is `UtcDateTime`, return a mutable reference to its value. Returns `None`
+    /// If `Bson` is `DateTime`, return a mutable reference to its value. Returns `None`
     /// otherwise
-    pub fn as_utc_date_time_mut(&mut self) -> Option<&mut DateTime<Utc>> {
+    pub fn as_datetime_mut(&mut self) -> Option<&mut chrono::DateTime<Utc>> {
         match *self {
-            Bson::UtcDatetime(ref mut v) => Some(v),
+            Bson::DateTime(ref mut v) => Some(v),
             _ => None,
         }
     }
@@ -961,10 +960,10 @@ impl Bson {
         }
     }
 
-    /// If `Bson` is `TimeStamp`, return its value. Returns `None` otherwise
-    pub fn as_timestamp(&self) -> Option<TimeStamp> {
+    /// If `Bson` is `Timestamp`, return its value. Returns `None` otherwise
+    pub fn as_timestamp(&self) -> Option<Timestamp> {
         match *self {
-            Bson::TimeStamp(timestamp) => Some(timestamp),
+            Bson::Timestamp(timestamp) => Some(timestamp),
             _ => None,
         }
     }
@@ -987,7 +986,7 @@ impl Bson {
 
 /// Represents a BSON timestamp value.
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
-pub struct TimeStamp {
+pub struct Timestamp {
     /// The number of seconds since the Unix epoch.
     pub time: u32,
 
@@ -996,7 +995,7 @@ pub struct TimeStamp {
     pub increment: u32,
 }
 
-impl TimeStamp {
+impl Timestamp {
     pub(crate) fn to_le_i64(self) -> i64 {
         let upper = (self.time.to_le() as u64) << 32;
         let lower = self.increment.to_le() as u64;
@@ -1007,7 +1006,7 @@ impl TimeStamp {
     pub(crate) fn from_le_i64(val: i64) -> Self {
         let ts = val.to_le();
 
-        TimeStamp {
+        Timestamp {
             time: ((ts as u64) >> 32) as u32,
             increment: (ts & 0xFFFF_FFFF) as u32,
         }
@@ -1020,39 +1019,39 @@ impl TimeStamp {
 ///
 /// ```rust,ignore
 /// use serde::{Serialize, Deserialize};
-/// use bson::UtcDateTime;
+/// use bson::DateTime;
 ///
 /// #[derive(Serialize, Deserialize)]
 /// struct Foo {
-///     date_time: UtcDateTime,
+///     date_time: DateTime,
 /// }
 /// ```
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
-pub struct UtcDateTime(pub DateTime<Utc>);
+pub struct DateTime(pub chrono::DateTime<Utc>);
 
-impl Deref for UtcDateTime {
-    type Target = DateTime<Utc>;
+impl Deref for DateTime {
+    type Target = chrono::DateTime<Utc>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl DerefMut for UtcDateTime {
-    fn deref_mut(&mut self) -> &mut DateTime<Utc> {
+impl DerefMut for DateTime {
+    fn deref_mut(&mut self) -> &mut chrono::DateTime<Utc> {
         &mut self.0
     }
 }
 
-impl From<UtcDateTime> for DateTime<Utc> {
-    fn from(utc: UtcDateTime) -> Self {
+impl From<DateTime> for chrono::DateTime<Utc> {
+    fn from(utc: DateTime) -> Self {
         utc.0
     }
 }
 
-impl From<DateTime<Utc>> for UtcDateTime {
-    fn from(x: DateTime<Utc>) -> Self {
-        UtcDateTime(x)
+impl From<chrono::DateTime<Utc>> for DateTime {
+    fn from(x: chrono::DateTime<Utc>) -> Self {
+        DateTime(x)
     }
 }
 

@@ -20,7 +20,7 @@ use serde::de::{self, MapAccess, Visitor};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Binary, Bson, TimeStamp},
+    bson::{Array, Binary, Bson, Timestamp},
     decoder::{decode_bson_kvp, read_i32, DecoderResult},
     encoder::{encode_bson, write_i32, EncoderResult},
     oid::ObjectId,
@@ -217,7 +217,7 @@ impl Document {
     /// the correct type.
     pub fn get_f64(&self, key: &str) -> ValueAccessResult<f64> {
         match self.get(key) {
-            Some(&Bson::FloatingPoint(v)) => Ok(v),
+            Some(&Bson::Double(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -227,7 +227,7 @@ impl Document {
     /// the correct type.
     pub fn get_f64_mut(&mut self, key: &str) -> ValueAccessResult<&mut f64> {
         match self.get_mut(key) {
-            Some(&mut Bson::FloatingPoint(ref mut v)) => Ok(v),
+            Some(&mut Bson::Double(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -337,7 +337,7 @@ impl Document {
     /// Get an i32 value for this key if it exists and has the correct type.
     pub fn get_i32(&self, key: &str) -> ValueAccessResult<i32> {
         match self.get(key) {
-            Some(&Bson::I32(v)) => Ok(v),
+            Some(&Bson::Int32(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -346,7 +346,7 @@ impl Document {
     /// Get a mutable reference to an i32 value for this key if it exists and has the correct type.
     pub fn get_i32_mut(&mut self, key: &str) -> ValueAccessResult<&mut i32> {
         match self.get_mut(key) {
-            Some(&mut Bson::I32(ref mut v)) => Ok(v),
+            Some(&mut Bson::Int32(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -355,7 +355,7 @@ impl Document {
     /// Get an i64 value for this key if it exists and has the correct type.
     pub fn get_i64(&self, key: &str) -> ValueAccessResult<i64> {
         match self.get(key) {
-            Some(&Bson::I64(v)) => Ok(v),
+            Some(&Bson::Int64(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -364,16 +364,16 @@ impl Document {
     /// Get a mutable reference to an i64 value for this key if it exists and has the correct type.
     pub fn get_i64_mut(&mut self, key: &str) -> ValueAccessResult<&mut i64> {
         match self.get_mut(key) {
-            Some(&mut Bson::I64(ref mut v)) => Ok(v),
+            Some(&mut Bson::Int64(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
     }
 
     /// Get a time stamp value for this key if it exists and has the correct type.
-    pub fn get_time_stamp(&self, key: &str) -> ValueAccessResult<TimeStamp> {
+    pub fn get_timestamp(&self, key: &str) -> ValueAccessResult<Timestamp> {
         match self.get(key) {
-            Some(&Bson::TimeStamp(timestamp)) => Ok(timestamp),
+            Some(&Bson::Timestamp(timestamp)) => Ok(timestamp),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -381,9 +381,9 @@ impl Document {
 
     /// Get a mutable reference to a time stamp value for this key if it exists and has the correct
     /// type.
-    pub fn get_time_stamp_mut(&mut self, key: &str) -> ValueAccessResult<&mut TimeStamp> {
+    pub fn get_timestamp_mut(&mut self, key: &str) -> ValueAccessResult<&mut Timestamp> {
         match self.get_mut(key) {
-            Some(&mut Bson::TimeStamp(ref mut timestamp)) => Ok(timestamp),
+            Some(&mut Bson::Timestamp(ref mut timestamp)) => Ok(timestamp),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -435,9 +435,9 @@ impl Document {
     }
 
     /// Get a reference to a UTC datetime value for this key if it exists and has the correct type.
-    pub fn get_utc_datetime(&self, key: &str) -> ValueAccessResult<&DateTime<Utc>> {
+    pub fn get_datetime(&self, key: &str) -> ValueAccessResult<&DateTime<Utc>> {
         match self.get(key) {
-            Some(&Bson::UtcDatetime(ref v)) => Ok(v),
+            Some(&Bson::DateTime(ref v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -445,9 +445,9 @@ impl Document {
 
     /// Get a mutable reference to a UTC datetime value for this key if it exists and has the
     /// correct type.
-    pub fn get_utc_datetime_mut(&mut self, key: &str) -> ValueAccessResult<&mut DateTime<Utc>> {
+    pub fn get_datetime_mut(&mut self, key: &str) -> ValueAccessResult<&mut DateTime<Utc>> {
         match self.get_mut(key) {
-            Some(&mut Bson::UtcDatetime(ref mut v)) => Ok(v),
+            Some(&mut Bson::DateTime(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }

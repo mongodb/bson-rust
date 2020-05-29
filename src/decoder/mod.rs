@@ -38,7 +38,7 @@ use chrono::{
 };
 
 use crate::{
-    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, TimeStamp},
+    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     oid,
     spec::{self, BinarySubtype},
     Decimal128,
@@ -146,8 +146,8 @@ pub(crate) fn decode_bson_kvp<R: Read + ?Sized>(
     let key = read_cstring(reader)?;
 
     let val = match ElementType::from(tag) {
-        Some(ElementType::FloatingPoint) => Bson::FloatingPoint(reader.read_f64::<LittleEndian>()?),
-        Some(ElementType::Utf8String) => read_string(reader, utf8_lossy).map(Bson::String)?,
+        Some(ElementType::Double) => Bson::Double(reader.read_f64::<LittleEndian>()?),
+        Some(ElementType::String) => read_string(reader, utf8_lossy).map(Bson::String)?,
         Some(ElementType::EmbeddedDocument) => Document::decode(reader).map(Bson::Document)?,
         Some(ElementType::Array) => decode_array(reader, utf8_lossy).map(Bson::Array)?,
         Some(ElementType::Binary) => {
@@ -179,14 +179,14 @@ pub(crate) fn decode_bson_kvp<R: Read + ?Sized>(
             Bson::ObjectId(oid::ObjectId::with_bytes(objid))
         }
         Some(ElementType::Boolean) => Bson::Boolean(reader.read_u8()? != 0),
-        Some(ElementType::NullValue) => Bson::Null,
+        Some(ElementType::Null) => Bson::Null,
         Some(ElementType::RegularExpression) => {
             let pattern = read_cstring(reader)?;
 
             let mut options: Vec<_> = read_cstring(reader)?.chars().collect();
             options.sort();
 
-            Bson::Regex(Regex {
+            Bson::RegularExpression(Regex {
                 pattern,
                 options: options.into_iter().collect(),
             })
@@ -203,12 +203,12 @@ pub(crate) fn decode_bson_kvp<R: Read + ?Sized>(
             let scope = Document::decode(reader)?;
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope })
         }
-        Some(ElementType::Integer32Bit) => read_i32(reader).map(Bson::I32)?,
-        Some(ElementType::Integer64Bit) => read_i64(reader).map(Bson::I64)?,
-        Some(ElementType::TimeStamp) => {
-            read_i64(reader).map(|val| Bson::TimeStamp(TimeStamp::from_le_i64(val)))?
+        Some(ElementType::Int32) => read_i32(reader).map(Bson::Int32)?,
+        Some(ElementType::Int64) => read_i64(reader).map(Bson::Int64)?,
+        Some(ElementType::Timestamp) => {
+            read_i64(reader).map(|val| Bson::Timestamp(Timestamp::from_le_i64(val)))?
         }
-        Some(ElementType::UtcDatetime) => {
+        Some(ElementType::DateTime) => {
             // The int64 is UTC milliseconds since the Unix epoch.
             let time = read_i64(reader)?;
 
@@ -224,11 +224,11 @@ pub(crate) fn decode_bson_kvp<R: Read + ?Sized>(
             match Utc.timestamp_opt(sec, (msec as u32) * 1_000_000) {
                 LocalResult::None => return Err(DecoderError::InvalidTimestamp(time)),
                 LocalResult::Ambiguous(..) => return Err(DecoderError::AmbiguousTimestamp(time)),
-                LocalResult::Single(t) => Bson::UtcDatetime(t),
+                LocalResult::Single(t) => Bson::DateTime(t),
             }
         }
         Some(ElementType::Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol)?,
-        Some(ElementType::Decimal128Bit) => read_f128(reader).map(Bson::Decimal128)?,
+        Some(ElementType::Decimal128) => read_f128(reader).map(Bson::Decimal128)?,
         Some(ElementType::Undefined) => Bson::Undefined,
         Some(ElementType::DbPointer) => {
             let namespace = read_string(reader, utf8_lossy)?;

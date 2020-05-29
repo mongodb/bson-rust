@@ -7,7 +7,7 @@ use bson::{
     Binary,
     Bson,
     Document,
-    TimeStamp,
+    Timestamp,
     ValueAccessError,
 };
 use chrono::Utc;
@@ -15,7 +15,7 @@ use chrono::Utc;
 #[test]
 fn ordered_insert() {
     let mut doc = Document::new();
-    doc.insert("first".to_owned(), Bson::I32(1));
+    doc.insert("first".to_owned(), Bson::Int32(1));
     doc.insert("second".to_owned(), Bson::String("foo".to_owned()));
     doc.insert("alphanumeric".to_owned(), Bson::String("bar".to_owned()));
 
@@ -81,7 +81,7 @@ fn test_getters() {
         doc.get_str("floating_point")
     );
 
-    assert_eq!(Some(&Bson::FloatingPoint(10.0)), doc.get("floating_point"));
+    assert_eq!(Some(&Bson::Double(10.0)), doc.get("floating_point"));
     assert_eq!(Ok(10.0), doc.get_f64("floating_point"));
 
     assert_eq!(
@@ -90,7 +90,7 @@ fn test_getters() {
     );
     assert_eq!(Ok("a value"), doc.get_str("string"));
 
-    let array = vec![Bson::I32(10), Bson::I32(20), Bson::I32(30)];
+    let array = vec![Bson::Int32(10), Bson::Int32(20), Bson::Int32(30)];
     assert_eq!(Some(&Bson::Array(array.clone())), doc.get("array"));
     assert_eq!(Ok(&array), doc.get_array("array"));
 
@@ -106,41 +106,41 @@ fn test_getters() {
     assert_eq!(true, doc.is_null("null"));
     assert_eq!(false, doc.is_null("array"));
 
-    assert_eq!(Some(&Bson::I32(1)), doc.get("i32"));
+    assert_eq!(Some(&Bson::Int32(1)), doc.get("i32"));
     assert_eq!(Ok(1i32), doc.get_i32("i32"));
 
-    assert_eq!(Some(&Bson::I64(1)), doc.get("i64"));
+    assert_eq!(Some(&Bson::Int64(1)), doc.get("i64"));
     assert_eq!(Ok(1i64), doc.get_i64("i64"));
 
     doc.insert(
         "timestamp".to_string(),
-        Bson::TimeStamp(TimeStamp {
+        Bson::Timestamp(Timestamp {
             time: 0,
             increment: 100,
         }),
     );
     assert_eq!(
-        Some(&Bson::TimeStamp(TimeStamp {
+        Some(&Bson::Timestamp(Timestamp {
             time: 0,
             increment: 100
         })),
         doc.get("timestamp")
     );
     assert_eq!(
-        Ok(TimeStamp {
+        Ok(Timestamp {
             time: 0,
             increment: 100,
         }),
-        doc.get_time_stamp("timestamp")
+        doc.get_timestamp("timestamp")
     );
 
-    assert_eq!(Some(&Bson::UtcDatetime(datetime)), doc.get("datetime"));
-    assert_eq!(Ok(&datetime), doc.get_utc_datetime("datetime"));
+    assert_eq!(Some(&Bson::DateTime(datetime)), doc.get("datetime"));
+    assert_eq!(Ok(&datetime), doc.get_datetime("datetime"));
 
     test_decimal128(&mut doc);
 
-    assert_eq!(Some(&Bson::UtcDatetime(datetime)), doc.get("datetime"));
-    assert_eq!(Ok(&datetime), doc.get_utc_datetime("datetime"));
+    assert_eq!(Some(&Bson::DateTime(datetime)), doc.get("datetime"));
+    assert_eq!(Ok(&datetime), doc.get_datetime("datetime"));
 
     let object_id = ObjectId::new();
     doc.insert("_id".to_string(), Bson::ObjectId(object_id.clone()));
@@ -160,7 +160,7 @@ fn test_getters() {
 #[test]
 fn remove() {
     let mut doc = Document::new();
-    doc.insert("first", Bson::I32(1));
+    doc.insert("first", Bson::Int32(1));
     doc.insert("second", Bson::String("foo".to_owned()));
     doc.insert("alphanumeric", Bson::String("bar".to_owned()));
 
@@ -186,12 +186,12 @@ fn entry() {
         assert_eq!(first_entry.key(), "first");
 
         let v = first_entry.or_insert_with(|| {
-            Bson::TimeStamp(TimeStamp {
+            Bson::Timestamp(Timestamp {
                 time: 0,
                 increment: 27,
             })
         });
-        assert_eq!(v, &mut Bson::I32(1));
+        assert_eq!(v, &mut Bson::Int32(1));
     }
 
     {

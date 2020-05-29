@@ -71,8 +71,8 @@ possible BSON values are modeled in this crate by the [`Bson`](https://docs.rs/b
 
 ```rust
 let string = Bson::String("hello world".to_string());
-let int = Bson::I32(5);
-let array = Bson::Array(vec![Bson::I32(5), Bson::Boolean(false)]);
+let int = Bson::Int32(5);
+let array = Bson::Array(vec![Bson::Int32(5), Bson::Boolean(false)]);
 
 let string: Bson = "hello world".into();
 let int: Bson = 5i32.into();
@@ -90,7 +90,7 @@ is known ahead of time.
 
 e.g.:
 ```rust
-let value = Bson::I32(5);
+let value = Bson::Int32(5);
 let int = value.as_i32(); // Some(5)
 let bool = value.as_bool(); // None
 
@@ -191,7 +191,7 @@ that is also less error prone.
 
 ## Breaking Changes
 
-In the BSON specification, _unsigned integer types_ are unsupported; for example, `u32`. In the older version of this crate (< `v0.8.0`), if you uses `serde` to serialize _unsigned integer types_ into BSON, it will store them with `Bson::FloatingPoint` type. From `v0.8.0`, we removed this behavior and simply returned an error when you want to serialize _unsigned integer types_ to BSON. [#72](https://github.com/zonyitoo/bson-rs/pull/72)
+In the BSON specification, _unsigned integer types_ are unsupported; for example, `u32`. In the older version of this crate (< `v0.8.0`), if you uses `serde` to serialize _unsigned integer types_ into BSON, it will store them with `Bson::Double` type. From `v0.8.0`, we removed this behavior and simply returned an error when you want to serialize _unsigned integer types_ to BSON. [#72](https://github.com/zonyitoo/bson-rs/pull/72)
 
 For backward compatibility, we've provided a mod `bson::compat::u2f` to explicitly serialize _unsigned integer types_ into BSON's floating point value as follows:
 
@@ -206,7 +206,7 @@ fn test_compat_u2f() {
 
     let foo = Foo { x: 20 };
     let b = bson::to_bson(&foo).unwrap();
-    assert_eq!(b, Bson::Document(doc! { "x": Bson::FloatingPoint(20.0) }));
+    assert_eq!(b, Bson::Document(doc! { "x": Bson::Double(20.0) }));
 
     let de_foo = bson::from_bson::<Foo>(b).unwrap();
     assert_eq!(de_foo, foo);

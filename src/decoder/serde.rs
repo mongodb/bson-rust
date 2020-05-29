@@ -18,7 +18,7 @@ use super::error::{DecoderError, DecoderResult};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, TimeStamp, UtcDateTime},
+    bson::{Binary, Bson, DateTime, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
     document::{Document, DocumentIntoIterator, DocumentVisitor},
     oid::ObjectId,
     spec::BinarySubtype,
@@ -89,7 +89,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Ok(Bson::I32(value as i32))
+        Ok(Bson::Int32(value as i32))
     }
 
     #[inline]
@@ -108,7 +108,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Ok(Bson::I32(value as i32))
+        Ok(Bson::Int32(value as i32))
     }
 
     #[inline]
@@ -127,7 +127,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Ok(Bson::I32(value))
+        Ok(Bson::Int32(value))
     }
 
     #[inline]
@@ -146,7 +146,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Ok(Bson::I64(value))
+        Ok(Bson::Int64(value))
     }
 
     #[inline]
@@ -162,7 +162,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
 
     #[inline]
     fn visit_f64<E>(self, value: f64) -> Result<Bson, E> {
-        Ok(Bson::FloatingPoint(value))
+        Ok(Bson::Double(value))
     }
 
     #[inline]
@@ -293,7 +293,7 @@ impl<'de> Deserializer<'de> for Decoder {
         };
 
         match value {
-            Bson::FloatingPoint(v) => visitor.visit_f64(v),
+            Bson::Double(v) => visitor.visit_f64(v),
             Bson::String(v) => visitor.visit_string(v),
             Bson::Array(v) => {
                 let len = v.len();
@@ -312,8 +312,8 @@ impl<'de> Deserializer<'de> for Decoder {
             }
             Bson::Boolean(v) => visitor.visit_bool(v),
             Bson::Null => visitor.visit_unit(),
-            Bson::I32(v) => visitor.visit_i32(v),
-            Bson::I64(v) => visitor.visit_i64(v),
+            Bson::Int32(v) => visitor.visit_i32(v),
+            Bson::Int64(v) => visitor.visit_i64(v),
             Bson::Binary(Binary {
                 subtype: BinarySubtype::Generic,
                 ref bytes,
@@ -687,14 +687,14 @@ impl<'de> Deserializer<'de> for MapDecoder {
     }
 }
 
-impl<'de> Deserialize<'de> for TimeStamp {
+impl<'de> Deserialize<'de> for Timestamp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
-            Bson::TimeStamp(timestamp) => Ok(timestamp),
-            _ => Err(D::Error::custom("expecting TimeStamp")),
+            Bson::Timestamp(timestamp) => Ok(timestamp),
+            _ => Err(D::Error::custom("expecting Timestamp")),
         }
     }
 }
@@ -705,7 +705,7 @@ impl<'de> Deserialize<'de> for Regex {
         D: Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
-            Bson::Regex(regex) => Ok(regex),
+            Bson::RegularExpression(regex) => Ok(regex),
             _ => Err(D::Error::custom("expecting Regex")),
         }
     }
@@ -748,14 +748,14 @@ impl<'de> Deserialize<'de> for Decimal128 {
     }
 }
 
-impl<'de> Deserialize<'de> for UtcDateTime {
+impl<'de> Deserialize<'de> for DateTime {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
-            Bson::UtcDatetime(dt) => Ok(UtcDateTime(dt)),
-            _ => Err(D::Error::custom("expecting UtcDateTime")),
+            Bson::DateTime(dt) => Ok(DateTime(dt)),
+            _ => Err(D::Error::custom("expecting DateTime")),
         }
     }
 }

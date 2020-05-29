@@ -17,7 +17,7 @@ fn to_json() {
         "_id",
         Bson::ObjectId(ObjectId::with_bytes(*b"abcdefghijkl")),
     );
-    doc.insert("first", Bson::I32(1));
+    doc.insert("first", Bson::Int32(1));
     doc.insert("second", Bson::String("foo".to_owned()));
     doc.insert("alphanumeric", Bson::String("bar".to_owned()));
     let data: Value = Bson::Document(doc).into();
@@ -59,8 +59,8 @@ fn document_default() {
 
 #[test]
 fn from_impls() {
-    assert_eq!(Bson::from(1.5f32), Bson::FloatingPoint(1.5));
-    assert_eq!(Bson::from(2.25f64), Bson::FloatingPoint(2.25));
+    assert_eq!(Bson::from(1.5f32), Bson::Double(1.5));
+    assert_eq!(Bson::from(2.25f64), Bson::Double(2.25));
     assert_eq!(Bson::from("data"), Bson::String(String::from("data")));
     assert_eq!(
         Bson::from(String::from("data")),
@@ -73,7 +73,7 @@ fn from_impls() {
             pattern: String::from("\\s+$"),
             options: String::from("i")
         }),
-        Bson::Regex(Regex {
+        Bson::RegularExpression(Regex {
             pattern: String::from("\\s+$"),
             options: String::from("i")
         })
@@ -99,10 +99,10 @@ fn from_impls() {
             bytes: vec![1, 2, 3]
         })
     );
-    assert_eq!(Bson::from(-48i32), Bson::I32(-48));
-    assert_eq!(Bson::from(-96i64), Bson::I64(-96));
-    assert_eq!(Bson::from(152u32), Bson::I32(152));
-    assert_eq!(Bson::from(4096u64), Bson::I64(4096));
+    assert_eq!(Bson::from(-48i32), Bson::Int32(-48));
+    assert_eq!(Bson::from(-96i64), Bson::Int64(-96));
+    assert_eq!(Bson::from(152u32), Bson::Int32(152));
+    assert_eq!(Bson::from(4096u64), Bson::Int64(4096));
 
     let oid = ObjectId::new();
     assert_eq!(
@@ -112,7 +112,7 @@ fn from_impls() {
     assert_eq!(Bson::from(oid.clone()), Bson::ObjectId(oid.clone()));
     assert_eq!(
         Bson::from(vec![1, 2, 3]),
-        Bson::Array(vec![Bson::I32(1), Bson::I32(2), Bson::I32(3)])
+        Bson::Array(vec![Bson::Int32(1), Bson::Int32(2), Bson::Int32(3)])
     );
     assert_eq!(
         Bson::from(json!({"_id": {"$oid": oid.to_hex()}, "name": ["bson-rs"]})),
@@ -120,7 +120,7 @@ fn from_impls() {
     );
 
     // References
-    assert_eq!(Bson::from(&24i32), Bson::I32(24));
+    assert_eq!(Bson::from(&24i32), Bson::Int32(24));
     assert_eq!(
         Bson::from(&String::from("data")),
         Bson::String(String::from("data"))

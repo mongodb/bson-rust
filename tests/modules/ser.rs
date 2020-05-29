@@ -7,7 +7,7 @@ use std::{collections::BTreeMap, u16, u32, u64, u8};
 #[test]
 #[allow(clippy::float_cmp)]
 fn floating_point() {
-    let obj = Bson::FloatingPoint(240.5);
+    let obj = Bson::Double(240.5);
     let f: f64 = from_bson(obj.clone()).unwrap();
     assert_eq!(f, 240.5);
 
@@ -27,7 +27,12 @@ fn string() {
 
 #[test]
 fn arr() {
-    let obj = Bson::Array(vec![Bson::I32(0), Bson::I32(1), Bson::I32(2), Bson::I32(3)]);
+    let obj = Bson::Array(vec![
+        Bson::Int32(0),
+        Bson::Int32(1),
+        Bson::Int32(2),
+        Bson::Int32(3),
+    ]);
     let arr: Vec<i32> = from_bson(obj.clone()).unwrap();
     assert_eq!(arr, vec![0i32, 1i32, 2i32, 3i32]);
 
@@ -47,7 +52,7 @@ fn boolean() {
 
 #[test]
 fn int32() {
-    let obj = Bson::I32(101);
+    let obj = Bson::Int32(101);
     let i: i32 = from_bson(obj.clone()).unwrap();
 
     assert_eq!(i, 101);
@@ -148,7 +153,7 @@ fn uint64_u2i() {
 
 #[test]
 fn int64() {
-    let obj = Bson::I64(101);
+    let obj = Bson::Int64(101);
     let i: i64 = from_bson(obj.clone()).unwrap();
     assert_eq!(i, 101);
 

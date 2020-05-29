@@ -146,9 +146,9 @@ fn application_decode_error() {
             }
         }
     }
-    let d_good = Decoder::new(Bson::I64(5));
+    let d_good = Decoder::new(Bson::Int64(5));
     let d_bad1 = Decoder::new(Bson::String("not an isize".to_string()));
-    let d_bad2 = Decoder::new(Bson::I64(11));
+    let d_bad2 = Decoder::new(Bson::Int64(11));
 
     assert_eq!(Range10(5), t!(Deserialize::deserialize(d_good)));
 

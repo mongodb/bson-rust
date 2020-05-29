@@ -1,4 +1,4 @@
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex, TimeStamp};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex, Timestamp};
 use chrono::offset::Utc;
 use pretty_assertions::assert_eq;
 
@@ -23,15 +23,15 @@ fn standard_format() {
         },
         "bool": true,
         "null": null,
-        "regexp": Bson::Regex(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
+        "regexp": Bson::RegularExpression(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
         "with_wrapped_parens": (-20),
         "code": Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
         "i32": 12,
         "i64": -55,
-        "timestamp": Bson::TimeStamp(TimeStamp { time: 0, increment: 229_999_444 }),
+        "timestamp": Bson::Timestamp(Timestamp { time: 0, increment: 229_999_444 }),
         "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "_id": id,
-        "date": Bson::UtcDatetime(date),
+        "date": Bson::DateTime(date),
     };
 
     let expected = format!(
@@ -107,7 +107,7 @@ fn recursive_macro() {
                             match arr.get(1) {
                                 Some(Bson::Boolean(ref b)) => assert!(!b),
                                 _ => panic!(
-                                    "Boolean 'false' was not inserted into inner array correctly."
+                                    "Bool 'false' was not inserted into inner array correctly."
                                 ),
                             }
                         }
@@ -116,7 +116,7 @@ fn recursive_macro() {
 
                     // Inner floating point
                     match inner_doc.get("jelly") {
-                        Some(&Bson::FloatingPoint(ref fp)) => assert_eq!(42.0, *fp),
+                        Some(&Bson::Double(ref fp)) => assert_eq!(42.0, *fp),
                         _ => panic!("Floating point 42.0 was not inserted correctly."),
                     }
                 }
@@ -133,7 +133,7 @@ fn recursive_macro() {
 
             // Integer type
             match arr.get(0) {
-                Some(Bson::I32(ref i)) => assert_eq!(-7, *i),
+                Some(Bson::Int32(ref i)) => assert_eq!(-7, *i),
                 _ => panic!("I32 '-7' was not inserted correctly."),
             }
         }
