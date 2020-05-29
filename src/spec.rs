@@ -74,7 +74,7 @@ pub enum ElementType {
     /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId = ELEMENT_TYPE_OBJECT_ID,
     /// Bool value
-    Bool = ELEMENT_TYPE_BOOLEAN,
+    Boolean = ELEMENT_TYPE_BOOLEAN,
     /// UTC datetime
     DateTime = ELEMENT_TYPE_UTC_DATETIME,
     /// Null value
@@ -85,7 +85,7 @@ pub enum ElementType {
     /// multiline matching, 'x' for verbose mode, 'l' to make \w, \W, etc. locale dependent,
     /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
     /// unicode.
-    Regex = ELEMENT_TYPE_REGULAR_EXPRESSION,
+    RegularExpression = ELEMENT_TYPE_REGULAR_EXPRESSION,
     /// Deprecated.
     DbPointer = ELEMENT_TYPE_DBPOINTER,
     /// JavaScript code
@@ -95,11 +95,11 @@ pub enum ElementType {
     /// JavaScript code w/ scope
     JavaScriptCodeWithScope = ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE,
     /// 32-bit integer
-    I32 = ELEMENT_TYPE_32BIT_INTEGER,
+    Int32 = ELEMENT_TYPE_32BIT_INTEGER,
     /// Timestamp
     Timestamp = ELEMENT_TYPE_TIMESTAMP,
     /// 64-bit integer
-    I64 = ELEMENT_TYPE_64BIT_INTEGER,
+    Int64 = ELEMENT_TYPE_64BIT_INTEGER,
     /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
     Decimal128 = ELEMENT_TYPE_128BIT_DECIMAL,
     MaxKey = ELEMENT_TYPE_MAXKEY,
@@ -119,17 +119,17 @@ impl ElementType {
             ELEMENT_TYPE_BINARY => Binary,
             ELEMENT_TYPE_UNDEFINED => Undefined,
             ELEMENT_TYPE_OBJECT_ID => ObjectId,
-            ELEMENT_TYPE_BOOLEAN => Bool,
+            ELEMENT_TYPE_BOOLEAN => Boolean,
             ELEMENT_TYPE_UTC_DATETIME => Self::DateTime,
             ELEMENT_TYPE_NULL_VALUE => Self::Null,
-            ELEMENT_TYPE_REGULAR_EXPRESSION => Regex,
+            ELEMENT_TYPE_REGULAR_EXPRESSION => RegularExpression,
             ELEMENT_TYPE_DBPOINTER => DbPointer,
             ELEMENT_TYPE_JAVASCRIPT_CODE => JavaScriptCode,
             ELEMENT_TYPE_SYMBOL => Symbol,
             ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE => JavaScriptCodeWithScope,
-            ELEMENT_TYPE_32BIT_INTEGER => I32,
+            ELEMENT_TYPE_32BIT_INTEGER => Int32,
             ELEMENT_TYPE_TIMESTAMP => Timestamp,
-            ELEMENT_TYPE_64BIT_INTEGER => I64,
+            ELEMENT_TYPE_64BIT_INTEGER => Int64,
             ELEMENT_TYPE_128BIT_DECIMAL => Decimal128,
             ELEMENT_TYPE_MAXKEY => MaxKey,
             ELEMENT_TYPE_MINKEY => MinKey,

@@ -81,7 +81,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Ok(Bson::Bool(value))
+        Ok(Bson::Boolean(value))
     }
 
     #[inline]
@@ -89,7 +89,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Ok(Bson::I32(value as i32))
+        Ok(Bson::Int32(value as i32))
     }
 
     #[inline]
@@ -108,7 +108,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Ok(Bson::I32(value as i32))
+        Ok(Bson::Int32(value as i32))
     }
 
     #[inline]
@@ -127,7 +127,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Ok(Bson::I32(value))
+        Ok(Bson::Int32(value))
     }
 
     #[inline]
@@ -146,7 +146,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Ok(Bson::I64(value))
+        Ok(Bson::Int64(value))
     }
 
     #[inline]
@@ -310,10 +310,10 @@ impl<'de> Deserializer<'de> for Decoder {
                     len,
                 })
             }
-            Bson::Bool(v) => visitor.visit_bool(v),
+            Bson::Boolean(v) => visitor.visit_bool(v),
             Bson::Null => visitor.visit_unit(),
-            Bson::I32(v) => visitor.visit_i32(v),
-            Bson::I64(v) => visitor.visit_i64(v),
+            Bson::Int32(v) => visitor.visit_i32(v),
+            Bson::Int64(v) => visitor.visit_i64(v),
             Bson::Binary(Binary {
                 subtype: BinarySubtype::Generic,
                 ref bytes,
@@ -705,7 +705,7 @@ impl<'de> Deserialize<'de> for Regex {
         D: Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
-            Bson::Regex(regex) => Ok(regex),
+            Bson::RegularExpression(regex) => Ok(regex),
             _ => Err(D::Error::custom("expecting Regex")),
         }
     }

@@ -105,10 +105,10 @@ pub(crate) fn encode_bson<W: Write + ?Sized>(
         Bson::String(ref v) => write_string(writer, &v),
         Bson::Array(ref v) => encode_array(writer, &v),
         Bson::Document(ref v) => v.encode(writer),
-        Bson::Bool(v) => writer
+        Bson::Boolean(v) => writer
             .write_u8(if v { 0x01 } else { 0x00 })
             .map_err(From::from),
-        Bson::Regex(Regex {
+        Bson::RegularExpression(Regex {
             ref pattern,
             ref options,
         }) => {
@@ -128,8 +128,8 @@ pub(crate) fn encode_bson<W: Write + ?Sized>(
             write_i32(writer, buf.len() as i32 + 4)?;
             writer.write_all(&buf).map_err(From::from)
         }
-        Bson::I32(v) => write_i32(writer, v),
-        Bson::I64(v) => write_i64(writer, v),
+        Bson::Int32(v) => write_i32(writer, v),
+        Bson::Int64(v) => write_i64(writer, v),
         Bson::Timestamp(ts) => write_i64(writer, ts.to_le_i64()),
         Bson::Binary(Binary { subtype, ref bytes }) => {
             let len = if let BinarySubtype::BinaryOld = subtype {

@@ -178,15 +178,15 @@ pub(crate) fn decode_bson_kvp<R: Read + ?Sized>(
             }
             Bson::ObjectId(oid::ObjectId::with_bytes(objid))
         }
-        Some(ElementType::Bool) => Bson::Bool(reader.read_u8()? != 0),
+        Some(ElementType::Boolean) => Bson::Boolean(reader.read_u8()? != 0),
         Some(ElementType::Null) => Bson::Null,
-        Some(ElementType::Regex) => {
+        Some(ElementType::RegularExpression) => {
             let pattern = read_cstring(reader)?;
 
             let mut options: Vec<_> = read_cstring(reader)?.chars().collect();
             options.sort();
 
-            Bson::Regex(Regex {
+            Bson::RegularExpression(Regex {
                 pattern,
                 options: options.into_iter().collect(),
             })
@@ -203,8 +203,8 @@ pub(crate) fn decode_bson_kvp<R: Read + ?Sized>(
             let scope = Document::decode(reader)?;
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope })
         }
-        Some(ElementType::I32) => read_i32(reader).map(Bson::I32)?,
-        Some(ElementType::I64) => read_i64(reader).map(Bson::I64)?,
+        Some(ElementType::Int32) => read_i32(reader).map(Bson::Int32)?,
+        Some(ElementType::Int64) => read_i64(reader).map(Bson::Int64)?,
         Some(ElementType::Timestamp) => {
             read_i64(reader).map(|val| Bson::Timestamp(Timestamp::from_le_i64(val)))?
         }

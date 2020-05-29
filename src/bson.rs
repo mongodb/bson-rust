@@ -48,19 +48,19 @@ pub enum Bson {
     /// Embedded document
     Document(Document),
     /// Boolean value
-    Bool(bool),
+    Boolean(bool),
     /// Null value
     Null,
     /// Regular expression
-    Regex(Regex),
+    RegularExpression(Regex),
     /// JavaScript code
     JavaScriptCode(String),
     /// JavaScript code w/ scope
     JavaScriptCodeWithScope(JavaScriptCodeWithScope),
     /// 32-bit signed integer
-    I32(i32),
+    Int32(i32),
     /// 64-bit signed integer
-    I64(i64),
+    Int64(i64),
     /// Timestamp
     Timestamp(Timestamp),
     /// Binary data
@@ -113,9 +113,9 @@ impl Display for Bson {
                 fmt.write_str("]")
             }
             Bson::Document(ref doc) => write!(fmt, "{}", doc),
-            Bson::Bool(b) => write!(fmt, "{}", b),
+            Bson::Boolean(b) => write!(fmt, "{}", b),
             Bson::Null => write!(fmt, "null"),
-            Bson::Regex(Regex {
+            Bson::RegularExpression(Regex {
                 ref pattern,
                 ref options,
             }) => write!(fmt, "/{}/{}", pattern, options),
@@ -123,8 +123,8 @@ impl Display for Bson {
             | Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { ref code, .. }) => {
                 fmt.write_str(&code)
             }
-            Bson::I32(i) => write!(fmt, "{}", i),
-            Bson::I64(i) => write!(fmt, "{}", i),
+            Bson::Int32(i) => write!(fmt, "{}", i),
+            Bson::Int64(i) => write!(fmt, "{}", i),
             Bson::Timestamp(Timestamp { time, increment }) => {
                 write!(fmt, "Timestamp({}, {})", time, increment)
             }
@@ -181,13 +181,13 @@ impl From<Document> for Bson {
 
 impl From<bool> for Bson {
     fn from(a: bool) -> Bson {
-        Bson::Bool(a)
+        Bson::Boolean(a)
     }
 }
 
 impl From<Regex> for Bson {
     fn from(regex: Regex) -> Bson {
-        Bson::Regex(regex)
+        Bson::RegularExpression(regex)
     }
 }
 
@@ -248,25 +248,25 @@ impl<T: Into<Bson>> ::std::iter::FromIterator<T> for Bson {
 
 impl From<i32> for Bson {
     fn from(a: i32) -> Bson {
-        Bson::I32(a)
+        Bson::Int32(a)
     }
 }
 
 impl From<i64> for Bson {
     fn from(a: i64) -> Bson {
-        Bson::I64(a)
+        Bson::Int64(a)
     }
 }
 
 impl From<u32> for Bson {
     fn from(a: u32) -> Bson {
-        Bson::I32(a as i32)
+        Bson::Int32(a as i32)
     }
 }
 
 impl From<u64> for Bson {
     fn from(a: u64) -> Bson {
-        Bson::I64(a as i64)
+        Bson::Int64(a as i64)
     }
 }
 
@@ -301,9 +301,9 @@ impl From<Value> for Bson {
                 .as_i64()
                 .map(|i| {
                     if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
-                        Bson::I32(i as i32)
+                        Bson::Int32(i as i32)
                     } else {
-                        Bson::I64(i)
+                        Bson::Int64(i)
                     }
                 })
                 .or_else(|| x.as_u64().map(Bson::from))
@@ -354,9 +354,9 @@ impl Bson {
             Bson::Document(v) => {
                 Value::Object(v.into_iter().map(|(k, v)| (k, Value::from(v))).collect())
             }
-            Bson::Bool(v) => json!(v),
+            Bson::Boolean(v) => json!(v),
             Bson::Null => Value::Null,
-            Bson::Regex(Regex { pattern, options }) => {
+            Bson::RegularExpression(Regex { pattern, options }) => {
                 let mut chars: Vec<_> = options.chars().collect();
                 chars.sort();
 
@@ -374,8 +374,8 @@ impl Bson {
                 "$code": code,
                 "$scope": scope,
             }),
-            Bson::I32(v) => v.into(),
-            Bson::I64(v) => v.into(),
+            Bson::Int32(v) => v.into(),
+            Bson::Int64(v) => v.into(),
             Bson::Timestamp(Timestamp { time, increment }) => json!({
                 "$timestamp": {
                     "t": time,
@@ -438,8 +438,8 @@ impl Bson {
     /// `Decimal128` value, it will panic.
     pub fn into_canonical_extjson(self) -> Value {
         match self {
-            Bson::I32(i) => json!({ "$numberInt": i.to_string() }),
-            Bson::I64(i) => json!({ "$numberLong": i.to_string() }),
+            Bson::Int32(i) => json!({ "$numberInt": i.to_string() }),
+            Bson::Int64(i) => json!({ "$numberLong": i.to_string() }),
             Bson::Double(f) if f.is_normal() => {
                 let mut s = f.to_string();
                 if f.fract() == 0.0 {
@@ -480,13 +480,13 @@ impl Bson {
             Bson::String(..) => ElementType::String,
             Bson::Array(..) => ElementType::Array,
             Bson::Document(..) => ElementType::EmbeddedDocument,
-            Bson::Bool(..) => ElementType::Bool,
+            Bson::Boolean(..) => ElementType::Boolean,
             Bson::Null => ElementType::Null,
-            Bson::Regex(..) => ElementType::Regex,
+            Bson::RegularExpression(..) => ElementType::RegularExpression,
             Bson::JavaScriptCode(..) => ElementType::JavaScriptCode,
             Bson::JavaScriptCodeWithScope(..) => ElementType::JavaScriptCodeWithScope,
-            Bson::I32(..) => ElementType::I32,
-            Bson::I64(..) => ElementType::I64,
+            Bson::Int32(..) => ElementType::Int32,
+            Bson::Int64(..) => ElementType::Int64,
             Bson::Timestamp(..) => ElementType::Timestamp,
             Bson::Binary(..) => ElementType::Binary,
             Bson::ObjectId(..) => ElementType::ObjectId,
@@ -506,7 +506,7 @@ impl Bson {
     // with the extended JSON implementation.
     pub(crate) fn to_extended_document(&self) -> Document {
         match *self {
-            Bson::Regex(Regex {
+            Bson::RegularExpression(Regex {
                 ref pattern,
                 ref options,
             }) => {
@@ -641,7 +641,7 @@ impl Bson {
             ["$numberInt"] => {
                 if let Ok(i) = doc.get_str("$numberInt") {
                     if let Ok(i) = i.parse() {
-                        return Bson::I32(i);
+                        return Bson::Int32(i);
                     }
                 }
             }
@@ -649,7 +649,7 @@ impl Bson {
             ["$numberLong"] => {
                 if let Ok(i) = doc.get_str("$numberLong") {
                     if let Ok(i) = i.parse() {
-                        return Bson::I64(i);
+                        return Bson::Int64(i);
                     }
                 }
             }
@@ -730,7 +730,7 @@ impl Bson {
                             let mut options: Vec<_> = options.chars().collect();
                             options.sort();
 
-                            return Bson::Regex(Regex {
+                            return Bson::RegularExpression(Regex {
                                 pattern: pattern.into(),
                                 options: options.into_iter().collect(),
                             });
@@ -791,7 +791,7 @@ impl Bson {
             ["$minKey"] => {
                 let min_key = doc.get("$minKey");
 
-                if min_key == Some(&Bson::I32(1)) || min_key == Some(&Bson::I64(1)) {
+                if min_key == Some(&Bson::Int32(1)) || min_key == Some(&Bson::Int64(1)) {
                     return Bson::MinKey;
                 }
             }
@@ -799,13 +799,13 @@ impl Bson {
             ["$maxKey"] => {
                 let max_key = doc.get("$maxKey");
 
-                if max_key == Some(&Bson::I32(1)) || max_key == Some(&Bson::I64(1)) {
+                if max_key == Some(&Bson::Int32(1)) || max_key == Some(&Bson::Int64(1)) {
                     return Bson::MaxKey;
                 }
             }
 
             ["$undefined"] => {
-                if doc.get("$undefined") == Some(&Bson::Bool(true)) {
+                if doc.get("$undefined") == Some(&Bson::Boolean(true)) {
                     return Bson::Undefined;
                 }
             }
@@ -890,7 +890,7 @@ impl Bson {
     /// If `Bson` is `Bool`, return its value. Returns `None` otherwise
     pub fn as_bool(&self) -> Option<bool> {
         match *self {
-            Bson::Bool(v) => Some(v),
+            Bson::Boolean(v) => Some(v),
             _ => None,
         }
     }
@@ -898,7 +898,7 @@ impl Bson {
     /// If `Bson` is `I32`, return its value. Returns `None` otherwise
     pub fn as_i32(&self) -> Option<i32> {
         match *self {
-            Bson::I32(v) => Some(v),
+            Bson::Int32(v) => Some(v),
             _ => None,
         }
     }
@@ -906,7 +906,7 @@ impl Bson {
     /// If `Bson` is `I64`, return its value. Returns `None` otherwise
     pub fn as_i64(&self) -> Option<i64> {
         match *self {
-            Bson::I64(v) => Some(v),
+            Bson::Int64(v) => Some(v),
             _ => None,
         }
     }

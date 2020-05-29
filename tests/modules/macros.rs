@@ -23,7 +23,7 @@ fn standard_format() {
         },
         "bool": true,
         "null": null,
-        "regexp": Bson::Regex(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
+        "regexp": Bson::RegularExpression(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
         "with_wrapped_parens": (-20),
         "code": Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
         "i32": 12,
@@ -105,7 +105,7 @@ fn recursive_macro() {
                                 ),
                             }
                             match arr.get(1) {
-                                Some(Bson::Bool(ref b)) => assert!(!b),
+                                Some(Bson::Boolean(ref b)) => assert!(!b),
                                 _ => panic!(
                                     "Bool 'false' was not inserted into inner array correctly."
                                 ),
@@ -133,7 +133,7 @@ fn recursive_macro() {
 
             // Integer type
             match arr.get(0) {
-                Some(Bson::I32(ref i)) => assert_eq!(-7, *i),
+                Some(Bson::Int32(ref i)) => assert_eq!(-7, *i),
                 _ => panic!("I32 '-7' was not inserted correctly."),
             }
         }

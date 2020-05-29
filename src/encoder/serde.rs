@@ -67,10 +67,10 @@ impl Serialize for Bson {
             Bson::String(ref v) => serializer.serialize_str(v),
             Bson::Array(ref v) => v.serialize(serializer),
             Bson::Document(ref v) => v.serialize(serializer),
-            Bson::Bool(v) => serializer.serialize_bool(v),
+            Bson::Boolean(v) => serializer.serialize_bool(v),
             Bson::Null => serializer.serialize_unit(),
-            Bson::I32(v) => serializer.serialize_i32(v),
-            Bson::I64(v) => serializer.serialize_i64(v),
+            Bson::Int32(v) => serializer.serialize_i32(v),
+            Bson::Int64(v) => serializer.serialize_i64(v),
             Bson::Binary(Binary {
                 subtype: BinarySubtype::Generic,
                 ref bytes,
@@ -108,7 +108,7 @@ impl Serializer for Encoder {
 
     #[inline]
     fn serialize_bool(self, value: bool) -> EncoderResult<Bson> {
-        Ok(Bson::Bool(value))
+        Ok(Bson::Boolean(value))
     }
 
     #[inline]
@@ -120,7 +120,7 @@ impl Serializer for Encoder {
     fn serialize_u8(self, _value: u8) -> EncoderResult<Bson> {
         #[cfg(feature = "u2i")]
         {
-            Ok(Bson::I32(_value as i32))
+            Ok(Bson::Int32(_value as i32))
         }
 
         #[cfg(not(feature = "u2i"))]
@@ -136,7 +136,7 @@ impl Serializer for Encoder {
     fn serialize_u16(self, _value: u16) -> EncoderResult<Bson> {
         #[cfg(feature = "u2i")]
         {
-            Ok(Bson::I32(_value as i32))
+            Ok(Bson::Int32(_value as i32))
         }
 
         #[cfg(not(feature = "u2i"))]
@@ -145,14 +145,14 @@ impl Serializer for Encoder {
 
     #[inline]
     fn serialize_i32(self, value: i32) -> EncoderResult<Bson> {
-        Ok(Bson::I32(value))
+        Ok(Bson::Int32(value))
     }
 
     #[inline]
     fn serialize_u32(self, _value: u32) -> EncoderResult<Bson> {
         #[cfg(feature = "u2i")]
         {
-            Ok(Bson::I64(_value as i64))
+            Ok(Bson::Int64(_value as i64))
         }
 
         #[cfg(not(feature = "u2i"))]
@@ -161,7 +161,7 @@ impl Serializer for Encoder {
 
     #[inline]
     fn serialize_i64(self, value: i64) -> EncoderResult<Bson> {
-        Ok(Bson::I64(value))
+        Ok(Bson::Int64(value))
     }
 
     #[inline]
@@ -171,7 +171,7 @@ impl Serializer for Encoder {
             use std::convert::TryFrom;
 
             match i64::try_from(_value) {
-                Ok(ivalue) => Ok(Bson::I64(ivalue)),
+                Ok(ivalue) => Ok(Bson::Int64(ivalue)),
                 Err(_) => Err(EncoderError::UnsignedTypesValueExceedsRange(_value)),
             }
         }
@@ -525,7 +525,7 @@ impl Serialize for Regex {
     where
         S: Serializer,
     {
-        let value = Bson::Regex(self.clone());
+        let value = Bson::RegularExpression(self.clone());
         value.serialize(serializer)
     }
 }

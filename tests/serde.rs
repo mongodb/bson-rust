@@ -125,7 +125,7 @@ fn test_ser_regex() {
     let x = bson::to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "regex": Bson::Regex(regex) }
+        &doc! { "regex": Bson::RegularExpression(regex) }
     );
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
@@ -147,7 +147,7 @@ fn test_de_regex() {
     };
 
     let foo: Foo = bson::from_bson(Bson::Document(doc! {
-        "regex": Bson::Regex(regex.clone()),
+        "regex": Bson::RegularExpression(regex.clone()),
     }))
     .unwrap();
 

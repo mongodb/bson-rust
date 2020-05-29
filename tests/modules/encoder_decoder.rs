@@ -119,7 +119,7 @@ fn test_encode_decode_null() {
 
 #[test]
 fn test_encode_decode_regexp() {
-    let src = Bson::Regex(Regex {
+    let src = Bson::RegularExpression(Regex {
         pattern: "1".to_owned(),
         options: "2".to_owned(),
     });

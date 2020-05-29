@@ -314,7 +314,7 @@ impl Document {
     /// Get a bool value for this key if it exists and has the correct type.
     pub fn get_bool(&self, key: &str) -> ValueAccessResult<bool> {
         match self.get(key) {
-            Some(&Bson::Bool(v)) => Ok(v),
+            Some(&Bson::Boolean(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -323,7 +323,7 @@ impl Document {
     /// Get a mutable reference to a bool value for this key if it exists and has the correct type.
     pub fn get_bool_mut(&mut self, key: &str) -> ValueAccessResult<&mut bool> {
         match self.get_mut(key) {
-            Some(&mut Bson::Bool(ref mut v)) => Ok(v),
+            Some(&mut Bson::Boolean(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -337,7 +337,7 @@ impl Document {
     /// Get an i32 value for this key if it exists and has the correct type.
     pub fn get_i32(&self, key: &str) -> ValueAccessResult<i32> {
         match self.get(key) {
-            Some(&Bson::I32(v)) => Ok(v),
+            Some(&Bson::Int32(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -346,7 +346,7 @@ impl Document {
     /// Get a mutable reference to an i32 value for this key if it exists and has the correct type.
     pub fn get_i32_mut(&mut self, key: &str) -> ValueAccessResult<&mut i32> {
         match self.get_mut(key) {
-            Some(&mut Bson::I32(ref mut v)) => Ok(v),
+            Some(&mut Bson::Int32(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -355,7 +355,7 @@ impl Document {
     /// Get an i64 value for this key if it exists and has the correct type.
     pub fn get_i64(&self, key: &str) -> ValueAccessResult<i64> {
         match self.get(key) {
-            Some(&Bson::I64(v)) => Ok(v),
+            Some(&Bson::Int64(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -364,7 +364,7 @@ impl Document {
     /// Get a mutable reference to an i64 value for this key if it exists and has the correct type.
     pub fn get_i64_mut(&mut self, key: &str) -> ValueAccessResult<&mut i64> {
         match self.get_mut(key) {
-            Some(&mut Bson::I64(ref mut v)) => Ok(v),
+            Some(&mut Bson::Int64(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
