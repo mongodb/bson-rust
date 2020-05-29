@@ -40,7 +40,7 @@ use crate::{
     bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex},
     spec::BinarySubtype,
 };
-use ::serde::Serialize;
+use serde::Serialize;
 
 fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
     writer.write_i32::<LittleEndian>(s.len() as i32 + 1)?;

@@ -198,8 +198,8 @@ pub use self::{
         Regex,
         Timestamp,
     },
-    decimal128::Decimal128,
     de::{from_bson, Deserializer},
+    decimal128::Decimal128,
     ser::{to_bson, Serializer},
 };
 
