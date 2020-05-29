@@ -1,6 +1,7 @@
 mod corpus;
 
 use std::{
+    convert::TryFrom,
     ffi::OsStr,
     fs::{self, File},
     path::PathBuf,
@@ -36,6 +37,6 @@ where
         let json: Value =
             serde_json::from_reader(File::open(test_file_full_path.as_path()).unwrap()).unwrap();
 
-        run_test_file(bson::from_bson(Bson::from(json)).unwrap())
+        run_test_file(bson::from_bson(Bson::try_from(json).unwrap()).unwrap())
     }
 }

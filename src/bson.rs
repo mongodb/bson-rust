@@ -22,18 +22,23 @@
 //! BSON definition
 
 use std::{
+    convert::{TryFrom, TryInto},
     fmt::{self, Debug, Display},
     ops::{Deref, DerefMut},
 };
 
-use chrono::{Datelike, SecondsFormat, TimeZone, Utc};
+use chrono::{DateTime, Datelike, SecondsFormat, TimeZone, Utc};
+use serde::{
+    de::{Error, Unexpected},
+    Deserialize,
+};
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
 use crate::{
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
-    Decimal128,
+    Decimal128, DecoderError, DecoderResult,
 };
 
 /// Possible BSON value types.
@@ -85,6 +90,34 @@ pub enum Bson {
 
 /// Alias for `Vec<Bson>`.
 pub type Array = Vec<Bson>;
+
+impl Bson {
+    fn from_value_no_parse(value: serde_json::Value) -> Self {
+        match value {
+            Value::Number(x) => x
+                .as_i64()
+                .map(|i| {
+                    if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
+                        Bson::I32(i as i32)
+                    } else {
+                        Bson::I64(i)
+                    }
+                })
+                .or_else(|| x.as_u64().map(Bson::from))
+                .or_else(|| x.as_f64().map(Bson::from))
+                .unwrap_or_else(|| panic!("invalid number")),
+            Value::String(x) => Bson::String(x),
+            Value::Bool(x) => Bson::Boolean(x),
+            Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from_value_no_parse).collect()),
+            Value::Object(x) => Bson::Document(
+                x.into_iter()
+                    .map(|(k, v)| (k, Bson::from_value_no_parse(v)))
+                    .collect(),
+            ),
+            Value::Null => Bson::Null,
+        }
+    }
+}
 
 impl Default for Bson {
     fn default() -> Self {
@@ -294,31 +327,115 @@ impl From<DbPointer> for Bson {
     }
 }
 
-impl From<Value> for Bson {
-    fn from(a: Value) -> Bson {
-        match a {
-            Value::Number(x) => x
-                .as_i64()
-                .map(|i| {
-                    if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
-                        Bson::Int32(i as i32)
-                    } else {
-                        Bson::Int64(i)
-                    }
-                })
-                .or_else(|| x.as_u64().map(Bson::from))
-                .or_else(|| x.as_f64().map(Bson::from))
-                .unwrap_or_else(|| panic!("Invalid number value: {}", x)),
-            Value::String(x) => x.into(),
-            Value::Bool(x) => x.into(),
-            Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from).collect()),
-            Value::Object(x) => Bson::from_extended_document(
-                x.into_iter().map(|(k, v)| (k, Bson::from(v))).collect(),
-            ),
-            Value::Null => Bson::Null,
+impl TryFrom<Value> for Bson {
+    type Error = DecoderError;
+
+    fn try_from(value: Value) -> DecoderResult<Self> {
+        if let Value::Object(ref obj) = value {
+            if obj.contains_key("$oid") {
+                #[derive(Deserialize)]
+                #[serde(deny_unknown_fields)]
+                struct ExtJsonOid {
+                    #[serde(rename = "$oid")]
+                    oid: String,
+                }
+
+                let oid: ExtJsonOid = serde_json::from_value(value.clone())?;
+                return Ok(Bson::ObjectId(ObjectId::with_string(oid.oid.as_str())?));
+            }
+
+            if obj.contains_key("$regularExpression") {
+                #[derive(Deserialize)]
+                #[serde(deny_unknown_fields)]
+                struct ExtJsonRegex {
+                    #[serde(rename = "$regularExpression")]
+                    regular_expression: ExtJsonRegexBody,
+                }
+
+                #[derive(Deserialize)]
+                #[serde(deny_unknown_fields)]
+                struct ExtJsonRegexBody {
+                    pattern: String,
+                    options: String,
+                }
+
+                let regex: ExtJsonRegex = serde_json::from_value(value.clone())?;
+                return Ok(Regex {
+                    pattern: regex.regular_expression.pattern,
+                    options: regex.regular_expression.options,
+                }
+                .into());
+            }
+
+            return Ok(Bson::Document(
+                obj.into_iter()
+                    .map(|(k, v)| -> DecoderResult<(String, Bson)> {
+                        let value: Bson = v.clone().try_into()?;
+                        Ok((k.clone(), value))
+                    })
+                    .collect::<DecoderResult<Vec<(String, Bson)>>>()?
+                    .into_iter()
+                    .collect(),
+            ));
         }
+
+        match Bson::from_value_no_parse(value) {
+            Bson::Document(doc) => Bson::try_from_extended_document(doc),
+            other => Ok(other),
+        }
+
+        // match value {
+        //     Value::Number(x) => x
+        //         .as_i64()
+        //         .map(|i| {
+        //             if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
+        //                 Bson::I32(i as i32)
+        //             } else {
+        //                 Bson::I64(i)
+        //             }
+        //         })
+        //         .or_else(|| x.as_u64().map(Bson::from))
+        //         .or_else(|| x.as_f64().map(Bson::from))
+        //         .ok_or_else(|| {
+        //             DecoderError::invalid_value(
+        //                 Unexpected::Other(format!("{}", x).as_str()),
+        //                 &"a number that could fit in i32, i64, or f64",
+        //             )
+        //         }),
+        //     Value::String(x) => Ok(x.into()),
+        //     Value::Bool(x) => Ok(x.into()),
+        //     Value::Array(x) => Ok(Bson::Array(
+        //         x.into_iter()
+        //             .map(Bson::try_from)
+        //             .collect::<DecoderResult<Vec<Bson>>>()?,
+        //     )),
+        //     Value::Object(x) => Bson::try_from_extended_document(
+        //         x.into_iter()
+        //             .map(|(k, v)| (k, Bson::try_from(v).unwrap()))
+        //             .collect(),
+        //     ),
+        //     Value::Null => Ok(Bson::Null),
+        //     Ok(Bson::Document(
+        //     doc.into_iter()
+        //         .map(|(k, v)| -> DecoderResult<(String, Bson)> {
+        //             let v = match v {
+        //                 Bson::Document(v) => Bson::try_from_extended_document(v)?,
+        //                 other => other,
+        //             };
+
+        //             Ok((k, v))
+        //         })
+        //         .collect::<DecoderResult<Vec<(String, Bson)>>>()?
+        //         .into_iter()
+        //         .collect(),
+        // ))
+        //    }
     }
 }
+
+// impl From<Value> for Bson {
+//     fn from(a: Value) -> Bson {}
+// }
 
 impl From<Bson> for Value {
     fn from(bson: Bson) -> Self {
@@ -676,7 +793,7 @@ impl Bson {
             }
 
             ["$binary"] => {
-                if let Some(binary) = Binary::from_extended_doc(&doc) {
+                if let Some(binary) = Binary::from_extended_doc(&doc).ok() {
                     return Bson::Binary(binary);
                 }
             }
@@ -825,6 +942,237 @@ impl Bson {
                 })
                 .collect(),
         )
+    }
+
+    pub(crate) fn try_from_extended_document(doc: Document) -> DecoderResult<Bson> {
+        let mut keys: Vec<_> = doc.keys().map(|s| s.as_str()).collect();
+        keys.sort();
+
+        if keys.contains(&"$oid") {
+            let oid = ObjectId::with_string(doc.get_str("$oid")?)?;
+            return Ok(Bson::ObjectId(oid));
+        }
+
+        if keys.contains(&"$symbol") {
+            return Ok(Bson::Symbol(doc.get_str("$symbol")?.to_string()));
+        }
+
+        if keys.contains(&"$numberInt") {
+            let istr = doc.get_str("$numberInt")?;
+            let i: i32 = istr
+                .parse()
+                .map_err(|_| DecoderError::invalid_value(Unexpected::Str(istr), &"expected i32"))?;
+            return Ok(Bson::I32(i));
+        }
+
+        if keys.contains(&"$numberLong") {
+            let istr = doc.get_str("$numberInt")?;
+            let i: i64 = istr
+                .parse()
+                .map_err(|_| DecoderError::invalid_value(Unexpected::Str(istr), &"expected i64"))?;
+            return Ok(Bson::I64(i));
+        }
+
+        if keys.contains(&"$numberDouble") {
+            return match doc.get_str("$numberDouble")? {
+                "Infinity" => Ok(Bson::FloatingPoint(f64::INFINITY)),
+                "-Infinity" => Ok(Bson::FloatingPoint(f64::NEG_INFINITY)),
+                "NaN" => Ok(Bson::FloatingPoint(f64::NAN)),
+                other => {
+                    let d: f64 = other.parse().map_err(|_| {
+                        DecoderError::invalid_value(Unexpected::Str(other), &"expected double")
+                    })?;
+                    Ok(Bson::FloatingPoint(d))
+                }
+            };
+        }
+
+        if keys.contains(&"$code") {
+            let code = doc.get_str("$code")?;
+
+            return match doc.get("$scope") {
+                Some(Bson::Document(_)) if keys.len() > 2 => {
+                    panic!("www");
+                }
+                Some(Bson::Document(scope)) => {
+                    Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                        code: code.to_string(),
+                        scope: scope.clone(),
+                    }))
+                }
+                Some(other) => Err(DecoderError::invalid_type(
+                    other.as_unexpected(),
+                    &"$scope should be a document",
+                )),
+                None if keys.len() > 1 => panic!("ww"),
+                None => Ok(Bson::JavaScriptCode(code.to_string())),
+            };
+        }
+
+        if keys.contains(&"$timestamp") {
+            let timestamp = doc.get_document("$timestamp")?;
+            let t = timestamp.get_i32("t")?;
+            let i = timestamp.get_i32("i")?;
+            return Ok(Bson::TimeStamp(TimeStamp {
+                time: t as u32,
+                increment: i as u32,
+            }));
+            // if let Ok(t) = timestamp.get_i64("t") {
+            //     if let Ok(i) = timestamp.get_i64("i") {
+            //         if t >= 0 && i >= 0 && t <= (u32::MAX as i64) && i <= (u32::MAX as i64)
+            //         {
+            //             return Bson::TimeStamp(TimeStamp {
+            //                 time: t as u32,
+            //                 increment: i as u32,
+            //             });
+            //         }
+            //     }
+            // }
+        }
+
+        if keys.contains(&"$regularExpression") {
+            println!("doc: {}", doc);
+
+            if let Some(other_field) = keys.iter().find(|key| key != &&"$regularExpression") {
+                return Err(DecoderError::unknown_field(
+                    other_field,
+                    &["$regularExpression"],
+                ));
+            }
+            let regex_doc = doc.get_document("$regularExpression")?;
+            let pattern = regex_doc.get_str("pattern")?;
+            let options = regex_doc.get_str("options")?;
+
+            println!("regex doc: {}", regex_doc);
+
+            if let Some(other_field) = regex_doc
+                .keys()
+                .find(|key| key != &&"$pattern" && key != &&"$options")
+            {
+                return Err(DecoderError::unknown_field(
+                    other_field,
+                    &["$options", "$pattern"],
+                ));
+            }
+
+            let mut options: Vec<_> = options.chars().collect();
+            options.sort();
+
+            return Ok(Bson::Regex(Regex {
+                pattern: pattern.into(),
+                options: options.into_iter().collect(),
+            }));
+        }
+
+        if keys.contains(&"$dbPointer") {
+            let db_pointer = doc.get_document("$dbPointer")?;
+            let ns = db_pointer.get_str("$ref")?;
+            let id = db_pointer.get_object_id("$id")?;
+
+            return Ok(Bson::DbPointer(DbPointer {
+                namespace: ns.into(),
+                id: id.clone(),
+            }));
+        }
+
+        if keys.contains(&"$date") {
+            return match doc.get("$date") {
+                Some(Bson::I64(date)) => {
+                    let mut num_secs = date / 1000;
+                    let mut num_millis = date % 1000;
+
+                    // The chrono API only lets us create a DateTime with an i64 number of seconds
+                    // and a u32 number of nanoseconds. In the case of a negative timestamp, this
+                    // means that we need to turn the negative fractional part into a positive and
+                    // shift the number of seconds down. For example:
+                    //
+                    //     date       = -4300 ms
+                    //     num_secs   = date / 1000 = -4300 / 1000 = -4
+                    //     num_millis = date % 1000 = -4300 % 1000 = -300
+                    //
+                    // Since num_millis is less than 0:
+                    //     num_secs   = num_secs -1 = -4 - 1 = -5
+                    //     num_millis = num_nanos + 1000 = -300 + 1000 = 700
+                    //
+                    // Instead of -4 seconds and -300 milliseconds, we now have -5 seconds and +700
+                    // milliseconds, which expresses the same timestamp, but in a way we can create
+                    // a DateTime with.
+                    if num_millis < 0 {
+                        num_secs -= 1;
+                        num_millis += 1000;
+                    };
+
+                    Ok(Bson::UtcDatetime(
+                        Utc.timestamp(num_secs, num_millis as u32 * 1_000_000),
+                    ))
+                }
+                Some(Bson::String(date)) => {
+                    let datetime = DateTime::parse_from_rfc3339(date).map_err(|_| {
+                        DecoderError::invalid_value(
+                            Unexpected::Str(date),
+                            &"rfc3339 formatted utc datetime",
+                        )
+                    })?;
+                    Ok(Bson::UtcDatetime(datetime.into()))
+                }
+                Some(other) => Err(DecoderError::invalid_type(
+                    other.as_unexpected(),
+                    &"i64 containing a datetime or an rfc3339 formated utc datetime as a string",
+                )),
+                None => Err(DecoderError::missing_field("$date")), // should never happen
+            };
+        }
+
+        if keys.contains(&"$minKey") {
+            let min_key = doc.get("$minKey");
+
+            return match min_key {
+                Some(Bson::I32(1)) | Some(Bson::I64(1)) => Ok(Bson::MinKey),
+                Some(other) => Err(DecoderError::invalid_value(
+                    other.as_unexpected(),
+                    &"value of $minKey should always be 1",
+                )),
+                None => Err(DecoderError::missing_field("$minKey")), // should never happen
+            };
+        }
+
+        if keys.contains(&"$maxKey") {
+            return match doc.get("$maxKey") {
+                Some(Bson::I32(1)) | Some(Bson::I64(1)) => Ok(Bson::MaxKey),
+                Some(other) => Err(DecoderError::invalid_value(
+                    other.as_unexpected(),
+                    &"value of $maxKey should always be 1",
+                )),
+                None => Err(DecoderError::missing_field("$maxKey")), // should never happen
+            };
+        }
+
+        if keys.contains(&"$undefined") {
+            let undefined = doc.get_bool("$undefined")?;
+            return if undefined {
+                Ok(Bson::Undefined)
+            } else {
+                Err(DecoderError::invalid_value(
+                    Unexpected::Bool(false),
+                    &"$undefined should always be true",
+                ))
+            };
+        }
+
+        Ok(Bson::Document(
+            doc.into_iter()
+                .map(|(k, v)| -> DecoderResult<(String, Bson)> {
+                    let v = match v {
+                        Bson::Document(v) => Bson::try_from_extended_document(v)?,
+                        other => other,
+                    };
+
+                    Ok((k, v))
+                })
+                .collect::<DecoderResult<Vec<(String, Bson)>>>()?
+                .into_iter()
+                .collect(),
+        ))
     }
 }
 
@@ -1089,20 +1437,27 @@ pub struct Binary {
 }
 
 impl Binary {
-    fn from_extended_doc(doc: &Document) -> Option<Self> {
-        let binary = doc.get_document("$binary").ok()?;
-        let bytes = binary.get_str("base64").ok()?;
-        let bytes = base64::decode(bytes).ok()?;
-        let subtype = binary.get_str("subType").ok()?;
-        let subtype = hex::decode(subtype).ok()?;
+    fn from_extended_doc(doc: &Document) -> DecoderResult<Self> {
+        let binary = doc.get_document("$binary")?;
+        let bytes_str = binary.get_str("base64")?;
+        let bytes = base64::decode(bytes_str).map_err(|_| {
+            DecoderError::invalid_value(Unexpected::Str(bytes_str), &"base64 encoded bytes")
+        })?;
+        let subtype = binary.get_str("subType")?;
+        let subtype = hex::decode(subtype).map_err(|_| {
+            DecoderError::invalid_value(Unexpected::Str(subtype), &"hexadecimal number as a string")
+        })?;
 
         if subtype.len() == 1 {
-            Some(Self {
+            Ok(Self {
                 bytes,
                 subtype: subtype[0].into(),
             })
         } else {
-            None
+            Err(DecoderError::invalid_value(
+                Unexpected::Bytes(subtype.as_slice()),
+                &"one byte subtype",
+            ))
         }
     }
 }

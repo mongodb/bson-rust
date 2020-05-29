@@ -2,10 +2,10 @@
 
 use bson::{bson, doc, spec::BinarySubtype, Binary, Bson, Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-use serde_derive::{Deserialize, Serialize};
+// use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, convert::TryFrom};
 
 #[test]
 fn test_ser_vec() {
@@ -474,12 +474,13 @@ fn test_ser_db_pointer() {
         db_pointer: DbPointer,
     }
 
-    let db_pointer = Bson::from(json!({
+    let db_pointer = Bson::try_from(json!({
         "$dbPointer": {
             "$ref": "db.coll",
             "$id": { "$oid": "507f1f77bcf86cd799439011" },
         }
-    }));
+    }))
+    .unwrap();
 
     let db_pointer = db_pointer.as_db_pointer().unwrap();
 
@@ -506,12 +507,13 @@ fn test_de_db_pointer() {
         db_pointer: DbPointer,
     }
 
-    let db_pointer = Bson::from(json!({
+    let db_pointer = Bson::try_from(json!({
         "$dbPointer": {
             "$ref": "db.coll",
             "$id": { "$oid": "507f1f77bcf86cd799439011" },
         }
-    }));
+    }))
+    .unwrap();
     let db_pointer = db_pointer.as_db_pointer().unwrap();
 
     let foo: Foo = bson::from_bson(Bson::Document(
