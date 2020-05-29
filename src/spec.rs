@@ -52,6 +52,7 @@ const BINARY_SUBTYPE_BINARY_OLD: u8 = 0x02;
 const BINARY_SUBTYPE_UUID_OLD: u8 = 0x03;
 const BINARY_SUBTYPE_UUID: u8 = 0x04;
 const BINARY_SUBTYPE_MD5: u8 = 0x05;
+const BINARY_SUBTYPE_ENCRYPTED: u8 = 0x06;
 
 /// All available BSON element types.
 ///
@@ -148,6 +149,7 @@ pub enum BinarySubtype {
     UuidOld,
     Uuid,
     Md5,
+    Encrypted,
     UserDefined(u8),
 }
 
@@ -161,6 +163,7 @@ impl From<BinarySubtype> for u8 {
             BinarySubtype::UuidOld => BINARY_SUBTYPE_UUID_OLD,
             BinarySubtype::Uuid => BINARY_SUBTYPE_UUID,
             BinarySubtype::Md5 => BINARY_SUBTYPE_MD5,
+            BinarySubtype::Encrypted => BINARY_SUBTYPE_ENCRYPTED,
             BinarySubtype::UserDefined(x) => x,
         }
     }
@@ -176,6 +179,7 @@ impl From<u8> for BinarySubtype {
             BINARY_SUBTYPE_UUID_OLD => BinarySubtype::UuidOld,
             BINARY_SUBTYPE_UUID => BinarySubtype::Uuid,
             BINARY_SUBTYPE_MD5 => BinarySubtype::Md5,
+            BINARY_SUBTYPE_ENCRYPTED => BinarySubtype::Encrypted,
             _ => BinarySubtype::UserDefined(t),
         }
     }
