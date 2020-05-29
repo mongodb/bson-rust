@@ -20,7 +20,7 @@ use serde::de::{self, MapAccess, Visitor};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Binary, Bson, TimeStamp},
+    bson::{Array, Binary, Bson, Timestamp},
     decoder::{decode_bson_kvp, read_i32, DecoderResult},
     encoder::{encode_bson, write_i32, EncoderResult},
     oid::ObjectId,

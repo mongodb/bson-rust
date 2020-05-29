@@ -3,8 +3,15 @@ use std::io::{Cursor, Write};
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
 use bson::{
-    decode_document, doc, encode_document, oid::ObjectId, spec::BinarySubtype, Binary, Bson,
-    JavaScriptCodeWithScope, Regex, Timestamp,
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    Binary,
+    Bson,
+    Document,
+    JavaScriptCodeWithScope,
+    Regex,
+    Timestamp,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::{offset::TimeZone, Utc};
