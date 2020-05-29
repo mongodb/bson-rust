@@ -4,7 +4,7 @@ use serde::de::{
     self,
     Deserialize,
     DeserializeSeed,
-    Deserializer as SerdeDeserializer,
+    Deserializer as _,
     EnumAccess,
     Error,
     MapAccess,

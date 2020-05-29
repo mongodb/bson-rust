@@ -44,7 +44,7 @@ use crate::{
     Decimal128,
 };
 
-use ::serde::de::{self, Error as SerdeError};
+use ::serde::de::{self, Error as _};
 
 const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 
@@ -151,7 +151,9 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
     let val = match ElementType::from(tag) {
         Some(ElementType::Double) => Bson::Double(reader.read_f64::<LittleEndian>()?),
         Some(ElementType::String) => read_string(reader, utf8_lossy).map(Bson::String)?,
-        Some(ElementType::EmbeddedDocument) => Document::deserialize(reader).map(Bson::Document)?,
+        Some(ElementType::EmbeddedDocument) => {
+            Document::deserialize_from(reader).map(Bson::Document)?
+        }
         Some(ElementType::Array) => deserialize_array(reader, utf8_lossy).map(Bson::Array)?,
         Some(ElementType::Binary) => {
             let mut len = read_i32(reader)?;
@@ -203,7 +205,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             read_i32(reader)?;
 
             let code = read_string(reader, utf8_lossy)?;
-            let scope = Document::deserialize(reader)?;
+            let scope = Document::deserialize_from(reader)?;
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope })
         }
         Some(ElementType::Int32) => read_i32(reader).map(Bson::Int32)?,

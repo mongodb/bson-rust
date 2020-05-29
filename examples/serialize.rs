@@ -16,10 +16,10 @@ fn main() {
     doc.insert("array".to_string(), Bson::Array(arr));
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     println!("Serialized: {:?}", buf);
 
-    let doc = Document::deserialize(&mut Cursor::new(&buf[..])).unwrap();
+    let doc = Document::deserialize_from(&mut Cursor::new(&buf[..])).unwrap();
     println!("Deserialized: {:?}", doc);
 }

@@ -27,11 +27,11 @@ fn test_serialize_deserialize_floating_point() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -46,11 +46,11 @@ fn test_serialize_deserialize_utf8_string() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -65,11 +65,11 @@ fn test_serialize_deserialize_array() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -84,11 +84,11 @@ fn test_serialize_deserialize() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -100,11 +100,11 @@ fn test_serialize_deserialize_boolean() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -116,11 +116,11 @@ fn test_serialize_deserialize_null() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -135,11 +135,11 @@ fn test_serialize_deserialize_regexp() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -151,11 +151,11 @@ fn test_serialize_deserialize_javascript_code() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -172,11 +172,11 @@ fn test_serialize_deserialize_javascript_code_with_scope() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -188,11 +188,11 @@ fn test_serialize_deserialize_i32() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -206,11 +206,11 @@ fn test_serialize_deserialize_i64() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -227,11 +227,11 @@ fn test_serialize_deserialize_timestamp() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -248,11 +248,11 @@ fn test_serialize_binary_generic() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -266,11 +266,11 @@ fn test_serialize_deserialize_object_id() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -284,11 +284,11 @@ fn test_serialize_utc_date_time() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -302,11 +302,11 @@ fn test_serialize_deserialize_symbol() {
     let doc = doc! { "key": symbol };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -323,7 +323,7 @@ fn test_deserialize_utc_date_time_overflows() {
     raw.write_all(&raw0).unwrap();
     raw.write_u8(0).unwrap();
 
-    let deserialized = Document::deserialize(&mut Cursor::new(raw)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(raw)).unwrap();
 
     let expected = doc! { "A": Utc.timestamp(1_530_492_218, 999 * 1_000_000)};
     assert_eq!(deserialized, expected);
@@ -333,14 +333,14 @@ fn test_deserialize_utc_date_time_overflows() {
 fn test_deserialize_invalid_utf8_string_issue64() {
     let buffer = b"\x13\x00\x00\x00\x02\x01\x00\x00\x00\x00\x00\x00\x00foo\x00\x13\x05\x00\x00\x00";
 
-    assert!(Document::deserialize(&mut Cursor::new(buffer)).is_err());
+    assert!(Document::deserialize_from(&mut Cursor::new(buffer)).is_err());
 }
 
 #[test]
 fn test_deserialize_multiply_overflows_issue64() {
     let buffer = b"*\xc9*\xc9\t\x00\x00\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\x01\t\x00\x00\x01\x10";
 
-    assert!(Document::deserialize(&mut Cursor::new(&buffer[..])).is_err());
+    assert!(Document::deserialize_from(&mut Cursor::new(&buffer[..])).is_err());
 }
 
 #[cfg(feature = "decimal128")]
@@ -354,11 +354,11 @@ fn test_serialize_deserialize_decimal128() {
     let doc = doc! { "key": val };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -367,7 +367,7 @@ fn test_illegal_size() {
     let buffer = [
         0x06, 0xcc, 0xf9, 0x0a, 0x05, 0x00, 0x00, 0x03, 0x00, 0xff, 0xff,
     ];
-    assert!(Document::deserialize(&mut Cursor::new(&buffer[..])).is_err());
+    assert!(Document::deserialize_from(&mut Cursor::new(&buffer[..])).is_err());
 }
 
 #[test]
@@ -378,11 +378,11 @@ fn test_serialize_deserialize_undefined() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -394,11 +394,11 @@ fn test_serialize_deserialize_min_key() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -410,11 +410,11 @@ fn test_serialize_deserialize_max_key() {
     let doc = doc! {"key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -434,10 +434,10 @@ fn test_serialize_deserialize_db_pointer() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.serialize_doc(&mut buf).unwrap();
+    doc.serialize_to(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::deserialize(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::deserialize_from(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }

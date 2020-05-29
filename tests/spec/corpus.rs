@@ -55,7 +55,7 @@ fn run_test(test: TestFile) {
     for valid in test.valid {
         let description = format!("{}: {}", test.description, valid.description);
 
-        let bson_to_native_cb = Document::deserialize(
+        let bson_to_native_cb = Document::deserialize_from(
             &mut hex::decode(&valid.canonical_bson)
                 .expect(&description)
                 .as_slice(),
@@ -64,7 +64,7 @@ fn run_test(test: TestFile) {
 
         let mut native_to_bson_bson_to_native_cv = Vec::new();
         bson_to_native_cb
-            .serialize_doc(&mut native_to_bson_bson_to_native_cv)
+            .serialize_to(&mut native_to_bson_bson_to_native_cv)
             .expect(&description);
 
         // TODO RUST-36: Enable decimal128 tests.
@@ -154,7 +154,7 @@ fn run_test(test: TestFile) {
             json_to_native_cej
                 .as_document()
                 .unwrap()
-                .serialize_doc(&mut native_to_bson_json_to_native_cej)
+                .serialize_to(&mut native_to_bson_json_to_native_cej)
                 .unwrap();
 
             // TODO RUST-36: Enable decimal128 tests.
@@ -172,12 +172,12 @@ fn run_test(test: TestFile) {
 
         if let Some(db) = valid.degenerate_bson {
             let bson_to_native_db =
-                Document::deserialize(&mut hex::decode(&db).expect(&description).as_slice())
+                Document::deserialize_from(&mut hex::decode(&db).expect(&description).as_slice())
                     .expect(&description);
 
             let mut native_to_bson_bson_to_native_db = Vec::new();
             bson_to_native_db
-                .serialize_doc(&mut native_to_bson_bson_to_native_db)
+                .serialize_to(&mut native_to_bson_bson_to_native_db)
                 .unwrap();
 
             assert_eq!(
@@ -215,7 +215,7 @@ fn run_test(test: TestFile) {
                 json_to_native_dej
                     .as_document()
                     .unwrap()
-                    .serialize_doc(&mut native_to_bson_json_to_native_dej)
+                    .serialize_to(&mut native_to_bson_json_to_native_dej)
                     .unwrap();
 
                 // TODO RUST-36: Enable decimal128 tests.
