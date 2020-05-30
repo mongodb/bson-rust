@@ -1,8 +1,8 @@
 use std::{error, fmt, fmt::Display, io, string};
 
+use serde::de::{self, Error as _, Unexpected};
+
 use crate::{document::ValueAccessError, oid, Bson};
-use de::Unexpected;
-use serde::de::{self, Error as _};
 
 /// Possible errors that can arise during decoding.
 #[derive(Debug)]

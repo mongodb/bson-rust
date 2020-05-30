@@ -118,13 +118,6 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Document {
     }
 }
 
-// impl TryFrom<serde_json::Value> for Document {
-//     type Error = crate::DecoderError;
-//     fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-//         unimplemented!()
-//     }
-// }
-
 /// An iterator over Document entries.
 pub struct DocumentIntoIterator {
     inner: LinkedHashMap<String, Bson>,

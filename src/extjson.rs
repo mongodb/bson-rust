@@ -1,11 +1,12 @@
 //! A module defining serde models for the extended JSON representations of the various BSON types.
 
-use crate::{oid, Bson, DecoderError, DecoderResult};
 use chrono::{TimeZone, Utc};
 use serde::{
     de::{Error, Unexpected},
     Deserialize,
 };
+
+use crate::{oid, Bson, DecoderError, DecoderResult};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

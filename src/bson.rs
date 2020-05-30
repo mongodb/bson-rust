@@ -36,9 +36,7 @@ use crate::{
     extjson,
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
-    Decimal128,
-    DecoderError,
-    DecoderResult,
+    Decimal128, DecoderError, DecoderResult,
 };
 
 /// Possible BSON value types.
@@ -794,7 +792,7 @@ impl Bson {
             }
 
             ["$binary"] => {
-                if let Ok(binary) = Binary::from_extended_doc(&doc) {
+                if let Some(binary) = Binary::from_extended_doc(&doc) {
                     return Bson::Binary(binary);
                 }
             }
@@ -1207,27 +1205,20 @@ pub struct Binary {
 }
 
 impl Binary {
-    fn from_extended_doc(doc: &Document) -> DecoderResult<Self> {
-        let binary = doc.get_document("$binary")?;
-        let bytes_str = binary.get_str("base64")?;
-        let bytes = base64::decode(bytes_str).map_err(|_| {
-            DecoderError::invalid_value(Unexpected::Str(bytes_str), &"base64 encoded bytes")
-        })?;
-        let subtype = binary.get_str("subType")?;
-        let subtype = hex::decode(subtype).map_err(|_| {
-            DecoderError::invalid_value(Unexpected::Str(subtype), &"hexadecimal number as a string")
-        })?;
+    fn from_extended_doc(doc: &Document) -> Option<Self> {
+        let binary = doc.get_document("$binary").ok()?;
+        let bytes = binary.get_str("base64").ok()?;
+        let bytes = base64::decode(bytes).ok()?;
+        let subtype = binary.get_str("subType").ok()?;
+        let subtype = hex::decode(subtype).ok()?;
 
         if subtype.len() == 1 {
-            Ok(Self {
+            Some(Self {
                 bytes,
                 subtype: subtype[0].into(),
             })
         } else {
-            Err(DecoderError::invalid_value(
-                Unexpected::Bytes(subtype.as_slice()),
-                &"one byte subtype",
-            ))
+            None
         }
     }
 }
