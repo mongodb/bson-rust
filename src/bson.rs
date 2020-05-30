@@ -28,10 +28,7 @@ use std::{
 };
 
 use chrono::{DateTime, Datelike, SecondsFormat, TimeZone, Utc};
-use serde::{
-    de::{Error, Unexpected},
-    Deserialize,
-};
+use serde::de::{Error, Unexpected};
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
@@ -39,7 +36,9 @@ use crate::{
     extjson,
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
-    Decimal128, DecoderError, DecoderResult,
+    Decimal128,
+    DecoderError,
+    DecoderResult,
 };
 
 /// Possible BSON value types.
@@ -91,34 +90,6 @@ pub enum Bson {
 
 /// Alias for `Vec<Bson>`.
 pub type Array = Vec<Bson>;
-
-impl Bson {
-    fn from_value_no_parse(value: serde_json::Value) -> Self {
-        match value {
-            Value::Number(x) => x
-                .as_i64()
-                .map(|i| {
-                    if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
-                        Bson::I32(i as i32)
-                    } else {
-                        Bson::I64(i)
-                    }
-                })
-                .or_else(|| x.as_u64().map(Bson::from))
-                .or_else(|| x.as_f64().map(Bson::from))
-                .unwrap_or_else(|| panic!("invalid number")),
-            Value::String(x) => Bson::String(x),
-            Value::Bool(x) => Bson::Boolean(x),
-            Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from_value_no_parse).collect()),
-            Value::Object(x) => Bson::Document(
-                x.into_iter()
-                    .map(|(k, v)| (k, Bson::from_value_no_parse(v)))
-                    .collect(),
-            ),
-            Value::Null => Bson::Null,
-        }
-    }
-}
 
 impl Default for Bson {
     fn default() -> Self {
@@ -425,10 +396,10 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
 
         if obj.contains_key("$undefined") {
             let undefined: extjson::Undefined = serde_json::from_value(obj.into())?;
-            return Ok(undefined.parse()?.into());
+            return Ok(undefined.parse()?);
         }
 
-        return Ok(Bson::Document(obj.try_into()?));
+        Ok(Bson::Document(obj.try_into()?))
     }
 }
 
@@ -823,7 +794,7 @@ impl Bson {
             }
 
             ["$binary"] => {
-                if let Some(binary) = Binary::from_extended_doc(&doc).ok() {
+                if let Ok(binary) = Binary::from_extended_doc(&doc) {
                     return Bson::Binary(binary);
                 }
             }

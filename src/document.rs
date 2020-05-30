@@ -109,8 +109,8 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Document {
         Ok(obj
             .into_iter()
             .map(|(k, v)| -> DecoderResult<(String, Bson)> {
-                let value: Bson = v.clone().try_into()?;
-                Ok((k.clone(), value))
+                let value: Bson = v.try_into()?;
+                Ok((k, value))
             })
             .collect::<DecoderResult<Vec<(String, Bson)>>>()?
             .into_iter()

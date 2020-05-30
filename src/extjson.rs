@@ -194,8 +194,7 @@ impl Timestamp {
         Ok(crate::TimeStamp {
             time: self.body.t,
             increment: self.body.i,
-        }
-        .into())
+        })
     }
 }
 
@@ -243,9 +242,9 @@ impl DateTime {
                     num_millis += 1000;
                 };
 
-                return Ok(Utc
+                Ok(Utc
                     .timestamp(num_secs, num_millis as u32 * 1_000_000)
-                    .into());
+                    .into())
             }
             DateTimeBody::Relaxed(date) => {
                 let datetime: chrono::DateTime<Utc> =
@@ -257,7 +256,7 @@ impl DateTime {
                             )
                         })?
                         .into();
-                return Ok(datetime.into());
+                Ok(datetime.into())
             }
         }
     }
