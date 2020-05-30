@@ -336,8 +336,99 @@ impl From<DbPointer> for Bson {
 
 impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
     type Error = DecoderError;
-    fn try_from(value: serde_json::Map<String, serde_json::Value>) -> Result<Self, Self::Error> {
-        unimplemented!()
+    fn try_from(obj: serde_json::Map<String, serde_json::Value>) -> Result<Self, Self::Error> {
+        if obj.contains_key("$oid") {
+            let oid: extjson::ObjectId = serde_json::from_value(obj.into())?;
+            return Ok(Bson::ObjectId(oid.parse()?));
+        }
+
+        if obj.contains_key("$symbol") {
+            let symbol: extjson::Symbol = serde_json::from_value(obj.into())?;
+            return Ok(Bson::Symbol(symbol.value));
+        }
+
+        if obj.contains_key("$regularExpression") {
+            let regex: extjson::Regex = serde_json::from_value(obj.into())?;
+            return Ok(regex.parse()?.into());
+        }
+
+        if obj.contains_key("$numberInt") {
+            let int: extjson::Int32 = serde_json::from_value(obj.into())?;
+            return Ok(Bson::I32(int.parse()?));
+        }
+
+        if obj.contains_key("$numberLong") {
+            let int: extjson::Int64 = serde_json::from_value(obj.into())?;
+            return Ok(Bson::I64(int.parse()?));
+        }
+
+        if obj.contains_key("$numberDouble") {
+            let double: extjson::Double = serde_json::from_value(obj.into())?;
+            return Ok(Bson::FloatingPoint(double.parse()?));
+        }
+
+        if obj.contains_key("$binary") {
+            let binary: extjson::Binary = serde_json::from_value(obj.into())?;
+            return Ok(Bson::Binary(binary.parse()?));
+        }
+
+        if obj.contains_key("$code") {
+            let code_w_scope: extjson::JavaScriptCodeWithScope =
+                serde_json::from_value(obj.into())?;
+            return match code_w_scope.scope {
+                Some(scope) => Ok(JavaScriptCodeWithScope {
+                    code: code_w_scope.code,
+                    scope: scope.try_into()?,
+                }
+                .into()),
+                None => Ok(Bson::JavaScriptCode(code_w_scope.code)),
+            };
+        }
+
+        if obj.contains_key("$timestamp") {
+            let ts: extjson::Timestamp = serde_json::from_value(obj.into())?;
+            return Ok(ts.parse()?.into());
+        }
+
+        if obj.contains_key("$date") {
+            let extjson_datetime: extjson::DateTime = serde_json::from_value(obj.into())?;
+            return Ok(Bson::UtcDatetime(extjson_datetime.parse()?.0));
+        }
+
+        if obj.contains_key("$minKey") {
+            let min_key: extjson::MinKey = serde_json::from_value(obj.into())?;
+            return Ok(min_key.parse()?);
+        }
+
+        if obj.contains_key("$maxKey") {
+            let max_key: extjson::MaxKey = serde_json::from_value(obj.into())?;
+            return Ok(max_key.parse()?);
+        }
+
+        if obj.contains_key("$dbPointer") {
+            let db_ptr: extjson::DbPointer = serde_json::from_value(obj.into())?;
+            return Ok(db_ptr.parse()?.into());
+        }
+
+        if obj.contains_key("$numberDecimal") {
+            #[cfg(feature = "decimal128")]
+            {
+                let decimal: extjson::Decimal128 = serde_json::from_value(obj.into())?;
+                return Ok(Bson::Decimal128(decimal.parse()?));
+            }
+
+            #[cfg(not(feature = "decimal128"))]
+            return Err(DecoderError::custom(
+                "decimal128 extjson support not implemented",
+            ));
+        }
+
+        if obj.contains_key("$undefined") {
+            let undefined: extjson::Undefined = serde_json::from_value(obj.into())?;
+            return Ok(undefined.parse()?.into());
+        }
+
+        return Ok(Bson::Document(obj.try_into()?));
     }
 }
 
@@ -345,101 +436,6 @@ impl TryFrom<Value> for Bson {
     type Error = DecoderError;
 
     fn try_from(value: Value) -> DecoderResult<Self> {
-        if let Value::Object(ref obj) = value {
-            if obj.contains_key("$oid") {
-                let oid: extjson::ObjectId = serde_json::from_value(value.clone())?;
-                return Ok(Bson::ObjectId(oid.parse()?));
-            }
-
-            if obj.contains_key("$symbol") {
-                let symbol: extjson::Symbol = serde_json::from_value(value.clone())?;
-                return Ok(Bson::Symbol(symbol.value));
-            }
-
-            if obj.contains_key("$regularExpression") {
-                let regex: extjson::Regex = serde_json::from_value(value.clone())?;
-                return Ok(regex.parse()?.into());
-            }
-
-            if obj.contains_key("$numberInt") {
-                let int: extjson::Int32 = serde_json::from_value(value.clone())?;
-                return Ok(Bson::I32(int.parse()?));
-            }
-
-            if obj.contains_key("$numberLong") {
-                let int: extjson::Int64 = serde_json::from_value(value.clone())?;
-                return Ok(Bson::I64(int.parse()?));
-            }
-
-            if obj.contains_key("$numberDouble") {
-                let double: extjson::Double = serde_json::from_value(value.clone())?;
-                return Ok(Bson::FloatingPoint(double.parse()?));
-            }
-
-            if obj.contains_key("$binary") {
-                let binary: extjson::Binary = serde_json::from_value(value.clone())?;
-                return Ok(Bson::Binary(binary.parse()?));
-            }
-
-            if obj.contains_key("$code") {
-                let code_w_scope: extjson::JavaScriptCodeWithScope =
-                    serde_json::from_value(value.clone())?;
-                return match code_w_scope.scope {
-                    Some(scope) => Ok(JavaScriptCodeWithScope {
-                        code: code_w_scope.code,
-                        scope: Document::from_ext_json(scope)?,
-                    }
-                    .into()),
-                    None => Ok(Bson::JavaScriptCode(code_w_scope.code)),
-                };
-            }
-
-            if obj.contains_key("$timestamp") {
-                let ts: extjson::Timestamp = serde_json::from_value(value.clone())?;
-                return Ok(ts.parse()?.into());
-            }
-
-            if obj.contains_key("$date") {
-                let extjson_datetime: extjson::DateTime = serde_json::from_value(value.clone())?;
-                return Ok(Bson::UtcDatetime(extjson_datetime.parse()?.0));
-            }
-
-            if obj.contains_key("$minKey") {
-                let min_key: extjson::MinKey = serde_json::from_value(value.clone())?;
-                return Ok(min_key.parse()?);
-            }
-
-            if obj.contains_key("$maxKey") {
-                let max_key: extjson::MaxKey = serde_json::from_value(value.clone())?;
-                return Ok(max_key.parse()?);
-            }
-
-            if obj.contains_key("$dbPointer") {
-                let db_ptr: extjson::DbPointer = serde_json::from_value(value.clone())?;
-                return Ok(db_ptr.parse()?.into());
-            }
-
-            if obj.contains_key("$numberDecimal") {
-                #[cfg(feature = "decimal128")]
-                {
-                    let decimal: extjson::Decimal128 = serde_json::from_value(value.clone())?;
-                    return Ok(Bson::Decimal128(decimal.parse()?));
-                }
-
-                #[cfg(not(feature = "decimal128"))]
-                return Err(DecoderError::custom(
-                    "decimal128 extjson support not implemented",
-                ));
-            }
-
-            if obj.contains_key("$undefined") {
-                let undefined: extjson::Undefined = serde_json::from_value(value.clone())?;
-                return Ok(undefined.parse()?.into());
-            }
-
-            return Ok(Bson::Document(Document::from_ext_json(obj.clone())?));
-        }
-
         match value {
             Value::Number(x) => x
                 .as_i64()
@@ -466,14 +462,10 @@ impl TryFrom<Value> for Bson {
                     .collect::<DecoderResult<Vec<Bson>>>()?,
             )),
             Value::Null => Ok(Bson::Null),
-            _ => panic!("woo"),
+            Value::Object(map) => map.try_into(),
         }
     }
 }
-
-// impl From<Value> for Bson {
-//     fn from(a: Value) -> Bson {}
-// }
 
 impl From<Bson> for Value {
     fn from(bson: Bson) -> Self {
@@ -980,237 +972,6 @@ impl Bson {
                 })
                 .collect(),
         )
-    }
-
-    pub(crate) fn try_from_extended_document(doc: Document) -> DecoderResult<Bson> {
-        let mut keys: Vec<_> = doc.keys().map(|s| s.as_str()).collect();
-        keys.sort();
-
-        if keys.contains(&"$oid") {
-            let oid = ObjectId::with_string(doc.get_str("$oid")?)?;
-            return Ok(Bson::ObjectId(oid));
-        }
-
-        if keys.contains(&"$symbol") {
-            return Ok(Bson::Symbol(doc.get_str("$symbol")?.to_string()));
-        }
-
-        if keys.contains(&"$numberInt") {
-            let istr = doc.get_str("$numberInt")?;
-            let i: i32 = istr
-                .parse()
-                .map_err(|_| DecoderError::invalid_value(Unexpected::Str(istr), &"expected i32"))?;
-            return Ok(Bson::I32(i));
-        }
-
-        if keys.contains(&"$numberLong") {
-            let istr = doc.get_str("$numberInt")?;
-            let i: i64 = istr
-                .parse()
-                .map_err(|_| DecoderError::invalid_value(Unexpected::Str(istr), &"expected i64"))?;
-            return Ok(Bson::I64(i));
-        }
-
-        if keys.contains(&"$numberDouble") {
-            return match doc.get_str("$numberDouble")? {
-                "Infinity" => Ok(Bson::FloatingPoint(f64::INFINITY)),
-                "-Infinity" => Ok(Bson::FloatingPoint(f64::NEG_INFINITY)),
-                "NaN" => Ok(Bson::FloatingPoint(f64::NAN)),
-                other => {
-                    let d: f64 = other.parse().map_err(|_| {
-                        DecoderError::invalid_value(Unexpected::Str(other), &"expected double")
-                    })?;
-                    Ok(Bson::FloatingPoint(d))
-                }
-            };
-        }
-
-        if keys.contains(&"$code") {
-            let code = doc.get_str("$code")?;
-
-            return match doc.get("$scope") {
-                Some(Bson::Document(_)) if keys.len() > 2 => {
-                    panic!("www");
-                }
-                Some(Bson::Document(scope)) => {
-                    Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
-                        code: code.to_string(),
-                        scope: scope.clone(),
-                    }))
-                }
-                Some(other) => Err(DecoderError::invalid_type(
-                    other.as_unexpected(),
-                    &"$scope should be a document",
-                )),
-                None if keys.len() > 1 => panic!("ww"),
-                None => Ok(Bson::JavaScriptCode(code.to_string())),
-            };
-        }
-
-        if keys.contains(&"$timestamp") {
-            let timestamp = doc.get_document("$timestamp")?;
-            let t = timestamp.get_i32("t")?;
-            let i = timestamp.get_i32("i")?;
-            return Ok(Bson::TimeStamp(TimeStamp {
-                time: t as u32,
-                increment: i as u32,
-            }));
-            // if let Ok(t) = timestamp.get_i64("t") {
-            //     if let Ok(i) = timestamp.get_i64("i") {
-            //         if t >= 0 && i >= 0 && t <= (u32::MAX as i64) && i <= (u32::MAX as i64)
-            //         {
-            //             return Bson::TimeStamp(TimeStamp {
-            //                 time: t as u32,
-            //                 increment: i as u32,
-            //             });
-            //         }
-            //     }
-            // }
-        }
-
-        if keys.contains(&"$regularExpression") {
-            println!("doc: {}", doc);
-
-            if let Some(other_field) = keys.iter().find(|key| key != &&"$regularExpression") {
-                return Err(DecoderError::unknown_field(
-                    other_field,
-                    &["$regularExpression"],
-                ));
-            }
-            let regex_doc = doc.get_document("$regularExpression")?;
-            let pattern = regex_doc.get_str("pattern")?;
-            let options = regex_doc.get_str("options")?;
-
-            println!("regex doc: {}", regex_doc);
-
-            if let Some(other_field) = regex_doc
-                .keys()
-                .find(|key| key != &&"$pattern" && key != &&"$options")
-            {
-                return Err(DecoderError::unknown_field(
-                    other_field,
-                    &["$options", "$pattern"],
-                ));
-            }
-
-            let mut options: Vec<_> = options.chars().collect();
-            options.sort();
-
-            return Ok(Bson::Regex(Regex {
-                pattern: pattern.into(),
-                options: options.into_iter().collect(),
-            }));
-        }
-
-        if keys.contains(&"$dbPointer") {
-            let db_pointer = doc.get_document("$dbPointer")?;
-            let ns = db_pointer.get_str("$ref")?;
-            let id = db_pointer.get_object_id("$id")?;
-
-            return Ok(Bson::DbPointer(DbPointer {
-                namespace: ns.into(),
-                id: id.clone(),
-            }));
-        }
-
-        if keys.contains(&"$date") {
-            return match doc.get("$date") {
-                Some(Bson::I64(date)) => {
-                    let mut num_secs = date / 1000;
-                    let mut num_millis = date % 1000;
-
-                    // The chrono API only lets us create a DateTime with an i64 number of seconds
-                    // and a u32 number of nanoseconds. In the case of a negative timestamp, this
-                    // means that we need to turn the negative fractional part into a positive and
-                    // shift the number of seconds down. For example:
-                    //
-                    //     date       = -4300 ms
-                    //     num_secs   = date / 1000 = -4300 / 1000 = -4
-                    //     num_millis = date % 1000 = -4300 % 1000 = -300
-                    //
-                    // Since num_millis is less than 0:
-                    //     num_secs   = num_secs -1 = -4 - 1 = -5
-                    //     num_millis = num_nanos + 1000 = -300 + 1000 = 700
-                    //
-                    // Instead of -4 seconds and -300 milliseconds, we now have -5 seconds and +700
-                    // milliseconds, which expresses the same timestamp, but in a way we can create
-                    // a DateTime with.
-                    if num_millis < 0 {
-                        num_secs -= 1;
-                        num_millis += 1000;
-                    };
-
-                    Ok(Bson::UtcDatetime(
-                        Utc.timestamp(num_secs, num_millis as u32 * 1_000_000),
-                    ))
-                }
-                Some(Bson::String(date)) => {
-                    let datetime = DateTime::parse_from_rfc3339(date).map_err(|_| {
-                        DecoderError::invalid_value(
-                            Unexpected::Str(date),
-                            &"rfc3339 formatted utc datetime",
-                        )
-                    })?;
-                    Ok(Bson::UtcDatetime(datetime.into()))
-                }
-                Some(other) => Err(DecoderError::invalid_type(
-                    other.as_unexpected(),
-                    &"i64 containing a datetime or an rfc3339 formated utc datetime as a string",
-                )),
-                None => Err(DecoderError::missing_field("$date")), // should never happen
-            };
-        }
-
-        if keys.contains(&"$minKey") {
-            let min_key = doc.get("$minKey");
-
-            return match min_key {
-                Some(Bson::I32(1)) | Some(Bson::I64(1)) => Ok(Bson::MinKey),
-                Some(other) => Err(DecoderError::invalid_value(
-                    other.as_unexpected(),
-                    &"value of $minKey should always be 1",
-                )),
-                None => Err(DecoderError::missing_field("$minKey")), // should never happen
-            };
-        }
-
-        if keys.contains(&"$maxKey") {
-            return match doc.get("$maxKey") {
-                Some(Bson::I32(1)) | Some(Bson::I64(1)) => Ok(Bson::MaxKey),
-                Some(other) => Err(DecoderError::invalid_value(
-                    other.as_unexpected(),
-                    &"value of $maxKey should always be 1",
-                )),
-                None => Err(DecoderError::missing_field("$maxKey")), // should never happen
-            };
-        }
-
-        if keys.contains(&"$undefined") {
-            let undefined = doc.get_bool("$undefined")?;
-            return if undefined {
-                Ok(Bson::Undefined)
-            } else {
-                Err(DecoderError::invalid_value(
-                    Unexpected::Bool(false),
-                    &"$undefined should always be true",
-                ))
-            };
-        }
-
-        Ok(Bson::Document(
-            doc.into_iter()
-                .map(|(k, v)| -> DecoderResult<(String, Bson)> {
-                    let v = match v {
-                        Bson::Document(v) => Bson::try_from_extended_document(v)?,
-                        other => other,
-                    };
-
-                    Ok((k, v))
-                })
-                .collect::<DecoderResult<Vec<(String, Bson)>>>()?
-                .into_iter()
-                .collect(),
-        ))
     }
 }
 

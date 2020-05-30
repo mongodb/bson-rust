@@ -102,10 +102,10 @@ impl Debug for Document {
     }
 }
 
-impl Document {
-    pub(crate) fn from_ext_json(
-        obj: serde_json::Map<String, serde_json::Value>,
-    ) -> DecoderResult<Self> {
+impl TryFrom<serde_json::Map<String, serde_json::Value>> for Document {
+    type Error = DecoderError;
+
+    fn try_from(obj: serde_json::Map<String, serde_json::Value>) -> DecoderResult<Self> {
         Ok(obj
             .into_iter()
             .map(|(k, v)| -> DecoderResult<(String, Bson)> {
