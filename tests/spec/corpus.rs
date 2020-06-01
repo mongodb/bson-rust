@@ -260,7 +260,7 @@ fn run_test(test: TestFile) {
         }
 
         let bson = hex::decode(decode_error.bson).expect("should decode from hex");
-        Document::decode(&mut bson.as_slice()).expect_err(decode_error.description.as_str());
+        Document::from_reader(&mut bson.as_slice()).expect_err(decode_error.description.as_str());
     }
 
     for parse_error in test.parse_errors {

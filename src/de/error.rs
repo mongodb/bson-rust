@@ -1,6 +1,6 @@
 use std::{error, fmt, fmt::Display, io, string};
 
-use serde::de::{self, Error as _, Unexpected};
+use serde::de::{self, Unexpected};
 
 use crate::Bson;
 

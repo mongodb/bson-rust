@@ -44,7 +44,10 @@ use crate::{
     Decimal128,
 };
 
-use ::serde::de::{self, Deserialize, Error as _, Unexpected};
+use ::serde::{
+    de::{Error as _, Unexpected},
+    Deserialize,
+};
 
 const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
@@ -53,13 +56,9 @@ const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUME
 
 /// Run the provided closure, ensuring that over the course of its execution, the provided vec's
 /// contents were read entirely, and that no attempts were made to read past the end.
-pub(crate) fn ensure_read_exactly<F>(
-    buf: Vec<u8>,
-    error_message: &str,
-    func: F,
-) -> DecoderResult<()>
+pub(crate) fn ensure_read_exactly<F>(buf: Vec<u8>, error_message: &str, func: F) -> Result<()>
 where
-    F: FnOnce(&mut std::io::Cursor<Vec<u8>>) -> DecoderResult<()>,
+    F: FnOnce(&mut std::io::Cursor<Vec<u8>>) -> Result<()>,
 {
     let length = buf.len();
     let mut cursor = std::io::Cursor::new(buf);
@@ -67,12 +66,12 @@ where
     func(&mut cursor)?;
 
     if cursor.position() != length as u64 {
-        return Err(DecoderError::invalid_length(length, &error_message));
+        return Err(Error::invalid_length(length, &error_message));
     }
     Ok(())
 }
 
-fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> crate::de::Result<String> {
+fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<String> {
     let len = reader.read_i32::<LittleEndian>()?;
 
     // UTF-8 String must have at least 1 byte (the last 0x00).
@@ -95,7 +94,7 @@ fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> crate::de:
 
     // read the null terminator
     if reader.read_u8()? != 0 {
-        return Err(DecoderError::invalid_length(
+        return Err(Error::invalid_length(
             len as usize,
             &"contents of string longer than provided length",
         ));
@@ -104,7 +103,7 @@ fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> crate::de:
     Ok(s)
 }
 
-fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<String> {
+fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> Result<String> {
     let mut v = Vec::new();
 
     loop {
@@ -119,12 +118,12 @@ fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<String> {
 }
 
 #[inline]
-pub(crate) fn read_i32<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<i32> {
+pub(crate) fn read_i32<R: Read + ?Sized>(reader: &mut R) -> Result<i32> {
     reader.read_i32::<LittleEndian>().map_err(From::from)
 }
 
 #[inline]
-fn read_i64<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<i64> {
+fn read_i64<R: Read + ?Sized>(reader: &mut R) -> Result<i64> {
     reader.read_i64::<LittleEndian>().map_err(From::from)
 }
 
@@ -132,7 +131,7 @@ fn read_i64<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<i64> {
 /// parsing.
 #[cfg(not(feature = "decimal128"))]
 #[inline]
-fn read_f128<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Decimal128> {
+fn read_f128<R: Read + ?Sized>(reader: &mut R) -> Result<Decimal128> {
     let mut buf = [0u8; 128 / 8];
     reader.read_exact(&mut buf)?;
     Ok(Decimal128 { bytes: buf })
@@ -140,7 +139,7 @@ fn read_f128<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Decimal128> 
 
 #[cfg(feature = "decimal128")]
 #[inline]
-fn read_f128<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Decimal128> {
+fn read_f128<R: Read + ?Sized>(reader: &mut R) -> Result<Decimal128> {
     use std::mem;
 
     let mut local_buf: [u8; 16] = unsafe { mem::MaybeUninit::uninit().assume_init() };
@@ -149,10 +148,7 @@ fn read_f128<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Decimal128> 
     Ok(val)
 }
 
-fn deserialize_array<R: Read + ?Sized>(
-    reader: &mut R,
-    utf8_lossy: bool,
-) -> crate::de::Result<Array> {
+fn deserialize_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<Array> {
     let mut arr = Array::new();
     let length = read_i32(reader)?;
 
@@ -179,7 +175,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
     reader: &mut R,
     tag: u8,
     utf8_lossy: bool,
-) -> crate::de::Result<(String, Bson)> {
+) -> Result<(String, Bson)> {
     use spec::ElementType;
     let key = read_cstring(reader)?;
 
@@ -203,7 +199,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
                 let data_len = read_i32(reader)?;
 
                 if data_len + 4 != len {
-                    return Err(DecoderError::invalid_length(
+                    return Err(Error::invalid_length(
                         data_len as usize,
                         &"0x02 length did not match top level binary length",
                     ));
@@ -227,7 +223,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::Boolean) => {
             let val = reader.read_u8()?;
             if val > 1 {
-                return Err(DecoderError::invalid_value(
+                return Err(Error::invalid_value(
                     Unexpected::Unsigned(val as u64),
                     &"boolean must be stored as 0 or 1",
                 ));
@@ -253,7 +249,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::JavaScriptCodeWithScope) => {
             let length = read_i32(reader)?;
             if length < MIN_CODE_WITH_SCOPE_SIZE {
-                return Err(DecoderError::invalid_length(
+                return Err(Error::invalid_length(
                     length as usize,
                     &format!(
                         "code with scope length must be at least {}",
@@ -262,7 +258,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
                     .as_str(),
                 ));
             } else if length > MAX_BSON_SIZE {
-                return Err(DecoderError::invalid_length(
+                return Err(Error::invalid_length(
                     length as usize,
                     &"code with scope length too large",
                 ));
@@ -326,10 +322,10 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
 }
 
 /// Decode a BSON `Value` into a `T` Deserializable.
-pub fn from_bson<'de, T>(bson: Bson) -> crate::de::Result<T>
+pub fn from_bson<'de, T>(bson: Bson) -> Result<T>
 where
-    T: de::Deserialize<'de>,
+    T: Deserialize<'de>,
 {
     let de = Deserializer::new(bson);
-    de::Deserialize::deserialize(de)
+    Deserialize::deserialize(de)
 }
