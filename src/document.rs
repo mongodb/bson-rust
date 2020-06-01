@@ -21,7 +21,7 @@ use serde::de::{self, Error, MapAccess, Visitor};
 use crate::decimal128::Decimal128;
 use crate::{
     bson::{Array, Binary, Bson, Timestamp},
-    de::{deserialize_bson_kvp, read_i32, MIN_BSON_DOCUMENT_SIZE},
+    de::{deserialize_bson_kvp, ensure_read_exactly, read_i32, MIN_BSON_DOCUMENT_SIZE},
     extjson,
     oid::ObjectId,
     ser::{serialize_bson, write_i32},
@@ -542,24 +542,19 @@ impl Document {
         let mut buf = vec![0u8; (length as usize) - 4];
         reader.read_exact(&mut buf)?;
 
-        let mut cursor = std::io::Cursor::new(buf);
-        loop {
-            let tag = cursor.read_u8()?;
+        ensure_read_exactly(buf, "document length longer than contents", |cursor| {
+            loop {
+                let tag = cursor.read_u8()?;
 
-            if tag == 0 {
-                break;
+                if tag == 0 {
+                    break;
+                }
+
+                let (key, val) = deserialize_bson_kvp(cursor, tag, false)?;
+                doc.insert(key, val);
             }
-
-            let (key, val) = deserialize_bson_kvp(&mut cursor, tag, false)?;
-            doc.insert(key, val);
-        }
-
-        if cursor.position() != (length - 4) as u64 {
-            return Err(crate::de::Error::invalid_length(
-                length as usize,
-                &"document length longer than contents",
-            ));
-        }
+            Ok(())
+        })?;
 
         Ok(doc)
     }
