@@ -1,6 +1,6 @@
 //! A module defining serde models for the extended JSON representations of the various BSON types.
 
-use chrono::{TimeZone, Utc};
+use chrono::Utc;
 use serde::{
     de::{Error, Unexpected},
     Deserialize,
@@ -218,34 +218,7 @@ impl DateTime {
         match self.body {
             DateTimeBody::Canonical(date) => {
                 let date = date.parse()?;
-
-                let mut num_secs = date / 1000;
-                let mut num_millis = date % 1000;
-
-                // The chrono API only lets us create a DateTime with an i64 number of seconds
-                // and a u32 number of nanoseconds. In the case of a negative timestamp, this
-                // means that we need to turn the negative fractional part into a positive and
-                // shift the number of seconds down. For example:
-                //
-                //     date       = -4300 ms
-                //     num_secs   = date / 1000 = -4300 / 1000 = -4
-                //     num_millis = date % 1000 = -4300 % 1000 = -300
-                //
-                // Since num_millis is less than 0:
-                //     num_secs   = num_secs -1 = -4 - 1 = -5
-                //     num_millis = num_nanos + 1000 = -300 + 1000 = 700
-                //
-                // Instead of -4 seconds and -300 milliseconds, we now have -5 seconds and +700
-                // milliseconds, which expresses the same timestamp, but in a way we can create
-                // a DateTime with.
-                if num_millis < 0 {
-                    num_secs -= 1;
-                    num_millis += 1000;
-                };
-
-                Ok(Utc
-                    .timestamp(num_secs, num_millis as u32 * 1_000_000)
-                    .into())
+                Ok(crate::DateTime::from_i64(date))
             }
             DateTimeBody::Relaxed(date) => {
                 let datetime: chrono::DateTime<Utc> =
