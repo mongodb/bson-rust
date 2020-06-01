@@ -264,6 +264,7 @@ fn run_test(test: TestFile) {
     }
 
     for parse_error in test.parse_errors {
+        // TODO RUST-36: Enable decimal128 tests.
         if test.bson_type == "0x13" {
             continue;
         }
@@ -273,6 +274,7 @@ fn run_test(test: TestFile) {
             continue;
         }
 
+        // TODO RUST-36: Enable decimal128 tests.
         if !cfg!(feature = "decimal128") && parse_error.description.contains("$numberDecimal") {
             continue;
         }
