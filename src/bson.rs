@@ -300,6 +300,7 @@ impl From<DbPointer> for Bson {
     }
 }
 
+/// This will create the [relaxed Extended JSON v2](https://docs.mongodb.com/manual/reference/mongodb-extended-json/) representation of the provided [`Bson`](../enum.Bson.html).
 impl From<Bson> for Value {
     fn from(bson: Bson) -> Self {
         bson.into_relaxed_extjson()

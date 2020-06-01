@@ -36,9 +36,9 @@
 //!
 //! ## Deserializing Extended JSON
 //!
-//! Extended JSON can be deserialized using `Bson`'s `TryFrom<serde_json::Value>` implementation.
-//! This implementation accepts both canonical and relaxed extJSON, and the two modes can even be
-//! mixed within a single representation.
+//! Extended JSON can be deserialized using [`Bson`](../enum.Bson.html)'s
+//! `TryFrom<serde_json::Value>` implementation. This implementation accepts both canonical and
+//! relaxed extJSON, and the two modes can even be mixed within a single representation.
 //!
 //! e.g.
 //! ```rust
@@ -57,8 +57,10 @@
 //!
 //! ## Serializing to Extended JSON
 //!
-//! Extended JSON can be created via `Bson`'s `TryInto<serde_json::Value>` implementation and
-//! through `Bson::into_relaxed_extjson` and `Bson::into_canonical_extjson`.
+//! Extended JSON can be created via [`Bson`](../enum.Bson.html)'s `Into<serde_json::Value>`
+//! implementation (which will create relaxed extJSON),
+//! [`Bson::into_relaxed_extjson`](../enum.Bson.html#method.into_relaxed_extjson), and
+//! [`Bson::into_canonical_extjson`](../enum.Bson.html#method.into_canonical_extjson).
 //!
 //! e.g.
 //! ```rust
