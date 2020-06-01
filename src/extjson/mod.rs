@@ -19,16 +19,28 @@
 //!
 //! All MongoDB drivers and BSON libraries interpret and produce extJSON, so it can serve as a
 //! useful tool for communicating between applications where raw BSON bytes cannot be used (e.g. via
-//! REST APIs). It's also useful for representing BSON data as a string.
+//! JSON REST APIs). It's also useful for representing BSON data as a string.
 //!
-//! There are two forms of extJSON: "Canonical" and "Relaxed". They are the same except for that in
-//! relaxed mode, all BSON numbers are represented by the JSON number type, rather than the object
-//! convention.
+//! ### Canonical and Relaxed Modes
+//!
+//! There are two modes of extJSON: "Canonical" and "Relaxed". They are the same except for the
+//! following differences:
+//!   - In relaxed mode, all BSON numbers are represented by the JSON number type, rather than the
+//!     object
+//! notation.
+//!   - In relaxed mode, the string in the datetime object notation is ISO-8601 formatted (if the
+//!     date is after 1970).
 //!
 //! e.g.
-//! ```text
-//! in relaxed: doc! { "x": 5 } => "{ "x": 5 }"
-//! in canonical: doc! { "x": 5 } => "{ "x": { "$numberInt": "5" } }"
+//! ```rust
+//! # use bson::bson;
+//! let doc = bson!({ "x": 5, "d": chrono::Utc::now() });
+//!
+//! println!("relaxed: {}", doc.clone().into_relaxed_extjson());
+//! // relaxed: "{"x":5,"d":{"$date":"2020-06-01T22:19:13.075Z"}}"
+//!
+//! println!("canonical: {}", doc.into_canonical_extjson());
+//! // canonical: {"x":{"$numberInt":"5"},"d":{"$date":{"$numberLong":"1591050020711"}}}
 //! ```
 //!
 //! Canonical mode is useful when BSON values need to be round tripped without losing any type
