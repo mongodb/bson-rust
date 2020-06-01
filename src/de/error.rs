@@ -2,7 +2,7 @@ use std::{error, fmt, fmt::Display, io, string};
 
 use serde::de::{self, Error as _, Unexpected};
 
-use crate::{document::ValueAccessError, oid, Bson};
+use crate::Bson;
 
 /// Possible errors that can arise during decoding.
 #[derive(Debug)]
@@ -26,9 +26,7 @@ pub enum Error {
     },
 
     /// There was an error with the syntactical structure of the BSON.
-    SyntaxError {
-        message: String,
-    },
+    SyntaxError { message: String },
 
     /// The end of the BSON input was reached too soon.
     EndOfStream,
@@ -39,16 +37,12 @@ pub enum Error {
     /// An ambiguous timestamp was encountered while decoding.
     AmbiguousTimestamp(i64),
 
-    InvalidObjectId(oid::Error),
-
     /// A general error encountered during deserialization.
     /// See: https://docs.serde.rs/serde/de/trait.Error.html
     DeserializationError {
         /// A message describing the error.
         message: String,
     },
-
-    ExtendedJsonParseError(serde_json::Error),
 }
 
 impl From<io::Error> for Error {
@@ -60,27 +54,6 @@ impl From<io::Error> for Error {
 impl From<string::FromUtf8Error> for Error {
     fn from(err: string::FromUtf8Error) -> Error {
         Error::FromUtf8Error(err)
-    }
-}
-
-impl From<crate::document::ValueAccessError> for Error {
-    fn from(err: crate::document::ValueAccessError) -> Self {
-        match err {
-            ValueAccessError::NotPresent => Error::custom("missing"),
-            ValueAccessError::UnexpectedType => Error::custom("unexpected"),
-        }
-    }
-}
-
-impl From<oid::Error> for Error {
-    fn from(err: oid::Error) -> Error {
-        Error::InvalidObjectId(err)
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(err: serde_json::Error) -> Error {
-        Error::ExtendedJsonParseError(err)
     }
 }
 
@@ -102,7 +75,6 @@ impl fmt::Display for Error {
             Error::DeserializationError { ref message } => message.fmt(fmt),
             Error::InvalidTimestamp(ref i) => write!(fmt, "no such local time {}", i),
             Error::AmbiguousTimestamp(ref i) => write!(fmt, "ambiguous local time {}", i),
-            _ => panic!(""),
         }
     }
 }
