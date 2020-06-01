@@ -26,7 +26,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use chrono::{DateTime, Datelike, SecondsFormat, TimeZone, Utc};
+use chrono::{Datelike, SecondsFormat, TimeZone, Utc};
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
@@ -203,9 +203,9 @@ impl From<Binary> for Bson {
     }
 }
 
-impl From<TimeStamp> for Bson {
-    fn from(ts: TimeStamp) -> Bson {
-        Bson::TimeStamp(ts)
+impl From<Timestamp> for Bson {
+    fn from(ts: Timestamp) -> Bson {
+        Bson::Timestamp(ts)
     }
 }
 

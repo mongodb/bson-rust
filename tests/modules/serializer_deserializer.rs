@@ -6,8 +6,15 @@ use std::{
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
 use bson::{
-    doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Document, JavaScriptCodeWithScope,
-    Regex, Timestamp,
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    Binary,
+    Bson,
+    Document,
+    JavaScriptCodeWithScope,
+    Regex,
+    Timestamp,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::{offset::TimeZone, Utc};

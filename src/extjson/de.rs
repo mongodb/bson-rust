@@ -99,17 +99,17 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
 
         if obj.contains_key("$numberInt") {
             let int: models::Int32 = serde_json::from_value(obj.into())?;
-            return Ok(Bson::I32(int.parse()?));
+            return Ok(Bson::Int32(int.parse()?));
         }
 
         if obj.contains_key("$numberLong") {
             let int: models::Int64 = serde_json::from_value(obj.into())?;
-            return Ok(Bson::I64(int.parse()?));
+            return Ok(Bson::Int64(int.parse()?));
         }
 
         if obj.contains_key("$numberDouble") {
             let double: models::Double = serde_json::from_value(obj.into())?;
-            return Ok(Bson::FloatingPoint(double.parse()?));
+            return Ok(Bson::Double(double.parse()?));
         }
 
         if obj.contains_key("$binary") {
@@ -136,7 +136,7 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
 
         if obj.contains_key("$date") {
             let extjson_datetime: models::DateTime = serde_json::from_value(obj.into())?;
-            return Ok(Bson::UtcDatetime(extjson_datetime.parse()?.0));
+            return Ok(Bson::DateTime(extjson_datetime.parse()?.0));
         }
 
         if obj.contains_key("$minKey") {
@@ -186,9 +186,9 @@ impl TryFrom<serde_json::Value> for Bson {
                 .as_i64()
                 .map(|i| {
                     if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
-                        Bson::I32(i as i32)
+                        Bson::Int32(i as i32)
                     } else {
-                        Bson::I64(i)
+                        Bson::Int64(i)
                     }
                 })
                 .or_else(|| x.as_u64().map(Bson::from))

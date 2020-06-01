@@ -188,7 +188,14 @@
 
 pub use self::{
     bson::{
-        Array, Binary, Bson, DateTime, DbPointer, Document, JavaScriptCodeWithScope, Regex,
+        Array,
+        Binary,
+        Bson,
+        DateTime,
+        DbPointer,
+        Document,
+        JavaScriptCodeWithScope,
+        Regex,
         Timestamp,
     },
     de::{from_bson, Deserializer},

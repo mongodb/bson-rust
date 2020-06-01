@@ -191,8 +191,8 @@ pub(crate) struct TimestampBody {
 }
 
 impl Timestamp {
-    pub(crate) fn parse(self) -> extjson::de::Result<crate::TimeStamp> {
-        Ok(crate::TimeStamp {
+    pub(crate) fn parse(self) -> extjson::de::Result<crate::Timestamp> {
+        Ok(crate::Timestamp {
             time: self.body.t,
             increment: self.body.i,
         })
@@ -214,7 +214,7 @@ enum DateTimeBody {
 }
 
 impl DateTime {
-    pub(crate) fn parse(self) -> extjson::de::Result<crate::UtcDateTime> {
+    pub(crate) fn parse(self) -> extjson::de::Result<crate::DateTime> {
         match self.body {
             DateTimeBody::Canonical(date) => {
                 let date = date.parse()?;
