@@ -2,7 +2,6 @@
 
 use bson::{bson, doc, spec::BinarySubtype, Binary, Bson, Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-// use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
 
 use std::{collections::BTreeMap, convert::TryFrom};

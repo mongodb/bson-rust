@@ -145,7 +145,7 @@
 //!
 //! e.g.:
 //! ```rust
-//! # use serde_derive::{Deserialize, Serialize};
+//! # use serde::{Deserialize, Serialize};
 //! # use bson::{bson, Bson};
 //! #[derive(Serialize, Deserialize)]
 //! struct Person {

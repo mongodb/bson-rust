@@ -5,7 +5,7 @@ use std::{
 
 use bson::{Bson, Document};
 use pretty_assertions::assert_eq;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 use super::run_spec_test;
 

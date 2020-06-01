@@ -997,7 +997,7 @@ impl Timestamp {
 ///
 /// Just a helper for convenience
 ///
-/// ```rust,ignore
+/// ```rust
 /// use serde::{Serialize, Deserialize};
 /// use bson::DateTime;
 ///
