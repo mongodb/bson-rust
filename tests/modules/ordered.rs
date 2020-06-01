@@ -2,13 +2,13 @@
 use bson::decimal128::Decimal128;
 use bson::{
     doc,
+    document::ValueAccessError,
     oid::ObjectId,
     spec::BinarySubtype,
     Binary,
     Bson,
     Document,
     Timestamp,
-    ValueAccessError,
 };
 use chrono::Utc;
 

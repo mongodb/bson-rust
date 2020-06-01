@@ -4,7 +4,7 @@ use serde::de::{
     self,
     Deserialize,
     DeserializeSeed,
-    Deserializer,
+    Deserializer as _,
     EnumAccess,
     Error,
     MapAccess,
@@ -14,7 +14,6 @@ use serde::de::{
     Visitor,
 };
 
-use super::error::{DecoderError, DecoderResult};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
@@ -29,7 +28,7 @@ pub struct BsonVisitor;
 impl<'de> Deserialize<'de> for ObjectId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: de::Deserializer<'de>,
     {
         deserializer.deserialize_map(BsonVisitor).and_then(|bson| {
             if let Bson::ObjectId(oid) = bson {
@@ -46,7 +45,7 @@ impl<'de> Deserialize<'de> for Document {
     /// Deserialize this value given this `Deserializer`.
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: de::Deserializer<'de>,
     {
         deserializer.deserialize_map(BsonVisitor).and_then(|bson| {
             if let Bson::Document(doc) = bson {
@@ -63,7 +62,7 @@ impl<'de> Deserialize<'de> for Bson {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Bson, D::Error>
     where
-        D: Deserializer<'de>,
+        D: de::Deserializer<'de>,
     {
         deserializer.deserialize_any(BsonVisitor)
     }
@@ -186,7 +185,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     #[inline]
     fn visit_some<D>(self, deserializer: D) -> Result<Bson, D::Error>
     where
-        D: Deserializer<'de>,
+        D: de::Deserializer<'de>,
     {
         deserializer.deserialize_any(self)
     }
@@ -231,14 +230,14 @@ impl<'de> Visitor<'de> for BsonVisitor {
     }
 }
 
-/// Serde Decoder
-pub struct Decoder {
+/// Serde Deserializer
+pub struct Deserializer {
     value: Option<Bson>,
 }
 
-impl Decoder {
-    pub fn new(value: Bson) -> Decoder {
-        Decoder { value: Some(value) }
+impl Deserializer {
+    pub fn new(value: Bson) -> Deserializer {
+        Deserializer { value: Some(value) }
     }
 }
 
@@ -279,17 +278,17 @@ macro_rules! forward_to_deserialize {
     };
 }
 
-impl<'de> Deserializer<'de> for Decoder {
-    type Error = DecoderError;
+impl<'de> de::Deserializer<'de> for Deserializer {
+    type Error = crate::de::Error;
 
     #[inline]
-    fn deserialize_any<V>(mut self, visitor: V) -> DecoderResult<V::Value>
+    fn deserialize_any<V>(mut self, visitor: V) -> crate::de::Result<V::Value>
     where
         V: Visitor<'de>,
     {
         let value = match self.value.take() {
             Some(value) => value,
-            None => return Err(DecoderError::EndOfStream),
+            None => return Err(crate::de::Error::EndOfStream),
         };
 
         match value {
@@ -297,14 +296,14 @@ impl<'de> Deserializer<'de> for Decoder {
             Bson::String(v) => visitor.visit_string(v),
             Bson::Array(v) => {
                 let len = v.len();
-                visitor.visit_seq(SeqDecoder {
+                visitor.visit_seq(SeqDeserializer {
                     iter: v.into_iter(),
                     len,
                 })
             }
             Bson::Document(v) => {
                 let len = v.len();
-                visitor.visit_map(MapDecoder {
+                visitor.visit_map(MapDeserializer {
                     iter: v.into_iter(),
                     value: None,
                     len,
@@ -318,7 +317,7 @@ impl<'de> Deserializer<'de> for Decoder {
                 subtype: BinarySubtype::Generic,
                 ref bytes,
             }) => visitor.visit_bytes(&bytes),
-            binary @ Bson::Binary(..) => visitor.visit_map(MapDecoder {
+            binary @ Bson::Binary(..) => visitor.visit_map(MapDeserializer {
                 iter: binary.to_extended_document().into_iter(),
                 value: None,
                 len: 2,
@@ -326,7 +325,7 @@ impl<'de> Deserializer<'de> for Decoder {
             _ => {
                 let doc = value.to_extended_document();
                 let len = doc.len();
-                visitor.visit_map(MapDecoder {
+                visitor.visit_map(MapDeserializer {
                     iter: doc.into_iter(),
                     value: None,
                     len,
@@ -336,14 +335,14 @@ impl<'de> Deserializer<'de> for Decoder {
     }
 
     #[inline]
-    fn deserialize_option<V>(self, visitor: V) -> DecoderResult<V::Value>
+    fn deserialize_option<V>(self, visitor: V) -> crate::de::Result<V::Value>
     where
         V: Visitor<'de>,
     {
         match self.value {
             Some(Bson::Null) => visitor.visit_none(),
             Some(_) => visitor.visit_some(self),
-            None => Err(DecoderError::EndOfStream),
+            None => Err(crate::de::Error::EndOfStream),
         }
     }
 
@@ -353,26 +352,26 @@ impl<'de> Deserializer<'de> for Decoder {
         _name: &str,
         _variants: &'static [&'static str],
         visitor: V,
-    ) -> DecoderResult<V::Value>
+    ) -> crate::de::Result<V::Value>
     where
         V: Visitor<'de>,
     {
         let value = match self.value.take() {
             Some(Bson::Document(value)) => value,
             Some(Bson::String(variant)) => {
-                return visitor.visit_enum(EnumDecoder {
+                return visitor.visit_enum(EnumDeserializer {
                     val: Bson::String(variant),
-                    decoder: VariantDecoder { val: None },
+                    deserializer: VariantDeserializer { val: None },
                 });
             }
             Some(v) => {
-                return Err(DecoderError::invalid_type(
+                return Err(crate::de::Error::invalid_type(
                     v.as_unexpected(),
                     &"expected an enum",
                 ));
             }
             None => {
-                return Err(DecoderError::EndOfStream);
+                return Err(crate::de::Error::EndOfStream);
             }
         };
 
@@ -381,7 +380,7 @@ impl<'de> Deserializer<'de> for Decoder {
         let (variant, value) = match iter.next() {
             Some(v) => v,
             None => {
-                return Err(DecoderError::SyntaxError {
+                return Err(crate::de::Error::SyntaxError {
                     message: "expected a variant name".to_owned(),
                 })
             }
@@ -389,13 +388,13 @@ impl<'de> Deserializer<'de> for Decoder {
 
         // enums are encoded in json as maps with a single key:value pair
         match iter.next() {
-            Some((k, _)) => Err(DecoderError::invalid_value(
+            Some((k, _)) => Err(crate::de::Error::invalid_value(
                 Unexpected::Map,
                 &format!("expected map with a single key, got extra key \"{}\"", k).as_str(),
             )),
-            None => visitor.visit_enum(EnumDecoder {
+            None => visitor.visit_enum(EnumDeserializer {
                 val: Bson::String(variant),
-                decoder: VariantDecoder { val: Some(value) },
+                deserializer: VariantDeserializer { val: Some(value) },
             }),
         }
     }
@@ -405,7 +404,7 @@ impl<'de> Deserializer<'de> for Decoder {
         self,
         _name: &'static str,
         visitor: V,
-    ) -> DecoderResult<V::Value>
+    ) -> crate::de::Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -441,59 +440,59 @@ impl<'de> Deserializer<'de> for Decoder {
     }
 }
 
-struct EnumDecoder {
+struct EnumDeserializer {
     val: Bson,
-    decoder: VariantDecoder,
+    deserializer: VariantDeserializer,
 }
 
-impl<'de> EnumAccess<'de> for EnumDecoder {
-    type Error = DecoderError;
-    type Variant = VariantDecoder;
-    fn variant_seed<V>(self, seed: V) -> DecoderResult<(V::Value, Self::Variant)>
+impl<'de> EnumAccess<'de> for EnumDeserializer {
+    type Error = crate::de::Error;
+    type Variant = VariantDeserializer;
+    fn variant_seed<V>(self, seed: V) -> crate::de::Result<(V::Value, Self::Variant)>
     where
         V: DeserializeSeed<'de>,
     {
-        let dec = Decoder::new(self.val);
+        let dec = Deserializer::new(self.val);
         let value = seed.deserialize(dec)?;
-        Ok((value, self.decoder))
+        Ok((value, self.deserializer))
     }
 }
 
-struct VariantDecoder {
+struct VariantDeserializer {
     val: Option<Bson>,
 }
 
-impl<'de> VariantAccess<'de> for VariantDecoder {
-    type Error = DecoderError;
+impl<'de> VariantAccess<'de> for VariantDeserializer {
+    type Error = crate::de::Error;
 
-    fn unit_variant(mut self) -> DecoderResult<()> {
+    fn unit_variant(mut self) -> crate::de::Result<()> {
         match self.val.take() {
             None => Ok(()),
-            Some(val) => Bson::deserialize(Decoder::new(val)).map(|_| ()),
+            Some(val) => Bson::deserialize(Deserializer::new(val)).map(|_| ()),
         }
     }
 
-    fn newtype_variant_seed<T>(mut self, seed: T) -> DecoderResult<T::Value>
+    fn newtype_variant_seed<T>(mut self, seed: T) -> crate::de::Result<T::Value>
     where
         T: DeserializeSeed<'de>,
     {
-        let dec = Decoder::new(self.val.take().ok_or(DecoderError::EndOfStream)?);
+        let dec = Deserializer::new(self.val.take().ok_or(crate::de::Error::EndOfStream)?);
         seed.deserialize(dec)
     }
 
-    fn tuple_variant<V>(mut self, _len: usize, visitor: V) -> DecoderResult<V::Value>
+    fn tuple_variant<V>(mut self, _len: usize, visitor: V) -> crate::de::Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        match self.val.take().ok_or(DecoderError::EndOfStream)? {
+        match self.val.take().ok_or(crate::de::Error::EndOfStream)? {
             Bson::Array(fields) => {
-                let de = SeqDecoder {
+                let de = SeqDeserializer {
                     len: fields.len(),
                     iter: fields.into_iter(),
                 };
                 de.deserialize_any(visitor)
             }
-            other => Err(DecoderError::invalid_type(
+            other => Err(crate::de::Error::invalid_type(
                 other.as_unexpected(),
                 &"expected a tuple",
             )),
@@ -504,20 +503,20 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
         mut self,
         _fields: &'static [&'static str],
         visitor: V,
-    ) -> DecoderResult<V::Value>
+    ) -> crate::de::Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        match self.val.take().ok_or(DecoderError::EndOfStream)? {
+        match self.val.take().ok_or(crate::de::Error::EndOfStream)? {
             Bson::Document(fields) => {
-                let de = MapDecoder {
+                let de = MapDeserializer {
                     len: fields.len(),
                     iter: fields.into_iter(),
                     value: None,
                 };
                 de.deserialize_any(visitor)
             }
-            ref other => Err(DecoderError::invalid_type(
+            ref other => Err(crate::de::Error::invalid_type(
                 other.as_unexpected(),
                 &"expected a struct",
             )),
@@ -525,16 +524,16 @@ impl<'de> VariantAccess<'de> for VariantDecoder {
     }
 }
 
-struct SeqDecoder {
+struct SeqDeserializer {
     iter: vec::IntoIter<Bson>,
     len: usize,
 }
 
-impl<'de> Deserializer<'de> for SeqDecoder {
-    type Error = DecoderError;
+impl<'de> de::Deserializer<'de> for SeqDeserializer {
+    type Error = crate::de::Error;
 
     #[inline]
-    fn deserialize_any<V>(self, visitor: V) -> DecoderResult<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> crate::de::Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -577,10 +576,10 @@ impl<'de> Deserializer<'de> for SeqDecoder {
     }
 }
 
-impl<'de> SeqAccess<'de> for SeqDecoder {
-    type Error = DecoderError;
+impl<'de> SeqAccess<'de> for SeqDeserializer {
+    type Error = crate::de::Error;
 
-    fn next_element_seed<T>(&mut self, seed: T) -> DecoderResult<Option<T::Value>>
+    fn next_element_seed<T>(&mut self, seed: T) -> crate::de::Result<Option<T::Value>>
     where
         T: DeserializeSeed<'de>,
     {
@@ -588,7 +587,7 @@ impl<'de> SeqAccess<'de> for SeqDecoder {
             None => Ok(None),
             Some(value) => {
                 self.len -= 1;
-                let de = Decoder::new(value);
+                let de = Deserializer::new(value);
                 match seed.deserialize(de) {
                     Ok(value) => Ok(Some(value)),
                     Err(err) => Err(err),
@@ -602,16 +601,16 @@ impl<'de> SeqAccess<'de> for SeqDecoder {
     }
 }
 
-struct MapDecoder {
+struct MapDeserializer {
     iter: DocumentIntoIterator,
     value: Option<Bson>,
     len: usize,
 }
 
-impl<'de> MapAccess<'de> for MapDecoder {
-    type Error = DecoderError;
+impl<'de> MapAccess<'de> for MapDeserializer {
+    type Error = crate::de::Error;
 
-    fn next_key_seed<K>(&mut self, seed: K) -> DecoderResult<Option<K::Value>>
+    fn next_key_seed<K>(&mut self, seed: K) -> crate::de::Result<Option<K::Value>>
     where
         K: DeserializeSeed<'de>,
     {
@@ -620,7 +619,7 @@ impl<'de> MapAccess<'de> for MapDecoder {
                 self.len -= 1;
                 self.value = Some(value);
 
-                let de = Decoder::new(Bson::String(key));
+                let de = Deserializer::new(Bson::String(key));
                 match seed.deserialize(de) {
                     Ok(val) => Ok(Some(val)),
                     Err(e) => Err(e),
@@ -630,12 +629,12 @@ impl<'de> MapAccess<'de> for MapDecoder {
         }
     }
 
-    fn next_value_seed<V>(&mut self, seed: V) -> DecoderResult<V::Value>
+    fn next_value_seed<V>(&mut self, seed: V) -> crate::de::Result<V::Value>
     where
         V: DeserializeSeed<'de>,
     {
-        let value = self.value.take().ok_or(DecoderError::EndOfStream)?;
-        let de = Decoder::new(value);
+        let value = self.value.take().ok_or(crate::de::Error::EndOfStream)?;
+        let de = Deserializer::new(value);
         seed.deserialize(de)
     }
 
@@ -644,11 +643,11 @@ impl<'de> MapAccess<'de> for MapDecoder {
     }
 }
 
-impl<'de> Deserializer<'de> for MapDecoder {
-    type Error = DecoderError;
+impl<'de> de::Deserializer<'de> for MapDeserializer {
+    type Error = crate::de::Error;
 
     #[inline]
-    fn deserialize_any<V>(self, visitor: V) -> DecoderResult<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> crate::de::Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -690,7 +689,7 @@ impl<'de> Deserializer<'de> for MapDecoder {
 impl<'de> Deserialize<'de> for Timestamp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::Timestamp(timestamp) => Ok(timestamp),
@@ -702,7 +701,7 @@ impl<'de> Deserialize<'de> for Timestamp {
 impl<'de> Deserialize<'de> for Regex {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::RegularExpression(regex) => Ok(regex),
@@ -714,7 +713,7 @@ impl<'de> Deserialize<'de> for Regex {
 impl<'de> Deserialize<'de> for JavaScriptCodeWithScope {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::JavaScriptCodeWithScope(code_with_scope) => Ok(code_with_scope),
@@ -726,7 +725,7 @@ impl<'de> Deserialize<'de> for JavaScriptCodeWithScope {
 impl<'de> Deserialize<'de> for Binary {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::Binary(binary) => Ok(binary),
@@ -739,7 +738,7 @@ impl<'de> Deserialize<'de> for Binary {
 impl<'de> Deserialize<'de> for Decimal128 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::Decimal128(d128) => Ok(d128),
@@ -751,7 +750,7 @@ impl<'de> Deserialize<'de> for Decimal128 {
 impl<'de> Deserialize<'de> for DateTime {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::DateTime(dt) => Ok(DateTime(dt)),
@@ -763,7 +762,7 @@ impl<'de> Deserialize<'de> for DateTime {
 impl<'de> Deserialize<'de> for DbPointer {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::DbPointer(db_pointer) => Ok(db_pointer),

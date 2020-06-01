@@ -21,9 +21,9 @@ use serde::de::{self, MapAccess, Visitor};
 use crate::decimal128::Decimal128;
 use crate::{
     bson::{Array, Binary, Bson, Timestamp},
-    decoder::{decode_bson_kvp, read_i32, DecoderResult},
-    encoder::{encode_bson, write_i32, EncoderResult},
+    de::{deserialize_bson_kvp, read_i32},
     oid::ObjectId,
+    ser::{serialize_bson, write_i32},
     spec::BinarySubtype,
 };
 
@@ -510,11 +510,11 @@ impl Document {
         }
     }
 
-    /// Attempts to encode the `Document` into a byte stream.
-    pub fn encode<W: Write + ?Sized>(&self, writer: &mut W) -> EncoderResult<()> {
+    /// Attempts to serialize the `Document` into a byte stream.
+    pub fn to_writer<W: Write + ?Sized>(&self, writer: &mut W) -> crate::ser::Result<()> {
         let mut buf = Vec::new();
         for (key, val) in self.into_iter() {
-            encode_bson(&mut buf, key.as_ref(), val)?;
+            serialize_bson(&mut buf, key.as_ref(), val)?;
         }
 
         write_i32(
@@ -526,8 +526,8 @@ impl Document {
         Ok(())
     }
 
-    /// Attempts to decode a `Document` from a byte stream.
-    pub fn decode<R: Read + ?Sized>(reader: &mut R) -> DecoderResult<Document> {
+    /// Attempts to deserialize a `Document` from a byte stream.
+    pub fn from_reader<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
         let mut doc = Document::new();
 
         // disregard the length: using Read::take causes infinite type recursion
@@ -540,7 +540,7 @@ impl Document {
                 break;
             }
 
-            let (key, val) = decode_bson_kvp(reader, tag, false)?;
+            let (key, val) = deserialize_bson_kvp(reader, tag, false)?;
             doc.insert(key, val);
         }
 

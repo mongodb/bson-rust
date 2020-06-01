@@ -1,6 +1,6 @@
 #![allow(clippy::blacklisted_name)]
 
-use bson::{bson, doc, spec::BinarySubtype, Binary, Bson, Decoder, Encoder};
+use bson::{bson, doc, spec::BinarySubtype, Binary, Bson, Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
@@ -11,8 +11,8 @@ use std::collections::BTreeMap;
 fn test_ser_vec() {
     let vec = vec![1, 2, 3];
 
-    let encoder = Encoder::new();
-    let result = vec.serialize(encoder).unwrap();
+    let serializer = Serializer::new();
+    let result = vec.serialize(serializer).unwrap();
 
     let expected = bson!([1, 2, 3]);
     assert_eq!(expected, result);
@@ -24,8 +24,8 @@ fn test_ser_map() {
     map.insert("x", 0);
     map.insert("y", 1);
 
-    let encoder = Encoder::new();
-    let result = map.serialize(encoder).unwrap();
+    let serializer = Serializer::new();
+    let result = map.serialize(serializer).unwrap();
 
     let expected = bson!({ "x": 0, "y": 1 });
     assert_eq!(expected, result);
@@ -35,8 +35,8 @@ fn test_ser_map() {
 fn test_de_vec() {
     let bson = bson!([1, 2, 3]);
 
-    let decoder = Decoder::new(bson);
-    let vec = Vec::<i32>::deserialize(decoder).unwrap();
+    let deserializer = Deserializer::new(bson);
+    let vec = Vec::<i32>::deserialize(deserializer).unwrap();
 
     let expected = vec![1, 2, 3];
     assert_eq!(expected, vec);
@@ -46,8 +46,8 @@ fn test_de_vec() {
 fn test_de_map() {
     let bson = bson!({ "x": 0, "y": 1 });
 
-    let decoder = Decoder::new(bson);
-    let map = BTreeMap::<String, i32>::deserialize(decoder).unwrap();
+    let deserializer = Deserializer::new(bson);
+    let map = BTreeMap::<String, i32>::deserialize(deserializer).unwrap();
 
     let mut expected = BTreeMap::new();
     expected.insert("x".to_string(), 0);
@@ -367,9 +367,9 @@ fn test_byte_vec() {
     );
 
     // let mut buf = Vec::new();
-    // b.as_document().unwrap().encode(&mut buf).unwrap();
+    // b.as_document().unwrap().to_writer(&mut buf).unwrap();
 
-    // let xb = Document::decode(&mut Cursor::new(buf)).unwrap();
+    // let xb = Document::from_reader(&mut Cursor::new(buf)).unwrap();
     // assert_eq!(b.as_document().unwrap(), &xb);
 }
 

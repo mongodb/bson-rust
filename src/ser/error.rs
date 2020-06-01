@@ -7,7 +7,7 @@ use crate::bson::Bson;
 /// Possible errors that can arise during encoding.
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum EncoderError {
+pub enum Error {
     /// A [`std::io::Error`](https://doc.rust-lang.org/std/io/struct.Error.html) encountered while serializing.
     IoError(io::Error),
 
@@ -37,29 +37,25 @@ pub enum EncoderError {
     UnsignedTypesValueExceedsRange(u64),
 }
 
-impl From<io::Error> for EncoderError {
-    fn from(err: io::Error) -> EncoderError {
-        EncoderError::IoError(err)
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::IoError(err)
     }
 }
 
-impl fmt::Display for EncoderError {
+impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            EncoderError::IoError(ref inner) => inner.fmt(fmt),
-            EncoderError::InvalidMapKeyType { ref key } => {
-                write!(fmt, "Invalid map key type: {}", key)
-            }
-            EncoderError::SerializationError { ref message } => message.fmt(fmt),
+            Error::IoError(ref inner) => inner.fmt(fmt),
+            Error::InvalidMapKeyType { ref key } => write!(fmt, "Invalid map key type: {}", key),
+            Error::SerializationError { ref message } => message.fmt(fmt),
             #[cfg(not(feature = "u2i"))]
-            EncoderError::UnsupportedUnsignedType => {
-                fmt.write_str("BSON does not support unsigned type")
-            }
+            Error::UnsupportedUnsignedType => fmt.write_str("BSON does not support unsigned type"),
             #[cfg(feature = "u2i")]
-            EncoderError::UnsignedTypesValueExceedsRange(value) => write!(
+            Error::UnsignedTypesValueExceedsRange(value) => write!(
                 fmt,
                 "BSON does not support unsigned types.
-                 An attempt to encode the value: {} in a signed type failed due to the value's \
+                 An attempt to serialize the value: {} in a signed type failed due to the value's \
                  size.",
                 value
             ),
@@ -67,22 +63,22 @@ impl fmt::Display for EncoderError {
     }
 }
 
-impl error::Error for EncoderError {
+impl error::Error for Error {
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
-            EncoderError::IoError(ref inner) => Some(inner),
+            Error::IoError(ref inner) => Some(inner),
             _ => None,
         }
     }
 }
 
-impl ser::Error for EncoderError {
-    fn custom<T: Display>(msg: T) -> EncoderError {
-        EncoderError::SerializationError {
+impl ser::Error for Error {
+    fn custom<T: Display>(msg: T) -> Error {
+        Error::SerializationError {
             message: msg.to_string(),
         }
     }
 }
 
-/// Alias for `Result<T, EncoderError>`.
-pub type EncoderResult<T> = Result<T, EncoderError>;
+/// Alias for `Result<T, Error>`.
+pub type Result<T> = std::result::Result<T, Error>;

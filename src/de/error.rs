@@ -7,7 +7,7 @@ use serde::de;
 /// Possible errors that can arise during decoding.
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum DecoderError {
+pub enum Error {
     /// A [`std::io::Error`](https://doc.rust-lang.org/std/io/struct.Error.html) encountered while deserializing.
     IoError(io::Error),
 
@@ -45,24 +45,24 @@ pub enum DecoderError {
     },
 }
 
-impl From<io::Error> for DecoderError {
-    fn from(err: io::Error) -> DecoderError {
-        DecoderError::IoError(err)
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::IoError(err)
     }
 }
 
-impl From<string::FromUtf8Error> for DecoderError {
-    fn from(err: string::FromUtf8Error) -> DecoderError {
-        DecoderError::FromUtf8Error(err)
+impl From<string::FromUtf8Error> for Error {
+    fn from(err: string::FromUtf8Error) -> Error {
+        Error::FromUtf8Error(err)
     }
 }
 
-impl fmt::Display for DecoderError {
+impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            DecoderError::IoError(ref inner) => inner.fmt(fmt),
-            DecoderError::FromUtf8Error(ref inner) => inner.fmt(fmt),
-            DecoderError::UnrecognizedDocumentElementType {
+            Error::IoError(ref inner) => inner.fmt(fmt),
+            Error::FromUtf8Error(ref inner) => inner.fmt(fmt),
+            Error::UnrecognizedDocumentElementType {
                 ref key,
                 element_type,
             } => write!(
@@ -70,35 +70,35 @@ impl fmt::Display for DecoderError {
                 "unrecognized element type for key \"{}\": `{:#x}`",
                 key, element_type
             ),
-            DecoderError::SyntaxError { ref message } => message.fmt(fmt),
-            DecoderError::EndOfStream => fmt.write_str("end of stream"),
-            DecoderError::DeserializationError { ref message } => message.fmt(fmt),
-            DecoderError::InvalidTimestamp(ref i) => write!(fmt, "no such local time {}", i),
-            DecoderError::AmbiguousTimestamp(ref i) => write!(fmt, "ambiguous local time {}", i),
+            Error::SyntaxError { ref message } => message.fmt(fmt),
+            Error::EndOfStream => fmt.write_str("end of stream"),
+            Error::DeserializationError { ref message } => message.fmt(fmt),
+            Error::InvalidTimestamp(ref i) => write!(fmt, "no such local time {}", i),
+            Error::AmbiguousTimestamp(ref i) => write!(fmt, "ambiguous local time {}", i),
         }
     }
 }
 
-impl error::Error for DecoderError {
+impl error::Error for Error {
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
-            DecoderError::IoError(ref inner) => Some(inner),
-            DecoderError::FromUtf8Error(ref inner) => Some(inner),
+            Error::IoError(ref inner) => Some(inner),
+            Error::FromUtf8Error(ref inner) => Some(inner),
             _ => None,
         }
     }
 }
 
-impl de::Error for DecoderError {
-    fn custom<T: Display>(msg: T) -> DecoderError {
-        DecoderError::DeserializationError {
+impl de::Error for Error {
+    fn custom<T: Display>(msg: T) -> Error {
+        Error::DeserializationError {
             message: msg.to_string(),
         }
     }
 }
 
-/// Alias for `Result<T, DecoderError>`.
-pub type DecoderResult<T> = Result<T, DecoderError>;
+/// Alias for `Result<T, Error>`.
+pub type Result<T> = std::result::Result<T, Error>;
 
 impl Bson {
     /// Method for converting a given `Bson` value to a `serde::de::Unexpected` for error reporting.

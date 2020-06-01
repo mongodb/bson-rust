@@ -1,7 +1,7 @@
 use assert_matches::assert_matches;
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
-use bson::{from_bson, oid::ObjectId, to_bson, Bson, EncoderError, EncoderResult};
+use bson::{from_bson, oid::ObjectId, to_bson, Bson};
 use std::{collections::BTreeMap, u16, u32, u64, u8};
 
 #[test]
@@ -76,8 +76,8 @@ fn dec128() {
 #[test]
 #[cfg(not(feature = "u2i"))]
 fn uint8() {
-    let obj_min: EncoderResult<Bson> = to_bson(&u8::MIN);
-    assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));
+    let obj_min: bson::ser::Result<Bson> = to_bson(&u8::MIN);
+    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
@@ -95,8 +95,8 @@ fn uint8_u2i() {
 #[test]
 #[cfg(not(feature = "u2i"))]
 fn uint16() {
-    let obj_min: EncoderResult<Bson> = to_bson(&u16::MIN);
-    assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));
+    let obj_min: bson::ser::Result<Bson> = to_bson(&u16::MIN);
+    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
@@ -114,8 +114,8 @@ fn uint16_u2i() {
 #[test]
 #[cfg(not(feature = "u2i"))]
 fn uint32() {
-    let obj_min: EncoderResult<Bson> = to_bson(&u32::MIN);
-    assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));
+    let obj_min: bson::ser::Result<Bson> = to_bson(&u32::MIN);
+    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
@@ -133,8 +133,8 @@ fn uint32_u2i() {
 #[test]
 #[cfg(not(feature = "u2i"))]
 fn uint64() {
-    let obj_min: EncoderResult<Bson> = to_bson(&u64::MIN);
-    assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));
+    let obj_min: bson::ser::Result<Bson> = to_bson(&u64::MIN);
+    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
@@ -144,10 +144,10 @@ fn uint64_u2i() {
     let deser_min: u64 = from_bson(obj_min).unwrap();
     assert_eq!(deser_min, u64::MIN);
 
-    let obj_max: EncoderResult<Bson> = to_bson(&u64::MAX);
+    let obj_max: bson::ser::Result<Bson> = to_bson(&u64::MAX);
     assert_matches!(
         obj_max,
-        Err(EncoderError::UnsignedTypesValueExceedsRange(u64::MAX))
+        Err(bson::ser::Error::UnsignedTypesValueExceedsRange(u64::MAX))
     );
 }
 
