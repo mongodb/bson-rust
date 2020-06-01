@@ -258,7 +258,7 @@ fn run_test(test: TestFile) {
         {
             continue;
         }
-        println!("{}", decode_error.description);
+
         let bson = hex::decode(decode_error.bson).expect("should decode from hex");
         Document::decode(&mut bson.as_slice()).expect_err(decode_error.description.as_str());
     }
@@ -277,13 +277,8 @@ fn run_test(test: TestFile) {
             continue;
         }
 
-        println!("==\n{}", parse_error.description);
-
-        // println!("{}", parse_error.string);
         let json: serde_json::Value =
             serde_json::from_str(parse_error.string.as_str()).expect(&parse_error.description);
-
-        println!("got value: {}", json);
 
         Bson::try_from(json).expect_err(&parse_error.description);
     }
