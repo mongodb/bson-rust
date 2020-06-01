@@ -23,16 +23,16 @@
 
 use std::convert::{TryFrom, TryInto};
 
-use serde::de::Error as _;
+use serde::de::{Error as _, Unexpected};
 
-use crate::{extjson::models, Bson};
+use crate::{extjson::models, oid, Bson};
 
 #[derive(Debug)]
 #[non_exhaustive]
 /// Error cases that can occur during deserialization from [extended JSON](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
 pub enum Error {
     /// Errors that can occur during OID construction and generation from the input data.
-    InvalidObjectId(crate::oid::Error),
+    InvalidObjectId(oid::Error),
 
     /// A general error encountered during deserialization.
     /// See: https://docs.serde.rs/serde/de/trait.Error.html
@@ -69,8 +69,8 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<crate::oid::Error> for Error {
-    fn from(err: crate::oid::Error) -> Self {
+impl From<oid::Error> for Error {
+    fn from(err: oid::Error) -> Self {
         Self::InvalidObjectId(err)
     }
 }
@@ -162,9 +162,9 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
             }
 
             #[cfg(not(feature = "decimal128"))]
-            return Err(Error::custom(
-                "decimal128 models support not implemented".to_string(),
-            ));
+            {
+                return Err(Error::custom("decimal128 extjson support not implemented"));
+            }
         }
 
         if obj.contains_key("$undefined") {
@@ -193,7 +193,12 @@ impl TryFrom<serde_json::Value> for Bson {
                 })
                 .or_else(|| x.as_u64().map(Bson::from))
                 .or_else(|| x.as_f64().map(Bson::from))
-                .ok_or_else(|| panic!("a number that could fit in i32, i64, or f64")),
+                .ok_or_else(|| {
+                    Error::invalid_value(
+                        Unexpected::Other(&format!("{}", x).as_str()),
+                        &"a number that could fit in i32, i64, or f64",
+                    )
+                }),
             serde_json::Value::String(x) => Ok(x.into()),
             serde_json::Value::Bool(x) => Ok(x.into()),
             serde_json::Value::Array(x) => Ok(Bson::Array(

@@ -6,7 +6,7 @@ use serde::{
     Deserialize,
 };
 
-use crate::{extjson, oid, Bson, DecoderError};
+use crate::{extjson, oid, Bson};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

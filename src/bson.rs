@@ -22,23 +22,18 @@
 //! BSON definition
 
 use std::{
-    convert::{TryFrom, TryInto},
     fmt::{self, Debug, Display},
     ops::{Deref, DerefMut},
 };
 
 use chrono::{DateTime, Datelike, SecondsFormat, TimeZone, Utc};
-use serde::de::{Error, Unexpected};
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
 use crate::{
-    extjson,
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
     Decimal128,
-    DecoderError,
-    DecoderResult,
 };
 
 /// Possible BSON value types.
