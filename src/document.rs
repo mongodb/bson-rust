@@ -1,7 +1,6 @@
 //! A BSON document represented as an associative HashMap with insertion ordering.
 
 use std::{
-    convert::{TryFrom, TryInto},
     error,
     fmt::{self, Debug, Display, Formatter},
     io::{Read, Write},
@@ -100,22 +99,6 @@ impl Display for Document {
 impl Debug for Document {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "Document({:?})", self.inner)
-    }
-}
-
-impl TryFrom<serde_json::Map<String, serde_json::Value>> for Document {
-    type Error = extjson::de::Error;
-
-    fn try_from(obj: serde_json::Map<String, serde_json::Value>) -> extjson::de::Result<Self> {
-        Ok(obj
-            .into_iter()
-            .map(|(k, v)| -> extjson::de::Result<(String, Bson)> {
-                let value: Bson = v.try_into()?;
-                Ok((k, value))
-            })
-            .collect::<extjson::de::Result<Vec<(String, Bson)>>>()?
-            .into_iter()
-            .collect())
     }
 }
 

@@ -25,7 +25,7 @@ use std::convert::{TryFrom, TryInto};
 
 use serde::de::{Error as _, Unexpected};
 
-use crate::{extjson::models, oid, Bson};
+use crate::{extjson::models, oid, Bson, Document};
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -209,5 +209,22 @@ impl TryFrom<serde_json::Value> for Bson {
             serde_json::Value::Null => Ok(Bson::Null),
             serde_json::Value::Object(map) => map.try_into(),
         }
+    }
+}
+
+/// This converts from the input JSON as if it were [MongoDB Extended JSON v2](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+impl TryFrom<serde_json::Map<String, serde_json::Value>> for Document {
+    type Error = Error;
+
+    fn try_from(obj: serde_json::Map<String, serde_json::Value>) -> Result<Self> {
+        Ok(obj
+            .into_iter()
+            .map(|(k, v)| -> Result<(String, Bson)> {
+                let value: Bson = v.try_into()?;
+                Ok((k, value))
+            })
+            .collect::<Result<Vec<(String, Bson)>>>()?
+            .into_iter()
+            .collect())
     }
 }
