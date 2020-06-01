@@ -36,7 +36,9 @@ use crate::{
     extjson,
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
-    Decimal128, DecoderError, DecoderResult,
+    Decimal128,
+    DecoderError,
+    DecoderResult,
 };
 
 /// Possible BSON value types.
@@ -300,139 +302,6 @@ impl From<chrono::DateTime<Utc>> for Bson {
 impl From<DbPointer> for Bson {
     fn from(a: DbPointer) -> Bson {
         Bson::DbPointer(a)
-    }
-}
-
-impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
-    type Error = DecoderError;
-    fn try_from(obj: serde_json::Map<String, serde_json::Value>) -> Result<Self, Self::Error> {
-        if obj.contains_key("$oid") {
-            let oid: extjson::ObjectId = serde_json::from_value(obj.into())?;
-            return Ok(Bson::ObjectId(oid.parse()?));
-        }
-
-        if obj.contains_key("$symbol") {
-            let symbol: extjson::Symbol = serde_json::from_value(obj.into())?;
-            return Ok(Bson::Symbol(symbol.value));
-        }
-
-        if obj.contains_key("$regularExpression") {
-            let regex: extjson::Regex = serde_json::from_value(obj.into())?;
-            return Ok(regex.parse()?.into());
-        }
-
-        if obj.contains_key("$numberInt") {
-            let int: extjson::Int32 = serde_json::from_value(obj.into())?;
-            return Ok(Bson::I32(int.parse()?));
-        }
-
-        if obj.contains_key("$numberLong") {
-            let int: extjson::Int64 = serde_json::from_value(obj.into())?;
-            return Ok(Bson::I64(int.parse()?));
-        }
-
-        if obj.contains_key("$numberDouble") {
-            let double: extjson::Double = serde_json::from_value(obj.into())?;
-            return Ok(Bson::FloatingPoint(double.parse()?));
-        }
-
-        if obj.contains_key("$binary") {
-            let binary: extjson::Binary = serde_json::from_value(obj.into())?;
-            return Ok(Bson::Binary(binary.parse()?));
-        }
-
-        if obj.contains_key("$code") {
-            let code_w_scope: extjson::JavaScriptCodeWithScope =
-                serde_json::from_value(obj.into())?;
-            return match code_w_scope.scope {
-                Some(scope) => Ok(JavaScriptCodeWithScope {
-                    code: code_w_scope.code,
-                    scope: scope.try_into()?,
-                }
-                .into()),
-                None => Ok(Bson::JavaScriptCode(code_w_scope.code)),
-            };
-        }
-
-        if obj.contains_key("$timestamp") {
-            let ts: extjson::Timestamp = serde_json::from_value(obj.into())?;
-            return Ok(ts.parse()?.into());
-        }
-
-        if obj.contains_key("$date") {
-            let extjson_datetime: extjson::DateTime = serde_json::from_value(obj.into())?;
-            return Ok(Bson::UtcDatetime(extjson_datetime.parse()?.0));
-        }
-
-        if obj.contains_key("$minKey") {
-            let min_key: extjson::MinKey = serde_json::from_value(obj.into())?;
-            return Ok(min_key.parse()?);
-        }
-
-        if obj.contains_key("$maxKey") {
-            let max_key: extjson::MaxKey = serde_json::from_value(obj.into())?;
-            return Ok(max_key.parse()?);
-        }
-
-        if obj.contains_key("$dbPointer") {
-            let db_ptr: extjson::DbPointer = serde_json::from_value(obj.into())?;
-            return Ok(db_ptr.parse()?.into());
-        }
-
-        if obj.contains_key("$numberDecimal") {
-            #[cfg(feature = "decimal128")]
-            {
-                let decimal: extjson::Decimal128 = serde_json::from_value(obj.into())?;
-                return Ok(Bson::Decimal128(decimal.parse()?));
-            }
-
-            #[cfg(not(feature = "decimal128"))]
-            return Err(DecoderError::custom(
-                "decimal128 extjson support not implemented",
-            ));
-        }
-
-        if obj.contains_key("$undefined") {
-            let undefined: extjson::Undefined = serde_json::from_value(obj.into())?;
-            return Ok(undefined.parse()?);
-        }
-
-        Ok(Bson::Document(obj.try_into()?))
-    }
-}
-
-impl TryFrom<Value> for Bson {
-    type Error = DecoderError;
-
-    fn try_from(value: Value) -> DecoderResult<Self> {
-        match value {
-            Value::Number(x) => x
-                .as_i64()
-                .map(|i| {
-                    if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
-                        Bson::I32(i as i32)
-                    } else {
-                        Bson::I64(i)
-                    }
-                })
-                .or_else(|| x.as_u64().map(Bson::from))
-                .or_else(|| x.as_f64().map(Bson::from))
-                .ok_or_else(|| {
-                    DecoderError::invalid_value(
-                        Unexpected::Other(format!("{}", x).as_str()),
-                        &"a number that could fit in i32, i64, or f64",
-                    )
-                }),
-            Value::String(x) => Ok(x.into()),
-            Value::Bool(x) => Ok(x.into()),
-            Value::Array(x) => Ok(Bson::Array(
-                x.into_iter()
-                    .map(Bson::try_from)
-                    .collect::<DecoderResult<Vec<Bson>>>()?,
-            )),
-            Value::Null => Ok(Bson::Null),
-            Value::Object(map) => map.try_into(),
-        }
     }
 }
 

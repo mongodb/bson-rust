@@ -6,7 +6,7 @@ use serde::{
     Deserialize,
 };
 
-use crate::{oid, Bson, DecoderError, DecoderResult};
+use crate::{extjson, oid, Bson, DecoderError};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -16,9 +16,9 @@ pub(crate) struct Int32 {
 }
 
 impl Int32 {
-    pub(crate) fn parse(self) -> DecoderResult<i32> {
+    pub(crate) fn parse(self) -> extjson::de::Result<i32> {
         let i: i32 = self.value.parse().map_err(|_| {
-            DecoderError::invalid_value(
+            extjson::de::Error::invalid_value(
                 Unexpected::Str(self.value.as_str()),
                 &"expected i32 as a string",
             )
@@ -35,9 +35,9 @@ pub(crate) struct Int64 {
 }
 
 impl Int64 {
-    pub(crate) fn parse(self) -> DecoderResult<i64> {
+    pub(crate) fn parse(self) -> extjson::de::Result<i64> {
         let i: i64 = self.value.parse().map_err(|_| {
-            DecoderError::invalid_value(
+            extjson::de::Error::invalid_value(
                 Unexpected::Str(self.value.as_str()),
                 &"expected i64 as a string",
             )
@@ -54,14 +54,14 @@ pub(crate) struct Double {
 }
 
 impl Double {
-    pub(crate) fn parse(self) -> DecoderResult<f64> {
+    pub(crate) fn parse(self) -> extjson::de::Result<f64> {
         match self.value.as_str() {
             "Infinity" => Ok(f64::INFINITY),
             "-Infinity" => Ok(f64::NEG_INFINITY),
             "NaN" => Ok(f64::NAN),
             other => {
                 let d: f64 = other.parse().map_err(|_| {
-                    DecoderError::invalid_value(
+                    extjson::de::Error::invalid_value(
                         Unexpected::Str(other),
                         &"expected bson double as string",
                     )
@@ -80,7 +80,7 @@ pub(crate) struct ObjectId {
 }
 
 impl ObjectId {
-    pub(crate) fn parse(self) -> DecoderResult<oid::ObjectId> {
+    pub(crate) fn parse(self) -> extjson::de::Result<oid::ObjectId> {
         let oid = oid::ObjectId::with_string(self.oid.as_str())?;
         Ok(oid)
     }
@@ -108,7 +108,7 @@ struct RegexBody {
 }
 
 impl Regex {
-    pub(crate) fn parse(self) -> DecoderResult<crate::Regex> {
+    pub(crate) fn parse(self) -> extjson::de::Result<crate::Regex> {
         let mut chars: Vec<_> = self.body.options.chars().collect();
         chars.sort();
         let options: String = chars.into_iter().collect();
@@ -136,16 +136,16 @@ struct BinaryBody {
 }
 
 impl Binary {
-    pub(crate) fn parse(self) -> DecoderResult<crate::Binary> {
+    pub(crate) fn parse(self) -> extjson::de::Result<crate::Binary> {
         let bytes = base64::decode(self.body.base64.as_str()).map_err(|_| {
-            DecoderError::invalid_value(
+            extjson::de::Error::invalid_value(
                 Unexpected::Str(self.body.base64.as_str()),
                 &"base64 encoded bytes",
             )
         })?;
 
         let subtype = hex::decode(self.body.subtype.as_str()).map_err(|_| {
-            DecoderError::invalid_value(
+            extjson::de::Error::invalid_value(
                 Unexpected::Str(self.body.subtype.as_str()),
                 &"hexadecimal number as a string",
             )
@@ -157,7 +157,7 @@ impl Binary {
                 subtype: subtype[0].into(),
             })
         } else {
-            Err(DecoderError::invalid_value(
+            Err(extjson::de::Error::invalid_value(
                 Unexpected::Bytes(subtype.as_slice()),
                 &"one byte subtype",
             ))
@@ -191,7 +191,7 @@ pub(crate) struct TimestampBody {
 }
 
 impl Timestamp {
-    pub(crate) fn parse(self) -> DecoderResult<crate::TimeStamp> {
+    pub(crate) fn parse(self) -> extjson::de::Result<crate::TimeStamp> {
         Ok(crate::TimeStamp {
             time: self.body.t,
             increment: self.body.i,
@@ -214,7 +214,7 @@ enum DateTimeBody {
 }
 
 impl DateTime {
-    pub(crate) fn parse(self) -> DecoderResult<crate::UtcDateTime> {
+    pub(crate) fn parse(self) -> extjson::de::Result<crate::UtcDateTime> {
         match self.body {
             DateTimeBody::Canonical(date) => {
                 let date = date.parse()?;
@@ -251,7 +251,7 @@ impl DateTime {
                 let datetime: chrono::DateTime<Utc> =
                     chrono::DateTime::parse_from_rfc3339(date.as_str())
                         .map_err(|_| {
-                            DecoderError::invalid_value(
+                            extjson::de::Error::invalid_value(
                                 Unexpected::Str(date.as_str()),
                                 &"rfc3339 formatted utc datetime",
                             )
@@ -271,11 +271,11 @@ pub(crate) struct MinKey {
 }
 
 impl MinKey {
-    pub(crate) fn parse(self) -> DecoderResult<Bson> {
+    pub(crate) fn parse(self) -> extjson::de::Result<Bson> {
         if self.value == 1 {
             Ok(Bson::MinKey)
         } else {
-            Err(DecoderError::invalid_value(
+            Err(extjson::de::Error::invalid_value(
                 Unexpected::Unsigned(self.value as u64),
                 &"value of $minKey should always be 1",
             ))
@@ -291,11 +291,11 @@ pub(crate) struct MaxKey {
 }
 
 impl MaxKey {
-    pub(crate) fn parse(self) -> DecoderResult<Bson> {
+    pub(crate) fn parse(self) -> extjson::de::Result<Bson> {
         if self.value == 1 {
             Ok(Bson::MaxKey)
         } else {
-            Err(DecoderError::invalid_value(
+            Err(extjson::de::Error::invalid_value(
                 Unexpected::Unsigned(self.value as u64),
                 &"value of $maxKey should always be 1",
             ))
@@ -321,7 +321,7 @@ struct DbPointerBody {
 }
 
 impl DbPointer {
-    pub(crate) fn parse(self) -> DecoderResult<crate::DbPointer> {
+    pub(crate) fn parse(self) -> extjson::de::Result<crate::DbPointer> {
         Ok(crate::DbPointer {
             namespace: self.body.ref_ns,
             id: self.body.id.parse()?,
@@ -339,9 +339,9 @@ pub(crate) struct Decimal128 {
 
 #[cfg(feature = "decimal128")]
 impl Decimal128 {
-    pub(crate) fn parse(self) -> DecoderResult<crate::Decimal128> {
+    pub(crate) fn parse(self) -> extjson::de::Result<crate::Decimal128> {
         let decimal128: crate::Decimal128 = self.value.parse().map_err(|_| {
-            DecoderError::invalid_value(
+            extjson::de::Error::invalid_value(
                 Unexpected::Str(self.value.as_str()),
                 &"decimal128 value as a string",
             )
@@ -358,11 +358,11 @@ pub(crate) struct Undefined {
 }
 
 impl Undefined {
-    pub(crate) fn parse(self) -> DecoderResult<Bson> {
+    pub(crate) fn parse(self) -> extjson::de::Result<Bson> {
         if self.value {
             Ok(Bson::Undefined)
         } else {
-            Err(DecoderError::invalid_value(
+            Err(extjson::de::Error::invalid_value(
                 Unexpected::Bool(false),
                 &"$undefined should always be true",
             ))

@@ -23,6 +23,7 @@ use crate::decimal128::Decimal128;
 use crate::{
     bson::{Array, Binary, Bson, Timestamp},
     de::{deserialize_bson_kvp, read_i32, MIN_BSON_DOCUMENT_SIZE},
+    extjson,
     oid::ObjectId,
     ser::{serialize_bson, write_i32},
     spec::BinarySubtype,
@@ -103,16 +104,16 @@ impl Debug for Document {
 }
 
 impl TryFrom<serde_json::Map<String, serde_json::Value>> for Document {
-    type Error = DecoderError;
+    type Error = extjson::de::Error;
 
-    fn try_from(obj: serde_json::Map<String, serde_json::Value>) -> DecoderResult<Self> {
+    fn try_from(obj: serde_json::Map<String, serde_json::Value>) -> extjson::de::Result<Self> {
         Ok(obj
             .into_iter()
-            .map(|(k, v)| -> DecoderResult<(String, Bson)> {
+            .map(|(k, v)| -> extjson::de::Result<(String, Bson)> {
                 let value: Bson = v.try_into()?;
                 Ok((k, value))
             })
-            .collect::<DecoderResult<Vec<(String, Bson)>>>()?
+            .collect::<extjson::de::Result<Vec<(String, Bson)>>>()?
             .into_iter()
             .collect())
     }

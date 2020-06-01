@@ -203,7 +203,7 @@ pub mod compat;
 pub mod de;
 pub mod decimal128;
 pub mod document;
-mod extjson;
+pub mod extjson;
 pub mod oid;
 pub mod ser;
 pub mod spec;
