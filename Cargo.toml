@@ -1,6 +1,6 @@
 [package]
 name = "bson"
-version = "0.14.1"
+version = "0.15.0"
 authors = [
     "Y. T. Chung <zonyitoo@gmail.com>",
     "Kevin Yeh <kevinyeah@utexas.edu>"
