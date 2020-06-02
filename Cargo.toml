@@ -28,7 +28,7 @@ byteorder = "1"
 chrono = "0.4"
 libc = "0.2"
 rand = "0.7"
-serde = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 time = "0.1"
 linked-hash-map = "0.5"
@@ -39,7 +39,6 @@ base64 = "0.12.1"
 
 [dev-dependencies]
 assert_matches = "1.2"
-serde_derive = "1.0"
 serde_bytes = "0.11"
 pretty_assertions = "0.6.1"
 

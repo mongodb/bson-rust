@@ -203,6 +203,12 @@ impl From<Binary> for Bson {
     }
 }
 
+impl From<Timestamp> for Bson {
+    fn from(ts: Timestamp) -> Bson {
+        Bson::Timestamp(ts)
+    }
+}
+
 impl<T> From<&T> for Bson
 where
     T: Clone + Into<Bson>,
@@ -294,32 +300,7 @@ impl From<DbPointer> for Bson {
     }
 }
 
-impl From<Value> for Bson {
-    fn from(a: Value) -> Bson {
-        match a {
-            Value::Number(x) => x
-                .as_i64()
-                .map(|i| {
-                    if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
-                        Bson::Int32(i as i32)
-                    } else {
-                        Bson::Int64(i)
-                    }
-                })
-                .or_else(|| x.as_u64().map(Bson::from))
-                .or_else(|| x.as_f64().map(Bson::from))
-                .unwrap_or_else(|| panic!("Invalid number value: {}", x)),
-            Value::String(x) => x.into(),
-            Value::Bool(x) => x.into(),
-            Value::Array(x) => Bson::Array(x.into_iter().map(Bson::from).collect()),
-            Value::Object(x) => Bson::from_extended_document(
-                x.into_iter().map(|(k, v)| (k, Bson::from(v))).collect(),
-            ),
-            Value::Null => Bson::Null,
-        }
-    }
-}
-
+/// This will create the [relaxed Extended JSON v2](https://docs.mongodb.com/manual/reference/mongodb-extended-json/) representation of the provided [`Bson`](../enum.Bson.html).
 impl From<Bson> for Value {
     fn from(bson: Bson) -> Self {
         bson.into_relaxed_extjson()
@@ -754,31 +735,7 @@ impl Bson {
 
             ["$date"] => {
                 if let Ok(date) = doc.get_i64("$date") {
-                    let mut num_secs = date / 1000;
-                    let mut num_millis = date % 1000;
-
-                    // The chrono API only lets us create a DateTime with an i64 number of seconds
-                    // and a u32 number of nanoseconds. In the case of a negative timestamp, this
-                    // means that we need to turn the negative fractional part into a positive and
-                    // shift the number of seconds down. For example:
-                    //
-                    //     date       = -4300 ms
-                    //     num_secs   = date / 1000 = -4300 / 1000 = -4
-                    //     num_millis = date % 1000 = -4300 % 1000 = -300
-                    //
-                    // Since num_millis is less than 0:
-                    //     num_secs   = num_secs -1 = -4 - 1 = -5
-                    //     num_millis = num_nanos + 1000 = -300 + 1000 = 700
-                    //
-                    // Instead of -4 seconds and -300 milliseconds, we now have -5 seconds and +700
-                    // milliseconds, which expresses the same timestamp, but in a way we can create
-                    // a DateTime with.
-                    if num_millis < 0 {
-                        num_secs -= 1;
-                        num_millis += 1000;
-                    };
-
-                    return Bson::DateTime(Utc.timestamp(num_secs, num_millis as u32 * 1_000_000));
+                    return Bson::DateTime(DateTime::from_i64(date).into());
                 }
 
                 if let Ok(date) = doc.get_str("$date") {
@@ -1017,7 +974,7 @@ impl Timestamp {
 ///
 /// Just a helper for convenience
 ///
-/// ```rust,ignore
+/// ```rust
 /// use serde::{Serialize, Deserialize};
 /// use bson::DateTime;
 ///
@@ -1028,6 +985,37 @@ impl Timestamp {
 /// ```
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 pub struct DateTime(pub chrono::DateTime<Utc>);
+
+impl DateTime {
+    pub(crate) fn from_i64(date: i64) -> Self {
+        let mut num_secs = date / 1000;
+        let mut num_millis = date % 1000;
+
+        // The chrono API only lets us create a DateTime with an i64 number of seconds
+        // and a u32 number of nanoseconds. In the case of a negative timestamp, this
+        // means that we need to turn the negative fractional part into a positive and
+        // shift the number of seconds down. For example:
+        //
+        //     date       = -4300 ms
+        //     num_secs   = date / 1000 = -4300 / 1000 = -4
+        //     num_millis = date % 1000 = -4300 % 1000 = -300
+        //
+        // Since num_millis is less than 0:
+        //     num_secs   = num_secs -1 = -4 - 1 = -5
+        //     num_millis = num_nanos + 1000 = -300 + 1000 = 700
+        //
+        // Instead of -4 seconds and -300 milliseconds, we now have -5 seconds and +700
+        // milliseconds, which expresses the same timestamp, but in a way we can create
+        // a DateTime with.
+        if num_millis < 0 {
+            num_secs -= 1;
+            num_millis += 1000;
+        };
+
+        Utc.timestamp(num_secs, num_millis as u32 * 1_000_000)
+            .into()
+    }
+}
 
 impl Deref for DateTime {
     type Target = chrono::DateTime<Utc>;

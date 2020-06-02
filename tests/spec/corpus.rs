@@ -1,8 +1,11 @@
-use std::str::FromStr;
+use std::{
+    convert::{TryFrom, TryInto},
+    str::FromStr,
+};
 
 use bson::{Bson, Document};
 use pretty_assertions::assert_eq;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 use super::run_spec_test;
 
@@ -136,7 +139,7 @@ fn run_test(test: TestFile) {
 
         // native_to_canonical_extended_json( json_to_native(cEJ) ) = cEJ
 
-        let json_to_native_cej: Bson = cej.clone().into();
+        let json_to_native_cej: Bson = cej.clone().try_into().expect("cej into bson should work");
 
         let native_to_canonical_extended_json_bson_to_native_cej =
             json_to_native_cej.clone().into_canonical_extjson();
@@ -192,7 +195,7 @@ fn run_test(test: TestFile) {
             let dej: serde_json::Value =
                 serde_json::from_str(degenerate_extjson).expect(&description);
 
-            let json_to_native_dej: Bson = dej.clone().into();
+            let json_to_native_dej: Bson = dej.clone().try_into().unwrap();
 
             // native_to_canonical_extended_json( json_to_native(dEJ) ) = cEJ
 
@@ -235,7 +238,7 @@ fn run_test(test: TestFile) {
         if let Some(ref rej) = valid.relaxed_extjson {
             let rej: serde_json::Value = serde_json::from_str(rej).unwrap();
 
-            let json_to_native_rej: Bson = rej.clone().into();
+            let json_to_native_rej: Bson = rej.clone().try_into().unwrap();
 
             let native_to_relaxed_extended_json_bson_to_native_rej =
                 json_to_native_rej.clone().into_relaxed_extjson();
@@ -246,6 +249,40 @@ fn run_test(test: TestFile) {
                 description,
             );
         }
+    }
+
+    for decode_error in test.decode_errors {
+        // No meaningful definition of "byte count" for an arbitrary reader.
+        if decode_error.description
+            == "Stated length less than byte count, with garbage after envelope"
+        {
+            continue;
+        }
+
+        let bson = hex::decode(decode_error.bson).expect("should decode from hex");
+        Document::from_reader(&mut bson.as_slice()).expect_err(decode_error.description.as_str());
+    }
+
+    for parse_error in test.parse_errors {
+        // TODO RUST-36: Enable decimal128 tests.
+        if test.bson_type == "0x13" {
+            continue;
+        }
+
+        // no special support for dbref convention
+        if parse_error.description.contains("DBRef") {
+            continue;
+        }
+
+        // TODO RUST-36: Enable decimal128 tests.
+        if !cfg!(feature = "decimal128") && parse_error.description.contains("$numberDecimal") {
+            continue;
+        }
+
+        let json: serde_json::Value =
+            serde_json::from_str(parse_error.string.as_str()).expect(&parse_error.description);
+
+        Bson::try_from(json).expect_err(&parse_error.description);
     }
 }
 

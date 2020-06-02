@@ -1,4 +1,7 @@
-use std::io::{Cursor, Write};
+use std::{
+    convert::TryFrom,
+    io::{Cursor, Write},
+};
 
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
@@ -420,12 +423,13 @@ fn test_serialize_deserialize_max_key() {
 
 #[test]
 fn test_serialize_deserialize_db_pointer() {
-    let src = Bson::from(json!({
+    let src = Bson::try_from(json!({
         "$dbPointer": {
             "$ref": "db.coll",
             "$id": { "$oid": "507f1f77bcf86cd799439011" },
         }
-    }));
+    }))
+    .unwrap();
     let dst = vec![
         34, 0, 0, 0, 12, 107, 101, 121, 0, 8, 0, 0, 0, 100, 98, 46, 99, 111, 108, 108, 0, 80, 127,
         31, 119, 188, 248, 108, 215, 153, 67, 144, 17, 0,

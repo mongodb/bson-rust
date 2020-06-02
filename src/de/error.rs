@@ -1,8 +1,8 @@
 use std::{error, fmt, fmt::Display, io, string};
 
+use serde::de::{self, Unexpected};
+
 use crate::Bson;
-use de::Unexpected;
-use serde::de;
 
 /// Possible errors that can arise during decoding.
 #[derive(Debug)]

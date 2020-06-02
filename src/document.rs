@@ -15,13 +15,13 @@ use chrono::{DateTime, Utc};
 
 use linked_hash_map::{self, LinkedHashMap};
 
-use serde::de::{self, MapAccess, Visitor};
+use serde::de::{self, Error, MapAccess, Visitor};
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
     bson::{Array, Binary, Bson, Timestamp},
-    de::{deserialize_bson_kvp, read_i32},
+    de::{deserialize_bson_kvp, ensure_read_exactly, read_i32, MIN_BSON_DOCUMENT_SIZE},
     oid::ObjectId,
     ser::{serialize_bson, write_i32},
     spec::BinarySubtype,
@@ -530,19 +530,32 @@ impl Document {
     pub fn from_reader<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
         let mut doc = Document::new();
 
-        // disregard the length: using Read::take causes infinite type recursion
-        read_i32(reader)?;
-
-        loop {
-            let tag = reader.read_u8()?;
-
-            if tag == 0 {
-                break;
-            }
-
-            let (key, val) = deserialize_bson_kvp(reader, tag, false)?;
-            doc.insert(key, val);
+        let length = read_i32(reader)?;
+        if length < MIN_BSON_DOCUMENT_SIZE {
+            return Err(crate::de::Error::invalid_length(
+                length as usize,
+                &"document length must be at least 5",
+            ));
         }
+
+        ensure_read_exactly(
+            reader,
+            (length as usize) - 4,
+            "document length longer than contents",
+            |cursor| {
+                loop {
+                    let tag = cursor.read_u8()?;
+
+                    if tag == 0 {
+                        break;
+                    }
+
+                    let (key, val) = deserialize_bson_kvp(cursor, tag, false)?;
+                    doc.insert(key, val);
+                }
+                Ok(())
+            },
+        )?;
 
         Ok(doc)
     }

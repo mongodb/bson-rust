@@ -145,7 +145,7 @@
 //!
 //! e.g.:
 //! ```rust
-//! # use serde_derive::{Deserialize, Serialize};
+//! # use serde::{Deserialize, Serialize};
 //! # use bson::{bson, Bson};
 //! #[derive(Serialize, Deserialize)]
 //! struct Person {
@@ -210,6 +210,7 @@ pub mod compat;
 pub mod de;
 pub mod decimal128;
 pub mod document;
+pub mod extjson;
 pub mod oid;
 pub mod ser;
 pub mod spec;

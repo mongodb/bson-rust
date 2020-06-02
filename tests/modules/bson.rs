@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+
 use bson::{
     doc,
     oid::ObjectId,
@@ -116,14 +118,14 @@ fn from_impls() {
         Bson::Array(vec![Bson::Int32(1), Bson::Int32(2), Bson::Int32(3)])
     );
     assert_eq!(
-        Bson::from(json!({"_id": {"$oid": oid.to_hex()}, "name": ["bson-rs"]})),
+        Bson::try_from(json!({"_id": {"$oid": oid.to_hex()}, "name": ["bson-rs"]})).unwrap(),
         Bson::Document(doc! {"_id": &oid, "name": ["bson-rs"]})
     );
 
     // References
     assert_eq!(Bson::from(&24i32), Bson::Int32(24));
     assert_eq!(
-        Bson::from(&String::from("data")),
+        Bson::try_from(&String::from("data")).unwrap(),
         Bson::String(String::from("data"))
     );
     assert_eq!(Bson::from(&oid), Bson::ObjectId(oid));
@@ -132,12 +134,13 @@ fn from_impls() {
         Bson::Document(doc! {"a": "b"})
     );
 
-    let db_pointer = Bson::from(json!({
+    let db_pointer = Bson::try_from(json!({
         "$dbPointer": {
             "$ref": "db.coll",
             "$id": { "$oid": "507f1f77bcf86cd799439011" },
         }
-    }));
+    }))
+    .unwrap();
     let db_pointer = db_pointer.as_db_pointer().unwrap();
     assert_eq!(Bson::from(db_pointer), Bson::DbPointer(db_pointer.clone()));
 }

@@ -44,11 +44,41 @@ use crate::{
     Decimal128,
 };
 
-use ::serde::de::{self, Error as _};
+use ::serde::{
+    de::{Error as _, Unexpected},
+    Deserialize,
+};
 
 const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
+pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
+const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
+const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
-fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> crate::de::Result<String> {
+/// Run the provided closure, ensuring that over the course of its execution, exactly `length` bytes
+/// were read from the reader.
+pub(crate) fn ensure_read_exactly<F, R>(
+    reader: &mut R,
+    length: usize,
+    error_message: &str,
+    func: F,
+) -> Result<()>
+where
+    F: FnOnce(&mut std::io::Cursor<Vec<u8>>) -> Result<()>,
+    R: Read + ?Sized,
+{
+    let mut buf = vec![0u8; length];
+    reader.read_exact(&mut buf)?;
+    let mut cursor = std::io::Cursor::new(buf);
+
+    func(&mut cursor)?;
+
+    if cursor.position() != length as u64 {
+        return Err(Error::invalid_length(length, &error_message));
+    }
+    Ok(())
+}
+
+fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<String> {
     let len = reader.read_i32::<LittleEndian>()?;
 
     // UTF-8 String must have at least 1 byte (the last 0x00).
@@ -68,12 +98,19 @@ fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> crate::de:
         reader.take(len as u64 - 1).read_to_string(&mut s)?;
         s
     };
-    reader.read_u8()?; // The last 0x00
+
+    // read the null terminator
+    if reader.read_u8()? != 0 {
+        return Err(Error::invalid_length(
+            len as usize,
+            &"contents of string longer than provided length",
+        ));
+    }
 
     Ok(s)
 }
 
-fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<String> {
+fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> Result<String> {
     let mut v = Vec::new();
 
     loop {
@@ -88,12 +125,12 @@ fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<String> {
 }
 
 #[inline]
-pub(crate) fn read_i32<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<i32> {
+pub(crate) fn read_i32<R: Read + ?Sized>(reader: &mut R) -> Result<i32> {
     reader.read_i32::<LittleEndian>().map_err(From::from)
 }
 
 #[inline]
-fn read_i64<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<i64> {
+fn read_i64<R: Read + ?Sized>(reader: &mut R) -> Result<i64> {
     reader.read_i64::<LittleEndian>().map_err(From::from)
 }
 
@@ -101,7 +138,7 @@ fn read_i64<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<i64> {
 /// parsing.
 #[cfg(not(feature = "decimal128"))]
 #[inline]
-fn read_f128<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Decimal128> {
+fn read_f128<R: Read + ?Sized>(reader: &mut R) -> Result<Decimal128> {
     let mut buf = [0u8; 128 / 8];
     reader.read_exact(&mut buf)?;
     Ok(Decimal128 { bytes: buf })
@@ -109,7 +146,7 @@ fn read_f128<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Decimal128> 
 
 #[cfg(feature = "decimal128")]
 #[inline]
-fn read_f128<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Decimal128> {
+fn read_f128<R: Read + ?Sized>(reader: &mut R) -> Result<Decimal128> {
     use std::mem;
 
     let mut local_buf: [u8; 16] = unsafe { mem::MaybeUninit::uninit().assume_init() };
@@ -118,24 +155,27 @@ fn read_f128<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Decimal128> 
     Ok(val)
 }
 
-fn deserialize_array<R: Read + ?Sized>(
-    reader: &mut R,
-    utf8_lossy: bool,
-) -> crate::de::Result<Array> {
+fn deserialize_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<Array> {
     let mut arr = Array::new();
+    let length = read_i32(reader)?;
 
-    // disregard the length: using Read::take causes infinite type recursion
-    read_i32(reader)?;
+    ensure_read_exactly(
+        reader,
+        (length as usize) - 4,
+        "array length longer than contents",
+        |cursor| {
+            loop {
+                let tag = cursor.read_u8()?;
+                if tag == 0 {
+                    break;
+                }
 
-    loop {
-        let tag = reader.read_u8()?;
-        if tag == 0 {
-            break;
-        }
-
-        let (_, val) = deserialize_bson_kvp(reader, tag, utf8_lossy)?;
-        arr.push(val)
-    }
+                let (_, val) = deserialize_bson_kvp(cursor, tag, utf8_lossy)?;
+                arr.push(val)
+            }
+            Ok(())
+        },
+    )?;
 
     Ok(arr)
 }
@@ -144,7 +184,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
     reader: &mut R,
     tag: u8,
     utf8_lossy: bool,
-) -> crate::de::Result<(String, Bson)> {
+) -> Result<(String, Bson)> {
     use spec::ElementType;
     let key = read_cstring(reader)?;
 
@@ -165,7 +205,15 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
 
             // Skip length data in old binary.
             if let BinarySubtype::BinaryOld = subtype {
-                read_i32(reader)?;
+                let data_len = read_i32(reader)?;
+
+                if data_len + 4 != len {
+                    return Err(Error::invalid_length(
+                        data_len as usize,
+                        &"0x02 length did not match top level binary length",
+                    ));
+                }
+
                 len -= 4;
             }
 
@@ -181,7 +229,17 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             }
             Bson::ObjectId(oid::ObjectId::with_bytes(objid))
         }
-        Some(ElementType::Boolean) => Bson::Boolean(reader.read_u8()? != 0),
+        Some(ElementType::Boolean) => {
+            let val = reader.read_u8()?;
+            if val > 1 {
+                return Err(Error::invalid_value(
+                    Unexpected::Unsigned(val as u64),
+                    &"boolean must be stored as 0 or 1",
+                ));
+            }
+
+            Bson::Boolean(val != 0)
+        }
         Some(ElementType::Null) => Bson::Null,
         Some(ElementType::RegularExpression) => {
             let pattern = read_cstring(reader)?;
@@ -198,12 +256,29 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             read_string(reader, utf8_lossy).map(Bson::JavaScriptCode)?
         }
         Some(ElementType::JavaScriptCodeWithScope) => {
-            // disregard the length:
-            //     using Read::take causes infinite type recursion
-            read_i32(reader)?;
+            let length = read_i32(reader)?;
+            if length < MIN_CODE_WITH_SCOPE_SIZE {
+                return Err(Error::invalid_length(
+                    length as usize,
+                    &format!(
+                        "code with scope length must be at least {}",
+                        MIN_CODE_WITH_SCOPE_SIZE
+                    )
+                    .as_str(),
+                ));
+            } else if length > MAX_BSON_SIZE {
+                return Err(Error::invalid_length(
+                    length as usize,
+                    &"code with scope length too large",
+                ));
+            }
 
-            let code = read_string(reader, utf8_lossy)?;
-            let scope = Document::from_reader(reader)?;
+            let mut buf = vec![0u8; (length - 4) as usize];
+            reader.read_exact(&mut buf)?;
+
+            let mut slice = buf.as_slice();
+            let code = read_string(&mut slice, utf8_lossy)?;
+            let scope = Document::from_reader(&mut slice)?;
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope })
         }
         Some(ElementType::Int32) => read_i32(reader).map(Bson::Int32)?,
@@ -256,10 +331,10 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
 }
 
 /// Decode a BSON `Value` into a `T` Deserializable.
-pub fn from_bson<'de, T>(bson: Bson) -> crate::de::Result<T>
+pub fn from_bson<'de, T>(bson: Bson) -> Result<T>
 where
-    T: de::Deserialize<'de>,
+    T: Deserialize<'de>,
 {
     let de = Deserializer::new(bson);
-    de::Deserialize::deserialize(de)
+    Deserialize::deserialize(de)
 }
