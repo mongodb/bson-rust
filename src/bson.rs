@@ -985,7 +985,7 @@ impl Bson {
 }
 
 /// Represents a BSON timestamp value.
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
+#[derive(Debug, Eq, Ord, PartialEq, PartialOrd, Clone, Copy, Hash)]
 pub struct Timestamp {
     /// The number of seconds since the Unix epoch.
     pub time: u32,
