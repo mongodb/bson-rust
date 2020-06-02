@@ -7,6 +7,7 @@ use bson::{
     Document,
     JavaScriptCodeWithScope,
     Regex,
+    Timestamp,
 };
 use serde_json::{json, Value};
 
@@ -139,4 +140,23 @@ fn from_impls() {
     }));
     let db_pointer = db_pointer.as_db_pointer().unwrap();
     assert_eq!(Bson::from(db_pointer), Bson::DbPointer(db_pointer.clone()));
+}
+
+#[test]
+fn timestamp_ordering() {
+    let ts1 = Timestamp {
+        time: 0,
+        increment: 1,
+    };
+    let ts2 = Timestamp {
+        time: 0,
+        increment: 2,
+    };
+    let ts3 = Timestamp {
+        time: 1,
+        increment: 0,
+    };
+    assert!(ts1 < ts2);
+    assert!(ts1 < ts3);
+    assert!(ts2 < ts3);
 }
