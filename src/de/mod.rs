@@ -54,13 +54,20 @@ pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one
 const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
 const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
-/// Run the provided closure, ensuring that over the course of its execution, the provided vec's
-/// contents were read entirely, and that no attempts were made to read past the end.
-pub(crate) fn ensure_read_exactly<F>(buf: Vec<u8>, error_message: &str, func: F) -> Result<()>
+/// Run the provided closure, ensuring that over the course of its execution, exactly `length` bytes
+/// were read from the reader.
+pub(crate) fn ensure_read_exactly<F, R>(
+    reader: &mut R,
+    length: usize,
+    error_message: &str,
+    func: F,
+) -> Result<()>
 where
     F: FnOnce(&mut std::io::Cursor<Vec<u8>>) -> Result<()>,
+    R: Read + ?Sized,
 {
-    let length = buf.len();
+    let mut buf = vec![0u8; length];
+    reader.read_exact(&mut buf)?;
     let mut cursor = std::io::Cursor::new(buf);
 
     func(&mut cursor)?;
@@ -152,21 +159,23 @@ fn deserialize_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Resu
     let mut arr = Array::new();
     let length = read_i32(reader)?;
 
-    let mut buf = vec![0u8; (length as usize) - 4];
-    reader.read_exact(&mut buf)?;
+    ensure_read_exactly(
+        reader,
+        (length as usize) - 4,
+        "array length longer than contents",
+        |cursor| {
+            loop {
+                let tag = cursor.read_u8()?;
+                if tag == 0 {
+                    break;
+                }
 
-    ensure_read_exactly(buf, "array length longer than contents", |cursor| {
-        loop {
-            let tag = cursor.read_u8()?;
-            if tag == 0 {
-                break;
+                let (_, val) = deserialize_bson_kvp(cursor, tag, utf8_lossy)?;
+                arr.push(val)
             }
-
-            let (_, val) = deserialize_bson_kvp(cursor, tag, utf8_lossy)?;
-            arr.push(val)
-        }
-        Ok(())
-    })?;
+            Ok(())
+        },
+    )?;
 
     Ok(arr)
 }

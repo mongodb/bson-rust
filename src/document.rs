@@ -538,22 +538,24 @@ impl Document {
             ));
         }
 
-        let mut buf = vec![0u8; (length as usize) - 4];
-        reader.read_exact(&mut buf)?;
+        ensure_read_exactly(
+            reader,
+            (length as usize) - 4,
+            "document length longer than contents",
+            |cursor| {
+                loop {
+                    let tag = cursor.read_u8()?;
 
-        ensure_read_exactly(buf, "document length longer than contents", |cursor| {
-            loop {
-                let tag = cursor.read_u8()?;
+                    if tag == 0 {
+                        break;
+                    }
 
-                if tag == 0 {
-                    break;
+                    let (key, val) = deserialize_bson_kvp(cursor, tag, false)?;
+                    doc.insert(key, val);
                 }
-
-                let (key, val) = deserialize_bson_kvp(cursor, tag, false)?;
-                doc.insert(key, val);
-            }
-            Ok(())
-        })?;
+                Ok(())
+            },
+        )?;
 
         Ok(doc)
     }
