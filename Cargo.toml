@@ -8,7 +8,7 @@ authors = [
 description = "Encoding and decoding support for BSON in Rust"
 license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/zonyitoo/bson-rs"
+homepage = "https://github.com/mongodb/bson-rust"
 documentation = "https://docs.rs/crate/bson"
 edition = "2018"
 
