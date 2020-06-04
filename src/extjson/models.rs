@@ -56,9 +56,9 @@ pub(crate) struct Double {
 impl Double {
     pub(crate) fn parse(self) -> extjson::de::Result<f64> {
         match self.value.as_str() {
-            "Infinity" => Ok(f64::INFINITY),
-            "-Infinity" => Ok(f64::NEG_INFINITY),
-            "NaN" => Ok(f64::NAN),
+            "Infinity" => Ok(std::f64::INFINITY),
+            "-Infinity" => Ok(std::f64::NEG_INFINITY),
+            "NaN" => Ok(std::f64::NAN),
             other => {
                 let d: f64 = other.parse().map_err(|_| {
                     extjson::de::Error::invalid_value(
