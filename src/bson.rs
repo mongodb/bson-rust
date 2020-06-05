@@ -692,7 +692,10 @@ impl Bson {
 
                     if let Ok(t) = timestamp.get_i64("t") {
                         if let Ok(i) = timestamp.get_i64("i") {
-                            if t >= 0 && i >= 0 && t <= (std::u32::MAX as i64) && i <= (std::u32::MAX as i64)
+                            if t >= 0
+                                && i >= 0
+                                && t <= (std::u32::MAX as i64)
+                                && i <= (std::u32::MAX as i64)
                             {
                                 return Bson::Timestamp(Timestamp {
                                     time: t as u32,
