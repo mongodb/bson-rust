@@ -636,9 +636,9 @@ impl Bson {
             }
 
             ["$numberDouble"] => match doc.get_str("$numberDouble") {
-                Ok("Infinity") => return Bson::Double(f64::INFINITY),
-                Ok("-Infinity") => return Bson::Double(f64::NEG_INFINITY),
-                Ok("NaN") => return Bson::Double(f64::NAN),
+                Ok("Infinity") => return Bson::Double(std::f64::INFINITY),
+                Ok("-Infinity") => return Bson::Double(std::f64::NEG_INFINITY),
+                Ok("NaN") => return Bson::Double(std::f64::NAN),
                 Ok(other) => {
                     if let Ok(d) = other.parse() {
                         return Bson::Double(d);
@@ -692,7 +692,10 @@ impl Bson {
 
                     if let Ok(t) = timestamp.get_i64("t") {
                         if let Ok(i) = timestamp.get_i64("i") {
-                            if t >= 0 && i >= 0 && t <= (u32::MAX as i64) && i <= (u32::MAX as i64)
+                            if t >= 0
+                                && i >= 0
+                                && t <= (std::u32::MAX as i64)
+                                && i <= (std::u32::MAX as i64)
                             {
                                 return Bson::Timestamp(Timestamp {
                                     time: t as u32,
