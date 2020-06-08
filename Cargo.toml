@@ -1,9 +1,10 @@
 [package]
 name = "bson"
-version = "0.15.0"
+version = "1.0.0"
 authors = [
     "Y. T. Chung <zonyitoo@gmail.com>",
-    "Kevin Yeh <kevinyeah@utexas.edu>"
+    "Kevin Yeh <kevinyeah@utexas.edu>",
+    "Saghm Rossi <saghmrossi@gmail.com>"
 ]
 description = "Encoding and decoding support for BSON in Rust"
 license = "MIT"
