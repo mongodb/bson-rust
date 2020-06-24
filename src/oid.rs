@@ -216,6 +216,7 @@ fn count_generated_is_big_endian() {
 
 #[cfg(test)]
 mod test {
+    use byteorder::{ByteOrder, LittleEndian};
     use chrono::{offset::TimeZone, Utc};
 
     #[test]
@@ -249,5 +250,12 @@ mod test {
         let id = super::ObjectId::with_string("FFFFFFFF0000000000000000").unwrap();
         // "Feb 7th, 2106 06:28:15 UTC"
         assert_eq!(Utc.ymd(2106, 2, 7).and_hms(6, 28, 15), id.timestamp());
+    }
+
+    #[test]
+    fn test_counter_overflow() {
+        let id = super::ObjectId::with_string("000000000000000000FFFFFF").unwrap();
+        let counter = LittleEndian::read_u24(&id.bytes());
+        assert_eq!(counter, 0);
     }
 }
