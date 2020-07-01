@@ -1,7 +1,8 @@
-use bson::oid::ObjectId;
+use crate::{oid::ObjectId, tests::LOCK};
 
 #[test]
 fn string_oid() {
+    let _guard = LOCK.run_concurrently();
     let s = "123456789012123456789012";
     let oid_res = ObjectId::with_string(s);
     assert!(oid_res.is_ok());
@@ -11,6 +12,7 @@ fn string_oid() {
 
 #[test]
 fn byte_string_oid() {
+    let _guard = LOCK.run_concurrently();
     let s = "541b1a00e8a23afa832b218e";
     let oid_res = ObjectId::with_string(s);
     assert!(oid_res.is_ok());
@@ -26,18 +28,21 @@ fn byte_string_oid() {
 
 #[test]
 fn oid_equals() {
+    let _guard = LOCK.run_concurrently();
     let oid = ObjectId::new();
     assert_eq!(oid, oid);
 }
 
 #[test]
 fn oid_not_equals() {
+    let _guard = LOCK.run_concurrently();
     assert!(ObjectId::new() != ObjectId::new());
 }
 
 // check that the last byte in objectIDs is increasing
 #[test]
 fn counter_increasing() {
+    let _guard = LOCK.run_concurrently();
     let oid1_bytes = ObjectId::new().bytes();
     let oid2_bytes = ObjectId::new().bytes();
     assert!(oid1_bytes[11] < oid2_bytes[11]);

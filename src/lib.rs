@@ -214,3 +214,6 @@ pub mod extjson;
 pub mod oid;
 pub mod ser;
 pub mod spec;
+
+#[cfg(test)]
+mod tests;

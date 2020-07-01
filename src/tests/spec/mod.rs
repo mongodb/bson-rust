@@ -7,7 +7,7 @@ use std::{
     path::PathBuf,
 };
 
-use bson::Bson;
+use crate::{from_bson, Bson};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -16,7 +16,7 @@ where
     F: Fn(T),
     T: Deserialize<'a>,
 {
-    let base_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "tests", "spec", "json"]
+    let base_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "src", "tests", "spec", "json"]
         .iter()
         .chain(spec.iter())
         .collect();
@@ -37,6 +37,6 @@ where
         let json: Value =
             serde_json::from_reader(File::open(test_file_full_path.as_path()).unwrap()).unwrap();
 
-        run_test_file(bson::from_bson(Bson::try_from(json).unwrap()).unwrap())
+        run_test_file(from_bson(Bson::try_from(json).unwrap()).unwrap())
     }
 }
