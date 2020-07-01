@@ -8,6 +8,7 @@ use std::{collections::BTreeMap, convert::TryFrom};
 
 #[test]
 fn test_ser_vec() {
+    let _guard = LOCK.run_concurrently();
     let vec = vec![1, 2, 3];
 
     let serializer = Serializer::new();
@@ -19,6 +20,7 @@ fn test_ser_vec() {
 
 #[test]
 fn test_ser_map() {
+    let _guard = LOCK.run_concurrently();
     let mut map = BTreeMap::new();
     map.insert("x", 0);
     map.insert("y", 1);
@@ -32,6 +34,7 @@ fn test_ser_map() {
 
 #[test]
 fn test_de_vec() {
+    let _guard = LOCK.run_concurrently();
     let bson = bson!([1, 2, 3]);
 
     let deserializer = Deserializer::new(bson);
@@ -43,6 +46,7 @@ fn test_de_vec() {
 
 #[test]
 fn test_de_map() {
+    let _guard = LOCK.run_concurrently();
     let bson = bson!({ "x": 0, "y": 1 });
 
     let deserializer = Deserializer::new(bson);
@@ -56,6 +60,7 @@ fn test_de_map() {
 
 #[test]
 fn test_ser_timestamp() {
+    let _guard = LOCK.run_concurrently();
     use bson::Timestamp;
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
@@ -82,6 +87,7 @@ fn test_ser_timestamp() {
 
 #[test]
 fn test_de_timestamp() {
+    let _guard = LOCK.run_concurrently();
     use bson::Timestamp;
 
     #[derive(Deserialize, Eq, PartialEq, Debug)]
@@ -105,6 +111,7 @@ fn test_de_timestamp() {
 
 #[test]
 fn test_ser_regex() {
+    let _guard = LOCK.run_concurrently();
     use bson::Regex;
 
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -133,6 +140,7 @@ fn test_ser_regex() {
 
 #[test]
 fn test_de_regex() {
+    let _guard = LOCK.run_concurrently();
     use bson::Regex;
 
     #[derive(Deserialize, PartialEq, Debug)]
@@ -155,6 +163,7 @@ fn test_de_regex() {
 
 #[test]
 fn test_ser_code_with_scope() {
+    let _guard = LOCK.run_concurrently();
     use bson::JavaScriptCodeWithScope;
 
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -183,6 +192,7 @@ fn test_ser_code_with_scope() {
 
 #[test]
 fn test_de_code_with_scope() {
+    let _guard = LOCK.run_concurrently();
     use bson::JavaScriptCodeWithScope;
 
     #[derive(Deserialize, PartialEq, Debug)]
@@ -205,6 +215,7 @@ fn test_de_code_with_scope() {
 
 #[test]
 fn test_ser_datetime() {
+    let _guard = LOCK.run_concurrently();
     use bson::DateTime;
     use chrono::{Timelike, Utc};
 
@@ -235,6 +246,7 @@ fn test_ser_datetime() {
 
 #[test]
 fn test_compat_u2f() {
+    let _guard = LOCK.run_concurrently();
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
         #[serde(with = "bson::compat::u2f")]
@@ -251,6 +263,7 @@ fn test_compat_u2f() {
 
 #[test]
 fn test_binary_generic_roundtrip() {
+    let _guard = LOCK.run_concurrently();
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     pub struct Foo {
         data: Bson,
@@ -275,6 +288,7 @@ fn test_binary_generic_roundtrip() {
 
 #[test]
 fn test_binary_non_generic_roundtrip() {
+    let _guard = LOCK.run_concurrently();
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     pub struct Foo {
         data: Bson,
@@ -299,6 +313,7 @@ fn test_binary_non_generic_roundtrip() {
 
 #[test]
 fn test_binary_helper_generic_roundtrip() {
+    let _guard = LOCK.run_concurrently();
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     pub struct Foo {
         data: Binary,
@@ -323,6 +338,7 @@ fn test_binary_helper_generic_roundtrip() {
 
 #[test]
 fn test_binary_helper_non_generic_roundtrip() {
+    let _guard = LOCK.run_concurrently();
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
     pub struct Foo {
         data: Binary,
@@ -347,6 +363,7 @@ fn test_binary_helper_non_generic_roundtrip() {
 
 #[test]
 fn test_byte_vec() {
+    let _guard = LOCK.run_concurrently();
     #[derive(Serialize, Debug, Eq, PartialEq)]
     pub struct AuthChallenge<'a> {
         #[serde(with = "serde_bytes")]
@@ -374,6 +391,7 @@ fn test_byte_vec() {
 
 #[test]
 fn test_serde_bytes() {
+    let _guard = LOCK.run_concurrently();
     #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
     pub struct Foo {
         #[serde(with = "serde_bytes")]
@@ -396,6 +414,7 @@ fn test_serde_bytes() {
 
 #[test]
 fn test_serde_newtype_struct() {
+    let _guard = LOCK.run_concurrently();
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     struct Email(String);
 
@@ -411,6 +430,7 @@ fn test_serde_newtype_struct() {
 
 #[test]
 fn test_serde_tuple_struct() {
+    let _guard = LOCK.run_concurrently();
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     struct Name(String, String); // first, last
 
@@ -426,6 +446,7 @@ fn test_serde_tuple_struct() {
 
 #[test]
 fn test_serde_newtype_variant() {
+    let _guard = LOCK.run_concurrently();
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     #[serde(tag = "type", content = "value")]
     enum Number {
@@ -446,6 +467,7 @@ fn test_serde_newtype_variant() {
 
 #[test]
 fn test_serde_tuple_variant() {
+    let _guard = LOCK.run_concurrently();
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     enum Point {
         TwoDim(f64, f64),
@@ -466,6 +488,7 @@ fn test_serde_tuple_variant() {
 
 #[test]
 fn test_ser_db_pointer() {
+    let _guard = LOCK.run_concurrently();
     use bson::DbPointer;
 
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -499,6 +522,7 @@ fn test_ser_db_pointer() {
 
 #[test]
 fn test_de_db_pointer() {
+    let _guard = LOCK.run_concurrently();
     use bson::DbPointer;
 
     #[derive(Deserialize, PartialEq, Debug)]

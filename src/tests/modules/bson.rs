@@ -1,9 +1,10 @@
 use std::convert::TryFrom;
 
-use bson::{
+use crate::{
     doc,
     oid::ObjectId,
     spec::BinarySubtype,
+    tests::LOCK,
     Binary,
     Bson,
     Document,
@@ -15,6 +16,7 @@ use serde_json::{json, Value};
 
 #[test]
 fn to_json() {
+    let _guard = LOCK.run_concurrently();
     let mut doc = Document::new();
     doc.insert(
         "_id",
@@ -49,12 +51,14 @@ fn to_json() {
 
 #[test]
 fn bson_default() {
+    let _guard = LOCK.run_concurrently();
     let bson1 = Bson::default();
     assert_eq!(bson1, Bson::Null);
 }
 
 #[test]
 fn document_default() {
+    let _guard = LOCK.run_concurrently();
     let doc1 = Document::default();
     assert_eq!(doc1.keys().count(), 0);
     assert_eq!(doc1, Document::new());
@@ -62,6 +66,7 @@ fn document_default() {
 
 #[test]
 fn from_impls() {
+    let _guard = LOCK.run_concurrently();
     assert_eq!(Bson::from(1.5f32), Bson::Double(1.5));
     assert_eq!(Bson::from(2.25f64), Bson::Double(2.25));
     assert_eq!(Bson::from("data"), Bson::String(String::from("data")));
@@ -147,6 +152,7 @@ fn from_impls() {
 
 #[test]
 fn timestamp_ordering() {
+    let _guard = LOCK.run_concurrently();
     let ts1 = Timestamp {
         time: 0,
         increment: 1,

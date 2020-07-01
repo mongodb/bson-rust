@@ -192,8 +192,12 @@ impl fmt::Debug for ObjectId {
     }
 }
 
+#[cfg(test)]
+use crate::tests::LOCK;
+
 #[test]
 fn count_generated_is_big_endian() {
+    let _guard = LOCK.run_exclusively();
     let start = 1_122_866;
     OID_COUNTER.store(start, Ordering::SeqCst);
 

@@ -1,12 +1,13 @@
-use assert_matches::assert_matches;
 #[cfg(feature = "decimal128")]
-use bson::decimal128::Decimal128;
-use bson::{from_bson, oid::ObjectId, to_bson, Bson};
+use crate::decimal128::Decimal128;
+use crate::{from_bson, oid::ObjectId, ser, tests::LOCK, to_bson, Bson};
+use assert_matches::assert_matches;
 use std::{collections::BTreeMap, u16, u32, u64, u8};
 
 #[test]
 #[allow(clippy::float_cmp)]
 fn floating_point() {
+    let _guard = LOCK.run_concurrently();
     let obj = Bson::Double(240.5);
     let f: f64 = from_bson(obj.clone()).unwrap();
     assert_eq!(f, 240.5);
@@ -17,6 +18,7 @@ fn floating_point() {
 
 #[test]
 fn string() {
+    let _guard = LOCK.run_concurrently();
     let obj = Bson::String("avocado".to_owned());
     let s: String = from_bson(obj.clone()).unwrap();
     assert_eq!(s, "avocado");
@@ -27,6 +29,7 @@ fn string() {
 
 #[test]
 fn arr() {
+    let _guard = LOCK.run_concurrently();
     let obj = Bson::Array(vec![
         Bson::Int32(0),
         Bson::Int32(1),
@@ -42,6 +45,7 @@ fn arr() {
 
 #[test]
 fn boolean() {
+    let _guard = LOCK.run_concurrently();
     let obj = Bson::Boolean(true);
     let b: bool = from_bson(obj.clone()).unwrap();
     assert_eq!(b, true);
@@ -52,6 +56,7 @@ fn boolean() {
 
 #[test]
 fn int32() {
+    let _guard = LOCK.run_concurrently();
     let obj = Bson::Int32(101);
     let i: i32 = from_bson(obj.clone()).unwrap();
 
@@ -64,6 +69,7 @@ fn int32() {
 #[cfg(feature = "decimal128")]
 #[test]
 fn dec128() {
+    let _guard = LOCK.run_concurrently();
     let d128 = Decimal128::from_str("1.05E+3");
     let obj = Bson::Decimal128(d128.clone());
     let ser: Decimal128 = from_bson(obj.clone()).unwrap();
@@ -76,13 +82,15 @@ fn dec128() {
 #[test]
 #[cfg(not(feature = "u2i"))]
 fn uint8() {
-    let obj_min: bson::ser::Result<Bson> = to_bson(&u8::MIN);
-    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
+    let _guard = LOCK.run_concurrently();
+    let obj_min: ser::Result<Bson> = to_bson(&u8::MIN);
+    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
 #[cfg(feature = "u2i")]
 fn uint8_u2i() {
+    let _guard = LOCK.run_concurrently();
     let obj: Bson = to_bson(&u8::MIN).unwrap();
     let deser: u8 = from_bson(obj).unwrap();
     assert_eq!(deser, u8::MIN);
@@ -95,13 +103,15 @@ fn uint8_u2i() {
 #[test]
 #[cfg(not(feature = "u2i"))]
 fn uint16() {
-    let obj_min: bson::ser::Result<Bson> = to_bson(&u16::MIN);
-    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
+    let _guard = LOCK.run_concurrently();
+    let obj_min: ser::Result<Bson> = to_bson(&u16::MIN);
+    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
 #[cfg(feature = "u2i")]
 fn uint16_u2i() {
+    let _guard = LOCK.run_concurrently();
     let obj: Bson = to_bson(&u16::MIN).unwrap();
     let deser: u16 = from_bson(obj).unwrap();
     assert_eq!(deser, u16::MIN);
@@ -114,13 +124,15 @@ fn uint16_u2i() {
 #[test]
 #[cfg(not(feature = "u2i"))]
 fn uint32() {
-    let obj_min: bson::ser::Result<Bson> = to_bson(&u32::MIN);
-    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
+    let _guard = LOCK.run_concurrently();
+    let obj_min: ser::Result<Bson> = to_bson(&u32::MIN);
+    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
 #[cfg(feature = "u2i")]
 fn uint32_u2i() {
+    let _guard = LOCK.run_concurrently();
     let obj_min: Bson = to_bson(&u32::MIN).unwrap();
     let deser_min: u32 = from_bson(obj_min).unwrap();
     assert_eq!(deser_min, u32::MIN);
@@ -133,26 +145,29 @@ fn uint32_u2i() {
 #[test]
 #[cfg(not(feature = "u2i"))]
 fn uint64() {
-    let obj_min: bson::ser::Result<Bson> = to_bson(&u64::MIN);
-    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
+    let _guard = LOCK.run_concurrently();
+    let obj_min: ser::Result<Bson> = to_bson(&u64::MIN);
+    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
 #[cfg(feature = "u2i")]
 fn uint64_u2i() {
+    let _guard = LOCK.run_concurrently();
     let obj_min: Bson = to_bson(&u64::MIN).unwrap();
     let deser_min: u64 = from_bson(obj_min).unwrap();
     assert_eq!(deser_min, u64::MIN);
 
-    let obj_max: bson::ser::Result<Bson> = to_bson(&u64::MAX);
+    let obj_max: ser::Result<Bson> = to_bson(&u64::MAX);
     assert_matches!(
         obj_max,
-        Err(bson::ser::Error::UnsignedTypesValueExceedsRange(u64::MAX))
+        Err(ser::Error::UnsignedTypesValueExceedsRange(u64::MAX))
     );
 }
 
 #[test]
 fn int64() {
+    let _guard = LOCK.run_concurrently();
     let obj = Bson::Int64(101);
     let i: i64 = from_bson(obj.clone()).unwrap();
     assert_eq!(i, 101);
@@ -163,6 +178,7 @@ fn int64() {
 
 #[test]
 fn oid() {
+    let _guard = LOCK.run_concurrently();
     let oid = ObjectId::new();
     let obj = Bson::ObjectId(oid.clone());
     let s: BTreeMap<String, String> = from_bson(obj.clone()).unwrap();

@@ -1,10 +1,11 @@
 #[cfg(feature = "decimal128")]
-use bson::decimal128::Decimal128;
-use bson::{
+use crate::decimal128::Decimal128;
+use crate::{
     doc,
     document::ValueAccessError,
     oid::ObjectId,
     spec::BinarySubtype,
+    tests::LOCK,
     Binary,
     Bson,
     Document,
@@ -14,6 +15,7 @@ use chrono::Utc;
 
 #[test]
 fn ordered_insert() {
+    let _guard = LOCK.run_concurrently();
     let mut doc = Document::new();
     doc.insert("first".to_owned(), Bson::Int32(1));
     doc.insert("second".to_owned(), Bson::String("foo".to_owned()));
@@ -31,6 +33,7 @@ fn ordered_insert() {
 
 #[test]
 fn ordered_insert_shorthand() {
+    let _guard = LOCK.run_concurrently();
     let mut doc = Document::new();
     doc.insert("first", 1i32);
     doc.insert("second", "foo");
@@ -48,17 +51,16 @@ fn ordered_insert_shorthand() {
 
 #[cfg(feature = "decimal128")]
 fn test_decimal128(doc: &mut Document) {
+    let _guard = LOCK.run_concurrently();
     let dec = Decimal128::from_str("968E+1");
     doc.insert("decimal128".to_string(), Bson::Decimal128(dec.clone()));
     assert_eq!(Some(&Bson::Decimal128(dec.clone())), doc.get("decimal128"));
     assert_eq!(Ok(&dec), doc.get_decimal128("decimal128"));
 }
 
-#[cfg(not(feature = "decimal128"))]
-fn test_decimal128(_doc: &mut Document) {}
-
 #[test]
 fn test_getters() {
+    let _guard = LOCK.run_concurrently();
     let datetime = Utc::now();
     let cloned_dt = datetime;
     let binary = vec![0, 1, 2, 3, 4];
@@ -137,6 +139,7 @@ fn test_getters() {
     assert_eq!(Some(&Bson::DateTime(datetime)), doc.get("datetime"));
     assert_eq!(Ok(&datetime), doc.get_datetime("datetime"));
 
+    #[cfg(feature = "decimal128")]
     test_decimal128(&mut doc);
 
     assert_eq!(Some(&Bson::DateTime(datetime)), doc.get("datetime"));
@@ -159,6 +162,7 @@ fn test_getters() {
 
 #[test]
 fn remove() {
+    let _guard = LOCK.run_concurrently();
     let mut doc = Document::new();
     doc.insert("first", Bson::Int32(1));
     doc.insert("second", Bson::String("foo".to_owned()));
@@ -175,6 +179,7 @@ fn remove() {
 
 #[test]
 fn entry() {
+    let _guard = LOCK.run_concurrently();
     let mut doc = doc! {
         "first": 1i32,
         "second": "foo",

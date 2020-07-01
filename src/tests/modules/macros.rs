@@ -1,9 +1,10 @@
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex, Timestamp};
+use crate::{doc, oid::ObjectId, spec::BinarySubtype, tests::LOCK, Binary, Bson, Regex, Timestamp};
 use chrono::offset::Utc;
 use pretty_assertions::assert_eq;
 
 #[test]
 fn standard_format() {
+    let _guard = LOCK.run_concurrently();
     let id_string = "thisismyname";
     let string_bytes: Vec<_> = id_string.bytes().collect();
     let mut bytes = [0; 12];
@@ -52,6 +53,7 @@ fn standard_format() {
 
 #[test]
 fn non_trailing_comma() {
+    let _guard = LOCK.run_concurrently();
     let doc = doc! {
         "a": "foo",
         "b": { "ok": "then" }
@@ -64,6 +66,7 @@ fn non_trailing_comma() {
 #[test]
 #[allow(clippy::float_cmp)]
 fn recursive_macro() {
+    let _guard = LOCK.run_concurrently();
     let doc = doc! {
         "a": "foo",
         "b": {

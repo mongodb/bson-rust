@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use bson::{Bson, Document};
+use crate::{tests::LOCK, Bson, Document};
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 
@@ -55,6 +55,7 @@ struct ParseError {
 }
 
 fn run_test(test: TestFile) {
+    let _guard = LOCK.run_concurrently();
     for valid in test.valid {
         let description = format!("{}: {}", test.description, valid.description);
 
