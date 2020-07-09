@@ -141,7 +141,7 @@ impl ObjectId {
             .expect("system clock is before 1970")
             .as_secs()
             .try_into()
-            .expect("FIXME before 2038");
+            .unwrap(); // will succeed until 2106 since timestamp is unsigned
 
         let mut buf: [u8; 4] = [0; 4];
         BigEndian::write_u32(&mut buf, timestamp);
