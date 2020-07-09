@@ -1,17 +1,17 @@
 #![allow(clippy::blacklisted_name)]
 
-use bson::{bson, doc, spec::BinarySubtype, Binary, Bson, Decoder, Encoder};
+use bson::{bson, doc, spec::BinarySubtype, Binary, Bson, Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-use serde_derive::{Deserialize, Serialize};
+use serde_json::json;
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, convert::TryFrom};
 
 #[test]
 fn test_ser_vec() {
     let vec = vec![1, 2, 3];
 
-    let encoder = Encoder::new();
-    let result = vec.serialize(encoder).unwrap();
+    let serializer = Serializer::new();
+    let result = vec.serialize(serializer).unwrap();
 
     let expected = bson!([1, 2, 3]);
     assert_eq!(expected, result);
@@ -23,8 +23,8 @@ fn test_ser_map() {
     map.insert("x", 0);
     map.insert("y", 1);
 
-    let encoder = Encoder::new();
-    let result = map.serialize(encoder).unwrap();
+    let serializer = Serializer::new();
+    let result = map.serialize(serializer).unwrap();
 
     let expected = bson!({ "x": 0, "y": 1 });
     assert_eq!(expected, result);
@@ -34,8 +34,8 @@ fn test_ser_map() {
 fn test_de_vec() {
     let bson = bson!([1, 2, 3]);
 
-    let decoder = Decoder::new(bson);
-    let vec = Vec::<i32>::deserialize(decoder).unwrap();
+    let deserializer = Deserializer::new(bson);
+    let vec = Vec::<i32>::deserialize(deserializer).unwrap();
 
     let expected = vec![1, 2, 3];
     assert_eq!(expected, vec);
@@ -45,8 +45,8 @@ fn test_de_vec() {
 fn test_de_map() {
     let bson = bson!({ "x": 0, "y": 1 });
 
-    let decoder = Decoder::new(bson);
-    let map = BTreeMap::<String, i32>::deserialize(decoder).unwrap();
+    let deserializer = Deserializer::new(bson);
+    let map = BTreeMap::<String, i32>::deserialize(deserializer).unwrap();
 
     let mut expected = BTreeMap::new();
     expected.insert("x".to_string(), 0);
@@ -56,15 +56,15 @@ fn test_de_map() {
 
 #[test]
 fn test_ser_timestamp() {
-    use bson::TimeStamp;
+    use bson::Timestamp;
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
-        ts: TimeStamp,
+        ts: Timestamp,
     }
 
     let foo = Foo {
-        ts: TimeStamp {
+        ts: Timestamp {
             time: 12,
             increment: 10,
         },
@@ -73,7 +73,7 @@ fn test_ser_timestamp() {
     let x = bson::to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "ts": Bson::TimeStamp(TimeStamp { time: 0x0000_000C, increment: 0x0000_000A }) }
+        &doc! { "ts": Bson::Timestamp(Timestamp { time: 0x0000_000C, increment: 0x0000_000A }) }
     );
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
@@ -82,21 +82,21 @@ fn test_ser_timestamp() {
 
 #[test]
 fn test_de_timestamp() {
-    use bson::TimeStamp;
+    use bson::Timestamp;
 
     #[derive(Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
-        ts: TimeStamp,
+        ts: Timestamp,
     }
 
     let foo: Foo = bson::from_bson(Bson::Document(doc! {
-        "ts": Bson::TimeStamp(TimeStamp { time: 0x0000_000C, increment: 0x0000_000A }),
+        "ts": Bson::Timestamp(Timestamp { time: 0x0000_000C, increment: 0x0000_000A }),
     }))
     .unwrap();
 
     assert_eq!(
         foo.ts,
-        TimeStamp {
+        Timestamp {
             time: 12,
             increment: 10
         }
@@ -114,7 +114,7 @@ fn test_ser_regex() {
 
     let regex = Regex {
         pattern: "12".into(),
-        options: "10".into(),
+        options: "01".into(),
     };
 
     let foo = Foo {
@@ -124,7 +124,7 @@ fn test_ser_regex() {
     let x = bson::to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "regex": Bson::Regex(regex) }
+        &doc! { "regex": Bson::RegularExpression(regex) }
     );
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
@@ -142,11 +142,11 @@ fn test_de_regex() {
 
     let regex = Regex {
         pattern: "12".into(),
-        options: "10".into(),
+        options: "01".into(),
     };
 
     let foo: Foo = bson::from_bson(Bson::Document(doc! {
-        "regex": Bson::Regex(regex.clone()),
+        "regex": Bson::RegularExpression(regex.clone()),
     }))
     .unwrap();
 
@@ -205,12 +205,12 @@ fn test_de_code_with_scope() {
 
 #[test]
 fn test_ser_datetime() {
-    use bson::UtcDateTime;
+    use bson::DateTime;
     use chrono::{Timelike, Utc};
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
-        date: UtcDateTime,
+        date: DateTime,
     }
 
     let now = Utc::now();
@@ -226,7 +226,7 @@ fn test_ser_datetime() {
     let x = bson::to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "date": (Bson::UtcDatetime(now)) }
+        &doc! { "date": (Bson::DateTime(now)) }
     );
 
     let xfoo: Foo = bson::from_bson(x).unwrap();
@@ -243,7 +243,7 @@ fn test_compat_u2f() {
 
     let foo = Foo { x: 20 };
     let b = bson::to_bson(&foo).unwrap();
-    assert_eq!(b, Bson::Document(doc! { "x": (Bson::FloatingPoint(20.0)) }));
+    assert_eq!(b, Bson::Document(doc! { "x": (Bson::Double(20.0)) }));
 
     let de_foo = bson::from_bson::<Foo>(b).unwrap();
     assert_eq!(de_foo, foo);
@@ -366,9 +366,9 @@ fn test_byte_vec() {
     );
 
     // let mut buf = Vec::new();
-    // bson::encode_document(&mut buf, b.as_document().unwrap()).unwrap();
+    // b.as_document().unwrap().to_writer(&mut buf).unwrap();
 
-    // let xb = bson::decode_document(&mut Cursor::new(buf)).unwrap();
+    // let xb = Document::from_reader(&mut Cursor::new(buf)).unwrap();
     // assert_eq!(b.as_document().unwrap(), &xb);
 }
 
@@ -473,12 +473,14 @@ fn test_ser_db_pointer() {
         db_pointer: DbPointer,
     }
 
-    let db_pointer = Bson::from_extended_document(doc! {
+    let db_pointer = Bson::try_from(json!({
         "$dbPointer": {
             "$ref": "db.coll",
-            "$id": "507f1f77bcf86cd799439011"
+            "$id": { "$oid": "507f1f77bcf86cd799439011" },
         }
-    });
+    }))
+    .unwrap();
+
     let db_pointer = db_pointer.as_db_pointer().unwrap();
 
     let foo = Foo {
@@ -504,12 +506,13 @@ fn test_de_db_pointer() {
         db_pointer: DbPointer,
     }
 
-    let db_pointer = Bson::from_extended_document(doc! {
+    let db_pointer = Bson::try_from(json!({
         "$dbPointer": {
             "$ref": "db.coll",
-            "$id": "507f1f77bcf86cd799439011"
+            "$id": { "$oid": "507f1f77bcf86cd799439011" },
         }
-    });
+    }))
+    .unwrap();
     let db_pointer = db_pointer.as_db_pointer().unwrap();
 
     let foo: Foo = bson::from_bson(Bson::Document(

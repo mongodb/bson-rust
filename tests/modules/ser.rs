@@ -1,13 +1,13 @@
 use assert_matches::assert_matches;
 #[cfg(feature = "decimal128")]
 use bson::decimal128::Decimal128;
-use bson::{from_bson, oid::ObjectId, to_bson, Bson, EncoderError, EncoderResult};
+use bson::{from_bson, oid::ObjectId, to_bson, Bson};
 use std::{collections::BTreeMap, u16, u32, u64, u8};
 
 #[test]
 #[allow(clippy::float_cmp)]
 fn floating_point() {
-    let obj = Bson::FloatingPoint(240.5);
+    let obj = Bson::Double(240.5);
     let f: f64 = from_bson(obj.clone()).unwrap();
     assert_eq!(f, 240.5);
 
@@ -27,7 +27,12 @@ fn string() {
 
 #[test]
 fn arr() {
-    let obj = Bson::Array(vec![Bson::I32(0), Bson::I32(1), Bson::I32(2), Bson::I32(3)]);
+    let obj = Bson::Array(vec![
+        Bson::Int32(0),
+        Bson::Int32(1),
+        Bson::Int32(2),
+        Bson::Int32(3),
+    ]);
     let arr: Vec<i32> = from_bson(obj.clone()).unwrap();
     assert_eq!(arr, vec![0i32, 1i32, 2i32, 3i32]);
 
@@ -47,7 +52,7 @@ fn boolean() {
 
 #[test]
 fn int32() {
-    let obj = Bson::I32(101);
+    let obj = Bson::Int32(101);
     let i: i32 = from_bson(obj.clone()).unwrap();
 
     assert_eq!(i, 101);
@@ -69,10 +74,10 @@ fn dec128() {
 }
 
 #[test]
-#[cfg_attr(feature = "u2i", ignore)]
+#[cfg(not(feature = "u2i"))]
 fn uint8() {
-    let obj_min: EncoderResult<Bson> = to_bson(&u8::MIN);
-    assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));
+    let obj_min: bson::ser::Result<Bson> = to_bson(&u8::MIN);
+    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
@@ -88,10 +93,10 @@ fn uint8_u2i() {
 }
 
 #[test]
-#[cfg_attr(feature = "u2i", ignore)]
+#[cfg(not(feature = "u2i"))]
 fn uint16() {
-    let obj_min: EncoderResult<Bson> = to_bson(&u16::MIN);
-    assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));
+    let obj_min: bson::ser::Result<Bson> = to_bson(&u16::MIN);
+    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
@@ -107,10 +112,10 @@ fn uint16_u2i() {
 }
 
 #[test]
-#[cfg_attr(feature = "u2i", ignore)]
+#[cfg(not(feature = "u2i"))]
 fn uint32() {
-    let obj_min: EncoderResult<Bson> = to_bson(&u32::MIN);
-    assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));
+    let obj_min: bson::ser::Result<Bson> = to_bson(&u32::MIN);
+    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
@@ -126,10 +131,10 @@ fn uint32_u2i() {
 }
 
 #[test]
-#[cfg_attr(feature = "u2i", ignore)]
+#[cfg(not(feature = "u2i"))]
 fn uint64() {
-    let obj_min: EncoderResult<Bson> = to_bson(&u64::MIN);
-    assert_matches!(obj_min, Err(EncoderError::UnsupportedUnsignedType));
+    let obj_min: bson::ser::Result<Bson> = to_bson(&u64::MIN);
+    assert_matches!(obj_min, Err(bson::ser::Error::UnsupportedUnsignedType));
 }
 
 #[test]
@@ -139,16 +144,16 @@ fn uint64_u2i() {
     let deser_min: u64 = from_bson(obj_min).unwrap();
     assert_eq!(deser_min, u64::MIN);
 
-    let obj_max: EncoderResult<Bson> = to_bson(&u64::MAX);
+    let obj_max: bson::ser::Result<Bson> = to_bson(&u64::MAX);
     assert_matches!(
         obj_max,
-        Err(EncoderError::UnsignedTypesValueExceedsRange(u64::MAX))
+        Err(bson::ser::Error::UnsignedTypesValueExceedsRange(u64::MAX))
     );
 }
 
 #[test]
 fn int64() {
-    let obj = Bson::I64(101);
+    let obj = Bson::Int64(101);
     let i: i64 = from_bson(obj.clone()).unwrap();
     assert_eq!(i, 101);
 

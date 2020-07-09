@@ -1,9 +1,9 @@
 #![allow(clippy::cognitive_complexity)]
 
-use serde::{de::Unexpected, Deserialize, Deserializer, Serialize};
+use serde::{self, de::Unexpected, Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 
-use bson::{Bson, Decoder, DecoderError, Encoder};
+use bson::{Bson, Deserializer, Serializer};
 
 macro_rules! bson {
     ([]) => {{ bson::Bson::Array(Vec::new()) }};
@@ -58,16 +58,16 @@ macro_rules! t {
     };
 }
 
-macro_rules! encode( ($t:expr) => ({
-    let e = Encoder::new();
+macro_rules! serialize( ($t:expr) => ({
+    let e = Serializer::new();
     match $t.serialize(e) {
         Ok(b) => b,
         Err(e) => panic!("Failed to serialize: {}", e),
     }
 }) );
 
-macro_rules! decode( ($t:expr) => ({
-    let d = Decoder::new($t);
+macro_rules! deserialize( ($t:expr) => ({
+    let d = Deserializer::new($t);
     t!(Deserialize::deserialize(d))
 }) );
 
@@ -79,8 +79,8 @@ fn smoke() {
     }
 
     let v = Foo { a: 2 };
-    assert_eq!(encode!(v), bdoc! {"a" => (2 as i64)});
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(serialize!(v), bdoc! {"a" => (2 as i64)});
+    assert_eq!(v, deserialize!(serialize!(v)));
 }
 
 #[test]
@@ -91,12 +91,12 @@ fn smoke_under() {
     }
 
     let v = Foo { a_b: 2 };
-    assert_eq!(encode!(v), bdoc! { "a_b" => (2 as i64) });
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(serialize!(v), bdoc! { "a_b" => (2 as i64) });
+    assert_eq!(v, deserialize!(serialize!(v)));
 
     let mut m = BTreeMap::new();
     m.insert("a_b".to_string(), 2 as i64);
-    assert_eq!(v, decode!(encode!(m)));
+    assert_eq!(v, deserialize!(serialize!(m)));
 }
 
 #[test]
@@ -118,7 +118,7 @@ fn nested() {
         },
     };
     assert_eq!(
-        encode!(v),
+        serialize!(v),
         bdoc! {
             "a" => (2 as i64),
             "b" => {
@@ -126,15 +126,15 @@ fn nested() {
             }
         }
     );
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(v, deserialize!(serialize!(v)));
 }
 
 #[test]
-fn application_decode_error() {
+fn application_deserialize_error() {
     #[derive(PartialEq, Debug)]
     struct Range10(usize);
     impl<'de> Deserialize<'de> for Range10 {
-        fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Range10, D::Error> {
+        fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Range10, D::Error> {
             let x: usize = Deserialize::deserialize(d)?;
             if x > 10 {
                 Err(serde::de::Error::invalid_value(
@@ -146,9 +146,9 @@ fn application_decode_error() {
             }
         }
     }
-    let d_good = Decoder::new(Bson::I64(5));
-    let d_bad1 = Decoder::new(Bson::String("not an isize".to_string()));
-    let d_bad2 = Decoder::new(Bson::I64(11));
+    let d_good = Deserializer::new(Bson::Int64(5));
+    let d_bad1 = Deserializer::new(Bson::String("not an isize".to_string()));
+    let d_bad2 = Deserializer::new(Bson::Int64(11));
 
     assert_eq!(Range10(5), t!(Deserialize::deserialize(d_good)));
 
@@ -169,12 +169,12 @@ fn array() {
         a: vec![1, 2, 3, 4],
     };
     assert_eq!(
-        encode!(v),
+        serialize!(v),
         bdoc! {
             "a" => [1, 2, 3, 4]
         }
     );
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(v, deserialize!(serialize!(v)));
 }
 
 #[test]
@@ -186,12 +186,12 @@ fn tuple() {
 
     let v = Foo { a: (1, 2, 3, 4) };
     assert_eq!(
-        encode!(v),
+        serialize!(v),
         bdoc! {
             "a" => [1, 2, 3, 4]
         }
     );
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(v, deserialize!(serialize!(v)));
 }
 
 #[test]
@@ -221,7 +221,7 @@ fn inner_structs_with_options() {
         },
     };
     assert_eq!(
-        encode!(v),
+        serialize!(v),
         bdoc! {
             "a" => {
                 "a" => (Bson::Null),
@@ -236,7 +236,7 @@ fn inner_structs_with_options() {
             }
         }
     );
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(v, deserialize!(serialize!(v)));
 }
 
 #[test]
@@ -267,7 +267,7 @@ fn inner_structs_with_skippable_options() {
         },
     };
     assert_eq!(
-        encode!(v),
+        serialize!(v),
         bdoc! {
             "a" => {
             "b" => {
@@ -281,7 +281,7 @@ fn inner_structs_with_skippable_options() {
             }
         }
     );
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(v, deserialize!(serialize!(v)));
 }
 
 #[test]
@@ -306,7 +306,7 @@ fn hashmap() {
         },
     };
     assert_eq!(
-        encode!(v),
+        serialize!(v),
         bdoc! {
             "map" => {
                 "bar" => 4,
@@ -315,7 +315,7 @@ fn hashmap() {
             "set" => ["a"]
         }
     );
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(v, deserialize!(serialize!(v)));
 }
 
 #[test]
@@ -331,12 +331,12 @@ fn tuple_struct() {
         whee: Foo(1, "foo".to_string(), 4.5),
     };
     assert_eq!(
-        encode!(v),
+        serialize!(v),
         bdoc! {
             "whee" => [1, "foo", (4.5)]
         }
     );
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(v, deserialize!(serialize!(v)));
 }
 
 #[test]
@@ -354,12 +354,12 @@ fn table_array() {
         a: vec![Bar { a: 1 }, Bar { a: 2 }],
     };
     assert_eq!(
-        encode!(v),
+        serialize!(v),
         bdoc! {
             "a" => [{"a" => 1}, {"a" => 2}]
         }
     );
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(v, deserialize!(serialize!(v)));
 }
 
 #[test]
@@ -369,10 +369,10 @@ fn type_conversion() {
         bar: i32,
     }
 
-    let d = Decoder::new(bdoc! {
+    let d = Deserializer::new(bdoc! {
         "bar" => 1
     });
-    let a: Result<Foo, DecoderError> = Deserialize::deserialize(d);
+    let a: Result<Foo, bson::de::Error> = Deserialize::deserialize(d);
     assert_eq!(a.unwrap(), Foo { bar: 1 });
 }
 
@@ -383,8 +383,8 @@ fn missing_errors() {
         bar: i32,
     }
 
-    let d = Decoder::new(bdoc! {});
-    let a: Result<Foo, DecoderError> = Deserialize::deserialize(d);
+    let d = Deserializer::new(bdoc! {});
+    let a: Result<Foo, bson::de::Error> = Deserialize::deserialize(d);
 
     assert!(a.is_err());
 }
@@ -412,20 +412,20 @@ fn parse_enum() {
     }
 
     let v = Foo { a: E::Empty };
-    assert_eq!(encode!(v), bdoc! { "a" => "Empty" });
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(serialize!(v), bdoc! { "a" => "Empty" });
+    assert_eq!(v, deserialize!(serialize!(v)));
 
     let v = Foo { a: E::Bar(10) };
-    assert_eq!(encode!(v), bdoc! { "a" => { "Bar" => 10 } });
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(serialize!(v), bdoc! { "a" => { "Bar" => 10 } });
+    assert_eq!(v, deserialize!(serialize!(v)));
 
     let v = Foo { a: E::Baz(10.2) };
-    assert_eq!(encode!(v), bdoc! { "a" => { "Baz" => 10.2 } });
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(serialize!(v), bdoc! { "a" => { "Baz" => 10.2 } });
+    assert_eq!(v, deserialize!(serialize!(v)));
 
     let v = Foo { a: E::Pair(12, 42) };
-    assert_eq!(encode!(v), bdoc! { "a" => { "Pair" => [ 12, 42] } });
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(serialize!(v), bdoc! { "a" => { "Pair" => [ 12, 42] } });
+    assert_eq!(v, deserialize!(serialize!(v)));
 
     let v = Foo {
         a: E::Last(Foo2 {
@@ -433,30 +433,30 @@ fn parse_enum() {
         }),
     };
     assert_eq!(
-        encode!(v),
+        serialize!(v),
         bdoc! { "a" => { "Last" => { "test" => "test" } } }
     );
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(v, deserialize!(serialize!(v)));
 
     let v = Foo {
         a: E::Vector(vec![12, 42]),
     };
-    assert_eq!(encode!(v), bdoc! { "a" => { "Vector" => [ 12, 42 ] } });
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(serialize!(v), bdoc! { "a" => { "Vector" => [ 12, 42 ] } });
+    assert_eq!(v, deserialize!(serialize!(v)));
 
     let v = Foo {
         a: E::Named { a: 12 },
     };
-    assert_eq!(encode!(v), bdoc! { "a" => { "Named" => { "a" => 12 } } });
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(serialize!(v), bdoc! { "a" => { "Named" => { "a" => 12 } } });
+    assert_eq!(v, deserialize!(serialize!(v)));
     let v = Foo {
         a: E::MultiNamed { a: 12, b: 42 },
     };
     assert_eq!(
-        encode!(v),
+        serialize!(v),
         bdoc! { "a" => { "MultiNamed" => { "a" => 12, "b" => 42 } } }
     );
-    assert_eq!(v, decode!(encode!(v)));
+    assert_eq!(v, deserialize!(serialize!(v)));
 }
 
 #[test]
@@ -467,7 +467,7 @@ fn unused_fields() {
     }
 
     let v = Foo { a: 2 };
-    let d = Decoder::new(bdoc! {
+    let d = Deserializer::new(bdoc! {
         "a" => 2,
         "b" => 5
     });
@@ -487,7 +487,7 @@ fn unused_fields2() {
     }
 
     let v = Foo { a: Bar { a: 2 } };
-    let d = Decoder::new(bdoc! {
+    let d = Deserializer::new(bdoc! {
         "a" => {
             "a" => 2,
             "b" => 5
@@ -509,7 +509,7 @@ fn unused_fields3() {
     }
 
     let v = Foo { a: Bar { a: 2 } };
-    let d = Decoder::new(bdoc! {
+    let d = Deserializer::new(bdoc! {
         "a" => {
             "a" => 2
         }
@@ -527,7 +527,7 @@ fn unused_fields4() {
     let mut map = BTreeMap::new();
     map.insert("a".to_owned(), "foo".to_owned());
     let v = Foo { a: map };
-    let d = Decoder::new(bdoc! {
+    let d = Deserializer::new(bdoc! {
         "a" => {
             "a" => "foo"
         }
@@ -545,7 +545,7 @@ fn unused_fields5() {
     let v = Foo {
         a: vec!["a".to_string()],
     };
-    let d = Decoder::new(bdoc! {
+    let d = Deserializer::new(bdoc! {
         "a" => ["a"]
     });
     assert_eq!(v, t!(Deserialize::deserialize(d)));
@@ -559,7 +559,7 @@ fn unused_fields6() {
     }
 
     let v = Foo { a: Some(vec![]) };
-    let d = Decoder::new(bdoc! {
+    let d = Deserializer::new(bdoc! {
         "a" => []
     });
     assert_eq!(v, t!(Deserialize::deserialize(d)));
@@ -579,10 +579,25 @@ fn unused_fields7() {
     let v = Foo {
         a: vec![Bar { a: 1 }],
     };
-    let d = Decoder::new(bdoc! {
+    let d = Deserializer::new(bdoc! {
         "a" => [{"a" => 1, "b" => 2}]
     });
     assert_eq!(v, t!(Deserialize::deserialize(d)));
+}
+
+#[test]
+fn unused_fields_deny() {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    #[serde(deny_unknown_fields)]
+    struct Foo {
+        a: i32,
+    }
+
+    let d = Deserializer::new(bdoc! {
+        "a" => 1,
+        "b" => 2
+    });
+    Foo::deserialize(d).expect_err("extra fields should cause failure");
 }
 
 #[test]
@@ -596,7 +611,7 @@ fn empty_arrays() {
     struct Bar;
 
     let v = Foo { a: vec![] };
-    let d = Decoder::new(bdoc! {});
+    let d = Deserializer::new(bdoc! {});
     assert_eq!(v, t!(Deserialize::deserialize(d)));
 }
 
@@ -610,11 +625,11 @@ fn empty_arrays2() {
     struct Bar;
 
     let v = Foo { a: None };
-    let d = Decoder::new(bdoc! {});
+    let d = Deserializer::new(bdoc! {});
     assert_eq!(v, t!(Deserialize::deserialize(d)));
 
     let v = Foo { a: Some(vec![]) };
-    let d = Decoder::new(bdoc! {
+    let d = Deserializer::new(bdoc! {
         "a" => []
     });
     assert_eq!(v, t!(Deserialize::deserialize(d)));

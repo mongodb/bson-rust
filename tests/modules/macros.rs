@@ -1,5 +1,6 @@
-use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex, TimeStamp};
+use bson::{doc, oid::ObjectId, spec::BinarySubtype, Binary, Bson, Regex, Timestamp};
 use chrono::offset::Utc;
+use pretty_assertions::assert_eq;
 
 #[test]
 fn standard_format() {
@@ -14,7 +15,7 @@ fn standard_format() {
     let doc = doc! {
         "float": 2.4,
         "string": "hello",
-        "array" => ["testing", 1, true, [1, 2]],
+        "array": ["testing", 1, true, [1, 2]],
         "doc": {
             "fish": "in",
             "a": "barrel",
@@ -22,71 +23,26 @@ fn standard_format() {
         },
         "bool": true,
         "null": null,
-        "regexp": Bson::Regex(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
+        "regexp": Bson::RegularExpression(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
         "with_wrapped_parens": (-20),
         "code": Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
         "i32": 12,
         "i64": -55,
-        "timestamp": Bson::TimeStamp(TimeStamp { time: 0, increment: 229_999_444 }),
+        "timestamp": Bson::Timestamp(Timestamp { time: 0, increment: 229_999_444 }),
         "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
+        "encrypted": Binary { subtype: BinarySubtype::Encrypted, bytes: "secret".to_owned().into_bytes() },
         "_id": id,
-        "date": Bson::UtcDatetime(date),
+        "date": Bson::DateTime(date),
     };
 
     let expected = format!(
         "{{ float: 2.4, string: \"hello\", array: [\"testing\", 1, true, [1, 2]], doc: {{ fish: \
          \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, regexp: /s[ao]d/i, \
          with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, i64: -55, \
-         timestamp: Timestamp(0, 229999444), binary: BinData(5, 0x{}), _id: ObjectId(\"{}\"), \
-         date: Date(\"{}\") }}",
-        hex::encode("thingies"),
-        hex::encode(id_string),
-        date
-    );
-
-    assert_eq!(expected, format!("{}", doc));
-}
-
-// Support rocket format for backwards-compatibility with pre-0.10.
-#[test]
-fn rocket_format() {
-    let id_string = "thisismyname";
-    let string_bytes: Vec<_> = id_string.bytes().collect();
-    let mut bytes = [0; 12];
-    bytes[..12].clone_from_slice(&string_bytes[..12]);
-
-    let id = ObjectId::with_bytes(bytes);
-    let date = Utc::now();
-
-    let doc = doc! {
-        "float" => 2.4,
-        "string" => "hello",
-        "array" => ["testing", 1, true, ["nested", 2]],
-        "doc" => {
-            "fish" => "in",
-            "a" => "barrel",
-            "!" => 1,
-        },
-        "bool" => true,
-        "null" => null,
-        "regexp" => Bson::Regex(Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() }),
-        "with_wrapped_parens" => (-20),
-        "code" => Bson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
-        "i32" => 12,
-        "i64" => -55,
-        "timestamp" => Bson::TimeStamp(TimeStamp { time: 0, increment: 229_999_444 }),
-        "binary" => Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
-        "_id" => id,
-        "date" => Bson::UtcDatetime(date),
-    };
-
-    let expected = format!(
-        "{{ float: 2.4, string: \"hello\", array: [\"testing\", 1, true, [\"nested\", 2]], doc: \
-         {{ fish: \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, regexp: /s[ao]d/i, \
-         with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, i64: -55, \
-         timestamp: Timestamp(0, 229999444), binary: BinData(5, 0x{}), _id: ObjectId(\"{}\"), \
-         date: Date(\"{}\") }}",
-        hex::encode("thingies"),
+         timestamp: Timestamp(0, 229999444), binary: BinData(0x5, {}), encrypted: BinData(0x6, \
+         {}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}",
+        base64::encode("thingies"),
+        base64::encode("secret"),
         hex::encode(id_string),
         date
     );
@@ -99,17 +55,6 @@ fn non_trailing_comma() {
     let doc = doc! {
         "a": "foo",
         "b": { "ok": "then" }
-    };
-
-    let expected = "{ a: \"foo\", b: { ok: \"then\" } }".to_string();
-    assert_eq!(expected, format!("{}", doc));
-}
-
-#[test]
-fn non_trailing_comma_with_rockets() {
-    let doc = doc! {
-        "a" => "foo",
-        "b" => { "ok": "then" }
     };
 
     let expected = "{ a: \"foo\", b: { ok: \"then\" } }".to_string();
@@ -155,16 +100,16 @@ fn recursive_macro() {
                             assert_eq!(2, arr.len());
 
                             // Match array items
-                            match arr[0] {
-                                Bson::String(ref s) => assert_eq!("seal", s),
+                            match arr.get(0) {
+                                Some(Bson::String(ref s)) => assert_eq!("seal", s),
                                 _ => panic!(
                                     "String 'seal' was not inserted into inner array correctly."
                                 ),
                             }
-                            match arr[1] {
-                                Bson::Boolean(ref b) => assert!(!b),
+                            match arr.get(1) {
+                                Some(Bson::Boolean(ref b)) => assert!(!b),
                                 _ => panic!(
-                                    "Boolean 'false' was not inserted into inner array correctly."
+                                    "Bool 'false' was not inserted into inner array correctly."
                                 ),
                             }
                         }
@@ -173,7 +118,7 @@ fn recursive_macro() {
 
                     // Inner floating point
                     match inner_doc.get("jelly") {
-                        Some(&Bson::FloatingPoint(ref fp)) => assert_eq!(42.0, *fp),
+                        Some(&Bson::Double(ref fp)) => assert_eq!(42.0, *fp),
                         _ => panic!("Floating point 42.0 was not inserted correctly."),
                     }
                 }
@@ -189,8 +134,8 @@ fn recursive_macro() {
             assert_eq!(1, arr.len());
 
             // Integer type
-            match arr[0] {
-                Bson::I32(ref i) => assert_eq!(-7, *i),
+            match arr.get(0) {
+                Some(Bson::Int32(ref i)) => assert_eq!(-7, *i),
                 _ => panic!("I32 '-7' was not inserted correctly."),
             }
         }
@@ -203,8 +148,8 @@ fn recursive_macro() {
             assert_eq!(1, arr.len());
 
             // Nested document
-            match arr[0] {
-                Bson::Document(ref doc) => {
+            match arr.get(0) {
+                Some(Bson::Document(ref doc)) => {
                     // String
                     match doc.get("apple") {
                         Some(&Bson::String(ref s)) => assert_eq!("ripe", s),

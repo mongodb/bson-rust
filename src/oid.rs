@@ -15,6 +15,8 @@ use hex::{self, FromHexError};
 
 use rand::{thread_rng, Rng};
 
+use chrono::Utc;
+
 const TIMESTAMP_SIZE: usize = 4;
 const PROCESS_ID_SIZE: usize = 5;
 const COUNTER_SIZE: usize = 3;
@@ -29,8 +31,12 @@ static OID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// Errors that can occur during OID construction and generation.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
-    ArgumentError(String),
+    /// An invalid argument was passed in.
+    ArgumentError { message: String },
+
+    /// An error occured parsing a hex string.
     FromHexError(FromHexError),
 }
 
@@ -46,27 +52,16 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::ArgumentError(ref inner) => inner.fmt(fmt),
+            Error::ArgumentError { ref message } => message.fmt(fmt),
             Error::FromHexError(ref inner) => inner.fmt(fmt),
         }
     }
 }
 
 impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::ArgumentError(ref inner) => &inner,
-            Error::FromHexError(ref inner) =>
-            {
-                #[allow(deprecated)]
-                inner.description()
-            }
-        }
-    }
-
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
-            Error::ArgumentError(_) => None,
+            Error::ArgumentError { .. } => None,
             Error::FromHexError(ref inner) => Some(inner),
         }
     }
@@ -113,14 +108,22 @@ impl ObjectId {
     pub fn with_string(s: &str) -> Result<ObjectId> {
         let bytes: Vec<u8> = hex::decode(s.as_bytes())?;
         if bytes.len() != 12 {
-            Err(Error::ArgumentError(
-                "Provided string must be a 12-byte hexadecimal string.".to_owned(),
-            ))
+            Err(Error::ArgumentError {
+                message: "Provided string must be a 12-byte hexadecimal string.".to_owned(),
+            })
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
             byte_array[..].copy_from_slice(&bytes[..]);
             Ok(ObjectId::with_bytes(byte_array))
         }
+    }
+
+    /// Retrieves the timestamp (chrono::DateTime) from an ObjectId.
+    pub fn timestamp(&self) -> chrono::DateTime<Utc> {
+        let seconds_since_epoch = BigEndian::read_u32(&self.id);
+        let naive_datetime = chrono::NaiveDateTime::from_timestamp(seconds_since_epoch as i64, 0);
+        let timestamp: chrono::DateTime<Utc> = chrono::DateTime::from_utc(naive_datetime, Utc);
+        timestamp
     }
 
     /// Returns the raw byte representation of an ObjectId.
@@ -217,16 +220,40 @@ fn count_generated_is_big_endian() {
     assert_eq!(0x33u8, oid.bytes()[COUNTER_OFFSET + 2]);
 }
 
-#[test]
-fn test_display() {
-    let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
+#[cfg(test)]
+mod test {
+    use chrono::{offset::TimeZone, Utc};
 
-    assert_eq!(format!("{}", id), "53e37d08776f724e42000000")
-}
+    #[test]
+    fn test_display() {
+        let id = super::ObjectId::with_string("53e37d08776f724e42000000").unwrap();
 
-#[test]
-fn test_debug() {
-    let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
+        assert_eq!(format!("{}", id), "53e37d08776f724e42000000")
+    }
 
-    assert_eq!(format!("{:?}", id), "ObjectId(53e37d08776f724e42000000)")
+    #[test]
+    fn test_debug() {
+        let id = super::ObjectId::with_string("53e37d08776f724e42000000").unwrap();
+
+        assert_eq!(format!("{:?}", id), "ObjectId(53e37d08776f724e42000000)")
+    }
+
+    #[test]
+    fn test_timestamp() {
+        let id = super::ObjectId::with_string("000000000000000000000000").unwrap();
+        // "Jan 1st, 1970 00:00:00 UTC"
+        assert_eq!(Utc.ymd(1970, 1, 1).and_hms(0, 0, 0), id.timestamp());
+
+        let id = super::ObjectId::with_string("7FFFFFFF0000000000000000").unwrap();
+        // "Jan 19th, 2038 03:14:07 UTC"
+        assert_eq!(Utc.ymd(2038, 1, 19).and_hms(3, 14, 7), id.timestamp());
+
+        let id = super::ObjectId::with_string("800000000000000000000000").unwrap();
+        // "Jan 19th, 2038 03:14:08 UTC"
+        assert_eq!(Utc.ymd(2038, 1, 19).and_hms(3, 14, 8), id.timestamp());
+
+        let id = super::ObjectId::with_string("FFFFFFFF0000000000000000").unwrap();
+        // "Feb 7th, 2106 06:28:15 UTC"
+        assert_eq!(Utc.ymd(2106, 2, 7).and_hms(6, 28, 15), id.timestamp());
+    }
 }

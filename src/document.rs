@@ -3,27 +3,34 @@
 use std::{
     error,
     fmt::{self, Debug, Display, Formatter},
-    iter::{Extend, FromIterator, Map},
+    io::{Read, Write},
+    iter::{Extend, FromIterator, IntoIterator, Map},
     marker::PhantomData,
+    mem,
 };
+
+use byteorder::{ReadBytesExt, WriteBytesExt};
 
 use chrono::{DateTime, Utc};
 
 use linked_hash_map::{self, LinkedHashMap};
 
-use serde::de::{self, MapAccess, Visitor};
+use serde::de::{self, Error, MapAccess, Visitor};
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Array, Binary, Bson, Document, TimeStamp},
+    bson::{Array, Binary, Bson, Timestamp},
+    de::{deserialize_bson_kvp, ensure_read_exactly, read_i32, MIN_BSON_DOCUMENT_SIZE},
     oid::ObjectId,
+    ser::{serialize_bson, write_i32},
     spec::BinarySubtype,
 };
 
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters.
 #[derive(PartialEq)]
+#[non_exhaustive]
 pub enum ValueAccessError {
     /// Cannot find the expected field with the specified key
     NotPresent,
@@ -54,25 +61,21 @@ impl Display for ValueAccessError {
     }
 }
 
-impl error::Error for ValueAccessError {
-    fn description(&self) -> &str {
-        "Error to indicate that either a value was empty or it contained an unexpected type"
-    }
-}
+impl error::Error for ValueAccessError {}
 
 /// A BSON document represented as an associative HashMap with insertion ordering.
 #[derive(Clone, PartialEq)]
-pub struct OrderedDocument {
+pub struct Document {
     inner: LinkedHashMap<String, Bson>,
 }
 
-impl Default for OrderedDocument {
+impl Default for Document {
     fn default() -> Self {
         Document::new()
     }
 }
 
-impl Display for OrderedDocument {
+impl Display for Document {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         fmt.write_str("{")?;
 
@@ -92,30 +95,30 @@ impl Display for OrderedDocument {
     }
 }
 
-impl Debug for OrderedDocument {
+impl Debug for Document {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "OrderedDocument({:?})", self.inner)
+        write!(f, "Document({:?})", self.inner)
     }
 }
 
-/// An iterator over OrderedDocument entries.
-pub struct OrderedDocumentIntoIterator {
+/// An iterator over Document entries.
+pub struct DocumentIntoIterator {
     inner: LinkedHashMap<String, Bson>,
 }
 
-/// An owning iterator over OrderedDocument entries.
-pub struct OrderedDocumentIterator<'a> {
+/// An owning iterator over Document entries.
+pub struct DocumentIterator<'a> {
     inner: linked_hash_map::Iter<'a, String, Bson>,
 }
 
-type DocumentMap<'a, T> = Map<OrderedDocumentIterator<'a>, fn((&'a String, &'a Bson)) -> T>;
+type DocumentMap<'a, T> = Map<DocumentIterator<'a>, fn((&'a String, &'a Bson)) -> T>;
 
-/// An iterator over an OrderedDocument's keys.
+/// An iterator over an Document's keys.
 pub struct Keys<'a> {
     inner: DocumentMap<'a, &'a String>,
 }
 
-/// An iterator over an OrderedDocument's values.
+/// An iterator over an Document's values.
 pub struct Values<'a> {
     inner: DocumentMap<'a, &'a Bson>,
 }
@@ -136,29 +139,29 @@ impl<'a> Iterator for Values<'a> {
     }
 }
 
-impl IntoIterator for OrderedDocument {
+impl IntoIterator for Document {
     type Item = (String, Bson);
-    type IntoIter = OrderedDocumentIntoIterator;
+    type IntoIter = DocumentIntoIterator;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIntoIterator { inner: self.inner }
+        DocumentIntoIterator { inner: self.inner }
     }
 }
 
-impl<'a> IntoIterator for &'a OrderedDocument {
+impl<'a> IntoIterator for &'a Document {
     type Item = (&'a String, &'a Bson);
-    type IntoIter = OrderedDocumentIterator<'a>;
+    type IntoIter = DocumentIterator<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        OrderedDocumentIterator {
+        DocumentIterator {
             inner: self.inner.iter(),
         }
     }
 }
 
-impl FromIterator<(String, Bson)> for OrderedDocument {
+impl FromIterator<(String, Bson)> for Document {
     fn from_iter<T: IntoIterator<Item = (String, Bson)>>(iter: T) -> Self {
-        let mut doc = OrderedDocument::new();
+        let mut doc = Document::new();
         for (k, v) in iter {
             doc.insert(k, v);
         }
@@ -166,7 +169,7 @@ impl FromIterator<(String, Bson)> for OrderedDocument {
     }
 }
 
-impl<'a> Iterator for OrderedDocumentIntoIterator {
+impl<'a> Iterator for DocumentIntoIterator {
     type Item = (String, Bson);
 
     fn next(&mut self) -> Option<(String, Bson)> {
@@ -174,7 +177,7 @@ impl<'a> Iterator for OrderedDocumentIntoIterator {
     }
 }
 
-impl<'a> Iterator for OrderedDocumentIterator<'a> {
+impl<'a> Iterator for DocumentIterator<'a> {
     type Item = (&'a String, &'a Bson);
 
     fn next(&mut self) -> Option<(&'a String, &'a Bson)> {
@@ -182,16 +185,16 @@ impl<'a> Iterator for OrderedDocumentIterator<'a> {
     }
 }
 
-impl OrderedDocument {
-    /// Creates a new empty OrderedDocument.
-    pub fn new() -> OrderedDocument {
-        OrderedDocument {
+impl Document {
+    /// Creates a new empty Document.
+    pub fn new() -> Document {
+        Document {
             inner: LinkedHashMap::new(),
         }
     }
 
     /// Gets an iterator over the entries of the map.
-    pub fn iter(&self) -> OrderedDocumentIterator {
+    pub fn iter(&self) -> DocumentIterator {
         self.into_iter()
     }
 
@@ -214,7 +217,7 @@ impl OrderedDocument {
     /// the correct type.
     pub fn get_f64(&self, key: &str) -> ValueAccessResult<f64> {
         match self.get(key) {
-            Some(&Bson::FloatingPoint(v)) => Ok(v),
+            Some(&Bson::Double(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -224,7 +227,7 @@ impl OrderedDocument {
     /// the correct type.
     pub fn get_f64_mut(&mut self, key: &str) -> ValueAccessResult<&mut f64> {
         match self.get_mut(key) {
-            Some(&mut Bson::FloatingPoint(ref mut v)) => Ok(v),
+            Some(&mut Bson::Double(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -334,7 +337,7 @@ impl OrderedDocument {
     /// Get an i32 value for this key if it exists and has the correct type.
     pub fn get_i32(&self, key: &str) -> ValueAccessResult<i32> {
         match self.get(key) {
-            Some(&Bson::I32(v)) => Ok(v),
+            Some(&Bson::Int32(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -343,7 +346,7 @@ impl OrderedDocument {
     /// Get a mutable reference to an i32 value for this key if it exists and has the correct type.
     pub fn get_i32_mut(&mut self, key: &str) -> ValueAccessResult<&mut i32> {
         match self.get_mut(key) {
-            Some(&mut Bson::I32(ref mut v)) => Ok(v),
+            Some(&mut Bson::Int32(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -352,7 +355,7 @@ impl OrderedDocument {
     /// Get an i64 value for this key if it exists and has the correct type.
     pub fn get_i64(&self, key: &str) -> ValueAccessResult<i64> {
         match self.get(key) {
-            Some(&Bson::I64(v)) => Ok(v),
+            Some(&Bson::Int64(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -361,16 +364,16 @@ impl OrderedDocument {
     /// Get a mutable reference to an i64 value for this key if it exists and has the correct type.
     pub fn get_i64_mut(&mut self, key: &str) -> ValueAccessResult<&mut i64> {
         match self.get_mut(key) {
-            Some(&mut Bson::I64(ref mut v)) => Ok(v),
+            Some(&mut Bson::Int64(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
     }
 
     /// Get a time stamp value for this key if it exists and has the correct type.
-    pub fn get_time_stamp(&self, key: &str) -> ValueAccessResult<TimeStamp> {
+    pub fn get_timestamp(&self, key: &str) -> ValueAccessResult<Timestamp> {
         match self.get(key) {
-            Some(&Bson::TimeStamp(timestamp)) => Ok(timestamp),
+            Some(&Bson::Timestamp(timestamp)) => Ok(timestamp),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -378,9 +381,9 @@ impl OrderedDocument {
 
     /// Get a mutable reference to a time stamp value for this key if it exists and has the correct
     /// type.
-    pub fn get_time_stamp_mut(&mut self, key: &str) -> ValueAccessResult<&mut TimeStamp> {
+    pub fn get_timestamp_mut(&mut self, key: &str) -> ValueAccessResult<&mut Timestamp> {
         match self.get_mut(key) {
-            Some(&mut Bson::TimeStamp(ref mut timestamp)) => Ok(timestamp),
+            Some(&mut Bson::Timestamp(ref mut timestamp)) => Ok(timestamp),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -432,9 +435,9 @@ impl OrderedDocument {
     }
 
     /// Get a reference to a UTC datetime value for this key if it exists and has the correct type.
-    pub fn get_utc_datetime(&self, key: &str) -> ValueAccessResult<&DateTime<Utc>> {
+    pub fn get_datetime(&self, key: &str) -> ValueAccessResult<&DateTime<Utc>> {
         match self.get(key) {
-            Some(&Bson::UtcDatetime(ref v)) => Ok(v),
+            Some(&Bson::DateTime(ref v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -442,9 +445,9 @@ impl OrderedDocument {
 
     /// Get a mutable reference to a UTC datetime value for this key if it exists and has the
     /// correct type.
-    pub fn get_utc_datetime_mut(&mut self, key: &str) -> ValueAccessResult<&mut DateTime<Utc>> {
+    pub fn get_datetime_mut(&mut self, key: &str) -> ValueAccessResult<&mut DateTime<Utc>> {
         match self.get_mut(key) {
-            Some(&mut Bson::UtcDatetime(ref mut v)) => Ok(v),
+            Some(&mut Bson::DateTime(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -506,6 +509,56 @@ impl OrderedDocument {
             inner: self.inner.entry(k),
         }
     }
+
+    /// Attempts to serialize the `Document` into a byte stream.
+    pub fn to_writer<W: Write + ?Sized>(&self, writer: &mut W) -> crate::ser::Result<()> {
+        let mut buf = Vec::new();
+        for (key, val) in self.into_iter() {
+            serialize_bson(&mut buf, key.as_ref(), val)?;
+        }
+
+        write_i32(
+            writer,
+            (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
+        )?;
+        writer.write_all(&buf)?;
+        writer.write_u8(0)?;
+        Ok(())
+    }
+
+    /// Attempts to deserialize a `Document` from a byte stream.
+    pub fn from_reader<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
+        let mut doc = Document::new();
+
+        let length = read_i32(reader)?;
+        if length < MIN_BSON_DOCUMENT_SIZE {
+            return Err(crate::de::Error::invalid_length(
+                length as usize,
+                &"document length must be at least 5",
+            ));
+        }
+
+        ensure_read_exactly(
+            reader,
+            (length as usize) - 4,
+            "document length longer than contents",
+            |cursor| {
+                loop {
+                    let tag = cursor.read_u8()?;
+
+                    if tag == 0 {
+                        break;
+                    }
+
+                    let (key, val) = deserialize_bson_kvp(cursor, tag, false)?;
+                    doc.insert(key, val);
+                }
+                Ok(())
+            },
+        )?;
+
+        Ok(doc)
+    }
 }
 
 pub struct Entry<'a> {
@@ -526,42 +579,42 @@ impl<'a> Entry<'a> {
     }
 }
 
-impl From<LinkedHashMap<String, Bson>> for OrderedDocument {
-    fn from(tree: LinkedHashMap<String, Bson>) -> OrderedDocument {
-        OrderedDocument { inner: tree }
+impl From<LinkedHashMap<String, Bson>> for Document {
+    fn from(tree: LinkedHashMap<String, Bson>) -> Document {
+        Document { inner: tree }
     }
 }
 
-pub struct OrderedDocumentVisitor {
-    marker: PhantomData<OrderedDocument>,
+pub struct DocumentVisitor {
+    marker: PhantomData<Document>,
 }
 
-impl OrderedDocumentVisitor {
+impl DocumentVisitor {
     #[allow(clippy::new_without_default)]
-    pub fn new() -> OrderedDocumentVisitor {
-        OrderedDocumentVisitor {
+    pub fn new() -> DocumentVisitor {
+        DocumentVisitor {
             marker: PhantomData,
         }
     }
 }
 
-impl<'de> Visitor<'de> for OrderedDocumentVisitor {
-    type Value = OrderedDocument;
+impl<'de> Visitor<'de> for DocumentVisitor {
+    type Value = Document;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "expecting ordered document")
     }
 
     #[inline]
-    fn visit_unit<E>(self) -> Result<OrderedDocument, E>
+    fn visit_unit<E>(self) -> Result<Document, E>
     where
         E: de::Error,
     {
-        Ok(OrderedDocument::new())
+        Ok(Document::new())
     }
 
     #[inline]
-    fn visit_map<V>(self, mut visitor: V) -> Result<OrderedDocument, V::Error>
+    fn visit_map<V>(self, mut visitor: V) -> Result<Document, V::Error>
     where
         V: MapAccess<'de>,
     {
@@ -578,7 +631,7 @@ impl<'de> Visitor<'de> for OrderedDocumentVisitor {
     }
 }
 
-impl Extend<(String, Bson)> for OrderedDocument {
+impl Extend<(String, Bson)> for Document {
     fn extend<T: IntoIterator<Item = (String, Bson)>>(&mut self, iter: T) {
         for (k, v) in iter {
             self.insert(k, v);
