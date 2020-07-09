@@ -33,8 +33,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 time = "0.1"
 linked-hash-map = "0.5.3"
-hex = "0.3"
-md5 = "0.6"
+hex = "0.4.2"
+md5 = "0.7.0"
 decimal = { version = "2.0.4", default_features = false, optional = true }
 base64 = "0.12.1"
 
