@@ -1,10 +1,12 @@
 //! ObjectId
 
 use std::{
+    convert::TryInto,
     error,
     fmt,
     result,
     sync::atomic::{AtomicUsize, Ordering},
+    time::SystemTime,
 };
 
 use byteorder::{BigEndian, ByteOrder};
@@ -137,8 +139,12 @@ impl ObjectId {
     // Generates a new timestamp representing the current seconds since epoch.
     // Represented in Big Endian.
     fn gen_timestamp() -> [u8; 4] {
-        let timespec = time::get_time();
-        let timestamp = timespec.sec as u32;
+        let timestamp = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("system clock is before 1970")
+            .as_secs()
+            .try_into()
+            .unwrap(); // will succeed until 2106 since timestamp is unsigned
 
         let mut buf: [u8; 4] = [0; 4];
         BigEndian::write_u32(&mut buf, timestamp);
