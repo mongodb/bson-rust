@@ -154,7 +154,8 @@ e.g.:
 #[derive(Serialize, Deserialize)]
 struct Person {
     name: String,
-    age: u8,
+    // Unsigned integer types are not supported. See the "Breaking Changes" section below.
+    age: i32,
     phones: Vec<String>,
 }
 
