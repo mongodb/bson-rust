@@ -150,7 +150,7 @@
 //! #[derive(Serialize, Deserialize)]
 //! struct Person {
 //!     name: String,
-//!     age: u8,
+//!     age: i32,
 //!     phones: Vec<String>,
 //! }
 //!
@@ -177,6 +177,8 @@
 //!     // Get a serialized version of the input data as a `Bson`.
 //!     let redacted_bson = bson::to_bson(&person).unwrap();
 //! }
+//!
+//! typed_example();
 //! ```
 //!
 //! Any types that implement `Serialize` and `Deserialize` can be used in this way. Doing so helps
