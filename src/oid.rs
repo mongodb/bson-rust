@@ -16,6 +16,7 @@ use hex::{self, FromHexError};
 use rand::{thread_rng, Rng};
 
 use chrono::Utc;
+use lazy_static::lazy_static;
 
 const TIMESTAMP_SIZE: usize = 4;
 const PROCESS_ID_SIZE: usize = 5;
@@ -27,7 +28,9 @@ const COUNTER_OFFSET: usize = PROCESS_ID_OFFSET + PROCESS_ID_SIZE;
 
 const MAX_U24: usize = 0xFF_FFFF;
 
-static OID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+lazy_static! {
+    static ref OID_COUNTER: AtomicUsize = AtomicUsize::new(thread_rng().gen_range(0, MAX_U24 + 1));
+}
 
 /// Errors that can occur during OID construction and generation.
 #[derive(Debug)]
@@ -162,19 +165,10 @@ impl ObjectId {
     // Gets an incremental 3-byte count.
     // Represented in Big Endian.
     fn gen_count() -> [u8; 3] {
-        // Init oid counter
-        if OID_COUNTER.load(Ordering::SeqCst) == 0 {
-            let start = thread_rng().gen_range(0, MAX_U24 + 1);
-            OID_COUNTER.store(start, Ordering::SeqCst);
-        }
-
         let u_counter = OID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
         // Mod result instead of OID_COUNTER to prevent threading issues.
-        // Static mutexes are currently unstable; once they have been
-        // stabilized, one should be used to access OID_COUNTER and
-        // perform multiple operations atomically.
-        let u = u_counter % MAX_U24;
+        let u = u_counter % (MAX_U24 + 1);
 
         // Convert usize to writable u64, then extract the first three bytes.
         let u_int = u as u64;
@@ -222,6 +216,39 @@ fn count_generated_is_big_endian() {
     assert_eq!(0x11u8, oid.bytes()[COUNTER_OFFSET]);
     assert_eq!(0x22u8, oid.bytes()[COUNTER_OFFSET + 1]);
     assert_eq!(0x33u8, oid.bytes()[COUNTER_OFFSET + 2]);
+}
+
+#[test]
+fn test_counter_overflow_u24_max() {
+    let _guard = LOCK.run_exclusively();
+    let start = MAX_U24;
+    OID_COUNTER.store(start, Ordering::SeqCst);
+    let oid = ObjectId::new();
+    assert_eq!(0xFFu8, oid.bytes()[COUNTER_OFFSET]);
+    assert_eq!(0xFFu8, oid.bytes()[COUNTER_OFFSET + 1]);
+    assert_eq!(0xFFu8, oid.bytes()[COUNTER_OFFSET + 2]);
+    // Test counter overflows to 0 when set to MAX_24 + 1
+    let oid_new = ObjectId::new();
+    assert_eq!(0x00u8, oid_new.bytes()[COUNTER_OFFSET]);
+    assert_eq!(0x00u8, oid_new.bytes()[COUNTER_OFFSET + 1]);
+    assert_eq!(0x00u8, oid_new.bytes()[COUNTER_OFFSET + 2]);
+}
+
+#[test]
+fn test_counter_overflow_usize_max() {
+    let _guard = LOCK.run_exclusively();
+    let start = usize::max_value();
+    OID_COUNTER.store(start, Ordering::SeqCst);
+    // Test counter overflows to u24_max when set to usize_max
+    let oid = ObjectId::new();
+    assert_eq!(0xFFu8, oid.bytes()[COUNTER_OFFSET]);
+    assert_eq!(0xFFu8, oid.bytes()[COUNTER_OFFSET + 1]);
+    assert_eq!(0xFFu8, oid.bytes()[COUNTER_OFFSET + 2]);
+    // Test counter overflows to 0 when set to usize_max + 1
+    let oid_new = ObjectId::new();
+    assert_eq!(0x00u8, oid_new.bytes()[COUNTER_OFFSET]);
+    assert_eq!(0x00u8, oid_new.bytes()[COUNTER_OFFSET + 1]);
+    assert_eq!(0x00u8, oid_new.bytes()[COUNTER_OFFSET + 2]);
 }
 
 #[cfg(test)]
