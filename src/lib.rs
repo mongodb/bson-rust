@@ -154,31 +154,27 @@
 //!     phones: Vec<String>,
 //! }
 //!
-//! fn typed_example() {
-//!     // Some BSON input data as a `Bson`.
-//!     let bson_data: Bson = bson!({
-//!         "name": "John Doe",
-//!         "age": 43,
-//!         "phones": [
-//!             "+44 1234567",
-//!             "+44 2345678"
-//!         ]
-//!     });
+//! // Some BSON input data as a `Bson`.
+//! let bson_data: Bson = bson!({
+//!     "name": "John Doe",
+//!     "age": 43,
+//!     "phones": [
+//!         "+44 1234567",
+//!         "+44 2345678"
+//!     ]
+//! });
 //!
-//!     // Deserialize the Person struct from the BSON data, automatically
-//!     // verifying that the necessary keys are present and that they are of
-//!     // the correct types.
-//!     let mut person: Person = bson::from_bson(bson_data).unwrap();
+//! // Deserialize the Person struct from the BSON data, automatically
+//! // verifying that the necessary keys are present and that they are of
+//! // the correct types.
+//! let mut person: Person = bson::from_bson(bson_data).unwrap();
 //!
-//!     // Do things just like with any other Rust data structure.
-//!     println!("Redacting {}'s record.", person.name);
-//!     person.name = "REDACTED".to_string();
+//! // Do things just like with any other Rust data structure.
+//! println!("Redacting {}'s record.", person.name);
+//! person.name = "REDACTED".to_string();
 //!
-//!     // Get a serialized version of the input data as a `Bson`.
-//!     let redacted_bson = bson::to_bson(&person).unwrap();
-//! }
-//!
-//! typed_example();
+//! // Get a serialized version of the input data as a `Bson`.
+//! let redacted_bson = bson::to_bson(&person).unwrap();
 //! ```
 //!
 //! Any types that implement `Serialize` and `Deserialize` can be used in this way. Doing so helps
