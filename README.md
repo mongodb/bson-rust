@@ -154,7 +154,6 @@ e.g.:
 #[derive(Serialize, Deserialize)]
 struct Person {
     name: String,
-    // Unsigned integer types are not supported. See the "Breaking Changes" section below.
     age: i32,
     phones: Vec<String>,
 }
@@ -240,4 +239,3 @@ bash .evergreen/check-clippy.sh && bash .evergreen/check-rustfmt.sh
 
 ## Continuous Integration
 Commits to master are run automatically on [evergreen](https://evergreen.mongodb.com/waterfall/rust-bson).
-
