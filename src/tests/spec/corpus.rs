@@ -109,7 +109,7 @@ fn run_test(test: TestFile) {
                             fixed_string.push_str(".0");
                         }
 
-                        std::mem::replace(s, fixed_string);
+                        *s = fixed_string;
                     }
                 }
             }
