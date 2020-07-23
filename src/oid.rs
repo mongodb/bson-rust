@@ -9,13 +9,10 @@ use std::{
     time::SystemTime,
 };
 
-use byteorder::{BigEndian, ByteOrder};
-
+use chrono::Utc;
 use hex::{self, FromHexError};
-
 use rand::{thread_rng, Rng};
 
-use chrono::Utc;
 use lazy_static::lazy_static;
 
 const TIMESTAMP_SIZE: usize = 4;
@@ -123,7 +120,10 @@ impl ObjectId {
 
     /// Retrieves the timestamp (chrono::DateTime) from an ObjectId.
     pub fn timestamp(&self) -> chrono::DateTime<Utc> {
-        let seconds_since_epoch = BigEndian::read_u32(&self.id);
+        let mut buf = [0; 4];
+        buf.copy_from_slice(&self.id[0..4]);
+        let seconds_since_epoch = u32::from_be_bytes(buf);
+
         let naive_datetime = chrono::NaiveDateTime::from_timestamp(seconds_since_epoch as i64, 0);
         let timestamp: chrono::DateTime<Utc> = chrono::DateTime::from_utc(naive_datetime, Utc);
         timestamp
@@ -142,23 +142,20 @@ impl ObjectId {
     // Generates a new timestamp representing the current seconds since epoch.
     // Represented in Big Endian.
     fn gen_timestamp() -> [u8; 4] {
-        let timestamp = SystemTime::now()
+        let timestamp: u32 = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .expect("system clock is before 1970")
             .as_secs()
             .try_into()
             .unwrap(); // will succeed until 2106 since timestamp is unsigned
-
-        let mut buf: [u8; 4] = [0; 4];
-        BigEndian::write_u32(&mut buf, timestamp);
-        buf
+        timestamp.to_be_bytes()
     }
 
     // Generate a random 5-byte array.
     fn gen_process_id() -> [u8; 5] {
         let rng = thread_rng().gen_range(0, MAX_U24) as u32;
         let mut buf: [u8; 5] = [0; 5];
-        BigEndian::write_u32(&mut buf, rng);
+        buf[0..4].copy_from_slice(&rng.to_be_bytes());
         buf
     }
 
@@ -173,8 +170,7 @@ impl ObjectId {
         // Convert usize to writable u64, then extract the first three bytes.
         let u_int = u as u64;
 
-        let mut buf: [u8; 8] = [0; 8];
-        BigEndian::write_u64(&mut buf, u_int);
+        let buf = u_int.to_be_bytes();
         let buf_u24: [u8; 3] = [buf[5], buf[6], buf[7]];
         buf_u24
     }
@@ -207,7 +203,7 @@ fn count_generated_is_big_endian() {
     let mut buf: [u8; 4] = [0; 4];
     buf[1..=COUNTER_SIZE].clone_from_slice(&count_bytes[..COUNTER_SIZE]);
 
-    let count = BigEndian::read_u32(&buf);
+    let count = u32::from_be_bytes(buf);
     assert_eq!(start as u32, count);
 
     // Test OID formats count correctly as big endian

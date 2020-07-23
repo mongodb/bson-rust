@@ -9,8 +9,6 @@ use std::{
     mem,
 };
 
-use byteorder::{ReadBytesExt, WriteBytesExt};
-
 use chrono::{DateTime, Utc};
 
 use linked_hash_map::{self, LinkedHashMap};
@@ -522,7 +520,7 @@ impl Document {
             (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
         )?;
         writer.write_all(&buf)?;
-        writer.write_u8(0)?;
+        writer.write_all(&[0])?;
         Ok(())
     }
 
@@ -544,7 +542,9 @@ impl Document {
             "document length longer than contents",
             |cursor| {
                 loop {
-                    let tag = cursor.read_u8()?;
+                    let mut tag_byte = [0];
+                    cursor.read_exact(&mut tag_byte)?;
+                    let tag = tag_byte[0];
 
                     if tag == 0 {
                         break;

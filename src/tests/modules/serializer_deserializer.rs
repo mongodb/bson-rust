@@ -17,7 +17,6 @@ use crate::{
     Regex,
     Timestamp,
 };
-use byteorder::{LittleEndian, WriteBytesExt};
 use chrono::{offset::TimeZone, Utc};
 use serde_json::json;
 
@@ -333,16 +332,16 @@ fn test_serialize_deserialize_symbol() {
 #[test]
 fn test_deserialize_utc_date_time_overflows() {
     let _guard = LOCK.run_concurrently();
-    let t = 1_530_492_218 * 1_000 + 999;
+    let t: i64 = 1_530_492_218 * 1_000 + 999;
 
     let mut raw0 = vec![0x09, b'A', 0x00];
-    raw0.write_i64::<LittleEndian>(t).unwrap();
+    raw0.write_all(&t.to_le_bytes()).unwrap();
 
     let mut raw = vec![];
-    raw.write_i32::<LittleEndian>((raw0.len() + 4 + 1) as i32)
+    raw.write_all(&((raw0.len() + 4 + 1) as i32).to_le_bytes())
         .unwrap();
     raw.write_all(&raw0).unwrap();
-    raw.write_u8(0).unwrap();
+    raw.write_all(&[0]).unwrap();
 
     let deserialized = Document::from_reader(&mut Cursor::new(raw)).unwrap();
 
