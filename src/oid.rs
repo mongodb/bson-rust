@@ -15,6 +15,10 @@ use rand::{thread_rng, Rng};
 
 use lazy_static::lazy_static;
 
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+
+use std::io::Cursor;
+
 const TIMESTAMP_SIZE: usize = 4;
 const PROCESS_ID_SIZE: usize = 5;
 const COUNTER_SIZE: usize = 3;
@@ -67,7 +71,68 @@ impl error::Error for Error {
     }
 }
 
+/// This is a Rust representation of ObjectId
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub struct ObjectIdRepr {
+    pub timestamp: chrono::DateTime<Utc>,
+    pub salt: u64,
+    pub count: u32,
+}
+
+impl From<&ObjectId> for ObjectIdRepr {
+    fn from(object_id: &ObjectId) -> Self {
+        let mut id = Cursor::new(&object_id.id[..]);
+
+        let seconds_since_epoch = id.read_u32::<BigEndian>().unwrap();
+        let naive_datetime = chrono::NaiveDateTime::from_timestamp(seconds_since_epoch as i64, 0);
+        let timestamp: chrono::DateTime<Utc> = chrono::DateTime::from_utc(naive_datetime, Utc);
+
+        let salt = id.read_uint::<BigEndian>(5).unwrap();
+        let count = id.read_u24::<BigEndian>().unwrap();
+
+        Self {
+            timestamp,
+            salt,
+            count,
+        }
+    }
+}
+
+impl From<ObjectId> for ObjectIdRepr {
+    fn from(object_id: ObjectId) -> Self {
+        (&object_id).into()
+    }
+}
+
+impl From<&ObjectIdRepr> for ObjectId {
+    fn from(repr: &ObjectIdRepr) -> Self {
+        let mut id = [0; 12];
+        let mut buf = Cursor::new(&mut id[..]);
+
+        let seconds_since_epoch = repr.timestamp.timestamp().try_into().unwrap(); // will succeed until 2106 since timestamp is unsigned
+        buf.write_u32::<BigEndian>(seconds_since_epoch).unwrap();
+        buf.write_uint::<BigEndian>(repr.salt, 5).unwrap();
+        buf.write_u24::<BigEndian>(repr.count).unwrap();
+
+        Self { id }
+    }
+}
+
+impl From<ObjectIdRepr> for ObjectId {
+    fn from(repr: ObjectIdRepr) -> Self {
+        (&repr).into()
+    }
+}
+
 /// A wrapper around raw 12-byte ObjectId representations.
+///
+/// a 4-byte timestamp value, representing the ObjectId’s creation, measured in seconds since the
+/// Unix epoch a 5-byte random value
+/// a 3-byte incrementing counter, initialized to a random value
+///
+/// While the BSON format itself is little-endian, the timestamp and counter values are big-endian,
+/// with the most significant bytes appearing first in the byte sequence.
+
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct ObjectId {
     id: [u8; 12],
@@ -127,6 +192,12 @@ impl ObjectId {
         let naive_datetime = chrono::NaiveDateTime::from_timestamp(seconds_since_epoch as i64, 0);
         let timestamp: chrono::DateTime<Utc> = chrono::DateTime::from_utc(naive_datetime, Utc);
         timestamp
+    }
+
+    /// Returns an usable representation of ObjectId, use it if you need all information inside a
+    /// ObjectId
+    pub fn repr(&self) -> ObjectIdRepr {
+        self.into()
     }
 
     /// Returns the raw byte representation of an ObjectId.
@@ -249,38 +320,69 @@ fn test_counter_overflow_usize_max() {
 
 #[cfg(test)]
 mod test {
+    use super::{ObjectId, ObjectIdRepr};
     use chrono::{offset::TimeZone, Utc};
 
     #[test]
     fn test_display() {
-        let id = super::ObjectId::with_string("53e37d08776f724e42000000").unwrap();
+        let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
 
         assert_eq!(format!("{}", id), "53e37d08776f724e42000000")
     }
 
     #[test]
     fn test_debug() {
-        let id = super::ObjectId::with_string("53e37d08776f724e42000000").unwrap();
+        let id = ObjectId::with_string("53e37d08776f724e42000000").unwrap();
 
         assert_eq!(format!("{:?}", id), "ObjectId(53e37d08776f724e42000000)")
     }
 
     #[test]
     fn test_timestamp() {
-        let id = super::ObjectId::with_string("000000000000000000000000").unwrap();
+        let id = ObjectId::with_string("000000000000000000000000").unwrap();
         // "Jan 1st, 1970 00:00:00 UTC"
         assert_eq!(Utc.ymd(1970, 1, 1).and_hms(0, 0, 0), id.timestamp());
 
-        let id = super::ObjectId::with_string("7FFFFFFF0000000000000000").unwrap();
+        let id = ObjectId::with_string("7FFFFFFF0000000000000000").unwrap();
         // "Jan 19th, 2038 03:14:07 UTC"
         assert_eq!(Utc.ymd(2038, 1, 19).and_hms(3, 14, 7), id.timestamp());
 
-        let id = super::ObjectId::with_string("800000000000000000000000").unwrap();
+        let id = ObjectId::with_string("800000000000000000000000").unwrap();
         // "Jan 19th, 2038 03:14:08 UTC"
         assert_eq!(Utc.ymd(2038, 1, 19).and_hms(3, 14, 8), id.timestamp());
 
-        let id = super::ObjectId::with_string("FFFFFFFF0000000000000000").unwrap();
+        let id = ObjectId::with_string("FFFFFFFF0000000000000000").unwrap();
         // "Feb 7th, 2106 06:28:15 UTC"
         assert_eq!(Utc.ymd(2106, 2, 7).and_hms(6, 28, 15), id.timestamp());
+    }
+
+    #[test]
+    fn test_object_id_repr() {
+        let id = ObjectId::with_string("FFFFFFFF0011223344999999").unwrap();
+        let repr = (&id).into();
+
+        let result = ObjectIdRepr {
+            // "Feb 7th, 2106 06:28:15 UTC"
+            timestamp: Utc.ymd(2106, 2, 7).and_hms(6, 28, 15),
+            salt: 0x0011223344,
+            count: 0x999999,
+        };
+        assert_eq!(result, repr);
+
+        let result: ObjectId = result.into();
+        assert_eq!(result, id);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_invalid_timestamp() {
+        let result = ObjectIdRepr {
+            // "Feb 7th, 2106 06:28:16 UTC"
+            timestamp: Utc.ymd(2106, 2, 7).and_hms(6, 28, 16),
+            salt: 0x0011223344,
+            count: 0x999999,
+        };
+
+        let _: ObjectId = result.into();
     }
 }
