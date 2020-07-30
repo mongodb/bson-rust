@@ -44,7 +44,7 @@ use crate::{
 };
 
 use ::serde::{
-    de::{Error as _, Unexpected},
+    de::{DeserializeOwned, Error as _, Unexpected},
     Deserialize,
 };
 
@@ -348,9 +348,9 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
 }
 
 /// Decode a BSON `Value` into a `T` Deserializable.
-pub fn from_bson<'de, T>(bson: Bson) -> Result<T>
+pub fn from_bson<T>(bson: Bson) -> Result<T>
 where
-    T: Deserialize<'de>,
+    T: DeserializeOwned,
 {
     let de = Deserializer::new(bson);
     Deserialize::deserialize(de)

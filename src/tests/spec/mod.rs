@@ -8,13 +8,13 @@ use std::{
 };
 
 use crate::{from_bson, Bson};
-use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-pub(crate) fn run_spec_test<'a, T, F>(spec: &[&str], run_test_file: F)
+pub(crate) fn run_spec_test<T, F>(spec: &[&str], run_test_file: F)
 where
     F: Fn(T),
-    T: Deserialize<'a>,
+    T: DeserializeOwned,
 {
     let base_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "src", "tests", "spec", "json"]
         .iter()
