@@ -13,6 +13,20 @@ homepage = "https://github.com/mongodb/bson-rust"
 documentation = "https://docs.rs/crate/bson"
 edition = "2018"
 
+# By default cargo include everything git include
+# cargo diet can help to manage what's not useful.
+exclude = [
+    "etc/**",
+    "examples/**",
+    "fuzz/**",
+    "serde-tests/**",
+    "src/tests/**",
+    "rustfmt.toml",
+    ".travis.yml",
+    ".evergreen/**",
+    ".gitignore"
+]
+
 [features]
 # no features by default
 default = []
