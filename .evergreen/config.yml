@@ -102,6 +102,16 @@ functions:
           ${PREPARE_SHELL}
           .evergreen/run-tests-serde.sh
 
+  "compile only":
+    - command: shell.exec
+      type: test
+      params:
+        shell: bash
+        working_dir: "src"
+        script: |
+          ${PREPARE_SHELL}
+          RUST_VERSION=${RUST_VERSION} .evergreen/compile-only.sh
+
   "check rustfmt":
     - command: shell.exec
       type: test
@@ -154,6 +164,10 @@ tasks:
     commands:
       - func: "run serde tests"
 
+  - name: "compile-only"
+    commands:
+      - func: "compile only"
+
   - name: "check-rustfmt"
     commands:
       - func: "check rustfmt"
@@ -161,6 +175,18 @@ tasks:
   - name: "check-clippy"
     commands:
       - func: "check clippy"
+
+axes:
+  - id: "extra-rust-versions"
+    values:
+      - id: "min"
+        display_name: "1.43 (minimum supported version)"
+        variables:
+          RUST_VERSION: "1.43.1"
+      - id: "nightly"
+        display_name: "nightly"
+        variables:
+          RUST_VERSION: "nightly"
 
 buildvariants:
 -
@@ -172,6 +198,15 @@ buildvariants:
     - name: "test"
     - name: "test-u2i"
     - name: "test-serde"
+
+- matrix_name: "compile only"
+  matrix_spec:
+    extra-rust-versions: "*"
+  display_name: "Compile on Rust ${extra-rust-versions}"
+  run_on:
+    - ubuntu1804-test
+  tasks:
+    - name: "compile-only"
 -
   name: "lint"
   display_name: "Lint"
