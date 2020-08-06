@@ -1,11 +1,10 @@
 use std::{collections::BTreeMap, u16, u32, u64, u8};
 
 use assert_matches::assert_matches;
-use serde::Serialize;
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
-use crate::{from_bson, oid::ObjectId, ser, tests::LOCK, to_bson, to_document, Bson};
+use crate::{from_bson, oid::ObjectId, ser, tests::LOCK, to_bson, Bson};
 
 #[test]
 #[allow(clippy::float_cmp)]
@@ -192,41 +191,4 @@ fn oid() {
 
     let deser: Bson = to_bson(&s).unwrap();
     assert_eq!(deser, obj);
-}
-
-#[test]
-fn document() {
-    let _guard = LOCK.run_concurrently();
-    #[derive(Serialize)]
-    struct Point {
-        x: i32,
-        y: i32,
-    }
-    let point = Point { x: 1, y: 2 };
-    let point = to_document(&point).unwrap();
-    assert_eq!(point, doc! { "x": 1, "y": 2 });
-
-    #[derive(Serialize)]
-    struct Line {
-        p1: Point,
-        p2: Point,
-    }
-    let line = Line {
-        p1: Point { x: 0, y: 0 },
-        p2: Point { x: 1, y: 1 },
-    };
-    let line = to_document(&line).unwrap();
-    assert_eq!(
-        line,
-        doc! { "p1": { "x": 0, "y": 0 }, "p2": { "x": 1, "y": 1 } }
-    );
-
-    let x = 1;
-    let err = to_document(&x).unwrap_err();
-    match err {
-        ser::Error::SerializationError { message } => {
-            assert_eq!(message, "Cannot be serialized to Document");
-        }
-        e => panic!("expected SerializationError, got {}", e),
-    }
 }

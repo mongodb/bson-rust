@@ -355,3 +355,11 @@ where
     let de = Deserializer::new(bson);
     Deserialize::deserialize(de)
 }
+
+/// Decode a BSON `Document` into a `T` Deserializable.
+pub fn from_document<T>(doc: Document) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    from_bson(Bson::Document(doc))
+}
