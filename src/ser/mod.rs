@@ -195,10 +195,10 @@ pub fn to_document<T: ?Sized>(value: &T) -> Result<Document>
 where
     T: Serialize,
 {
-    let bson = to_bson(value)?;
-    bson.as_document()
-        .cloned()
-        .ok_or(Error::SerializationError {
+    match to_bson(value)? {
+        Bson::Document(doc) => Ok(doc),
+        _ => Err(Error::SerializationError {
             message: "Cannot be serialized to Document".to_string(),
-        })
+        }),
+    }
 }
