@@ -225,7 +225,7 @@ fn document() {
     let err = to_document(&x).unwrap_err();
     match err {
         ser::Error::SerializationError { message } => {
-            assert_eq!(message, "Cannot be serialized to document");
+            assert_eq!(message, "Cannot be serialized to Document");
         }
         e => panic!("expected SerializationError, got {}", e),
     }
