@@ -197,8 +197,11 @@ where
 {
     match to_bson(value)? {
         Bson::Document(doc) => Ok(doc),
-        _ => Err(Error::SerializationError {
-            message: "Cannot be serialized to Document".to_string(),
+        bson => Err(Error::SerializationError {
+            message: format!(
+                "Could not be serialized to Document, got {:?} instead",
+                bson.element_type()
+            ),
         }),
     }
 }

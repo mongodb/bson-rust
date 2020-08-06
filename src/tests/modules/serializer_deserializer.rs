@@ -516,7 +516,7 @@ fn test_serialize_deserialize_document() {
     let err = to_document(&x).unwrap_err();
     match err {
         Error::SerializationError { message } => {
-            assert_eq!(message, "Cannot be serialized to Document");
+            assert!(message.contains("Could not be serialized to Document"));
         }
         e => panic!("expected SerializationError, got {}", e),
     }
