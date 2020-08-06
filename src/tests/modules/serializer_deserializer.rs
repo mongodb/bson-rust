@@ -479,6 +479,7 @@ fn test_serialize_deserialize_db_pointer() {
 #[test]
 fn test_serialize_deserialize_document() {
     let _guard = LOCK.run_concurrently();
+
     #[derive(Debug, Deserialize, Serialize, PartialEq)]
     struct Point {
         x: i32,
