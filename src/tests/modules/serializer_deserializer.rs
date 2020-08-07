@@ -3,13 +3,18 @@ use std::{
     io::{Cursor, Write},
 };
 
+use serde::{Deserialize, Serialize};
+
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
+    de::from_document,
     doc,
     oid::ObjectId,
+    ser::Error,
     spec::BinarySubtype,
     tests::LOCK,
+    to_document,
     Binary,
     Bson,
     Document,
@@ -469,4 +474,54 @@ fn test_serialize_deserialize_db_pointer() {
 
     let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
+}
+
+#[test]
+fn test_serialize_deserialize_document() {
+    let _guard = LOCK.run_concurrently();
+
+    #[derive(Debug, Deserialize, Serialize, PartialEq)]
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+    let src = Point { x: 1, y: 2 };
+
+    let doc = to_document(&src).unwrap();
+    assert_eq!(doc, doc! { "x": 1, "y": 2 });
+
+    let point: Point = from_document(doc).unwrap();
+    assert_eq!(src, point);
+
+    #[derive(Debug, Deserialize, Serialize, PartialEq)]
+    struct Line {
+        p1: Point,
+        p2: Point,
+    }
+    let src = Line {
+        p1: Point { x: 0, y: 0 },
+        p2: Point { x: 1, y: 1 },
+    };
+
+    let doc = to_document(&src).unwrap();
+    assert_eq!(
+        doc,
+        doc! { "p1": { "x": 0, "y": 0 }, "p2": { "x": 1, "y": 1 } }
+    );
+
+    let line: Line = from_document(doc).unwrap();
+    assert_eq!(src, line);
+
+    let x = 1;
+    let err = to_document(&x).unwrap_err();
+    match err {
+        Error::SerializationError { message } => {
+            assert!(message.contains("Could not be serialized to Document"));
+        }
+        e => panic!("expected SerializationError, got {}", e),
+    }
+
+    let bad_point = doc! { "x": "one", "y": "two" };
+    let bad_point: Result<Point, crate::de::Error> = from_document(bad_point);
+    assert!(bad_point.is_err());
 }

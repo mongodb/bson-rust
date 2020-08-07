@@ -36,7 +36,7 @@ use chrono::Timelike;
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex},
+    bson::{Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex},
     spec::BinarySubtype,
 };
 use ::serde::Serialize;
@@ -188,4 +188,20 @@ where
 {
     let ser = Serializer::new();
     value.serialize(ser)
+}
+
+/// Encode a `T` Serializable into a BSON `Document`.
+pub fn to_document<T: ?Sized>(value: &T) -> Result<Document>
+where
+    T: Serialize,
+{
+    match to_bson(value)? {
+        Bson::Document(doc) => Ok(doc),
+        bson => Err(Error::SerializationError {
+            message: format!(
+                "Could not be serialized to Document, got {:?} instead",
+                bson.element_type()
+            ),
+        }),
+    }
 }

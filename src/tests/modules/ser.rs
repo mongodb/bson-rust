@@ -1,8 +1,10 @@
+use std::{collections::BTreeMap, u16, u32, u64, u8};
+
+use assert_matches::assert_matches;
+
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{from_bson, oid::ObjectId, ser, tests::LOCK, to_bson, Bson};
-use assert_matches::assert_matches;
-use std::{collections::BTreeMap, u16, u32, u64, u8};
 
 #[test]
 #[allow(clippy::float_cmp)]
