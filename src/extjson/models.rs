@@ -6,7 +6,7 @@ use serde::{
     Deserialize,
 };
 
-use crate::{extjson, oid, Bson};
+use crate::{extjson, oid, spec::BinarySubtype, Bson};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -163,6 +163,50 @@ impl Binary {
             ))
         }
     }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Uuid {
+    #[serde(rename = "$uuid")]
+    value: String,
+}
+
+impl Uuid {
+    pub(crate) fn parse(mut self) -> extjson::de::Result<crate::Binary> {
+        if !valid_uuid_format(&self.value) {
+            return Err(extjson::de::Error::invalid_value(
+                Unexpected::Str(&self.value),
+                &"$uuid values does not follow RFC 4122 format regarding length and hyphens",
+            ));
+        }
+
+        self.value.retain(|c| c != '-');
+
+        let bytes = hex::decode(&self.value).map_err(|_| {
+            extjson::de::Error::invalid_value(
+                Unexpected::Str(&self.value),
+                &"$uuid does not follow RFC 4122 format regarding hex bytes",
+            )
+        })?;
+
+        Ok(crate::Binary {
+            subtype: BinarySubtype::Uuid,
+            bytes,
+        })
+    }
+}
+
+fn valid_uuid_format(s: &str) -> bool {
+    // RFC 4122 defines the hyphens in a UUID as appearing in the 8th, 13th, 18th, and 23rd
+    // characters.
+    //
+    // See https://tools.ietf.org/html/rfc4122#section-3
+    s.chars().count() == 36
+        && s.chars().nth(8) == Some('-')
+        && s.chars().nth(13) == Some('-')
+        && s.chars().nth(18) == Some('-')
+        && s.chars().nth(23) == Some('-')
 }
 
 #[derive(Deserialize)]

@@ -117,6 +117,11 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
             return Ok(Bson::Binary(binary.parse()?));
         }
 
+        if obj.contains_key("$uuid") {
+            let uuid: models::Uuid = serde_json::from_value(obj.into())?;
+            return Ok(Bson::Binary(uuid.parse()?));
+        }
+
         if obj.contains_key("$code") {
             let code_w_scope: models::JavaScriptCodeWithScope = serde_json::from_value(obj.into())?;
             return match code_w_scope.scope {
