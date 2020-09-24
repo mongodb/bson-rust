@@ -153,10 +153,16 @@ impl ObjectId {
 
     // Generate a random 5-byte array.
     fn gen_process_id() -> [u8; 5] {
-        let rng = thread_rng().gen_range(0, MAX_U24) as u32;
-        let mut buf: [u8; 5] = [0; 5];
-        buf[0..4].copy_from_slice(&rng.to_be_bytes());
-        buf
+        lazy_static! {
+            static ref BUF: [u8; 5] = {
+                let rng = thread_rng().gen_range(0, MAX_U24) as u32;
+                let mut buf: [u8; 5] = [0; 5];
+                buf[0..4].copy_from_slice(&rng.to_be_bytes());
+                buf
+            };
+        }
+
+        *BUF
     }
 
     // Gets an incremental 3-byte count.
