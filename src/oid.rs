@@ -162,7 +162,7 @@ impl ObjectId {
             };
         }
 
-        BUF.clone()
+        *BUF
     }
 
     // Gets an incremental 3-byte count.
