@@ -5,6 +5,7 @@ use std::{
     error,
     fmt,
     result,
+    str::FromStr,
     sync::atomic::{AtomicUsize, Ordering},
     time::SystemTime,
 };
@@ -76,6 +77,14 @@ pub struct ObjectId {
 impl Default for ObjectId {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl FromStr for ObjectId {
+    type Err = Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Self::with_string(s)
     }
 }
 
