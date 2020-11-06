@@ -262,7 +262,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             let pattern = read_cstring(reader)?;
 
             let mut options: Vec<_> = read_cstring(reader)?.chars().collect();
-            options.sort();
+            options.sort_unstable();
 
             Bson::RegularExpression(Regex {
                 pattern,

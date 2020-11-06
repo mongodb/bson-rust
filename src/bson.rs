@@ -339,7 +339,7 @@ impl Bson {
             Bson::Null => Value::Null,
             Bson::RegularExpression(Regex { pattern, options }) => {
                 let mut chars: Vec<_> = options.chars().collect();
-                chars.sort();
+                chars.sort_unstable();
 
                 let options: String = chars.into_iter().collect();
 
@@ -492,7 +492,7 @@ impl Bson {
                 ref options,
             }) => {
                 let mut chars: Vec<_> = options.chars().collect();
-                chars.sort();
+                chars.sort_unstable();
 
                 let options: String = chars.into_iter().collect();
 
@@ -602,7 +602,7 @@ impl Bson {
         }
 
         let mut keys: Vec<_> = doc.keys().map(|s| s.as_str()).collect();
-        keys.sort();
+        keys.sort_unstable();
 
         match keys.as_slice() {
             ["$oid"] => {
@@ -712,7 +712,7 @@ impl Bson {
                     if let Ok(pattern) = regex.get_str("pattern") {
                         if let Ok(options) = regex.get_str("options") {
                             let mut options: Vec<_> = options.chars().collect();
-                            options.sort();
+                            options.sort_unstable();
 
                             return Bson::RegularExpression(Regex {
                                 pattern: pattern.into(),
