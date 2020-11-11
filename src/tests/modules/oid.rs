@@ -47,3 +47,13 @@ fn counter_increasing() {
     let oid2_bytes = ObjectId::new().bytes();
     assert!(oid1_bytes[11] < oid2_bytes[11]);
 }
+
+#[test]
+fn fromstr_oid() {
+    let _guard = LOCK.run_concurrently();
+    let s = "123456789012123456789012";
+    let oid_res = s.parse::<ObjectId>();
+    assert!(oid_res.is_ok(), "oid parse failed");
+    let actual_s = hex::encode(oid_res.unwrap().bytes());
+    assert_eq!(s, &actual_s, "parsed and expected oids differ");
+}
