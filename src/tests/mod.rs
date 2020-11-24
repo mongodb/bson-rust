@@ -1,4 +1,5 @@
 mod modules;
+mod serde;
 mod spec;
 
 use lazy_static::lazy_static;

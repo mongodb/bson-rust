@@ -1,6 +1,18 @@
 #![allow(clippy::blacklisted_name)]
 
-use bson::{bson, doc, spec::BinarySubtype, Binary, Bson, Deserializer, Serializer};
+use crate::{
+    bson,
+    compat::u2f,
+    doc,
+    from_bson,
+    spec::BinarySubtype,
+    tests::LOCK,
+    to_bson,
+    Binary,
+    Bson,
+    Deserializer,
+    Serializer,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -75,13 +87,13 @@ fn test_ser_timestamp() {
         },
     };
 
-    let x = bson::to_bson(&foo).unwrap();
+    let x = to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! { "ts": Bson::Timestamp(Timestamp { time: 0x0000_000C, increment: 0x0000_000A }) }
     );
 
-    let xfoo: Foo = bson::from_bson(x).unwrap();
+    let xfoo: Foo = from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
 
@@ -95,7 +107,7 @@ fn test_de_timestamp() {
         ts: Timestamp,
     }
 
-    let foo: Foo = bson::from_bson(Bson::Document(doc! {
+    let foo: Foo = from_bson(Bson::Document(doc! {
         "ts": Bson::Timestamp(Timestamp { time: 0x0000_000C, increment: 0x0000_000A }),
     }))
     .unwrap();
@@ -128,13 +140,13 @@ fn test_ser_regex() {
         regex: regex.clone(),
     };
 
-    let x = bson::to_bson(&foo).unwrap();
+    let x = to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! { "regex": Bson::RegularExpression(regex) }
     );
 
-    let xfoo: Foo = bson::from_bson(x).unwrap();
+    let xfoo: Foo = from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
 
@@ -153,7 +165,7 @@ fn test_de_regex() {
         options: "01".into(),
     };
 
-    let foo: Foo = bson::from_bson(Bson::Document(doc! {
+    let foo: Foo = from_bson(Bson::Document(doc! {
         "regex": Bson::RegularExpression(regex.clone()),
     }))
     .unwrap();
@@ -180,13 +192,13 @@ fn test_ser_code_with_scope() {
         code_with_scope: code_with_scope.clone(),
     };
 
-    let x = bson::to_bson(&foo).unwrap();
+    let x = to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! { "code_with_scope": Bson::JavaScriptCodeWithScope(code_with_scope) }
     );
 
-    let xfoo: Foo = bson::from_bson(x).unwrap();
+    let xfoo: Foo = from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
 
@@ -205,7 +217,7 @@ fn test_de_code_with_scope() {
         scope: doc! { "x": 12 },
     };
 
-    let foo: Foo = bson::from_bson(Bson::Document(doc! {
+    let foo: Foo = from_bson(Bson::Document(doc! {
         "code_with_scope": Bson::JavaScriptCodeWithScope(code_with_scope.clone()),
     }))
     .unwrap();
@@ -234,13 +246,13 @@ fn test_ser_datetime() {
         date: From::from(now),
     };
 
-    let x = bson::to_bson(&foo).unwrap();
+    let x = to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! { "date": (Bson::DateTime(now)) }
     );
 
-    let xfoo: Foo = bson::from_bson(x).unwrap();
+    let xfoo: Foo = from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
 
@@ -249,15 +261,15 @@ fn test_compat_u2f() {
     let _guard = LOCK.run_concurrently();
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
-        #[serde(with = "bson::compat::u2f")]
+        #[serde(with = "u2f")]
         x: u32,
     }
 
     let foo = Foo { x: 20 };
-    let b = bson::to_bson(&foo).unwrap();
+    let b = to_bson(&foo).unwrap();
     assert_eq!(b, Bson::Document(doc! { "x": (Bson::Double(20.0)) }));
 
-    let de_foo = bson::from_bson::<Foo>(b).unwrap();
+    let de_foo = from_bson::<Foo>(b).unwrap();
     assert_eq!(de_foo, foo);
 }
 
@@ -276,13 +288,13 @@ fn test_binary_generic_roundtrip() {
         }),
     };
 
-    let b = bson::to_bson(&x).unwrap();
+    let b = to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
         &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::Generic, bytes: b"12345abcde".to_vec() })}
     );
 
-    let f = bson::from_bson::<Foo>(b).unwrap();
+    let f = from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
 }
 
@@ -301,13 +313,13 @@ fn test_binary_non_generic_roundtrip() {
         }),
     };
 
-    let b = bson::to_bson(&x).unwrap();
+    let b = to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
         &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::BinaryOld, bytes: b"12345abcde".to_vec() })}
     );
 
-    let f = bson::from_bson::<Foo>(b).unwrap();
+    let f = from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
 }
 
@@ -326,13 +338,13 @@ fn test_binary_helper_generic_roundtrip() {
         },
     };
 
-    let b = bson::to_bson(&x).unwrap();
+    let b = to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
         &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::Generic, bytes: b"12345abcde".to_vec() })}
     );
 
-    let f = bson::from_bson::<Foo>(b).unwrap();
+    let f = from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
 }
 
@@ -351,13 +363,13 @@ fn test_binary_helper_non_generic_roundtrip() {
         },
     };
 
-    let b = bson::to_bson(&x).unwrap();
+    let b = to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
         &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::BinaryOld, bytes: b"12345abcde".to_vec() })}
     );
 
-    let f = bson::from_bson::<Foo>(b).unwrap();
+    let f = from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
 }
 
@@ -374,11 +386,11 @@ fn test_byte_vec() {
         challenge: b"18762b98b7c34c25bf9dc3154e4a5ca3",
     };
 
-    let b = bson::to_bson(&x).unwrap();
+    let b = to_bson(&x).unwrap();
     assert_eq!(
         b,
         Bson::Document(
-            doc! { "challenge": (Bson::Binary(Binary { subtype: bson::spec::BinarySubtype::Generic, bytes: x.challenge.to_vec() }))}
+            doc! { "challenge": (Bson::Binary(Binary { subtype: BinarySubtype::Generic, bytes: x.challenge.to_vec() }))}
         )
     );
 
@@ -402,13 +414,13 @@ fn test_serde_bytes() {
         data: b"12345abcde".to_vec(),
     };
 
-    let b = bson::to_bson(&x).unwrap();
+    let b = to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
-        &doc! {"data": Bson::Binary(Binary { subtype: bson::spec::BinarySubtype::Generic, bytes: b"12345abcde".to_vec() })}
+        &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::Generic, bytes: b"12345abcde".to_vec() })}
     );
 
-    let f = bson::from_bson::<Foo>(b).unwrap();
+    let f = from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
 }
 
@@ -419,12 +431,12 @@ fn test_serde_newtype_struct() {
     struct Email(String);
 
     let email_1 = Email(String::from("bson@serde.rs"));
-    let b = bson::to_bson(&email_1).unwrap();
+    let b = to_bson(&email_1).unwrap();
     assert_eq!(b, Bson::String(email_1.0));
 
     let s = String::from("root@localho.st");
     let de = Bson::String(s.clone());
-    let email_2 = bson::from_bson::<Email>(de).unwrap();
+    let email_2 = from_bson::<Email>(de).unwrap();
     assert_eq!(email_2, Email(s));
 }
 
@@ -435,12 +447,12 @@ fn test_serde_tuple_struct() {
     struct Name(String, String); // first, last
 
     let name_1 = Name(String::from("Graydon"), String::from("Hoare"));
-    let b = bson::to_bson(&name_1).unwrap();
+    let b = to_bson(&name_1).unwrap();
     assert_eq!(b, bson!([name_1.0.clone(), name_1.1]));
 
     let (first, last) = (String::from("Donald"), String::from("Knuth"));
     let de = bson!([first.clone(), last.clone()]);
-    let name_2 = bson::from_bson::<Name>(de).unwrap();
+    let name_2 = from_bson::<Name>(de).unwrap();
     assert_eq!(name_2, Name(first, last));
 }
 
@@ -456,12 +468,12 @@ fn test_serde_newtype_variant() {
 
     let n = 42;
     let num_1 = Number::Int(n);
-    let b = bson::to_bson(&num_1).unwrap();
+    let b = to_bson(&num_1).unwrap();
     assert_eq!(b, bson!({ "type": "Int", "value": n }));
 
     let x = 1337.0;
     let de = bson!({ "type": "Float", "value": x });
-    let num_2 = bson::from_bson::<Number>(de).unwrap();
+    let num_2 = from_bson::<Number>(de).unwrap();
     assert_eq!(num_2, Number::Float(x));
 }
 
@@ -477,12 +489,12 @@ fn test_serde_tuple_variant() {
     #[allow(clippy::approx_constant)]
     let (x1, y1) = (3.14, -2.71);
     let p1 = Point::TwoDim(x1, y1);
-    let b = bson::to_bson(&p1).unwrap();
+    let b = to_bson(&p1).unwrap();
     assert_eq!(b, bson!({ "TwoDim": [x1, y1] }));
 
     let (x2, y2, z2) = (0.0, -13.37, 4.2);
     let de = bson!({ "ThreeDim": [x2, y2, z2] });
-    let p2 = bson::from_bson::<Point>(de).unwrap();
+    let p2 = from_bson::<Point>(de).unwrap();
     assert_eq!(p2, Point::ThreeDim(x2, y2, z2));
 }
 
@@ -510,13 +522,13 @@ fn test_ser_db_pointer() {
         db_pointer: db_pointer.clone(),
     };
 
-    let x = bson::to_bson(&foo).unwrap();
+    let x = to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! {"db_pointer": Bson::DbPointer(db_pointer.clone()) }
     );
 
-    let xfoo: Foo = bson::from_bson(x).unwrap();
+    let xfoo: Foo = from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
 
@@ -539,7 +551,7 @@ fn test_de_db_pointer() {
     .unwrap();
     let db_pointer = db_pointer.as_db_pointer().unwrap();
 
-    let foo: Foo = bson::from_bson(Bson::Document(
+    let foo: Foo = from_bson(Bson::Document(
         doc! {"db_pointer": Bson::DbPointer(db_pointer.clone())},
     ))
     .unwrap();
