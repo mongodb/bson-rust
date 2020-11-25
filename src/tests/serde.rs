@@ -573,3 +573,15 @@ fn test_de_oid_string() {
     let oid = ObjectId::with_string("507f1f77bcf86cd799439011").unwrap();
     assert_eq!(foo.oid, oid);
 }
+
+fn test_unsigned_number_conversion() {
+    let _guard = LOCK.run_concurrently();
+
+    let json = r#"
+        {
+            "num": 1
+        }
+    "#;
+    let doc: Document = serde_json::from_str(json).unwrap();
+    let num = doc.get_i32("num").unwrap();
+}
