@@ -31,14 +31,9 @@ impl<'de> Deserialize<'de> for ObjectId {
         D: de::Deserializer<'de>,
     {
         deserializer
-            .deserialize_map(BsonVisitor)
+            .deserialize_any(BsonVisitor)
             .and_then(|bson| match bson {
-                Bson::String(oid) => ObjectId::with_string(&oid).map_err(|_| {
-                    de::Error::invalid_type(
-                        Unexpected::Map,
-                        &&format!("expected objectId hex string, found {}", oid)[..],
-                    )
-                }),
+                Bson::String(oid) => ObjectId::with_string(&oid).map_err(de::Error::custom),
                 Bson::ObjectId(oid) => Ok(oid),
                 _ => {
                     let err = format!("expected objectId extended document, found {}", bson);

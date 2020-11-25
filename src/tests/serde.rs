@@ -5,6 +5,7 @@ use crate::{
     compat::u2f,
     doc,
     from_bson,
+    oid::ObjectId,
     spec::BinarySubtype,
     tests::LOCK,
     to_bson,
@@ -557,4 +558,18 @@ fn test_de_db_pointer() {
     .unwrap();
 
     assert_eq!(foo.db_pointer, db_pointer.clone());
+}
+
+#[test]
+fn test_de_oid_string() {
+    let _guard = LOCK.run_concurrently();
+
+    #[derive(Debug, Deserialize)]
+    struct Foo {
+        pub oid: ObjectId,
+    }
+
+    let foo: Foo = serde_json::from_str("{ \"oid\": \"507f1f77bcf86cd799439011\" }").unwrap();
+    let oid = ObjectId::with_string("507f1f77bcf86cd799439011").unwrap();
+    assert_eq!(foo.oid, oid);
 }
