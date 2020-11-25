@@ -36,7 +36,10 @@ impl<'de> Deserialize<'de> for ObjectId {
                 Bson::String(oid) => ObjectId::with_string(&oid).map_err(de::Error::custom),
                 Bson::ObjectId(oid) => Ok(oid),
                 _ => {
-                    let err = format!("expected objectId extended document, found {}", bson);
+                    let err = format!(
+                        "expected objectId extended document or hex string, found {}",
+                        bson
+                    );
                     Err(de::Error::invalid_type(Unexpected::Map, &&err[..]))
                 }
             })
