@@ -1,4 +1,4 @@
-use std::{fmt, vec};
+use std::{convert::TryFrom, fmt, vec};
 
 use serde::de::{
     self,
@@ -227,12 +227,10 @@ fn convert_unsigned_to_signed<E>(value: u64) -> Result<Bson, E>
 where
     E: Error,
 {
-    if value as i32 as u64 == value {
-        Ok(Bson::Int32(value as i32))
-    } else if value as i64 as u64 == value {
-        Ok(Bson::Int64(value as i64))
-    } else if value as f64 as u64 == value {
-        Ok(Bson::Double(value as f64))
+    if let Ok(int32) = i32::try_from(value) {
+        Ok(Bson::Int32(int32))
+    } else if let Ok(int64) = i64::try_from(value) {
+        Ok(Bson::Int64(int64))
     } else {
         Err(Error::custom(format!(
             "cannot represent {} as a signed number",

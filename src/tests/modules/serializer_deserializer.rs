@@ -525,25 +525,3 @@ fn test_serialize_deserialize_document() {
     let bad_point: Result<Point, crate::de::Error> = from_document(bad_point);
     assert!(bad_point.is_err());
 }
-
-#[test]
-fn test_serialize_deserialize_unsigned_numbers() {
-    let _guard = LOCK.run_concurrently();
-
-    let json = "{ \"num\": 1 }";
-    let doc: Document = serde_json::from_str(json).unwrap();
-    assert!(doc.get_i32("num").is_ok());
-
-    let json = format!("{{ \"num\": {} }}", i32::MAX as u64 + 1);
-    let doc: Document = serde_json::from_str(&json).unwrap();
-    assert!(doc.get_i64("num").is_ok());
-
-    let value = i32::MAX as u64 + 1;
-    let converted = value as i32 as u64;
-    dbg!("{:#010b}, {:#010b}", value, converted);
-
-    // let json = format!("{{ \"num\": {} }}", i64::MAX as u64 + 1);
-    // dbg!("{}, {}", i64::MAX as u64 + 1);
-    // let doc: Document = serde_json::from_str(&json).unwrap();
-    // dbg!("{}", doc);
-}
