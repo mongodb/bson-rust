@@ -576,7 +576,7 @@ fn test_de_oid_string() {
 }
 
 #[test]
-fn test_unsigned_number_conversion() {
+fn test_serialize_deserialize_unsigned_numbers() {
     let _guard = LOCK.run_concurrently();
 
     let num = 1;
