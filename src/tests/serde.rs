@@ -12,6 +12,7 @@ use crate::{
     Binary,
     Bson,
     Deserializer,
+    Document,
     Serializer,
 };
 use serde::{Deserialize, Serialize};
@@ -572,4 +573,24 @@ fn test_de_oid_string() {
     let foo: Foo = serde_json::from_str("{ \"oid\": \"507f1f77bcf86cd799439011\" }").unwrap();
     let oid = ObjectId::with_string("507f1f77bcf86cd799439011").unwrap();
     assert_eq!(foo.oid, oid);
+}
+
+#[test]
+fn test_serialize_deserialize_unsigned_numbers() {
+    let _guard = LOCK.run_concurrently();
+
+    let num = 1;
+    let json = format!("{{ \"num\": {} }}", num);
+    let doc: Document = serde_json::from_str(&json).unwrap();
+    assert_eq!(doc.get_i32("num").unwrap(), num);
+
+    let num = i32::MAX as u64 + 1;
+    let json = format!("{{ \"num\": {} }}", num);
+    let doc: Document = serde_json::from_str(&json).unwrap();
+    assert_eq!(doc.get_i64("num").unwrap(), num as i64);
+
+    let num = u64::MAX;
+    let json = format!("{{ \"num\": {} }}", num);
+    let doc_result: Result<Document, serde_json::Error> = serde_json::from_str(&json);
+    assert!(doc_result.is_err());
 }

@@ -1,4 +1,4 @@
-use std::{fmt, vec};
+use std::{convert::TryFrom, fmt, vec};
 
 use serde::de::{
     self,
@@ -101,10 +101,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Err(Error::invalid_type(
-            Unexpected::Unsigned(value as u64),
-            &"a signed integer",
-        ))
+        convert_unsigned_to_signed(value as u64)
     }
 
     #[inline]
@@ -120,10 +117,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Err(Error::invalid_type(
-            Unexpected::Unsigned(value as u64),
-            &"a signed integer",
-        ))
+        convert_unsigned_to_signed(value as u64)
     }
 
     #[inline]
@@ -139,10 +133,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Err(Error::invalid_type(
-            Unexpected::Unsigned(value as u64),
-            &"a signed integer",
-        ))
+        convert_unsigned_to_signed(value as u64)
     }
 
     #[inline]
@@ -158,10 +149,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         E: Error,
     {
-        Err(Error::invalid_type(
-            Unexpected::Unsigned(value),
-            &"a signed integer",
-        ))
+        convert_unsigned_to_signed(value)
     }
 
     #[inline]
@@ -232,6 +220,22 @@ impl<'de> Visitor<'de> for BsonVisitor {
             subtype: BinarySubtype::Generic,
             bytes: v.to_vec(),
         }))
+    }
+}
+
+fn convert_unsigned_to_signed<E>(value: u64) -> Result<Bson, E>
+where
+    E: Error,
+{
+    if let Ok(int32) = i32::try_from(value) {
+        Ok(Bson::Int32(int32))
+    } else if let Ok(int64) = i64::try_from(value) {
+        Ok(Bson::Int64(int64))
+    } else {
+        Err(Error::custom(format!(
+            "cannot represent {} as a signed number",
+            value
+        )))
     }
 }
 
