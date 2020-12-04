@@ -5,20 +5,26 @@ use crate::{
     compat::u2f,
     doc,
     from_bson,
+    from_document,
     oid::ObjectId,
+    serde_helpers,
     spec::BinarySubtype,
     tests::LOCK,
     to_bson,
+    to_document,
     Binary,
     Bson,
+    DateTime,
     Deserializer,
     Document,
     Serializer,
 };
-use serde::{Deserialize, Serialize};
-use serde_json::json;
 
-use std::{collections::BTreeMap, convert::TryFrom};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use uuid::Uuid;
+
+use std::{collections::BTreeMap, convert::TryFrom, str::FromStr};
 
 #[test]
 fn test_ser_vec() {
@@ -593,4 +599,181 @@ fn test_serialize_deserialize_unsigned_numbers() {
     let json = format!("{{ \"num\": {} }}", num);
     let doc_result: Result<Document, serde_json::Error> = serde_json::from_str(&json);
     assert!(doc_result.is_err());
+}
+
+#[test]
+fn test_unsigned_helpers() {
+    let _guard = LOCK.run_concurrently();
+
+    #[derive(Serialize)]
+    struct A {
+        #[serde(serialize_with = "serde_helpers::serialize_u32_as_i32")]
+        num_1: u32,
+        #[serde(serialize_with = "serde_helpers::serialize_u64_as_i32")]
+        num_2: u64,
+    }
+
+    let a = A { num_1: 1, num_2: 2 };
+    let doc = to_document(&a).unwrap();
+    assert!(doc.get_i32("num_1").unwrap() == 1);
+    assert!(doc.get_i32("num_2").unwrap() == 2);
+
+    let a = A {
+        num_1: u32::MAX,
+        num_2: u64::MAX,
+    };
+    let doc_result = to_document(&a);
+    assert!(doc_result.is_err());
+
+    #[derive(Serialize)]
+    struct B {
+        #[serde(serialize_with = "serde_helpers::serialize_u32_as_i64")]
+        num_1: u32,
+        #[serde(serialize_with = "serde_helpers::serialize_u64_as_i64")]
+        num_2: u64,
+    }
+
+    let b = B {
+        num_1: u32::MAX,
+        num_2: i64::MAX as u64,
+    };
+    let doc = to_document(&b).unwrap();
+    assert!(doc.get_i64("num_1").unwrap() == u32::MAX as i64);
+    assert!(doc.get_i64("num_2").unwrap() == i64::MAX);
+
+    let b = B {
+        num_1: 1,
+        num_2: i64::MAX as u64 + 1,
+    };
+    let doc_result = to_document(&b);
+    assert!(doc_result.is_err());
+}
+
+#[test]
+fn test_datetime_helpers() {
+    #[derive(Deserialize, Serialize)]
+    struct A {
+        #[serde(deserialize_with = "serde_helpers::deserialize_bson_datetime_from_ext_json")]
+        pub date: DateTime,
+    }
+
+    let date = DateTime(chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap());
+    let a = A { date };
+    let bson = to_bson(&a).unwrap();
+    let value: Value = bson.into();
+    let a: A = serde_json::from_value(value).unwrap();
+    assert_eq!(a.date, date);
+
+    #[derive(Deserialize)]
+    struct B {
+        #[serde(deserialize_with = "serde_helpers::deserialize_chrono_datetime_from_ext_json")]
+        pub date: chrono::DateTime<chrono::Utc>,
+    }
+
+    let date = r#"
+    {
+        "date": {
+                "$date": {
+                    "$numberLong": "1591700287095"
+                }
+        }
+    }"#;
+    let json: Value = serde_json::from_str(&date).unwrap();
+    let b: B = serde_json::from_value(json).unwrap();
+    let expected: chrono::DateTime<chrono::Utc> =
+        chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap();
+    assert_eq!(b.date, expected);
+
+    #[derive(Deserialize, Serialize)]
+    struct C {
+        #[serde(
+            serialize_with = "serde_helpers::serialize_iso_string_as_datetime",
+            deserialize_with = "serde_helpers::deserialize_iso_string_from_datetime"
+        )]
+        pub date: String,
+    }
+
+    let date = "2020-06-09 10:58:07.095 UTC";
+    let c = C {
+        date: date.to_string(),
+    };
+    let doc = to_document(&c).unwrap();
+    assert!(doc.get_datetime("date").is_ok());
+    let c: C = from_document(doc).unwrap();
+    assert_eq!(c.date.as_str(), date);
+}
+
+#[test]
+fn test_oid_helpers() {
+    #[derive(Deserialize, Serialize)]
+    struct A {
+        #[serde(deserialize_with = "serde_helpers::deserialize_object_id_from_ext_json")]
+        oid: ObjectId,
+    }
+
+    let oid = ObjectId::new();
+    let a = A { oid: oid.clone() };
+    let bson = to_bson(&a).unwrap();
+    let value: Value = bson.into();
+    let a: A = serde_json::from_value(value).unwrap();
+    assert_eq!(a.oid, oid);
+
+    #[derive(Serialize)]
+    struct B {
+        #[serde(serialize_with = "serde_helpers::serialize_hex_string_as_object_id")]
+        oid: String,
+    }
+
+    let oid = ObjectId::new();
+    let b = B {
+        oid: oid.to_string(),
+    };
+    let doc = to_document(&b).unwrap();
+    assert_eq!(doc.get_object_id("oid").unwrap(), &oid);
+}
+
+#[test]
+fn test_uuid_helpers() {
+    #[derive(Serialize, Deserialize)]
+    struct A {
+        #[serde(
+            serialize_with = "serde_helpers::serialize_uuid_as_binary",
+            deserialize_with = "serde_helpers::deserialize_uuid_from_binary"
+        )]
+        uuid: Uuid,
+    }
+
+    let uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
+    let a = A { uuid };
+    let doc = to_document(&a).unwrap();
+    match doc.get("uuid").unwrap() {
+        Bson::Binary(bin) => {
+            assert_eq!(bin.subtype, BinarySubtype::Uuid);
+            assert_eq!(bin.bytes, uuid.as_bytes());
+        }
+        _ => panic!("expected Bson::Binary"),
+    }
+    let a: A = from_document(doc).unwrap();
+    assert_eq!(a.uuid, uuid);
+}
+
+#[test]
+fn test_timestamp_helpers() {
+    #[derive(Deserialize, Serialize)]
+    struct A {
+        #[serde(
+            serialize_with = "serde_helpers::serialize_u64_as_timestamp",
+            deserialize_with = "serde_helpers::deserialize_u64_from_timestamp"
+        )]
+        pub time: u64,
+    }
+
+    let time = u32::MAX as u64 + 2;
+    let a = A { time };
+    let doc = to_document(&a).unwrap();
+    let timestamp = doc.get_timestamp("time").unwrap();
+    assert_eq!(timestamp.time, 1);
+    assert_eq!(timestamp.increment, 1);
+    let a: A = from_document(doc).unwrap();
+    assert_eq!(a.time, time);
 }
