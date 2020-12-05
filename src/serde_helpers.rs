@@ -1,3 +1,5 @@
+//! Collection of helper functions for serializing to and deserializing from BSON using Serde
+
 use std::{convert::TryFrom, result::Result, str::FromStr};
 
 use chrono::{DateTime, Utc};
@@ -6,6 +8,7 @@ use uuid::{Bytes, Uuid};
 
 use crate::{oid::ObjectId, spec::BinarySubtype, Binary, Bson, Timestamp};
 
+/// Attempts to serialize a u32 as an i32. Errors if an exact conversion is not possible.
 pub fn serialize_u32_as_i32<S: Serializer>(val: &u32, serializer: S) -> Result<S::Ok, S::Error> {
     match i32::try_from(*val) {
         Ok(val) => serializer.serialize_i32(val),
@@ -13,10 +16,12 @@ pub fn serialize_u32_as_i32<S: Serializer>(val: &u32, serializer: S) -> Result<S
     }
 }
 
+/// Serializes a u32 as an i64.
 pub fn serialize_u32_as_i64<S: Serializer>(val: &u32, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.serialize_i64(*val as i64)
 }
 
+/// Attempts to serialize a u64 as an i32. Errors if an exact conversion is not possible.
 pub fn serialize_u64_as_i32<S: Serializer>(val: &u64, serializer: S) -> Result<S::Ok, S::Error> {
     match i32::try_from(*val) {
         Ok(val) => serializer.serialize_i32(val),
@@ -24,6 +29,7 @@ pub fn serialize_u64_as_i32<S: Serializer>(val: &u64, serializer: S) -> Result<S
     }
 }
 
+/// Attempts to serialize a u64 as an i64. Errors if an exact conversion is not possible.
 pub fn serialize_u64_as_i64<S: Serializer>(val: &u64, serializer: S) -> Result<S::Ok, S::Error> {
     match i64::try_from(*val) {
         Ok(val) => serializer.serialize_i64(val),
@@ -31,6 +37,7 @@ pub fn serialize_u64_as_i64<S: Serializer>(val: &u64, serializer: S) -> Result<S
     }
 }
 
+/// Deserializes a chrono::DateTime<Utc> from the extended JSON representation of DateTime.
 pub fn deserialize_chrono_datetime_from_ext_json<'de, D>(
     deserializer: D,
 ) -> Result<DateTime<Utc>, D::Error>
@@ -46,6 +53,7 @@ where
     }
 }
 
+/// Deserializes a DateTime from the extended JSON representation.
 pub fn deserialize_bson_datetime_from_ext_json<'de, D>(
     deserializer: D,
 ) -> Result<crate::DateTime, D::Error>
@@ -61,6 +69,7 @@ where
     }
 }
 
+/// Deserializes an ISO string from a DateTime.
 pub fn deserialize_iso_string_from_datetime<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,
@@ -69,6 +78,7 @@ where
     Ok(date.to_string())
 }
 
+/// Serializes an ISO string as a DateTime.
 pub fn serialize_iso_string_as_datetime<S: Serializer>(
     val: &str,
     serializer: S,
@@ -78,6 +88,7 @@ pub fn serialize_iso_string_as_datetime<S: Serializer>(
     Bson::DateTime(date).serialize(serializer)
 }
 
+/// Deserializes an ObjectId from the extended JSON representation.
 pub fn deserialize_object_id_from_ext_json<'de, D>(deserializer: D) -> Result<ObjectId, D::Error>
 where
     D: Deserializer<'de>,
@@ -91,6 +102,7 @@ where
     }
 }
 
+/// Serializes a hex string as a ObjectId.
 pub fn serialize_hex_string_as_object_id<S: Serializer>(
     val: &str,
     serializer: S,
@@ -104,6 +116,7 @@ pub fn serialize_hex_string_as_object_id<S: Serializer>(
     }
 }
 
+/// Serializes a Uuid as a Binary.
 pub fn serialize_uuid_as_binary<S: Serializer>(
     val: &Uuid,
     serializer: S,
@@ -115,6 +128,7 @@ pub fn serialize_uuid_as_binary<S: Serializer>(
     binary.serialize(serializer)
 }
 
+/// Deserializes a Uuid from a Binary.
 pub fn deserialize_uuid_from_binary<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
 where
     D: Deserializer<'de>,
@@ -134,6 +148,7 @@ where
     }
 }
 
+/// Serializes a u64 as a Timestamp.
 pub fn serialize_u64_as_timestamp<S: Serializer>(
     val: &u64,
     serializer: S,
@@ -144,6 +159,7 @@ pub fn serialize_u64_as_timestamp<S: Serializer>(
     timestamp.serialize(serializer)
 }
 
+/// Deserializes a u64 from a bson::Timestamp.
 pub fn deserialize_u64_from_timestamp<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
     D: Deserializer<'de>,
