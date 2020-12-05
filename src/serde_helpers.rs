@@ -102,7 +102,7 @@ where
     }
 }
 
-/// Serializes a hex string as a ObjectId.
+/// Serializes a hex string as an ObjectId.
 pub fn serialize_hex_string_as_object_id<S: Serializer>(
     val: &str,
     serializer: S,
