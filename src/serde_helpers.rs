@@ -137,8 +137,8 @@ where
     if binary.subtype == BinarySubtype::Uuid {
         if binary.bytes.len() == 16 {
             let mut bytes = [0u8; 16];
-            for i in 0..16 {
-                bytes[i] = binary.bytes[i];
+            for (i, byte) in bytes.iter_mut().enumerate() {
+                *byte = binary.bytes[i];
             }
             Ok(Uuid::from_bytes(bytes))
         } else {
