@@ -651,6 +651,8 @@ fn test_unsigned_helpers() {
 
 #[test]
 fn test_datetime_helpers() {
+    let _guard = LOCK.run_concurrently();
+
     #[derive(Deserialize, Serialize)]
     struct A {
         #[serde(deserialize_with = "serde_helpers::deserialize_bson_datetime_from_ext_json")]
@@ -705,6 +707,8 @@ fn test_datetime_helpers() {
 
 #[test]
 fn test_oid_helpers() {
+    let _guard = LOCK.run_concurrently();
+
     #[derive(Deserialize, Serialize)]
     struct A {
         #[serde(deserialize_with = "serde_helpers::deserialize_object_id_from_ext_json")]
@@ -734,6 +738,8 @@ fn test_oid_helpers() {
 
 #[test]
 fn test_uuid_helpers() {
+    let _guard = LOCK.run_concurrently();
+
     #[derive(Serialize, Deserialize)]
     struct A {
         #[serde(
@@ -759,6 +765,8 @@ fn test_uuid_helpers() {
 
 #[test]
 fn test_timestamp_helpers() {
+    let _guard = LOCK.run_concurrently();
+
     #[derive(Deserialize, Serialize)]
     struct A {
         #[serde(
