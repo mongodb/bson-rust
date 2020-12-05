@@ -4,7 +4,7 @@ use std::{convert::TryFrom, result::Result, str::FromStr};
 
 use chrono::{DateTime, Utc};
 use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
-use uuid::{Bytes, Uuid};
+use uuid::Uuid;
 
 use crate::{oid::ObjectId, spec::BinarySubtype, Binary, Bson, Timestamp};
 
@@ -135,11 +135,16 @@ where
 {
     let binary = Binary::deserialize(deserializer)?;
     if binary.subtype == BinarySubtype::Uuid {
-        match Bytes::try_from(binary.bytes) {
-            Ok(bytes) => Ok(Uuid::from_bytes(bytes)),
-            Err(_) => Err(de::Error::custom(
+        if binary.bytes.len() == 16 {
+            let mut bytes = [0u8; 16];
+            for i in 0..16 {
+                bytes[i] = binary.bytes[i];
+            }
+            Ok(Uuid::from_bytes(bytes))
+        } else {
+            Err(de::Error::custom(
                 "cannot convert Binary to Uuid: incorrect bytes length",
-            )),
+            ))
         }
     } else {
         Err(de::Error::custom(
