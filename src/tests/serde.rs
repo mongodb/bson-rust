@@ -8,6 +8,14 @@ use crate::{
     from_document,
     oid::ObjectId,
     serde_helpers,
+    serde_helpers::{
+        bson_datetime_to_iso_string,
+        chrono_datetime_to_bson_datetime,
+        iso_string_to_bson_datetime,
+        timestamp_to_u64,
+        u64_to_timestamp,
+        uuid_to_binary,
+    },
     spec::BinarySubtype,
     tests::LOCK,
     to_bson,
@@ -18,6 +26,7 @@ use crate::{
     Deserializer,
     Document,
     Serializer,
+    Timestamp,
 };
 
 use serde::{Deserialize, Serialize};
@@ -620,6 +629,13 @@ fn test_unsigned_helpers() {
 
     let a = A {
         num_1: u32::MAX,
+        num_2: 1,
+    };
+    let doc_result = to_document(&a);
+    assert!(doc_result.is_err());
+
+    let a = A {
+        num_1: 1,
         num_2: u64::MAX,
     };
     let doc_result = to_document(&a);
@@ -655,20 +671,21 @@ fn test_datetime_helpers() {
 
     #[derive(Deserialize, Serialize)]
     struct A {
-        #[serde(deserialize_with = "serde_helpers::deserialize_bson_datetime_from_ext_json")]
+        #[serde(with = "bson_datetime_to_iso_string")]
         pub date: DateTime,
     }
 
-    let date = DateTime(chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap());
-    let a = A { date };
-    let bson = to_bson(&a).unwrap();
-    let value: Value = bson.into();
-    let a: A = serde_json::from_value(value).unwrap();
-    assert_eq!(a.date, date);
+    let iso = "1996-12-20 00:39:57 UTC";
+    let date = chrono::DateTime::from_str(iso).unwrap();
+    let a = A { date: date.into() };
+    let doc = to_document(&a).unwrap();
+    assert_eq!(doc.get_str("date").unwrap(), iso);
+    let a: A = from_document(doc).unwrap();
+    assert_eq!(a.date, date.into());
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Serialize)]
     struct B {
-        #[serde(deserialize_with = "serde_helpers::deserialize_chrono_datetime_from_ext_json")]
+        #[serde(with = "chrono_datetime_to_bson_datetime")]
         pub date: chrono::DateTime<chrono::Utc>,
     }
 
@@ -685,13 +702,14 @@ fn test_datetime_helpers() {
     let expected: chrono::DateTime<chrono::Utc> =
         chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap();
     assert_eq!(b.date, expected);
+    let doc = to_document(&b).unwrap();
+    assert_eq!(doc.get_datetime("date").unwrap(), &expected);
+    let b: B = from_document(doc).unwrap();
+    assert_eq!(b.date, expected);
 
     #[derive(Deserialize, Serialize)]
     struct C {
-        #[serde(
-            serialize_with = "serde_helpers::serialize_iso_string_as_datetime",
-            deserialize_with = "serde_helpers::deserialize_iso_string_from_datetime"
-        )]
+        #[serde(with = "iso_string_to_bson_datetime")]
         pub date: String,
     }
 
@@ -742,10 +760,7 @@ fn test_uuid_helpers() {
 
     #[derive(Serialize, Deserialize)]
     struct A {
-        #[serde(
-            serialize_with = "serde_helpers::serialize_uuid_as_binary",
-            deserialize_with = "serde_helpers::deserialize_uuid_from_binary"
-        )]
+        #[serde(with = "uuid_to_binary")]
         uuid: Uuid,
     }
 
@@ -769,10 +784,7 @@ fn test_timestamp_helpers() {
 
     #[derive(Deserialize, Serialize)]
     struct A {
-        #[serde(
-            serialize_with = "serde_helpers::serialize_u64_as_timestamp",
-            deserialize_with = "serde_helpers::deserialize_u64_from_timestamp"
-        )]
+        #[serde(with = "u64_to_timestamp")]
         pub time: u64,
     }
 
@@ -784,4 +796,26 @@ fn test_timestamp_helpers() {
     assert_eq!(timestamp.increment, 1);
     let a: A = from_document(doc).unwrap();
     assert_eq!(a.time, time);
+
+    #[derive(Deserialize, Serialize)]
+    struct B {
+        #[serde(with = "timestamp_to_u64")]
+        pub timestamp: Timestamp,
+    }
+
+    #[derive(Deserialize, Serialize)]
+    struct C {
+        #[serde(with = "u64_to_timestamp")]
+        pub time: u64,
+    }
+
+    let timestamp = Timestamp {
+        time: 1,
+        increment: 1,
+    };
+    let b = B { timestamp };
+    let value = serde_json::to_value(&b).unwrap();
+    assert_eq!(value["timestamp"].as_u64().unwrap(), u32::MAX as u64 + 2);
+    let b: B = serde_json::from_value(value).unwrap();
+    assert_eq!(b.timestamp, timestamp);
 }
