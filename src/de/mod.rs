@@ -212,7 +212,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::Array) => deserialize_array(reader, utf8_lossy).map(Bson::Array)?,
         Some(ElementType::Binary) => {
             let mut len = read_i32(reader)?;
-            if len < 0 || len > MAX_BSON_SIZE {
+            if !(0..=MAX_BSON_SIZE).contains(&len) {
                 return Err(Error::invalid_length(
                     len as usize,
                     &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
