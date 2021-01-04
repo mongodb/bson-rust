@@ -79,7 +79,7 @@ fn smoke() {
     }
 
     let v = Foo { a: 2 };
-    assert_eq!(serialize!(v), bdoc! {"a" => (2 as i64)});
+    assert_eq!(serialize!(v), bdoc! {"a" => (2_i64)});
     assert_eq!(v, deserialize!(serialize!(v)));
 }
 
@@ -91,11 +91,11 @@ fn smoke_under() {
     }
 
     let v = Foo { a_b: 2 };
-    assert_eq!(serialize!(v), bdoc! { "a_b" => (2 as i64) });
+    assert_eq!(serialize!(v), bdoc! { "a_b" => (2_i64) });
     assert_eq!(v, deserialize!(serialize!(v)));
 
     let mut m = BTreeMap::new();
-    m.insert("a_b".to_string(), 2 as i64);
+    m.insert("a_b".to_string(), 2_i64);
     assert_eq!(v, deserialize!(serialize!(m)));
 }
 
@@ -120,7 +120,7 @@ fn nested() {
     assert_eq!(
         serialize!(v),
         bdoc! {
-            "a" => (2 as i64),
+            "a" => (2_i64),
             "b" => {
                 "a" => "test"
             }
