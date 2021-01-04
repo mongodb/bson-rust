@@ -9,12 +9,12 @@ use crate::{
     oid::ObjectId,
     serde_helpers,
     serde_helpers::{
-        bson_datetime_to_iso_string,
-        chrono_datetime_to_bson_datetime,
-        iso_string_to_bson_datetime,
-        timestamp_to_u64,
-        u64_to_timestamp,
-        uuid_to_binary,
+        bson_datetime_as_iso_string,
+        chrono_datetime_as_bson_datetime,
+        iso_string_as_bson_datetime,
+        timestamp_as_u32,
+        u32_as_timestamp,
+        uuid_as_binary,
     },
     spec::BinarySubtype,
     tests::LOCK,
@@ -671,7 +671,7 @@ fn test_datetime_helpers() {
 
     #[derive(Deserialize, Serialize)]
     struct A {
-        #[serde(with = "bson_datetime_to_iso_string")]
+        #[serde(with = "bson_datetime_as_iso_string")]
         pub date: DateTime,
     }
 
@@ -685,7 +685,7 @@ fn test_datetime_helpers() {
 
     #[derive(Deserialize, Serialize)]
     struct B {
-        #[serde(with = "chrono_datetime_to_bson_datetime")]
+        #[serde(with = "chrono_datetime_as_bson_datetime")]
         pub date: chrono::DateTime<chrono::Utc>,
     }
 
@@ -709,7 +709,7 @@ fn test_datetime_helpers() {
 
     #[derive(Deserialize, Serialize)]
     struct C {
-        #[serde(with = "iso_string_to_bson_datetime")]
+        #[serde(with = "iso_string_as_bson_datetime")]
         pub date: String,
     }
 
@@ -760,7 +760,7 @@ fn test_uuid_helpers() {
 
     #[derive(Serialize, Deserialize)]
     struct A {
-        #[serde(with = "uuid_to_binary")]
+        #[serde(with = "uuid_as_binary")]
         uuid: Uuid,
     }
 
@@ -784,38 +784,37 @@ fn test_timestamp_helpers() {
 
     #[derive(Deserialize, Serialize)]
     struct A {
-        #[serde(with = "u64_to_timestamp")]
-        pub time: u64,
+        #[serde(with = "u32_as_timestamp")]
+        pub time: u32,
     }
 
-    let time = u32::MAX as u64 + 2;
+    let time = 12345;
     let a = A { time };
     let doc = to_document(&a).unwrap();
     let timestamp = doc.get_timestamp("time").unwrap();
-    assert_eq!(timestamp.time, 1);
-    assert_eq!(timestamp.increment, 1);
+    assert_eq!(timestamp.time, time);
+    assert_eq!(timestamp.increment, 0);
     let a: A = from_document(doc).unwrap();
     assert_eq!(a.time, time);
 
     #[derive(Deserialize, Serialize)]
     struct B {
-        #[serde(with = "timestamp_to_u64")]
+        #[serde(with = "timestamp_as_u32")]
         pub timestamp: Timestamp,
     }
 
-    #[derive(Deserialize, Serialize)]
-    struct C {
-        #[serde(with = "u64_to_timestamp")]
-        pub time: u64,
-    }
+    let time = 12345;
+    let timestamp = Timestamp { time, increment: 0 };
+    let b = B { timestamp };
+    let val = serde_json::to_value(b).unwrap();
+    assert_eq!(val["timestamp"], time);
+    let b: B = serde_json::from_value(val).unwrap();
+    assert_eq!(b.timestamp, timestamp);
 
     let timestamp = Timestamp {
-        time: 1,
+        time: 12334,
         increment: 1,
     };
     let b = B { timestamp };
-    let value = serde_json::to_value(&b).unwrap();
-    assert_eq!(value["timestamp"].as_u64().unwrap(), u32::MAX as u64 + 2);
-    let b: B = serde_json::from_value(value).unwrap();
-    assert_eq!(b.timestamp, timestamp);
+    assert!(serde_json::to_value(b).is_err());
 }
