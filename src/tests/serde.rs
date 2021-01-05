@@ -727,30 +727,17 @@ fn test_datetime_helpers() {
 fn test_oid_helpers() {
     let _guard = LOCK.run_concurrently();
 
-    #[derive(Deserialize, Serialize)]
-    struct A {
-        #[serde(deserialize_with = "serde_helpers::deserialize_object_id_from_ext_json")]
-        oid: ObjectId,
-    }
-
-    let oid = ObjectId::new();
-    let a = A { oid: oid.clone() };
-    let bson = to_bson(&a).unwrap();
-    let value: Value = bson.into();
-    let a: A = serde_json::from_value(value).unwrap();
-    assert_eq!(a.oid, oid);
-
     #[derive(Serialize)]
-    struct B {
+    struct A {
         #[serde(serialize_with = "serde_helpers::serialize_hex_string_as_object_id")]
         oid: String,
     }
 
     let oid = ObjectId::new();
-    let b = B {
+    let a = A {
         oid: oid.to_string(),
     };
-    let doc = to_document(&b).unwrap();
+    let doc = to_document(&a).unwrap();
     assert_eq!(doc.get_object_id("oid").unwrap(), &oid);
 }
 
