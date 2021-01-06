@@ -211,6 +211,7 @@ pub mod document;
 pub mod extjson;
 pub mod oid;
 pub mod ser;
+pub mod serde_helpers;
 pub mod spec;
 
 #[cfg(test)]

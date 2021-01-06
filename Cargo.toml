@@ -48,6 +48,7 @@ hex = "0.4.2"
 decimal = { version = "2.0.4", default_features = false, optional = true }
 base64 = "0.12.1"
 lazy_static = "1.4.0"
+uuid = "0.8.1"
 
 [dev-dependencies]
 assert_matches = "1.2"
