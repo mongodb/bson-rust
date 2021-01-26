@@ -177,7 +177,7 @@ impl Uuid {
         let uuid = uuid::Uuid::parse_str(&self.value).map_err(|_| {
             extjson::de::Error::invalid_value(
                 Unexpected::Str(&self.value),
-                &"$uuid values does not follow RFC 4122 format regarding length and hyphens",
+                &"$uuid value does not follow RFC 4122 format regarding length and hyphens",
             )
         })?;
 
