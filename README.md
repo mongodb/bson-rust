@@ -1,6 +1,5 @@
 # bson-rs
 
-[![Build Status](https://img.shields.io/travis/mongodb/bson-rust.svg)](https://travis-ci.org/mongodb/bson-rust)
 [![crates.io](https://img.shields.io/crates/v/bson.svg)](https://crates.io/crates/bson)
 [![crates.io](https://img.shields.io/crates/l/bson.svg)](https://crates.io/crates/bson)
 
