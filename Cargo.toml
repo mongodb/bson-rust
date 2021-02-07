@@ -55,8 +55,10 @@ serde_bytes = "0.11.5"
 
 [dev-dependencies]
 assert_matches = "1.2"
-serde_bytes = "0.11"
+criterion = "0.3.0"
 pretty_assertions = "0.6.1"
+proptest = "0.10"
+serde_bytes = "0.11"
 chrono = { version = "0.4", features = ["serde"] }
 
 [package.metadata.docs.rs]
