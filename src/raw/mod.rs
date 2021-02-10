@@ -1,143 +1,110 @@
-/*!
-A rawbson document can be created from a `Vec<u8>` containing raw BSON data, and elements
-accessed via methods similar to those in the [bson-rust](https://crates.io/crate/bson-rust)
-crate.  Note that rawbson returns a Result<Option<T>>, since the bytes contained in the
-document are not fully validated until trying to access the contained data.
+//! A RawDocument can be created from a `Vec<u8>` containing raw BSON data, and elements
+//! accessed via methods similar to those available on the Document type. Note that rawbson returns
+//! a RawResult<Option<T>>, since the bytes contained in the document are not fully validated until
+//! trying to access the contained data.
+//!
+//! ```rust
+//! use bson::raw::{
+//!     RawBson,
+//!     RawDocument,
+//! };
+//!
+//! // See http://bsonspec.org/spec.html for details on the binary encoding of BSON.
+//! let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+//! let elem: Option<RawBson> = doc.get("hi")?;
+//!
+//! assert_eq!(
+//!   elem?.as_str()?,
+//!   "y'all",
+//! );
+//! # Ok::<(), bson::raw::RawError>(())
+//! ```
+//!
+//! ### bson-rust interop
+//!
+//! A [`RawDocument`] can be created from a [`bson::document::Document`]. Internally, this
+//! serializes the `Document` to a `Vec<u8>`, and then includes those bytes in the [`RawDocument`].
+//!
+//! ```rust
+//! use bson::{
+//!     raw::RawDocument,
+//!     doc,
+//! };
+//!
+//! let document = doc! {
+//!    "goodbye": {
+//!        "cruel": "world"
+//!    }
+//! };
 
-```rust
-use bson::raw::{
-    DocBuf,
-    elem,
-};
+//! let raw = RawDocument::from_document(&document);
+//! let value: Option<&str> = raw
+//!     .get_document("goodbye")?
+//!     .map(|doc| doc.get_str("cruel"))
+//!     .transpose()?
+//!     .flatten();
+//!
+//! assert_eq!(
+//!     value,
+//!     Some("world"),
+//! );
+//! # Ok::<(), bson::raw::RawError>(())
+//! ```
+//! 
+//! ### Reference types
+//!
+//! A BSON document can also be accessed with the [`RawDocumentRef`] reference type, which is an
+//! unsized type that represents the BSON payload as a `[u8]`. This allows accessing nested
+//! documents without reallocation. [RawDocumentRef] must always be accessed via a pointer type,
+//! similarly to `[T]` and `str`.
+//!
+//! The below example constructs a bson document in a stack-based array,
+//! and extracts a &str from it, performing no heap allocation.
 
-// \x13\x00\x00\x00           // total document size
-// \x02                       // 0x02 = type String
-// hi\x00                     // field name
-// \x06\x00\x00\x00y'all\x00  // field value
-// \x00                       // document terminating NUL
+//! ```rust
+//! use bson::raw::Doc;
+//!
+//! let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
+//! assert_eq!(RawDocumentRef::new(bytes)?.get_str("hi")?, Some("y'all"));
+//! # Ok::<(), bson::raw::RawError>(())
+//! ```
+//!
+//! ### Iteration
+//!
+//! [`RawDocumentRef`] implements [`IntoIterator`](std::iter::IntoIterator), which can also be
+//! accessed via [`RawDocument::iter`].
 
-let doc = DocBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-let elem: Option<elem::Element> = doc.get("hi")?;
-assert_eq!(
-    elem.unwrap().as_str()?,
-    "y'all",
-);
-# Ok::<(), bson::raw::RawError>(())
-```
+//! ```rust
+//! use bson::doc;
+//! use bson::{
+//!    raw::{
+//!        RawBson,
+//!        RawDocument,
+//!    },
+//!    doc,
+//! };
+//!
+//! let original_doc = doc! {
+//!     "crate": "bson",
+//!     "year": "2021",
+//! };
+//!
+//! let doc = RawDocument::from_document(&original_doc);
+//! let mut doc_iter = doc.iter();
+//!
+//! let (key, value): (&str, Element) = doc_iter.next().unwrap()?;
+//! assert_eq!(key, "crate");
+//! assert_eq!(value.as_str()?, "rawbson");
+//!
+//! let (key, value): (&str, Element) = doc_iter.next().unwrap()?;
+//! assert_eq!(key, "year");
+//! assert_eq!(value.as_str()?, "2021");
+//! # Ok::<(), bson::raw::RawError>(())
+//! ```
 
-### bson-rust interop
-
-This crate is designed to interoperate smoothly with the bson crate.
-
-A [`DocBuf`] can be created from a [`bson::document::Document`].  Internally, this
-serializes the `Document` to a `Vec<u8>`, and then includes those bytes in the [`DocBuf`].
-
-```rust
-use bson::doc;
-use bson::raw::{
-    DocBuf,
-};
-
-let document = doc!{"goodbye": {"cruel": "world"}};
-let raw = DocBuf::from_document(&document);
-let value: Option<&str> = raw.get_document("goodbye")?
-    .map(|doc| doc.get_str("cruel"))
-    .transpose()?
-    .flatten();
-
-assert_eq!(
-    value,
-    Some("world"),
-);
-# Ok::<(), bson::raw::RawError>(())
-```
-
-### Reference types
-
-A BSON document can also be accessed with the [`Doc`] reference type,
-which is an unsized type that represents the BSON payload as a `[u8]`.
-This allows accessing nested documents without reallocation.  [Doc]
-must always be accessed via a pointer type, similarly to `[T]` and `str`.
-
-This type will coexist with the now deprecated [DocRef] type for at
-least one minor release.
-
-The below example constructs a bson document in a stack-based array,
-and extracts a &str from it, performing no heap allocation.
-
-```rust
-use bson::raw::Doc;
-
-let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
-assert_eq!(Doc::new(bytes)?.get_str("hi")?, Some("y'all"));
-# Ok::<(), bson::raw::RawError>(())
-```
-
-### Iteration
-
-[`Doc`] implements [`IntoIterator`](std::iter::IntoIterator), which can also
-be accessed via [`DocBuf::iter`].
-
-```rust
-use bson::doc;
-use bson::raw::{DocBuf, elem::Element};
-
-let doc = DocBuf::from_document(&doc! {"crate": "rawbson", "license": "MIT"});
-let mut dociter = doc.iter();
-
-let (key, value): (&str, Element) = dociter.next().unwrap()?;
-assert_eq!(key, "crate");
-assert_eq!(value.as_str()?, "rawbson");
-
-let (key, value): (&str, Element) = dociter.next().unwrap()?;
-assert_eq!(key, "license");
-assert_eq!(value.as_str()?, "MIT");
-# Ok::<(), bson::raw::RawError>(())
-```
-
-### serde support
-
-There is also serde deserialization support.
-
-Serde serialization support is not yet provided.  For now, use
-[`bson::to_document`] instead, and then serialize it out using
-[`bson::Document::to_writer`] or [`DocBuf::from_document`].
-
-```rust
-use serde::Deserialize;
-use bson::{doc, Document, oid::ObjectId, DateTime};
-use bson::raw::{DocBuf, de::from_docbuf};
-
-#[derive(Deserialize)]
-#[serde(rename_all="camelCase")]
-struct User {
-    #[serde(rename = "_id")]
-    id: ObjectId,
-    first_name: String,
-    last_name: String,
-    birthdate: Option<chrono::DateTime<chrono::Utc>>,
-    #[serde(flatten)]
-    extra: Document,
-}
-
-let doc = DocBuf::from_document(&doc!{
-    "_id": ObjectId::with_string("543254325432543254325432")?,
-    "firstName": "John",
-    "lastName": "Doe",
-    "birthdate": null,
-    "luckyNumbers": [3, 60, 2147483647],
-    "nickname": "Red",
-});
-
-let user: User = from_docbuf(&doc)?;
-assert_eq!(user.id.to_hex(), "543254325432543254325432");
-assert_eq!(user.first_name, "John");
-assert_eq!(user.last_name, "Doe");
-assert_eq!(user.extra.get_str("nickname")?, "Red");
-assert!(user.birthdate.is_none());
-# Ok::<(), Box<dyn std::error::Error>>(())
-```
-*/
+mod elem;
+#[cfg(test)]
+mod props;
 
 use std::{
     borrow::Borrow,
@@ -149,37 +116,29 @@ use chrono::{DateTime, Utc};
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
+use crate::{oid::ObjectId, spec::ElementType, Bson, Document};
+pub use elem::{RawBinary, RawBson, RawRegex, RawTimestamp};
 
-use crate::{document::ValueAccessError, oid, spec::ElementType, Bson};
-
-pub mod de;
-pub mod elem;
-
-#[cfg(test)]
-mod props;
-
-/// Error to indicate that either a value was empty or it contained an unexpected
-/// type, for use with the direct getters.
+/// An error that occurs when attempting to parse raw BSON bytes.
 #[derive(Debug, PartialEq)]
 pub enum RawError {
-    /// Found a Bson value with the specified key, but not with the expected type
+    /// A BSON value did not fit the expected type.
     UnexpectedType,
 
-    /// The found value was not well-formed
+    /// A BSON value did not fit the proper format.
     MalformedValue(String),
 
-    /// Found a value where a utf-8 string was expected, but it was not valid
-    /// utf-8.  The error value contains the malformed data as a string.
+    /// Improper UTF-8 bytes were found when proper UTF-7 was expected. The error value contains
+    /// the malformed data as bytes.
     Utf8EncodingError(Vec<u8>),
 }
 
 impl std::fmt::Display for RawError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        use RawError::*;
         match self {
-            UnexpectedType => write!(f, "unexpected type"),
-            MalformedValue(s) => write!(f, "malformed value: {:?}", s),
-            Utf8EncodingError(_) => write!(f, "utf-8 encoding error"),
+            Self::UnexpectedType => write!(f, "unexpected type"),
+            Self::MalformedValue(s) => write!(f, "malformed value: {:?}", s),
+            Self::Utf8EncodingError(_) => write!(f, "utf-8 encoding error"),
         }
     }
 }
@@ -187,41 +146,21 @@ impl std::fmt::Display for RawError {
 impl std::error::Error for RawError {}
 
 pub type RawResult<T> = Result<T, RawError>;
-type OptResult<T> = RawResult<Option<T>>;
 
-impl<'a> From<RawError> for ValueAccessError {
-    fn from(src: RawError) -> ValueAccessError {
-        match src {
-            RawError::UnexpectedType => ValueAccessError::UnexpectedType,
-            RawError::MalformedValue(_) => ValueAccessError::UnexpectedType,
-            RawError::Utf8EncodingError(_) => ValueAccessError::UnexpectedType,
-        }
-    }
-}
-
-impl<'a> From<ValueAccessError> for RawError {
-    fn from(src: ValueAccessError) -> RawError {
-        match src {
-            ValueAccessError::NotPresent => unreachable!("This should be converted to an Option"),
-            ValueAccessError::UnexpectedType => RawError::UnexpectedType,
-        }
-    }
-}
-
-/// A BSON document, stored as raw binary data on the heap.  This can be created from
-/// a `Vec<u8>` or a [`bson::Document`].
+/// A BSON document, stored as raw bytes on the heap. This can be created from a `Vec<u8>` or
+/// a [`bson::Document`].
 ///
-/// Accessing elements within the `DocBuf` is similar to element access in [bson::Document],
-/// but as the contents are parsed during iteration, instead of at creation time, format
-/// errors can happen at any time during use, instead of at creation time.
+/// Accessing elements within a `RawDocument` is similar to element access in [bson::Document], but
+/// because the contents are parsed during iteration, instead of at creation time, format errors can
+/// happen at any time during use.
 ///
-/// DocBuf can be iterated over, yielding a Result containing key-value pairs that
-/// borrow from the DocBuf instead of allocating, when necessary.
+/// Iterating over a RawDocument yields either an error or a key-value pair that borrows from the
+/// original document without making any additional allocations.
 ///
 /// ```
-/// # use bson::raw::{DocBuf, RawError};
-/// let docbuf = DocBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-/// let mut iter = docbuf.iter();
+/// # use bson::raw::{RawDocument, RawError};
+/// let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// let mut iter = doc.iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
 /// assert_eq!(value.as_str(), Ok("y'all"));
@@ -229,118 +168,97 @@ impl<'a> From<ValueAccessError> for RawError {
 /// # Ok::<(), RawError>(())
 /// ```
 ///
-/// Individual elements can be accessed using [`docbuf.get(&key)`](Doc::get), or any of
-/// the `get_*` methods, like [`docbuf.get_object_id(&key)`](Doc::get_object_id), and
-/// [`docbuf.get_str(&str)`](Doc::get_str).  Accessing elements is an O(N) operation,
-/// as it requires iterating through the document from the beginning to find the requested
-/// key.
+/// Individual elements can be accessed using [`RawDocument::get`](RawDocument::get) or any of the
+/// type-specific getters, such as [`RawDocument::get_object_id`](RawDocument::get_object_id) or
+/// [`RawDocument::get_str`](RawDocument::get_str). Note that accessing elements is an O(N)
+/// operation, as it requires iterating through the document from the beginning to find the
+/// requested key.
 ///
 /// ```
-/// # use bson::raw::{DocBuf, RawError};
-/// let docbuf = DocBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-/// assert_eq!(docbuf.get_str("hi")?, Some("y'all"));
+/// # use bson::raw::{RawDocument, RawError};
+/// let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// assert_eq!(doc.get_str("hi")?, Some("y'all"));
 /// # Ok::<(), RawError>(())
 /// ```
 #[derive(Clone, Debug)]
-pub struct DocBuf {
+pub struct RawDocument {
     data: Box<[u8]>,
 }
 
-impl DocBuf {
-    /// Create a new `DocBuf` from the provided `Vec`.
+impl RawDocument {
+    /// Constructs a new RawDocument, validating _only_ the
+    /// following invariants:
+    ///   * `data` is at least five bytes long (the minimum for a valid BSON document)
+    ///   * the initial four bytes of `data` accurately represent the length of the bytes as
+    ///     required by the BSON spec.
+    ///   * the last byte of `data` is a 0
     ///
-    /// The data is checked for a declared length equal to the length of the Vec,
-    /// and a trailing NUL byte.  Other validation is deferred to access time.
+    /// Note that the internal structure of the bytes representing the
+    /// BSON elements is _not_ validated at all by this method. If the
+    /// bytes do not conform to the BSON spec, then method calls on
+    /// the RawDocument will return RawErrors where appropriate.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, RawError};
-    /// let docbuf: DocBuf = DocBuf::new(b"\x05\0\0\0\0".to_vec())?;
+    /// # use bson::raw::{RawDocument, RawError};
+    /// let doc = RawDocument::new(b"\x05\0\0\0\0".to_vec())?;
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn new(data: Vec<u8>) -> RawResult<DocBuf> {
+    pub fn new(data: Vec<u8>) -> RawResult<RawDocument> {
         if data.len() < 5 {
             return Err(RawError::MalformedValue("document too short".into()));
         }
+
         let length = i32_from_slice(&data[..4]);
+
         if data.len() as i32 != length {
             return Err(RawError::MalformedValue("document length incorrect".into()));
         }
+
         if data[data.len() - 1] != 0 {
             return Err(RawError::MalformedValue(
                 "document not null-terminated".into(),
             ));
         }
-        Ok(unsafe { DocBuf::new_unchecked(data) })
+
+        Ok(Self {
+            data: data.into_boxed_slice(),
+        })
     }
 
-    /// Create a DocBuf from a [bson::Document].
+    /// Create a RawDocument from a Document.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, RawError};
-    /// use bson::{doc, oid};
+    /// # use bson::raw::{RawDocument, RawError};
+    /// use bson::{doc, oid::ObjectId};
+    ///
     /// let document = doc! {
-    ///     "_id": oid::ObjectId::new(),
+    ///     "_id": ObjectId::new(),
     ///     "name": "Herman Melville",
     ///     "title": "Moby-Dick",
     /// };
-    /// let docbuf: DocBuf = DocBuf::from_document(&document);
+    /// let doc = RawDocument::from_document(&document);
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn from_document(doc: &crate::Document) -> DocBuf {
+    pub fn from_document(doc: &Document) -> RawDocument {
         let mut data = Vec::new();
         doc.to_writer(&mut data).unwrap();
-        unsafe { DocBuf::new_unchecked(data) }
-    }
 
-    /// Create a DocBuf from an owned Vec<u8> without performing any checks on the provided data.
-    ///
-    /// ```
-    /// # use bson::raw::{DocBuf, RawError};
-    /// let docbuf: DocBuf = unsafe {
-    ///     DocBuf::new_unchecked(b"\x05\0\0\0\0".to_vec())
-    /// };
-    /// # Ok::<(), RawError>(())
-    /// ```
-    ///
-    /// # Safety
-    ///
-    /// The provided bytes must have a valid length marker, and be NUL terminated.
-    pub unsafe fn new_unchecked(data: Vec<u8>) -> DocBuf {
-        DocBuf {
+        Self {
             data: data.into_boxed_slice(),
         }
     }
 
-    /// Return a [`&Doc`](Doc) borrowing from the data contained in self.
-    ///
-    /// # Deprecation
-    ///
-    /// DocRef is now a deprecated type alias for [Doc].  DocBuf can
-    /// dereference to &Doc directly, or be converted using [AsRef::as_ref],
-    /// so this function is unnecessary.
+    /// Gets an iterator over the elements in the `RawDocument`, which yields `Result<&str,
+    /// Element<'_>>`.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, DocRef, RawError};
-    /// let docbuf = DocBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-    /// let docref: DocRef = docbuf.as_docref();
-    /// # Ok::<(), RawError>(())
-    /// ```
-    #[deprecated(since = "0.2.0", note = "use docbuf.as_ref() instead")]
-    pub fn as_docref(&self) -> &Doc {
-        self.as_ref()
-    }
-
-    /// Return an iterator over the elements in the `DocBuf`, borrowing data.
-    ///
-    /// The associated item type is `Result<&str, Element<'_>>`.  An error is
-    /// returned if data is malformed.
-    ///
-    /// ```
-    /// # use bson::raw::{elem, DocBuf, RawError};
+    /// # use bson::raw::{elem, RawDocument, RawError};
     /// use bson::doc;
-    /// let docbuf = DocBuf::from_document(&doc! { "ferris": true });
-    /// for element in docbuf.iter() {
-    ///     let (key, value): (&str, elem::Element) = element?;
+    ///
+    /// let doc = RawDocument::from_document(&doc! { "ferris": true });
+    ///
+    /// for element in doc.iter() {
+    ///     let (key, value) = element?;
     ///     assert_eq!(key, "ferris");
     ///     assert_eq!(value.as_bool()?, true);
     /// }
@@ -349,81 +267,81 @@ impl DocBuf {
     ///
     /// # Note:
     ///
-    /// There is no owning iterator for DocBuf.  If you need ownership over
+    /// There is no owning iterator for RawDocument.  If you need ownership over
     /// elements that might need to allocate, you must explicitly convert
     /// them to owned types yourself.
-    pub fn iter(&self) -> DocIter<'_> {
+    pub fn iter(&self) -> RawDocumentIter<'_> {
         self.into_iter()
     }
 
     /// Return the contained data as a `Vec<u8>`
     ///
     /// ```
-    /// # use bson::raw::DocBuf;
+    /// # use bson::raw::RawDocument;
     /// use bson::doc;
-    /// let docbuf = DocBuf::from_document(&doc!{});
-    /// assert_eq!(docbuf.into_inner(), b"\x05\x00\x00\x00\x00".to_vec());
+    ///
+    /// let doc = RawDocument::from_document(&doc!{});
+    /// assert_eq!(doc.into_inner(), b"\x05\x00\x00\x00\x00".to_vec());
     /// ```
     pub fn into_inner(self) -> Vec<u8> {
         self.data.to_vec()
     }
 }
 
-impl TryFrom<DocBuf> for crate::Document {
+impl TryFrom<RawDocument> for Document {
     type Error = RawError;
 
-    fn try_from(rawdoc: DocBuf) -> RawResult<crate::Document> {
-        crate::Document::try_from(rawdoc.as_ref())
+    fn try_from(raw: RawDocument) -> RawResult<Document> {
+        Document::try_from(raw.as_ref())
     }
 }
 
-impl<'a> IntoIterator for &'a DocBuf {
-    type IntoIter = DocIter<'a>;
-    type Item = RawResult<(&'a str, elem::Element<'a>)>;
+impl<'a> IntoIterator for &'a RawDocument {
+    type IntoIter = RawDocumentIter<'a>;
+    type Item = RawResult<(&'a str, RawBson<'a>)>;
 
-    fn into_iter(self) -> DocIter<'a> {
-        DocIter {
+    fn into_iter(self) -> RawDocumentIter<'a> {
+        RawDocumentIter {
             doc: &self,
             offset: 4,
         }
     }
 }
 
-impl AsRef<Doc> for DocBuf {
-    fn as_ref(&self) -> &Doc {
-        // SAFETY: Constructing the DocBuf checks the envelope validity of the BSON document.
-        unsafe { Doc::new_unchecked(&self.data) }
+impl AsRef<RawDocumentRef> for RawDocument {
+    fn as_ref(&self) -> &RawDocumentRef {
+        RawDocumentRef::new_unchecked(&self.data)
     }
 }
 
-impl Borrow<Doc> for DocBuf {
-    fn borrow(&self) -> &Doc {
+impl Borrow<RawDocumentRef> for RawDocument {
+    fn borrow(&self) -> &RawDocumentRef {
         &*self
     }
 }
 
-impl ToOwned for Doc {
-    type Owned = DocBuf;
+impl ToOwned for RawDocumentRef {
+    type Owned = RawDocument;
 
     fn to_owned(&self) -> Self::Owned {
-        self.to_docbuf()
+        self.to_raw_document()
     }
 }
 
-/// A BSON document, referencing raw binary data stored elsewhere.  This can be created from
-/// a [DocBuf] or any type that contains valid BSON data, and can be referenced as a `[u8]`,
+/// A BSON document referencing raw bytes stored elsewhere. This can be created from a
+/// [RawDocument] or any type that contains valid BSON data, and can be referenced as a `[u8]`,
 /// including static binary literals, [Vec<u8>](std::vec::Vec), or arrays.
 ///
-/// Accessing elements within the `Doc` is similar to element access in [bson::Document],
-/// but as the contents are parsed during iteration, instead of at creation time, format
-/// errors can happen at any time during use, instead of at creation time.
+/// Accessing elements within a `RawDocumentRef` is similar to element access in [bson::Document],
+/// but because the contents are parsed during iteration, instead of at creation time, format errors
+/// can happen at any time during use.
 ///
-/// Doc can be iterated over, yielding a Result containing key-value pairs that share the
-/// borrow with the source bytes instead of allocating, when necessary.
-///
+/// Iterating over a RawDocumentRef yields either an error or a key-value pair that borrows from the
+/// original document without making any additional allocations.
+
 /// ```
 /// # use bson::raw::{Doc, RawError};
-/// let doc = Doc::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
+/// let doc = RawDocumentRef::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// let mut iter = doc.into_iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
@@ -432,97 +350,116 @@ impl ToOwned for Doc {
 /// # Ok::<(), RawError>(())
 /// ```
 ///
-/// Individual elements can be accessed using [`doc.get(&key)`](Doc::get), or any of
-/// the `get_*` methods, like [`doc.get_object_id(&key)`](Doc::get_object_id), and
-/// [`doc.get_str(&str)`](Doc::get_str).  Accessing elements is an O(N) operation,
-/// as it requires iterating through the document from the beginning to find the requested
-/// key.
+/// Individual elements can be accessed using [`RawDocumentRef::get`](RawDocumentRef::get) or any of
+/// the type-specific getters, such as
+/// [`RawDocumentRef::get_object_id`](RawDocumentRef::get_object_id) or [`RawDocumentRef::
+/// get_str`](RawDocumentRef::get_str). Note that accessing elements is an O(N) operation, as it
+/// requires iterating through the document from the beginning to find the requested key.
 ///
 /// ```
-/// # use bson::raw::{DocBuf, RawError};
-/// let docbuf = DocBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-/// assert_eq!(docbuf.get_str("hi")?, Some("y'all"));
+/// # use bson::raw::{RawDocument, RawError};
+/// let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// assert_eq!(doc.get_str("hi")?, Some("y'all"));
 /// # Ok::<(), RawError>(())
 /// ```
 #[derive(Debug)]
-pub struct Doc {
+pub struct RawDocumentRef {
     data: [u8],
 }
 
-impl Doc {
-    pub fn new<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&Doc> {
+impl RawDocumentRef {
+    /// Constructs a new RawDocumentRef, validating _only_ the
+    /// following invariants:
+    ///   * `data` is at least five bytes long (the minimum for a valid BSON document)
+    ///   * the initial four bytes of `data` accurately represent the length of the bytes as
+    ///     required by the BSON spec.
+    ///   * the last byte of `data` is a 0
+    ///
+    /// Note that the internal structure of the bytes representing the
+    /// BSON elements is _not_ validated at all by this method. If the
+    /// bytes do not conform to the BSON spec, then method calls on
+    /// the RawDocument will return RawErrors where appropriate.
+    ///
+    /// ```
+    /// # use bson::raw::{RawDocument, RawError};
+    /// let doc = RawDocumentRef::new(b"\x05\0\0\0\0")?;
+    /// # Ok::<(), RawError>(())
+    /// ```
+    pub fn new<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&RawDocumentRef> {
         let data = data.as_ref();
+
         if data.len() < 5 {
             return Err(RawError::MalformedValue("document too short".into()));
         }
+
         let length = i32_from_slice(&data[..4]);
+
         if data.len() as i32 != length {
             return Err(RawError::MalformedValue("document length incorrect".into()));
         }
+
         if data[data.len() - 1] != 0 {
             return Err(RawError::MalformedValue(
                 "document not null-terminated".into(),
             ));
         }
-        Ok(unsafe { Doc::new_unchecked(data) })
+
+        Ok(RawDocumentRef::new_unchecked(data))
     }
 
-    /// Create a new Doc referencing the provided data slice.
-    ///
-    /// # Safety
-    ///
-    /// The provided data must begin with a valid size
-    /// and end with a NUL-terminator.
+    /// Creates a new Doc referencing the provided data slice.
+    fn new_unchecked<D: AsRef<[u8]> + ?Sized>(data: &D) -> &RawDocumentRef {
+        // SAFETY:
+        //
+        // Dereferencing a raw pointer requires unsafe due to the potential that the pointer is
+        // null, dangling, or misaligned. We know the pointer is not null or dangling due to the
+        // fact that it's created by a safe reference. Converting &[u8] to *const [u8] will be
+        // properly aligned due to them being references to the same type, and converting *const
+        // [u8] to *const RawDocumentRef is aligned due to the fact that the only field in a
+        // RawDocumentRef is a [u8], meaning the structs are represented identically at the byte
+        // level.
+        unsafe { &*(data.as_ref() as *const [u8] as *const RawDocumentRef) }
+    }
+
+    /// Creates a new RawDocument with an owned copy of the BSON bytes.
     ///
     /// ```
     /// # use bson::raw::{Doc, RawError};
-    /// let doc: &Doc = unsafe { Doc::new_unchecked(b"\x05\0\0\0\0") };
-    /// ```
-    pub unsafe fn new_unchecked<D: AsRef<[u8]> + ?Sized>(data: &D) -> &Doc {
-        #[allow(unused_unsafe)]
-        unsafe {
-            &*(data.as_ref() as *const [u8] as *const Doc)
+    /// use bson::raw::RawDocument;
+    ///
+    /// let data = b"\x05\0\0\0\0";
+    /// let doc_ref = RawDocumentRef::new(data)?;
+    /// let doc: RawDocument = doc_ref.to_raw_document();
+    /// # Ok::<(), RawError>(())
+    pub fn to_raw_document(&self) -> RawDocument {
+        RawDocument {
+            data: self.data.to_owned().into_boxed_slice(),
         }
     }
 
-    /// Create a new DocBuf with an owned copy of the data in self.
+    /// Gets a reference to the value corresponding to the given key by iterating until the key is
+    /// found.
     ///
     /// ```
-    /// # use bson::raw::{Doc, RawError};
-    /// use bson::raw::DocBuf;
-    /// let data = b"\x05\0\0\0\0";
-    /// let doc = Doc::new(data)?;
-    /// let docbuf: DocBuf = doc.to_docbuf();
-    /// # Ok::<(), RawError>(())
-    pub fn to_docbuf(&self) -> DocBuf {
-        // SAFETY: The validity of the data is checked by self.
-        unsafe { DocBuf::new_unchecked(self.data.to_owned()) }
-    }
-
-    /// Get an element from the document.  Finding a particular key requires
-    /// iterating over the document from the beginning, so this is an O(N)
-    /// operation.
-    ///
-    /// Returns an error if the document is malformed.  Returns `Ok(None)`
-    /// if the key is not found in the document.
-    ///
-    /// ```
-    /// # use bson::raw::{DocBuf, elem::Element, RawError};
+    /// # use bson::raw::{RawDocument, elem::Element, RawError};
+    /// #
     /// use bson::{doc, oid::ObjectId};
-    /// let docbuf = DocBuf::from_document(&doc! {
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
     ///     "f64": 2.5,
     /// });
-    /// let element = docbuf.get("f64")?.expect("finding key f64");
+    ///
+    /// let element = doc.get("f64")?.expect("finding key f64");
     /// assert_eq!(element.as_f64(), Ok(2.5));
-    /// assert!(docbuf.get("unknown")?.is_none());
+    /// assert!(doc.get("unknown")?.is_none());
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get<'a>(&'a self, key: &str) -> OptResult<elem::Element<'a>> {
+    pub fn get<'a>(&'a self, key: &str) -> RawResult<Option<RawBson<'a>>> {
         for result in self.into_iter() {
-            let (thiskey, bson) = result?;
-            if thiskey == key {
-                return Ok(Some(bson));
+            let (k, v) = result?;
+            if key == k {
+                return Ok(Some(v));
             }
         }
         Ok(None)
@@ -531,406 +468,283 @@ impl Doc {
     fn get_with<'a, T>(
         &'a self,
         key: &str,
-        f: impl FnOnce(elem::Element<'a>) -> RawResult<T>,
-    ) -> OptResult<T> {
+        f: impl FnOnce(elem::RawBson<'a>) -> RawResult<T>,
+    ) -> RawResult<Option<T>> {
         self.get(key)?.map(f).transpose()
     }
 
-    /// Get an element from the document, and convert it to f64.
-    ///
-    /// Returns an error if the document is malformed, or if the retrieved value
-    /// is not an f64.  Returns `Ok(None)` if the key is not found in the document.
+    /// Gets a reference to the BSON double value corresponding to a given key or returns an error
+    /// if the key corresponds to a value which isn't a double.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, elem::Element, RawError};
+    /// # use bson::raw::{RawDocument, elem::Element, RawError};
     /// use bson::doc;
-    /// let docbuf = DocBuf::from_document(&doc! {
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
     ///     "f64": 2.5,
     /// });
-    /// assert_eq!(docbuf.get_f64("f64"), Ok(Some(2.5)));
-    /// assert_eq!(docbuf.get_f64("bool"), Err(RawError::UnexpectedType));
-    /// assert_eq!(docbuf.get_f64("unknown"), Ok(None));
+    ///
+    /// assert_eq!(doc.get_f64("f64"), Ok(Some(2.5)));
+    /// assert_eq!(doc.get_f64("bool"), Err(RawError::UnexpectedType));
+    /// assert_eq!(doc.get_f64("unknown"), Ok(None));
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get_f64(&self, key: &str) -> OptResult<f64> {
-        self.get_with(key, elem::Element::as_f64)
+    pub fn get_f64(&self, key: &str) -> RawResult<Option<f64>> {
+        self.get_with(key, elem::RawBson::as_f64)
     }
 
-    /// Get an element from the document, and convert it to a &str.
-    ///
-    /// The returned &str is a borrowed reference into the DocBuf.  To use it
-    /// beyond the lifetime of self, call to_docbuf() on it.
-    ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not a string.  Returns `Ok(None)` if the key is not found in the
-    /// document.
+    /// Gets a reference to the string value corresponding to a given key or returns an error if the
+    /// key corresponds to a value which isn't a string.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, elem::Element, RawError};
+    /// # use bson::raw::{RawDocument, elem::Element, RawError};
     /// use bson::doc;
-    /// let docbuf = DocBuf::from_document(&doc! {
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
     ///     "string": "hello",
     ///     "bool": true,
     /// });
-    /// assert_eq!(docbuf.get_str("string"), Ok(Some("hello")));
-    /// assert_eq!(docbuf.get_str("bool"), Err(RawError::UnexpectedType));
-    /// assert_eq!(docbuf.get_str("unknown"), Ok(None));
+    ///
+    /// assert_eq!(doc.get_str("string"), Ok(Some("hello")));
+    /// assert_eq!(doc.get_str("bool"), Err(RawError::UnexpectedType));
+    /// assert_eq!(doc.get_str("unknown"), Ok(None));
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get_str<'a>(&'a self, key: &str) -> OptResult<&'a str> {
-        self.get_with(key, elem::Element::as_str)
+    pub fn get_str<'a>(&'a self, key: &str) -> RawResult<Option<&'a str>> {
+        self.get_with(key, elem::RawBson::as_str)
     }
 
-    /// Get an element from the document, and convert it to a [Doc].
-    ///
-    /// The returned [Doc] is a borrowed reference into self.  To use it
-    /// beyond the lifetime of self, call to_owned() on it.
-    ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not a document.  Returns `Ok(None)` if the key is not found in the
-    /// document.
+    /// Gets a reference to the document value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't a document.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, elem::Element, RawError};
+    /// # use bson::raw::{RawDocument, elem::Element, RawError};
     /// use bson::doc;
-    /// let docbuf = DocBuf::from_document(&doc! {
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
     ///     "doc": { "key": "value"},
     ///     "bool": true,
     /// });
-    /// assert_eq!(docbuf.get_document("doc")?.expect("finding key doc").get_str("key"), Ok(Some("value")));
-    /// assert_eq!(docbuf.get_document("bool").unwrap_err(), RawError::UnexpectedType);
-    /// assert!(docbuf.get_document("unknown")?.is_none());
+    ///
+    /// assert_eq!(doc.get_document("doc")?.expect("finding key doc").get_str("key"), Ok(Some("value")));
+    /// assert_eq!(doc.get_document("bool").unwrap_err(), RawError::UnexpectedType);
+    /// assert!(doc.get_document("unknown")?.is_none());
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get_document<'a>(&'a self, key: &str) -> OptResult<&'a Doc> {
-        self.get_with(key, elem::Element::as_document)
+    pub fn get_document<'a>(&'a self, key: &str) -> RawResult<Option<&'a RawDocumentRef>> {
+        self.get_with(key, elem::RawBson::as_document)
     }
 
-    /// Get an element from the document, and convert it to an [ArrayRef].
-    ///
-    /// The returned [ArrayRef] is a borrowed reference into the DocBuf.
-    ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not a document.  Returns `Ok(None)` if the key is not found in the
-    /// document.
+    /// Gets a reference to the array value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't an array.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, elem::Element, RawError};
+    /// # use bson::raw::{RawDocument, elem::Element, RawError};
     /// use bson::doc;
-    /// let docbuf = DocBuf::from_document(&doc! {
-    ///     "array": [true, 3, null],
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "array": [true, 3],
     ///     "bool": true,
     /// });
-    /// let mut arriter = docbuf.get_array("array")?.expect("finding key array").into_iter();
+    ///
+    /// let mut arr_iter = docbuf.get_array("array")?.expect("finding key array").into_iter();
     /// let _: bool = arriter.next().unwrap()?.as_bool()?;
     /// let _: i32 = arriter.next().unwrap()?.as_i32()?;
-    /// let () = arriter.next().unwrap()?.as_null()?;
-    /// assert!(arriter.next().is_none());
-    /// assert!(docbuf.get_array("bool").is_err());
-    /// assert!(docbuf.get_array("unknown")?.is_none());
+    ///
+    /// assert!(arr_iter.next().is_none());
+    /// assert!(doc.get_array("bool").is_err());
+    /// assert!(doc.get_array("unknown")?.is_none());
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get_array<'a>(&'a self, key: &str) -> OptResult<&'a Array> {
-        self.get_with(key, elem::Element::as_array)
+    pub fn get_array<'a>(&'a self, key: &str) -> RawResult<Option<&'a RawArray>> {
+        self.get_with(key, elem::RawBson::as_array)
     }
 
-    /// Get an element from the document, and convert it to an [elem::RawBsonBinary].
-    ///
-    /// The returned [RawBsonBinary](elem::RawBsonBinary) is a borrowed reference into the DocBuf.
-    ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not binary data.  Returns `Ok(None)` if the key is not found in the
-    /// document.
+    /// Gets a reference to the BSON binary value corresponding to a given key or returns an error
+    /// if the key corresponds to a value which isn't a binary value.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, elem, RawError};
-    /// use bson::{doc, Binary, spec::BinarySubtype};
-    /// let docbuf = DocBuf::from_document(&doc! {
+    /// # use bson::raw::{RawDocument, elem, RawError};
+    ///
+    /// use bson::{
+    ///     spec::BinarySubtype
+    ///     doc, Binary,
+    /// };
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
     ///     "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1, 2, 3] },
     ///     "bool": true,
     /// });
-    /// assert_eq!(docbuf.get_binary("binary")?.map(elem::RawBsonBinary::as_bytes), Some(&[1, 2, 3][..]));
-    /// assert_eq!(docbuf.get_binary("bool").unwrap_err(), RawError::UnexpectedType);
-    /// assert!(docbuf.get_binary("unknown")?.is_none());
+    ///
+    /// assert_eq!(doc.get_binary("binary")?.map(elem::RawBsonBinary::as_bytes), Some(&[1, 2, 3][..]));
+    /// assert_eq!(doc.get_binary("bool").unwrap_err(), RawError::UnexpectedType);
+    /// assert!(doc.get_binary("unknown")?.is_none());
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get_binary<'a>(&'a self, key: &str) -> OptResult<elem::RawBsonBinary<'a>> {
-        self.get_with(key, elem::Element::as_binary)
+    pub fn get_binary<'a>(&'a self, key: &str) -> RawResult<Option<elem::RawBinary<'a>>> {
+        self.get_with(key, elem::RawBson::as_binary)
     }
 
-    /// Get an element from the document, and convert it to a [bson::oid::ObjectId].
-    ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not an object ID.  Returns `Ok(None)` if the key is not found in the
-    /// document.
+    /// Gets a reference to the ObjectId value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't an ObjectId.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, RawError};
+    /// # use bson::raw::{RawDocument, RawError};
     /// use bson::{doc, oid::ObjectId};
-    /// let docbuf = DocBuf::from_document(&doc! {
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
     ///     "bool": true,
     /// });
-    /// let _: ObjectId = docbuf.get_object_id("_id")?.unwrap();
-    /// assert_eq!(docbuf.get_object_id("bool").unwrap_err(), RawError::UnexpectedType);
-    /// assert!(docbuf.get_object_id("unknown")?.is_none());
+    ///
+    /// let oid = doc.get_object_id("_id")?.unwrap();
+    /// assert_eq!(doc.get_object_id("bool").unwrap_err(), RawError::UnexpectedType);
+    /// assert!(doc.get_object_id("unknown")?.is_none());
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get_object_id(&self, key: &str) -> OptResult<oid::ObjectId> {
-        self.get_with(key, elem::Element::as_object_id)
+    pub fn get_object_id(&self, key: &str) -> RawResult<Option<ObjectId>> {
+        self.get_with(key, elem::RawBson::as_object_id)
     }
 
-    /// Get an element from the document, and convert it to a [bool].
-    ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not a boolean.  Returns `Ok(None)` if the key is not found in the
-    /// document.
+    /// Gets a reference to the boolean value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't a boolean.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, RawError};
+    /// # use bson::raw::{RawDocument, RawError};
     /// use bson::{doc, oid::ObjectId};
-    /// let docbuf = DocBuf::from_document(&doc! {
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
     ///     "bool": true,
     /// });
-    /// assert!(docbuf.get_bool("bool")?.unwrap());
-    /// assert_eq!(docbuf.get_bool("_id").unwrap_err(), RawError::UnexpectedType);
-    /// assert!(docbuf.get_object_id("unknown")?.is_none());
+    ///
+    /// assert!(doc.get_bool("bool")?.unwrap());
+    /// assert_eq!(doc.get_bool("_id").unwrap_err(), RawError::UnexpectedType);
+    /// assert!(doc.get_object_id("unknown")?.is_none());
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get_bool(&self, key: &str) -> OptResult<bool> {
-        self.get_with(key, elem::Element::as_bool)
+    pub fn get_bool(&self, key: &str) -> RawResult<Option<bool>> {
+        self.get_with(key, elem::RawBson::as_bool)
     }
 
-    /// Get an element from the document, and convert it to a [chrono::DateTime].
-    ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not a boolean.  Returns `Ok(None)` if the key is not found in the
-    /// document.
+    /// Gets a reference to the BSON DateTime value corresponding to a given key or returns an error
+    /// if the key corresponds to a value which isn't a DateTime.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, RawError};
+    /// # use bson::raw::{RawDocument, RawError};
     /// use bson::doc;
     /// use chrono::{Utc, Datelike, TimeZone};
-    /// let docbuf = DocBuf::from_document(&doc! {
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
     ///     "created_at": Utc.ymd(2020, 3, 15).and_hms(17, 0, 0),
     ///     "bool": true,
     /// });
-    /// assert_eq!(docbuf.get_datetime("created_at")?.unwrap().year(), 2020);
-    /// assert_eq!(docbuf.get_datetime("bool").unwrap_err(), RawError::UnexpectedType);
-    /// assert!(docbuf.get_datetime("unknown")?.is_none());
+    /// assert_eq!(doc.get_datetime("created_at")?.unwrap().year(), 2020);
+    /// assert_eq!(doc.get_datetime("bool").unwrap_err(), RawError::UnexpectedType);
+    /// assert!(doc.get_datetime("unknown")?.is_none());
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get_datetime(&self, key: &str) -> OptResult<DateTime<Utc>> {
-        self.get_with(key, elem::Element::as_datetime)
+    pub fn get_datetime(&self, key: &str) -> RawResult<Option<DateTime<Utc>>> {
+        self.get_with(key, elem::RawBson::as_datetime)
     }
-
-    /// Get an element from the document, and convert it to the `()` type.
+    /// Gets a reference to the BSON regex value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't a regex.
     ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not null.  Returns `Ok(None)` if the key is not found in the
-    /// document.
-    ///
-    /// There is not much reason to use the () value, so this method mostly
-    /// exists for consistency with other element types, and as a way to assert
-    /// type of the element.
     /// ```
-    /// # use bson::raw::{DocBuf, RawError};
-    /// use bson::doc;
-    /// let docbuf = DocBuf::from_document(&doc! {
-    ///     "null": null,
-    ///     "bool": true,
-    /// });
-    /// docbuf.get_null("null")?.unwrap();
-    /// assert_eq!(docbuf.get_null("bool").unwrap_err(), RawError::UnexpectedType);
-    /// assert!(docbuf.get_null("unknown")?.is_none());
-    /// # Ok::<(), RawError>(())
-    /// ```
-    pub fn get_null(&self, key: &str) -> OptResult<()> {
-        self.get_with(key, elem::Element::as_null)
-    }
-
-    /// Get an element from the document, and convert it to an [elem::RawBsonRegex].
-    ///
-    /// The [RawBsonRegex](elem::RawBsonRegex) borrows data from the DocBuf.
-    ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not a regex.  Returns `Ok(None)` if the key is not found in the
-    /// document.
-    /// ```
-    /// # use bson::raw::{DocBuf, RawError, elem};
+    /// # use bson::raw::{RawDocument, RawError, elem};
     /// use bson::{doc, Regex};
-    /// let docbuf = DocBuf::from_document(&doc! {
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
     ///     "regex": Regex {
-    ///         pattern: String::from(r"end\s*$"),
-    ///         options: String::from("i"),
+    ///         pattern: r"end\s*$".into(),
+    ///         options: "i".into(),
     ///     },
     ///     "bool": true,
     /// });
-    /// assert_eq!(docbuf.get_regex("regex")?.unwrap().pattern(), r"end\s*$");
-    /// assert_eq!(docbuf.get_regex("regex")?.unwrap().options(), "i");
-    /// assert_eq!(docbuf.get_regex("bool").unwrap_err(), RawError::UnexpectedType);
-    /// assert!(docbuf.get_regex("unknown")?.is_none());
+    ///
+    /// assert_eq!(doc.get_regex("regex")?.unwrap().pattern(), r"end\s*$");
+    /// assert_eq!(doc.get_regex("regex")?.unwrap().options(), "i");
+    /// assert_eq!(doc.get_regex("bool").unwrap_err(), RawError::UnexpectedType);
+    /// assert!(doc.get_regex("unknown")?.is_none());
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get_regex<'a>(&'a self, key: &str) -> OptResult<elem::RawBsonRegex<'a>> {
-        self.get_with(key, elem::Element::as_regex)
+    pub fn get_regex<'a>(&'a self, key: &str) -> RawResult<Option<elem::RawRegex<'a>>> {
+        self.get_with(key, elem::RawBson::as_regex)
     }
 
-    /// Get an element from the document, and convert it to an &str representing the
-    /// javascript element type.
-    ///
-    /// The &str borrows data from the DocBuf.  If you need an owned copy of the data,
-    /// you should call .to_owned() on the result.
-    ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not a javascript code object.  Returns `Ok(None)` if the key is not found
-    /// in the document.
-    /// ```
-    /// # use bson::raw::{DocBuf, RawError, elem};
-    /// use bson::{doc, Bson};
-    /// let docbuf = DocBuf::from_document(&doc! {
-    ///     "js": Bson::JavaScriptCode(String::from("console.log(\"hi y'all\");")),
-    ///     "bool": true,
-    /// });
-    /// assert_eq!(docbuf.get_javascript("js")?, Some("console.log(\"hi y'all\");"));
-    /// assert_eq!(docbuf.get_javascript("bool").unwrap_err(), RawError::UnexpectedType);
-    /// assert!(docbuf.get_javascript("unknown")?.is_none());
-    /// # Ok::<(), RawError>(())
-    /// ```
-    pub fn get_javascript<'a>(&'a self, key: &str) -> OptResult<&'a str> {
-        self.get_with(key, elem::Element::as_javascript)
-    }
-
-    /// Get an element from the document, and convert it to an &str representing the
-    /// symbol element type.
-    ///
-    /// The &str borrows data from the DocBuf.  If you need an owned copy of the data,
-    /// you should call .to_owned() on the result.
-    ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not a symbol object.  Returns `Ok(None)` if the key is not found
-    /// in the document.
-    /// ```
-    /// # use bson::raw::{DocBuf, RawError, elem};
-    /// use bson::{doc, Bson};
-    /// let docbuf = DocBuf::from_document(&doc! {
-    ///     "symbol": Bson::Symbol(String::from("internal")),
-    ///     "bool": true,
-    /// });
-    /// assert_eq!(docbuf.get_symbol("symbol")?, Some("internal"));
-    /// assert_eq!(docbuf.get_symbol("bool").unwrap_err(), RawError::UnexpectedType);
-    /// assert!(docbuf.get_symbol("unknown")?.is_none());
-    /// # Ok::<(), RawError>(())
-    /// ```
-    pub fn get_symbol<'a>(&'a self, key: &str) -> OptResult<&'a str> {
-        self.get_with(key, elem::Element::as_symbol)
-    }
-
-    /// Get an element from the document, and extract the data as a javascript code with scope.
-    ///
-    /// The return value is a `(&str, &Doc)` where the &str represents the javascript code,
-    /// and the [`&Doc`](Doc) represents the scope.  Both elements borrow data from the DocBuf.
-    /// If you need an owned copy of the data, you should call [js.to_owned()](ToOwned::to_owned) on
-    /// the code or [scope.to_docbuf()](Doc::to_docbuf) on the scope.
-    ///
-    /// Returns an error if the document is malformed or if the retrieved value
-    /// is not a javascript code with scope object.  Returns `Ok(None)` if the key is not found
-    /// in the document.
-    /// ```
-    /// # use bson::raw::{DocBuf, RawError, elem};
-    /// use bson::{doc, JavaScriptCodeWithScope};
-    /// let docbuf = DocBuf::from_document(&doc! {
-    ///     "js": JavaScriptCodeWithScope {
-    ///         code: String::from("console.log(\"i:\", i);"),
-    ///         scope: doc!{"i": 42},
-    ///     },
-    ///     "bool": true,
-    /// });
-    /// let (js, scope) = docbuf.get_javascript_with_scope("js")?.unwrap();
-    /// assert_eq!(js, "console.log(\"i:\", i);");
-    /// assert_eq!(scope.get_i32("i")?.unwrap(), 42);
-    /// assert_eq!(docbuf.get_javascript_with_scope("bool").unwrap_err(), RawError::UnexpectedType);
-    /// assert!(docbuf.get_javascript_with_scope("unknown")?.is_none());
-    /// # Ok::<(), RawError>(())
-    /// ```
-    pub fn get_javascript_with_scope<'a>(&'a self, key: &str) -> OptResult<(&'a str, &'a Doc)> {
-        self.get_with(key, elem::Element::as_javascript_with_scope)
-    }
-
-    /// Get an element from the document, and convert it to i32.
-    ///
-    /// Returns an error if the document is malformed, or if the retrieved value
-    /// is not an i32.  Returns `Ok(None)` if the key is not found in the document.
+    /// Gets a reference to the BSON timestamp value corresponding to a given key or returns an
+    /// error if the key corresponds to a value which isn't a timestamp.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, RawError};
-    /// use bson::doc;
-    /// let docbuf = DocBuf::from_document(&doc! {
-    ///     "bool": true,
-    ///     "i32": 1_000_000,
-    /// });
-    /// assert_eq!(docbuf.get_i32("i32"), Ok(Some(1_000_000)));
-    /// assert_eq!(docbuf.get_i32("bool"), Err(RawError::UnexpectedType));
-    /// assert_eq!(docbuf.get_i32("unknown"), Ok(None));
-    /// # Ok::<(), RawError>(())
-    /// ```
-    pub fn get_i32(&self, key: &str) -> OptResult<i32> {
-        self.get_with(key, elem::Element::as_i32)
-    }
-
-    /// Get an element from the document, and convert it to a timestamp.
-    ///
-    /// Returns an error if the document is malformed, or if the retrieved value
-    /// is not an i32.  Returns `Ok(None)` if the key is not found in the document.
-    ///
-    /// ```
-    /// # use bson::raw::{DocBuf, elem, RawError};
+    /// # use bson::raw::{RawDocument, elem, RawError};
     /// use bson::{doc, Timestamp};
-    /// let docbuf = DocBuf::from_document(&doc! {
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
     ///     "ts": Timestamp { time: 649876543, increment: 9 },
     /// });
-    /// let timestamp = docbuf.get_timestamp("ts")?.unwrap();
+    ///
+    /// let timestamp = doc.get_timestamp("ts")?.unwrap();
     ///
     /// assert_eq!(timestamp.time(), 649876543);
     /// assert_eq!(timestamp.increment(), 9);
-    /// assert_eq!(docbuf.get_timestamp("bool"), Err(RawError::UnexpectedType));
-    /// assert_eq!(docbuf.get_timestamp("unknown"), Ok(None));
+    /// assert_eq!(doc.get_timestamp("bool"), Err(RawError::UnexpectedType));
+    /// assert_eq!(doc.get_timestamp("unknown"), Ok(None));
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get_timestamp<'a>(&'a self, key: &str) -> OptResult<elem::RawBsonTimestamp<'a>> {
-        self.get_with(key, elem::Element::as_timestamp)
+    pub fn get_timestamp<'a>(&'a self, key: &str) -> RawResult<Option<elem::RawTimestamp<'a>>> {
+        self.get_with(key, elem::RawBson::as_timestamp)
     }
 
-    /// Get an element from the document, and convert it to i64.
-    ///
-    /// Returns an error if the document is malformed, or if the retrieved value
-    /// is not an i64.  Returns `Ok(None)` if the key is not found in the document.
+    /// Gets a reference to the BSON int32 value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't a 32-bit integer.
     ///
     /// ```
-    /// # use bson::raw::{DocBuf, elem::Element, RawError};
+    /// # use bson::raw::{RawDocument, RawError};
     /// use bson::doc;
-    /// let docbuf = DocBuf::from_document(&doc! {
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "bool": true,
+    ///     "i32": 1_000_000,
+    /// });
+    ///
+    /// assert_eq!(doc.get_i32("i32"), Ok(Some(1_000_000)));
+    /// assert_eq!(doc.get_i32("bool"), Err(RawError::UnexpectedType));
+    /// assert_eq!(doc.get_i32("unknown"), Ok(None));
+    /// # Ok::<(), RawError>(())
+    /// ```
+    pub fn get_i32(&self, key: &str) -> RawResult<Option<i32>> {
+        self.get_with(key, elem::RawBson::as_i32)
+    }
+
+    /// Gets a reference to the BSON int64 value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't a 64-bit integer.
+    ///
+    /// ```
+    /// # use bson::raw::{RawDocument, elem::Element, RawError};
+    /// use bson::doc;
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
     ///     "i64": 9223372036854775807_i64,
     /// });
-    /// assert_eq!(docbuf.get_i64("i64"), Ok(Some(9223372036854775807)));
-    /// assert_eq!(docbuf.get_i64("bool"), Err(RawError::UnexpectedType));
-    /// assert_eq!(docbuf.get_i64("unknown"), Ok(None));
+    ///
+    /// assert_eq!(doc.get_i64("i64"), Ok(Some(9223372036854775807)));
+    /// assert_eq!(doc.get_i64("bool"), Err(RawError::UnexpectedType));
+    /// assert_eq!(doc.get_i64("unknown"), Ok(None));
     /// # Ok::<(), RawError>(())
     /// ```
-    pub fn get_i64(&self, key: &str) -> OptResult<i64> {
-        self.get_with(key, elem::Element::as_i64)
+    pub fn get_i64(&self, key: &str) -> RawResult<Option<i64>> {
+        self.get_with(key, elem::RawBson::as_i64)
     }
 
     /// Return a reference to the contained data as a `&[u8]`
     ///
     /// ```
-    /// # use bson::raw::DocBuf;
+    /// # use bson::raw::RawDocument;
     /// use bson::doc;
-    /// let docbuf = DocBuf::from_document(&doc!{});
+    /// let docbuf = RawDocument::from_document(&doc!{});
     /// assert_eq!(docbuf.as_bytes(), b"\x05\x00\x00\x00\x00");
     /// ```
     pub fn as_bytes(&self) -> &[u8] {
@@ -938,25 +752,24 @@ impl Doc {
     }
 }
 
-impl AsRef<Doc> for Doc {
-    fn as_ref(&self) -> &Doc {
+impl AsRef<RawDocumentRef> for RawDocumentRef {
+    fn as_ref(&self) -> &RawDocumentRef {
         self
     }
 }
 
-impl Deref for DocBuf {
-    type Target = Doc;
+impl Deref for RawDocument {
+    type Target = RawDocumentRef;
 
     fn deref(&self) -> &Self::Target {
-        // SAFETY: The validity of the data is checked when creating DocBuf.
-        unsafe { Doc::new_unchecked(&self.data) }
+        RawDocumentRef::new_unchecked(&self.data)
     }
 }
 
-impl TryFrom<&Doc> for crate::Document {
+impl TryFrom<&RawDocumentRef> for crate::Document {
     type Error = RawError;
 
-    fn try_from(rawdoc: &Doc) -> RawResult<crate::Document> {
+    fn try_from(rawdoc: &RawDocumentRef) -> RawResult<Document> {
         rawdoc
             .into_iter()
             .map(|res| res.and_then(|(k, v)| Ok((k.to_owned(), v.try_into()?))))
@@ -964,27 +777,27 @@ impl TryFrom<&Doc> for crate::Document {
     }
 }
 
-impl<'a> IntoIterator for &'a Doc {
-    type IntoIter = DocIter<'a>;
-    type Item = RawResult<(&'a str, elem::Element<'a>)>;
+impl<'a> IntoIterator for &'a RawDocumentRef {
+    type IntoIter = RawDocumentIter<'a>;
+    type Item = RawResult<(&'a str, RawBson<'a>)>;
 
-    fn into_iter(self) -> DocIter<'a> {
-        DocIter {
+    fn into_iter(self) -> RawDocumentIter<'a> {
+        RawDocumentIter {
             doc: self,
             offset: 4,
         }
     }
 }
 
-pub struct DocIter<'a> {
-    doc: &'a Doc,
+pub struct RawDocumentIter<'a> {
+    doc: &'a RawDocumentRef,
     offset: usize,
 }
 
-impl<'a> Iterator for DocIter<'a> {
-    type Item = RawResult<(&'a str, elem::Element<'a>)>;
+impl<'a> Iterator for RawDocumentIter<'a> {
+    type Item = RawResult<(&'a str, elem::RawBson<'a>)>;
 
-    fn next(&mut self) -> Option<RawResult<(&'a str, elem::Element<'a>)>> {
+    fn next(&mut self) -> Option<RawResult<(&'a str, elem::RawBson<'a>)>> {
         if self.offset == self.doc.data.len() - 1 {
             if self.doc.data[self.offset] == 0 {
                 // end of document marker
@@ -995,11 +808,14 @@ impl<'a> Iterator for DocIter<'a> {
                 )));
             }
         }
+
         let key = match read_nullterminated(&self.doc.data[self.offset + 1..]) {
             Ok(key) => key,
             Err(err) => return Some(Err(err)),
         };
+
         let valueoffset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
+
         let element_type = match ElementType::from(self.doc.data[self.offset]) {
             Some(et) => et,
             None => {
@@ -1009,34 +825,41 @@ impl<'a> Iterator for DocIter<'a> {
                 ))))
             }
         };
+
         let element_size = match element_type {
             ElementType::Double => 8,
             ElementType::String => {
                 let size =
                     4 + i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
+
                 if self.doc.data[valueoffset + size - 1] != 0 {
                     return Some(Err(RawError::MalformedValue(
                         "string not null terminated".into(),
                     )));
                 }
+
                 size
             }
             ElementType::EmbeddedDocument => {
                 let size = i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
+
                 if self.doc.data[valueoffset + size - 1] != 0 {
                     return Some(Err(RawError::MalformedValue(
                         "document not null terminated".into(),
                     )));
                 }
+
                 size
             }
             ElementType::Array => {
                 let size = i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
+
                 if self.doc.data[valueoffset + size - 1] != 0 {
                     return Some(Err(RawError::MalformedValue(
                         "array not null terminated".into(),
                     )));
                 }
+
                 size
             }
             ElementType::Binary => {
@@ -1052,32 +875,39 @@ impl<'a> Iterator for DocIter<'a> {
                     Ok(regex) => regex,
                     Err(err) => return Some(Err(err)),
                 };
+
                 let options =
                     match read_nullterminated(&self.doc.data[valueoffset + regex.len() + 1..]) {
                         Ok(options) => options,
                         Err(err) => return Some(Err(err)),
                     };
+
                 regex.len() + options.len() + 2
             }
             ElementType::DbPointer => {
                 let string_size =
                     4 + i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
+
                 let id_size = 12;
+
                 if self.doc.data[valueoffset + string_size - 1] != 0 {
                     return Some(Err(RawError::MalformedValue(
                         "DBPointer string not null-terminated".into(),
                     )));
                 }
+
                 string_size + id_size
             }
             ElementType::JavaScriptCode => {
                 let size =
                     4 + i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
+
                 if self.doc.data[valueoffset + size - 1] != 0 {
                     return Some(Err(RawError::MalformedValue(
                         "javascript code not null-terminated".into(),
                     )));
                 }
+
                 size
             }
             ElementType::Symbol => {
@@ -1085,11 +915,13 @@ impl<'a> Iterator for DocIter<'a> {
             }
             ElementType::JavaScriptCodeWithScope => {
                 let size = i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
+
                 if self.doc.data[valueoffset + size - 1] != 0 {
                     return Some(Err(RawError::MalformedValue(
                         "javascript with scope not null-terminated".into(),
                     )));
                 }
+
                 size
             }
             ElementType::Int32 => 4,
@@ -1099,171 +931,135 @@ impl<'a> Iterator for DocIter<'a> {
             ElementType::MaxKey => 0,
             ElementType::MinKey => 0,
         };
+
         let nextoffset = valueoffset + element_size;
         self.offset = nextoffset;
+
         Some(Ok((
             key,
-            elem::Element::new(element_type, &self.doc.data[valueoffset..nextoffset]),
+            elem::RawBson::new(element_type, &self.doc.data[valueoffset..nextoffset]),
         )))
     }
 }
 
-pub type ArrayRef<'a> = &'a Array;
-
-pub struct Array {
-    doc: Doc,
+/// A BSON array referencing raw bytes stored elsewhere.
+pub struct RawArray {
+    doc: RawDocumentRef,
 }
 
-impl Array {
-    pub fn new(data: &[u8]) -> RawResult<&Array> {
-        Ok(Array::from_doc(Doc::new(data)?))
+impl RawArray {
+    fn new(data: &[u8]) -> RawResult<&RawArray> {
+        Ok(RawArray::from_doc(RawDocumentRef::new(data)?))
     }
 
-    /// Return a new Array from the provided bytes.
-    ///
-    /// # Safety
-    ///
-    /// The provided bytes must start with a valid length indicator
-    /// and end with a NUL terminator, as described in [the bson
-    /// spec](http://bsonspec.org/spec.html).
-    ///
-    /// The following is valid:
-    /// ```
-    /// # use bson::raw::Array;
-    /// // Represents the array [null, 514i32], which is the same as the document
-    /// // {"0": null, "1": 514}
-    /// let bson = b"\x0f\0\0\0\x0A0\0\x101\0\x02\x02\0\0\0";
-    /// let arr = unsafe { Array::new_unchecked(bson) };
-    /// let mut arriter = arr.into_iter();
-    /// assert!(arriter.next().unwrap().and_then(|b| b.as_null()).is_ok());
-    /// assert_eq!(arriter.next().unwrap().and_then(|b| b.as_i32()).unwrap(), 514);
-    /// ```
-    ///
-    /// And so is this, even though the provided document is not an array, because
-    /// the errors will be caught during decode.
-    ///
-    /// ```
-    /// # use bson::raw::Array;
-    /// // Represents the document {"0": null, "X": 514}
-    /// let bson = b"\x0f\0\0\0\x0A0\0\x10X\0\x02\x02\0\0\0";
-    /// let arr = unsafe { Array::new_unchecked(bson) };
-    /// let mut arriter = arr.into_iter();
-    /// assert!(arriter.next().unwrap().and_then(|b| b.as_null()).is_ok());
-    /// assert!(arriter.next().unwrap().is_err());
-    /// assert!(arriter.next().is_none());
-    /// ```
-    ///
-    /// # Bad:
-    ///
-    /// The following, however, indicates the wrong size for the document, and is
-    /// therefore unsound.
-    ///
-    /// ```
-    /// # use bson::raw::Array;
-    /// // Contains a length indicator, that is longer than the array
-    /// let invalid = b"\x06\0\0\0\0";
-    /// let arr: &Array = unsafe { Array::new_unchecked(invalid) };
-    /// ```
-    pub unsafe fn new_unchecked(data: &[u8]) -> &Array {
-        #[allow(unused_unsafe)]
-        let doc = unsafe { Doc::new_unchecked(data) };
-        Array::from_doc(doc)
+    fn from_doc(doc: &RawDocumentRef) -> &RawArray {
+        // SAFETY:
+        //
+        // Dereferencing a raw pointer requires unsafe due to the potential that the pointer is
+        // null, dangling, or misaligned. We know the pointer is not null or dangling due to the
+        // fact that it's created by a safe reference. Converting &RawDocumentRef to *const
+        // RawDocumentRef will be properly aligned due to them being references to the same type,
+        // and converting *const RawDocumentRef to *const RawArray is aligned due to the fact that
+        // the only field in a RawArray is a RawDocumentRef, meaning the structs are represented
+        // identically at the byte level.
+        unsafe { &*(doc as *const RawDocumentRef as *const RawArray) }
     }
 
-    pub fn from_doc(doc: &Doc) -> &Array {
-        // SAFETY: Array layout matches Doc layout
-        unsafe { &*(doc as *const Doc as *const Array) }
-    }
-
-    pub fn get(&self, index: usize) -> OptResult<elem::Element<'_>> {
+    /// Gets a reference to the value at the given index.
+    pub fn get(&self, index: usize) -> RawResult<Option<RawBson<'_>>> {
         self.into_iter().nth(index).transpose()
     }
 
     fn get_with<'a, T>(
         &'a self,
         index: usize,
-        f: impl FnOnce(elem::Element<'a>) -> RawResult<T>,
-    ) -> OptResult<T> {
+        f: impl FnOnce(elem::RawBson<'a>) -> RawResult<T>,
+    ) -> RawResult<Option<T>> {
         self.get(index)?.map(f).transpose()
     }
 
-    pub fn get_f64(&self, index: usize) -> OptResult<f64> {
-        self.get_with(index, elem::Element::as_f64)
+    /// Gets the BSON double at the given index or returns an error if the value at that index isn't
+    /// a double.
+    pub fn get_f64(&self, index: usize) -> RawResult<Option<f64>> {
+        self.get_with(index, elem::RawBson::as_f64)
     }
 
-    pub fn get_str(&self, index: usize) -> OptResult<&str> {
-        self.get_with(index, elem::Element::as_str)
+    /// Gets a reference to the string at the given index or returns an error if the
+    /// value at that index isn't a string.
+    pub fn get_str(&self, index: usize) -> RawResult<Option<&str>> {
+        self.get_with(index, elem::RawBson::as_str)
     }
 
-    pub fn get_document(&self, index: usize) -> OptResult<&Doc> {
-        self.get_with(index, elem::Element::as_document)
+    /// Gets a reference to the document at the given index or returns an error if the
+    /// value at that index isn't a document.
+    pub fn get_document(&self, index: usize) -> RawResult<Option<&RawDocumentRef>> {
+        self.get_with(index, elem::RawBson::as_document)
     }
 
-    pub fn get_array(&self, index: usize) -> OptResult<&Array> {
-        self.get_with(index, elem::Element::as_array)
+    /// Gets a reference to the array at the given index or returns an error if the
+    /// value at that index isn't a array.
+    pub fn get_array(&self, index: usize) -> RawResult<Option<&RawArray>> {
+        self.get_with(index, elem::RawBson::as_array)
     }
 
-    pub fn get_binary(&self, index: usize) -> OptResult<elem::RawBsonBinary<'_>> {
-        self.get_with(index, elem::Element::as_binary)
+    /// Gets a reference to the BSON binary value at the given index or returns an error if the
+    /// value at that index isn't a binary.
+    pub fn get_binary(&self, index: usize) -> RawResult<Option<RawBinary<'_>>> {
+        self.get_with(index, elem::RawBson::as_binary)
     }
 
-    pub fn get_object_id(&self, index: usize) -> OptResult<oid::ObjectId> {
-        self.get_with(index, elem::Element::as_object_id)
+    /// Gets the ObjectId at the given index or returns an error if the value at that index isn't an
+    /// ObjectId.
+    pub fn get_object_id(&self, index: usize) -> RawResult<Option<ObjectId>> {
+        self.get_with(index, elem::RawBson::as_object_id)
     }
 
-    pub fn get_bool(&self, index: usize) -> OptResult<bool> {
-        self.get_with(index, elem::Element::as_bool)
+    /// Gets the boolean at the given index or returns an error if the value at that index isn't a
+    /// boolean.
+    pub fn get_bool(&self, index: usize) -> RawResult<Option<bool>> {
+        self.get_with(index, elem::RawBson::as_bool)
     }
 
-    pub fn get_datetime(&self, index: usize) -> OptResult<DateTime<Utc>> {
-        self.get_with(index, elem::Element::as_datetime)
+    /// Gets the DateTime at the given index or returns an error if the value at that index isn't a
+    /// DateTime.
+    pub fn get_datetime(&self, index: usize) -> RawResult<Option<DateTime<Utc>>> {
+        self.get_with(index, elem::RawBson::as_datetime)
     }
 
-    pub fn get_null(&self, index: usize) -> OptResult<()> {
-        self.get_with(index, elem::Element::as_null)
+    /// Gets a reference to the BSON regex at the given index or returns an error if the
+    /// value at that index isn't a regex.
+    pub fn get_regex(&self, index: usize) -> RawResult<Option<RawRegex<'_>>> {
+        self.get_with(index, elem::RawBson::as_regex)
     }
 
-    pub fn get_regex(&self, index: usize) -> OptResult<elem::RawBsonRegex<'_>> {
-        self.get_with(index, elem::Element::as_regex)
+    /// Gets a reference to the BSON timestamp at the given index or returns an error if the
+    /// value at that index isn't a timestamp.
+    pub fn get_timestamp(&self, index: usize) -> RawResult<Option<RawTimestamp<'_>>> {
+        self.get_with(index, elem::RawBson::as_timestamp)
     }
 
-    pub fn get_javascript(&self, index: usize) -> OptResult<&str> {
-        self.get_with(index, elem::Element::as_javascript)
+    /// Gets the BSON int32 at the given index or returns an error if the value at that index isn't
+    /// a 32-bit integer.
+    pub fn get_i32(&self, index: usize) -> RawResult<Option<i32>> {
+        self.get_with(index, elem::RawBson::as_i32)
     }
 
-    pub fn get_symbol(&self, index: usize) -> OptResult<&str> {
-        self.get_with(index, elem::Element::as_symbol)
+    /// Gets BSON int64 at the given index or returns an error if the value at that index isn't a
+    /// 64-bit integer.
+    pub fn get_i64(&self, index: usize) -> RawResult<Option<i64>> {
+        self.get_with(index, elem::RawBson::as_i64)
     }
 
-    pub fn get_javascript_with_scope(&self, index: usize) -> OptResult<(&str, &Doc)> {
-        self.get_with(index, elem::Element::as_javascript_with_scope)
-    }
-
-    pub fn get_i32(&self, index: usize) -> OptResult<i32> {
-        self.get_with(index, elem::Element::as_i32)
-    }
-
-    pub fn get_timestamp(&self, index: usize) -> OptResult<elem::RawBsonTimestamp<'_>> {
-        self.get_with(index, elem::Element::as_timestamp)
-    }
-
-    pub fn get_i64(&self, index: usize) -> OptResult<i64> {
-        self.get_with(index, elem::Element::as_i64)
-    }
-
-    pub fn to_vec(&self) -> RawResult<Vec<elem::Element<'_>>> {
-        self.into_iter().collect()
-    }
-
+    /// Gets a reference to the raw bytes of the RawArray.
     pub fn as_bytes(&self) -> &[u8] {
         self.doc.as_bytes()
     }
 }
 
-impl TryFrom<&Array> for Vec<Bson> {
+impl TryFrom<&RawArray> for Vec<Bson> {
     type Error = RawError;
 
-    fn try_from(arr: &Array) -> RawResult<Vec<Bson>> {
+    fn try_from(arr: &RawArray) -> RawResult<Vec<Bson>> {
         arr.into_iter()
             .map(|result| {
                 let rawbson = result?;
@@ -1273,45 +1069,30 @@ impl TryFrom<&Array> for Vec<Bson> {
     }
 }
 
-impl<'a> IntoIterator for &'a Array {
-    type IntoIter = ArrayIter<'a>;
-    type Item = RawResult<elem::Element<'a>>;
+impl<'a> IntoIterator for &'a RawArray {
+    type IntoIter = RawArrayIter<'a>;
+    type Item = RawResult<elem::RawBson<'a>>;
 
-    fn into_iter(self) -> ArrayIter<'a> {
-        ArrayIter {
-            dociter: self.doc.into_iter(),
-            index: 0,
+    fn into_iter(self) -> RawArrayIter<'a> {
+        RawArrayIter {
+            inner: self.doc.into_iter(),
         }
     }
 }
 
-pub struct ArrayIter<'a> {
-    dociter: DocIter<'a>,
-    index: usize,
+pub struct RawArrayIter<'a> {
+    inner: RawDocumentIter<'a>,
 }
 
-impl<'a> Iterator for ArrayIter<'a> {
-    type Item = RawResult<elem::Element<'a>>;
+impl<'a> Iterator for RawArrayIter<'a> {
+    type Item = RawResult<elem::RawBson<'a>>;
 
-    fn next(&mut self) -> Option<RawResult<elem::Element<'a>>> {
-        let value = self.dociter.next().map(|result| {
-            let (key, bson) = match result {
-                Ok(value) => value,
-                Err(err) => return Err(err),
-            };
-
-            let index: usize = key
-                .parse()
-                .map_err(|_| RawError::MalformedValue("non-integer array index found".into()))?;
-
-            if index == self.index {
-                Ok(bson)
-            } else {
-                Err(RawError::MalformedValue("wrong array index found".into()))
-            }
-        });
-        self.index += 1;
-        value
+    fn next(&mut self) -> Option<RawResult<RawBson<'a>>> {
+        match self.inner.next() {
+            Some(Ok((_, v))) => Some(Ok(v)),
+            Some(Err(e)) => Some(Err(e)),
+            None => None,
+        }
     }
 }
 /// Given a 4 byte u8 slice, return an i32 calculated from the bytes in
@@ -1377,13 +1158,17 @@ fn try_to_str(data: &[u8]) -> RawResult<&str> {
     }
 }
 
-pub type DocRef<'a> = &'a Doc;
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        doc, spec::BinarySubtype, Binary, Bson, JavaScriptCodeWithScope, Regex, Timestamp,
+        doc,
+        spec::BinarySubtype,
+        Binary,
+        Bson,
+        JavaScriptCodeWithScope,
+        Regex,
+        Timestamp,
     };
     use chrono::TimeZone;
 
@@ -1400,7 +1185,7 @@ mod tests {
             "that": "second",
             "something": "else",
         });
-        let rawdoc = Doc::new(&docbytes).unwrap();
+        let rawdoc = RawDocumentRef::new(&docbytes).unwrap();
         assert_eq!(
             rawdoc.get("that").unwrap().unwrap().as_str().unwrap(),
             "second",
@@ -1414,7 +1199,7 @@ mod tests {
                 "inner": "surprise",
             },
         });
-        let rawdoc = Doc::new(&docbytes).unwrap();
+        let rawdoc = RawDocumentRef::new(&docbytes).unwrap();
         assert_eq!(
             rawdoc
                 .get("outer")
@@ -1438,7 +1223,7 @@ mod tests {
             "peanut butter": "chocolate",
             "easy as": {"do": 1, "re": 2, "mi": 3},
         });
-        let rawdoc = Doc::new(&docbytes).expect("malformed bson document");
+        let rawdoc = RawDocumentRef::new(&docbytes).expect("malformed bson document");
         let mut dociter = rawdoc.into_iter();
         let next = dociter.next().expect("no result").expect("invalid bson");
         assert_eq!(next.0, "apples");
@@ -1461,7 +1246,7 @@ mod tests {
             "document": {},
             "array": ["binary", "serialized", "object", "notation"],
             "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1, 2, 3] },
-            "object_id": oid::ObjectId::with_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
+            "object_id": ObjectId::with_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
             "boolean": true,
             "datetime": Utc::now(),
             "null": Bson::Null,
@@ -1475,7 +1260,7 @@ mod tests {
             "end": "END",
         });
 
-        let rawdoc = Doc::new(&docbytes).expect("invalid document");
+        let rawdoc = RawDocumentRef::new(&docbytes).expect("invalid document");
         let _doc: crate::Document = rawdoc.try_into().expect("invalid bson");
     }
 
@@ -1483,7 +1268,7 @@ mod tests {
     fn f64() {
         #![allow(clippy::float_cmp)]
 
-        let rawdoc = DocBuf::from_document(&doc! {"f64": 2.5});
+        let rawdoc = RawDocument::from_document(&doc! {"f64": 2.5});
         assert_eq!(
             rawdoc
                 .get("f64")
@@ -1497,7 +1282,7 @@ mod tests {
 
     #[test]
     fn string() {
-        let rawdoc = DocBuf::from_document(&doc! {"string": "hello"});
+        let rawdoc = RawDocument::from_document(&doc! {"string": "hello"});
 
         assert_eq!(
             rawdoc
@@ -1511,7 +1296,7 @@ mod tests {
     }
     #[test]
     fn document() {
-        let rawdoc = DocBuf::from_document(&doc! {"document": {}});
+        let rawdoc = RawDocument::from_document(&doc! {"document": {}});
 
         let doc = rawdoc
             .get("document")
@@ -1524,8 +1309,9 @@ mod tests {
 
     #[test]
     fn array() {
-        let rawdoc =
-            DocBuf::from_document(&doc! { "array": ["binary", "serialized", "object", "notation"]});
+        let rawdoc = RawDocument::from_document(
+            &doc! { "array": ["binary", "serialized", "object", "notation"]},
+        );
 
         let array = rawdoc
             .get("array")
@@ -1540,10 +1326,10 @@ mod tests {
 
     #[test]
     fn binary() {
-        let rawdoc = DocBuf::from_document(&doc! {
+        let rawdoc = RawDocument::from_document(&doc! {
             "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] }
         });
-        let binary: elem::RawBsonBinary<'_> = rawdoc
+        let binary: elem::RawBinary<'_> = rawdoc
             .get("binary")
             .expect("error finding key binary")
             .expect("no key binary")
@@ -1555,8 +1341,8 @@ mod tests {
 
     #[test]
     fn object_id() {
-        let rawdoc = DocBuf::from_document(&doc! {
-            "object_id": oid::ObjectId::with_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+        let rawdoc = RawDocument::from_document(&doc! {
+            "object_id": ObjectId::with_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
         });
         let oid = rawdoc
             .get("object_id")
@@ -1569,7 +1355,7 @@ mod tests {
 
     #[test]
     fn boolean() {
-        let rawdoc = DocBuf::from_document(&doc! {
+        let rawdoc = RawDocument::from_document(&doc! {
             "boolean": true,
         });
 
@@ -1585,7 +1371,7 @@ mod tests {
 
     #[test]
     fn datetime() {
-        let rawdoc = DocBuf::from_document(&doc! {
+        let rawdoc = RawDocument::from_document(&doc! {
             "boolean": true,
             "datetime": Utc.ymd(2000,10,31).and_hms(12, 30, 45),
         });
@@ -1600,7 +1386,7 @@ mod tests {
 
     #[test]
     fn null() {
-        let rawdoc = DocBuf::from_document(&doc! {
+        let rawdoc = RawDocument::from_document(&doc! {
             "null": null,
         });
         let () = rawdoc
@@ -1613,7 +1399,7 @@ mod tests {
 
     #[test]
     fn regex() {
-        let rawdoc = DocBuf::from_document(&doc! {
+        let rawdoc = RawDocument::from_document(&doc! {
             "regex": Bson::RegularExpression(Regex { pattern: String::from(r"end\s*$"), options: String::from("i")}),
         });
         let regex = rawdoc
@@ -1627,7 +1413,7 @@ mod tests {
     }
     #[test]
     fn javascript() {
-        let rawdoc = DocBuf::from_document(&doc! {
+        let rawdoc = RawDocument::from_document(&doc! {
             "javascript": Bson::JavaScriptCode(String::from("console.log(console);")),
         });
         let js = rawdoc
@@ -1641,7 +1427,7 @@ mod tests {
 
     #[test]
     fn symbol() {
-        let rawdoc = DocBuf::from_document(&doc! {
+        let rawdoc = RawDocument::from_document(&doc! {
             "symbol": Bson::Symbol(String::from("artist-formerly-known-as")),
         });
 
@@ -1656,7 +1442,7 @@ mod tests {
 
     #[test]
     fn javascript_with_scope() {
-        let rawdoc = DocBuf::from_document(&doc! {
+        let rawdoc = RawDocument::from_document(&doc! {
             "javascript_with_scope": Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope{ code: String::from("console.log(msg);"), scope: doc!{"ok": true}}),
         });
         let (js, scopedoc) = rawdoc
@@ -1678,7 +1464,7 @@ mod tests {
 
     #[test]
     fn int32() {
-        let rawdoc = DocBuf::from_document(&doc! {
+        let rawdoc = RawDocument::from_document(&doc! {
             "int32": 23i32,
         });
         let int32 = rawdoc
@@ -1692,7 +1478,7 @@ mod tests {
 
     #[test]
     fn timestamp() {
-        let rawdoc = DocBuf::from_document(&doc! {
+        let rawdoc = RawDocument::from_document(&doc! {
             "timestamp": Bson::Timestamp(Timestamp { time: 3542578, increment: 7 }),
         });
         let ts = rawdoc
@@ -1708,7 +1494,7 @@ mod tests {
 
     #[test]
     fn int64() {
-        let rawdoc = DocBuf::from_document(&doc! {
+        let rawdoc = RawDocument::from_document(&doc! {
             "int64": 46i64,
         });
         let int64 = rawdoc
@@ -1727,7 +1513,7 @@ mod tests {
             "document": {},
             "array": ["binary", "serialized", "object", "notation"],
             "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
-            "object_id": oid::ObjectId::with_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
+            "object_id": ObjectId::with_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
             "boolean": true,
             "datetime": Utc::now(),
             "null": Bson::Null,
@@ -1740,7 +1526,7 @@ mod tests {
             "int64": 46i64,
             "end": "END",
         });
-        let rawdoc = unsafe { Doc::new_unchecked(&docbytes) };
+        let rawdoc = unsafe { RawDocumentRef::new_unchecked(&docbytes) };
 
         assert_eq!(
             rawdoc
@@ -1766,11 +1552,11 @@ mod tests {
             "string": "hello",
             "document": {},
             "array": ["binary", "serialized", "object", "notation"],
-            "object_id": oid::ObjectId::with_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+            "object_id": ObjectId::with_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
             "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
             "boolean": false,
         });
-        let rawbson = elem::Element::new(ElementType::EmbeddedDocument, &docbytes);
+        let rawbson = elem::RawBson::new(ElementType::EmbeddedDocument, &docbytes);
         let b: Bson = rawbson.try_into().expect("invalid bson");
         let doc = b.as_document().expect("not a document");
         assert_eq!(*doc.get("f64").expect("f64 not found"), Bson::Double(2.5));
@@ -1793,7 +1579,7 @@ mod tests {
         );
         assert_eq!(
             *doc.get("object_id").expect("object_id not found"),
-            Bson::ObjectId(oid::ObjectId::with_bytes([
+            Bson::ObjectId(ObjectId::with_bytes([
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
             ]))
         );
@@ -1816,8 +1602,7 @@ mod proptests {
     use proptest::prelude::*;
     use std::convert::TryInto;
 
-    use super::props::arbitrary_bson;
-    use super::DocBuf;
+    use super::{props::arbitrary_bson, RawDocument};
     use crate::doc;
 
     fn to_bytes(doc: &crate::Document) -> Vec<u8> {
@@ -1829,7 +1614,7 @@ mod proptests {
     proptest! {
         #[test]
         fn no_crashes(s: Vec<u8>) {
-            let _ = DocBuf::new(s);
+            let _ = RawDocument::new(s);
         }
 
         #[test]
@@ -1837,7 +1622,7 @@ mod proptests {
             println!("{:?}", bson);
             let doc = doc!{"bson": bson};
             let raw = to_bytes(&doc);
-            let raw = DocBuf::new(raw);
+            let raw = RawDocument::new(raw);
             prop_assert!(raw.is_ok());
             let raw = raw.unwrap();
             let roundtrip: Result<crate::Document, _> = raw.try_into();
