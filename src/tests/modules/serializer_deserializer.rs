@@ -65,6 +65,21 @@ fn test_serialize_deserialize_utf8_string() {
 }
 
 #[test]
+fn test_encode_decode_utf8_string_invalid() {
+    let bytes = b"\x80\xae".to_vec();
+    let src = unsafe { String::from_utf8_unchecked(bytes) };
+
+    let doc = doc! { "key": src };
+
+    let mut buf = Vec::new();
+    doc.to_writer(&mut buf).unwrap();
+
+    let expected = doc! { "key": "��" };
+    let decoded = Document::from_reader_utf8_lossy(&mut Cursor::new(buf)).unwrap();
+    assert_eq!(decoded, expected);
+}
+
+#[test]
 fn test_serialize_deserialize_array() {
     let _guard = LOCK.run_concurrently();
     let src = vec![Bson::Double(1.01), Bson::String("xyz".to_owned())];
