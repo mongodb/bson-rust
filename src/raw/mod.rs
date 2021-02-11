@@ -117,7 +117,7 @@ use chrono::{DateTime, Utc};
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{oid::ObjectId, spec::ElementType, Bson, Document};
-pub use elem::{RawBinary, RawBson, RawRegex, RawTimestamp};
+pub use elem::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex, RawTimestamp};
 
 /// An error that occurs when attempting to parse raw BSON bytes.
 #[derive(Debug, PartialEq)]

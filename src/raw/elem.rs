@@ -407,3 +407,22 @@ impl<'a> RawTimestamp<'a> {
         u32_from_slice(&self.data[0..4])
     }
 }
+
+/// A BSON "code with scope" value referencing raw bytes stored elsewhere.
+#[derive(Clone, Copy, Debug)]
+pub struct RawJavaScriptCodeWithScope<'a> {
+    code: &'a str,
+    scope: &'a RawDocumentRef,
+}
+
+impl<'a> RawJavaScriptCodeWithScope<'a> {
+    /// Gets the code in the value.
+    pub fn code(self) -> &'a str {
+        self.code
+    }
+
+    /// Gets the scope in the value.
+    pub fn scope(self) -> &'a RawDocumentRef {
+        self.scope
+    }
+}
