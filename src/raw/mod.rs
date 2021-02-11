@@ -126,9 +126,9 @@ pub enum RawError {
     UnexpectedType,
 
     /// A BSON value did not fit the proper format.
-    MalformedValue(String),
+    MalformedValue { message: String },
 
-    /// Improper UTF-8 bytes were found when proper UTF-7 was expected. The error value contains
+    /// Improper UTF-8 bytes were found when proper UTF-8 was expected. The error value contains
     /// the malformed data as bytes.
     Utf8EncodingError(Vec<u8>),
 }
@@ -137,7 +137,7 @@ impl std::fmt::Display for RawError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::UnexpectedType => write!(f, "unexpected type"),
-            Self::MalformedValue(s) => write!(f, "malformed value: {:?}", s),
+            Self::MalformedValue { message } => write!(f, "malformed value: {:?}", message),
             Self::Utf8EncodingError(_) => write!(f, "utf-8 encoding error"),
         }
     }
@@ -205,19 +205,23 @@ impl RawDocument {
     /// ```
     pub fn new(data: Vec<u8>) -> RawResult<RawDocument> {
         if data.len() < 5 {
-            return Err(RawError::MalformedValue("document too short".into()));
+            return Err(RawError::MalformedValue {
+                message: "document too short".into(),
+            });
         }
 
         let length = i32_from_slice(&data[..4]);
 
         if data.len() as i32 != length {
-            return Err(RawError::MalformedValue("document length incorrect".into()));
+            return Err(RawError::MalformedValue {
+                message: "document length incorrect".into(),
+            });
         }
 
         if data[data.len() - 1] != 0 {
-            return Err(RawError::MalformedValue(
-                "document not null-terminated".into(),
-            ));
+            return Err(RawError::MalformedValue {
+                message: "document not null-terminated".into(),
+            });
         }
 
         Ok(Self {
@@ -389,19 +393,23 @@ impl RawDocumentRef {
         let data = data.as_ref();
 
         if data.len() < 5 {
-            return Err(RawError::MalformedValue("document too short".into()));
+            return Err(RawError::MalformedValue {
+                message: "document too short".into(),
+            });
         }
 
         let length = i32_from_slice(&data[..4]);
 
         if data.len() as i32 != length {
-            return Err(RawError::MalformedValue("document length incorrect".into()));
+            return Err(RawError::MalformedValue {
+                message: "document length incorrect".into(),
+            });
         }
 
         if data[data.len() - 1] != 0 {
-            return Err(RawError::MalformedValue(
-                "document not null-terminated".into(),
-            ));
+            return Err(RawError::MalformedValue {
+                message: "document not null-terminated".into(),
+            });
         }
 
         Ok(RawDocumentRef::new_unchecked(data))
@@ -803,9 +811,9 @@ impl<'a> Iterator for RawDocumentIter<'a> {
                 // end of document marker
                 return None;
             } else {
-                return Some(Err(RawError::MalformedValue(
-                    "document not null terminated".into(),
-                )));
+                return Some(Err(RawError::MalformedValue {
+                    message: "document not null terminated".into(),
+                }));
             }
         }
 
@@ -819,10 +827,9 @@ impl<'a> Iterator for RawDocumentIter<'a> {
         let element_type = match ElementType::from(self.doc.data[self.offset]) {
             Some(et) => et,
             None => {
-                return Some(Err(RawError::MalformedValue(format!(
-                    "invalid tag: {}",
-                    self.doc.data[self.offset]
-                ))))
+                return Some(Err(RawError::MalformedValue {
+                    message: format!("invalid tag: {}", self.doc.data[self.offset]),
+                }))
             }
         };
 
@@ -833,9 +840,9 @@ impl<'a> Iterator for RawDocumentIter<'a> {
                     4 + i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
 
                 if self.doc.data[valueoffset + size - 1] != 0 {
-                    return Some(Err(RawError::MalformedValue(
-                        "string not null terminated".into(),
-                    )));
+                    return Some(Err(RawError::MalformedValue {
+                        message: "string not null terminated".into(),
+                    }));
                 }
 
                 size
@@ -844,9 +851,9 @@ impl<'a> Iterator for RawDocumentIter<'a> {
                 let size = i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
 
                 if self.doc.data[valueoffset + size - 1] != 0 {
-                    return Some(Err(RawError::MalformedValue(
-                        "document not null terminated".into(),
-                    )));
+                    return Some(Err(RawError::MalformedValue {
+                        message: "document not null terminated".into(),
+                    }));
                 }
 
                 size
@@ -855,9 +862,9 @@ impl<'a> Iterator for RawDocumentIter<'a> {
                 let size = i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
 
                 if self.doc.data[valueoffset + size - 1] != 0 {
-                    return Some(Err(RawError::MalformedValue(
-                        "array not null terminated".into(),
-                    )));
+                    return Some(Err(RawError::MalformedValue {
+                        message: "array not null terminated".into(),
+                    }));
                 }
 
                 size
@@ -891,9 +898,9 @@ impl<'a> Iterator for RawDocumentIter<'a> {
                 let id_size = 12;
 
                 if self.doc.data[valueoffset + string_size - 1] != 0 {
-                    return Some(Err(RawError::MalformedValue(
-                        "DBPointer string not null-terminated".into(),
-                    )));
+                    return Some(Err(RawError::MalformedValue {
+                        message: "DBPointer string not null-terminated".into(),
+                    }));
                 }
 
                 string_size + id_size
@@ -903,9 +910,9 @@ impl<'a> Iterator for RawDocumentIter<'a> {
                     4 + i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
 
                 if self.doc.data[valueoffset + size - 1] != 0 {
-                    return Some(Err(RawError::MalformedValue(
-                        "javascript code not null-terminated".into(),
-                    )));
+                    return Some(Err(RawError::MalformedValue {
+                        message: "javascript code not null-terminated".into(),
+                    }));
                 }
 
                 size
@@ -917,9 +924,9 @@ impl<'a> Iterator for RawDocumentIter<'a> {
                 let size = i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
 
                 if self.doc.data[valueoffset + size - 1] != 0 {
-                    return Some(Err(RawError::MalformedValue(
-                        "javascript with scope not null-terminated".into(),
-                    )));
+                    return Some(Err(RawError::MalformedValue {
+                        message: "javascript with scope not null-terminated".into(),
+                    }));
                 }
 
                 size
@@ -1135,13 +1142,15 @@ fn d128_from_slice(val: &[u8]) -> Decimal128 {
 
 fn read_nullterminated(buf: &[u8]) -> RawResult<&str> {
     let mut splits = buf.splitn(2, |x| *x == 0);
-    let value = splits
-        .next()
-        .ok_or_else(|| RawError::MalformedValue("no value".into()))?;
+    let value = splits.next().ok_or_else(|| RawError::MalformedValue {
+        message: "no value".into(),
+    })?;
     if splits.next().is_some() {
         Ok(try_to_str(value)?)
     } else {
-        Err(RawError::MalformedValue("expected null terminator".into()))
+        Err(RawError::MalformedValue {
+            message: "expected null terminator".into(),
+        })
     }
 }
 

@@ -50,9 +50,9 @@ impl<'a> RawBson<'a> {
     pub fn as_f64(self) -> RawResult<f64> {
         if let ElementType::Double = self.element_type {
             Ok(f64::from_bits(u64::from_le_bytes(
-                self.data
-                    .try_into()
-                    .map_err(|_| RawError::MalformedValue("f64 should be 8 bytes long".into()))?,
+                self.data.try_into().map_err(|_| RawError::MalformedValue {
+                    message: "f64 should be 8 bytes long".into(),
+                })?,
             )))
         } else {
             Err(RawError::UnexpectedType)
@@ -92,22 +92,22 @@ impl<'a> RawBson<'a> {
             let length = i32_from_slice(&self.data[0..4]);
             let subtype = BinarySubtype::from(self.data[4]); // TODO: This mishandles reserved values
             if self.data.len() as i32 != length + 5 {
-                return Err(RawError::MalformedValue(
-                    "binary bson has wrong declared length".into(),
-                ));
+                return Err(RawError::MalformedValue {
+                    message: "binary bson has wrong declared length".into(),
+                });
             }
             let data = match subtype {
                 BinarySubtype::BinaryOld => {
                     if length < 4 {
-                        return Err(RawError::MalformedValue(
-                            "old binary subtype has no inner declared length".into(),
-                        ));
+                        return Err(RawError::MalformedValue {
+                            message: "old binary subtype has no inner declared length".into(),
+                        });
                     }
                     let oldlength = i32_from_slice(&self.data[5..9]);
                     if oldlength + 4 != length {
-                        return Err(RawError::MalformedValue(
-                            "old binary subtype has wrong inner declared length".into(),
-                        ));
+                        return Err(RawError::MalformedValue {
+                            message: "old binary subtype has wrong inner declared length".into(),
+                        });
                     }
                     &self.data[9..]
                 }
@@ -123,7 +123,9 @@ impl<'a> RawBson<'a> {
     pub fn as_object_id(self) -> RawResult<ObjectId> {
         if let ElementType::ObjectId = self.element_type {
             Ok(ObjectId::with_bytes(self.data.try_into().map_err(
-                |_| RawError::MalformedValue("object id should be 12 bytes long".into()),
+                |_| RawError::MalformedValue {
+                    message: "object id should be 12 bytes long".into(),
+                },
             )?))
         } else {
             Err(RawError::UnexpectedType)
@@ -134,14 +136,16 @@ impl<'a> RawBson<'a> {
     pub fn as_bool(self) -> RawResult<bool> {
         if let ElementType::Boolean = self.element_type {
             if self.data.len() != 1 {
-                Err(RawError::MalformedValue("boolean has length != 1".into()))
+                Err(RawError::MalformedValue {
+                    message: "boolean has length != 1".into(),
+                })
             } else {
                 match self.data[0] {
                     0 => Ok(false),
                     1 => Ok(true),
-                    _ => Err(RawError::MalformedValue(
-                        "boolean value was not 0 or 1".into(),
-                    )),
+                    _ => Err(RawError::MalformedValue {
+                        message: "boolean value was not 0 or 1".into(),
+                    }),
                 }
             }
         } else {
@@ -371,9 +375,9 @@ impl<'a> RawRegex<'a> {
                 options: opts,
             })
         } else {
-            Err(RawError::MalformedValue(
-                "expected two null-terminated strings".into(),
-            ))
+            Err(RawError::MalformedValue {
+                message: "expected two null-terminated strings".into(),
+            })
         }
     }
 
