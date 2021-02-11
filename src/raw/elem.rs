@@ -362,7 +362,7 @@ pub struct RawRegex<'a> {
 }
 
 impl<'a> RawRegex<'a> {
-    pub fn new(data: &'a [u8]) -> RawResult<RawRegex<'a>> {
+    pub(super) fn new(data: &'a [u8]) -> RawResult<RawRegex<'a>> {
         let pattern = read_nullterminated(data)?;
         let opts = read_nullterminated(&data[pattern.len() + 1..])?;
         if pattern.len() + opts.len() == data.len() - 2 {
@@ -377,10 +377,12 @@ impl<'a> RawRegex<'a> {
         }
     }
 
+    /// Gets the pattern portion of the regex.
     pub fn pattern(self) -> &'a str {
         self.pattern
     }
 
+    /// Gets the options portion of the regex.
     pub fn options(self) -> &'a str {
         self.options
     }
