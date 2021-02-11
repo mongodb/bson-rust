@@ -395,14 +395,14 @@ pub struct RawTimestamp<'a> {
 }
 
 impl<'a> RawTimestamp<'a> {
-    /// Return the time portion of the timestamp.
+    /// Gets the time portion of the timestamp.
     pub fn time(&self) -> u32 {
         // RawBsonTimestamp can only be constructed with the correct data length, so this should
         // always succeed.
         u32_from_slice(&self.data[4..8])
     }
 
-    /// Return the increment portion of the timestamp.
+    /// Gets the increment portion of the timestamp.
     pub fn increment(&self) -> u32 {
         // RawBsonTimestamp can only be constructed with the correct data length, so this should
         // always succeed.
