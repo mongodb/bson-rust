@@ -108,15 +108,15 @@ struct RegexBody {
 }
 
 impl Regex {
-    pub(crate) fn parse(self) -> extjson::de::Result<crate::Regex> {
+    pub(crate) fn parse(self) -> crate::Regex {
         let mut chars: Vec<_> = self.body.options.chars().collect();
         chars.sort_unstable();
         let options: String = chars.into_iter().collect();
 
-        Ok(crate::Regex {
+        crate::Regex {
             pattern: self.body.pattern,
             options,
-        })
+        }
     }
 }
 
@@ -214,11 +214,11 @@ pub(crate) struct TimestampBody {
 }
 
 impl Timestamp {
-    pub(crate) fn parse(self) -> extjson::de::Result<crate::Timestamp> {
-        Ok(crate::Timestamp {
+    pub(crate) fn parse(self) -> crate::Timestamp {
+        crate::Timestamp {
             time: self.body.t,
             increment: self.body.i,
-        })
+        }
     }
 }
 
