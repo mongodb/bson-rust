@@ -524,8 +524,7 @@ impl Document {
         Ok(())
     }
 
-    /// Attempts to deserialize a `Document` from a byte stream.
-    pub fn from_reader<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
+    fn decode<R: Read + ?Sized>(reader: &mut R, utf_lossy: bool) -> crate::de::Result<Document> {
         let mut doc = Document::new();
 
         let length = read_i32(reader)?;
@@ -550,7 +549,7 @@ impl Document {
                         break;
                     }
 
-                    let (key, val) = deserialize_bson_kvp(cursor, tag, false)?;
+                    let (key, val) = deserialize_bson_kvp(cursor, tag, utf_lossy)?;
                     doc.insert(key, val);
                 }
                 Ok(())
@@ -558,6 +557,21 @@ impl Document {
         )?;
 
         Ok(doc)
+    }
+
+    /// Attempts to deserialize a `Document` from a byte stream.
+    pub fn from_reader<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
+        Self::decode(reader, false)
+    }
+
+    /// Attempt to deserialize a `Document` that may contain invalid UTF-8 strings from a byte
+    /// stream.
+    ///
+    /// This is mainly useful when reading raw BSON returned from a MongoDB server, which
+    /// in rare cases can contain invalidly truncated strings (https://jira.mongodb.org/browse/SERVER-24007).
+    /// For most use cases, `Document::from_reader` can be used instead.
+    pub fn from_reader_utf8_lossy<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
+        Self::decode(reader, true)
     }
 }
 
