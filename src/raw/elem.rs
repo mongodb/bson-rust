@@ -13,9 +13,9 @@ use super::{
     read_lenencoded,
     read_nullterminated,
     u32_from_slice,
+    Error,
     RawArray,
     RawDocumentRef,
-    RawError,
     RawResult,
 };
 use crate::{
@@ -50,12 +50,12 @@ impl<'a> RawBson<'a> {
     pub fn as_f64(self) -> RawResult<f64> {
         if let ElementType::Double = self.element_type {
             Ok(f64::from_bits(u64::from_le_bytes(
-                self.data.try_into().map_err(|_| RawError::MalformedValue {
+                self.data.try_into().map_err(|_| Error::MalformedValue {
                     message: "f64 should be 8 bytes long".into(),
                 })?,
             )))
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -64,7 +64,7 @@ impl<'a> RawBson<'a> {
         if let ElementType::String = self.element_type {
             read_lenencoded(self.data)
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -73,7 +73,7 @@ impl<'a> RawBson<'a> {
         if let ElementType::EmbeddedDocument = self.element_type {
             RawDocumentRef::new(self.data)
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -82,7 +82,7 @@ impl<'a> RawBson<'a> {
         if let ElementType::Array = self.element_type {
             RawArray::new(self.data)
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -92,20 +92,20 @@ impl<'a> RawBson<'a> {
             let length = i32_from_slice(&self.data[0..4]);
             let subtype = BinarySubtype::from(self.data[4]); // TODO: This mishandles reserved values
             if self.data.len() as i32 != length + 5 {
-                return Err(RawError::MalformedValue {
+                return Err(Error::MalformedValue {
                     message: "binary bson has wrong declared length".into(),
                 });
             }
             let data = match subtype {
                 BinarySubtype::BinaryOld => {
                     if length < 4 {
-                        return Err(RawError::MalformedValue {
+                        return Err(Error::MalformedValue {
                             message: "old binary subtype has no inner declared length".into(),
                         });
                     }
                     let oldlength = i32_from_slice(&self.data[5..9]);
                     if oldlength + 4 != length {
-                        return Err(RawError::MalformedValue {
+                        return Err(Error::MalformedValue {
                             message: "old binary subtype has wrong inner declared length".into(),
                         });
                     }
@@ -115,7 +115,7 @@ impl<'a> RawBson<'a> {
             };
             Ok(RawBinary::new(subtype, data))
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -123,12 +123,12 @@ impl<'a> RawBson<'a> {
     pub fn as_object_id(self) -> RawResult<ObjectId> {
         if let ElementType::ObjectId = self.element_type {
             Ok(ObjectId::with_bytes(self.data.try_into().map_err(
-                |_| RawError::MalformedValue {
+                |_| Error::MalformedValue {
                     message: "object id should be 12 bytes long".into(),
                 },
             )?))
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -136,20 +136,20 @@ impl<'a> RawBson<'a> {
     pub fn as_bool(self) -> RawResult<bool> {
         if let ElementType::Boolean = self.element_type {
             if self.data.len() != 1 {
-                Err(RawError::MalformedValue {
+                Err(Error::MalformedValue {
                     message: "boolean has length != 1".into(),
                 })
             } else {
                 match self.data[0] {
                     0 => Ok(false),
                     1 => Ok(true),
-                    _ => Err(RawError::MalformedValue {
+                    _ => Err(Error::MalformedValue {
                         message: "boolean value was not 0 or 1".into(),
                     }),
                 }
             }
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -175,7 +175,7 @@ impl<'a> RawBson<'a> {
                 Ok(Utc.timestamp(secs, nanos))
             }
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -184,7 +184,7 @@ impl<'a> RawBson<'a> {
         if let ElementType::RegularExpression = self.element_type {
             RawRegex::new(self.data)
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -194,7 +194,7 @@ impl<'a> RawBson<'a> {
         if let ElementType::JavaScriptCode = self.element_type {
             read_lenencoded(self.data)
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -203,7 +203,7 @@ impl<'a> RawBson<'a> {
         if let ElementType::Symbol = self.element_type {
             read_lenencoded(self.data)
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -219,7 +219,7 @@ impl<'a> RawBson<'a> {
 
             Ok(RawJavaScriptCodeWithScope { code, scope })
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -230,7 +230,7 @@ impl<'a> RawBson<'a> {
             assert_eq!(self.data.len(), 8);
             Ok(RawTimestamp { data: self.data })
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -240,7 +240,7 @@ impl<'a> RawBson<'a> {
             assert_eq!(self.data.len(), 4);
             Ok(i32_from_slice(self.data))
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -250,7 +250,7 @@ impl<'a> RawBson<'a> {
             assert_eq!(self.data.len(), 8);
             Ok(i64_from_slice(self.data))
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
         }
     }
 
@@ -267,7 +267,7 @@ impl<'a> RawBson<'a> {
 }
 
 impl<'a> TryFrom<RawBson<'a>> for Bson {
-    type Error = RawError;
+    type Error = Error;
 
     fn try_from(rawbson: RawBson<'a>) -> RawResult<Bson> {
         Ok(match rawbson.element_type {
@@ -329,7 +329,7 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
             ElementType::Decimal128 => Bson::Decimal128(rawbson.as_decimal128()?),
 
             #[cfg(not(feature = "decimal128"))]
-            ElementType::Decimal128 => return Err(RawError::UnexpectedType),
+            ElementType::Decimal128 => return Err(Error::UnexpectedType),
             ElementType::MaxKey => unimplemented!(),
             ElementType::MinKey => unimplemented!(),
         })
@@ -376,7 +376,7 @@ impl<'a> RawRegex<'a> {
                 options: opts,
             })
         } else {
-            Err(RawError::MalformedValue {
+            Err(Error::MalformedValue {
                 message: "expected two null-terminated strings".into(),
             })
         }
