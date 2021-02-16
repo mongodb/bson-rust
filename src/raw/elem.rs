@@ -209,15 +209,15 @@ impl<'a> RawBson<'a> {
 
     /// Gets the BSON JavaScript code with scope that's referenced or returns an error if the value
     /// isn't BSON JavaScript code with scope.
-    pub fn as_javascript_with_scope(self) -> RawResult<(&'a str, &'a RawDocumentRef)> {
+    pub fn as_javascript_with_scope(self) -> RawResult<RawJavaScriptCodeWithScope<'a>> {
         if let ElementType::JavaScriptCodeWithScope = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
             assert_eq!(self.data.len() as i32, length);
 
-            let js = read_lenencoded(&self.data[4..])?;
-            let doc = RawDocumentRef::new(&self.data[9 + js.len()..])?;
+            let code = read_lenencoded(&self.data[4..])?;
+            let scope = RawDocumentRef::new(&self.data[9 + code.len()..])?;
 
-            Ok((js, doc))
+            Ok(RawJavaScriptCodeWithScope { code, scope })
         } else {
             Err(RawError::UnexpectedType)
         }
@@ -318,9 +318,10 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
             ElementType::DbPointer => panic!("Uh oh. Maybe this should be a TryFrom"),
             ElementType::Symbol => Bson::Symbol(String::from(rawbson.as_symbol()?)),
             ElementType::JavaScriptCodeWithScope => {
-                let (js, scope) = rawbson.as_javascript_with_scope()?;
+                let RawJavaScriptCodeWithScope { code, scope } =
+                    rawbson.as_javascript_with_scope()?;
                 Bson::JavaScriptCodeWithScope(crate::JavaScriptCodeWithScope {
-                    code: String::from(js),
+                    code: String::from(code),
                     scope: scope.try_into()?,
                 })
             }
