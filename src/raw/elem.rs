@@ -16,7 +16,7 @@ use super::{
     Error,
     RawArray,
     RawDocumentRef,
-    RawResult,
+    Result,
 };
 use crate::{
     oid::ObjectId,
@@ -47,7 +47,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the f64 that's referenced or returns an error if the value isn't a BSON double.
-    pub fn as_f64(self) -> RawResult<f64> {
+    pub fn as_f64(self) -> Result<f64> {
         if let ElementType::Double = self.element_type {
             Ok(f64::from_bits(u64::from_le_bytes(
                 self.data.try_into().map_err(|_| Error::MalformedValue {
@@ -60,7 +60,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the string that's referenced or returns an error if the value isn't a BSON string.
-    pub fn as_str(self) -> RawResult<&'a str> {
+    pub fn as_str(self) -> Result<&'a str> {
         if let ElementType::String = self.element_type {
             read_lenencoded(self.data)
         } else {
@@ -69,7 +69,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the document that's referenced or returns an error if the value isn't a BSON document.
-    pub fn as_document(self) -> RawResult<&'a RawDocumentRef> {
+    pub fn as_document(self) -> Result<&'a RawDocumentRef> {
         if let ElementType::EmbeddedDocument = self.element_type {
             RawDocumentRef::new(self.data)
         } else {
@@ -78,7 +78,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the array that's referenced or returns an error if the value isn't a BSON array.
-    pub fn as_array(self) -> RawResult<&'a RawArray> {
+    pub fn as_array(self) -> Result<&'a RawArray> {
         if let ElementType::Array = self.element_type {
             RawArray::new(self.data)
         } else {
@@ -87,7 +87,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the BSON binary value that's referenced or returns an error if the value a BSON binary.
-    pub fn as_binary(self) -> RawResult<RawBinary<'a>> {
+    pub fn as_binary(self) -> Result<RawBinary<'a>> {
         if let ElementType::Binary = self.element_type {
             let length = i32_from_slice(&self.data[0..4]);
             let subtype = BinarySubtype::from(self.data[4]); // TODO: This mishandles reserved values
@@ -120,7 +120,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the ObjectId that's referenced or returns an error if the value isn't a BSON ObjectId.
-    pub fn as_object_id(self) -> RawResult<ObjectId> {
+    pub fn as_object_id(self) -> Result<ObjectId> {
         if let ElementType::ObjectId = self.element_type {
             Ok(ObjectId::with_bytes(self.data.try_into().map_err(
                 |_| Error::MalformedValue {
@@ -133,7 +133,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the boolean that's referenced or returns an error if the value isn't a BSON boolean.
-    pub fn as_bool(self) -> RawResult<bool> {
+    pub fn as_bool(self) -> Result<bool> {
         if let ElementType::Boolean = self.element_type {
             if self.data.len() != 1 {
                 Err(Error::MalformedValue {
@@ -154,7 +154,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the DateTime that's referenced or returns an error if the value isn't a BSON DateTime.
-    pub fn as_datetime(self) -> RawResult<DateTime<Utc>> {
+    pub fn as_datetime(self) -> Result<DateTime<Utc>> {
         if let ElementType::DateTime = self.element_type {
             let millis = i64_from_slice(self.data);
             if millis >= 0 {
@@ -180,7 +180,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the regex that's referenced or returns an error if the value isn't a BSON regex.
-    pub fn as_regex(self) -> RawResult<RawRegex<'a>> {
+    pub fn as_regex(self) -> Result<RawRegex<'a>> {
         if let ElementType::RegularExpression = self.element_type {
             RawRegex::new(self.data)
         } else {
@@ -190,7 +190,7 @@ impl<'a> RawBson<'a> {
 
     /// Gets the BSON JavaScript code that's referenced or returns an error if the value isn't BSON
     /// JavaScript code.
-    pub fn as_javascript(self) -> RawResult<&'a str> {
+    pub fn as_javascript(self) -> Result<&'a str> {
         if let ElementType::JavaScriptCode = self.element_type {
             read_lenencoded(self.data)
         } else {
@@ -199,7 +199,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the symbol that's referenced or returns an error if the value isn't a BSON symbol.
-    pub fn as_symbol(self) -> RawResult<&'a str> {
+    pub fn as_symbol(self) -> Result<&'a str> {
         if let ElementType::Symbol = self.element_type {
             read_lenencoded(self.data)
         } else {
@@ -209,7 +209,7 @@ impl<'a> RawBson<'a> {
 
     /// Gets the BSON JavaScript code with scope that's referenced or returns an error if the value
     /// isn't BSON JavaScript code with scope.
-    pub fn as_javascript_with_scope(self) -> RawResult<RawJavaScriptCodeWithScope<'a>> {
+    pub fn as_javascript_with_scope(self) -> Result<RawJavaScriptCodeWithScope<'a>> {
         if let ElementType::JavaScriptCodeWithScope = self.element_type {
             let length = i32_from_slice(&self.data[..4]);
             assert_eq!(self.data.len() as i32, length);
@@ -225,7 +225,7 @@ impl<'a> RawBson<'a> {
 
     /// Gets the timestamp that's referenced or returns an error if the value isn't a BSON
     /// timestamp.
-    pub fn as_timestamp(self) -> RawResult<RawTimestamp<'a>> {
+    pub fn as_timestamp(self) -> Result<RawTimestamp<'a>> {
         if let ElementType::Timestamp = self.element_type {
             assert_eq!(self.data.len(), 8);
             Ok(RawTimestamp { data: self.data })
@@ -235,7 +235,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the i32 that's referenced or returns an error if the value isn't a BSON int32.
-    pub fn as_i32(self) -> RawResult<i32> {
+    pub fn as_i32(self) -> Result<i32> {
         if let ElementType::Int32 = self.element_type {
             assert_eq!(self.data.len(), 4);
             Ok(i32_from_slice(self.data))
@@ -245,7 +245,7 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the i64 that's referenced or returns an error if the value isn't a BSON int64.
-    pub fn as_i64(self) -> RawResult<i64> {
+    pub fn as_i64(self) -> Result<i64> {
         if let ElementType::Int64 = self.element_type {
             assert_eq!(self.data.len(), 8);
             Ok(i64_from_slice(self.data))
@@ -256,7 +256,7 @@ impl<'a> RawBson<'a> {
 
     /// Gets the decimal that's referenced or returns an error if the value isn't a BSON Decimal128.
     #[cfg(feature = "decimal128")]
-    pub fn as_decimal128(self) -> RawResult<Decimal128> {
+    pub fn as_decimal128(self) -> Result<Decimal128> {
         if let ElementType::Decimal128 = self.element_type {
             assert_eq!(self.data.len(), 16);
             Ok(d128_from_slice(self.data))
@@ -269,7 +269,7 @@ impl<'a> RawBson<'a> {
 impl<'a> TryFrom<RawBson<'a>> for Bson {
     type Error = Error;
 
-    fn try_from(rawbson: RawBson<'a>) -> RawResult<Bson> {
+    fn try_from(rawbson: RawBson<'a>) -> Result<Bson> {
         Ok(match rawbson.element_type {
             ElementType::Double => Bson::Double(rawbson.as_f64()?),
             ElementType::String => Bson::String(String::from(rawbson.as_str()?)),
@@ -367,7 +367,7 @@ pub struct RawRegex<'a> {
 }
 
 impl<'a> RawRegex<'a> {
-    pub(super) fn new(data: &'a [u8]) -> RawResult<RawRegex<'a>> {
+    pub(super) fn new(data: &'a [u8]) -> Result<RawRegex<'a>> {
         let pattern = read_nullterminated(data)?;
         let opts = read_nullterminated(&data[pattern.len() + 1..])?;
         if pattern.len() + opts.len() == data.len() - 2 {

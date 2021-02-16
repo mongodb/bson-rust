@@ -111,6 +111,8 @@ mod props;
 #[cfg(test)]
 mod test;
 
+use std::convert::TryInto;
+
 pub use self::{
     array::{RawArray, RawArrayIter},
     doc::{RawDocument, RawDocumentIter, RawDocumentRef},
