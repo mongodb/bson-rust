@@ -182,7 +182,7 @@ fn int64() {
 fn oid() {
     let _guard = LOCK.run_concurrently();
     let oid = ObjectId::new();
-    let obj = Bson::ObjectId(oid.clone());
+    let obj = Bson::ObjectId(oid);
     let s: BTreeMap<String, String> = from_bson(obj.clone()).unwrap();
 
     let mut expected = BTreeMap::new();

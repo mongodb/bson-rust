@@ -729,7 +729,7 @@ impl Bson {
                         if let Ok(id) = db_pointer.get_object_id("$id") {
                             return Bson::DbPointer(DbPointer {
                                 namespace: ns.into(),
-                                id: id.clone(),
+                                id: *id,
                             });
                         }
                     }
