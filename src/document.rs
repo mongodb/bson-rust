@@ -413,7 +413,7 @@ impl Document {
         }
     }
 
-    /// Get a reference to an object id value for this key if it exists and has the correct type.
+    /// Get an object id value for this key if it exists and has the correct type.
     pub fn get_object_id(&self, key: &str) -> ValueAccessResult<ObjectId> {
         match self.get(key) {
             Some(&Bson::ObjectId(v)) => Ok(v),
