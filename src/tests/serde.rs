@@ -763,6 +763,20 @@ fn test_uuid_helpers() {
     }
     let a: A = from_document(doc).unwrap();
     assert_eq!(a.uuid, uuid);
+
+    let mut doc_with_old_uuid = Document::new();
+    doc_with_old_uuid.insert(
+        "uuid",
+        Bson::Binary(Binary {
+            subtype: BinarySubtype::UuidOld,
+            bytes: base64::decode("rEBMKkGzrvuQ7cNd0fLdpw==").unwrap(),
+        }),
+    );
+    let a: A = from_document(doc_with_old_uuid).unwrap();
+    assert_eq!(
+        a.uuid,
+        Uuid::parse_str("fbaeb341-2a4c-40ac-a7dd-f2d15dc3ed90").unwrap()
+    );
 }
 
 #[test]
