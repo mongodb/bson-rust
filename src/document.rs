@@ -413,10 +413,10 @@ impl Document {
         }
     }
 
-    /// Get a reference to an object id value for this key if it exists and has the correct type.
-    pub fn get_object_id(&self, key: &str) -> ValueAccessResult<&ObjectId> {
+    /// Get an object id value for this key if it exists and has the correct type.
+    pub fn get_object_id(&self, key: &str) -> ValueAccessResult<ObjectId> {
         match self.get(key) {
-            Some(&Bson::ObjectId(ref v)) => Ok(v),
+            Some(&Bson::ObjectId(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }

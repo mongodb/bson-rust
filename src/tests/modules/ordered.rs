@@ -146,9 +146,9 @@ fn test_getters() {
     assert_eq!(Ok(&datetime), doc.get_datetime("datetime"));
 
     let object_id = ObjectId::new();
-    doc.insert("_id".to_string(), Bson::ObjectId(object_id.clone()));
-    assert_eq!(Some(&Bson::ObjectId(object_id.clone())), doc.get("_id"));
-    assert_eq!(Ok(&object_id), doc.get_object_id("_id"));
+    doc.insert("_id".to_string(), Bson::ObjectId(object_id));
+    assert_eq!(Some(&Bson::ObjectId(object_id)), doc.get("_id"));
+    assert_eq!(Ok(object_id), doc.get_object_id("_id"));
 
     assert_eq!(
         Some(&Bson::Binary(Binary {
