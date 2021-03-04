@@ -17,11 +17,15 @@ use serde::de::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Binary, Bson, DateTime, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
+    bson::{
+        Binary, Bson, CSharpLegacyUuid, DateTime, DbPointer, JavaLegacyUuid,
+        JavaScriptCodeWithScope, PythonLegacyUuid, Regex, Timestamp,
+    },
     document::{Document, DocumentIntoIterator, DocumentVisitor},
     oid::ObjectId,
     spec::BinarySubtype,
 };
+use uuid::Uuid;
 
 pub struct BsonVisitor;
 
@@ -776,6 +780,77 @@ impl<'de> Deserialize<'de> for DbPointer {
         match Bson::deserialize(deserializer)? {
             Bson::DbPointer(db_pointer) => Ok(db_pointer),
             _ => Err(D::Error::custom("expecting DbPointer")),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for JavaLegacyUuid {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        match Bson::deserialize(deserializer)? {
+            Bson::Binary(Binary { subtype, bytes }) => {
+                if subtype != BinarySubtype::UuidOld {
+                    Err(D::Error::custom("expecting BinarySubtype::UuidOld"))
+                } else if bytes.len() != 16 {
+                    Err(D::Error::custom("expecting 16 bytes"))
+                } else {
+                    let mut buf = [0u8; 16];
+                    buf.copy_from_slice(&bytes);
+                    buf[0..8].reverse();
+                    buf[8..16].reverse();
+                    Ok(JavaLegacyUuid(Uuid::from_bytes(buf)))
+                }
+            }
+            _ => Err(D::Error::custom("expecting Binary")),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for PythonLegacyUuid {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        match Bson::deserialize(deserializer)? {
+            Bson::Binary(Binary { subtype, bytes }) => {
+                if subtype != BinarySubtype::UuidOld {
+                    Err(D::Error::custom("expecting BinarySubtype::UuidOld"))
+                } else if bytes.len() != 16 {
+                    Err(D::Error::custom("expecting 16 bytes"))
+                } else {
+                    let mut buf = [0u8; 16];
+                    buf.copy_from_slice(&bytes);
+                    Ok(PythonLegacyUuid(Uuid::from_bytes(buf)))
+                }
+            }
+            _ => Err(D::Error::custom("expecting Binary")),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for CSharpLegacyUuid {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        match Bson::deserialize(deserializer)? {
+            Bson::Binary(Binary { subtype, bytes }) => {
+                if subtype != BinarySubtype::UuidOld {
+                    Err(D::Error::custom("expecting BinarySubtype::UuidOld"))
+                } else if bytes.len() != 16 {
+                    Err(D::Error::custom("expecting 16 bytes"))
+                } else {
+                    let mut buf = [0u8; 16];
+                    buf.copy_from_slice(&bytes);
+                    buf[0..4].reverse();
+                    buf[4..6].reverse();
+                    buf[6..8].reverse();
+                    Ok(CSharpLegacyUuid(Uuid::from_bytes(buf)))
+                }
+            }
+            _ => Err(D::Error::custom("expecting Binary")),
         }
     }
 }

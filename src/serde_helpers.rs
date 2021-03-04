@@ -215,16 +215,10 @@ pub mod uuid_as_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        if binary.subtype == BinarySubtype::Uuid || binary.subtype == BinarySubtype::UuidOld {
+        if binary.subtype == BinarySubtype::Uuid {
             if binary.bytes.len() == 16 {
                 let mut bytes = [0u8; 16];
                 bytes.copy_from_slice(&binary.bytes);
-
-                if binary.subtype == BinarySubtype::UuidOld {
-                    bytes[0..8].reverse();
-                    bytes[8..16].reverse();
-                }
-
                 Ok(Uuid::from_bytes(bytes))
             } else {
                 Err(de::Error::custom(

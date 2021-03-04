@@ -577,6 +577,49 @@ fn test_de_db_pointer() {
 }
 
 #[test]
+fn test_serde_legacy_uuid() {
+    let _guard = LOCK.run_concurrently();
+    use bson::{CSharpLegacyUuid, JavaLegacyUuid, PythonLegacyUuid};
+
+    #[derive(Serialize, Deserialize)]
+    struct Foo {
+        java_uuid: JavaLegacyUuid,
+        python_uuid: PythonLegacyUuid,
+        csharp_uuid: CSharpLegacyUuid,
+    }
+    let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+    let foo = Foo {
+        java_uuid: JavaLegacyUuid(uuid.clone()),
+        python_uuid: PythonLegacyUuid(uuid.clone()),
+        csharp_uuid: CSharpLegacyUuid(uuid.clone()),
+    };
+
+    let x = to_bson(&foo).unwrap();
+    assert_eq!(
+        x.as_document().unwrap(),
+        &doc! {
+            "java_uuid": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("7766554433221100FFEEDDCCBBAA9988").unwrap(),
+            }),
+            "python_uuid": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("00112233445566778899AABBCCDDEEFF").unwrap(),
+            }),
+            "csharp_uuid": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("33221100554477668899AABBCCDDEEFF").unwrap(),
+            })
+        }
+    );
+
+    let foo: Foo = from_bson(x).unwrap();
+    assert_eq!(foo.java_uuid.0, uuid);
+    assert_eq!(foo.python_uuid.0, uuid);
+    assert_eq!(foo.csharp_uuid.0, uuid);
+}
+
+#[test]
 fn test_de_oid_string() {
     let _guard = LOCK.run_concurrently();
 
@@ -763,20 +806,6 @@ fn test_uuid_helpers() {
     }
     let a: A = from_document(doc).unwrap();
     assert_eq!(a.uuid, uuid);
-
-    let mut doc_with_old_uuid = Document::new();
-    doc_with_old_uuid.insert(
-        "uuid",
-        Bson::Binary(Binary {
-            subtype: BinarySubtype::UuidOld,
-            bytes: base64::decode("rEBMKkGzrvuQ7cNd0fLdpw==").unwrap(),
-        }),
-    );
-    let a: A = from_document(doc_with_old_uuid).unwrap();
-    assert_eq!(
-        a.uuid,
-        Uuid::parse_str("fbaeb341-2a4c-40ac-a7dd-f2d15dc3ed90").unwrap()
-    );
 }
 
 #[test]

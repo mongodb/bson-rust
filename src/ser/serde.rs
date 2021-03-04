@@ -17,10 +17,13 @@ use crate::{
         Array,
         Binary,
         Bson,
+        CSharpLegacyUuid,
         DateTime,
         DbPointer,
         Document,
+        JavaLegacyUuid,
         JavaScriptCodeWithScope,
+        PythonLegacyUuid,
         Regex,
         Timestamp,
     },
@@ -583,6 +586,55 @@ impl Serialize for DbPointer {
         S: ser::Serializer,
     {
         let value = Bson::DbPointer(self.clone());
+        value.serialize(serializer)
+    }
+}
+
+impl Serialize for JavaLegacyUuid {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        let mut bytes = self.0.as_bytes().to_vec();
+        bytes[0..8].reverse();
+        bytes[8..16].reverse();
+        let value = Bson::Binary(Binary {
+            subtype: BinarySubtype::UuidOld,
+            bytes,
+        });
+        value.serialize(serializer)
+    }
+}
+
+impl Serialize for PythonLegacyUuid {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        let value = Bson::Binary(Binary {
+            subtype: BinarySubtype::UuidOld,
+            bytes: self.0.as_bytes().to_vec(),
+        });
+        value.serialize(serializer)
+    }
+}
+
+impl Serialize for CSharpLegacyUuid {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        let mut bytes = self.0.as_bytes().to_vec();
+        bytes[0..4].reverse();
+        bytes[4..6].reverse();
+        bytes[6..8].reverse();
+        let value = Bson::Binary(Binary {
+            subtype: BinarySubtype::UuidOld,
+            bytes,
+        });
         value.serialize(serializer)
     }
 }
