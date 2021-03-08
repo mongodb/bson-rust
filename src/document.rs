@@ -11,7 +11,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 
-use linked_hash_map::{self, LinkedHashMap};
+use ritelinked::{linked_hash_map, DefaultHashBuilder, LinkedHashMap};
 
 use serde::de::{self, Error, MapAccess, Visitor};
 
@@ -576,7 +576,7 @@ impl Document {
 }
 
 pub struct Entry<'a> {
-    inner: linked_hash_map::Entry<'a, String, Bson>,
+    inner: linked_hash_map::Entry<'a, String, Bson, DefaultHashBuilder>,
 }
 
 impl<'a> Entry<'a> {
@@ -585,11 +585,17 @@ impl<'a> Entry<'a> {
     }
 
     pub fn or_insert(self, default: Bson) -> &'a mut Bson {
-        self.inner.or_insert(default)
+        match self.inner {
+            linked_hash_map::Entry::Occupied(entry) => entry.into_mut(),
+            linked_hash_map::Entry::Vacant(entry) => entry.insert(default),
+        }
     }
 
     pub fn or_insert_with<F: FnOnce() -> Bson>(self, default: F) -> &'a mut Bson {
-        self.inner.or_insert_with(default)
+        match self.inner {
+            linked_hash_map::Entry::Occupied(entry) => entry.into_mut(),
+            linked_hash_map::Entry::Vacant(entry) => entry.insert(default()),
+        }
     }
 }
 
