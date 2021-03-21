@@ -107,7 +107,7 @@ BSON documents are ordered maps of UTF-8 encoded strings to BSON values. They ar
 reader containing BSON data or via the `doc!` macro:
 ```rust
 let mut bytes = hex::decode("0C0000001069000100000000").unwrap();
-let doc = Document::decode(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
+let doc = Document::from_reader(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
 
 let doc = doc! {
    "hello": "world",
