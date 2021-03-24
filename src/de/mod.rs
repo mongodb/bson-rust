@@ -176,6 +176,17 @@ fn deserialize_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Resu
     let mut arr = Array::new();
     let length = read_i32(reader)?;
 
+    if !(MIN_BSON_DOCUMENT_SIZE..=MAX_BSON_SIZE).contains(&length) {
+        return Err(Error::invalid_length(
+            length as usize,
+            &format!(
+                "array length must be between {} and {}",
+                MIN_BSON_DOCUMENT_SIZE, MAX_BSON_SIZE
+            )
+            .as_str(),
+        ));
+    }
+
     ensure_read_exactly(
         reader,
         (length as usize) - 4,
@@ -223,6 +234,14 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             // Skip length data in old binary.
             if let BinarySubtype::BinaryOld = subtype {
                 let data_len = read_i32(reader)?;
+
+                if !(0..=(MAX_BSON_SIZE - 4)).contains(&data_len) {
+                    return Err(Error::invalid_length(
+                        data_len as usize,
+                        &format!("0x02 length must be between 0 and {}", MAX_BSON_SIZE - 4)
+                            .as_str(),
+                    ));
+                }
 
                 if data_len + 4 != len {
                     return Err(Error::invalid_length(
