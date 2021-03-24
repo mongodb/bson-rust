@@ -547,7 +547,7 @@ fn test_deserialize_invalid_array_length() {
     let _guard = LOCK.run_concurrently();
     let buffer = b"\n\x00\x00\x00\x04\x00\x00\x00\x00\x00";
     Document::from_reader(&mut std::io::Cursor::new(buffer))
-        .expect_err("expected deserialization to fail") ; 
+        .expect_err("expected deserialization to fail");
 }
 
 /// [RUST-713](https://jira.mongodb.org/browse/RUST-713)
@@ -556,9 +556,9 @@ fn test_deserialize_invalid_old_binary_length() {
     let _guard = LOCK.run_concurrently();
     let buffer = b"\x0F\x00\x00\x00\x05\x00\x00\x00\x00\x00\x02\xFC\xFF\xFF\xFF";
     Document::from_reader(&mut std::io::Cursor::new(buffer))
-        .expect_err("expected deserialization to fail") ; 
+        .expect_err("expected deserialization to fail");
 
     let buffer = b".\x00\x00\x00\x05\x01\x00\x00\x00\x00\x00\x02\xfc\xff\xff\xff\xff\xff\xff\xff\x00\x00*\x00h\x0e\x10++\x00h\x0e++\x00\x00\t\x00\x00\x00\x00\x00*\x0e\x10++";
     Document::from_reader(&mut std::io::Cursor::new(buffer))
-        .expect_err("expected deserialization to fail") ; 
+        .expect_err("expected deserialization to fail");
 }

@@ -179,7 +179,11 @@ fn deserialize_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Resu
     if !(MIN_BSON_DOCUMENT_SIZE..=MAX_BSON_SIZE).contains(&length) {
         return Err(Error::invalid_length(
             length as usize,
-            &format!("array length must be between {} and {}", MIN_BSON_DOCUMENT_SIZE, MAX_BSON_SIZE).as_str(),
+            &format!(
+                "array length must be between {} and {}",
+                MIN_BSON_DOCUMENT_SIZE, MAX_BSON_SIZE
+            )
+            .as_str(),
         ));
     }
 
@@ -234,9 +238,9 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
                 if !(0..=(MAX_BSON_SIZE - 4)).contains(&data_len) {
                     return Err(Error::invalid_length(
                         data_len as usize,
-                        &format!("0x02 length must be between 0 and {}", MAX_BSON_SIZE - 4).as_str(),
+                        &format!("0x02 length must be between 0 and {}", MAX_BSON_SIZE - 4)
+                            .as_str(),
                     ));
-
                 }
 
                 if data_len + 4 != len {
