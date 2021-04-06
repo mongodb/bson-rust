@@ -26,7 +26,7 @@ This crate works with Cargo and can be found on
 
 ```toml
 [dependencies]
-bson = "1.2.0"
+bson = "1.2.1"
 ```
 
 ## Overview of BSON Format
