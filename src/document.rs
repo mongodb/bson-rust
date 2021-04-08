@@ -10,9 +10,7 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
-
-use linked_hash_map::{self, LinkedHashMap};
-
+use indexmap::IndexMap;
 use serde::de::{self, Error, MapAccess, Visitor};
 
 #[cfg(feature = "decimal128")]
@@ -64,7 +62,7 @@ impl error::Error for ValueAccessError {}
 /// A BSON document represented as an associative HashMap with insertion ordering.
 #[derive(Clone, PartialEq)]
 pub struct Document {
-    inner: LinkedHashMap<String, Bson>,
+    inner: IndexMap<String, Bson>,
 }
 
 impl Default for Document {
@@ -101,12 +99,12 @@ impl Debug for Document {
 
 /// An iterator over Document entries.
 pub struct DocumentIntoIterator {
-    inner: LinkedHashMap<String, Bson>,
+    inner: indexmap::map::IntoIter<String, Bson>,
 }
 
 /// An owning iterator over Document entries.
 pub struct DocumentIterator<'a> {
-    inner: linked_hash_map::Iter<'a, String, Bson>,
+    inner: indexmap::map::Iter<'a, String, Bson>,
 }
 
 type DocumentMap<'a, T> = Map<DocumentIterator<'a>, fn((&'a String, &'a Bson)) -> T>;
@@ -142,7 +140,9 @@ impl IntoIterator for Document {
     type IntoIter = DocumentIntoIterator;
 
     fn into_iter(self) -> Self::IntoIter {
-        DocumentIntoIterator { inner: self.inner }
+        DocumentIntoIterator {
+            inner: self.inner.into_iter(),
+        }
     }
 }
 
@@ -171,7 +171,7 @@ impl<'a> Iterator for DocumentIntoIterator {
     type Item = (String, Bson);
 
     fn next(&mut self) -> Option<(String, Bson)> {
-        self.inner.pop_front()
+        self.inner.next()
     }
 }
 
@@ -187,7 +187,7 @@ impl Document {
     /// Creates a new empty Document.
     pub fn new() -> Document {
         Document {
-            inner: LinkedHashMap::new(),
+            inner: IndexMap::new(),
         }
     }
 
@@ -576,7 +576,7 @@ impl Document {
 }
 
 pub struct Entry<'a> {
-    inner: linked_hash_map::Entry<'a, String, Bson>,
+    inner: indexmap::map::Entry<'a, String, Bson>,
 }
 
 impl<'a> Entry<'a> {
@@ -590,12 +590,6 @@ impl<'a> Entry<'a> {
 
     pub fn or_insert_with<F: FnOnce() -> Bson>(self, default: F) -> &'a mut Bson {
         self.inner.or_insert_with(default)
-    }
-}
-
-impl From<LinkedHashMap<String, Bson>> for Document {
-    fn from(tree: LinkedHashMap<String, Bson>) -> Document {
-        Document { inner: tree }
     }
 }
 
@@ -633,15 +627,15 @@ impl<'de> Visitor<'de> for DocumentVisitor {
         V: MapAccess<'de>,
     {
         let mut inner = match visitor.size_hint() {
-            Some(size) => LinkedHashMap::with_capacity(size),
-            None => LinkedHashMap::new(),
+            Some(size) => IndexMap::with_capacity(size),
+            None => IndexMap::new(),
         };
 
         while let Some((key, value)) = visitor.next_entry()? {
             inner.insert(key, value);
         }
 
-        Ok(inner.into())
+        Ok(Document { inner })
     }
 }
 

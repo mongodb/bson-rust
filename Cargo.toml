@@ -43,7 +43,7 @@ chrono = "0.4"
 rand = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
-linked-hash-map = "0.5.3"
+indexmap = "1.6.2"
 hex = "0.4.2"
 decimal = { version = "2.1.0", default_features = false, optional = true }
 base64 = "0.13.0"
