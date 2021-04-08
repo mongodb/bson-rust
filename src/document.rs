@@ -9,6 +9,7 @@ use std::{
     mem,
 };
 
+use ahash::RandomState;
 use chrono::{DateTime, Utc};
 use indexmap::IndexMap;
 use serde::de::{self, Error, MapAccess, Visitor};
@@ -62,7 +63,7 @@ impl error::Error for ValueAccessError {}
 /// A BSON document represented as an associative HashMap with insertion ordering.
 #[derive(Clone, PartialEq)]
 pub struct Document {
-    inner: IndexMap<String, Bson>,
+    inner: IndexMap<String, Bson, RandomState>,
 }
 
 impl Default for Document {
@@ -185,7 +186,7 @@ impl Document {
     /// Creates a new empty Document.
     pub fn new() -> Document {
         Document {
-            inner: IndexMap::new(),
+            inner: IndexMap::default(),
         }
     }
 
@@ -664,8 +665,8 @@ impl<'de> Visitor<'de> for DocumentVisitor {
         V: MapAccess<'de>,
     {
         let mut inner = match visitor.size_hint() {
-            Some(size) => IndexMap::with_capacity(size),
-            None => IndexMap::new(),
+            Some(size) => IndexMap::with_capacity_and_hasher(size, RandomState::default()),
+            None => IndexMap::default(),
         };
 
         while let Some((key, value)) = visitor.next_entry()? {

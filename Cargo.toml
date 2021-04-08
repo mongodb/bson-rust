@@ -39,6 +39,7 @@ decimal128 = ["decimal"]
 name = "bson"
 
 [dependencies]
+ahash = "0.7.2"
 chrono = "0.4"
 rand = "0.7"
 serde = { version = "1.0", features = ["derive"] }
