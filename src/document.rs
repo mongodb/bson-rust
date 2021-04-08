@@ -456,14 +456,14 @@ impl Document {
     }
 
     /// Gets a collection of all keys in the document.
-    pub fn keys<'a>(&'a self) -> Keys<'a> {
+    pub fn keys(&self) -> Keys {
         Keys {
             inner: self.inner.keys(),
         }
     }
 
     /// Gets a collection of all values in the document.
-    pub fn values<'a>(&'a self) -> Values<'a> {
+    pub fn values(&self) -> Values {
         Values {
             inner: self.inner.values(),
         }
@@ -585,7 +585,7 @@ impl<'a> Entry<'a> {
         }
     }
 
-    fn to_indexmap_entry(self) -> indexmap::map::Entry<'a, String, Bson> {
+    fn into_indexmap_entry(self) -> indexmap::map::Entry<'a, String, Bson> {
         match self {
             Self::Occupied(o) => indexmap::map::Entry::Occupied(o.inner),
             Self::Vacant(v) => indexmap::map::Entry::Vacant(v.inner),
@@ -595,14 +595,14 @@ impl<'a> Entry<'a> {
     /// Inserts the given default value in the entry if it is vacant and returns a mutable reference
     /// to it. Otherwise a mutable reference to an already existent value is returned.
     pub fn or_insert(self, default: Bson) -> &'a mut Bson {
-        self.to_indexmap_entry().or_insert(default)
+        self.into_indexmap_entry().or_insert(default)
     }
 
     /// Inserts the result of the `default` function in the entry if it is vacant and returns a
     /// mutable reference to it. Otherwise a mutable reference to an already existent value is
     /// returned.
     pub fn or_insert_with<F: FnOnce() -> Bson>(self, default: F) -> &'a mut Bson {
-        self.to_indexmap_entry().or_insert_with(default)
+        self.into_indexmap_entry().or_insert_with(default)
     }
 }
 
