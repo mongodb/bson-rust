@@ -4,7 +4,7 @@ use std::{
     error,
     fmt::{self, Debug, Display, Formatter},
     io::{Read, Write},
-    iter::{Extend, FromIterator, IntoIterator, Map},
+    iter::{Extend, FromIterator, IntoIterator},
     marker::PhantomData,
     mem,
 };
@@ -107,16 +107,14 @@ pub struct DocumentIterator<'a> {
     inner: indexmap::map::Iter<'a, String, Bson>,
 }
 
-type DocumentMap<'a, T> = Map<DocumentIterator<'a>, fn((&'a String, &'a Bson)) -> T>;
-
 /// An iterator over an Document's keys.
 pub struct Keys<'a> {
-    inner: DocumentMap<'a, &'a String>,
+    inner: indexmap::map::Keys<'a, String, Bson>,
 }
 
 /// An iterator over an Document's values.
 pub struct Values<'a> {
-    inner: DocumentMap<'a, &'a Bson>,
+    inner: indexmap::map::Values<'a, String, Bson>,
 }
 
 impl<'a> Iterator for Keys<'a> {
@@ -458,25 +456,15 @@ impl Document {
 
     /// Gets a collection of all keys in the document.
     pub fn keys<'a>(&'a self) -> Keys<'a> {
-        fn first<A, B>((a, _): (A, B)) -> A {
-            a
-        }
-        let first: fn((&'a String, &'a Bson)) -> &'a String = first;
-
         Keys {
-            inner: self.iter().map(first),
+            inner: self.inner.keys(),
         }
     }
 
     /// Gets a collection of all values in the document.
     pub fn values<'a>(&'a self) -> Values<'a> {
-        fn second<A, B>((_, b): (A, B)) -> B {
-            b
-        }
-        let second: fn((&'a String, &'a Bson)) -> &'a Bson = second;
-
         Values {
-            inner: self.iter().map(second),
+            inner: self.inner.values(),
         }
     }
 
@@ -503,8 +491,9 @@ impl Document {
     }
 
     pub fn entry(&mut self, k: String) -> Entry {
-        Entry {
-            inner: self.inner.entry(k),
+        match self.inner.entry(k) {
+            indexmap::map::Entry::Occupied(o) => Entry::Occupied(OccupiedEntry { inner: o }),
+            indexmap::map::Entry::Vacant(v) => Entry::Vacant(VacantEntry { inner: v }),
         }
     }
 
@@ -575,31 +564,79 @@ impl Document {
     }
 }
 
-pub struct Entry<'a> {
-    inner: indexmap::map::Entry<'a, String, Bson>,
+/// A view into a single entry in a map, which may either be vacant or occupied.
+///
+/// This enum is constructed from the entry method on HashMap.
+pub enum Entry<'a> {
+    /// An occupied entry.
+    Occupied(OccupiedEntry<'a>),
+
+    /// A vacant entry.
+    Vacant(VacantEntry<'a>),
 }
 
 impl<'a> Entry<'a> {
+    /// Returns a reference to this entry's key.
     pub fn key(&self) -> &str {
-        self.inner.key()
+        match self {
+            Self::Vacant(v) => v.key(),
+            Self::Occupied(o) => o.key(),
+        }
     }
 
+    fn to_indexmap_entry(self) -> indexmap::map::Entry<'a, String, Bson> {
+        match self {
+            Self::Occupied(o) => indexmap::map::Entry::Occupied(o.inner),
+            Self::Vacant(v) => indexmap::map::Entry::Vacant(v.inner),
+        }
+    }
+
+    /// Inserts the given default value in the entry if it is vacant and returns a mutable reference
+    /// to it. Otherwise a mutable reference to an already existent value is returned.
     pub fn or_insert(self, default: Bson) -> &'a mut Bson {
-        self.inner.or_insert(default)
+        self.to_indexmap_entry().or_insert(default)
     }
 
+    /// Inserts the result of the `default` function in the entry if it is vacant and returns a
+    /// mutable reference to it. Otherwise a mutable reference to an already existent value is
+    /// returned.
     pub fn or_insert_with<F: FnOnce() -> Bson>(self, default: F) -> &'a mut Bson {
-        self.inner.or_insert_with(default)
+        self.to_indexmap_entry().or_insert_with(default)
     }
 }
 
-pub struct DocumentVisitor {
+/// A view into a vacant entry in a [Document]. It is part of the [Entry] enum.
+pub struct VacantEntry<'a> {
+    inner: indexmap::map::VacantEntry<'a, String, Bson>,
+}
+
+impl<'a> VacantEntry<'a> {
+    /// Gets a reference to the key that would be used when inserting a value through the
+    /// [VacantEntry].
+    fn key(&self) -> &str {
+        self.inner.key()
+    }
+}
+
+/// A view into an occupied entry in a [Document]. It is part of the [Entry] enum.
+pub struct OccupiedEntry<'a> {
+    inner: indexmap::map::OccupiedEntry<'a, String, Bson>,
+}
+
+impl<'a> OccupiedEntry<'a> {
+    /// Gets a reference to the key in the entry.
+    pub fn key(&self) -> &str {
+        self.inner.key()
+    }
+}
+
+pub(crate) struct DocumentVisitor {
     marker: PhantomData<Document>,
 }
 
 impl DocumentVisitor {
     #[allow(clippy::new_without_default)]
-    pub fn new() -> DocumentVisitor {
+    pub(crate) fn new() -> DocumentVisitor {
         DocumentVisitor {
             marker: PhantomData,
         }
