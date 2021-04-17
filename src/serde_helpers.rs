@@ -2,7 +2,7 @@
 
 use std::{convert::TryFrom, result::Result};
 
-use serde::{ser, Serialize, Serializer};
+use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::oid::ObjectId;
 
@@ -179,6 +179,15 @@ pub fn serialize_hex_string_as_object_id<S: Serializer>(
             val
         ))),
     }
+}
+
+/// Deserialize an ObjectId as a hex string.
+pub fn deserialize_object_id_as_hex_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let id: ObjectId = Deserialize::deserialize(deserializer)?;
+    Ok(id.to_string())
 }
 
 /// Contains functions to serialize a Uuid as a bson::Binary and deserialize a Uuid from a
