@@ -172,7 +172,7 @@ pub mod bson_datetime_as_iso_string {
 }
 
 /// Contains functions to serialize a hex string as an ObjectId and deserialize a
-/// a hex string from an ObjectId
+/// hex string from an ObjectId
 ///
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
