@@ -208,21 +208,6 @@ pub mod hex_string_as_object_id {
     }
 }
 
-/// Serializes a hex string as an ObjectId.
-#[deprecated]
-pub fn serialize_hex_string_as_object_id<S: Serializer>(
-    val: &str,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    match ObjectId::with_string(val) {
-        Ok(oid) => oid.serialize(serializer),
-        Err(_) => Err(ser::Error::custom(format!(
-            "cannot convert {} to ObjectId",
-            val
-        ))),
-    }
-}
-
 /// Contains functions to serialize a Uuid as a bson::Binary and deserialize a Uuid from a
 /// bson::Binary.
 ///
