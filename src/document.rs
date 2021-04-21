@@ -487,8 +487,9 @@ impl Document {
     }
 
     /// Takes the value of the entry out of the document, and returns it.
+    /// Computes in **O(n)** time (average).
     pub fn remove(&mut self, key: &str) -> Option<Bson> {
-        self.inner.remove(key)
+        self.inner.shift_remove(key)
     }
 
     pub fn entry(&mut self, k: String) -> Entry {
