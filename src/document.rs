@@ -4,15 +4,14 @@ use std::{
     error,
     fmt::{self, Debug, Display, Formatter},
     io::{Read, Write},
-    iter::{Extend, FromIterator, IntoIterator, Map},
+    iter::{Extend, FromIterator, IntoIterator},
     marker::PhantomData,
     mem,
 };
 
+use ahash::RandomState;
 use chrono::{DateTime, Utc};
-
-use linked_hash_map::{self, LinkedHashMap};
-
+use indexmap::IndexMap;
 use serde::de::{self, Error, MapAccess, Visitor};
 
 #[cfg(feature = "decimal128")]
@@ -64,7 +63,7 @@ impl error::Error for ValueAccessError {}
 /// A BSON document represented as an associative HashMap with insertion ordering.
 #[derive(Clone, PartialEq)]
 pub struct Document {
-    inner: LinkedHashMap<String, Bson>,
+    inner: IndexMap<String, Bson, RandomState>,
 }
 
 impl Default for Document {
@@ -101,24 +100,22 @@ impl Debug for Document {
 
 /// An iterator over Document entries.
 pub struct DocumentIntoIterator {
-    inner: LinkedHashMap<String, Bson>,
+    inner: indexmap::map::IntoIter<String, Bson>,
 }
 
 /// An owning iterator over Document entries.
 pub struct DocumentIterator<'a> {
-    inner: linked_hash_map::Iter<'a, String, Bson>,
+    inner: indexmap::map::Iter<'a, String, Bson>,
 }
-
-type DocumentMap<'a, T> = Map<DocumentIterator<'a>, fn((&'a String, &'a Bson)) -> T>;
 
 /// An iterator over an Document's keys.
 pub struct Keys<'a> {
-    inner: DocumentMap<'a, &'a String>,
+    inner: indexmap::map::Keys<'a, String, Bson>,
 }
 
 /// An iterator over an Document's values.
 pub struct Values<'a> {
-    inner: DocumentMap<'a, &'a Bson>,
+    inner: indexmap::map::Values<'a, String, Bson>,
 }
 
 impl<'a> Iterator for Keys<'a> {
@@ -142,7 +139,9 @@ impl IntoIterator for Document {
     type IntoIter = DocumentIntoIterator;
 
     fn into_iter(self) -> Self::IntoIter {
-        DocumentIntoIterator { inner: self.inner }
+        DocumentIntoIterator {
+            inner: self.inner.into_iter(),
+        }
     }
 }
 
@@ -171,7 +170,7 @@ impl<'a> Iterator for DocumentIntoIterator {
     type Item = (String, Bson);
 
     fn next(&mut self) -> Option<(String, Bson)> {
-        self.inner.pop_front()
+        self.inner.next()
     }
 }
 
@@ -187,7 +186,7 @@ impl Document {
     /// Creates a new empty Document.
     pub fn new() -> Document {
         Document {
-            inner: LinkedHashMap::new(),
+            inner: IndexMap::default(),
         }
     }
 
@@ -457,26 +456,16 @@ impl Document {
     }
 
     /// Gets a collection of all keys in the document.
-    pub fn keys<'a>(&'a self) -> Keys<'a> {
-        fn first<A, B>((a, _): (A, B)) -> A {
-            a
-        }
-        let first: fn((&'a String, &'a Bson)) -> &'a String = first;
-
+    pub fn keys(&self) -> Keys {
         Keys {
-            inner: self.iter().map(first),
+            inner: self.inner.keys(),
         }
     }
 
     /// Gets a collection of all values in the document.
-    pub fn values<'a>(&'a self) -> Values<'a> {
-        fn second<A, B>((_, b): (A, B)) -> B {
-            b
-        }
-        let second: fn((&'a String, &'a Bson)) -> &'a Bson = second;
-
+    pub fn values(&self) -> Values {
         Values {
-            inner: self.iter().map(second),
+            inner: self.inner.values(),
         }
     }
 
@@ -498,13 +487,15 @@ impl Document {
     }
 
     /// Takes the value of the entry out of the document, and returns it.
+    /// Computes in **O(n)** time (average).
     pub fn remove(&mut self, key: &str) -> Option<Bson> {
-        self.inner.remove(key)
+        self.inner.shift_remove(key)
     }
 
     pub fn entry(&mut self, k: String) -> Entry {
-        Entry {
-            inner: self.inner.entry(k),
+        match self.inner.entry(k) {
+            indexmap::map::Entry::Occupied(o) => Entry::Occupied(OccupiedEntry { inner: o }),
+            indexmap::map::Entry::Vacant(v) => Entry::Vacant(VacantEntry { inner: v }),
         }
     }
 
@@ -575,37 +566,79 @@ impl Document {
     }
 }
 
-pub struct Entry<'a> {
-    inner: linked_hash_map::Entry<'a, String, Bson>,
+/// A view into a single entry in a map, which may either be vacant or occupied.
+///
+/// This enum is constructed from the entry method on HashMap.
+pub enum Entry<'a> {
+    /// An occupied entry.
+    Occupied(OccupiedEntry<'a>),
+
+    /// A vacant entry.
+    Vacant(VacantEntry<'a>),
 }
 
 impl<'a> Entry<'a> {
+    /// Returns a reference to this entry's key.
+    pub fn key(&self) -> &str {
+        match self {
+            Self::Vacant(v) => v.key(),
+            Self::Occupied(o) => o.key(),
+        }
+    }
+
+    fn into_indexmap_entry(self) -> indexmap::map::Entry<'a, String, Bson> {
+        match self {
+            Self::Occupied(o) => indexmap::map::Entry::Occupied(o.inner),
+            Self::Vacant(v) => indexmap::map::Entry::Vacant(v.inner),
+        }
+    }
+
+    /// Inserts the given default value in the entry if it is vacant and returns a mutable reference
+    /// to it. Otherwise a mutable reference to an already existent value is returned.
+    pub fn or_insert(self, default: Bson) -> &'a mut Bson {
+        self.into_indexmap_entry().or_insert(default)
+    }
+
+    /// Inserts the result of the `default` function in the entry if it is vacant and returns a
+    /// mutable reference to it. Otherwise a mutable reference to an already existent value is
+    /// returned.
+    pub fn or_insert_with<F: FnOnce() -> Bson>(self, default: F) -> &'a mut Bson {
+        self.into_indexmap_entry().or_insert_with(default)
+    }
+}
+
+/// A view into a vacant entry in a [Document]. It is part of the [Entry] enum.
+pub struct VacantEntry<'a> {
+    inner: indexmap::map::VacantEntry<'a, String, Bson>,
+}
+
+impl<'a> VacantEntry<'a> {
+    /// Gets a reference to the key that would be used when inserting a value through the
+    /// [VacantEntry].
+    fn key(&self) -> &str {
+        self.inner.key()
+    }
+}
+
+/// A view into an occupied entry in a [Document]. It is part of the [Entry] enum.
+pub struct OccupiedEntry<'a> {
+    inner: indexmap::map::OccupiedEntry<'a, String, Bson>,
+}
+
+impl<'a> OccupiedEntry<'a> {
+    /// Gets a reference to the key in the entry.
     pub fn key(&self) -> &str {
         self.inner.key()
     }
-
-    pub fn or_insert(self, default: Bson) -> &'a mut Bson {
-        self.inner.or_insert(default)
-    }
-
-    pub fn or_insert_with<F: FnOnce() -> Bson>(self, default: F) -> &'a mut Bson {
-        self.inner.or_insert_with(default)
-    }
 }
 
-impl From<LinkedHashMap<String, Bson>> for Document {
-    fn from(tree: LinkedHashMap<String, Bson>) -> Document {
-        Document { inner: tree }
-    }
-}
-
-pub struct DocumentVisitor {
+pub(crate) struct DocumentVisitor {
     marker: PhantomData<Document>,
 }
 
 impl DocumentVisitor {
     #[allow(clippy::new_without_default)]
-    pub fn new() -> DocumentVisitor {
+    pub(crate) fn new() -> DocumentVisitor {
         DocumentVisitor {
             marker: PhantomData,
         }
@@ -633,15 +666,15 @@ impl<'de> Visitor<'de> for DocumentVisitor {
         V: MapAccess<'de>,
     {
         let mut inner = match visitor.size_hint() {
-            Some(size) => LinkedHashMap::with_capacity(size),
-            None => LinkedHashMap::new(),
+            Some(size) => IndexMap::with_capacity_and_hasher(size, RandomState::default()),
+            None => IndexMap::default(),
         };
 
         while let Some((key, value)) = visitor.next_entry()? {
             inner.insert(key, value);
         }
 
-        Ok(inner.into())
+        Ok(Document { inner })
     }
 }
 
