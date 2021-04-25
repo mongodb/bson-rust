@@ -239,7 +239,7 @@ pub mod uuid_as_java_legacy_binary {
     use std::result::Result;
     use uuid::Uuid;
 
-    /// Serializes a Uuid as a Binary.
+    /// Serializes a Uuid as a Binary in a Java Legacy UUID format.
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
         let mut bytes = val.as_bytes().to_vec();
         bytes[0..8].reverse();
@@ -251,7 +251,7 @@ pub mod uuid_as_java_legacy_binary {
         binary.serialize(serializer)
     }
 
-    /// Deserializes a Uuid from a Binary.
+    /// Deserializes a Uuid from a Binary in a Java Legacy UUID format.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,
@@ -277,7 +277,7 @@ pub mod uuid_as_python_legacy_binary {
     use std::result::Result;
     use uuid::Uuid;
 
-    /// Serializes a Uuid as a Binary.
+    /// Serializes a Uuid as a Binary in a Python Legacy UUID format.
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
         let binary = Binary {
             subtype: BinarySubtype::UuidOld,
@@ -286,7 +286,7 @@ pub mod uuid_as_python_legacy_binary {
         binary.serialize(serializer)
     }
 
-    /// Deserializes a Uuid from a Binary.
+    /// Deserializes a Uuid from a Binary in a Python Legacy UUID format.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,
@@ -309,7 +309,7 @@ pub mod uuid_as_c_sharp_legacy_binary {
     use std::result::Result;
     use uuid::Uuid;
 
-    /// Serializes a Uuid as a Binary.
+    /// Serializes a Uuid as a Binary in a C# Legacy UUID format.
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
         let mut bytes = val.as_bytes().to_vec();
         bytes[0..4].reverse();
@@ -322,7 +322,7 @@ pub mod uuid_as_c_sharp_legacy_binary {
         binary.serialize(serializer)
     }
 
-    /// Deserializes a Uuid from a Binary.
+    /// Deserializes a Uuid from a Binary in a C# Legacy UUID format.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,
