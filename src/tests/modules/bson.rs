@@ -117,7 +117,7 @@ fn from_impls() {
         Bson::from(b"abcdefghijkl"),
         Bson::ObjectId(ObjectId::with_bytes(*b"abcdefghijkl"))
     );
-    assert_eq!(Bson::from(oid.clone()), Bson::ObjectId(oid.clone()));
+    assert_eq!(Bson::from(oid), Bson::ObjectId(oid));
     assert_eq!(
         Bson::from(vec![1, 2, 3]),
         Bson::Array(vec![Bson::Int32(1), Bson::Int32(2), Bson::Int32(3)])

@@ -729,7 +729,7 @@ impl Bson {
                         if let Ok(id) = db_pointer.get_object_id("$id") {
                             return Bson::DbPointer(DbPointer {
                                 namespace: ns.into(),
-                                id: id.clone(),
+                                id,
                             });
                         }
                     }
@@ -872,9 +872,9 @@ impl Bson {
     }
 
     /// If `Bson` is `Objectid`, return its value. Returns `None` otherwise
-    pub fn as_object_id(&self) -> Option<&oid::ObjectId> {
+    pub fn as_object_id(&self) -> Option<oid::ObjectId> {
         match *self {
-            Bson::ObjectId(ref v) => Some(v),
+            Bson::ObjectId(v) => Some(v),
             _ => None,
         }
     }

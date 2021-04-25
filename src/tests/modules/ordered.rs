@@ -146,9 +146,9 @@ fn test_getters() {
     assert_eq!(Ok(&datetime), doc.get_datetime("datetime"));
 
     let object_id = ObjectId::new();
-    doc.insert("_id".to_string(), Bson::ObjectId(object_id.clone()));
-    assert_eq!(Some(&Bson::ObjectId(object_id.clone())), doc.get("_id"));
-    assert_eq!(Ok(&object_id), doc.get_object_id("_id"));
+    doc.insert("_id".to_string(), Bson::ObjectId(object_id));
+    assert_eq!(Some(&Bson::ObjectId(object_id)), doc.get("_id"));
+    assert_eq!(Ok(object_id), doc.get_object_id("_id"));
 
     assert_eq!(
         Some(&Bson::Binary(Binary {
@@ -163,18 +163,34 @@ fn test_getters() {
 #[test]
 fn remove() {
     let _guard = LOCK.run_concurrently();
+
     let mut doc = Document::new();
-    doc.insert("first", Bson::Int32(1));
-    doc.insert("second", Bson::String("foo".to_owned()));
-    doc.insert("alphanumeric", Bson::String("bar".to_owned()));
+    doc.insert("first", 1i32);
+    doc.insert("second", "foo");
+    doc.insert("third", "bar".to_owned());
+    doc.insert("fourth", "bar".to_owned());
 
-    assert!(doc.remove("second").is_some());
-    assert!(doc.remove("none").is_none());
-
-    let expected_keys = vec!["first", "alphanumeric"];
+    let mut expected_keys = vec![
+        "first".to_owned(),
+        "second".to_owned(),
+        "third".to_owned(),
+        "fourth".to_owned(),
+    ];
 
     let keys: Vec<_> = doc.iter().map(|(key, _)| key.to_owned()).collect();
     assert_eq!(expected_keys, keys);
+
+    assert_eq!(doc.remove("none"), None);
+
+    assert!(doc.remove("second").is_some());
+    expected_keys.remove(1);
+    let keys: Vec<_> = doc.iter().map(|(key, _)| key.to_owned()).collect();
+    assert_eq!(keys, expected_keys);
+
+    assert!(doc.remove("first").is_some());
+    expected_keys.remove(0);
+    let keys: Vec<_> = doc.iter().map(|(key, _)| key.to_owned()).collect();
+    assert_eq!(keys, expected_keys);
 }
 
 #[test]

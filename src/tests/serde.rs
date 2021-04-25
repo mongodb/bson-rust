@@ -783,7 +783,7 @@ fn test_oid_helpers() {
         oid: oid.to_string(),
     };
     let doc = to_document(&a).unwrap();
-    assert_eq!(doc.get_object_id("oid").unwrap(), &oid);
+    assert_eq!(doc.get_object_id("oid").unwrap(), oid);
 }
 
 #[test]
