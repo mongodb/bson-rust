@@ -2,9 +2,7 @@
 
 use std::{convert::TryFrom, result::Result};
 
-use serde::{ser, Serialize, Serializer};
-
-use crate::oid::ObjectId;
+use serde::{ser, Serializer};
 
 pub use bson_datetime_as_iso_string::{
     deserialize as deserialize_bson_datetime_from_iso_string,
@@ -14,25 +12,22 @@ pub use chrono_datetime_as_bson_datetime::{
     deserialize as deserialize_chrono_datetime_from_bson_datetime,
     serialize as serialize_chrono_datetime_as_bson_datetime,
 };
-pub use iso_string_as_bson_datetime::{
-    deserialize as deserialize_iso_string_from_bson_datetime,
-    serialize as serialize_iso_string_as_bson_datetime,
-};
 pub use hex_string_as_object_id::{
     deserialize as deserialize_hex_string_from_object_id,
     serialize as serialize_hex_string_as_object_id,
 };
+pub use iso_string_as_bson_datetime::{
+    deserialize as deserialize_iso_string_from_bson_datetime,
+    serialize as serialize_iso_string_as_bson_datetime,
+};
 pub use timestamp_as_u32::{
-    deserialize as deserialize_timestamp_from_u32,
-    serialize as serialize_timestamp_as_u32,
+    deserialize as deserialize_timestamp_from_u32, serialize as serialize_timestamp_as_u32,
 };
 pub use u32_as_timestamp::{
-    deserialize as deserialize_u32_from_timestamp,
-    serialize as serialize_u32_as_timestamp,
+    deserialize as deserialize_u32_from_timestamp, serialize as serialize_u32_as_timestamp,
 };
 pub use uuid_as_binary::{
-    deserialize as deserialize_uuid_from_binary,
-    serialize as serialize_uuid_as_binary,
+    deserialize as deserialize_uuid_from_binary, serialize as serialize_uuid_as_binary,
 };
 
 /// Attempts to serialize a u32 as an i32. Errors if an exact conversion is not possible.
