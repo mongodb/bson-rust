@@ -579,34 +579,36 @@ fn test_de_db_pointer() {
 #[test]
 fn test_serde_legacy_uuid() {
     let _guard = LOCK.run_concurrently();
-    use bson::{CSharpLegacyUuid, JavaLegacyUuid, PythonLegacyUuid};
 
     #[derive(Serialize, Deserialize)]
     struct Foo {
-        java_uuid: JavaLegacyUuid,
-        python_uuid: PythonLegacyUuid,
-        csharp_uuid: CSharpLegacyUuid,
+        #[serde(with = "serde_helpers::uuid_as_java_legacy_binary")]
+        java_legacy: Uuid,
+        #[serde(with = "serde_helpers::uuid_as_python_legacy_binary")]
+        python_legacy: Uuid,
+        #[serde(with = "serde_helpers::uuid_as_c_sharp_legacy_binary")]
+        csharp_legacy: Uuid,
     }
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
     let foo = Foo {
-        java_uuid: JavaLegacyUuid(uuid.clone()),
-        python_uuid: PythonLegacyUuid(uuid.clone()),
-        csharp_uuid: CSharpLegacyUuid(uuid.clone()),
+        java_legacy: uuid.clone(),
+        python_legacy: uuid.clone(),
+        csharp_legacy: uuid.clone(),
     };
 
     let x = to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! {
-            "java_uuid": Bson::Binary(Binary{
+            "java_legacy": Bson::Binary(Binary{
                 subtype:BinarySubtype::UuidOld,
                 bytes: hex::decode("7766554433221100FFEEDDCCBBAA9988").unwrap(),
             }),
-            "python_uuid": Bson::Binary(Binary{
+            "python_legacy": Bson::Binary(Binary{
                 subtype:BinarySubtype::UuidOld,
                 bytes: hex::decode("00112233445566778899AABBCCDDEEFF").unwrap(),
             }),
-            "csharp_uuid": Bson::Binary(Binary{
+            "csharp_legacy": Bson::Binary(Binary{
                 subtype:BinarySubtype::UuidOld,
                 bytes: hex::decode("33221100554477668899AABBCCDDEEFF").unwrap(),
             })
@@ -614,9 +616,9 @@ fn test_serde_legacy_uuid() {
     );
 
     let foo: Foo = from_bson(x).unwrap();
-    assert_eq!(foo.java_uuid.0, uuid);
-    assert_eq!(foo.python_uuid.0, uuid);
-    assert_eq!(foo.csharp_uuid.0, uuid);
+    assert_eq!(foo.java_legacy, uuid);
+    assert_eq!(foo.python_legacy, uuid);
+    assert_eq!(foo.csharp_legacy, uuid);
 }
 
 #[test]

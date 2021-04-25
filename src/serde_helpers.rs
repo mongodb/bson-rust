@@ -233,6 +233,116 @@ pub mod uuid_as_binary {
     }
 }
 
+pub mod uuid_as_java_legacy_binary {
+    use crate::{spec::BinarySubtype, Binary};
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+    use std::result::Result;
+    use uuid::Uuid;
+
+    /// Serializes a Uuid as a Binary.
+    pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut bytes = val.as_bytes().to_vec();
+        bytes[0..8].reverse();
+        bytes[8..16].reverse();
+        let binary = Binary {
+            subtype: BinarySubtype::UuidOld,
+            bytes,
+        };
+        binary.serialize(serializer)
+    }
+
+    /// Deserializes a Uuid from a Binary.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let binary = Binary::deserialize(deserializer)?;
+        if binary.subtype != BinarySubtype::UuidOld {
+            Err(de::Error::custom("expecting BinarySubtype::UuidOld"))
+        } else if binary.bytes.len() != 16 {
+            Err(de::Error::custom("expecting 16 bytes"))
+        } else {
+            let mut buf = [0u8; 16];
+            buf.copy_from_slice(&binary.bytes);
+            buf[0..8].reverse();
+            buf[8..16].reverse();
+            Ok(Uuid::from_bytes(buf))
+        }
+    }
+}
+
+pub mod uuid_as_python_legacy_binary {
+    use crate::{spec::BinarySubtype, Binary};
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+    use std::result::Result;
+    use uuid::Uuid;
+
+    /// Serializes a Uuid as a Binary.
+    pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
+        let binary = Binary {
+            subtype: BinarySubtype::UuidOld,
+            bytes: val.as_bytes().to_vec(),
+        };
+        binary.serialize(serializer)
+    }
+
+    /// Deserializes a Uuid from a Binary.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let binary = Binary::deserialize(deserializer)?;
+        if binary.subtype != BinarySubtype::UuidOld {
+            Err(de::Error::custom("expecting BinarySubtype::UuidOld"))
+        } else if binary.bytes.len() != 16 {
+            Err(de::Error::custom("expecting 16 bytes"))
+        } else {
+            let mut buf = [0u8; 16];
+            buf.copy_from_slice(&binary.bytes);
+            Ok(Uuid::from_bytes(buf))
+        }
+    }
+}
+pub mod uuid_as_c_sharp_legacy_binary {
+    use crate::{spec::BinarySubtype, Binary};
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+    use std::result::Result;
+    use uuid::Uuid;
+
+    /// Serializes a Uuid as a Binary.
+    pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut bytes = val.as_bytes().to_vec();
+        bytes[0..4].reverse();
+        bytes[4..6].reverse();
+        bytes[6..8].reverse();
+        let binary = Binary {
+            subtype: BinarySubtype::UuidOld,
+            bytes,
+        };
+        binary.serialize(serializer)
+    }
+
+    /// Deserializes a Uuid from a Binary.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let binary = Binary::deserialize(deserializer)?;
+        if binary.subtype != BinarySubtype::UuidOld {
+            Err(de::Error::custom("expecting BinarySubtype::UuidOld"))
+        } else if binary.bytes.len() != 16 {
+            Err(de::Error::custom("expecting 16 bytes"))
+        } else {
+            let mut buf = [0u8; 16];
+            buf.copy_from_slice(&binary.bytes);
+            buf[0..4].reverse();
+            buf[4..6].reverse();
+            buf[6..8].reverse();
+            Ok(Uuid::from_bytes(buf))
+        }
+    }
+}
+
 /// Contains functions to serialize a u32 as a bson::Timestamp and deserialize a u32 from a
 /// bson::Timestamp. The u32 should represent seconds since the Unix epoch.
 ///

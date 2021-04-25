@@ -1104,31 +1104,3 @@ pub struct DbPointer {
     pub(crate) namespace: String,
     pub(crate) id: oid::ObjectId,
 }
-
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
-pub struct PythonLegacyUuid(pub uuid::Uuid);
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
-pub struct JavaLegacyUuid(pub uuid::Uuid);
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
-pub struct CSharpLegacyUuid(pub uuid::Uuid);
-
-impl Deref for PythonLegacyUuid {
-    type Target = uuid::Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Deref for JavaLegacyUuid {
-    type Target = uuid::Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Deref for CSharpLegacyUuid {
-    type Target = uuid::Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
