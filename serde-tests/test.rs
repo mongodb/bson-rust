@@ -1,4 +1,5 @@
 #![allow(clippy::cognitive_complexity)]
+#![allow(clippy::vec_init_then_push)]
 
 use serde::{self, de::Unexpected, Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
