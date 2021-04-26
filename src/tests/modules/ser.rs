@@ -86,7 +86,7 @@ fn dec128() {
 fn uint8() {
     let _guard = LOCK.run_concurrently();
     let obj_min: ser::Result<Bson> = to_bson(&u8::MIN);
-    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedType));
+    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedInteger(_)));
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn uint8_u2i() {
 fn uint16() {
     let _guard = LOCK.run_concurrently();
     let obj_min: ser::Result<Bson> = to_bson(&u16::MIN);
-    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedType));
+    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedInteger(_)));
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn uint16_u2i() {
 fn uint32() {
     let _guard = LOCK.run_concurrently();
     let obj_min: ser::Result<Bson> = to_bson(&u32::MIN);
-    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedType));
+    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedInteger(_)));
 }
 
 #[test]
@@ -149,7 +149,7 @@ fn uint32_u2i() {
 fn uint64() {
     let _guard = LOCK.run_concurrently();
     let obj_min: ser::Result<Bson> = to_bson(&u64::MIN);
-    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedType));
+    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedInteger(_)));
 }
 
 #[test]
@@ -163,7 +163,7 @@ fn uint64_u2i() {
     let obj_max: ser::Result<Bson> = to_bson(&u64::MAX);
     assert_matches!(
         obj_max,
-        Err(ser::Error::UnsignedTypesValueExceedsRange(u64::MAX))
+        Err(ser::Error::UnsignedIntegerExceededRange(u64::MAX))
     );
 }
 

@@ -117,14 +117,14 @@ impl ser::Serializer for Serializer {
     }
 
     #[inline]
-    fn serialize_u8(self, _value: u8) -> crate::ser::Result<Bson> {
+    fn serialize_u8(self, value: u8) -> crate::ser::Result<Bson> {
         #[cfg(feature = "u2i")]
         {
-            Ok(Bson::Int32(_value as i32))
+            Ok(Bson::Int32(value as i32))
         }
 
         #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedType)
+        Err(Error::UnsupportedUnsignedInteger(value as u64))
     }
 
     #[inline]
@@ -133,14 +133,14 @@ impl ser::Serializer for Serializer {
     }
 
     #[inline]
-    fn serialize_u16(self, _value: u16) -> crate::ser::Result<Bson> {
+    fn serialize_u16(self, value: u16) -> crate::ser::Result<Bson> {
         #[cfg(feature = "u2i")]
         {
-            Ok(Bson::Int32(_value as i32))
+            Ok(Bson::Int32(value as i32))
         }
 
         #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedType)
+        Err(Error::UnsupportedUnsignedInteger(value as u64))
     }
 
     #[inline]
@@ -149,14 +149,14 @@ impl ser::Serializer for Serializer {
     }
 
     #[inline]
-    fn serialize_u32(self, _value: u32) -> crate::ser::Result<Bson> {
+    fn serialize_u32(self, value: u32) -> crate::ser::Result<Bson> {
         #[cfg(feature = "u2i")]
         {
-            Ok(Bson::Int64(_value as i64))
+            Ok(Bson::Int64(value as i64))
         }
 
         #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedType)
+        Err(Error::UnsupportedUnsignedInteger(value as u64))
     }
 
     #[inline]
@@ -165,19 +165,19 @@ impl ser::Serializer for Serializer {
     }
 
     #[inline]
-    fn serialize_u64(self, _value: u64) -> crate::ser::Result<Bson> {
+    fn serialize_u64(self, value: u64) -> crate::ser::Result<Bson> {
         #[cfg(feature = "u2i")]
         {
             use std::convert::TryFrom;
 
-            match i64::try_from(_value) {
+            match i64::try_from(value) {
                 Ok(ivalue) => Ok(Bson::Int64(ivalue)),
-                Err(_) => Err(Error::UnsignedTypesValueExceedsRange(_value)),
+                Err(_) => Err(Error::UnsignedIntegerExceededRange(_value)),
             }
         }
 
         #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedType)
+        Err(Error::UnsupportedUnsignedInteger(value))
     }
 
     #[inline]

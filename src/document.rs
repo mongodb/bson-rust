@@ -26,7 +26,7 @@ use crate::{
 
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters.
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 #[non_exhaustive]
 pub enum ValueAccessError {
     /// Cannot find the expected field with the specified key

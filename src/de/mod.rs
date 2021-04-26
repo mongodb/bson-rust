@@ -326,19 +326,14 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             // The int64 is UTC milliseconds since the Unix epoch.
             let time = read_i64(reader)?;
 
-            let mut sec = time / 1000;
-            let tmp_msec = time % 1000;
-            let msec = if tmp_msec < 0 {
-                sec -= 1;
-                1000 + tmp_msec
-            } else {
-                tmp_msec
-            };
-
-            match Utc.timestamp_opt(sec, (msec as u32) * 1_000_000) {
-                LocalResult::None => return Err(Error::InvalidTimestamp(time)),
-                LocalResult::Ambiguous(..) => return Err(Error::AmbiguousTimestamp(time)),
+            match Utc.timestamp_millis_opt(time) {
                 LocalResult::Single(t) => Bson::DateTime(t),
+                _ => {
+                    return Err(Error::InvalidDateTime {
+                        key,
+                        datetime: time,
+                    })
+                }
             }
         }
         Some(ElementType::Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol)?,

@@ -1,15 +1,15 @@
-use std::{error, fmt, fmt::Display, io};
+use std::{error, fmt, fmt::Display, io, sync::Arc};
 
 use serde::ser;
 
 use crate::bson::Bson;
 
 /// Possible errors that can arise during encoding.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Error {
     /// A [`std::io::Error`](https://doc.rust-lang.org/std/io/struct.Error.html) encountered while serializing.
-    IoError(io::Error),
+    IoError(Arc<io::Error>),
 
     /// A key could not be serialized to a BSON string.
     InvalidMapKeyType {
@@ -30,16 +30,16 @@ pub enum Error {
     ///
     /// To allow serialization of unsigned integers as signed integers, enable the "u2i" feature
     /// flag.
-    UnsupportedUnsignedType,
+    UnsupportedUnsignedInteger(u64),
 
     #[cfg(feature = "u2i")]
     /// An unsigned integer type could not fit into a signed integer type.
-    UnsignedTypesValueExceedsRange(u64),
+    UnsignedIntegerExceededRange(u64),
 }
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
-        Error::IoError(err)
+        Error::IoError(Arc::new(err))
     }
 }
 
@@ -50,11 +50,17 @@ impl fmt::Display for Error {
             Error::InvalidMapKeyType { ref key } => write!(fmt, "Invalid map key type: {}", key),
             Error::SerializationError { ref message } => message.fmt(fmt),
             #[cfg(not(feature = "u2i"))]
-            Error::UnsupportedUnsignedType => fmt.write_str("BSON does not support unsigned type"),
-            #[cfg(feature = "u2i")]
-            Error::UnsignedTypesValueExceedsRange(value) => write!(
+            Error::UnsupportedUnsignedInteger(value) => write!(
                 fmt,
-                "BSON does not support unsigned types.
+                "BSON does not support unsigned integers, cannot serialize value: {}. To \
+                 serialize unsigned integers as signed integers, use an appropriate serde helper \
+                 or enable the u2i feature.",
+                value
+            ),
+            #[cfg(feature = "u2i")]
+            Error::UnsignedIntegerExceededRange(value) => write!(
+                fmt,
+                "BSON does not support unsigned integers.
                  An attempt to serialize the value: {} in a signed type failed due to the value's \
                  size.",
                 value
@@ -66,7 +72,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
-            Error::IoError(ref inner) => Some(inner),
+            Error::IoError(ref inner) => Some(inner.as_ref()),
             _ => None,
         }
     }

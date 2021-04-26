@@ -1,15 +1,15 @@
-use std::{error, fmt, fmt::Display, io, string};
+use std::{error, fmt, fmt::Display, io, string, sync::Arc};
 
 use serde::de::{self, Unexpected};
 
 use crate::Bson;
 
 /// Possible errors that can arise during decoding.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Error {
     /// A [`std::io::Error`](https://doc.rust-lang.org/std/io/struct.Error.html) encountered while deserializing.
-    IoError(io::Error),
+    IoError(Arc<io::Error>),
 
     /// A [`std::string::FromUtf8Error`](https://doc.rust-lang.org/std/string/struct.FromUtf8Error.html) encountered
     /// while decoding a UTF-8 String from the input data.
@@ -31,11 +31,14 @@ pub enum Error {
     /// The end of the BSON input was reached too soon.
     EndOfStream,
 
-    /// An invalid timestamp was encountered while decoding.
-    InvalidTimestamp(i64),
+    /// An invalid datetime was encountered while decoding.
+    InvalidDateTime {
+        /// The key at which an unexpected/unsupported datetime was encountered.
+        key: String,
 
-    /// An ambiguous timestamp was encountered while decoding.
-    AmbiguousTimestamp(i64),
+        /// The value of the invalid datetime.
+        datetime: i64,
+    },
 
     /// A general error encountered during deserialization.
     /// See: https://docs.serde.rs/serde/de/trait.Error.html
@@ -47,7 +50,7 @@ pub enum Error {
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
-        Error::IoError(err)
+        Error::IoError(Arc::new(err))
     }
 }
 
@@ -73,16 +76,17 @@ impl fmt::Display for Error {
             Error::SyntaxError { ref message } => message.fmt(fmt),
             Error::EndOfStream => fmt.write_str("end of stream"),
             Error::DeserializationError { ref message } => message.fmt(fmt),
-            Error::InvalidTimestamp(ref i) => write!(fmt, "no such local time {}", i),
-            Error::AmbiguousTimestamp(ref i) => write!(fmt, "ambiguous local time {}", i),
+            Error::InvalidDateTime { ref key, datetime } => {
+                write!(fmt, "invalid datetime for key \"{}\": {}", key, datetime)
+            }
         }
     }
 }
 
 impl error::Error for Error {
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
-            Error::IoError(ref inner) => Some(inner),
+            Error::IoError(ref inner) => Some(inner.as_ref()),
             Error::FromUtf8Error(ref inner) => Some(inner),
             _ => None,
         }
