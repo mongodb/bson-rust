@@ -146,12 +146,12 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
 
         if obj.contains_key("$minKey") {
             let min_key: models::MinKey = serde_json::from_value(obj.into())?;
-            return Ok(min_key.parse()?);
+            return min_key.parse();
         }
 
         if obj.contains_key("$maxKey") {
             let max_key: models::MaxKey = serde_json::from_value(obj.into())?;
-            return Ok(max_key.parse()?);
+            return max_key.parse();
         }
 
         if obj.contains_key("$dbPointer") {
@@ -174,7 +174,7 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
 
         if obj.contains_key("$undefined") {
             let undefined: models::Undefined = serde_json::from_value(obj.into())?;
-            return Ok(undefined.parse()?);
+            return undefined.parse();
         }
 
         Ok(Bson::Document(obj.try_into()?))

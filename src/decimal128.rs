@@ -239,9 +239,9 @@ impl std::str::FromStr for Decimal128 {
 }
 
 #[cfg(feature = "decimal128")]
-impl Into<d128> for Decimal128 {
-    fn into(self) -> d128 {
-        self.inner
+impl From<Decimal128> for d128 {
+    fn from(decimal: Decimal128) -> d128 {
+        decimal.inner
     }
 }
 
