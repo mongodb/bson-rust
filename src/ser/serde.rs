@@ -172,7 +172,7 @@ impl ser::Serializer for Serializer {
 
             match i64::try_from(value) {
                 Ok(ivalue) => Ok(Bson::Int64(ivalue)),
-                Err(_) => Err(Error::UnsignedIntegerExceededRange(_value)),
+                Err(_) => Err(Error::UnsignedIntegerExceededRange(value)),
             }
         }
 
