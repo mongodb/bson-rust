@@ -27,7 +27,7 @@ use serde::de::{Error as _, Unexpected};
 
 use crate::{extjson::models, oid, Bson, Document};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 /// Error cases that can occur during deserialization from [extended JSON](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
 pub enum Error {

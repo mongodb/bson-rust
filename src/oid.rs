@@ -31,7 +31,7 @@ lazy_static! {
 }
 
 /// Errors that can occur during OID construction and generation.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Error {
     /// An invalid argument was passed in.
