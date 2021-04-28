@@ -2,9 +2,7 @@
 
 use std::{convert::TryFrom, result::Result};
 
-use serde::{ser, Serialize, Serializer};
-
-use crate::oid::ObjectId;
+use serde::{ser, Serializer};
 
 pub use bson_datetime_as_iso_string::{
     deserialize as deserialize_bson_datetime_from_iso_string,
@@ -14,21 +12,22 @@ pub use chrono_datetime_as_bson_datetime::{
     deserialize as deserialize_chrono_datetime_from_bson_datetime,
     serialize as serialize_chrono_datetime_as_bson_datetime,
 };
+pub use hex_string_as_object_id::{
+    deserialize as deserialize_hex_string_from_object_id,
+    serialize as serialize_hex_string_as_object_id,
+};
 pub use iso_string_as_bson_datetime::{
     deserialize as deserialize_iso_string_from_bson_datetime,
     serialize as serialize_iso_string_as_bson_datetime,
 };
 pub use timestamp_as_u32::{
-    deserialize as deserialize_timestamp_from_u32,
-    serialize as serialize_timestamp_as_u32,
+    deserialize as deserialize_timestamp_from_u32, serialize as serialize_timestamp_as_u32,
 };
 pub use u32_as_timestamp::{
-    deserialize as deserialize_u32_from_timestamp,
-    serialize as serialize_u32_as_timestamp,
+    deserialize as deserialize_u32_from_timestamp, serialize as serialize_u32_as_timestamp,
 };
 pub use uuid_as_binary::{
-    deserialize as deserialize_uuid_from_binary,
-    serialize as serialize_uuid_as_binary,
+    deserialize as deserialize_uuid_from_binary, serialize as serialize_uuid_as_binary,
 };
 
 /// Attempts to serialize a u32 as an i32. Errors if an exact conversion is not possible.
@@ -167,17 +166,40 @@ pub mod bson_datetime_as_iso_string {
     }
 }
 
-/// Serializes a hex string as an ObjectId.
-pub fn serialize_hex_string_as_object_id<S: Serializer>(
-    val: &str,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    match ObjectId::with_string(val) {
-        Ok(oid) => oid.serialize(serializer),
-        Err(_) => Err(ser::Error::custom(format!(
-            "cannot convert {} to ObjectId",
-            val
-        ))),
+/// Contains functions to serialize a hex string as an ObjectId and deserialize a
+/// hex string from an ObjectId
+///
+/// ```rust
+/// # use serde::{Serialize, Deserialize};
+/// # use bson::serde_helpers::hex_string_as_object_id;
+/// #[derive(Serialize, Deserialize)]
+/// struct Item {
+///     #[serde(with = "hex_string_as_object_id")]
+///     pub id: String,
+/// }
+/// ```
+pub mod hex_string_as_object_id {
+    use crate::oid::ObjectId;
+    use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
+
+    /// Deserializes a hex string from an ObjectId.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<String, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let object_id = ObjectId::deserialize(deserializer)?;
+        Ok(object_id.to_hex())
+    }
+
+    /// Serializes a hex string as an ObjectId.
+    pub fn serialize<S: Serializer>(val: &str, serializer: S) -> Result<S::Ok, S::Error> {
+        match ObjectId::with_string(val) {
+            Ok(oid) => oid.serialize(serializer),
+            Err(_) => Err(ser::Error::custom(format!(
+                "cannot convert {} to ObjectId",
+                val
+            ))),
+        }
     }
 }
 

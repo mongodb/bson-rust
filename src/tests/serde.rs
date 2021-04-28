@@ -9,6 +9,7 @@ use crate::{
     oid::ObjectId,
     serde_helpers,
     serde_helpers::{
+        hex_string_as_object_id,
         bson_datetime_as_iso_string,
         chrono_datetime_as_bson_datetime,
         iso_string_as_bson_datetime,
@@ -727,18 +728,18 @@ fn test_datetime_helpers() {
 fn test_oid_helpers() {
     let _guard = LOCK.run_concurrently();
 
-    #[derive(Serialize)]
+    #[derive(Serialize, Deserialize)]
     struct A {
-        #[serde(serialize_with = "serde_helpers::serialize_hex_string_as_object_id")]
+        #[serde(with = "hex_string_as_object_id")]
         oid: String,
     }
 
     let oid = ObjectId::new();
-    let a = A {
-        oid: oid.to_string(),
-    };
+    let a = A { oid: oid.to_string() };
     let doc = to_document(&a).unwrap();
-    assert_eq!(doc.get_object_id("oid").unwrap(), oid);
+    assert_eq!(doc.get_object_id("oid").unwrap(), oid); 
+    let a: A = from_document(doc).unwrap();
+    assert_eq!(a.oid, oid.to_string());
 }
 
 #[test]
