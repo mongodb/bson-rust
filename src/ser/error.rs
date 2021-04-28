@@ -28,8 +28,8 @@ pub enum Error {
     /// Returned when serialization of an unsigned integer was attempted. BSON only supports
     /// 32-bit and 64-bit signed integers.
     ///
-    /// To allow serialization of unsigned integers as signed integers, enable the "u2i" feature
-    /// flag.
+    /// To serialize unsigned integers to BSON, use an appropriate helper from
+    /// [`crate::serde_helpers`] or enable the "u2i" feature flag.
     UnsupportedUnsignedInteger(u64),
 
     #[cfg(feature = "u2i")]
@@ -53,8 +53,8 @@ impl fmt::Display for Error {
             Error::UnsupportedUnsignedInteger(value) => write!(
                 fmt,
                 "BSON does not support unsigned integers, cannot serialize value: {}. To \
-                 serialize unsigned integers as signed integers, use an appropriate serde helper \
-                 or enable the u2i feature.",
+                 serialize unsigned integers to BSON, use an appropriate serde helper or enable \
+                 the u2i feature.",
                 value
             ),
             #[cfg(feature = "u2i")]
