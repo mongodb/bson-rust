@@ -79,7 +79,7 @@ pub fn serialize_u64_as_i64<S: Serializer>(val: &u64, serializer: S) -> Result<S
 pub mod u32_as_f64 {
     use serde::{de, Deserialize, Deserializer, Serializer};
 
-    /// Deserializes a u64 from an f64 (BSON double). Errors if an exact conversion is not possible.
+    /// Deserializes a u32 from an f64 (BSON double). Errors if an exact conversion is not possible.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
     where
         D: Deserializer<'de>,
