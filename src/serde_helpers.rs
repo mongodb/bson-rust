@@ -21,13 +21,18 @@ pub use iso_string_as_bson_datetime::{
     serialize as serialize_iso_string_as_bson_datetime,
 };
 pub use timestamp_as_u32::{
-    deserialize as deserialize_timestamp_from_u32, serialize as serialize_timestamp_as_u32,
+    deserialize as deserialize_timestamp_from_u32,
+    serialize as serialize_timestamp_as_u32,
 };
+pub use u32_as_f64::{deserialize as deserialize_u32_from_f64, serialize as serialize_u32_as_f64};
 pub use u32_as_timestamp::{
-    deserialize as deserialize_u32_from_timestamp, serialize as serialize_u32_as_timestamp,
+    deserialize as deserialize_u32_from_timestamp,
+    serialize as serialize_u32_as_timestamp,
 };
+pub use u64_as_f64::{deserialize as deserialize_u64_from_f64, serialize as serialize_u64_as_f64};
 pub use uuid_as_binary::{
-    deserialize as deserialize_uuid_from_binary, serialize as serialize_uuid_as_binary,
+    deserialize as deserialize_uuid_from_binary,
+    serialize as serialize_uuid_as_binary,
 };
 
 /// Attempts to serialize a u32 as an i32. Errors if an exact conversion is not possible.
@@ -56,6 +61,87 @@ pub fn serialize_u64_as_i64<S: Serializer>(val: &u64, serializer: S) -> Result<S
     match i64::try_from(*val) {
         Ok(val) => serializer.serialize_i64(val),
         Err(_) => Err(ser::Error::custom(format!("cannot convert {} to i64", val))),
+    }
+}
+
+/// Contains functions to serialize a u32 as an f64 (BSON double) and deserialize a
+/// u32 from an f64 (BSON double).
+///
+/// ```rust
+/// # use serde::{Serialize, Deserialize};
+/// # use bson::serde_helpers::u32_as_f64;
+/// #[derive(Serialize, Deserialize)]
+/// struct FileInfo {
+///     #[serde(with = "u32_as_f64")]
+///     pub size_bytes: u32,
+/// }
+/// ```
+pub mod u32_as_f64 {
+    use serde::{de, Deserialize, Deserializer, Serializer};
+
+    /// Deserializes a u64 from an f64 (BSON double). Errors if an exact conversion is not possible.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let f = f64::deserialize(deserializer)?;
+        if (f - f as u32 as f64).abs() <= f64::EPSILON {
+            Ok(f as u32)
+        } else {
+            Err(de::Error::custom(format!(
+                "cannot convert f64 (BSON double) {} to u32",
+                f
+            )))
+        }
+    }
+
+    /// Serializes a u32 as an f64 (BSON double).
+    pub fn serialize<S: Serializer>(val: &u32, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_f64(*val as f64)
+    }
+}
+
+/// Contains functions to serialize a u64 as an f64 (BSON double) and deserialize a
+/// u64 from an f64 (BSON double).
+///
+/// ```rust
+/// # use serde::{Serialize, Deserialize};
+/// # use bson::serde_helpers::u64_as_f64;
+/// #[derive(Serialize, Deserialize)]
+/// struct FileInfo {
+///     #[serde(with = "u64_as_f64")]
+///     pub size_bytes: u64,
+/// }
+/// ```
+pub mod u64_as_f64 {
+    use serde::{de, ser, Deserialize, Deserializer, Serializer};
+
+    /// Deserializes a u64 from an f64 (BSON double). Errors if an exact conversion is not possible.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<u64, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let f = f64::deserialize(deserializer)?;
+        if (f - f as u64 as f64).abs() <= f64::EPSILON {
+            Ok(f as u64)
+        } else {
+            Err(de::Error::custom(format!(
+                "cannot convert f64 (BSON double) {} to u64",
+                f
+            )))
+        }
+    }
+
+    /// Serializes a u64 as an f64 (BSON double). Errors if an exact conversion is not possible.
+    pub fn serialize<S: Serializer>(val: &u64, serializer: S) -> Result<S::Ok, S::Error> {
+        if val < &u64::MAX && *val == *val as f64 as u64 {
+            serializer.serialize_f64(*val as f64)
+        } else {
+            Err(ser::Error::custom(format!(
+                "cannot convert u64 {} to f64 (BSON double)",
+                val
+            )))
+        }
     }
 }
 

@@ -204,7 +204,6 @@ pub use self::{
 #[macro_use]
 mod macros;
 mod bson;
-pub mod compat;
 pub mod de;
 pub mod decimal128;
 pub mod document;
