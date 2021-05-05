@@ -500,14 +500,29 @@ impl Document {
     }
 
     /// Attempts to serialize the `Document` into a byte stream.
-    pub fn to_writer<W: Write + ?Sized>(&self, writer: &mut W) -> crate::ser::Result<()> {
+    ///
+    /// While the method signature indicates an owned writer must be passed in, a mutable reference
+    /// may also be passed in due to blanket implementations of `Write` provided in the standard
+    /// library.
+    ///
+    /// ```
+    /// # fn main() -> bson::ser::Result<()> {
+    /// use bson::doc;
+    ///
+    /// let mut v: Vec<u8> = Vec::new();
+    /// let doc = doc! { "x" : 1 };
+    /// doc.to_writer(&mut v)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn to_writer<W: Write>(&self, mut writer: W) -> crate::ser::Result<()> {
         let mut buf = Vec::new();
         for (key, val) in self.into_iter() {
             serialize_bson(&mut buf, key.as_ref(), val)?;
         }
 
         write_i32(
-            writer,
+            &mut writer,
             (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
         )?;
         writer.write_all(&buf)?;
@@ -551,8 +566,35 @@ impl Document {
     }
 
     /// Attempts to deserialize a `Document` from a byte stream.
-    pub fn from_reader<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
-        Self::decode(reader, false)
+    ///
+    /// While the method signature indicates an owned reader must be passed in, a mutable reference
+    /// may also be passed in due to blanket implementations of `Read` provided in the standard
+    /// library.
+    ///
+    /// ```
+    /// # use std::error::Error;
+    /// # fn main() -> std::result::Result<(), Box<dyn Error>> {
+    /// use bson::{doc, Document};
+    /// use std::io::Cursor;
+    ///
+    /// let mut v: Vec<u8> = Vec::new();
+    /// let doc = doc! { "x" : 1 };
+    /// doc.to_writer(&mut v)?;
+    ///
+    /// // read from mutable reference
+    /// let mut reader = Cursor::new(v.clone());
+    /// let doc1 = Document::from_reader(&mut reader)?;
+    ///
+    /// // read from owned value
+    /// let doc2 = Document::from_reader(Cursor::new(v))?;
+    ///
+    /// assert_eq!(doc, doc1);
+    /// assert_eq!(doc, doc2);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_reader<R: Read>(mut reader: R) -> crate::de::Result<Document> {
+        Self::decode(&mut reader, false)
     }
 
     /// Attempt to deserialize a `Document` that may contain invalid UTF-8 strings from a byte
@@ -561,8 +603,8 @@ impl Document {
     /// This is mainly useful when reading raw BSON returned from a MongoDB server, which
     /// in rare cases can contain invalidly truncated strings (https://jira.mongodb.org/browse/SERVER-24007).
     /// For most use cases, `Document::from_reader` can be used instead.
-    pub fn from_reader_utf8_lossy<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
-        Self::decode(reader, true)
+    pub fn from_reader_utf8_lossy<R: Read>(mut reader: R) -> crate::de::Result<Document> {
+        Self::decode(&mut reader, true)
     }
 }
 
