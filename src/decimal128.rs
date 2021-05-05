@@ -79,42 +79,10 @@ impl Decimal128 {
     ///
     /// let num: i32 = 23;
     /// let dec128 = Decimal128::from_i32(num);
-    /// let int = dec128.into_i32();
-    /// assert_eq!(int, num);
-    /// ```
-    #[allow(clippy::wrong_self_convention)]
-    #[deprecated(since = "0.15.0", note = "Replaced by `to_i32`")]
-    pub fn into_i32(&self) -> i32 {
-        Into::into(self.inner)
-    }
-
-    /// Construct a `Decimal128` from a `i32` number.
-    ///
-    /// ```rust
-    /// use bson::decimal128::Decimal128;
-    ///
-    /// let num: i32 = 23;
-    /// let dec128 = Decimal128::from_i32(num);
     /// let int = dec128.to_i32();
     /// assert_eq!(int, num);
     /// ```
     pub fn to_i32(&self) -> i32 {
-        Into::into(self.inner)
-    }
-
-    /// Construct a `Decimal128` from a `i32` number.
-    ///
-    /// ```rust
-    /// use bson::decimal128::Decimal128;
-    ///
-    /// let num: u32 = 23;
-    /// let dec128 = Decimal128::from_u32(num);
-    /// let int = dec128.into_u32();
-    /// assert_eq!(int, num);
-    /// ```
-    #[allow(clippy::wrong_self_convention)]
-    #[deprecated(since = "0.15.0", note = "Replaced by `to_u32`")]
-    pub fn into_u32(&self) -> u32 {
         Into::into(self.inner)
     }
 
