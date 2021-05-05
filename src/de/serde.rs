@@ -18,7 +18,7 @@ use serde::de::{
 use crate::decimal128::Decimal128;
 use crate::{
     bson::{Binary, Bson, DateTime, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
-    document::{Document, DocumentIntoIterator, DocumentVisitor},
+    document::{Document, DocumentVisitor, IntoIter},
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -611,7 +611,7 @@ impl<'de> SeqAccess<'de> for SeqDeserializer {
 }
 
 struct MapDeserializer {
-    iter: DocumentIntoIterator,
+    iter: IntoIter,
     value: Option<Bson>,
     len: usize,
 }

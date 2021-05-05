@@ -99,12 +99,12 @@ impl Debug for Document {
 }
 
 /// An iterator over Document entries.
-pub struct DocumentIntoIterator {
+pub struct IntoIter {
     inner: indexmap::map::IntoIter<String, Bson>,
 }
 
 /// An owning iterator over Document entries.
-pub struct DocumentIterator<'a> {
+pub struct Iter<'a> {
     inner: indexmap::map::Iter<'a, String, Bson>,
 }
 
@@ -136,10 +136,10 @@ impl<'a> Iterator for Values<'a> {
 
 impl IntoIterator for Document {
     type Item = (String, Bson);
-    type IntoIter = DocumentIntoIterator;
+    type IntoIter = IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        DocumentIntoIterator {
+        IntoIter {
             inner: self.inner.into_iter(),
         }
     }
@@ -147,10 +147,10 @@ impl IntoIterator for Document {
 
 impl<'a> IntoIterator for &'a Document {
     type Item = (&'a String, &'a Bson);
-    type IntoIter = DocumentIterator<'a>;
+    type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        DocumentIterator {
+        Iter {
             inner: self.inner.iter(),
         }
     }
@@ -166,7 +166,7 @@ impl FromIterator<(String, Bson)> for Document {
     }
 }
 
-impl<'a> Iterator for DocumentIntoIterator {
+impl<'a> Iterator for IntoIter {
     type Item = (String, Bson);
 
     fn next(&mut self) -> Option<(String, Bson)> {
@@ -174,7 +174,7 @@ impl<'a> Iterator for DocumentIntoIterator {
     }
 }
 
-impl<'a> Iterator for DocumentIterator<'a> {
+impl<'a> Iterator for Iter<'a> {
     type Item = (&'a String, &'a Bson);
 
     fn next(&mut self) -> Option<(&'a String, &'a Bson)> {
@@ -191,7 +191,7 @@ impl Document {
     }
 
     /// Gets an iterator over the entries of the map.
-    pub fn iter(&self) -> DocumentIterator {
+    pub fn iter(&self) -> Iter {
         self.into_iter()
     }
 
