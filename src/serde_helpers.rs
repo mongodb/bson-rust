@@ -279,7 +279,7 @@ pub mod hex_string_as_object_id {
 
     /// Serializes a hex string as an ObjectId.
     pub fn serialize<S: Serializer>(val: &str, serializer: S) -> Result<S::Ok, S::Error> {
-        match ObjectId::with_string(val) {
+        match ObjectId::parse_str(val) {
             Ok(oid) => oid.serialize(serializer),
             Err(_) => Err(ser::Error::custom(format!(
                 "cannot convert {} to ObjectId",

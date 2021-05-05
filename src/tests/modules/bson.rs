@@ -20,7 +20,7 @@ fn to_json() {
     let mut doc = Document::new();
     doc.insert(
         "_id",
-        Bson::ObjectId(ObjectId::with_bytes(*b"abcdefghijkl")),
+        Bson::ObjectId(ObjectId::from_bytes(*b"abcdefghijkl")),
     );
     doc.insert("first", Bson::Int32(1));
     doc.insert("second", Bson::String("foo".to_owned()));
@@ -115,7 +115,7 @@ fn from_impls() {
     let oid = ObjectId::new();
     assert_eq!(
         Bson::from(b"abcdefghijkl"),
-        Bson::ObjectId(ObjectId::with_bytes(*b"abcdefghijkl"))
+        Bson::ObjectId(ObjectId::from_bytes(*b"abcdefghijkl"))
     );
     assert_eq!(Bson::from(oid), Bson::ObjectId(oid));
     assert_eq!(

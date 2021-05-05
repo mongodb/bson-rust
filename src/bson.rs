@@ -278,7 +278,7 @@ impl From<u64> for Bson {
 
 impl From<[u8; 12]> for Bson {
     fn from(a: [u8; 12]) -> Bson {
-        Bson::ObjectId(oid::ObjectId::with_bytes(a))
+        Bson::ObjectId(oid::ObjectId::from_bytes(a))
     }
 }
 
@@ -607,7 +607,7 @@ impl Bson {
         match keys.as_slice() {
             ["$oid"] => {
                 if let Ok(oid) = doc.get_str("$oid") {
-                    if let Ok(oid) = ObjectId::with_string(oid) {
+                    if let Ok(oid) = ObjectId::parse_str(oid) {
                         return Bson::ObjectId(oid);
                     }
                 }

@@ -84,7 +84,13 @@ impl FromStr for ObjectId {
     type Err = Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        Self::with_string(s)
+        Self::parse_str(s)
+    }
+}
+
+impl From<[u8; 12]> for ObjectId {
+    fn from(bytes: [u8; 12]) -> Self {
+        Self { id: bytes }
     }
 }
 
@@ -105,17 +111,17 @@ impl ObjectId {
         buf[COUNTER_OFFSET..(COUNTER_SIZE + COUNTER_OFFSET)]
             .clone_from_slice(&counter[..COUNTER_SIZE]);
 
-        ObjectId::with_bytes(buf)
+        ObjectId::from_bytes(buf)
     }
 
     /// Constructs a new ObjectId wrapper around the raw byte representation.
-    pub fn with_bytes(bytes: [u8; 12]) -> ObjectId {
+    pub const fn from_bytes(bytes: [u8; 12]) -> ObjectId {
         ObjectId { id: bytes }
     }
 
     /// Creates an ObjectID using a 12-byte (24-char) hexadecimal string.
-    pub fn with_string(s: &str) -> Result<ObjectId> {
-        let bytes: Vec<u8> = hex::decode(s.as_bytes())?;
+    pub fn parse_str(s: impl AsRef<str>) -> Result<ObjectId> {
+        let bytes: Vec<u8> = hex::decode(s.as_ref().as_bytes())?;
         if bytes.len() != 12 {
             Err(Error::ArgumentError {
                 message: "Provided string must be a 12-byte hexadecimal string.".to_owned(),
@@ -123,7 +129,7 @@ impl ObjectId {
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
             byte_array[..].copy_from_slice(&bytes[..]);
-            Ok(ObjectId::with_bytes(byte_array))
+            Ok(ObjectId::from_bytes(byte_array))
         }
     }
 
@@ -268,33 +274,33 @@ mod test {
 
     #[test]
     fn test_display() {
-        let id = super::ObjectId::with_string("53e37d08776f724e42000000").unwrap();
+        let id = super::ObjectId::parse_str("53e37d08776f724e42000000").unwrap();
 
         assert_eq!(format!("{}", id), "53e37d08776f724e42000000")
     }
 
     #[test]
     fn test_debug() {
-        let id = super::ObjectId::with_string("53e37d08776f724e42000000").unwrap();
+        let id = super::ObjectId::parse_str("53e37d08776f724e42000000").unwrap();
 
         assert_eq!(format!("{:?}", id), "ObjectId(53e37d08776f724e42000000)")
     }
 
     #[test]
     fn test_timestamp() {
-        let id = super::ObjectId::with_string("000000000000000000000000").unwrap();
+        let id = super::ObjectId::parse_str("000000000000000000000000").unwrap();
         // "Jan 1st, 1970 00:00:00 UTC"
         assert_eq!(Utc.ymd(1970, 1, 1).and_hms(0, 0, 0), id.timestamp());
 
-        let id = super::ObjectId::with_string("7FFFFFFF0000000000000000").unwrap();
+        let id = super::ObjectId::parse_str("7FFFFFFF0000000000000000").unwrap();
         // "Jan 19th, 2038 03:14:07 UTC"
         assert_eq!(Utc.ymd(2038, 1, 19).and_hms(3, 14, 7), id.timestamp());
 
-        let id = super::ObjectId::with_string("800000000000000000000000").unwrap();
+        let id = super::ObjectId::parse_str("800000000000000000000000").unwrap();
         // "Jan 19th, 2038 03:14:08 UTC"
         assert_eq!(Utc.ymd(2038, 1, 19).and_hms(3, 14, 8), id.timestamp());
 
-        let id = super::ObjectId::with_string("FFFFFFFF0000000000000000").unwrap();
+        let id = super::ObjectId::parse_str("FFFFFFFF0000000000000000").unwrap();
         // "Feb 7th, 2106 06:28:15 UTC"
         assert_eq!(Utc.ymd(2106, 2, 7).and_hms(6, 28, 15), id.timestamp());
     }

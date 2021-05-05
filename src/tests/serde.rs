@@ -569,7 +569,7 @@ fn test_de_oid_string() {
     }
 
     let foo: Foo = serde_json::from_str("{ \"oid\": \"507f1f77bcf86cd799439011\" }").unwrap();
-    let oid = ObjectId::with_string("507f1f77bcf86cd799439011").unwrap();
+    let oid = ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap();
     assert_eq!(foo.oid, oid);
 }
 

@@ -33,7 +33,7 @@ impl<'de> Deserialize<'de> for ObjectId {
         deserializer
             .deserialize_any(BsonVisitor)
             .and_then(|bson| match bson {
-                Bson::String(oid) => ObjectId::with_string(&oid).map_err(de::Error::custom),
+                Bson::String(oid) => ObjectId::parse_str(&oid).map_err(de::Error::custom),
                 Bson::ObjectId(oid) => Ok(oid),
                 _ => {
                     let err = format!(
