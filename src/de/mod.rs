@@ -263,7 +263,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             for x in &mut objid {
                 *x = read_u8(reader)?;
             }
-            Bson::ObjectId(oid::ObjectId::with_bytes(objid))
+            Bson::ObjectId(oid::ObjectId::from_bytes(objid))
         }
         Some(ElementType::Boolean) => {
             let val = read_u8(reader)?;
@@ -345,7 +345,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             reader.read_exact(&mut objid)?;
             Bson::DbPointer(DbPointer {
                 namespace,
-                id: oid::ObjectId::with_bytes(objid),
+                id: oid::ObjectId::from_bytes(objid),
             })
         }
         Some(ElementType::MaxKey) => Bson::MaxKey,

@@ -81,7 +81,7 @@ pub(crate) struct ObjectId {
 
 impl ObjectId {
     pub(crate) fn parse(self) -> extjson::de::Result<oid::ObjectId> {
-        let oid = oid::ObjectId::with_string(self.oid.as_str())?;
+        let oid = oid::ObjectId::parse_str(self.oid.as_str())?;
         Ok(oid)
     }
 }

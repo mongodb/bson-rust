@@ -295,7 +295,7 @@ fn test_serialize_binary_generic() {
 #[test]
 fn test_serialize_deserialize_object_id() {
     let _guard = LOCK.run_concurrently();
-    let src = ObjectId::with_string("507f1f77bcf86cd799439011").unwrap();
+    let src = ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap();
     let dst = vec![
         22, 0, 0, 0, 7, 107, 101, 121, 0, 80, 127, 31, 119, 188, 248, 108, 215, 153, 67, 144, 17, 0,
     ];

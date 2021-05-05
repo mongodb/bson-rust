@@ -4,7 +4,7 @@ use crate::{oid::ObjectId, tests::LOCK};
 fn string_oid() {
     let _guard = LOCK.run_concurrently();
     let s = "123456789012123456789012";
-    let oid_res = ObjectId::with_string(s);
+    let oid_res = ObjectId::parse_str(s);
     assert!(oid_res.is_ok());
     let actual_s = hex::encode(oid_res.unwrap().bytes());
     assert_eq!(s.to_owned(), actual_s);
@@ -14,7 +14,7 @@ fn string_oid() {
 fn byte_string_oid() {
     let _guard = LOCK.run_concurrently();
     let s = "541b1a00e8a23afa832b218e";
-    let oid_res = ObjectId::with_string(s);
+    let oid_res = ObjectId::parse_str(s);
     assert!(oid_res.is_ok());
     let oid = oid_res.unwrap();
     let bytes: [u8; 12] = [
