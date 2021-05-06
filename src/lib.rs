@@ -183,7 +183,6 @@
 //! that is also less error prone.
 
 #![allow(clippy::cognitive_complexity)]
-
 #![doc(html_root_url = "https://docs.rs/bson/1.2.2")]
 
 pub use self::{

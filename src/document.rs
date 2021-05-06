@@ -201,18 +201,18 @@ impl Document {
     }
 
     /// Returns a reference to the Bson corresponding to the key.
-    pub fn get(&self, key: &str) -> Option<&Bson> {
-        self.inner.get(key)
+    pub fn get(&self, key: impl AsRef<str>) -> Option<&Bson> {
+        self.inner.get(key.as_ref())
     }
 
     /// Gets a mutable reference to the Bson corresponding to the key
-    pub fn get_mut(&mut self, key: &str) -> Option<&mut Bson> {
-        self.inner.get_mut(key)
+    pub fn get_mut(&mut self, key: impl AsRef<str>) -> Option<&mut Bson> {
+        self.inner.get_mut(key.as_ref())
     }
 
     /// Get a floating point value for this key if it exists and has
     /// the correct type.
-    pub fn get_f64(&self, key: &str) -> ValueAccessResult<f64> {
+    pub fn get_f64(&self, key: impl AsRef<str>) -> ValueAccessResult<f64> {
         match self.get(key) {
             Some(&Bson::Double(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -222,7 +222,7 @@ impl Document {
 
     /// Get a mutable reference to a floating point value for this key if it exists and has
     /// the correct type.
-    pub fn get_f64_mut(&mut self, key: &str) -> ValueAccessResult<&mut f64> {
+    pub fn get_f64_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut f64> {
         match self.get_mut(key) {
             Some(&mut Bson::Double(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -232,7 +232,7 @@ impl Document {
 
     /// Get a reference to a Decimal128 value for key, if it exists.
     #[cfg(feature = "decimal128")]
-    pub fn get_decimal128(&self, key: &str) -> ValueAccessResult<&Decimal128> {
+    pub fn get_decimal128(&self, key: impl AsRef<str>) -> ValueAccessResult<&Decimal128> {
         match self.get(key) {
             Some(&Bson::Decimal128(ref v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -242,7 +242,10 @@ impl Document {
 
     /// Get a mutable reference to a Decimal128 value for key, if it exists.
     #[cfg(feature = "decimal128")]
-    pub fn get_decimal128_mut(&mut self, key: &str) -> ValueAccessResult<&mut Decimal128> {
+    pub fn get_decimal128_mut(
+        &mut self,
+        key: impl AsRef<str>,
+    ) -> ValueAccessResult<&mut Decimal128> {
         match self.get_mut(key) {
             Some(&mut Bson::Decimal128(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -251,7 +254,7 @@ impl Document {
     }
 
     /// Get a string slice this key if it exists and has the correct type.
-    pub fn get_str(&self, key: &str) -> ValueAccessResult<&str> {
+    pub fn get_str(&self, key: impl AsRef<str>) -> ValueAccessResult<&str> {
         match self.get(key) {
             Some(&Bson::String(ref v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -260,7 +263,7 @@ impl Document {
     }
 
     /// Get a mutable string slice this key if it exists and has the correct type.
-    pub fn get_str_mut(&mut self, key: &str) -> ValueAccessResult<&mut str> {
+    pub fn get_str_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut str> {
         match self.get_mut(key) {
             Some(&mut Bson::String(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -270,7 +273,7 @@ impl Document {
 
     /// Get a reference to an array for this key if it exists and has
     /// the correct type.
-    pub fn get_array(&self, key: &str) -> ValueAccessResult<&Array> {
+    pub fn get_array(&self, key: impl AsRef<str>) -> ValueAccessResult<&Array> {
         match self.get(key) {
             Some(&Bson::Array(ref v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -280,7 +283,7 @@ impl Document {
 
     /// Get a mutable reference to an array for this key if it exists and has
     /// the correct type.
-    pub fn get_array_mut(&mut self, key: &str) -> ValueAccessResult<&mut Array> {
+    pub fn get_array_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut Array> {
         match self.get_mut(key) {
             Some(&mut Bson::Array(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -290,7 +293,7 @@ impl Document {
 
     /// Get a reference to a document for this key if it exists and has
     /// the correct type.
-    pub fn get_document(&self, key: &str) -> ValueAccessResult<&Document> {
+    pub fn get_document(&self, key: impl AsRef<str>) -> ValueAccessResult<&Document> {
         match self.get(key) {
             Some(&Bson::Document(ref v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -300,7 +303,7 @@ impl Document {
 
     /// Get a mutable reference to a document for this key if it exists and has
     /// the correct type.
-    pub fn get_document_mut(&mut self, key: &str) -> ValueAccessResult<&mut Document> {
+    pub fn get_document_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut Document> {
         match self.get_mut(key) {
             Some(&mut Bson::Document(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -309,7 +312,7 @@ impl Document {
     }
 
     /// Get a bool value for this key if it exists and has the correct type.
-    pub fn get_bool(&self, key: &str) -> ValueAccessResult<bool> {
+    pub fn get_bool(&self, key: impl AsRef<str>) -> ValueAccessResult<bool> {
         match self.get(key) {
             Some(&Bson::Boolean(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -318,7 +321,7 @@ impl Document {
     }
 
     /// Get a mutable reference to a bool value for this key if it exists and has the correct type.
-    pub fn get_bool_mut(&mut self, key: &str) -> ValueAccessResult<&mut bool> {
+    pub fn get_bool_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut bool> {
         match self.get_mut(key) {
             Some(&mut Bson::Boolean(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -327,12 +330,12 @@ impl Document {
     }
 
     /// Returns wether this key has a null value
-    pub fn is_null(&self, key: &str) -> bool {
+    pub fn is_null(&self, key: impl AsRef<str>) -> bool {
         self.get(key) == Some(&Bson::Null)
     }
 
     /// Get an i32 value for this key if it exists and has the correct type.
-    pub fn get_i32(&self, key: &str) -> ValueAccessResult<i32> {
+    pub fn get_i32(&self, key: impl AsRef<str>) -> ValueAccessResult<i32> {
         match self.get(key) {
             Some(&Bson::Int32(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -341,7 +344,7 @@ impl Document {
     }
 
     /// Get a mutable reference to an i32 value for this key if it exists and has the correct type.
-    pub fn get_i32_mut(&mut self, key: &str) -> ValueAccessResult<&mut i32> {
+    pub fn get_i32_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut i32> {
         match self.get_mut(key) {
             Some(&mut Bson::Int32(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -350,7 +353,7 @@ impl Document {
     }
 
     /// Get an i64 value for this key if it exists and has the correct type.
-    pub fn get_i64(&self, key: &str) -> ValueAccessResult<i64> {
+    pub fn get_i64(&self, key: impl AsRef<str>) -> ValueAccessResult<i64> {
         match self.get(key) {
             Some(&Bson::Int64(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -359,7 +362,7 @@ impl Document {
     }
 
     /// Get a mutable reference to an i64 value for this key if it exists and has the correct type.
-    pub fn get_i64_mut(&mut self, key: &str) -> ValueAccessResult<&mut i64> {
+    pub fn get_i64_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut i64> {
         match self.get_mut(key) {
             Some(&mut Bson::Int64(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -368,7 +371,7 @@ impl Document {
     }
 
     /// Get a time stamp value for this key if it exists and has the correct type.
-    pub fn get_timestamp(&self, key: &str) -> ValueAccessResult<Timestamp> {
+    pub fn get_timestamp(&self, key: impl AsRef<str>) -> ValueAccessResult<Timestamp> {
         match self.get(key) {
             Some(&Bson::Timestamp(timestamp)) => Ok(timestamp),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -378,7 +381,7 @@ impl Document {
 
     /// Get a mutable reference to a time stamp value for this key if it exists and has the correct
     /// type.
-    pub fn get_timestamp_mut(&mut self, key: &str) -> ValueAccessResult<&mut Timestamp> {
+    pub fn get_timestamp_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut Timestamp> {
         match self.get_mut(key) {
             Some(&mut Bson::Timestamp(ref mut timestamp)) => Ok(timestamp),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -388,7 +391,7 @@ impl Document {
 
     /// Get a reference to a generic binary value for this key if it exists and has the correct
     /// type.
-    pub fn get_binary_generic(&self, key: &str) -> ValueAccessResult<&Vec<u8>> {
+    pub fn get_binary_generic(&self, key: impl AsRef<str>) -> ValueAccessResult<&Vec<u8>> {
         match self.get(key) {
             Some(&Bson::Binary(Binary {
                 subtype: BinarySubtype::Generic,
@@ -401,7 +404,10 @@ impl Document {
 
     /// Get a mutable reference generic binary value for this key if it exists and has the correct
     /// type.
-    pub fn get_binary_generic_mut(&mut self, key: &str) -> ValueAccessResult<&mut Vec<u8>> {
+    pub fn get_binary_generic_mut(
+        &mut self,
+        key: impl AsRef<str>,
+    ) -> ValueAccessResult<&mut Vec<u8>> {
         match self.get_mut(key) {
             Some(&mut Bson::Binary(Binary {
                 subtype: BinarySubtype::Generic,
@@ -413,7 +419,7 @@ impl Document {
     }
 
     /// Get an object id value for this key if it exists and has the correct type.
-    pub fn get_object_id(&self, key: &str) -> ValueAccessResult<ObjectId> {
+    pub fn get_object_id(&self, key: impl AsRef<str>) -> ValueAccessResult<ObjectId> {
         match self.get(key) {
             Some(&Bson::ObjectId(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -423,7 +429,7 @@ impl Document {
 
     /// Get a mutable reference to an object id value for this key if it exists and has the correct
     /// type.
-    pub fn get_object_id_mut(&mut self, key: &str) -> ValueAccessResult<&mut ObjectId> {
+    pub fn get_object_id_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut ObjectId> {
         match self.get_mut(key) {
             Some(&mut Bson::ObjectId(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -432,7 +438,7 @@ impl Document {
     }
 
     /// Get a reference to a UTC datetime value for this key if it exists and has the correct type.
-    pub fn get_datetime(&self, key: &str) -> ValueAccessResult<&DateTime<Utc>> {
+    pub fn get_datetime(&self, key: impl AsRef<str>) -> ValueAccessResult<&DateTime<Utc>> {
         match self.get(key) {
             Some(&Bson::DateTime(ref v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -442,7 +448,10 @@ impl Document {
 
     /// Get a mutable reference to a UTC datetime value for this key if it exists and has the
     /// correct type.
-    pub fn get_datetime_mut(&mut self, key: &str) -> ValueAccessResult<&mut DateTime<Utc>> {
+    pub fn get_datetime_mut(
+        &mut self,
+        key: impl AsRef<str>,
+    ) -> ValueAccessResult<&mut DateTime<Utc>> {
         match self.get_mut(key) {
             Some(&mut Bson::DateTime(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -451,8 +460,8 @@ impl Document {
     }
 
     /// Returns true if the map contains a value for the specified key.
-    pub fn contains_key(&self, key: &str) -> bool {
-        self.inner.contains_key(key)
+    pub fn contains_key(&self, key: impl AsRef<str>) -> bool {
+        self.inner.contains_key(key.as_ref())
     }
 
     /// Gets a collection of all keys in the document.
@@ -488,8 +497,8 @@ impl Document {
 
     /// Takes the value of the entry out of the document, and returns it.
     /// Computes in **O(n)** time (average).
-    pub fn remove(&mut self, key: &str) -> Option<Bson> {
-        self.inner.shift_remove(key)
+    pub fn remove(&mut self, key: impl AsRef<str>) -> Option<Bson> {
+        self.inner.shift_remove(key.as_ref())
     }
 
     pub fn entry(&mut self, k: String) -> Entry {
