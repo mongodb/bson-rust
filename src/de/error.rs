@@ -17,6 +17,7 @@ pub enum Error {
 
     /// While decoding a `Document` from bytes, an unexpected or unsupported element type was
     /// encountered.
+    #[non_exhaustive]
     UnrecognizedDocumentElementType {
         /// The key at which an unexpected/unsupported element type was encountered.
         key: String,
@@ -26,12 +27,14 @@ pub enum Error {
     },
 
     /// There was an error with the syntactical structure of the BSON.
+    #[non_exhaustive]
     SyntaxError { message: String },
 
     /// The end of the BSON input was reached too soon.
     EndOfStream,
 
     /// An invalid datetime was encountered while decoding.
+    #[non_exhaustive]
     InvalidDateTime {
         /// The key at which an unexpected/unsupported datetime was encountered.
         key: String,
@@ -42,6 +45,7 @@ pub enum Error {
 
     /// A general error encountered during deserialization.
     /// See: https://docs.serde.rs/serde/de/trait.Error.html
+    #[non_exhaustive]
     DeserializationError {
         /// A message describing the error.
         message: String,
