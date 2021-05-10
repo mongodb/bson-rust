@@ -8,9 +8,9 @@ pub use bson_datetime_as_iso_string::{
     deserialize as deserialize_bson_datetime_from_iso_string,
     serialize as serialize_bson_datetime_as_iso_string,
 };
-pub use chrono_datetime_as_bson_datetime::{
-    deserialize as deserialize_chrono_datetime_from_bson_datetime,
-    serialize as serialize_chrono_datetime_as_bson_datetime,
+pub use chrono_0_4_datetime_as_bson_datetime::{
+    deserialize as deserialize_chrono_0_4_datetime_from_bson_datetime,
+    serialize as serialize_chrono_0_4_datetime_as_bson_datetime,
 };
 pub use hex_string_as_object_id::{
     deserialize as deserialize_hex_string_from_object_id,
@@ -30,9 +30,9 @@ pub use u32_as_timestamp::{
     serialize as serialize_u32_as_timestamp,
 };
 pub use u64_as_f64::{deserialize as deserialize_u64_from_f64, serialize as serialize_u64_as_f64};
-pub use uuid_as_binary::{
-    deserialize as deserialize_uuid_from_binary,
-    serialize as serialize_uuid_as_binary,
+pub use uuid_0_8_as_binary::{
+    deserialize as deserialize_uuid_0_8_from_binary,
+    serialize as serialize_uuid_0_8_as_binary,
 };
 
 /// Attempts to serialize a u32 as an i32. Errors if an exact conversion is not possible.
@@ -150,14 +150,14 @@ pub mod u64_as_f64 {
 ///
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::chrono_datetime_as_bson_datetime;
+/// # use bson::serde_helpers::chrono_0_4_datetime_as_bson_datetime;
 /// #[derive(Serialize, Deserialize)]
 /// struct Event {
-///     #[serde(with = "chrono_datetime_as_bson_datetime")]
+///     #[serde(with = "chrono_0_4_datetime_as_bson_datetime")]
 ///     pub date: chrono::DateTime<chrono::Utc>,
 /// }
 /// ```
-pub mod chrono_datetime_as_bson_datetime {
+pub mod chrono_0_4_datetime_as_bson_datetime {
     use crate::DateTime;
     use chrono::Utc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -210,10 +210,10 @@ pub mod iso_string_as_bson_datetime {
 
     /// Serializes an ISO string as a DateTime.
     pub fn serialize<S: Serializer>(val: &str, serializer: S) -> Result<S::Ok, S::Error> {
-        let date = chrono::DateTime::from_str(val).map_err(|_| {
+        let date = chrono::DateTime::<chrono::Utc>::from_str(val).map_err(|_| {
             ser::Error::custom(format!("cannot convert {} to chrono::DateTime", val))
         })?;
-        Bson::DateTime(date).serialize(serializer)
+        Bson::DateTime(date.into()).serialize(serializer)
     }
 }
 
@@ -240,7 +240,7 @@ pub mod bson_datetime_as_iso_string {
         D: Deserializer<'de>,
     {
         let iso = String::deserialize(deserializer)?;
-        let date = chrono::DateTime::from_str(&iso).map_err(|_| {
+        let date = chrono::DateTime::<chrono::Utc>::from_str(&iso).map_err(|_| {
             de::Error::custom(format!("cannot convert {} to chrono::DateTime", iso))
         })?;
         Ok(DateTime::from(date))
@@ -289,20 +289,20 @@ pub mod hex_string_as_object_id {
     }
 }
 
-/// Contains functions to serialize a Uuid as a bson::Binary and deserialize a Uuid from a
-/// bson::Binary.
+/// Contains functions to serialize a [`uuid::Uuid`] as a [`bson::Binary`] and deserialize a
+/// [`uuid::Uuid`] from a [`bson::Binary`]. This only works with version 0.8 of the [`uuid`] crate.
 ///
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
 /// # use uuid::Uuid;
-/// # use bson::serde_helpers::uuid_as_binary;
+/// # use bson::serde_helpers::uuid_0_8_as_binary;
 /// #[derive(Serialize, Deserialize)]
 /// struct Item {
-///     #[serde(with = "uuid_as_binary")]
+///     #[serde(with = "uuid_0_8_as_binary")]
 ///     pub id: Uuid,
 /// }
 /// ```
-pub mod uuid_as_binary {
+pub mod uuid_0_8_as_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;

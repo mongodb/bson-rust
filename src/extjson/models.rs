@@ -241,7 +241,7 @@ impl DateTime {
         match self.body {
             DateTimeBody::Canonical(date) => {
                 let date = date.parse()?;
-                Ok(crate::DateTime::from_i64(date))
+                Ok(crate::DateTime::from_millis(date))
             }
             DateTimeBody::Relaxed(date) => {
                 let datetime: chrono::DateTime<Utc> =

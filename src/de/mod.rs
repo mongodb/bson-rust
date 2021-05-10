@@ -327,7 +327,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             let time = read_i64(reader)?;
 
             match Utc.timestamp_millis_opt(time) {
-                LocalResult::Single(t) => Bson::DateTime(t),
+                LocalResult::Single(t) => Bson::DateTime(t.into()),
                 _ => {
                     return Err(Error::InvalidDateTime {
                         key,

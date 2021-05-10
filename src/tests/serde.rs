@@ -9,12 +9,12 @@ use crate::{
     serde_helpers,
     serde_helpers::{
         bson_datetime_as_iso_string,
-        chrono_datetime_as_bson_datetime,
+        chrono_0_4_datetime_as_bson_datetime,
         hex_string_as_object_id,
         iso_string_as_bson_datetime,
         timestamp_as_u32,
         u32_as_timestamp,
-        uuid_as_binary,
+        uuid_0_8_as_binary,
     },
     spec::BinarySubtype,
     tests::LOCK,
@@ -266,7 +266,7 @@ fn test_ser_datetime() {
     let x = to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "date": (Bson::DateTime(now)) }
+        &doc! { "date": (Bson::DateTime(now.into())) }
     );
 
     let xfoo: Foo = from_bson(x).unwrap();
@@ -693,7 +693,7 @@ fn test_datetime_helpers() {
     }
 
     let iso = "1996-12-20 00:39:57 UTC";
-    let date = chrono::DateTime::from_str(iso).unwrap();
+    let date = chrono::DateTime::<chrono::Utc>::from_str(iso).unwrap();
     let a = A { date: date.into() };
     let doc = to_document(&a).unwrap();
     assert_eq!(doc.get_str("date").unwrap(), iso);
@@ -702,7 +702,7 @@ fn test_datetime_helpers() {
 
     #[derive(Deserialize, Serialize)]
     struct B {
-        #[serde(with = "chrono_datetime_as_bson_datetime")]
+        #[serde(with = "chrono_0_4_datetime_as_bson_datetime")]
         pub date: chrono::DateTime<chrono::Utc>,
     }
 
@@ -720,7 +720,7 @@ fn test_datetime_helpers() {
         chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap();
     assert_eq!(b.date, expected);
     let doc = to_document(&b).unwrap();
-    assert_eq!(doc.get_datetime("date").unwrap(), &expected);
+    assert_eq!(doc.get_datetime("date").unwrap(), &expected.into());
     let b: B = from_document(doc).unwrap();
     assert_eq!(b.date, expected);
 
@@ -766,7 +766,7 @@ fn test_uuid_helpers() {
 
     #[derive(Serialize, Deserialize)]
     struct A {
-        #[serde(with = "uuid_as_binary")]
+        #[serde(with = "uuid_0_8_as_binary")]
         uuid: Uuid,
     }
 

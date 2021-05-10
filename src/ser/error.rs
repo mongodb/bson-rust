@@ -17,6 +17,9 @@ pub enum Error {
         key: Bson,
     },
 
+    /// Attempted to serialize a sub-millisecond precision datetime, which BSON does not support.
+    SubMillisecondPrecisionDateTime(crate::DateTime),
+
     /// A general error that ocurred during serialization.
     /// See: https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom
     SerializationError {
@@ -64,6 +67,12 @@ impl fmt::Display for Error {
                  An attempt to serialize the value: {} in a signed type failed due to the value's \
                  size.",
                 value
+            ),
+            Error::SubMillisecondPrecisionDateTime(dt) => write!(
+                fmt,
+                "BSON supports millisecond-precision datetimes, could not serialize datetime with \
+                 greater precision losslessly: {}",
+                dt
             ),
         }
     }

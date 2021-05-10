@@ -10,7 +10,6 @@ use std::{
 };
 
 use ahash::RandomState;
-use chrono::{DateTime, Utc};
 use indexmap::IndexMap;
 use serde::de::{self, Error, MapAccess, Visitor};
 
@@ -438,7 +437,7 @@ impl Document {
     }
 
     /// Get a reference to a UTC datetime value for this key if it exists and has the correct type.
-    pub fn get_datetime(&self, key: impl AsRef<str>) -> ValueAccessResult<&DateTime<Utc>> {
+    pub fn get_datetime(&self, key: impl AsRef<str>) -> ValueAccessResult<&crate::DateTime> {
         match self.get(key) {
             Some(&Bson::DateTime(ref v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
@@ -451,7 +450,7 @@ impl Document {
     pub fn get_datetime_mut(
         &mut self,
         key: impl AsRef<str>,
-    ) -> ValueAccessResult<&mut DateTime<Utc>> {
+    ) -> ValueAccessResult<&mut crate::DateTime> {
         match self.get_mut(key) {
             Some(&mut Bson::DateTime(ref mut v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
