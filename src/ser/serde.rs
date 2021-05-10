@@ -84,6 +84,7 @@ impl Serialize for Bson {
 }
 
 /// Serde Serializer
+#[non_exhaustive]
 pub struct Serializer;
 
 impl Serializer {
@@ -440,7 +441,7 @@ impl SerializeMap for MapSerializer {
     fn serialize_key<T: ?Sized + Serialize>(&mut self, key: &T) -> crate::ser::Result<()> {
         self.next_key = match to_bson(&key)? {
             Bson::String(s) => Some(s),
-            other => return Err(Error::InvalidMapKeyType { key: other }),
+            other => return Err(Error::InvalidDocumentKey(other)),
         };
         Ok(())
     }

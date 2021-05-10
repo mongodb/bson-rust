@@ -23,7 +23,7 @@ use crate::{
     spec::BinarySubtype,
 };
 
-pub struct BsonVisitor;
+pub(crate) struct BsonVisitor;
 
 impl<'de> Deserialize<'de> for ObjectId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

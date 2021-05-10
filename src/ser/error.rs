@@ -12,16 +12,14 @@ pub enum Error {
     IoError(Arc<io::Error>),
 
     /// A key could not be serialized to a BSON string.
-    InvalidMapKeyType {
-        /// The value that could not be used as a key.
-        key: Bson,
-    },
+    InvalidDocumentKey(Bson),
 
     /// Attempted to serialize a sub-millisecond precision datetime, which BSON does not support.
     SubMillisecondPrecisionDateTime(crate::DateTime),
 
     /// A general error that ocurred during serialization.
     /// See: https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom
+    #[non_exhaustive]
     SerializationError {
         /// A message describing the error.
         message: String,
@@ -50,7 +48,7 @@ impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::IoError(ref inner) => inner.fmt(fmt),
-            Error::InvalidMapKeyType { ref key } => write!(fmt, "Invalid map key type: {}", key),
+            Error::InvalidDocumentKey(ref key) => write!(fmt, "Invalid map key type: {}", key),
             Error::SerializationError { ref message } => message.fmt(fmt),
             #[cfg(not(feature = "u2i"))]
             Error::UnsupportedUnsignedInteger(value) => write!(
