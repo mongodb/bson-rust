@@ -136,14 +136,14 @@ fn test_getters() {
         doc.get_timestamp("timestamp")
     );
 
-    assert_eq!(Some(&Bson::DateTime(datetime)), doc.get("datetime"));
-    assert_eq!(Ok(&datetime), doc.get_datetime("datetime"));
+    assert_eq!(Some(&Bson::DateTime(datetime.into())), doc.get("datetime"));
+    assert_eq!(Ok(&datetime.into()), doc.get_datetime("datetime"));
 
     #[cfg(feature = "decimal128")]
     test_decimal128(&mut doc);
 
-    assert_eq!(Some(&Bson::DateTime(datetime)), doc.get("datetime"));
-    assert_eq!(Ok(&datetime), doc.get_datetime("datetime"));
+    assert_eq!(Some(&Bson::DateTime(datetime.into())), doc.get("datetime"));
+    assert_eq!(Ok(&datetime.into()), doc.get_datetime("datetime"));
 
     let object_id = ObjectId::new();
     doc.insert("_id".to_string(), Bson::ObjectId(object_id));

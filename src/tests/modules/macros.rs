@@ -33,7 +33,7 @@ fn standard_format() {
         "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "encrypted": Binary { subtype: BinarySubtype::Encrypted, bytes: "secret".to_owned().into_bytes() },
         "_id": id,
-        "date": Bson::DateTime(date),
+        "date": Bson::DateTime(date.into()),
     };
 
     let expected = format!(

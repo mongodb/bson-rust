@@ -141,7 +141,7 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
 
         if obj.contains_key("$date") {
             let extjson_datetime: models::DateTime = serde_json::from_value(obj.into())?;
-            return Ok(Bson::DateTime(extjson_datetime.parse()?.0));
+            return Ok(Bson::DateTime(extjson_datetime.parse()?));
         }
 
         if obj.contains_key("$minKey") {

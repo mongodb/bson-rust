@@ -571,7 +571,7 @@ impl Serialize for DateTime {
         S: ser::Serializer,
     {
         // Cloning a `DateTime` is extremely cheap
-        let value = Bson::DateTime(self.0);
+        let value = Bson::DateTime(*self);
         value.serialize(serializer)
     }
 }

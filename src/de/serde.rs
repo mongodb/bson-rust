@@ -762,7 +762,7 @@ impl<'de> Deserialize<'de> for DateTime {
         D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
-            Bson::DateTime(dt) => Ok(DateTime(dt)),
+            Bson::DateTime(dt) => Ok(dt),
             _ => Err(D::Error::custom("expecting DateTime")),
         }
     }
