@@ -389,9 +389,10 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         let (variant, value) = match iter.next() {
             Some(v) => v,
             None => {
-                return Err(crate::de::Error::SyntaxError {
-                    message: "expected a variant name".to_owned(),
-                })
+                return Err(crate::de::Error::invalid_value(
+                    Unexpected::Other("empty document"),
+                    &"variant name",
+                ))
             }
         };
 
