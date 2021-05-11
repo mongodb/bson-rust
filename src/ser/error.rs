@@ -9,7 +9,7 @@ use crate::bson::Bson;
 #[non_exhaustive]
 pub enum Error {
     /// A [`std::io::Error`](https://doc.rust-lang.org/std/io/struct.Error.html) encountered while serializing.
-    IoError(Arc<io::Error>),
+    Io(Arc<io::Error>),
 
     /// A key could not be serialized to a BSON string.
     InvalidDocumentKey(Bson),
@@ -40,14 +40,14 @@ pub enum Error {
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
-        Error::IoError(Arc::new(err))
+        Error::Io(Arc::new(err))
     }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::IoError(ref inner) => inner.fmt(fmt),
+            Error::Io(ref inner) => inner.fmt(fmt),
             Error::InvalidDocumentKey(ref key) => write!(fmt, "Invalid map key type: {}", key),
             Error::SerializationError { ref message } => message.fmt(fmt),
             #[cfg(not(feature = "u2i"))]
@@ -79,7 +79,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
-            Error::IoError(ref inner) => Some(inner.as_ref()),
+            Error::Io(ref inner) => Some(inner.as_ref()),
             _ => None,
         }
     }

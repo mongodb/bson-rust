@@ -9,11 +9,11 @@ use crate::Bson;
 #[non_exhaustive]
 pub enum Error {
     /// A [`std::io::Error`](https://doc.rust-lang.org/std/io/struct.Error.html) encountered while deserializing.
-    IoError(Arc<io::Error>),
+    Io(Arc<io::Error>),
 
     /// A [`std::string::FromUtf8Error`](https://doc.rust-lang.org/std/string/struct.FromUtf8Error.html) encountered
     /// while decoding a UTF-8 String from the input data.
-    FromUtf8Error(string::FromUtf8Error),
+    InvalidUtf8String(string::FromUtf8Error),
 
     /// While decoding a `Document` from bytes, an unexpected or unsupported element type was
     /// encountered.
@@ -25,10 +25,6 @@ pub enum Error {
         /// The encountered element type.
         element_type: u8,
     },
-
-    /// There was an error with the syntactical structure of the BSON.
-    #[non_exhaustive]
-    SyntaxError { message: String },
 
     /// The end of the BSON input was reached too soon.
     EndOfStream,
@@ -54,21 +50,21 @@ pub enum Error {
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
-        Error::IoError(Arc::new(err))
+        Error::Io(Arc::new(err))
     }
 }
 
 impl From<string::FromUtf8Error> for Error {
     fn from(err: string::FromUtf8Error) -> Error {
-        Error::FromUtf8Error(err)
+        Error::InvalidUtf8String(err)
     }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::IoError(ref inner) => inner.fmt(fmt),
-            Error::FromUtf8Error(ref inner) => inner.fmt(fmt),
+            Error::Io(ref inner) => inner.fmt(fmt),
+            Error::InvalidUtf8String(ref inner) => inner.fmt(fmt),
             Error::UnrecognizedDocumentElementType {
                 ref key,
                 element_type,
@@ -77,7 +73,6 @@ impl fmt::Display for Error {
                 "unrecognized element type for key \"{}\": `{:#x}`",
                 key, element_type
             ),
-            Error::SyntaxError { ref message } => message.fmt(fmt),
             Error::EndOfStream => fmt.write_str("end of stream"),
             Error::DeserializationError { ref message } => message.fmt(fmt),
             Error::InvalidDateTime { ref key, datetime } => {
@@ -90,8 +85,8 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
-            Error::IoError(ref inner) => Some(inner.as_ref()),
-            Error::FromUtf8Error(ref inner) => Some(inner),
+            Error::Io(ref inner) => Some(inner.as_ref()),
+            Error::InvalidUtf8String(ref inner) => Some(inner),
             _ => None,
         }
     }
