@@ -37,7 +37,7 @@
 //! ```
 //!
 //! BSON is the primary data representation for [MongoDB](https://www.mongodb.com/), and this crate is used in the
-//! [`mongodb`](https://docs.rs/mongodb/0.10.0/mongodb/) driver crate in its API and implementation.
+//! [`mongodb`](https://docs.rs/mongodb/latest/mongodb/) driver crate in its API and implementation.
 //!
 //! For more information about BSON itself, see [bsonspec.org](http://bsonspec.org).
 //!
@@ -183,7 +183,7 @@
 //! that is also less error prone.
 
 #![allow(clippy::cognitive_complexity)]
-#![doc(html_root_url = "https://docs.rs/bson/1.2.2")]
+#![doc(html_root_url = "https://docs.rs/bson/2.0.0-beta")]
 
 pub use self::{
     bson::{

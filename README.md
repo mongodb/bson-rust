@@ -25,7 +25,7 @@ This crate works with Cargo and can be found on
 
 ```toml
 [dependencies]
-bson = "1.2.0"
+bson = "2.0.0-beta"
 ```
 
 ## Overview of BSON Format
@@ -48,7 +48,7 @@ hello\x00                          // field name
 ```
 
 BSON is the primary data representation for [MongoDB](https://www.mongodb.com/), and this crate is used in the
-[`mongodb`](https://docs.rs/mongodb/0.10.0/mongodb/) driver crate in its API and implementation.
+[`mongodb`](https://docs.rs/mongodb/latest/mongodb/) driver crate in its API and implementation.
 
 For more information about BSON itself, see [bsonspec.org](http://bsonspec.org).
 
