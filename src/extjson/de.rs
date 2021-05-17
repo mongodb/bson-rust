@@ -27,7 +27,7 @@ use serde::de::{Error as _, Unexpected};
 
 use crate::{extjson::models, oid, Bson, Document};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 /// Error cases that can occur during deserialization from [extended JSON](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
 pub enum Error {
@@ -141,17 +141,17 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
 
         if obj.contains_key("$date") {
             let extjson_datetime: models::DateTime = serde_json::from_value(obj.into())?;
-            return Ok(Bson::DateTime(extjson_datetime.parse()?.0));
+            return Ok(Bson::DateTime(extjson_datetime.parse()?));
         }
 
         if obj.contains_key("$minKey") {
             let min_key: models::MinKey = serde_json::from_value(obj.into())?;
-            return Ok(min_key.parse()?);
+            return min_key.parse();
         }
 
         if obj.contains_key("$maxKey") {
             let max_key: models::MaxKey = serde_json::from_value(obj.into())?;
-            return Ok(max_key.parse()?);
+            return max_key.parse();
         }
 
         if obj.contains_key("$dbPointer") {
@@ -174,7 +174,7 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
 
         if obj.contains_key("$undefined") {
             let undefined: models::Undefined = serde_json::from_value(obj.into())?;
-            return Ok(undefined.parse()?);
+            return undefined.parse();
         }
 
         Ok(Bson::Document(obj.try_into()?))

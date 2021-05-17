@@ -21,10 +21,7 @@
 
 //! BSON definition
 
-use std::{
-    fmt::{self, Debug, Display},
-    ops::{Deref, DerefMut},
-};
+use std::fmt::{self, Debug, Display};
 
 use chrono::{Datelike, SecondsFormat, TimeZone, Utc};
 use serde_json::{json, Value};
@@ -68,7 +65,7 @@ pub enum Bson {
     /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId(oid::ObjectId),
     /// UTC datetime
-    DateTime(chrono::DateTime<Utc>),
+    DateTime(crate::DateTime),
     /// Symbol (Deprecated)
     Symbol(String),
     /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
@@ -278,7 +275,7 @@ impl From<u64> for Bson {
 
 impl From<[u8; 12]> for Bson {
     fn from(a: [u8; 12]) -> Bson {
-        Bson::ObjectId(oid::ObjectId::with_bytes(a))
+        Bson::ObjectId(oid::ObjectId::from_bytes(a))
     }
 }
 
@@ -290,7 +287,7 @@ impl From<oid::ObjectId> for Bson {
 
 impl From<chrono::DateTime<Utc>> for Bson {
     fn from(a: chrono::DateTime<Utc>) -> Bson {
-        Bson::DateTime(a)
+        Bson::DateTime(DateTime(a))
     }
 }
 
@@ -373,15 +370,15 @@ impl Bson {
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
-            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.year() <= 99999 => {
-                let seconds_format = if v.timestamp_subsec_millis() == 0 {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.0.year() <= 99999 => {
+                let seconds_format = if v.0.timestamp_subsec_millis() == 0 {
                     SecondsFormat::Secs
                 } else {
                     SecondsFormat::Millis
                 };
 
                 json!({
-                    "$date": v.to_rfc3339_opts(seconds_format, true),
+                    "$date": v.0.to_rfc3339_opts(seconds_format, true),
                 })
             }
             Bson::DateTime(v) => json!({
@@ -539,15 +536,15 @@ impl Bson {
                     "$oid": v.to_string(),
                 }
             }
-            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.year() <= 99999 => {
-                let seconds_format = if v.timestamp_subsec_millis() == 0 {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.0.year() <= 99999 => {
+                let seconds_format = if v.0.timestamp_subsec_millis() == 0 {
                     SecondsFormat::Secs
                 } else {
                     SecondsFormat::Millis
                 };
 
                 doc! {
-                    "$date": v.to_rfc3339_opts(seconds_format, true),
+                    "$date": v.0.to_rfc3339_opts(seconds_format, true),
                 }
             }
             Bson::DateTime(v) => doc! {
@@ -607,7 +604,7 @@ impl Bson {
         match keys.as_slice() {
             ["$oid"] => {
                 if let Ok(oid) = doc.get_str("$oid") {
-                    if let Ok(oid) = ObjectId::with_string(oid) {
+                    if let Ok(oid) = ObjectId::parse_str(oid) {
                         return Bson::ObjectId(oid);
                     }
                 }
@@ -738,12 +735,12 @@ impl Bson {
 
             ["$date"] => {
                 if let Ok(date) = doc.get_i64("$date") {
-                    return Bson::DateTime(DateTime::from_i64(date).into());
+                    return Bson::DateTime(DateTime::from_millis(date));
                 }
 
                 if let Ok(date) = doc.get_str("$date") {
                     if let Ok(date) = chrono::DateTime::parse_from_rfc3339(date) {
-                        return Bson::DateTime(date.into());
+                        return Bson::DateTime(date.with_timezone(&Utc).into());
                     }
                 }
             }
@@ -888,7 +885,7 @@ impl Bson {
     }
 
     /// If `Bson` is `DateTime`, return its value. Returns `None` otherwise
-    pub fn as_datetime(&self) -> Option<&chrono::DateTime<Utc>> {
+    pub fn as_datetime(&self) -> Option<&crate::DateTime> {
         match *self {
             Bson::DateTime(ref v) => Some(v),
             _ => None,
@@ -897,7 +894,7 @@ impl Bson {
 
     /// If `Bson` is `DateTime`, return a mutable reference to its value. Returns `None`
     /// otherwise
-    pub fn as_datetime_mut(&mut self) -> Option<&mut chrono::DateTime<Utc>> {
+    pub fn as_datetime_mut(&mut self) -> Option<&mut crate::DateTime> {
         match *self {
             Bson::DateTime(ref mut v) => Some(v),
             _ => None,
@@ -973,76 +970,78 @@ impl Timestamp {
     }
 }
 
-/// `DateTime` representation in struct for serde serialization
+/// Struct representing a BSON datetime.
 ///
-/// Just a helper for convenience
+/// Is is recommended to use a [`chrono::DateTime`] for date operations
+/// and to convert it to/from a [`crate::DateTime`] via the `From`/`Into` implementations.
+///
+/// ```
+/// use chrono::prelude::*;
+/// # fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+/// let chrono_dt: chrono::DateTime<Utc> = "2014-11-28T12:00:09Z".parse()?;
+/// let bson_dt: bson::DateTime = chrono_dt.into();
+/// let back_to_chrono: chrono::DateTime<Utc> = bson_dt.into();
+/// # Ok(())
+/// # }
+/// ```
+///
+/// This type differs from [`chrono::DateTime`] in that it serializes to and deserializes from a
+/// BSON datetime rather than an ISO-8601 formatted string. This means that in non-BSON formats, it
+/// will serialize to and deserialize from that format's equivalent of the [extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/) of a datetime. To serialize a
+/// [`chrono::DateTime`] as a BSON datetime, you can use
+/// [`serde_helpers::chrono_0_4_datetime_as_bson_datetime`].
 ///
 /// ```rust
 /// use serde::{Serialize, Deserialize};
-/// use bson::DateTime;
 ///
 /// #[derive(Serialize, Deserialize)]
 /// struct Foo {
-///     date_time: DateTime,
+///     // serializes as a BSON datetime.
+///     date_time: bson::DateTime,
+///
+///     // serializes as an ISO-8601 string.
+///     chrono_datetime: chrono::DateTime<chrono::Utc>,
+///
+///     // serializes as a BSON datetime.
+///     #[serde(with = "bson::serde_helpers::chrono_0_4_datetime_as_bson_datetime")]
+///     chrono_as_bson: chrono::DateTime<chrono::Utc>,
 /// }
 /// ```
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
-pub struct DateTime(pub chrono::DateTime<Utc>);
+pub struct DateTime(chrono::DateTime<Utc>);
 
-impl DateTime {
-    pub(crate) fn from_i64(date: i64) -> Self {
-        let mut num_secs = date / 1000;
-        let mut num_millis = date % 1000;
+impl crate::DateTime {
+    pub(crate) fn from_millis(date: i64) -> Self {
+        Utc.timestamp_millis(date).into()
+    }
 
-        // The chrono API only lets us create a DateTime with an i64 number of seconds
-        // and a u32 number of nanoseconds. In the case of a negative timestamp, this
-        // means that we need to turn the negative fractional part into a positive and
-        // shift the number of seconds down. For example:
-        //
-        //     date       = -4300 ms
-        //     num_secs   = date / 1000 = -4300 / 1000 = -4
-        //     num_millis = date % 1000 = -4300 % 1000 = -300
-        //
-        // Since num_millis is less than 0:
-        //     num_secs   = num_secs -1 = -4 - 1 = -5
-        //     num_millis = num_nanos + 1000 = -300 + 1000 = 700
-        //
-        // Instead of -4 seconds and -300 milliseconds, we now have -5 seconds and +700
-        // milliseconds, which expresses the same timestamp, but in a way we can create
-        // a DateTime with.
-        if num_millis < 0 {
-            num_secs -= 1;
-            num_millis += 1000;
-        };
+    /// Returns the number of non-leap-milliseconds since January 1, 1970 UTC.
+    pub fn timestamp_millis(&self) -> i64 {
+        self.0.timestamp_millis()
+    }
 
-        Utc.timestamp(num_secs, num_millis as u32 * 1_000_000)
-            .into()
+    /// If this DateTime is sub-millisecond precision. BSON only supports millisecond precision, so
+    /// this should be checked before serializing to BSON.
+    pub(crate) fn is_sub_millis_precision(&self) -> bool {
+        self.0.timestamp_subsec_micros() % 1000 != 0
     }
 }
 
-impl Deref for DateTime {
-    type Target = chrono::DateTime<Utc>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl Display for crate::DateTime {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
     }
 }
 
-impl DerefMut for DateTime {
-    fn deref_mut(&mut self) -> &mut chrono::DateTime<Utc> {
-        &mut self.0
-    }
-}
-
-impl From<DateTime> for chrono::DateTime<Utc> {
+impl From<crate::DateTime> for chrono::DateTime<Utc> {
     fn from(utc: DateTime) -> Self {
         utc.0
     }
 }
 
-impl From<chrono::DateTime<Utc>> for DateTime {
-    fn from(x: chrono::DateTime<Utc>) -> Self {
-        DateTime(x)
+impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for crate::DateTime {
+    fn from(x: chrono::DateTime<T>) -> Self {
+        DateTime(x.with_timezone(&Utc))
     }
 }
 

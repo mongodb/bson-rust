@@ -263,7 +263,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             for x in &mut objid {
                 *x = read_u8(reader)?;
             }
-            Bson::ObjectId(oid::ObjectId::with_bytes(objid))
+            Bson::ObjectId(oid::ObjectId::from_bytes(objid))
         }
         Some(ElementType::Boolean) => {
             let val = read_u8(reader)?;
@@ -326,19 +326,14 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             // The int64 is UTC milliseconds since the Unix epoch.
             let time = read_i64(reader)?;
 
-            let mut sec = time / 1000;
-            let tmp_msec = time % 1000;
-            let msec = if tmp_msec < 0 {
-                sec -= 1;
-                1000 + tmp_msec
-            } else {
-                tmp_msec
-            };
-
-            match Utc.timestamp_opt(sec, (msec as u32) * 1_000_000) {
-                LocalResult::None => return Err(Error::InvalidTimestamp(time)),
-                LocalResult::Ambiguous(..) => return Err(Error::AmbiguousTimestamp(time)),
-                LocalResult::Single(t) => Bson::DateTime(t),
+            match Utc.timestamp_millis_opt(time) {
+                LocalResult::Single(t) => Bson::DateTime(t.into()),
+                _ => {
+                    return Err(Error::InvalidDateTime {
+                        key,
+                        datetime: time,
+                    })
+                }
             }
         }
         Some(ElementType::Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol)?,
@@ -350,7 +345,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             reader.read_exact(&mut objid)?;
             Bson::DbPointer(DbPointer {
                 namespace,
-                id: oid::ObjectId::with_bytes(objid),
+                id: oid::ObjectId::from_bytes(objid),
             })
         }
         Some(ElementType::MaxKey) => Bson::MaxKey,

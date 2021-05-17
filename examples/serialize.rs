@@ -1,17 +1,18 @@
 use std::io::Cursor;
 
-use bson::{oid, Array, Bson, Document};
+use bson::{oid, Bson, Document};
 
 fn main() {
     let mut doc = Document::new();
     doc.insert("foo".to_string(), Bson::String("bar".to_string()));
 
-    let mut arr = Array::new();
-    arr.push(Bson::String("blah".to_string()));
-    arr.push(Bson::DateTime(chrono::Utc::now()));
-    arr.push(Bson::ObjectId(oid::ObjectId::with_bytes([
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-    ])));
+    let arr = vec![
+        Bson::String("blah".to_string()),
+        Bson::DateTime(chrono::Utc::now().into()),
+        Bson::ObjectId(oid::ObjectId::from_bytes([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+        ])),
+    ];
 
     doc.insert("array".to_string(), Bson::Array(arr));
 

@@ -31,8 +31,6 @@ pub use self::{
 
 use std::{io::Write, mem};
 
-use chrono::Timelike;
-
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
@@ -155,10 +153,12 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
 
             writer.write_all(bytes).map_err(From::from)
         }
-        Bson::DateTime(ref v) => write_i64(
-            writer,
-            (v.timestamp() * 1000) + (v.nanosecond() / 1_000_000) as i64,
-        ),
+        Bson::DateTime(ref v) => {
+            if v.is_sub_millis_precision() {
+                return Err(Error::SubMillisecondPrecisionDateTime(*v));
+            }
+            write_i64(writer, v.timestamp_millis())
+        }
         Bson::Null => Ok(()),
         Bson::Symbol(ref v) => write_string(writer, &v),
         #[cfg(not(feature = "decimal128"))]

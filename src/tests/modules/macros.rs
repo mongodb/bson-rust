@@ -10,7 +10,7 @@ fn standard_format() {
     let mut bytes = [0; 12];
     bytes[..12].clone_from_slice(&string_bytes[..12]);
 
-    let id = ObjectId::with_bytes(bytes);
+    let id = ObjectId::from_bytes(bytes);
     let date = Utc::now();
 
     let doc = doc! {
@@ -33,7 +33,7 @@ fn standard_format() {
         "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "encrypted": Binary { subtype: BinarySubtype::Encrypted, bytes: "secret".to_owned().into_bytes() },
         "_id": id,
-        "date": Bson::DateTime(date),
+        "date": Bson::DateTime(date.into()),
     };
 
     let expected = format!(
