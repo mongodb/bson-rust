@@ -30,6 +30,18 @@ pub use uuid_as_binary::{
     deserialize as deserialize_uuid_from_binary,
     serialize as serialize_uuid_as_binary,
 };
+pub use uuid_0_8_as_java_legacy_binary::{
+    deserialize as deserialize_uuid_from_java_legacy_binary,
+    serialize as serialize_uuid_as_java_legacy_binary,
+};
+pub use uuid_0_8_as_python_legacy_binary::{
+    deserialize as deserialize_uuid_from_python_legacy_binary,
+    serialize as serialize_uuid_as_python_legacy_binary,
+};
+pub use uuid_0_8_as_c_sharp_legacy_binary::{
+    deserialize as deserialize_uuid_from_c_sharp_legacy_binary,
+    serialize as serialize_uuid_as_c_sharp_legacy_binary,
+};
 
 /// Attempts to serialize a u32 as an i32. Errors if an exact conversion is not possible.
 pub fn serialize_u32_as_i32<S: Serializer>(val: &u32, serializer: S) -> Result<S::Ok, S::Error> {
