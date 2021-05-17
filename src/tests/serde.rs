@@ -591,9 +591,9 @@ fn test_serde_legacy_uuid() {
     }
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
     let foo = Foo {
-        java_legacy: uuid.clone(),
-        python_legacy: uuid.clone(),
-        csharp_legacy: uuid.clone(),
+        java_legacy: uuid,
+        python_legacy: uuid,
+        csharp_legacy: uuid,
     };
 
     let x = to_bson(&foo).unwrap();
