@@ -18,12 +18,12 @@ use serde::de::{
 use crate::decimal128::Decimal128;
 use crate::{
     bson::{Binary, Bson, DateTime, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
-    document::{Document, DocumentIntoIterator, DocumentVisitor},
+    document::{Document, DocumentVisitor, IntoIter},
     oid::ObjectId,
     spec::BinarySubtype,
 };
 
-pub struct BsonVisitor;
+pub(crate) struct BsonVisitor;
 
 impl<'de> Deserialize<'de> for ObjectId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -33,7 +33,7 @@ impl<'de> Deserialize<'de> for ObjectId {
         deserializer
             .deserialize_any(BsonVisitor)
             .and_then(|bson| match bson {
-                Bson::String(oid) => ObjectId::with_string(&oid).map_err(de::Error::custom),
+                Bson::String(oid) => ObjectId::parse_str(&oid).map_err(de::Error::custom),
                 Bson::ObjectId(oid) => Ok(oid),
                 _ => {
                     let err = format!(
@@ -389,9 +389,10 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         let (variant, value) = match iter.next() {
             Some(v) => v,
             None => {
-                return Err(crate::de::Error::SyntaxError {
-                    message: "expected a variant name".to_owned(),
-                })
+                return Err(crate::de::Error::invalid_value(
+                    Unexpected::Other("empty document"),
+                    &"variant name",
+                ))
             }
         };
 
@@ -611,7 +612,7 @@ impl<'de> SeqAccess<'de> for SeqDeserializer {
 }
 
 struct MapDeserializer {
-    iter: DocumentIntoIterator,
+    iter: IntoIter,
     value: Option<Bson>,
     len: usize,
 }
@@ -762,7 +763,7 @@ impl<'de> Deserialize<'de> for DateTime {
         D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
-            Bson::DateTime(dt) => Ok(DateTime(dt)),
+            Bson::DateTime(dt) => Ok(dt),
             _ => Err(D::Error::custom("expecting DateTime")),
         }
     }

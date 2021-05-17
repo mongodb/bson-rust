@@ -2,7 +2,6 @@
 
 use crate::{
     bson,
-    compat::u2f,
     doc,
     from_bson,
     from_document,
@@ -10,11 +9,12 @@ use crate::{
     serde_helpers,
     serde_helpers::{
         bson_datetime_as_iso_string,
-        chrono_datetime_as_bson_datetime,
+        chrono_0_4_datetime_as_bson_datetime,
+        hex_string_as_object_id,
         iso_string_as_bson_datetime,
         timestamp_as_u32,
         u32_as_timestamp,
-        uuid_as_binary,
+        uuid_0_8_as_binary,
     },
     spec::BinarySubtype,
     tests::LOCK,
@@ -266,28 +266,11 @@ fn test_ser_datetime() {
     let x = to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "date": (Bson::DateTime(now)) }
+        &doc! { "date": (Bson::DateTime(now.into())) }
     );
 
     let xfoo: Foo = from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
-}
-
-#[test]
-fn test_compat_u2f() {
-    let _guard = LOCK.run_concurrently();
-    #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
-    struct Foo {
-        #[serde(with = "u2f")]
-        x: u32,
-    }
-
-    let foo = Foo { x: 20 };
-    let b = to_bson(&foo).unwrap();
-    assert_eq!(b, Bson::Document(doc! { "x": (Bson::Double(20.0)) }));
-
-    let de_foo = from_bson::<Foo>(b).unwrap();
-    assert_eq!(de_foo, foo);
 }
 
 #[test]
@@ -631,7 +614,7 @@ fn test_de_oid_string() {
     }
 
     let foo: Foo = serde_json::from_str("{ \"oid\": \"507f1f77bcf86cd799439011\" }").unwrap();
-    let oid = ObjectId::with_string("507f1f77bcf86cd799439011").unwrap();
+    let oid = ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap();
     assert_eq!(foo.oid, oid);
 }
 
@@ -708,6 +691,40 @@ fn test_unsigned_helpers() {
     };
     let doc_result = to_document(&b);
     assert!(doc_result.is_err());
+
+    #[derive(Deserialize, Serialize, Debug, PartialEq)]
+    struct F {
+        #[serde(with = "serde_helpers::u32_as_f64")]
+        num_1: u32,
+        #[serde(with = "serde_helpers::u64_as_f64")]
+        num_2: u64,
+    }
+
+    let f = F {
+        num_1: 101,
+        num_2: 12345,
+    };
+    let doc = to_document(&f).unwrap();
+    assert!((doc.get_f64("num_1").unwrap() - 101.0).abs() < f64::EPSILON);
+    assert!((doc.get_f64("num_2").unwrap() - 12345.0).abs() < f64::EPSILON);
+
+    let back: F = from_document(doc).unwrap();
+    assert_eq!(back, f);
+
+    let f = F {
+        num_1: 1,
+        // f64 cannot represent many large integers exactly, u64::MAX included
+        num_2: u64::MAX,
+    };
+    let doc_result = to_document(&f);
+    assert!(doc_result.is_err());
+
+    let f = F {
+        num_1: 1,
+        num_2: u64::MAX - 255,
+    };
+    let doc_result = to_document(&f);
+    assert!(doc_result.is_err());
 }
 
 #[test]
@@ -721,7 +738,7 @@ fn test_datetime_helpers() {
     }
 
     let iso = "1996-12-20 00:39:57 UTC";
-    let date = chrono::DateTime::from_str(iso).unwrap();
+    let date = chrono::DateTime::<chrono::Utc>::from_str(iso).unwrap();
     let a = A { date: date.into() };
     let doc = to_document(&a).unwrap();
     assert_eq!(doc.get_str("date").unwrap(), iso);
@@ -730,7 +747,7 @@ fn test_datetime_helpers() {
 
     #[derive(Deserialize, Serialize)]
     struct B {
-        #[serde(with = "chrono_datetime_as_bson_datetime")]
+        #[serde(with = "chrono_0_4_datetime_as_bson_datetime")]
         pub date: chrono::DateTime<chrono::Utc>,
     }
 
@@ -748,7 +765,7 @@ fn test_datetime_helpers() {
         chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap();
     assert_eq!(b.date, expected);
     let doc = to_document(&b).unwrap();
-    assert_eq!(doc.get_datetime("date").unwrap(), &expected);
+    assert_eq!(doc.get_datetime("date").unwrap(), &expected.into());
     let b: B = from_document(doc).unwrap();
     assert_eq!(b.date, expected);
 
@@ -772,9 +789,9 @@ fn test_datetime_helpers() {
 fn test_oid_helpers() {
     let _guard = LOCK.run_concurrently();
 
-    #[derive(Serialize)]
+    #[derive(Serialize, Deserialize)]
     struct A {
-        #[serde(serialize_with = "serde_helpers::serialize_hex_string_as_object_id")]
+        #[serde(with = "hex_string_as_object_id")]
         oid: String,
     }
 
@@ -784,6 +801,8 @@ fn test_oid_helpers() {
     };
     let doc = to_document(&a).unwrap();
     assert_eq!(doc.get_object_id("oid").unwrap(), oid);
+    let a: A = from_document(doc).unwrap();
+    assert_eq!(a.oid, oid.to_string());
 }
 
 #[test]
@@ -792,7 +811,7 @@ fn test_uuid_helpers() {
 
     #[derive(Serialize, Deserialize)]
     struct A {
-        #[serde(with = "uuid_as_binary")]
+        #[serde(with = "uuid_0_8_as_binary")]
         uuid: Uuid,
     }
 

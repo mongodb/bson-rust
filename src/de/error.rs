@@ -1,22 +1,23 @@
-use std::{error, fmt, fmt::Display, io, string};
+use std::{error, fmt, fmt::Display, io, string, sync::Arc};
 
 use serde::de::{self, Unexpected};
 
 use crate::Bson;
 
 /// Possible errors that can arise during decoding.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Error {
     /// A [`std::io::Error`](https://doc.rust-lang.org/std/io/struct.Error.html) encountered while deserializing.
-    IoError(io::Error),
+    Io(Arc<io::Error>),
 
     /// A [`std::string::FromUtf8Error`](https://doc.rust-lang.org/std/string/struct.FromUtf8Error.html) encountered
     /// while decoding a UTF-8 String from the input data.
-    FromUtf8Error(string::FromUtf8Error),
+    InvalidUtf8String(string::FromUtf8Error),
 
     /// While decoding a `Document` from bytes, an unexpected or unsupported element type was
     /// encountered.
+    #[non_exhaustive]
     UnrecognizedDocumentElementType {
         /// The key at which an unexpected/unsupported element type was encountered.
         key: String,
@@ -25,20 +26,22 @@ pub enum Error {
         element_type: u8,
     },
 
-    /// There was an error with the syntactical structure of the BSON.
-    SyntaxError { message: String },
-
     /// The end of the BSON input was reached too soon.
     EndOfStream,
 
-    /// An invalid timestamp was encountered while decoding.
-    InvalidTimestamp(i64),
+    /// An invalid datetime was encountered while decoding.
+    #[non_exhaustive]
+    InvalidDateTime {
+        /// The key at which an unexpected/unsupported datetime was encountered.
+        key: String,
 
-    /// An ambiguous timestamp was encountered while decoding.
-    AmbiguousTimestamp(i64),
+        /// The value of the invalid datetime.
+        datetime: i64,
+    },
 
     /// A general error encountered during deserialization.
     /// See: https://docs.serde.rs/serde/de/trait.Error.html
+    #[non_exhaustive]
     DeserializationError {
         /// A message describing the error.
         message: String,
@@ -47,21 +50,21 @@ pub enum Error {
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
-        Error::IoError(err)
+        Error::Io(Arc::new(err))
     }
 }
 
 impl From<string::FromUtf8Error> for Error {
     fn from(err: string::FromUtf8Error) -> Error {
-        Error::FromUtf8Error(err)
+        Error::InvalidUtf8String(err)
     }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::IoError(ref inner) => inner.fmt(fmt),
-            Error::FromUtf8Error(ref inner) => inner.fmt(fmt),
+            Error::Io(ref inner) => inner.fmt(fmt),
+            Error::InvalidUtf8String(ref inner) => inner.fmt(fmt),
             Error::UnrecognizedDocumentElementType {
                 ref key,
                 element_type,
@@ -70,20 +73,20 @@ impl fmt::Display for Error {
                 "unrecognized element type for key \"{}\": `{:#x}`",
                 key, element_type
             ),
-            Error::SyntaxError { ref message } => message.fmt(fmt),
             Error::EndOfStream => fmt.write_str("end of stream"),
             Error::DeserializationError { ref message } => message.fmt(fmt),
-            Error::InvalidTimestamp(ref i) => write!(fmt, "no such local time {}", i),
-            Error::AmbiguousTimestamp(ref i) => write!(fmt, "ambiguous local time {}", i),
+            Error::InvalidDateTime { ref key, datetime } => {
+                write!(fmt, "invalid datetime for key \"{}\": {}", key, datetime)
+            }
         }
     }
 }
 
 impl error::Error for Error {
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
-            Error::IoError(ref inner) => Some(inner),
-            Error::FromUtf8Error(ref inner) => Some(inner),
+            Error::Io(ref inner) => Some(inner.as_ref()),
+            Error::InvalidUtf8String(ref inner) => Some(inner),
             _ => None,
         }
     }

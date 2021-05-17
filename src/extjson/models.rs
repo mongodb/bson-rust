@@ -81,7 +81,7 @@ pub(crate) struct ObjectId {
 
 impl ObjectId {
     pub(crate) fn parse(self) -> extjson::de::Result<oid::ObjectId> {
-        let oid = oid::ObjectId::with_string(self.oid.as_str())?;
+        let oid = oid::ObjectId::parse_str(self.oid.as_str())?;
         Ok(oid)
     }
 }
@@ -241,7 +241,7 @@ impl DateTime {
         match self.body {
             DateTimeBody::Canonical(date) => {
                 let date = date.parse()?;
-                Ok(crate::DateTime::from_i64(date))
+                Ok(crate::DateTime::from_millis(date))
             }
             DateTimeBody::Relaxed(date) => {
                 let datetime: chrono::DateTime<Utc> =

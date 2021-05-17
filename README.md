@@ -11,7 +11,6 @@ Encoding and decoding support for BSON in Rust
     - [BSON Values](#bson-values)
     - [BSON Documents](#bson-documents)
     - [Modeling BSON with strongly typed data structures](#modeling-bson-with-strongly-typed-data-structures)
-- [Breaking Changes](#breaking-changes)
 - [Contributing](#contributing)
 - [Running the Tests](#running-the-tests)
 - [Continuous Integration](#continuous-integration)
@@ -26,7 +25,7 @@ This crate works with Cargo and can be found on
 
 ```toml
 [dependencies]
-bson = "1.2.0"
+bson = "2.0.0-beta"
 ```
 
 ## Overview of BSON Format
@@ -49,7 +48,7 @@ hello\x00                          // field name
 ```
 
 BSON is the primary data representation for [MongoDB](https://www.mongodb.com/), and this crate is used in the
-[`mongodb`](https://docs.rs/mongodb/0.10.0/mongodb/) driver crate in its API and implementation.
+[`mongodb`](https://docs.rs/mongodb/latest/mongodb/) driver crate in its API and implementation.
 
 For more information about BSON itself, see [bsonspec.org](http://bsonspec.org).
 
@@ -184,32 +183,6 @@ Any types that implement `Serialize` and `Deserialize` can be used in this way. 
 separate the "business logic" that operates over the data from the (de)serialization logic that
 translates the data to/from its serialized form. This can lead to more clear and concise code
 that is also less error prone.
-
-## Breaking Changes
-
-In the BSON specification, _unsigned integer types_ are unsupported; for example, `u32`. In the older version of this crate (< `v0.8.0`), if you uses `serde` to serialize _unsigned integer types_ into BSON, it will store them with `Bson::Double` type. From `v0.8.0`, we removed this behavior and simply returned an error when you want to serialize _unsigned integer types_ to BSON. [#72](https://github.com/zonyitoo/bson-rs/pull/72)
-
-For backward compatibility, we've provided a mod `bson::compat::u2f` to explicitly serialize _unsigned integer types_ into BSON's floating point value as follows:
-
-```rust
-#[test]
-fn test_compat_u2f() {
-    #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
-    struct Foo {
-        #[serde(with = "bson::compat::u2f")]
-        x: u32
-    }
-
-    let foo = Foo { x: 20 };
-    let b = bson::to_bson(&foo).unwrap();
-    assert_eq!(b, Bson::Document(doc! { "x": Bson::Double(20.0) }));
-
-    let de_foo = bson::from_bson::<Foo>(b).unwrap();
-    assert_eq!(de_foo, foo);
-}
-```
-
-In this example, we added an attribute `#[serde(with = "bson::compat::u2f")]` on field `x`, which will tell `serde` to use the `bson::compat::u2f::serialize` and `bson::compat::u2f::deserialize` methods to process this field.
 
 ## Contributing
 
