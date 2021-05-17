@@ -233,7 +233,7 @@ pub mod uuid_as_binary {
     }
 }
 
-pub mod uuid_as_java_legacy_binary {
+pub mod uuid_0_8_as_java_legacy_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
@@ -271,7 +271,7 @@ pub mod uuid_as_java_legacy_binary {
     }
 }
 
-pub mod uuid_as_python_legacy_binary {
+pub mod uuid_0_8_as_python_legacy_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
@@ -303,7 +303,7 @@ pub mod uuid_as_python_legacy_binary {
         }
     }
 }
-pub mod uuid_as_c_sharp_legacy_binary {
+pub mod uuid_0_8_as_c_sharp_legacy_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;

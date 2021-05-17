@@ -582,11 +582,11 @@ fn test_serde_legacy_uuid() {
 
     #[derive(Serialize, Deserialize)]
     struct Foo {
-        #[serde(with = "serde_helpers::uuid_as_java_legacy_binary")]
+        #[serde(with = "serde_helpers::uuid_0_8_as_java_legacy_binary")]
         java_legacy: Uuid,
-        #[serde(with = "serde_helpers::uuid_as_python_legacy_binary")]
+        #[serde(with = "serde_helpers::uuid_0_8_as_python_legacy_binary")]
         python_legacy: Uuid,
-        #[serde(with = "serde_helpers::uuid_as_c_sharp_legacy_binary")]
+        #[serde(with = "serde_helpers::uuid_0_8_as_c_sharp_legacy_binary")]
         csharp_legacy: Uuid,
     }
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
