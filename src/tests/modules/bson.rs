@@ -1,16 +1,8 @@
 use std::convert::TryFrom;
 
 use crate::{
-    doc,
-    oid::ObjectId,
-    spec::BinarySubtype,
-    tests::LOCK,
-    Binary,
-    Bson,
-    Document,
-    JavaScriptCodeWithScope,
-    Regex,
-    Timestamp,
+    doc, oid::ObjectId, spec::BinarySubtype, tests::LOCK, Binary, Bson, DateTime, Document,
+    JavaScriptCodeWithScope, Regex, Timestamp,
 };
 use serde_json::{json, Value};
 
@@ -168,4 +160,28 @@ fn timestamp_ordering() {
     assert!(ts1 < ts2);
     assert!(ts1 < ts3);
     assert!(ts2 < ts3);
+}
+
+#[test]
+fn from_chrono_datetime() {
+    let dt = DateTime::from(chrono::Utc::now());
+    assert_eq!(dt.is_sub_millis_precision(), false);
+
+    let bson = Bson::from(chrono::Utc::now());
+    assert_eq!(bson.as_datetime().unwrap().is_sub_millis_precision(), false);
+
+    for s in &[
+        "2014-11-28T12:00:09Z",
+        "2014-11-28T12:00:09.123Z",
+        "2014-11-28T12:00:09.123456Z",
+        "2014-11-28T12:00:09.123456789Z",
+    ] {
+        let chrono_dt: chrono::DateTime<chrono::Utc> = s.parse().unwrap();
+
+        let dt = DateTime::from(chrono_dt);
+        assert_eq!(dt.is_sub_millis_precision(), false);
+
+        let bson = Bson::from(chrono::Utc::now());
+        assert_eq!(bson.as_datetime().unwrap().is_sub_millis_precision(), false);
+    }
 }
