@@ -560,6 +560,51 @@ fn test_de_db_pointer() {
 }
 
 #[test]
+fn test_serde_legacy_uuid() {
+    let _guard = LOCK.run_concurrently();
+
+    #[derive(Serialize, Deserialize)]
+    struct Foo {
+        #[serde(with = "serde_helpers::uuid_0_8_as_java_legacy_binary")]
+        java_legacy: Uuid,
+        #[serde(with = "serde_helpers::uuid_0_8_as_python_legacy_binary")]
+        python_legacy: Uuid,
+        #[serde(with = "serde_helpers::uuid_0_8_as_c_sharp_legacy_binary")]
+        csharp_legacy: Uuid,
+    }
+    let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+    let foo = Foo {
+        java_legacy: uuid,
+        python_legacy: uuid,
+        csharp_legacy: uuid,
+    };
+
+    let x = to_bson(&foo).unwrap();
+    assert_eq!(
+        x.as_document().unwrap(),
+        &doc! {
+            "java_legacy": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("7766554433221100FFEEDDCCBBAA9988").unwrap(),
+            }),
+            "python_legacy": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("00112233445566778899AABBCCDDEEFF").unwrap(),
+            }),
+            "csharp_legacy": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("33221100554477668899AABBCCDDEEFF").unwrap(),
+            })
+        }
+    );
+
+    let foo: Foo = from_bson(x).unwrap();
+    assert_eq!(foo.java_legacy, uuid);
+    assert_eq!(foo.python_legacy, uuid);
+    assert_eq!(foo.csharp_legacy, uuid);
+}
+
+#[test]
 fn test_de_oid_string() {
     let _guard = LOCK.run_concurrently();
 
