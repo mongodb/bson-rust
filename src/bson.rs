@@ -1019,12 +1019,6 @@ impl crate::DateTime {
     pub fn timestamp_millis(&self) -> i64 {
         self.0.timestamp_millis()
     }
-
-    /// If this DateTime is sub-millisecond precision. BSON only supports millisecond precision, so
-    /// this should be checked before serializing to BSON.
-    pub(crate) fn is_sub_millis_precision(&self) -> bool {
-        self.0.timestamp_subsec_micros() % 1000 != 0
-    }
 }
 
 impl Display for crate::DateTime {
