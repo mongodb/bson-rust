@@ -1,8 +1,17 @@
 use std::convert::TryFrom;
 
 use crate::{
-    doc, oid::ObjectId, spec::BinarySubtype, tests::LOCK, Binary, Bson, DateTime, Document,
-    JavaScriptCodeWithScope, Regex, Timestamp,
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    tests::LOCK,
+    Binary,
+    Bson,
+    DateTime,
+    Document,
+    JavaScriptCodeWithScope,
+    Regex,
+    Timestamp,
 };
 use serde_json::{json, Value};
 
