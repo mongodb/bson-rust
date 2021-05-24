@@ -7,6 +7,7 @@ use crate::{
     tests::LOCK,
     Binary,
     Bson,
+    DateTime,
     Document,
     JavaScriptCodeWithScope,
     Regex,
@@ -168,4 +169,48 @@ fn timestamp_ordering() {
     assert!(ts1 < ts2);
     assert!(ts1 < ts3);
     assert!(ts2 < ts3);
+}
+
+#[test]
+fn from_chrono_datetime() {
+    fn assert_precision(dt: DateTime) {
+        assert_eq!(
+            chrono::DateTime::<chrono::Utc>::from(dt).timestamp_subsec_micros() % 1000 != 0,
+            false
+        )
+    }
+    fn assert_millis(dt: DateTime, millis: u32) {
+        assert_eq!(
+            chrono::DateTime::<chrono::Utc>::from(dt).timestamp_subsec_millis(),
+            millis
+        )
+    }
+
+    let now = chrono::Utc::now();
+    let dt = DateTime::from(now);
+    assert_precision(dt);
+    let bson = Bson::from(now);
+    assert_precision(bson.as_datetime().unwrap().to_owned());
+
+    let chrono_dt: chrono::DateTime<chrono::Utc> = "2014-11-28T12:00:09Z".parse().unwrap();
+    let dt = DateTime::from(chrono_dt);
+    assert_precision(dt);
+    assert_millis(dt, 0);
+    let bson = Bson::from(chrono_dt);
+    assert_precision(bson.as_datetime().unwrap().to_owned());
+    assert_millis(bson.as_datetime().unwrap().to_owned(), 0);
+
+    for s in &[
+        "2014-11-28T12:00:09.123Z",
+        "2014-11-28T12:00:09.123456Z",
+        "2014-11-28T12:00:09.123456789Z",
+    ] {
+        let chrono_dt: chrono::DateTime<chrono::Utc> = s.parse().unwrap();
+        let dt = DateTime::from(chrono_dt);
+        assert_precision(dt);
+        assert_millis(dt, 123);
+        let bson = Bson::from(chrono_dt);
+        assert_precision(bson.as_datetime().unwrap().to_owned());
+        assert_millis(bson.as_datetime().unwrap().to_owned(), 123);
+    }
 }

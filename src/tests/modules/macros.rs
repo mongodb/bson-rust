@@ -45,7 +45,7 @@ fn standard_format() {
         base64::encode("thingies"),
         base64::encode("secret"),
         hex::encode(id_string),
-        date
+        date.format("%Y-%m-%d %H:%M:%S%.3f %Z")
     );
 
     assert_eq!(expected, format!("{}", doc));

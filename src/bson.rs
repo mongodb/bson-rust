@@ -23,7 +23,7 @@
 
 use std::fmt::{self, Debug, Display};
 
-use chrono::{Datelike, SecondsFormat, TimeZone, Utc};
+use chrono::{Datelike, NaiveDateTime, SecondsFormat, TimeZone, Utc};
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
@@ -287,7 +287,7 @@ impl From<oid::ObjectId> for Bson {
 
 impl From<chrono::DateTime<Utc>> for Bson {
     fn from(a: chrono::DateTime<Utc>) -> Bson {
-        Bson::DateTime(DateTime(a))
+        Bson::DateTime(DateTime::from(a))
     }
 }
 
@@ -1019,12 +1019,6 @@ impl crate::DateTime {
     pub fn timestamp_millis(&self) -> i64 {
         self.0.timestamp_millis()
     }
-
-    /// If this DateTime is sub-millisecond precision. BSON only supports millisecond precision, so
-    /// this should be checked before serializing to BSON.
-    pub(crate) fn is_sub_millis_precision(&self) -> bool {
-        self.0.timestamp_subsec_micros() % 1000 != 0
-    }
 }
 
 impl Display for crate::DateTime {
@@ -1041,7 +1035,12 @@ impl From<crate::DateTime> for chrono::DateTime<Utc> {
 
 impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for crate::DateTime {
     fn from(x: chrono::DateTime<T>) -> Self {
-        DateTime(x.with_timezone(&Utc))
+        let dt = x.with_timezone(&Utc);
+
+        DateTime(chrono::DateTime::<Utc>::from_utc(
+            NaiveDateTime::from_timestamp(dt.timestamp(), dt.timestamp_subsec_millis() * 1_000_000),
+            Utc,
+        ))
     }
 }
 
