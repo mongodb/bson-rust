@@ -13,7 +13,6 @@ use crate::{
         rfc3339_string_as_bson_datetime,
         timestamp_as_u32,
         u32_as_timestamp,
-        uuid_0_8_as_binary,
     },
     spec::BinarySubtype,
     tests::LOCK,
@@ -30,7 +29,6 @@ use crate::{
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use uuid::Uuid;
 
 use std::{collections::BTreeMap, convert::TryFrom, str::FromStr};
 
@@ -552,17 +550,20 @@ fn test_de_db_pointer() {
     assert_eq!(foo.db_pointer, db_pointer.clone());
 }
 
+#[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_serde_legacy_uuid() {
+    use uuid::Uuid;
+
     let _guard = LOCK.run_concurrently();
 
     #[derive(Serialize, Deserialize)]
     struct Foo {
-        #[serde(with = "serde_helpers::uuid_0_8_as_java_legacy_binary")]
+        #[serde(with = "serde_helpers::uuid_as_java_legacy_binary")]
         java_legacy: Uuid,
-        #[serde(with = "serde_helpers::uuid_0_8_as_python_legacy_binary")]
+        #[serde(with = "serde_helpers::uuid_as_python_legacy_binary")]
         python_legacy: Uuid,
-        #[serde(with = "serde_helpers::uuid_0_8_as_c_sharp_legacy_binary")]
+        #[serde(with = "serde_helpers::uuid_as_c_sharp_legacy_binary")]
         csharp_legacy: Uuid,
     }
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
@@ -804,12 +805,16 @@ fn test_oid_helpers() {
 }
 
 #[test]
+#[cfg(feature = "uuid-0_8")]
 fn test_uuid_helpers() {
+    use serde_helpers::uuid_as_binary;
+    use uuid::Uuid;
+
     let _guard = LOCK.run_concurrently();
 
     #[derive(Serialize, Deserialize)]
     struct A {
-        #[serde(with = "uuid_0_8_as_binary")]
+        #[serde(with = "uuid_as_binary")]
         uuid: Uuid,
     }
 

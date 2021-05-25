@@ -33,8 +33,10 @@ exclude = [
 [features]
 # no features by default
 default = []
-# whether to include interop with chrono 0.4 in the public API
+# if enabled, include API for interfacing with chrono 0.4
 chrono-0_4 = []
+# if enabled, include API for interfacing with uuid 0.8
+uuid-0_8 = []
 # attempt to encode unsigned types in signed types
 u2i = []
 # Decimal128 in BSON 1.1
