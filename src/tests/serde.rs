@@ -8,10 +8,9 @@ use crate::{
     oid::ObjectId,
     serde_helpers,
     serde_helpers::{
-        bson_datetime_as_iso_string,
-        chrono_0_4_datetime_as_bson_datetime,
+        bson_datetime_as_rfc3339_string,
         hex_string_as_object_id,
-        iso_string_as_bson_datetime,
+        rfc3339_string_as_bson_datetime,
         timestamp_as_u32,
         u32_as_timestamp,
         uuid_0_8_as_binary,
@@ -30,7 +29,7 @@ use crate::{
 };
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use uuid::Uuid;
 
 use std::{collections::BTreeMap, convert::TryFrom, str::FromStr};
@@ -245,23 +244,17 @@ fn test_de_code_with_scope() {
 #[test]
 fn test_ser_datetime() {
     let _guard = LOCK.run_concurrently();
-    use bson::DateTime;
-    use chrono::{Timelike, Utc};
+    use crate::DateTime;
+    use chrono::Utc;
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
         date: DateTime,
     }
 
-    let now = Utc::now();
-    // FIXME: Due to BSON's datetime precision
-    let now = now
-        .with_nanosecond(now.nanosecond() / 1_000_000 * 1_000_000)
-        .unwrap();
+    let now = crate::DateTime::from_chrono(Utc::now());
 
-    let foo = Foo {
-        date: From::from(now),
-    };
+    let foo = Foo { date: now };
 
     let x = to_bson(&foo).unwrap();
     assert_eq!(
@@ -733,25 +726,29 @@ fn test_datetime_helpers() {
 
     #[derive(Deserialize, Serialize)]
     struct A {
-        #[serde(with = "bson_datetime_as_iso_string")]
+        #[serde(with = "bson_datetime_as_rfc3339_string")]
         pub date: DateTime,
     }
 
-    let iso = "1996-12-20 00:39:57 UTC";
+    let iso = "1996-12-20T00:39:57+00:00";
     let date = chrono::DateTime::<chrono::Utc>::from_str(iso).unwrap();
-    let a = A { date: date.into() };
+    let a = A {
+        date: crate::DateTime::from_chrono(date),
+    };
     let doc = to_document(&a).unwrap();
     assert_eq!(doc.get_str("date").unwrap(), iso);
     let a: A = from_document(doc).unwrap();
-    assert_eq!(a.date, date.into());
+    assert_eq!(a.date.to_chrono(), date);
 
-    #[derive(Deserialize, Serialize)]
-    struct B {
-        #[serde(with = "chrono_0_4_datetime_as_bson_datetime")]
-        pub date: chrono::DateTime<chrono::Utc>,
-    }
+    #[cfg(feature = "chrono-0_4")]
+    {
+        #[derive(Deserialize, Serialize)]
+        struct B {
+            #[serde(with = "serde_helpers::chrono_datetime_as_bson_datetime")]
+            pub date: chrono::DateTime<chrono::Utc>,
+        }
 
-    let date = r#"
+        let date = r#"
     {
         "date": {
                 "$date": {
@@ -759,23 +756,24 @@ fn test_datetime_helpers() {
                 }
         }
     }"#;
-    let json: Value = serde_json::from_str(&date).unwrap();
-    let b: B = serde_json::from_value(json).unwrap();
-    let expected: chrono::DateTime<chrono::Utc> =
-        chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap();
-    assert_eq!(b.date, expected);
-    let doc = to_document(&b).unwrap();
-    assert_eq!(doc.get_datetime("date").unwrap(), &expected.into());
-    let b: B = from_document(doc).unwrap();
-    assert_eq!(b.date, expected);
+        let json: serde_json::Value = serde_json::from_str(&date).unwrap();
+        let b: B = serde_json::from_value(json).unwrap();
+        let expected: chrono::DateTime<chrono::Utc> =
+            chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap();
+        assert_eq!(b.date, expected);
+        let doc = to_document(&b).unwrap();
+        assert_eq!(doc.get_datetime("date").unwrap().to_chrono(), expected);
+        let b: B = from_document(doc).unwrap();
+        assert_eq!(b.date, expected);
+    }
 
     #[derive(Deserialize, Serialize)]
     struct C {
-        #[serde(with = "iso_string_as_bson_datetime")]
+        #[serde(with = "rfc3339_string_as_bson_datetime")]
         pub date: String,
     }
 
-    let date = "2020-06-09 10:58:07.095 UTC";
+    let date = "2020-06-09T10:58:07.095+00:00";
     let c = C {
         date: date.to_string(),
     };

@@ -10,7 +10,6 @@ use std::{
     time::SystemTime,
 };
 
-use chrono::Utc;
 use hex::{self, FromHexError};
 use rand::{thread_rng, Rng};
 
@@ -159,9 +158,8 @@ impl ObjectId {
         buf.copy_from_slice(&self.id[0..4]);
         let seconds_since_epoch = u32::from_be_bytes(buf);
 
-        let naive_datetime = chrono::NaiveDateTime::from_timestamp(seconds_since_epoch as i64, 0);
-        let timestamp: chrono::DateTime<Utc> = chrono::DateTime::from_utc(naive_datetime, Utc);
-        timestamp.into()
+        // This doesn't overflow since u32::MAX * 1000 < i64::MAX
+        crate::DateTime::from_millis(seconds_since_epoch as i64 * 1000)
     }
 
     /// Returns the raw byte representation of an ObjectId.
@@ -310,27 +308,30 @@ mod test {
     fn test_timestamp() {
         let id = super::ObjectId::parse_str("000000000000000000000000").unwrap();
         // "Jan 1st, 1970 00:00:00 UTC"
-        assert_eq!(Utc.ymd(1970, 1, 1).and_hms(0, 0, 0), id.timestamp().into());
+        assert_eq!(
+            Utc.ymd(1970, 1, 1).and_hms(0, 0, 0),
+            id.timestamp().to_chrono()
+        );
 
         let id = super::ObjectId::parse_str("7FFFFFFF0000000000000000").unwrap();
         // "Jan 19th, 2038 03:14:07 UTC"
         assert_eq!(
             Utc.ymd(2038, 1, 19).and_hms(3, 14, 7),
-            id.timestamp().into()
+            id.timestamp().to_chrono()
         );
 
         let id = super::ObjectId::parse_str("800000000000000000000000").unwrap();
         // "Jan 19th, 2038 03:14:08 UTC"
         assert_eq!(
             Utc.ymd(2038, 1, 19).and_hms(3, 14, 8),
-            id.timestamp().into()
+            id.timestamp().to_chrono()
         );
 
         let id = super::ObjectId::parse_str("FFFFFFFF0000000000000000").unwrap();
         // "Feb 7th, 2106 06:28:15 UTC"
         assert_eq!(
             Utc.ymd(2106, 2, 7).and_hms(6, 28, 15),
-            id.timestamp().into()
+            id.timestamp().to_chrono()
         );
     }
 }

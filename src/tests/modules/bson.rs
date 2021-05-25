@@ -1,4 +1,7 @@
-use std::convert::TryFrom;
+use std::{
+    convert::TryFrom,
+    time::{Duration, SystemTime},
+};
 
 use crate::{
     doc,
@@ -173,32 +176,41 @@ fn timestamp_ordering() {
 
 #[test]
 fn from_chrono_datetime() {
-    fn assert_precision(dt: DateTime) {
-        assert_eq!(
-            chrono::DateTime::<chrono::Utc>::from(dt).timestamp_subsec_micros() % 1000 != 0,
-            false
-        )
+    fn assert_millisecond_precision(dt: DateTime) {
+        assert_eq!(dt.to_chrono().timestamp_subsec_micros() % 1000 != 0, false);
     }
-    fn assert_millis(dt: DateTime, millis: u32) {
-        assert_eq!(
-            chrono::DateTime::<chrono::Utc>::from(dt).timestamp_subsec_millis(),
-            millis
-        )
+    fn assert_subsec_millis(dt: DateTime, millis: u32) {
+        assert_eq!(dt.to_chrono().timestamp_subsec_millis(), millis)
     }
 
     let now = chrono::Utc::now();
-    let dt = DateTime::from(now);
-    assert_precision(dt);
-    let bson = Bson::from(now);
-    assert_precision(bson.as_datetime().unwrap().to_owned());
+    let dt = DateTime::from_chrono(now);
+    assert_millisecond_precision(dt);
 
-    let chrono_dt: chrono::DateTime<chrono::Utc> = "2014-11-28T12:00:09Z".parse().unwrap();
-    let dt = DateTime::from(chrono_dt);
-    assert_precision(dt);
-    assert_millis(dt, 0);
-    let bson = Bson::from(chrono_dt);
-    assert_precision(bson.as_datetime().unwrap().to_owned());
-    assert_millis(bson.as_datetime().unwrap().to_owned(), 0);
+    #[cfg(feature = "chrono-0_4")]
+    {
+        let bson = Bson::from(now);
+        assert_millisecond_precision(bson.as_datetime().unwrap().to_owned());
+
+        let from_chrono = DateTime::from(now);
+        assert_millisecond_precision(from_chrono);
+    }
+
+    let no_subsec_millis: chrono::DateTime<chrono::Utc> = "2014-11-28T12:00:09Z".parse().unwrap();
+    let dt = DateTime::from_chrono(no_subsec_millis);
+    assert_millisecond_precision(dt);
+    assert_subsec_millis(dt, 0);
+
+    #[cfg(feature = "chrono-0_4")]
+    {
+        let dt = DateTime::from(no_subsec_millis);
+        assert_millisecond_precision(dt);
+        assert_subsec_millis(dt, 0);
+
+        let bson = Bson::from(dt);
+        assert_millisecond_precision(bson.as_datetime().unwrap().to_owned());
+        assert_subsec_millis(bson.as_datetime().unwrap().to_owned(), 0);
+    }
 
     for s in &[
         "2014-11-28T12:00:09.123Z",
@@ -206,11 +218,76 @@ fn from_chrono_datetime() {
         "2014-11-28T12:00:09.123456789Z",
     ] {
         let chrono_dt: chrono::DateTime<chrono::Utc> = s.parse().unwrap();
-        let dt = DateTime::from(chrono_dt);
-        assert_precision(dt);
-        assert_millis(dt, 123);
-        let bson = Bson::from(chrono_dt);
-        assert_precision(bson.as_datetime().unwrap().to_owned());
-        assert_millis(bson.as_datetime().unwrap().to_owned(), 123);
+        let dt = DateTime::from_chrono(chrono_dt);
+        assert_millisecond_precision(dt);
+        assert_subsec_millis(dt, 123);
+
+        #[cfg(feature = "chrono-0_4")]
+        {
+            let dt = DateTime::from(chrono_dt);
+            assert_millisecond_precision(dt);
+            assert_subsec_millis(dt, 123);
+
+            let bson = Bson::from(chrono_dt);
+            assert_millisecond_precision(bson.as_datetime().unwrap().to_owned());
+            assert_subsec_millis(bson.as_datetime().unwrap().to_owned(), 123);
+        }
     }
+
+    #[cfg(feature = "chrono-0_4")]
+    {
+        let bdt = DateTime::from(chrono::MAX_DATETIME);
+        assert_eq!(
+            bdt.to_chrono().timestamp_millis(),
+            chrono::MAX_DATETIME.timestamp_millis()
+        );
+
+        let bdt = DateTime::from(chrono::MIN_DATETIME);
+        assert_eq!(
+            bdt.to_chrono().timestamp_millis(),
+            chrono::MIN_DATETIME.timestamp_millis()
+        );
+
+        let bdt = DateTime::MAX;
+        assert_eq!(bdt.to_chrono(), chrono::MAX_DATETIME);
+
+        let bdt = DateTime::MIN;
+        assert_eq!(bdt.to_chrono(), chrono::MIN_DATETIME);
+    }
+}
+
+#[test]
+fn system_time() {
+    let st = SystemTime::now();
+    let bt_into: crate::DateTime = st.into();
+    let bt_from = crate::DateTime::from_system_time(st);
+
+    assert_eq!(bt_into, bt_from);
+    assert_eq!(
+        bt_into.timestamp_millis(),
+        st.duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64
+    );
+
+    let st = SystemTime::UNIX_EPOCH
+        .checked_add(Duration::from_millis(1234))
+        .unwrap();
+    let bt = crate::DateTime::from_system_time(st);
+    assert_eq!(bt.timestamp_millis(), 1234);
+    assert_eq!(bt.to_system_time(), st);
+
+    assert_eq!(
+        crate::DateTime::MAX.to_system_time(),
+        SystemTime::UNIX_EPOCH + Duration::from_millis(i64::MAX as u64)
+    );
+    assert_eq!(
+        crate::DateTime::MIN.to_system_time(),
+        SystemTime::UNIX_EPOCH - Duration::from_millis((i64::MIN as i128).abs() as u64)
+    );
+
+    assert_eq!(
+        crate::DateTime::from_system_time(SystemTime::UNIX_EPOCH).timestamp_millis(),
+        0
+    );
 }
