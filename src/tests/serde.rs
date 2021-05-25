@@ -243,21 +243,20 @@ fn test_de_code_with_scope() {
 fn test_ser_datetime() {
     let _guard = LOCK.run_concurrently();
     use crate::DateTime;
-    use chrono::Utc;
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
         date: DateTime,
     }
 
-    let now = crate::DateTime::from_chrono(Utc::now());
+    let now = DateTime::now();
 
     let foo = Foo { date: now };
 
     let x = to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "date": (Bson::DateTime(now.into())) }
+        &doc! { "date": (Bson::DateTime(now)) }
     );
 
     let xfoo: Foo = from_bson(x).unwrap();
