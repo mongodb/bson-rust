@@ -26,9 +26,10 @@ use chrono::{LocalResult, TimeZone, Utc};
 /// ```
 ///
 /// This type differs from [`chrono::DateTime`] in that it serializes to and deserializes from a
-/// BSON datetime rather than an ISO-8601 formatted string. This means that in non-BSON formats, it
-/// will serialize to and deserialize from that format's equivalent of the [extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/) of a datetime. To serialize a
-/// [`chrono::DateTime`] as a BSON datetime, you can use
+/// BSON datetime rather than an RFC 3339 formatted string. Additionally, in non-BSON formats, it
+/// will serialize to and deserialize from that format's equivalent of the
+/// [extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/) of a datetime.
+/// To serialize a [`chrono::DateTime`] as a BSON datetime, you can use
 /// [`serde_helpers::chrono_datetime_as_bson_datetime`].
 ///
 /// ```rust
@@ -41,7 +42,7 @@ use chrono::{LocalResult, TimeZone, Utc};
 ///     // serializes as a BSON datetime.
 ///     date_time: bson::DateTime,
 ///
-///     // serializes as an ISO-8601 string.
+///     // serializes as an RFC 3339 / ISO-8601 string.
 ///     chrono_datetime: chrono::DateTime<chrono::Utc>,
 ///
 ///     // serializes as a BSON datetime.
