@@ -161,7 +161,7 @@ impl crate::DateTime {
     }
 
     /// Returns the number of non-leap-milliseconds since January 1, 1970 UTC.
-    pub fn timestamp_millis(&self) -> i64 {
+    pub const fn timestamp_millis(self) -> i64 {
         self.0
     }
 
