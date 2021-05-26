@@ -185,7 +185,7 @@ pub mod chrono_datetime_as_bson_datetime {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
 
-    /// Deserializes a chrono::DateTime from a bson::DateTime.
+    /// Deserializes a [`chrono::DateTime`] from a [`crate::DateTime`].
     pub fn deserialize<'de, D>(deserializer: D) -> Result<chrono::DateTime<Utc>, D::Error>
     where
         D: Deserializer<'de>,
@@ -194,7 +194,7 @@ pub mod chrono_datetime_as_bson_datetime {
         Ok(datetime.to_chrono())
     }
 
-    /// Serializes a chrono::DateTime as a bson::DateTime.
+    /// Serializes a [`chrono::DateTime`] as a [`crate::DateTime`].
     pub fn serialize<S: Serializer>(
         val: &chrono::DateTime<Utc>,
         serializer: S,
@@ -241,7 +241,7 @@ pub mod rfc3339_string_as_bson_datetime {
 }
 
 /// Contains functions to serialize a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted string
-/// and deserialize a bson::DateTime from an RFC 3339 (ISO 8601) formatted string.
+/// and deserialize a [`crate::DateTime`] from an RFC 3339 (ISO 8601) formatted string.
 ///
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
@@ -270,7 +270,7 @@ pub mod bson_datetime_as_rfc3339_string {
         Ok(DateTime::from_chrono(date))
     }
 
-    /// Serializes a bson::DateTime as an RFC 3339 (ISO 8601) formatted string.
+    /// Serializes a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted string.
     pub fn serialize<S: Serializer>(val: &DateTime, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&val.to_rfc3339())
     }
