@@ -179,7 +179,7 @@ fn from_chrono_datetime() {
     let _guard = LOCK.run_concurrently();
 
     fn assert_millisecond_precision(dt: DateTime) {
-        assert_eq!(dt.to_chrono().timestamp_subsec_micros() % 1000 != 0, false);
+        assert!(dt.to_chrono().timestamp_subsec_micros() % 1000 == 0);
     }
     fn assert_subsec_millis(dt: DateTime, millis: u32) {
         assert_eq!(dt.to_chrono().timestamp_subsec_millis(), millis)
