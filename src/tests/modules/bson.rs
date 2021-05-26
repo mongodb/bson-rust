@@ -176,6 +176,8 @@ fn timestamp_ordering() {
 
 #[test]
 fn from_chrono_datetime() {
+    let _guard = LOCK.run_concurrently();
+
     fn assert_millisecond_precision(dt: DateTime) {
         assert_eq!(dt.to_chrono().timestamp_subsec_micros() % 1000 != 0, false);
     }
@@ -258,6 +260,8 @@ fn from_chrono_datetime() {
 
 #[test]
 fn system_time() {
+    let _guard = LOCK.run_concurrently();
+
     let st = SystemTime::now();
     let bt_into: crate::DateTime = st.into();
     let bt_from = crate::DateTime::from_system_time(st);
