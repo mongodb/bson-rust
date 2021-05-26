@@ -23,7 +23,7 @@
 
 use std::fmt::{self, Debug, Display};
 
-use chrono::{Datelike, SecondsFormat};
+use chrono::Datelike;
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
@@ -378,14 +378,8 @@ impl Bson {
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
             Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_chrono().year() <= 99999 => {
-                let seconds_format = if v.to_chrono().timestamp_subsec_millis() == 0 {
-                    SecondsFormat::Secs
-                } else {
-                    SecondsFormat::Millis
-                };
-
                 json!({
-                    "$date": v.to_chrono().to_rfc3339_opts(seconds_format, true),
+                    "$date": v.to_rfc3339(),
                 })
             }
             Bson::DateTime(v) => json!({
@@ -544,14 +538,8 @@ impl Bson {
                 }
             }
             Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_chrono().year() <= 99999 => {
-                let seconds_format = if v.to_chrono().timestamp_subsec_millis() == 0 {
-                    SecondsFormat::Secs
-                } else {
-                    SecondsFormat::Millis
-                };
-
                 doc! {
-                    "$date": v.to_chrono().to_rfc3339_opts(seconds_format, true),
+                    "$date": v.to_rfc3339(),
                 }
             }
             Bson::DateTime(v) => doc! {

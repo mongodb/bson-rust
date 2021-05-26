@@ -164,6 +164,11 @@ impl crate::DateTime {
     pub fn timestamp_millis(&self) -> i64 {
         self.0
     }
+
+    pub(crate) fn to_rfc3339(&self) -> String {
+        self.to_chrono()
+            .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
+    }
 }
 
 impl fmt::Debug for crate::DateTime {

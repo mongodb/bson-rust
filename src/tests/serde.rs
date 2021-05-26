@@ -734,7 +734,7 @@ fn test_datetime_helpers() {
         pub date: DateTime,
     }
 
-    let iso = "1996-12-20T00:39:57+00:00";
+    let iso = "1996-12-20T00:39:57Z";
     let date = chrono::DateTime::<chrono::Utc>::from_str(iso).unwrap();
     let a = A {
         date: crate::DateTime::from_chrono(date),
@@ -777,7 +777,7 @@ fn test_datetime_helpers() {
         pub date: String,
     }
 
-    let date = "2020-06-09T10:58:07.095+00:00";
+    let date = "2020-06-09T10:58:07.095Z";
     let c = C {
         date: date.to_string(),
     };
