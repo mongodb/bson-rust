@@ -57,14 +57,14 @@ pub struct DateTime(i64);
 
 impl crate::DateTime {
     /// The latest possibile date that can be represented in BSON.
-    pub const MAX: Self = Self(i64::MAX);
+    pub const MAX: Self = Self::from_millis(i64::MAX);
 
     /// The earliest possibile date that can be represented in BSON.
-    pub const MIN: Self = Self(i64::MIN);
+    pub const MIN: Self = Self::from_millis(i64::MIN);
 
     /// Makes a new [`DateTime`] from the number of non-leap milliseconds since
     /// January 1, 1970 0:00:00 UTC (aka "UNIX timestamp").
-    pub fn from_millis(date: i64) -> Self {
+    pub const fn from_millis(date: i64) -> Self {
         Self(date)
     }
 
