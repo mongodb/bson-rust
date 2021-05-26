@@ -56,10 +56,10 @@ use chrono::{LocalResult, TimeZone, Utc};
 pub struct DateTime(i64);
 
 impl crate::DateTime {
-    /// The latest possibile date that can be represented in BSON.
+    /// The latest possible date that can be represented in BSON.
     pub const MAX: Self = Self::from_millis(i64::MAX);
 
-    /// The earliest possibile date that can be represented in BSON.
+    /// The earliest possible date that can be represented in BSON.
     pub const MIN: Self = Self::from_millis(i64::MIN);
 
     /// Makes a new [`DateTime`] from the number of non-leap milliseconds since
@@ -154,7 +154,7 @@ impl crate::DateTime {
         if self.0 >= 0 {
             SystemTime::UNIX_EPOCH + Duration::from_millis(self.0 as u64)
         } else {
-            // need to convert to i128 beforce calculating absolute value since i64::MIN.abs()
+            // need to convert to i128 before calculating absolute value since i64::MIN.abs()
             // overflows and panics.
             SystemTime::UNIX_EPOCH - Duration::from_millis((self.0 as i128).abs() as u64)
         }
