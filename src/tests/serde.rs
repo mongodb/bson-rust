@@ -30,7 +30,11 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use std::{collections::BTreeMap, convert::TryFrom, str::FromStr};
+use std::{
+    collections::BTreeMap,
+    convert::{TryFrom, TryInto},
+    str::FromStr,
+};
 
 #[test]
 fn test_ser_vec() {
@@ -870,4 +874,27 @@ fn test_timestamp_helpers() {
     };
     let b = B { timestamp };
     assert!(serde_json::to_value(b).is_err());
+}
+
+#[test]
+fn large_dates() {
+    let _guard = LOCK.run_concurrently();
+
+    let json = json!({ "d": { "$date": { "$numberLong": i64::MAX.to_string() } } });
+    let d = serde_json::from_value::<Document>(json.clone()).unwrap();
+    assert_eq!(d.get_datetime("d").unwrap(), &DateTime::MAX);
+    let d: Bson = json.try_into().unwrap();
+    assert_eq!(
+        d.as_document().unwrap().get_datetime("d").unwrap(),
+        &DateTime::MAX
+    );
+
+    let json = json!({ "d": { "$date": { "$numberLong": i64::MIN.to_string() } } });
+    let d = serde_json::from_value::<Document>(json.clone()).unwrap();
+    assert_eq!(d.get_datetime("d").unwrap(), &DateTime::MIN);
+    let d: Bson = json.try_into().unwrap();
+    assert_eq!(
+        d.as_document().unwrap().get_datetime("d").unwrap(),
+        &DateTime::MIN
+    );
 }
