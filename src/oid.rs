@@ -167,8 +167,8 @@ impl ObjectId {
         self.id
     }
 
-    /// Convert the objectId to hex representation.
-    pub fn to_hex(&self) -> String {
+    /// Convert this [`ObjectId`] to its hex string representation.
+    pub fn to_hex(self) -> String {
         hex::encode(self.id)
     }
 
