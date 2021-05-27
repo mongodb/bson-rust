@@ -186,17 +186,8 @@
 #![doc(html_root_url = "https://docs.rs/bson/2.0.0-beta")]
 
 pub use self::{
-    bson::{
-        Array,
-        Binary,
-        Bson,
-        DateTime,
-        DbPointer,
-        Document,
-        JavaScriptCodeWithScope,
-        Regex,
-        Timestamp,
-    },
+    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
+    datetime::DateTime,
     de::{from_bson, from_document, Deserializer},
     decimal128::Decimal128,
     ser::{to_bson, to_document, Serializer},
@@ -205,6 +196,7 @@ pub use self::{
 #[macro_use]
 mod macros;
 mod bson;
+mod datetime;
 pub mod de;
 pub mod decimal128;
 pub mod document;

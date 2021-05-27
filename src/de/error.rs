@@ -29,16 +29,6 @@ pub enum Error {
     /// The end of the BSON input was reached too soon.
     EndOfStream,
 
-    /// An invalid datetime was encountered while decoding.
-    #[non_exhaustive]
-    InvalidDateTime {
-        /// The key at which an unexpected/unsupported datetime was encountered.
-        key: String,
-
-        /// The value of the invalid datetime.
-        datetime: i64,
-    },
-
     /// A general error encountered during deserialization.
     /// See: https://docs.serde.rs/serde/de/trait.Error.html
     #[non_exhaustive]
@@ -75,9 +65,6 @@ impl fmt::Display for Error {
             ),
             Error::EndOfStream => fmt.write_str("end of stream"),
             Error::DeserializationError { ref message } => message.fmt(fmt),
-            Error::InvalidDateTime { ref key, datetime } => {
-                write!(fmt, "invalid datetime for key \"{}\": {}", key, datetime)
-            }
         }
     }
 }

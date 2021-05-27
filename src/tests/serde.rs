@@ -8,13 +8,11 @@ use crate::{
     oid::ObjectId,
     serde_helpers,
     serde_helpers::{
-        bson_datetime_as_iso_string,
-        chrono_0_4_datetime_as_bson_datetime,
+        bson_datetime_as_rfc3339_string,
         hex_string_as_object_id,
-        iso_string_as_bson_datetime,
+        rfc3339_string_as_bson_datetime,
         timestamp_as_u32,
         u32_as_timestamp,
-        uuid_0_8_as_binary,
     },
     spec::BinarySubtype,
     tests::LOCK,
@@ -30,10 +28,13 @@ use crate::{
 };
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use uuid::Uuid;
+use serde_json::json;
 
-use std::{collections::BTreeMap, convert::TryFrom, str::FromStr};
+use std::{
+    collections::BTreeMap,
+    convert::{TryFrom, TryInto},
+    str::FromStr,
+};
 
 #[test]
 fn test_ser_vec() {
@@ -245,28 +246,21 @@ fn test_de_code_with_scope() {
 #[test]
 fn test_ser_datetime() {
     let _guard = LOCK.run_concurrently();
-    use bson::DateTime;
-    use chrono::{Timelike, Utc};
+    use crate::DateTime;
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct Foo {
         date: DateTime,
     }
 
-    let now = Utc::now();
-    // FIXME: Due to BSON's datetime precision
-    let now = now
-        .with_nanosecond(now.nanosecond() / 1_000_000 * 1_000_000)
-        .unwrap();
+    let now = DateTime::now();
 
-    let foo = Foo {
-        date: From::from(now),
-    };
+    let foo = Foo { date: now };
 
     let x = to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
-        &doc! { "date": (Bson::DateTime(now.into())) }
+        &doc! { "date": (Bson::DateTime(now)) }
     );
 
     let xfoo: Foo = from_bson(x).unwrap();
@@ -559,17 +553,20 @@ fn test_de_db_pointer() {
     assert_eq!(foo.db_pointer, db_pointer.clone());
 }
 
+#[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_serde_legacy_uuid() {
+    use uuid::Uuid;
+
     let _guard = LOCK.run_concurrently();
 
     #[derive(Serialize, Deserialize)]
     struct Foo {
-        #[serde(with = "serde_helpers::uuid_0_8_as_java_legacy_binary")]
+        #[serde(with = "serde_helpers::uuid_as_java_legacy_binary")]
         java_legacy: Uuid,
-        #[serde(with = "serde_helpers::uuid_0_8_as_python_legacy_binary")]
+        #[serde(with = "serde_helpers::uuid_as_python_legacy_binary")]
         python_legacy: Uuid,
-        #[serde(with = "serde_helpers::uuid_0_8_as_c_sharp_legacy_binary")]
+        #[serde(with = "serde_helpers::uuid_as_c_sharp_legacy_binary")]
         csharp_legacy: Uuid,
     }
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
@@ -733,25 +730,29 @@ fn test_datetime_helpers() {
 
     #[derive(Deserialize, Serialize)]
     struct A {
-        #[serde(with = "bson_datetime_as_iso_string")]
+        #[serde(with = "bson_datetime_as_rfc3339_string")]
         pub date: DateTime,
     }
 
-    let iso = "1996-12-20 00:39:57 UTC";
+    let iso = "1996-12-20T00:39:57Z";
     let date = chrono::DateTime::<chrono::Utc>::from_str(iso).unwrap();
-    let a = A { date: date.into() };
+    let a = A {
+        date: crate::DateTime::from_chrono(date),
+    };
     let doc = to_document(&a).unwrap();
     assert_eq!(doc.get_str("date").unwrap(), iso);
     let a: A = from_document(doc).unwrap();
-    assert_eq!(a.date, date.into());
+    assert_eq!(a.date.to_chrono(), date);
 
-    #[derive(Deserialize, Serialize)]
-    struct B {
-        #[serde(with = "chrono_0_4_datetime_as_bson_datetime")]
-        pub date: chrono::DateTime<chrono::Utc>,
-    }
+    #[cfg(feature = "chrono-0_4")]
+    {
+        #[derive(Deserialize, Serialize)]
+        struct B {
+            #[serde(with = "serde_helpers::chrono_datetime_as_bson_datetime")]
+            pub date: chrono::DateTime<chrono::Utc>,
+        }
 
-    let date = r#"
+        let date = r#"
     {
         "date": {
                 "$date": {
@@ -759,23 +760,24 @@ fn test_datetime_helpers() {
                 }
         }
     }"#;
-    let json: Value = serde_json::from_str(&date).unwrap();
-    let b: B = serde_json::from_value(json).unwrap();
-    let expected: chrono::DateTime<chrono::Utc> =
-        chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap();
-    assert_eq!(b.date, expected);
-    let doc = to_document(&b).unwrap();
-    assert_eq!(doc.get_datetime("date").unwrap(), &expected.into());
-    let b: B = from_document(doc).unwrap();
-    assert_eq!(b.date, expected);
+        let json: serde_json::Value = serde_json::from_str(&date).unwrap();
+        let b: B = serde_json::from_value(json).unwrap();
+        let expected: chrono::DateTime<chrono::Utc> =
+            chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap();
+        assert_eq!(b.date, expected);
+        let doc = to_document(&b).unwrap();
+        assert_eq!(doc.get_datetime("date").unwrap().to_chrono(), expected);
+        let b: B = from_document(doc).unwrap();
+        assert_eq!(b.date, expected);
+    }
 
     #[derive(Deserialize, Serialize)]
     struct C {
-        #[serde(with = "iso_string_as_bson_datetime")]
+        #[serde(with = "rfc3339_string_as_bson_datetime")]
         pub date: String,
     }
 
-    let date = "2020-06-09 10:58:07.095 UTC";
+    let date = "2020-06-09T10:58:07.095Z";
     let c = C {
         date: date.to_string(),
     };
@@ -806,12 +808,16 @@ fn test_oid_helpers() {
 }
 
 #[test]
+#[cfg(feature = "uuid-0_8")]
 fn test_uuid_helpers() {
+    use serde_helpers::uuid_as_binary;
+    use uuid::Uuid;
+
     let _guard = LOCK.run_concurrently();
 
     #[derive(Serialize, Deserialize)]
     struct A {
-        #[serde(with = "uuid_0_8_as_binary")]
+        #[serde(with = "uuid_as_binary")]
         uuid: Uuid,
     }
 
@@ -868,4 +874,27 @@ fn test_timestamp_helpers() {
     };
     let b = B { timestamp };
     assert!(serde_json::to_value(b).is_err());
+}
+
+#[test]
+fn large_dates() {
+    let _guard = LOCK.run_concurrently();
+
+    let json = json!({ "d": { "$date": { "$numberLong": i64::MAX.to_string() } } });
+    let d = serde_json::from_value::<Document>(json.clone()).unwrap();
+    assert_eq!(d.get_datetime("d").unwrap(), &DateTime::MAX);
+    let d: Bson = json.try_into().unwrap();
+    assert_eq!(
+        d.as_document().unwrap().get_datetime("d").unwrap(),
+        &DateTime::MAX
+    );
+
+    let json = json!({ "d": { "$date": { "$numberLong": i64::MIN.to_string() } } });
+    let d = serde_json::from_value::<Document>(json.clone()).unwrap();
+    assert_eq!(d.get_datetime("d").unwrap(), &DateTime::MIN);
+    let d: Bson = json.try_into().unwrap();
+    assert_eq!(
+        d.as_document().unwrap().get_datetime("d").unwrap(),
+        &DateTime::MIN
+    );
 }

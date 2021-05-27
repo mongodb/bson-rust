@@ -28,13 +28,13 @@
 //!   - In relaxed mode, all BSON numbers are represented by the JSON number type, rather than the
 //!     object
 //! notation.
-//!   - In relaxed mode, the string in the datetime object notation is ISO-8601 formatted (if the
-//!     date is after 1970).
+//!   - In relaxed mode, the string in the datetime object notation is RFC 3339 (ISO-8601) formatted
+//!     (if the date is after 1970).
 //!
 //! e.g.
 //! ```rust
 //! # use bson::bson;
-//! let doc = bson!({ "x": 5, "d": chrono::Utc::now() });
+//! let doc = bson!({ "x": 5, "d": bson::DateTime::now() });
 //!
 //! println!("relaxed: {}", doc.clone().into_relaxed_extjson());
 //! // relaxed: "{"x":5,"d":{"$date":"2020-06-01T22:19:13.075Z"}}"

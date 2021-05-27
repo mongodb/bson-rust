@@ -62,7 +62,7 @@ fn test_decimal128(doc: &mut Document) {
 fn test_getters() {
     let _guard = LOCK.run_concurrently();
     let datetime = Utc::now();
-    let cloned_dt = datetime;
+    let cloned_dt = crate::DateTime::from_chrono(datetime);
     let binary = vec![0, 1, 2, 3, 4];
     let mut doc = doc! {
         "floating_point": 10.0,
@@ -136,14 +136,12 @@ fn test_getters() {
         doc.get_timestamp("timestamp")
     );
 
-    assert_eq!(Some(&Bson::DateTime(datetime.into())), doc.get("datetime"));
-    assert_eq!(Ok(&datetime.into()), doc.get_datetime("datetime"));
+    let dt = crate::DateTime::from_chrono(datetime);
+    assert_eq!(Some(&Bson::DateTime(dt)), doc.get("datetime"));
+    assert_eq!(Ok(&dt), doc.get_datetime("datetime"));
 
     #[cfg(feature = "decimal128")]
     test_decimal128(&mut doc);
-
-    assert_eq!(Some(&Bson::DateTime(datetime.into())), doc.get("datetime"));
-    assert_eq!(Ok(&datetime.into()), doc.get_datetime("datetime"));
 
     let object_id = ObjectId::new();
     doc.insert("_id".to_string(), Bson::ObjectId(object_id));

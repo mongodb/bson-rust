@@ -17,7 +17,8 @@ use serde::de::{
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
 use crate::{
-    bson::{Binary, Bson, DateTime, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
+    bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
+    datetime::DateTime,
     document::{Document, DocumentVisitor, IntoIter},
     oid::ObjectId,
     spec::BinarySubtype,

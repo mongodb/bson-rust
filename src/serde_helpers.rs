@@ -4,21 +4,22 @@ use std::{convert::TryFrom, result::Result};
 
 use serde::{ser, Serializer};
 
-pub use bson_datetime_as_iso_string::{
-    deserialize as deserialize_bson_datetime_from_iso_string,
-    serialize as serialize_bson_datetime_as_iso_string,
+pub use bson_datetime_as_rfc3339_string::{
+    deserialize as deserialize_bson_datetime_from_rfc3339_string,
+    serialize as serialize_bson_datetime_as_rfc3339_string,
 };
-pub use chrono_0_4_datetime_as_bson_datetime::{
-    deserialize as deserialize_chrono_0_4_datetime_from_bson_datetime,
-    serialize as serialize_chrono_0_4_datetime_as_bson_datetime,
+#[cfg(feature = "chrono-0_4")]
+pub use chrono_datetime_as_bson_datetime::{
+    deserialize as deserialize_chrono_datetime_from_bson_datetime,
+    serialize as serialize_chrono_datetime_as_bson_datetime,
 };
 pub use hex_string_as_object_id::{
     deserialize as deserialize_hex_string_from_object_id,
     serialize as serialize_hex_string_as_object_id,
 };
-pub use iso_string_as_bson_datetime::{
-    deserialize as deserialize_iso_string_from_bson_datetime,
-    serialize as serialize_iso_string_as_bson_datetime,
+pub use rfc3339_string_as_bson_datetime::{
+    deserialize as deserialize_rfc3339_string_from_bson_datetime,
+    serialize as serialize_rfc3339_string_as_bson_datetime,
 };
 pub use timestamp_as_u32::{
     deserialize as deserialize_timestamp_from_u32,
@@ -30,19 +31,24 @@ pub use u32_as_timestamp::{
     serialize as serialize_u32_as_timestamp,
 };
 pub use u64_as_f64::{deserialize as deserialize_u64_from_f64, serialize as serialize_u64_as_f64};
-pub use uuid_0_8_as_binary::{
-    deserialize as deserialize_uuid_0_8_from_binary,
-    serialize as serialize_uuid_0_8_as_binary,
+
+#[cfg(feature = "uuid-0_8")]
+pub use uuid_as_binary::{
+    deserialize as deserialize_uuid_from_binary,
+    serialize as serialize_uuid_as_binary,
 };
-pub use uuid_0_8_as_c_sharp_legacy_binary::{
+#[cfg(feature = "uuid-0_8")]
+pub use uuid_as_c_sharp_legacy_binary::{
     deserialize as deserialize_uuid_from_c_sharp_legacy_binary,
     serialize as serialize_uuid_as_c_sharp_legacy_binary,
 };
-pub use uuid_0_8_as_java_legacy_binary::{
+#[cfg(feature = "uuid-0_8")]
+pub use uuid_as_java_legacy_binary::{
     deserialize as deserialize_uuid_from_java_legacy_binary,
     serialize as serialize_uuid_as_java_legacy_binary,
 };
-pub use uuid_0_8_as_python_legacy_binary::{
+#[cfg(feature = "uuid-0_8")]
+pub use uuid_as_python_legacy_binary::{
     deserialize as deserialize_uuid_from_python_legacy_binary,
     serialize as serialize_uuid_as_python_legacy_binary,
 };
@@ -157,59 +163,63 @@ pub mod u64_as_f64 {
     }
 }
 
-/// Contains functions to serialize a chrono::DateTime as a bson::DateTime and deserialize a
-/// chrono::DateTime from a bson::DateTime.
+/// Contains functions to serialize a [`chrono::DateTime`] as a [`crate::DateTime`] and deserialize
+/// a [`chrono::DateTime`] from a [`crate::DateTime`].
 ///
 /// ```rust
+/// # #[cfg(feature = "chrono-0_4")]
+/// # {
 /// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::chrono_0_4_datetime_as_bson_datetime;
+/// # use bson::serde_helpers::chrono_datetime_as_bson_datetime;
 /// #[derive(Serialize, Deserialize)]
 /// struct Event {
-///     #[serde(with = "chrono_0_4_datetime_as_bson_datetime")]
+///     #[serde(with = "chrono_datetime_as_bson_datetime")]
 ///     pub date: chrono::DateTime<chrono::Utc>,
 /// }
+/// # }
 /// ```
-pub mod chrono_0_4_datetime_as_bson_datetime {
+#[cfg(feature = "chrono-0_4")]
+pub mod chrono_datetime_as_bson_datetime {
     use crate::DateTime;
     use chrono::Utc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
 
-    /// Deserializes a chrono::DateTime from a bson::DateTime.
+    /// Deserializes a [`chrono::DateTime`] from a [`crate::DateTime`].
     pub fn deserialize<'de, D>(deserializer: D) -> Result<chrono::DateTime<Utc>, D::Error>
     where
         D: Deserializer<'de>,
     {
         let datetime = DateTime::deserialize(deserializer)?;
-        Ok(datetime.into())
+        Ok(datetime.to_chrono())
     }
 
-    /// Serializes a chrono::DateTime as a bson::DateTime.
+    /// Serializes a [`chrono::DateTime`] as a [`crate::DateTime`].
     pub fn serialize<S: Serializer>(
         val: &chrono::DateTime<Utc>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let datetime = DateTime::from(val.to_owned());
+        let datetime = DateTime::from_chrono(val.to_owned());
         datetime.serialize(serializer)
     }
 }
 
-/// Contains functions to serialize an ISO string as a bson::DateTime and deserialize an ISO string
-/// from a bson::DateTime.
+/// Contains functions to serialize an RFC 3339 (ISO 8601) formatted string as a [`crate::DateTime`]
+/// and deserialize an RFC 3339 (ISO 8601) formatted string from a [`crate::DateTime`].
 ///
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::iso_string_as_bson_datetime;
+/// # use bson::serde_helpers::rfc3339_string_as_bson_datetime;
 /// #[derive(Serialize, Deserialize)]
 /// struct Event {
-///     #[serde(with = "iso_string_as_bson_datetime")]
+///     #[serde(with = "rfc3339_string_as_bson_datetime")]
 ///     pub date: String,
 /// }
 /// ```
-pub mod iso_string_as_bson_datetime {
+pub mod rfc3339_string_as_bson_datetime {
     use crate::{Bson, DateTime};
     use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
-    use std::{result::Result, str::FromStr};
+    use std::result::Result;
 
     /// Deserializes an ISO string from a DateTime.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -217,50 +227,52 @@ pub mod iso_string_as_bson_datetime {
         D: Deserializer<'de>,
     {
         let date = DateTime::deserialize(deserializer)?;
-        Ok(date.to_string())
+        Ok(date.to_rfc3339())
     }
 
     /// Serializes an ISO string as a DateTime.
     pub fn serialize<S: Serializer>(val: &str, serializer: S) -> Result<S::Ok, S::Error> {
-        let date = chrono::DateTime::<chrono::Utc>::from_str(val).map_err(|_| {
-            ser::Error::custom(format!("cannot convert {} to chrono::DateTime", val))
-        })?;
-        Bson::DateTime(date.into()).serialize(serializer)
+        let date =
+            chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(val).map_err(|_| {
+                ser::Error::custom(format!("cannot convert {} to chrono::DateTime", val))
+            })?;
+        Bson::DateTime(crate::DateTime::from_chrono(date)).serialize(serializer)
     }
 }
 
-/// Contains functions to serialize a bson::DateTime as an ISO string and deserialize a
-/// bson::DateTime from an ISO string.
+/// Contains functions to serialize a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted string
+/// and deserialize a [`crate::DateTime`] from an RFC 3339 (ISO 8601) formatted string.
 ///
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::bson_datetime_as_iso_string;
+/// # use bson::serde_helpers::bson_datetime_as_rfc3339_string;
 /// #[derive(Serialize, Deserialize)]
 /// struct Event {
-///     #[serde(with = "bson_datetime_as_iso_string")]
+///     #[serde(with = "bson_datetime_as_rfc3339_string")]
 ///     pub date: bson::DateTime,
 /// }
 /// ```
-pub mod bson_datetime_as_iso_string {
+pub mod bson_datetime_as_rfc3339_string {
     use crate::DateTime;
     use serde::{de, Deserialize, Deserializer, Serializer};
-    use std::{result::Result, str::FromStr};
+    use std::result::Result;
 
-    /// Deserializes a bson::DateTime from an ISO string.
+    /// Deserializes a [`crate::DateTime`] from an RFC 3339 formatted string.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime, D::Error>
     where
         D: Deserializer<'de>,
     {
         let iso = String::deserialize(deserializer)?;
-        let date = chrono::DateTime::<chrono::Utc>::from_str(&iso).map_err(|_| {
-            de::Error::custom(format!("cannot convert {} to chrono::DateTime", iso))
-        })?;
-        Ok(DateTime::from(date))
+        let date =
+            chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(&iso).map_err(|_| {
+                de::Error::custom(format!("cannot parse RFC 3339 datetime from \"{}\"", iso))
+            })?;
+        Ok(DateTime::from_chrono(date))
     }
 
-    /// Serializes a bson::DateTime as an ISO string.
+    /// Serializes a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted string.
     pub fn serialize<S: Serializer>(val: &DateTime, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&val.to_string())
+        serializer.serialize_str(&val.to_rfc3339())
     }
 }
 
@@ -301,20 +313,22 @@ pub mod hex_string_as_object_id {
     }
 }
 
-/// Contains functions to serialize a [`uuid::Uuid`] as a [`bson::Binary`] and deserialize a
-/// [`uuid::Uuid`] from a [`bson::Binary`]. This only works with version 0.8 of the [`uuid`] crate.
+/// Contains functions to serialize a [`uuid::Uuid`] as a [`crate::Binary`] and deserialize a
+/// [`uuid::Uuid`] from a [`crate::Binary`]. This only works with version 0.8 of the [`uuid`] crate.
 ///
 /// ```rust
-/// # use serde::{Serialize, Deserialize};
-/// # use uuid::Uuid;
-/// # use bson::serde_helpers::uuid_0_8_as_binary;
+/// use serde::{Serialize, Deserialize};
+/// use uuid::Uuid;
+/// use bson::serde_helpers::uuid_as_binary;
+///
 /// #[derive(Serialize, Deserialize)]
 /// struct Item {
-///     #[serde(with = "uuid_0_8_as_binary")]
+///     #[serde(with = "uuid_as_binary")]
 ///     pub id: Uuid,
 /// }
 /// ```
-pub mod uuid_0_8_as_binary {
+#[cfg(feature = "uuid-0_8")]
+pub mod uuid_as_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
@@ -353,7 +367,25 @@ pub mod uuid_0_8_as_binary {
     }
 }
 
-pub mod uuid_0_8_as_java_legacy_binary {
+/// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy
+/// Java driver UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy
+/// Java driver format.
+///
+/// Note: the `"uuid-0_8"` feature must be enabled to use this helper.
+///
+/// ```rust
+/// use serde::{Serialize, Deserialize};
+/// use uuid::Uuid;
+/// use bson::serde_helpers::uuid_as_java_legacy_binary;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Item {
+///     #[serde(with = "uuid_as_java_legacy_binary")]
+///     pub id: Uuid,
+/// }
+/// ```
+#[cfg(feature = "uuid-0_8")]
+pub mod uuid_as_java_legacy_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
@@ -391,7 +423,25 @@ pub mod uuid_0_8_as_java_legacy_binary {
     }
 }
 
-pub mod uuid_0_8_as_python_legacy_binary {
+/// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy Python
+/// driver UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy Python
+/// driver format.
+///
+/// Note: the `"uuid-0_8"` feature must be enabled to use this helper.
+///
+/// ```rust
+/// use serde::{Serialize, Deserialize};
+/// use uuid::Uuid;
+/// use bson::serde_helpers::uuid_as_python_legacy_binary;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Item {
+///     #[serde(with = "uuid_as_python_legacy_binary")]
+///     pub id: Uuid,
+/// }
+/// ```
+#[cfg(feature = "uuid-0_8")]
+pub mod uuid_as_python_legacy_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
@@ -423,7 +473,26 @@ pub mod uuid_0_8_as_python_legacy_binary {
         }
     }
 }
-pub mod uuid_0_8_as_c_sharp_legacy_binary {
+
+/// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy C# driver
+/// UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy C# driver
+/// format.
+///
+/// Note: the `"uuid-0_8"` feature must be enabled to use this helper.
+///
+/// ```rust
+/// use serde::{Serialize, Deserialize};
+/// use uuid::Uuid;
+/// use bson::serde_helpers::uuid_as_c_sharp_legacy_binary;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Item {
+///     #[serde(with = "uuid_as_c_sharp_legacy_binary")]
+///     pub id: Uuid,
+/// }
+/// ```
+#[cfg(feature = "uuid-0_8")]
+pub mod uuid_as_c_sharp_legacy_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;

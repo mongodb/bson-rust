@@ -31,11 +31,6 @@ pub use self::{
 
 use std::io::Read;
 
-use chrono::{
-    offset::{LocalResult, TimeZone},
-    Utc,
-};
-
 use crate::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     oid,
@@ -325,16 +320,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::DateTime) => {
             // The int64 is UTC milliseconds since the Unix epoch.
             let time = read_i64(reader)?;
-
-            match Utc.timestamp_millis_opt(time) {
-                LocalResult::Single(t) => Bson::DateTime(t.into()),
-                _ => {
-                    return Err(Error::InvalidDateTime {
-                        key,
-                        datetime: time,
-                    })
-                }
-            }
+            Bson::DateTime(crate::DateTime::from_millis(time))
         }
         Some(ElementType::Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol)?,
         Some(ElementType::Decimal128) => read_f128(reader).map(Bson::Decimal128)?,

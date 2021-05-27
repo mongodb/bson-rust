@@ -253,7 +253,7 @@ impl DateTime {
                             )
                         })?
                         .into();
-                Ok(datetime.into())
+                Ok(crate::DateTime::from_chrono(datetime))
             }
         }
     }

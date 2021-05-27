@@ -314,6 +314,9 @@ fn test_serialize_deserialize_object_id() {
 #[test]
 fn test_serialize_utc_date_time() {
     let _guard = LOCK.run_concurrently();
+    #[cfg(not(feature = "chrono-0_4"))]
+    let src = crate::DateTime::from_chrono(Utc.timestamp(1_286_705_410, 0));
+    #[cfg(feature = "chrono-0_4")]
     let src = Utc.timestamp(1_286_705_410, 0);
     let dst = vec![
         18, 0, 0, 0, 9, 107, 101, 121, 0, 208, 111, 158, 149, 43, 1, 0, 0, 0,
@@ -365,7 +368,8 @@ fn test_deserialize_utc_date_time_overflows() {
 
     let deserialized = Document::from_reader(&mut Cursor::new(raw)).unwrap();
 
-    let expected = doc! { "A": Utc.timestamp(1_530_492_218, 999 * 1_000_000)};
+    let expected =
+        doc! { "A": crate::DateTime::from_chrono(Utc.timestamp(1_530_492_218, 999 * 1_000_000))};
     assert_eq!(deserialized, expected);
 }
 
