@@ -183,7 +183,7 @@
 //! that is also less error prone.
 
 #![allow(clippy::cognitive_complexity)]
-#![doc(html_root_url = "https://docs.rs/bson/2.0.0-beta")]
+#![doc(html_root_url = "https://docs.rs/bson/2.0.0-beta.1")]
 
 pub use self::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
