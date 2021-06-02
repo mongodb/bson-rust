@@ -14,7 +14,7 @@ pub enum Error {
     /// A key could not be serialized to a BSON string.
     InvalidDocumentKey(Bson),
 
-    /// A general error that ocurred during serialization.
+    /// A general error that occurred during serialization.
     /// See: https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom
     #[non_exhaustive]
     SerializationError {
