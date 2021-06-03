@@ -1,14 +1,6 @@
 //! ObjectId
 
-use std::{
-    convert::TryInto,
-    error,
-    fmt,
-    result,
-    str::FromStr,
-    sync::atomic::{AtomicUsize, Ordering},
-    time::SystemTime,
-};
+use std::{io::Read, convert::TryInto, error, fmt, result, str::FromStr, sync::atomic::{AtomicUsize, Ordering}, time::SystemTime};
 
 use hex::{self, FromHexError};
 use rand::{thread_rng, Rng};
@@ -212,6 +204,12 @@ impl ObjectId {
         let buf = u_int.to_be_bytes();
         let buf_u24: [u8; 3] = [buf[5], buf[6], buf[7]];
         buf_u24
+    }
+
+    pub(crate) fn from_reader<R: Read>(mut reader: R) -> std::io::Result<Self> {
+        let mut buf = [0u8; 12];
+        reader.read_exact(&mut buf)?;
+        Ok(Self::from_bytes(buf))
     }
 }
 

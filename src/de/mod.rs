@@ -23,6 +23,7 @@
 
 mod error;
 mod serde;
+mod raw;
 
 pub use self::{
     error::{Error, Result},
@@ -360,4 +361,15 @@ where
     T: DeserializeOwned,
 {
     from_bson(Bson::Document(doc))
+}
+
+
+/// Decode a BSON `Document` into a `T` Deserializable.
+pub fn from_reader<R, T>(reader: R) -> Result<T>
+where
+    T: DeserializeOwned,
+    R: Read,
+{
+    let mut deserializer = raw::Deserializer::new(reader);
+    T::deserialize(&mut deserializer)
 }
