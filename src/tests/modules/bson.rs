@@ -143,6 +143,17 @@ fn from_impls() {
         Bson::Document(doc! {"a": "b"})
     );
 
+    // Optionals
+    assert_eq!(Bson::from(Some(4)), Bson::Int32(4));
+    assert_eq!(
+        Bson::from(Some(String::from("data"))),
+        Bson::String(String::from("data"))
+    );
+    assert_eq!(Bson::from(None::<i32>), Bson::Null);
+    assert_eq!(Bson::from(None::<String>), Bson::Null);
+    assert_eq!(doc! {"x": Some(4)}, doc! {"x": 4});
+    assert_eq!(doc! {"x": None::<i32>}, doc! {"x": Bson::Null});
+
     let db_pointer = Bson::try_from(json!({
         "$dbPointer": {
             "$ref": "db.coll",
