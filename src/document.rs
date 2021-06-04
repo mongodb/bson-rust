@@ -93,7 +93,11 @@ impl Display for Document {
 
 impl Debug for Document {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Document({:?})", self.inner)
+        if f.alternate() {
+            write!(f, "Document({:#?})", self.inner)
+        } else {
+            write!(f, "Document({:?})", self.inner)
+        }
     }
 }
 

@@ -16,6 +16,7 @@ use crate::{
     Regex,
     Timestamp,
 };
+use indexmap::indexmap;
 use serde_json::{json, Value};
 
 #[test]
@@ -305,4 +306,19 @@ fn system_time() {
         crate::DateTime::from_system_time(SystemTime::UNIX_EPOCH).timestamp_millis(),
         0
     );
+}
+
+#[test]
+fn debug_print() {
+    #[derive(Debug)]
+    struct Example {
+        a: i32,
+        b: String,
+    }
+
+    let doc = doc! {"a": 1, "b": "data"};
+    let data = indexmap! {"a" => Bson::from(1), "b" => Bson::from("data")};
+
+    assert_eq!(format!("{:?}", doc), format!("Document({:?})", data));
+    assert_eq!(format!("{:#?}", doc), format!("Document({:#?})", data));
 }
