@@ -316,7 +316,7 @@ fn debug_print() {
         b: String,
     }
 
-    let doc = doc! {"a": 1, "b": "data"};
+    let doc = doc! { "a": 1, "b": "data" };
     let data = indexmap! {"a" => Bson::from(1), "b" => Bson::from("data")};
 
     assert_eq!(format!("{:?}", doc), format!("Document({:?})", data));
