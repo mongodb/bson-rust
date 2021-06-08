@@ -16,7 +16,6 @@ use crate::{
     Regex,
     Timestamp,
 };
-use indexmap::indexmap;
 use serde_json::{json, Value};
 
 #[test]
@@ -310,15 +309,38 @@ fn system_time() {
 
 #[test]
 fn debug_print() {
-    #[derive(Debug)]
-    struct Example {
-        a: i32,
-        b: String,
-    }
+    let oid = ObjectId::parse_str("000000000000000000000000").unwrap();
 
-    let doc = doc! { "a": 1, "b": "data" };
-    let data = indexmap! {"a" => Bson::from(1), "b" => Bson::from("data")};
+    let doc = doc! {
+        "oid": oid,
+        "arr": Bson::Array(vec! [
+            Bson::Null,
+            Bson::Timestamp(Timestamp { time: 1, increment: 1 }),
+        ]),
+        "doc": doc! { "a": 1, "b": "data"},
+    };
+    let normal_print = "Document({\"oid\": ObjectId(000000000000000000000000), \"arr\": \
+                        Array([Null, Timestamp { time: 1, increment: 1 }]), \"doc\": \
+                        Document({\"a\": Int32(1), \"b\": String(\"data\")})})";
+    let pretty_print = "Document({
+    \"oid\": ObjectId(000000000000000000000000),
+    \"arr\": Array([
+        Null,
+        Timestamp {
+            time: 1,
+            increment: 1,
+        },
+    ]),
+    \"doc\": Document({
+        \"a\": Int32(
+            1,
+        ),
+        \"b\": String(
+            \"data\",
+        ),
+    }),
+})";
 
-    assert_eq!(format!("{:?}", doc), format!("Document({:?})", data));
-    assert_eq!(format!("{:#?}", doc), format!("Document({:#?})", data));
+    assert_eq!(format!("{:?}", doc), normal_print);
+    assert_eq!(format!("{:#?}", doc), pretty_print);
 }
