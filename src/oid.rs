@@ -163,7 +163,7 @@ impl ObjectId {
     }
 
     /// Returns the raw byte representation of an ObjectId.
-    pub fn bytes(&self) -> [u8; 12] {
+    pub const fn bytes(&self) -> [u8; 12] {
         self.id
     }
 
