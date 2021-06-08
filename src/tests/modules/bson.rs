@@ -319,11 +319,13 @@ fn debug_print() {
         ]),
         "doc": doc! { "a": 1, "b": "data"},
     };
-    let normal_print = "Document({\"oid\": ObjectId(000000000000000000000000), \"arr\": \
+    let normal_print = "Document({\"oid\": ObjectId(\"000000000000000000000000\"), \"arr\": \
                         Array([Null, Timestamp { time: 1, increment: 1 }]), \"doc\": \
                         Document({\"a\": Int32(1), \"b\": String(\"data\")})})";
     let pretty_print = "Document({
-    \"oid\": ObjectId(000000000000000000000000),
+    \"oid\": ObjectId(
+        \"000000000000000000000000\",
+    ),
     \"arr\": Array([
         Null,
         Timestamp {
