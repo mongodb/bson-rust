@@ -163,7 +163,7 @@ impl ObjectId {
     }
 
     /// Returns the raw byte representation of an ObjectId.
-    pub fn bytes(&self) -> [u8; 12] {
+    pub const fn bytes(&self) -> [u8; 12] {
         self.id
     }
 
@@ -223,7 +223,7 @@ impl fmt::Display for ObjectId {
 
 impl fmt::Debug for ObjectId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&format!("ObjectId({})", self.to_hex()))
+        f.debug_tuple("ObjectId").field(&self.to_hex()).finish()
     }
 }
 
@@ -301,7 +301,14 @@ mod test {
     fn test_debug() {
         let id = super::ObjectId::parse_str("53e37d08776f724e42000000").unwrap();
 
-        assert_eq!(format!("{:?}", id), "ObjectId(53e37d08776f724e42000000)")
+        assert_eq!(
+            format!("{:?}", id),
+            "ObjectId(\"53e37d08776f724e42000000\")"
+        );
+        assert_eq!(
+            format!("{:#?}", id),
+            "ObjectId(\n    \"53e37d08776f724e42000000\",\n)"
+        );
     }
 
     #[test]

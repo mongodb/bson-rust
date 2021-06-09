@@ -70,7 +70,7 @@ impl crate::DateTime {
 
     /// Returns a [`DateTime`] which corresponds to the current date and time.
     pub fn now() -> DateTime {
-        Self::from_chrono(Utc::now())
+        Self::from_system_time(SystemTime::now())
     }
 
     #[cfg(not(feature = "chrono-0_4"))]

@@ -21,7 +21,7 @@
 
 //! BSON definition
 
-use std::fmt::{self, Debug, Display};
+use std::fmt::{self, Debug, Display, Formatter};
 
 use chrono::Datelike;
 use serde_json::{json, Value};
@@ -34,7 +34,7 @@ use crate::{
 };
 
 /// Possible BSON value types.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Bson {
     /// 64-bit binary floating point
     Double(f64),
@@ -142,6 +142,40 @@ impl Display for Bson {
                 ref namespace,
                 ref id,
             }) => write!(fmt, "DBPointer({}, {})", namespace, id),
+        }
+    }
+}
+
+impl Debug for Bson {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        match *self {
+            Bson::Double(f) => fmt.debug_tuple("Double").field(&f).finish(),
+            Bson::String(ref s) => fmt.debug_tuple("String").field(s).finish(),
+            Bson::Array(ref vec) => {
+                write!(fmt, "Array(")?;
+                Debug::fmt(vec, fmt)?;
+                write!(fmt, ")")
+            }
+            Bson::Document(ref doc) => Debug::fmt(doc, fmt),
+            Bson::Boolean(b) => fmt.debug_tuple("Boolean").field(&b).finish(),
+            Bson::Null => write!(fmt, "Null"),
+            Bson::RegularExpression(ref regex) => Debug::fmt(regex, fmt),
+            Bson::JavaScriptCode(ref code) => {
+                fmt.debug_tuple("JavaScriptCode").field(code).finish()
+            }
+            Bson::JavaScriptCodeWithScope(ref code) => Debug::fmt(code, fmt),
+            Bson::Int32(i) => fmt.debug_tuple("Int32").field(&i).finish(),
+            Bson::Int64(i) => fmt.debug_tuple("Int64").field(&i).finish(),
+            Bson::Timestamp(ref t) => Debug::fmt(t, fmt),
+            Bson::Binary(ref b) => Debug::fmt(b, fmt),
+            Bson::ObjectId(ref id) => Debug::fmt(id, fmt),
+            Bson::DateTime(ref date_time) => Debug::fmt(date_time, fmt),
+            Bson::Symbol(ref sym) => fmt.debug_tuple("Symbol").field(sym).finish(),
+            Bson::Decimal128(ref d) => Debug::fmt(d, fmt),
+            Bson::Undefined => write!(fmt, "Undefined"),
+            Bson::MinKey => write!(fmt, "MinKey"),
+            Bson::MaxKey => write!(fmt, "MaxKey"),
+            Bson::DbPointer(ref pointer) => Debug::fmt(pointer, fmt),
         }
     }
 }
