@@ -159,7 +159,9 @@ fn read_f128<R: Read + ?Sized>(reader: &mut R) -> Result<Decimal128> {
 #[cfg(feature = "decimal128")]
 #[inline]
 fn read_f128<R: Read + ?Sized>(reader: &mut R) -> Result<Decimal128> {
-    let mut local_buf = [0u8; 16];
+    use std::mem;
+
+    let mut local_buf: [u8; 16] = unsafe { mem::MaybeUninit::uninit().assume_init() };
     reader.read_exact(&mut local_buf)?;
     let val = unsafe { Decimal128::from_raw_bytes_le(local_buf) };
     Ok(val)
