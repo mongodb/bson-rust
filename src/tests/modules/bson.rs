@@ -306,3 +306,43 @@ fn system_time() {
         0
     );
 }
+
+#[test]
+fn debug_print() {
+    let oid = ObjectId::parse_str("000000000000000000000000").unwrap();
+
+    let doc = doc! {
+        "oid": oid,
+        "arr": Bson::Array(vec! [
+            Bson::Null,
+            Bson::Timestamp(Timestamp { time: 1, increment: 1 }),
+        ]),
+        "doc": doc! { "a": 1, "b": "data"},
+    };
+    let normal_print = "Document({\"oid\": ObjectId(\"000000000000000000000000\"), \"arr\": \
+                        Array([Null, Timestamp { time: 1, increment: 1 }]), \"doc\": \
+                        Document({\"a\": Int32(1), \"b\": String(\"data\")})})";
+    let pretty_print = "Document({
+    \"oid\": ObjectId(
+        \"000000000000000000000000\",
+    ),
+    \"arr\": Array([
+        Null,
+        Timestamp {
+            time: 1,
+            increment: 1,
+        },
+    ]),
+    \"doc\": Document({
+        \"a\": Int32(
+            1,
+        ),
+        \"b\": String(
+            \"data\",
+        ),
+    }),
+})";
+
+    assert_eq!(format!("{:?}", doc), normal_print);
+    assert_eq!(format!("{:#?}", doc), pretty_print);
+}

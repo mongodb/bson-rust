@@ -92,8 +92,10 @@ impl Display for Document {
 }
 
 impl Debug for Document {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Document({:?})", self.inner)
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        write!(fmt, "Document(")?;
+        Debug::fmt(&self.inner, fmt)?;
+        write!(fmt, ")")
     }
 }
 
