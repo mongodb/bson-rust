@@ -1,8 +1,8 @@
 mod bson;
+mod document;
 mod lock;
 mod macros;
 mod oid;
-mod ordered;
 mod ser;
 mod serializer_deserializer;
 
