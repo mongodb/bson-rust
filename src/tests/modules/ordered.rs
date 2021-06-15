@@ -231,3 +231,31 @@ fn entry() {
         },
     );
 }
+
+#[test]
+fn extend() {
+    let _guard = LOCK.run_concurrently();
+    let mut doc1 = doc! {
+        "first": 1,
+        "second": "data",
+        "subdoc": doc! { "a": 1, "b": 2 },
+    };
+
+    let doc2 = doc! {
+        "third": "abcdefg",
+        "first": 2,
+        "subdoc": doc! { "c": 3 },
+    };
+
+    doc1.extend(doc2);
+
+    assert_eq!(
+        doc1,
+        doc! {
+            "first": 2,
+            "second": "data",
+            "third": "abcdefg",
+            "subdoc": doc! { "c": 3 },
+        },
+    );
+}
