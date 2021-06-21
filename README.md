@@ -78,7 +78,7 @@ let string = bson!("hello world");
 let int = bson!(5);
 let array = bson!([5, false]);
 ```
-[`bson!`](https://docs.rs/bson/latest/bson/macro.bson.html) has supports both array and object literals, and it automatically converts any values specified to [`Bson`](https://docs.rs/bson/latest/bson/enum.Bson.html), provided they are `Into<Bson>`.
+[`bson!`](https://docs.rs/bson/latest/bson/macro.bson.html) supports both array and object literals, and it automatically converts any values specified to [`Bson`](https://docs.rs/bson/latest/bson/enum.Bson.html), provided they are `Into<Bson>`.
 
 #### [`Bson`](https://docs.rs/bson/latest/bson/enum.Bson.html) value unwrapping
 
