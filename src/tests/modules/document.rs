@@ -105,8 +105,8 @@ fn test_getters() {
 
     doc.insert("null".to_string(), Bson::Null);
     assert_eq!(Some(&Bson::Null), doc.get("null"));
-    assert_eq!(true, doc.is_null("null"));
-    assert_eq!(false, doc.is_null("array"));
+    assert!(doc.is_null("null"));
+    assert!(!doc.is_null("array"));
 
     assert_eq!(Some(&Bson::Int32(1)), doc.get("i32"));
     assert_eq!(Ok(1i32), doc.get_i32("i32"));

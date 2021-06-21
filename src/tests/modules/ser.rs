@@ -50,7 +50,7 @@ fn boolean() {
     let _guard = LOCK.run_concurrently();
     let obj = Bson::Boolean(true);
     let b: bool = from_bson(obj.clone()).unwrap();
-    assert_eq!(b, true);
+    assert!(b);
 
     let deser: Bson = to_bson(&b).unwrap();
     assert_eq!(deser, obj);
