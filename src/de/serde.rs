@@ -31,19 +31,28 @@ impl<'de> Deserialize<'de> for ObjectId {
     where
         D: de::Deserializer<'de>,
     {
-        deserializer
-            .deserialize_any(BsonVisitor)
-            .and_then(|bson| match bson {
-                Bson::String(oid) => ObjectId::parse_str(&oid).map_err(de::Error::custom),
+        #[derive(serde::Deserialize)]
+        #[serde(untagged)]
+        enum OidHelper {
+            HexString(String),
+            Bson(Bson),
+        }
+
+        match OidHelper::deserialize(deserializer)
+            .map_err(|_| de::Error::custom("expected ObjectId extended document or hex string"))?
+        {
+            OidHelper::HexString(s) => ObjectId::parse_str(&s).map_err(de::Error::custom),
+            OidHelper::Bson(bson) => match bson {
                 Bson::ObjectId(oid) => Ok(oid),
-                _ => {
+                bson => {
                     let err = format!(
                         "expected objectId extended document or hex string, found {}",
                         bson
                     );
                     Err(de::Error::invalid_type(Unexpected::Map, &&err[..]))
                 }
-            })
+            },
+        }
     }
 }
 
