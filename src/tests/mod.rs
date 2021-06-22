@@ -1,3 +1,4 @@
+mod binary_subtype;
 mod modules;
 mod serde;
 mod spec;
