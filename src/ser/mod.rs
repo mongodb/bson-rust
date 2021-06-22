@@ -108,8 +108,8 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
 
     match *val {
         Bson::Double(v) => write_f64(writer, v),
-        Bson::String(ref v) => write_string(writer, &v),
-        Bson::Array(ref v) => serialize_array(writer, &v),
+        Bson::String(ref v) => write_string(writer, v),
+        Bson::Array(ref v) => serialize_array(writer, v),
         Bson::Document(ref v) => v.to_writer(writer),
         Bson::Boolean(v) => writer
             .write_all(&[if v { 0x01 } else { 0x00 }])
@@ -121,7 +121,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
             write_cstring(writer, pattern)?;
             write_cstring(writer, options)
         }
-        Bson::JavaScriptCode(ref code) => write_string(writer, &code),
+        Bson::JavaScriptCode(ref code) => write_string(writer, code),
         Bson::ObjectId(ref id) => writer.write_all(&id.bytes()).map_err(From::from),
         Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
             ref code,
@@ -155,7 +155,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
         }
         Bson::DateTime(ref v) => write_i64(writer, v.timestamp_millis()),
         Bson::Null => Ok(()),
-        Bson::Symbol(ref v) => write_string(writer, &v),
+        Bson::Symbol(ref v) => write_string(writer, v),
         #[cfg(not(feature = "decimal128"))]
         Bson::Decimal128(ref v) => {
             writer.write_all(&v.bytes)?;

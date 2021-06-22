@@ -760,7 +760,7 @@ fn test_datetime_helpers() {
                 }
         }
     }"#;
-        let json: serde_json::Value = serde_json::from_str(&date).unwrap();
+        let json: serde_json::Value = serde_json::from_str(date).unwrap();
         let b: B = serde_json::from_value(json).unwrap();
         let expected: chrono::DateTime<chrono::Utc> =
             chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap();
