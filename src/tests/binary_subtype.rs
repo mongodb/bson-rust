@@ -1,7 +1,8 @@
-use crate::spec::BinarySubtype;
+use crate::{spec::BinarySubtype, tests::LOCK};
 
 #[test]
 fn from_u8() {
+    let _guard = LOCK.run_concurrently();
     // Check the endpoints of the defined, reserved, and user-defined subtype ranges.
     assert_eq!(BinarySubtype::from(0x00), BinarySubtype::Generic);
     assert_eq!(BinarySubtype::from(0x06), BinarySubtype::Encrypted);
