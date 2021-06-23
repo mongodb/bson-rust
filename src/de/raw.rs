@@ -1,8 +1,9 @@
-use std::io::Read;
+use std::{convert::TryInto, io::Read};
 
 use serde::forward_to_deserialize_any;
+use serde_json::json;
 
-use crate::{oid::ObjectId, spec::ElementType};
+use crate::{oid::ObjectId, spec::BinarySubtype, spec::ElementType, Binary};
 
 use super::{read_cstring, read_f64, read_i32, read_u8, Error};
 use super::{read_i64, read_string, Result};
@@ -79,12 +80,22 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                     length_remaining: length - 4,
                 })
             }
+            ElementType::Binary => {
+                let length = read_i32(&mut self.reader)?;
+                let subtype = BinarySubtype::from(read_u8(&mut self.reader)?);
+
+                // TODO: handle error here
+                let ulength: usize = length.try_into().unwrap();
+                let mut bytes = vec![0u8; ulength];
+                self.reader.read_exact(&mut bytes)?;
+                visitor.visit_map(BinaryMapAccess::new(Binary { subtype, bytes }))
+            }
             _ => todo!("unexecpted type {:?}", self.current_type),
         }
     }
 
     forward_to_deserialize_any! {
-        bool char str bytes byte_buf option unit unit_struct
+        bool char str bytes byte_buf option unit unit_struct string
             newtype_struct seq tuple tuple_struct struct map enum
             ignored_any i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
     }
@@ -100,120 +111,6 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
     fn is_human_readable(&self) -> bool {
         false
     }
-
-    // fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: serde::de::Visitor<'de>,
-    {
-        self.deserialize_any(visitor)
-    }
-
-    // fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_unit_struct<V>(
-    //     self,
-    //     name: &'static str,
-    //     visitor: V,
-    // ) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_newtype_struct<V>(
-    //     self,
-    //     name: &'static str,
-    //     visitor: V,
-    // ) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_tuple_struct<V>(
-    //     self,
-    //     name: &'static str,
-    //     len: usize,
-    //     visitor: V,
-    // ) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_struct<V>(
-    //     self,
-    //     name: &'static str,
-    //     fields: &'static [&'static str],
-    //     visitor: V,
-    // ) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_enum<V>(
-    //     self,
-    //     name: &'static str,
-    //     variants: &'static [&'static str],
-    //     visitor: V,
-    // ) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
-
-    // fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    // where
-    //     V: serde::de::Visitor<'de> {
-    //     todo!()
-    // }
 }
 
 struct MapAccess<'d, T: 'd> {
@@ -294,6 +191,27 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for DocumentKeyDeserializer<
     }
 }
 
+struct FieldDeserializer {
+    field_name: &'static str,
+}
+
+impl<'de> serde::de::Deserializer<'de> for FieldDeserializer {
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_borrowed_str(self.field_name)
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+        bytes byte_buf map struct option unit newtype_struct
+        ignored_any unit_struct tuple_struct tuple enum identifier
+    }
+}
+
 struct ObjectIdAccess {
     oid: ObjectId,
     visited: bool,
@@ -331,27 +249,6 @@ impl<'de> serde::de::MapAccess<'de> for ObjectIdAccess {
     }
 }
 
-struct FieldDeserializer {
-    field_name: &'static str,
-}
-
-impl<'de> serde::de::Deserializer<'de> for FieldDeserializer {
-    type Error = Error;
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: serde::de::Visitor<'de>,
-    {
-        visitor.visit_borrowed_str(self.field_name)
-    }
-
-    serde::forward_to_deserialize_any! {
-        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
-        ignored_any unit_struct tuple_struct tuple enum identifier
-    }
-}
-
 struct ObjectIdDeserializer(ObjectId);
 
 impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
@@ -368,6 +265,160 @@ impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
         ignored_any unit_struct tuple_struct tuple enum identifier
+    }
+}
+
+// struct FieldAccess<T> {
+//     deserializer: T,
+//     visited: bool,
+//     field_name: &'static str,
+// }
+
+// impl<'de, T: serde::de::Deserializer<'de, Error=Error>> serde::de::MapAccess<'de> for FieldAccess<T> {
+//     type Error = Error;
+
+//     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+//     where
+//         K: serde::de::DeserializeSeed<'de>,
+//     {
+//         if self.visited {
+//             return Ok(None);
+//         }
+//         self.visited = true;
+//         seed.deserialize(FieldDeserializer { field_name: self.field_name })
+//             .map(Some)
+//     }
+
+//     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+//     where
+//         V: serde::de::DeserializeSeed<'de>,
+//     {
+//         seed.deserialize(self.deserializer)
+//     }
+// }
+
+struct BinaryAccess {
+    binary: Binary,
+    visited: bool,
+}
+
+impl BinaryAccess {
+    fn new(binary: Binary) -> Self {
+        Self {
+            binary,
+            visited: false,
+        }
+    }
+}
+
+impl<'de> serde::de::MapAccess<'de> for BinaryAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+    where
+        K: serde::de::DeserializeSeed<'de>,
+    {
+        if self.visited {
+            return Ok(None);
+        }
+        self.visited = true;
+        seed.deserialize(FieldDeserializer { field_name: "$binary" })
+            .map(Some)
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    where
+        V: serde::de::DeserializeSeed<'de>,
+    {
+        todo!()
+        // seed.deserialize(ObjectIdDeserializer(self.oid))
+    }
+}
+
+struct BinaryDeserializer<'b> {
+    binary: &'b Binary,
+    stage: &'b mut BinaryDeserializationStage
+}
+
+impl<'de, 'b> serde::de::Deserializer<'de> for BinaryDeserializer<'b> {
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        // match self.stage {
+        //     BinaryDeserializationStage::Subtype => visitor.visit_u8(self.binary.subtype.into()),
+        //     BinaryDeserializationStage::Bytes => visitor.visit_bytes(self.binary.bytes.as_slice()),
+        //     BinaryDeserializationStage::Done => todo!(),
+        // }
+        match self.stage {
+            BinaryDeserializationStage::Subtype => {
+                *self.stage = BinaryDeserializationStage::Bytes;
+                visitor.visit_string(hex::encode([u8::from(self.binary.subtype)]))
+            }
+            BinaryDeserializationStage::Bytes => {
+                *self.stage = BinaryDeserializationStage::Done;
+                visitor.visit_string(base64::encode(self.binary.bytes.as_slice()))
+            }
+            BinaryDeserializationStage::Done => todo!(),
+        }
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+        bytes byte_buf map struct option unit newtype_struct
+        ignored_any unit_struct tuple_struct tuple enum identifier
+    }
+}
+
+enum BinaryDeserializationStage {
+    Subtype,
+    Bytes,
+    Done,
+}
+
+struct BinaryMapAccess {
+    stage: BinaryDeserializationStage,
+    binary: Binary,
+}
+
+impl BinaryMapAccess {
+    fn new(binary: Binary) -> Self {
+        BinaryMapAccess {
+            stage: BinaryDeserializationStage::Subtype,
+            binary
+        }
+    }
+}
+
+impl<'de> serde::de::MapAccess<'de> for BinaryMapAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+    where
+        K: serde::de::DeserializeSeed<'de>,
+    {
+        let key = match self.stage {
+            BinaryDeserializationStage::Subtype => {
+                // self.stage = BinaryDeserializationStage::Bytes;
+                "subtype"
+            },
+            BinaryDeserializationStage::Bytes => {
+                // self.stage = BinaryDeserializationStage::Done;
+                "bytes"
+            },
+            BinaryDeserializationStage::Done => return Ok(None)
+        };
+        seed.deserialize(FieldDeserializer { field_name: key })
+            .map(Some)
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    where
+        V: serde::de::DeserializeSeed<'de>,
+    {
+        seed.deserialize(BinaryDeserializer { binary: &self.binary, stage: &mut self.stage })
     }
 }
 
@@ -409,41 +460,47 @@ mod test {
             "null": crate::Bson::Null,
             "b": true,
             "d": 12.5,
+            "binary": crate::Binary { bytes: vec![36, 36, 36], subtype: crate::spec::BinarySubtype::Generic }
         };
         let mut bson = vec![0u8; 0];
         doc.to_writer(&mut bson).unwrap();
         println!("byte len: {}", bson.len());
 
-        let raw_start = Instant::now();
-        for _ in 0..10_000 {
-            let mut de = Deserializer::new(bson.as_slice());
-            // let cr = CommandResponse::deserialize(&mut de).unwrap();
-            let t = Document::deserialize(&mut de).unwrap();
-        }
-        let raw_time = raw_start.elapsed();
-        println!("raw time: {}", raw_time.as_secs_f32());
+        let mut de = Deserializer::new(bson.as_slice());
+        // let cr = CommandResponse::deserialize(&mut de).unwrap();
+        let t = Document::deserialize(&mut de).unwrap();
+        println!("doc: {}", t);
 
-        let normal_start = Instant::now();
-        for _ in 0..10_000 {
-            // let mut de = Deserializer::new(bson.as_slice());
-            // // let cr = CommandResponse::deserialize(&mut de).unwrap();
-            // let t = D::deserialize(&mut de).unwrap();
-            let d = Document::from_reader(bson.as_slice()).unwrap();
-            let t: Document = crate::from_document(d).unwrap();
-        }
-        let normal_time = normal_start.elapsed();
-        println!("normal time: {}", normal_time.as_secs_f32());
+        // let raw_start = Instant::now();
+        // for _ in 0..10_000 {
+        //     let mut de = Deserializer::new(bson.as_slice());
+        //     // let cr = CommandResponse::deserialize(&mut de).unwrap();
+        //     let t = Document::deserialize(&mut de).unwrap();
+        // }
+        // let raw_time = raw_start.elapsed();
+        // println!("raw time: {}", raw_time.as_secs_f32());
 
-        let normal_start = Instant::now();
-        for _ in 0..10_000 {
-            // let mut de = Deserializer::new(bson.as_slice());
-            // // let cr = CommandResponse::deserialize(&mut de).unwrap();
-            // let t = D::deserialize(&mut de).unwrap();
-            // let d = Document::from_reader(bson.as_slice()).unwrap();
-            // let t: Document = crate::from_document(doc.clone()).unwrap();
-            let _d = Document::from_reader(bson.as_slice()).unwrap();
-        }
-        let normal_time = normal_start.elapsed();
-        println!("decode time: {}", normal_time.as_secs_f32());
+        // let normal_start = Instant::now();
+        // for _ in 0..10_000 {
+        //     // let mut de = Deserializer::new(bson.as_slice());
+        //     // // let cr = CommandResponse::deserialize(&mut de).unwrap();
+        //     // let t = D::deserialize(&mut de).unwrap();
+        //     let d = Document::from_reader(bson.as_slice()).unwrap();
+        //     let t: Document = crate::from_document(d).unwrap();
+        // }
+        // let normal_time = normal_start.elapsed();
+        // println!("normal time: {}", normal_time.as_secs_f32());
+
+        // let normal_start = Instant::now();
+        // for _ in 0..10_000 {
+        //     // let mut de = Deserializer::new(bson.as_slice());
+        //     // // let cr = CommandResponse::deserialize(&mut de).unwrap();
+        //     // let t = D::deserialize(&mut de).unwrap();
+        //     // let d = Document::from_reader(bson.as_slice()).unwrap();
+        //     // let t: Document = crate::from_document(doc.clone()).unwrap();
+        //     let _d = Document::from_reader(bson.as_slice()).unwrap();
+        // }
+        // let normal_time = normal_start.elapsed();
+        // println!("decode time: {}", normal_time.as_secs_f32());
     }
 }
