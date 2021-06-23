@@ -127,12 +127,12 @@ impl Display for Bson {
             }
             Bson::Binary(Binary { subtype, ref bytes }) => write!(
                 fmt,
-                "BinData({:#x}, {})",
+                "Binary({:#x}, {})",
                 u8::from(subtype),
                 base64::encode(bytes)
             ),
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
-            Bson::DateTime(date_time) => write!(fmt, "Date(\"{}\")", date_time),
+            Bson::DateTime(date_time) => write!(fmt, "DateTime(\"{}\")", date_time),
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
             Bson::Decimal128(ref d) => write!(fmt, "{}", d),
             Bson::Undefined => write!(fmt, "undefined"),
@@ -141,7 +141,7 @@ impl Display for Bson {
             Bson::DbPointer(DbPointer {
                 ref namespace,
                 ref id,
-            }) => write!(fmt, "DBPointer({}, {})", namespace, id),
+            }) => write!(fmt, "DbPointer({}, {})", namespace, id),
         }
     }
 }
