@@ -40,8 +40,8 @@ fn standard_format() {
         "{{ float: 2.4, string: \"hello\", array: [\"testing\", 1, true, [1, 2]], doc: {{ fish: \
          \"in\", a: \"barrel\", !: 1 }}, bool: true, null: null, regexp: /s[ao]d/i, \
          with_wrapped_parens: -20, code: function(x) {{ return x._id; }}, i32: 12, i64: -55, \
-         timestamp: Timestamp(0, 229999444), binary: BinData(0x5, {}), encrypted: BinData(0x6, \
-         {}), _id: ObjectId(\"{}\"), date: Date(\"{}\") }}",
+         timestamp: Timestamp(0, 229999444), binary: Binary(0x5, {}), encrypted: Binary(0x6, {}), \
+         _id: ObjectId(\"{}\"), date: DateTime(\"{}\") }}",
         base64::encode("thingies"),
         base64::encode("secret"),
         hex::encode(id_string),
