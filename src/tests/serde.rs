@@ -11,6 +11,7 @@ use crate::{
         bson_datetime_as_rfc3339_string,
         hex_string_as_object_id,
         rfc3339_string_as_bson_datetime,
+        serialize_object_id_as_hex_string,
         timestamp_as_u32,
         u32_as_timestamp,
     },
@@ -897,4 +898,20 @@ fn large_dates() {
         d.as_document().unwrap().get_datetime("d").unwrap(),
         &DateTime::MIN
     );
+}
+
+#[test]
+fn oid_as_hex_string() {
+    let _guard = LOCK.run_concurrently();
+
+    #[derive(Serialize)]
+    struct Foo {
+        #[serde(serialize_with = "serialize_object_id_as_hex_string")]
+        oid: ObjectId,
+    }
+
+    let oid = ObjectId::new();
+    let foo = Foo { oid };
+    let doc = to_document(&foo).unwrap();
+    assert_eq!(doc.get_str("oid").unwrap(), oid.to_hex());
 }

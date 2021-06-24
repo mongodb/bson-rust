@@ -2,7 +2,9 @@
 
 use std::{convert::TryFrom, result::Result};
 
-use serde::{ser, Serializer};
+use serde::{ser, Serialize, Serializer};
+
+use crate::oid::ObjectId;
 
 pub use bson_datetime_as_rfc3339_string::{
     deserialize as deserialize_bson_datetime_from_rfc3339_string,
@@ -80,6 +82,14 @@ pub fn serialize_u64_as_i64<S: Serializer>(val: &u64, serializer: S) -> Result<S
         Ok(val) => serializer.serialize_i64(val),
         Err(_) => Err(ser::Error::custom(format!("cannot convert {} to i64", val))),
     }
+}
+
+/// Serializes an [`ObjectId`] as a hex string.
+pub fn serialize_object_id_as_hex_string<S: Serializer>(
+    val: &ObjectId,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    val.to_hex().serialize(serializer)
 }
 
 /// Contains functions to serialize a u32 as an f64 (BSON double) and deserialize a
