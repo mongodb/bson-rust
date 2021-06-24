@@ -57,6 +57,7 @@ decimal = { version = "2.1.0", default_features = false, optional = true }
 base64 = "0.13.0"
 lazy_static = "1.4.0"
 uuid = "0.8.1"
+serde_bytes = "0.11.5"
 
 [dev-dependencies]
 assert_matches = "1.2"

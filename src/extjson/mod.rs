@@ -90,4 +90,4 @@
 //! ```
 
 pub mod de;
-mod models;
+pub(crate) mod models;

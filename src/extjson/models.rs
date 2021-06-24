@@ -102,9 +102,9 @@ pub(crate) struct Regex {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct RegexBody {
-    pattern: String,
-    options: String,
+pub(crate) struct RegexBody {
+    pub(crate) pattern: String,
+    pub(crate) options: String,
 }
 
 impl Regex {
@@ -124,15 +124,16 @@ impl Regex {
 #[serde(deny_unknown_fields)]
 pub(crate) struct Binary {
     #[serde(rename = "$binary")]
-    body: BinaryBody,
+    pub(crate) body: BinaryBody,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct BinaryBody {
-    base64: String,
+pub(crate) struct BinaryBody {
+    pub(crate) base64: String,
+
     #[serde(rename = "subType")]
-    subtype: String,
+    pub(crate) subtype: String,
 }
 
 impl Binary {
@@ -209,8 +210,8 @@ pub(crate) struct Timestamp {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct TimestampBody {
-    t: u32,
-    i: u32,
+    pub(crate) t: u32,
+    pub(crate) i: u32,
 }
 
 impl Timestamp {
@@ -226,12 +227,12 @@ impl Timestamp {
 #[serde(deny_unknown_fields)]
 pub(crate) struct DateTime {
     #[serde(rename = "$date")]
-    body: DateTimeBody,
+    pub(crate) body: DateTimeBody,
 }
 
 #[derive(Deserialize)]
 #[serde(untagged)]
-enum DateTimeBody {
+pub(crate) enum DateTimeBody {
     Canonical(Int64),
     Relaxed(String),
 }
@@ -263,7 +264,7 @@ impl DateTime {
 #[serde(deny_unknown_fields)]
 pub(crate) struct MinKey {
     #[serde(rename = "$minKey")]
-    value: u8,
+    pub(crate) value: u8,
 }
 
 impl MinKey {
@@ -283,7 +284,7 @@ impl MinKey {
 #[serde(deny_unknown_fields)]
 pub(crate) struct MaxKey {
     #[serde(rename = "$maxKey")]
-    value: u8,
+    pub(crate) value: u8,
 }
 
 impl MaxKey {
@@ -308,12 +309,12 @@ pub(crate) struct DbPointer {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct DbPointerBody {
+pub(crate) struct DbPointerBody {
     #[serde(rename = "$ref")]
-    ref_ns: String,
+    pub(crate) ref_ns: String,
 
     #[serde(rename = "$id")]
-    id: ObjectId,
+    pub(crate) id: ObjectId,
 }
 
 impl DbPointer {
@@ -350,7 +351,7 @@ impl Decimal128 {
 #[serde(deny_unknown_fields)]
 pub(crate) struct Undefined {
     #[serde(rename = "$undefined")]
-    value: bool,
+    pub(crate) value: bool,
 }
 
 impl Undefined {
