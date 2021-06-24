@@ -89,7 +89,7 @@ pub fn serialize_object_id_as_hex_string<S: Serializer>(
     val: &ObjectId,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    val.to_string().serialize(serializer)
+    val.to_hex().serialize(serializer)
 }
 
 /// Contains functions to serialize a u32 as an f64 (BSON double) and deserialize a

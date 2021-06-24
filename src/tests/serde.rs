@@ -913,5 +913,5 @@ fn oid_as_hex_string() {
     let oid = ObjectId::new();
     let foo = Foo { oid };
     let doc = to_document(&foo).unwrap();
-    assert_eq!(doc.get_str("oid").unwrap(), oid.to_string());
+    assert_eq!(doc.get_str("oid").unwrap(), oid.to_hex());
 }
