@@ -84,7 +84,7 @@ pub fn serialize_u64_as_i64<S: Serializer>(val: &u64, serializer: S) -> Result<S
     }
 }
 
-/// Serializes an ObjectId as a hex string.
+/// Serializes an [`ObjectId`] as a hex string.
 pub fn serialize_object_id_as_hex_string<S: Serializer>(
     val: &ObjectId,
     serializer: S,
