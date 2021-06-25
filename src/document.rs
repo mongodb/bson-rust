@@ -84,7 +84,7 @@ impl Display for Document {
                 fmt.write_str(", ")?;
             }
 
-            write!(fmt, "{}: {}", k, v)?;
+            write!(fmt, "\"{}\": {}", k, v)?;
         }
 
         write!(fmt, "{}}}", if !first { " " } else { "" })
