@@ -130,7 +130,18 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                     deserializer: &mut d,
                 })
             }
-            // ElementType::RegularExpression => {}
+            ElementType::RegularExpression => {
+                let pattern = read_cstring(&mut self.reader)?;
+                let options = read_cstring(&mut self.reader)?;
+
+                let doc = doc! { "$regularExpression": { "pattern": pattern, "options": options } };
+                let len = doc.len();
+                visitor.visit_map(MapDeserializer {
+                    iter: doc.into_iter(),
+                    value: None,
+                    len
+                })
+            }
             // ElementType::DbPointer => {}
             // ElementType::JavaScriptCode => {}
             // ElementType::Symbol => {}
@@ -532,7 +543,7 @@ mod test {
 
     use serde::Deserialize;
 
-    use crate::DateTime;
+    use crate::{DateTime, Regex};
     use crate::{Binary, Bson, Document, oid::ObjectId};
     use crate::tests::LOCK;
 
@@ -568,6 +579,7 @@ mod test {
         d: f64,
         binary: Binary,
         date: DateTime,
+        // regex: Regex,
     }
 
     #[derive(Deserialize, Debug)]
@@ -591,7 +603,8 @@ mod test {
             "b": true,
             "d": 12.5,
             "binary": crate::Binary { bytes: vec![36, 36, 36], subtype: crate::spec::BinarySubtype::Generic },
-            "date": DateTime::now()
+            "date": DateTime::now(),
+            // "regex": Regex { pattern: "hello".to_string(), options: "x".to_string() },
         };
         let mut bson = vec![0u8; 0];
         doc.to_writer(&mut bson).unwrap();
@@ -630,8 +643,11 @@ mod test {
             let t = Document::deserialize(&mut de).unwrap();
             // let t = B::deserialize(&mut de).unwrap();
 
-            if i == 0 && print {
-                println!("raw: {:#?}", t);
+            if i == 0 {
+                assert_eq!(t, doc);
+                if print {
+                    println!("raw: {:#?}", t);
+                }
             }
         }
         let raw_time = raw_start.elapsed();
@@ -660,8 +676,11 @@ mod test {
             let d = Document::from_reader(bson.as_slice()).unwrap();
             let t: Document = crate::from_document(d).unwrap();
             // let t: B = crate::from_document(d).unwrap();
-            if i == 0 && print {
-                println!("normal: {:#?}", t);
+            if i == 0 {
+                if print {
+                    println!("normal: {:#?}", t);
+                }
+                assert_eq!(t, doc);
             }
         }
         let normal_time = normal_start.elapsed();
