@@ -1,6 +1,6 @@
 use std::{convert::TryInto, io::Read};
 
-use serde::forward_to_deserialize_any;
+use serde::{de::Error as SerdeError, forward_to_deserialize_any};
 use serde_json::json;
 
 use crate::{
@@ -10,16 +10,25 @@ use crate::{
     Bson,
     DateTime,
     DbPointer,
+    Decimal128,
     Document,
     JavaScriptCodeWithScope,
     Regex,
     Timestamp,
 };
 
-use super::{read_cstring, read_f64, read_i32, read_i64, read_string, read_u8, Error, Result};
+use super::{
+    read_cstring,
+    read_f128,
+    read_f64,
+    read_i32,
+    read_i64,
+    read_string,
+    read_u8,
+    Error,
+    Result,
+};
 use crate::de::serde::MapDeserializer;
-
-// hello
 
 struct CountReader<R> {
     reader: R,
@@ -93,7 +102,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
             }
             ElementType::Array => {
                 let length = read_i32(&mut self.reader)?;
-                visitor.visit_seq(ArrayAccess {
+                visitor.visit_seq(DocumentAccess {
                     root_deserializer: &mut self,
                     length_remaining: length - 4,
                 })
@@ -213,54 +222,93 @@ struct DocumentAccess<'d, T: 'd> {
     length_remaining: i32,
 }
 
+impl<'d, T: Read> DocumentAccess<'d, T> {
+    fn read_next_tag(&mut self) -> Result<Option<ElementType>> {
+        let tag = read_u8(&mut self.root_deserializer.reader)?;
+        self.length_remaining -= 1;
+        if tag == 0 {
+            if self.length_remaining != 0 {
+                return Err(Error::custom(format!(
+                    "got null byte but still have length {} remaining",
+                    self.length_remaining
+                )));
+            }
+            return Ok(None);
+        }
+
+        let tag = ElementType::from(tag)
+            .ok_or_else(|| Error::custom(format!("invalid element type: {}", tag)))?;
+        self.root_deserializer.current_type = tag;
+        Ok(Some(tag))
+    }
+
+    /// Executes a closure that reads from the reader and ensures it did not spill over the
+    /// length_remaining, returning an error if so.
+    ///
+    /// A mutable reference to this `DocumentAccess` is passed into the closure.
+    fn read<F, O>(&mut self, f: F) -> Result<O>
+    where
+        F: FnOnce(&mut Self) -> Result<O>,
+    {
+        let start_bytes = self.root_deserializer.reader.bytes_read();
+        let out = f(self);
+        let bytes_read = self.root_deserializer.reader.bytes_read() - start_bytes;
+        self.length_remaining -= bytes_read as i32;
+
+        if self.length_remaining <= 0 {
+            return Err(Error::custom("length of document too short"));
+        }
+        out
+    }
+
+    fn read_next_value<'de, V>(&mut self, seed: V) -> Result<V::Value>
+    where
+        V: serde::de::DeserializeSeed<'de>,
+    {
+        self.read(|s| seed.deserialize(&mut *s.root_deserializer))
+    }
+}
+
 impl<'de, 'd, R: Read> serde::de::MapAccess<'de> for DocumentAccess<'d, R> {
-    type Error = Error;
+    type Error = crate::de::Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        let tag = read_u8(&mut self.root_deserializer.reader)?;
-        self.length_remaining -= 1;
-        if tag == 0 {
-            if self.length_remaining != 0 {
-                panic!(
-                    "got null byte but still have length {} remaining",
-                    self.length_remaining
-                )
-            }
+        if self.read_next_tag()?.is_none() {
             return Ok(None);
         }
-        // TODO: handle bad tags
-        self.root_deserializer.current_type = ElementType::from(tag).unwrap();
-        let start_bytes = self.root_deserializer.reader.bytes_read();
-        let out = seed
-            .deserialize(DocumentKeyDeserializer {
-                root_deserializer: &mut *self.root_deserializer,
-            })
-            .map(Some);
-        let bytes_read = self.root_deserializer.reader.bytes_read() - start_bytes;
-        self.length_remaining -= bytes_read as i32;
 
-        if self.length_remaining <= 0 {
-            panic!("ran out of bytes!");
-        }
-        out
+        self.read(|s| {
+            seed.deserialize(DocumentKeyDeserializer {
+                root_deserializer: &mut *s.root_deserializer,
+            })
+        })
+        .map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        let start_bytes = self.root_deserializer.reader.bytes_read();
-        let out = seed.deserialize(&mut *self.root_deserializer);
-        let bytes_read = self.root_deserializer.reader.bytes_read() - start_bytes;
-        self.length_remaining -= bytes_read as i32;
+        self.read_next_value(seed)
+    }
+}
 
-        if self.length_remaining <= 0 {
-            panic!("ran out of bytes!");
+impl<'d, 'de, T: Read + 'd> serde::de::SeqAccess<'de> for DocumentAccess<'d, T> {
+    type Error = Error;
+
+    fn next_element_seed<S>(&mut self, seed: S) -> Result<Option<S::Value>>
+    where
+        S: serde::de::DeserializeSeed<'de>,
+    {
+        if self.read_next_tag()?.is_none() {
+            return Ok(None);
         }
-        out
+
+        let _index = self.read(|s| read_cstring(&mut s.root_deserializer.reader))?;
+        self.read_next_value(seed).map(Some)
     }
 }
 
@@ -283,52 +331,6 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for DocumentKeyDeserializer<
         bool char str bytes byte_buf option unit unit_struct string
         identifier newtype_struct seq tuple tuple_struct struct map enum
         ignored_any i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-    }
-}
-
-struct ArrayAccess<'d, T: 'd> {
-    root_deserializer: &'d mut Deserializer<T>,
-    length_remaining: i32,
-}
-
-impl<'d, 'de, T: Read + 'd> serde::de::SeqAccess<'de> for ArrayAccess<'d, T> {
-    type Error = Error;
-
-    fn next_element_seed<S>(&mut self, seed: S) -> Result<Option<S::Value>>
-    where
-        S: serde::de::DeserializeSeed<'de>,
-    {
-        let tag = read_u8(&mut self.root_deserializer.reader)?;
-        self.length_remaining -= 1;
-        if tag == 0 {
-            if self.length_remaining != 0 {
-                panic!(
-                    "got null byte but still have length {} remaining",
-                    self.length_remaining
-                )
-            }
-            return Ok(None);
-        }
-        // TODO: handle bad tags
-        self.root_deserializer.current_type = ElementType::from(tag).unwrap();
-        let start_bytes = self.root_deserializer.reader.bytes_read();
-        let _index = read_cstring(&mut self.root_deserializer.reader)?;
-        let bytes_read = self.root_deserializer.reader.bytes_read() - start_bytes;
-        self.length_remaining -= bytes_read as i32;
-
-        if self.length_remaining <= 0 {
-            panic!("ran out of bytes!");
-        }
-
-        let start_bytes = self.root_deserializer.reader.bytes_read();
-        let out = seed.deserialize(&mut *self.root_deserializer);
-        let bytes_read = self.root_deserializer.reader.bytes_read() - start_bytes;
-        self.length_remaining -= bytes_read as i32;
-
-        if self.length_remaining <= 0 {
-            panic!("ran out of bytes!");
-        }
-        out.map(Some)
     }
 }
 
@@ -725,7 +727,17 @@ mod test {
 
     use serde::Deserialize;
 
-    use crate::{oid::ObjectId, tests::LOCK, Binary, Bson, DateTime, Document, Regex, Timestamp};
+    use crate::{
+        oid::ObjectId,
+        tests::LOCK,
+        Binary,
+        Bson,
+        DateTime,
+        Decimal128,
+        Document,
+        Regex,
+        Timestamp,
+    };
 
     use super::Deserializer;
 
@@ -787,6 +799,7 @@ mod test {
             "date": DateTime::now(),
             // "regex": Regex { pattern: "hello".to_string(), options: "x".to_string() },
             "ts": Timestamp { time: 123, increment: 456 },
+            // "d128": Bson::Decimal128(Decimal128 { bytes: [0u8; 128 / 8] }),
         };
         let mut bson = vec![0u8; 0];
         doc.to_writer(&mut bson).unwrap();
