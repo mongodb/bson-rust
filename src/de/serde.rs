@@ -509,12 +509,12 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 bytes,
             }) => visitor.visit_byte_buf(bytes),
             binary @ Bson::Binary(..) => visitor.visit_map(MapDeserializer {
-                iter: binary.to_extended_document().into_iter(),
+                iter: binary.into_extended_document().into_iter(),
                 value: None,
                 len: 2,
             }),
             _ => {
-                let doc = value.to_extended_document();
+                let doc = value.into_extended_document();
                 let len = doc.len();
                 visitor.visit_map(MapDeserializer {
                     iter: doc.into_iter(),

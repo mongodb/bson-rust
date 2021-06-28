@@ -67,7 +67,7 @@ impl Serialize for Bson {
                 ref bytes,
             }) => serializer.serialize_bytes(bytes),
             _ => {
-                let doc = self.to_extended_document();
+                let doc = self.clone().into_extended_document();
                 doc.serialize(serializer)
             }
         }

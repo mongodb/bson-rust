@@ -534,8 +534,8 @@ impl Bson {
     /// This function mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
     // TODO RUST-426: Investigate either removing this from the serde implementation or unifying
     // with the extended JSON implementation.
-    pub(crate) fn to_extended_document(&self) -> Document {
-        match *self {
+    pub(crate) fn into_extended_document(self) -> Document {
+        match self {
             Bson::RegularExpression(Regex {
                 ref pattern,
                 ref options,
@@ -547,23 +547,23 @@ impl Bson {
 
                 doc! {
                     "$regularExpression": {
-                        "pattern": pattern.clone(),
+                        "pattern": pattern,
                         "options": options,
                     }
                 }
             }
             Bson::JavaScriptCode(ref code) => {
                 doc! {
-                    "$code": code.clone(),
+                    "$code": code,
                 }
             }
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
-                ref code,
-                ref scope,
+                code,
+                scope,
             }) => {
                 doc! {
-                    "$code": code.clone(),
-                    "$scope": scope.clone(),
+                    "$code": code,
+                    "$scope": scope,
                 }
             }
             Bson::Timestamp(Timestamp { time, increment }) => {

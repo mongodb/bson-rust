@@ -3,14 +3,7 @@ use std::{convert::TryInto, io::Read};
 use serde::forward_to_deserialize_any;
 use serde_json::json;
 
-use crate::{
-    oid::ObjectId,
-    spec::{BinarySubtype, ElementType},
-    Binary,
-    DateTime,
-    Document,
-    JavaScriptCodeWithScope,
-};
+use crate::{Binary, Bson, DateTime, DbPointer, Document, JavaScriptCodeWithScope, Regex, oid::ObjectId, spec::{BinarySubtype, ElementType}};
 
 use super::{read_cstring, read_f64, read_i32, read_i64, read_string, read_u8, Error, Result};
 use crate::de::serde::MapDeserializer;
@@ -116,7 +109,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                 }
             }
             ElementType::Undefined => {
-                let doc = doc! { "$undefined": 1 };
+                let doc = Bson::Undefined.into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::DateTime => {
@@ -134,26 +127,33 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                 let pattern = read_cstring(&mut self.reader)?;
                 let options = read_cstring(&mut self.reader)?;
 
-                let doc = doc! { "$regularExpression": { "pattern": pattern, "options": options } };
+                let doc = Bson::RegularExpression(Regex { pattern, options }).into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::DbPointer => {
                 let ns = read_string(&mut self.reader, false)?;
                 let oid = ObjectId::from_reader(&mut self.reader)?;
-                let doc = doc! { "$dbPointer": { "$ref": ns, "$id": oid } };
+                let doc = Bson::DbPointer(DbPointer { namespace: ns, id: oid }).into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::JavaScriptCode => {
                 let code = read_string(&mut self.reader, false)?;
-                visitor.visit_map(MapDeserializer::new(doc! { "$code": code }))
+                let doc = Bson::JavaScriptCode(code).into_extended_document();
+                visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::JavaScriptCodeWithScope => {
                 let code_w_scope = JavaScriptCodeWithScope::from_reader(&mut self.reader)?;
-                let doc = doc! { "$code": code_w_scope.code, "$scope": code_w_scope.scope };
+                let doc = Bson::JavaScriptCodeWithScope(code_w_scope).into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
-            // ElementType::Symbol => {}
-            // ElementType::Timestamp => {}
+            ElementType::Symbol => {
+                let symbol = read_string(&mut self.reader, false)?;
+                let doc = Bson::Symbol(symbol).into_extended_document();
+                visitor.visit_map(MapDeserializer::new(doc))
+            }
+            ElementType::Timestamp => {
+                todo!()
+            }
             // ElementType::Decimal128 => {}
             // ElementType::MaxKey => {}
             // ElementType::MinKey => {}
