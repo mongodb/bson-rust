@@ -32,7 +32,7 @@ use serde_json::{json, Value};
 
 pub use crate::document::Document;
 use crate::{
-    de::{read_i32, read_string, MAX_BSON_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
+    de::{read_i32, read_i64, read_string, MAX_BSON_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
     Decimal128,
@@ -557,10 +557,7 @@ impl Bson {
                     "$code": code,
                 }
             }
-            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
-                code,
-                scope,
-            }) => {
+            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope }) => {
                 doc! {
                     "$code": code,
                     "$scope": scope,
@@ -999,6 +996,10 @@ pub struct Timestamp {
 }
 
 impl Timestamp {
+    pub(crate) fn from_reader<R: Read>(mut reader: R) -> crate::de::Result<Self> {
+        read_i64(&mut reader).map(|val| Timestamp::from_le_i64(val))
+    }
+
     pub(crate) fn to_le_i64(self) -> i64 {
         let upper = (self.time.to_le() as u64) << 32;
         let lower = self.increment.to_le() as u64;

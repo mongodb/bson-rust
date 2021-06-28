@@ -3,7 +3,18 @@ use std::{convert::TryInto, io::Read};
 use serde::forward_to_deserialize_any;
 use serde_json::json;
 
-use crate::{Binary, Bson, DateTime, DbPointer, Document, JavaScriptCodeWithScope, Regex, oid::ObjectId, spec::{BinarySubtype, ElementType}};
+use crate::{
+    oid::ObjectId,
+    spec::{BinarySubtype, ElementType},
+    Binary,
+    Bson,
+    DateTime,
+    DbPointer,
+    Document,
+    JavaScriptCodeWithScope,
+    Regex,
+    Timestamp,
+};
 
 use super::{read_cstring, read_f64, read_i32, read_i64, read_string, read_u8, Error, Result};
 use crate::de::serde::MapDeserializer;
@@ -127,13 +138,18 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                 let pattern = read_cstring(&mut self.reader)?;
                 let options = read_cstring(&mut self.reader)?;
 
-                let doc = Bson::RegularExpression(Regex { pattern, options }).into_extended_document();
+                let doc =
+                    Bson::RegularExpression(Regex { pattern, options }).into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::DbPointer => {
                 let ns = read_string(&mut self.reader, false)?;
                 let oid = ObjectId::from_reader(&mut self.reader)?;
-                let doc = Bson::DbPointer(DbPointer { namespace: ns, id: oid }).into_extended_document();
+                let doc = Bson::DbPointer(DbPointer {
+                    namespace: ns,
+                    id: oid,
+                })
+                .into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::JavaScriptCode => {
@@ -152,7 +168,11 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::Timestamp => {
-                todo!()
+                let ts = Timestamp::from_reader(&mut self.reader)?;
+                let mut d = TimestampDeserializer::new(ts);
+                visitor.visit_map(TimestampAccess {
+                    deserializer: &mut d,
+                })
             }
             // ElementType::Decimal128 => {}
             // ElementType::MaxKey => {}
@@ -315,8 +335,8 @@ impl<'de> serde::de::Deserializer<'de> for FieldDeserializer {
     where
         V: serde::de::Visitor<'de>,
     {
-        // visitor.visit_borrowed_str(self.field_name)
-        visitor.visit_string(self.field_name.to_string())
+        visitor.visit_borrowed_str(self.field_name)
+        // visitor.visit_string(self.field_name.to_string())
     }
 
     serde::forward_to_deserialize_any! {
@@ -373,6 +393,95 @@ impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
         V: serde::de::Visitor<'de>,
     {
         visitor.visit_string(self.0.to_hex())
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+        bytes byte_buf map struct option unit newtype_struct
+        ignored_any unit_struct tuple_struct tuple enum identifier
+    }
+}
+
+enum TimestampDeserializationStage {
+    TopLevel,
+    Time,
+    Increment,
+    Done,
+}
+
+struct TimestampAccess<'d> {
+    deserializer: &'d mut TimestampDeserializer,
+}
+
+impl<'de, 'd> serde::de::MapAccess<'de> for TimestampAccess<'d> {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+    where
+        K: serde::de::DeserializeSeed<'de>,
+    {
+        match self.deserializer.stage {
+            TimestampDeserializationStage::TopLevel => seed
+                .deserialize(FieldDeserializer {
+                    field_name: "$timestamp",
+                })
+                .map(Some),
+            TimestampDeserializationStage::Time => seed
+                .deserialize(FieldDeserializer { field_name: "t" })
+                .map(Some),
+            TimestampDeserializationStage::Increment => seed
+                .deserialize(FieldDeserializer { field_name: "i" })
+                .map(Some),
+            TimestampDeserializationStage::Done => Ok(None),
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    where
+        V: serde::de::DeserializeSeed<'de>,
+    {
+        seed.deserialize(&mut *self.deserializer)
+    }
+}
+
+struct TimestampDeserializer {
+    ts: Timestamp,
+    stage: TimestampDeserializationStage,
+}
+
+impl TimestampDeserializer {
+    fn new(ts: Timestamp) -> Self {
+        Self {
+            ts,
+            stage: TimestampDeserializationStage::TopLevel,
+        }
+    }
+}
+
+impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut TimestampDeserializer {
+    type Error = Error;
+
+    fn deserialize_any<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        match self.stage {
+            TimestampDeserializationStage::TopLevel => {
+                self.stage = TimestampDeserializationStage::Time;
+                visitor.visit_map(TimestampAccess {
+                    deserializer: &mut self,
+                })
+            }
+            TimestampDeserializationStage::Time => {
+                self.stage = TimestampDeserializationStage::Increment;
+                visitor.visit_u32(self.ts.time)
+            }
+            TimestampDeserializationStage::Increment => {
+                self.stage = TimestampDeserializationStage::Done;
+                visitor.visit_u32(self.ts.increment)
+            }
+            TimestampDeserializationStage::Done => todo!(),
+        }
     }
 
     serde::forward_to_deserialize_any! {
@@ -550,7 +659,7 @@ mod test {
 
     use serde::Deserialize;
 
-    use crate::{oid::ObjectId, tests::LOCK, Binary, Bson, DateTime, Document, Regex};
+    use crate::{oid::ObjectId, tests::LOCK, Binary, Bson, DateTime, Document, Regex, Timestamp};
 
     use super::Deserializer;
 
@@ -585,6 +694,7 @@ mod test {
         binary: Binary,
         date: DateTime,
         // regex: Regex,
+        ts: Timestamp,
     }
 
     #[derive(Deserialize, Debug)]
@@ -610,6 +720,7 @@ mod test {
             "binary": crate::Binary { bytes: vec![36, 36, 36], subtype: crate::spec::BinarySubtype::Generic },
             "date": DateTime::now(),
             // "regex": Regex { pattern: "hello".to_string(), options: "x".to_string() },
+            "ts": Timestamp { time: 123, increment: 456 },
         };
         let mut bson = vec![0u8; 0];
         doc.to_writer(&mut bson).unwrap();
