@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     convert::{TryFrom, TryInto},
     fmt,
     vec,
@@ -23,7 +22,7 @@ use serde_bytes::ByteBuf;
 use crate::{
     bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
-    document::{Document, DocumentVisitor, IntoIter},
+    document::{Document, IntoIter},
     oid::ObjectId,
     spec::BinarySubtype,
     Decimal128,

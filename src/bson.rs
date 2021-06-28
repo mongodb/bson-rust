@@ -21,18 +21,13 @@
 
 //! BSON definition
 
-use std::{
-    fmt::{self, Debug, Display, Formatter},
-    io::Read,
-};
+use std::fmt::{self, Debug, Display, Formatter};
 
 use chrono::Datelike;
-use serde::de::Error;
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
 use crate::{
-    de::{read_i32, read_i64, read_string, MAX_BSON_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
     Decimal128,
@@ -996,10 +991,6 @@ pub struct Timestamp {
 }
 
 impl Timestamp {
-    pub(crate) fn from_reader<R: Read>(mut reader: R) -> crate::de::Result<Self> {
-        read_i64(&mut reader).map(|val| Timestamp::from_le_i64(val))
-    }
-
     pub(crate) fn to_le_i64(self) -> i64 {
         let upper = (self.time.to_le() as u64) << 32;
         let lower = self.increment.to_le() as u64;
@@ -1038,35 +1029,6 @@ pub struct Regex {
 pub struct JavaScriptCodeWithScope {
     pub code: String,
     pub scope: Document,
-}
-
-impl JavaScriptCodeWithScope {
-    pub(crate) fn from_reader<R: Read>(mut reader: R) -> crate::de::Result<Self> {
-        let length = read_i32(&mut reader)?;
-        if length < MIN_CODE_WITH_SCOPE_SIZE {
-            return Err(crate::de::Error::invalid_length(
-                length as usize,
-                &format!(
-                    "code with scope length must be at least {}",
-                    MIN_CODE_WITH_SCOPE_SIZE
-                )
-                .as_str(),
-            ));
-        } else if length > MAX_BSON_SIZE {
-            return Err(Error::invalid_length(
-                length as usize,
-                &"code with scope length too large",
-            ));
-        }
-
-        let mut buf = vec![0u8; (length - 4) as usize];
-        reader.read_exact(&mut buf)?;
-
-        let mut slice = buf.as_slice();
-        let code = read_string(&mut slice, false)?;
-        let scope = Document::from_reader(&mut slice)?;
-        Ok(JavaScriptCodeWithScope { code, scope })
-    }
 }
 
 /// Represents a BSON binary value.

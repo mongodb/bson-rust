@@ -1,7 +1,6 @@
-use std::{convert::TryInto, io::Read};
+use std::io::Read;
 
 use serde::{de::Error as SerdeError, forward_to_deserialize_any};
-use serde_json::json;
 
 use crate::{
     oid::ObjectId,
@@ -11,13 +10,13 @@ use crate::{
     DateTime,
     DbPointer,
     Decimal128,
-    Document,
     JavaScriptCodeWithScope,
     Regex,
     Timestamp,
 };
 
 use super::{
+    read_bool,
     read_cstring,
     read_f128,
     read_f64,
@@ -30,36 +29,16 @@ use super::{
 };
 use crate::de::serde::MapDeserializer;
 
-struct CountReader<R> {
-    reader: R,
-    bytes_read: usize,
-}
-
-impl<R: Read> CountReader<R> {
-    /// Constructs a new CountReader that wraps `reader`.
-    pub(super) fn new(reader: R) -> Self {
-        CountReader {
-            reader,
-            bytes_read: 0,
-        }
-    }
-
-    /// Gets the number of bytes read so far.
-    pub(super) fn bytes_read(&self) -> usize {
-        self.bytes_read
-    }
-}
-
-impl<R: Read> Read for CountReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let bytes = self.reader.read(buf)?;
-        self.bytes_read += bytes;
-        Ok(bytes)
-    }
-}
-
+/// Deserializer used to parse and deserialize raw BSON bytes.
 pub(crate) struct Deserializer<R> {
     reader: CountReader<R>,
+
+    /// The type of the element currently being deserialized.
+    ///
+    /// When the Deserializer is initialized, this will be `ElementType::EmbeddedDocument`, as the
+    /// only top level type is a document. The "embedded" portion is incorrect in this context,
+    /// but given that there's no difference between deserializing an embedded document and a
+    /// top level one, the distinction isn't necessary.
     current_type: ElementType,
 }
 
@@ -87,7 +66,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
             ElementType::Int64 => visitor.visit_i64(read_i64(&mut self.reader)?),
             ElementType::Double => visitor.visit_f64(read_f64(&mut self.reader)?),
             ElementType::String => visitor.visit_string(read_string(&mut self.reader, true)?),
-            ElementType::Boolean => visitor.visit_bool(read_u8(&mut self.reader)? == 1),
+            ElementType::Boolean => visitor.visit_bool(read_bool(&mut self.reader)?),
             ElementType::Null => visitor.visit_none(),
             ElementType::ObjectId => {
                 let oid = ObjectId::from_reader(&mut self.reader)?;
@@ -108,20 +87,11 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                 })
             }
             ElementType::Binary => {
-                let length = read_i32(&mut self.reader)?;
-                let subtype = BinarySubtype::from(read_u8(&mut self.reader)?);
-
-                // TODO: handle error here
-                let ulength: usize = length.try_into().unwrap();
-                let mut bytes = vec![0u8; ulength];
-                self.reader.read_exact(&mut bytes)?;
-                match subtype {
-                    BinarySubtype::Generic => visitor.visit_byte_buf(bytes),
+                let binary = Binary::from_reader(&mut self.reader)?;
+                match binary.subtype {
+                    BinarySubtype::Generic => visitor.visit_byte_buf(binary.bytes),
                     _ => {
-                        let mut d = BinaryDeserializer {
-                            binary: Binary { subtype, bytes },
-                            stage: BinaryDeserializationStage::TopLevel,
-                        };
+                        let mut d = BinaryDeserializer::new(binary);
                         visitor.visit_map(BinaryAccess {
                             deserializer: &mut d,
                         })
@@ -135,30 +105,19 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
             ElementType::DateTime => {
                 let dti = read_i64(&mut self.reader)?;
                 let dt = DateTime::from_millis(dti);
-                let mut d = DateTimeDeserializer {
-                    dt,
-                    stage: DateTimeDeserializationStage::TopLevel,
-                };
+                let mut d = DateTimeDeserializer::new(dt);
                 visitor.visit_map(DateTimeAccess {
                     deserializer: &mut d,
                 })
             }
             ElementType::RegularExpression => {
-                let pattern = read_cstring(&mut self.reader)?;
-                let options = read_cstring(&mut self.reader)?;
-
-                let doc =
-                    Bson::RegularExpression(Regex { pattern, options }).into_extended_document();
+                let doc = Bson::RegularExpression(Regex::from_reader(&mut self.reader)?)
+                    .into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::DbPointer => {
-                let ns = read_string(&mut self.reader, false)?;
-                let oid = ObjectId::from_reader(&mut self.reader)?;
-                let doc = Bson::DbPointer(DbPointer {
-                    namespace: ns,
-                    id: oid,
-                })
-                .into_extended_document();
+                let doc = Bson::DbPointer(DbPointer::from_reader(&mut self.reader)?)
+                    .into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::JavaScriptCode => {
@@ -217,12 +176,44 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
     }
 }
 
+/// A wrapper around a reader that records how many bytes have been read so far.
+struct CountReader<R> {
+    reader: R,
+    bytes_read: usize,
+}
+
+impl<R: Read> CountReader<R> {
+    /// Constructs a new CountReader that wraps `reader`.
+    pub(super) fn new(reader: R) -> Self {
+        CountReader {
+            reader,
+            bytes_read: 0,
+        }
+    }
+
+    /// Gets the number of bytes read so far.
+    pub(super) fn bytes_read(&self) -> usize {
+        self.bytes_read
+    }
+}
+
+impl<R: Read> Read for CountReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let bytes = self.reader.read(buf)?;
+        self.bytes_read += bytes;
+        Ok(bytes)
+    }
+}
+
 struct DocumentAccess<'d, T: 'd> {
     root_deserializer: &'d mut Deserializer<T>,
     length_remaining: i32,
 }
 
 impl<'d, T: Read> DocumentAccess<'d, T> {
+    /// Read the next element type and update the root deserializer with it.
+    ///
+    /// Returns `Ok(None)` if the document has been fully read and has no more elements.
     fn read_next_tag(&mut self) -> Result<Option<ElementType>> {
         let tag = read_u8(&mut self.root_deserializer.reader)?;
         self.length_remaining -= 1;
@@ -261,6 +252,7 @@ impl<'d, T: Read> DocumentAccess<'d, T> {
         out
     }
 
+    /// Read the next value from the document.
     fn read_next_value<'de, V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: serde::de::DeserializeSeed<'de>,
@@ -312,6 +304,7 @@ impl<'d, 'de, T: Read + 'd> serde::de::SeqAccess<'de> for DocumentAccess<'d, T> 
     }
 }
 
+/// Deserializer used specifically for deserializing a document's cstring keys.
 struct DocumentKeyDeserializer<'d, R> {
     root_deserializer: &'d mut Deserializer<R>,
 }
@@ -334,6 +327,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for DocumentKeyDeserializer<
     }
 }
 
+/// Deserializer used to deserialize the given field name without any copies.
 struct FieldDeserializer {
     field_name: &'static str,
 }
@@ -346,7 +340,6 @@ impl<'de> serde::de::Deserializer<'de> for FieldDeserializer {
         V: serde::de::Visitor<'de>,
     {
         visitor.visit_borrowed_str(self.field_name)
-        // visitor.visit_string(self.field_name.to_string())
     }
 
     serde::forward_to_deserialize_any! {
@@ -393,6 +386,7 @@ impl<'de> serde::de::MapAccess<'de> for ObjectIdAccess {
     }
 }
 
+// TODO: update this to avoid having to go through hex
 struct ObjectIdDeserializer(ObjectId);
 
 impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
@@ -604,6 +598,15 @@ struct DateTimeDeserializer {
     stage: DateTimeDeserializationStage,
 }
 
+impl DateTimeDeserializer {
+    fn new(dt: DateTime) -> Self {
+        Self {
+            dt,
+            stage: DateTimeDeserializationStage::TopLevel,
+        }
+    }
+}
+
 impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut DateTimeDeserializer {
     type Error = Error;
 
@@ -677,6 +680,15 @@ struct BinaryDeserializer {
     stage: BinaryDeserializationStage,
 }
 
+impl BinaryDeserializer {
+    fn new(binary: Binary) -> Self {
+        Self {
+            binary,
+            stage: BinaryDeserializationStage::TopLevel,
+        }
+    }
+}
+
 impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut BinaryDeserializer {
     type Error = Error;
 
@@ -697,7 +709,9 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut BinaryDeserializer {
                 // visitor.visit_u8(self.binary.subtype.into())
             }
             BinaryDeserializationStage::Bytes => {
+                // TODO: refactor this to save a copy
                 self.stage = BinaryDeserializationStage::Done;
+                // visitor.visit_byte_buf(self.binary.bytes)
                 visitor.visit_string(base64::encode(self.binary.bytes.as_slice()))
                 // visitor.visit_bytes(self.binary.bytes.as_slice())
                 // println!("visiting binary");
@@ -817,11 +831,29 @@ mod test {
         // println!("{:?}", j);
         let print = false;
 
+        let binary_start = Instant::now();
+        for i in 0..10_000 {
+            let bytes =
+                base64::encode("hello world this is a string wooohooo big string yeah".as_bytes());
+            let _decoded = base64::decode(bytes).unwrap();
+        }
+        let binary_time = binary_start.elapsed();
+        println!("binary time: {}", binary_time.as_secs_f32());
+
+        let oid = ObjectId::new();
+        let oid_start = Instant::now();
+        for i in 0..10_000 {
+            let hex = oid.to_hex();
+            let _oid = ObjectId::parse_str(hex).unwrap();
+            // let bytes = base64::encode(vec![36, 36, 36]);
+            // let _decoded = base64::decode(bytes).unwrap();
+        }
+        let oid_time = binary_start.elapsed();
+        println!("oid time: {}", oid_time.as_secs_f32());
+
         let raw_start = Instant::now();
         for i in 0..10_000 {
             let mut de = Deserializer::new(bson.as_slice());
-            // let cr = CommandResponse::deserialize(&mut de).unwrap();
-            // let t = Document::deserialize(&mut de).unwrap();
             let t = B::deserialize(&mut de).unwrap();
 
             if i == 0 && print {
@@ -833,10 +865,7 @@ mod test {
 
         let raw_start = Instant::now();
         for i in 0..10_000 {
-            let mut de = Deserializer::new(bson.as_slice());
-            // let cr = CommandResponse::deserialize(&mut de).unwrap();
-            let t = Document::deserialize(&mut de).unwrap();
-            // let t = B::deserialize(&mut de).unwrap();
+            let t: Document = crate::from_reader(bson.as_slice()).unwrap();
 
             if i == 0 {
                 assert_eq!(t, doc);
@@ -850,11 +879,7 @@ mod test {
 
         let normal_start = Instant::now();
         for i in 0..10_000 {
-            // let mut de = Deserializer::new(bson.as_slice());
-            // // let cr = CommandResponse::deserialize(&mut de).unwrap();
-            // let t = D::deserialize(&mut de).unwrap();
             let d = Document::from_reader(bson.as_slice()).unwrap();
-            // let t: Document = crate::from_document(d).unwrap();
             let t: B = crate::from_document(d).unwrap();
             if i == 0 && print {
                 println!("normal: {:#?}", t);
@@ -865,12 +890,8 @@ mod test {
 
         let normal_start = Instant::now();
         for i in 0..10_000 {
-            // let mut de = Deserializer::new(bson.as_slice());
-            // // let cr = CommandResponse::deserialize(&mut de).unwrap();
-            // let t = D::deserialize(&mut de).unwrap();
             let d = Document::from_reader(bson.as_slice()).unwrap();
             let t: Document = crate::from_document(d).unwrap();
-            // let t: B = crate::from_document(d).unwrap();
             if i == 0 {
                 if print {
                     println!("normal: {:#?}", t);
