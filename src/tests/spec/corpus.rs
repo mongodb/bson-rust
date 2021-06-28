@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{tests::LOCK, Bson, Document};
-use pretty_assertions::assert_eq;
+// use pretty_assertions::assert_eq;
 use serde::Deserialize;
 
 use super::run_spec_test;
@@ -59,16 +59,24 @@ fn run_test(test: TestFile) {
     for valid in test.valid {
         let description = format!("{}: {}", test.description, valid.description);
 
-        let bson_to_native_cb = Document::from_reader(
-            &mut hex::decode(&valid.canonical_bson)
-                .expect(&description)
-                .as_slice(),
-        )
-        .expect(&description);
+        let canonical_bson = hex::decode(&valid.canonical_bson).expect(&description);
+
+        let bson_to_native_cb =
+            Document::from_reader(canonical_bson.as_slice()).expect(&description);
+
+        let bson_to_native_cb_serde: Document =
+            crate::from_reader(canonical_bson.as_slice()).expect(&description);
+
+        // assert_eq!(bson_to_native_cb_serde, bson_to_native_cb, "{}", description);
 
         let mut native_to_bson_bson_to_native_cv = Vec::new();
         bson_to_native_cb
             .to_writer(&mut native_to_bson_bson_to_native_cv)
+            .expect(&description);
+
+        let mut native_to_bson_bson_to_native_cb_serde = Vec::new();
+        bson_to_native_cb_serde
+            .to_writer(&mut native_to_bson_bson_to_native_cb_serde)
             .expect(&description);
 
         // TODO RUST-36: Enable decimal128 tests.
@@ -88,6 +96,15 @@ fn run_test(test: TestFile) {
             "{}",
             description,
         );
+
+        assert_eq!(
+            hex::encode(native_to_bson_bson_to_native_cb_serde).to_lowercase(),
+            valid.canonical_bson.to_lowercase(),
+            "{}",
+            description,
+        );
+
+        assert_eq!(bson_to_native_cb, bson_to_native_cb_serde, "{}", description);
 
         // native_to_canonical_extended_json( bson_to_native(cB) ) = cEJ
 
@@ -175,21 +192,35 @@ fn run_test(test: TestFile) {
         // native_to_bson( bson_to_native(dB) ) = cB
 
         if let Some(db) = valid.degenerate_bson {
-            let bson_to_native_db =
-                Document::from_reader(&mut hex::decode(&db).expect(&description).as_slice())
-                    .expect(&description);
+            let db = hex::decode(&db).expect(&description);
 
+            let bson_to_native_db =
+                Document::from_reader(db.as_slice())
+                    .expect(&description);
             let mut native_to_bson_bson_to_native_db = Vec::new();
             bson_to_native_db
                 .to_writer(&mut native_to_bson_bson_to_native_db)
                 .unwrap();
-
             assert_eq!(
                 hex::encode(native_to_bson_bson_to_native_db).to_lowercase(),
                 valid.canonical_bson.to_lowercase(),
                 "{}",
                 description,
             );
+
+            let bson_to_native_db_serde: Document = crate::from_reader(db.as_slice()).expect(&description);
+            let mut native_to_bson_bson_to_native_db_serde = Vec::new();
+            bson_to_native_db_serde
+                .to_writer(&mut native_to_bson_bson_to_native_db_serde)
+                .unwrap();
+            assert_eq!(
+                hex::encode(native_to_bson_bson_to_native_db_serde).to_lowercase(),
+                valid.canonical_bson.to_lowercase(),
+                "{}",
+                description,
+            );
+
+            assert_eq!(bson_to_native_db_serde, bson_to_native_cb, "{}", description);
         }
 
         if let Some(ref degenerate_extjson) = valid.degenerate_extjson {
@@ -261,7 +292,8 @@ fn run_test(test: TestFile) {
         }
 
         let bson = hex::decode(decode_error.bson).expect("should decode from hex");
-        Document::from_reader(&mut bson.as_slice()).expect_err(decode_error.description.as_str());
+        Document::from_reader(bson.as_slice()).expect_err(decode_error.description.as_str());
+        let raw = crate::from_reader::<_, Document>(bson.as_slice()).expect_err(decode_error.description.as_str());
     }
 
     for parse_error in test.parse_errors {

@@ -65,7 +65,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
             ElementType::Int32 => visitor.visit_i32(read_i32(&mut self.reader)?),
             ElementType::Int64 => visitor.visit_i64(read_i64(&mut self.reader)?),
             ElementType::Double => visitor.visit_f64(read_f64(&mut self.reader)?),
-            ElementType::String => visitor.visit_string(read_string(&mut self.reader, true)?),
+            ElementType::String => visitor.visit_string(read_string(&mut self.reader, false)?),
             ElementType::Boolean => visitor.visit_bool(read_bool(&mut self.reader)?),
             ElementType::Null => visitor.visit_none(),
             ElementType::ObjectId => {
