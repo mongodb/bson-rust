@@ -174,10 +174,17 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                     deserializer: &mut d,
                 })
             }
-            // ElementType::Decimal128 => {}
-            // ElementType::MaxKey => {}
-            // ElementType::MinKey => {}
-            _ => todo!(),
+            ElementType::Decimal128 => {
+                todo!()
+            }
+            ElementType::MaxKey => {
+                let doc = Bson::MaxKey.into_extended_document();
+                visitor.visit_map(MapDeserializer::new(doc))
+            }
+            ElementType::MinKey => {
+                let doc = Bson::MinKey.into_extended_document();
+                visitor.visit_map(MapDeserializer::new(doc))
+            }
         }
     }
 
