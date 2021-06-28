@@ -1,4 +1,9 @@
-use std::{collections::HashMap, convert::TryFrom, fmt, vec};
+use std::{
+    collections::HashMap,
+    convert::{TryFrom, TryInto},
+    fmt,
+    vec,
+};
 
 use serde::de::{
     self,
@@ -13,6 +18,7 @@ use serde::de::{
     VariantAccess,
     Visitor,
 };
+use serde_bytes::ByteBuf;
 
 use crate::{
     bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
@@ -20,9 +26,12 @@ use crate::{
     document::{Document, DocumentVisitor, IntoIter},
     oid::ObjectId,
     spec::BinarySubtype,
+    Decimal128,
 };
 #[cfg(feature = "decimal128")]
 use crate::{decimal128::Decimal128, extjson};
+
+use super::raw::Decimal128Access;
 
 pub(crate) struct BsonVisitor;
 
@@ -372,6 +381,19 @@ impl<'de> Visitor<'de> for BsonVisitor {
                         .map_err(Error::custom);
                 }
 
+                "$numberDecimalBytes" => {
+                    let bytes = visitor.next_value::<ByteBuf>()?;
+                    return Ok(Bson::Decimal128(Decimal128 {
+                        bytes: bytes.into_vec().try_into().map_err(|v: Vec<u8>| {
+                            Error::custom(format!(
+                                "expected decimal128 as byte buffer, instead got buffer of length \
+                                 {}",
+                                v.len()
+                            ))
+                        })?,
+                    }));
+                }
+
                 _ => {
                     let v = visitor.next_value::<Bson>()?;
                     doc.insert(k, v);
@@ -513,6 +535,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 value: None,
                 len: 2,
             }),
+            Bson::Decimal128(d) => visitor.visit_map(Decimal128Access::new(d)),
             _ => {
                 let doc = value.into_extended_document();
                 let len = doc.len();

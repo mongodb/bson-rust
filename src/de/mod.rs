@@ -290,9 +290,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
         }
         Some(ElementType::Int32) => read_i32(reader).map(Bson::Int32)?,
         Some(ElementType::Int64) => read_i64(reader).map(Bson::Int64)?,
-        Some(ElementType::Timestamp) => {
-            Bson::Timestamp(Timestamp::from_reader(reader)?)
-        }
+        Some(ElementType::Timestamp) => Bson::Timestamp(Timestamp::from_reader(reader)?),
         Some(ElementType::DateTime) => {
             // The int64 is UTC milliseconds since the Unix epoch.
             let time = read_i64(reader)?;

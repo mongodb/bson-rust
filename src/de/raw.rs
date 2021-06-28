@@ -175,7 +175,8 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                 })
             }
             ElementType::Decimal128 => {
-                todo!()
+                let d128 = read_f128(&mut self.reader)?;
+                visitor.visit_map(Decimal128Access::new(d128))
             }
             ElementType::MaxKey => {
                 let doc = Bson::MaxKey.into_extended_document();
@@ -400,6 +401,64 @@ impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
         V: serde::de::Visitor<'de>,
     {
         visitor.visit_string(self.0.to_hex())
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+        bytes byte_buf map struct option unit newtype_struct
+        ignored_any unit_struct tuple_struct tuple enum identifier
+    }
+}
+
+pub(crate) struct Decimal128Access {
+    decimal: Decimal128,
+    visited: bool,
+}
+
+impl Decimal128Access {
+    pub(crate) fn new(decimal: Decimal128) -> Self {
+        Self {
+            decimal,
+            visited: false,
+        }
+    }
+}
+
+impl<'de> serde::de::MapAccess<'de> for Decimal128Access {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+    where
+        K: serde::de::DeserializeSeed<'de>,
+    {
+        if self.visited {
+            return Ok(None);
+        }
+        self.visited = true;
+        seed.deserialize(FieldDeserializer {
+            field_name: "$numberDecimalBytes",
+        })
+        .map(Some)
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    where
+        V: serde::de::DeserializeSeed<'de>,
+    {
+        seed.deserialize(Decimal128Deserializer(self.decimal.clone()))
+    }
+}
+
+struct Decimal128Deserializer(Decimal128);
+
+impl<'de> serde::de::Deserializer<'de> for Decimal128Deserializer {
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_bytes(&self.0.bytes)
     }
 
     serde::forward_to_deserialize_any! {
