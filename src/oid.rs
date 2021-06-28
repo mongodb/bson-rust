@@ -1,6 +1,15 @@
 //! ObjectId
 
-use std::{io::Read, convert::TryInto, error, fmt, result, str::FromStr, sync::atomic::{AtomicUsize, Ordering}, time::SystemTime};
+use std::{
+    convert::TryInto,
+    error,
+    fmt,
+    io::Read,
+    result,
+    str::FromStr,
+    sync::atomic::{AtomicUsize, Ordering},
+    time::SystemTime,
+};
 
 use hex::{self, FromHexError};
 use rand::{thread_rng, Rng};

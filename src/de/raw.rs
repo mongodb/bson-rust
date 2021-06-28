@@ -1,13 +1,18 @@
 use std::{convert::TryInto, io::Read};
 
-use serde::{forward_to_deserialize_any};
+use serde::forward_to_deserialize_any;
 use serde_json::json;
 
-use crate::DateTime;
-use crate::{oid::ObjectId, spec::BinarySubtype, spec::ElementType, Binary};
+use crate::{
+    oid::ObjectId,
+    spec::{BinarySubtype, ElementType},
+    Binary,
+    DateTime,
+    Document,
+    JavaScriptCodeWithScope,
+};
 
-use super::{read_cstring, read_f64, read_i32, read_u8, Error};
-use super::{read_i64, read_string, Result};
+use super::{read_cstring, read_f64, read_i32, read_i64, read_string, read_u8, Error, Result};
 use crate::de::serde::MapDeserializer;
 
 // hello
@@ -112,12 +117,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
             }
             ElementType::Undefined => {
                 let doc = doc! { "$undefined": 1 };
-                let len = doc.len();
-                visitor.visit_map(MapDeserializer {
-                    iter: doc.into_iter(),
-                    value: None,
-                    len
-                })
+                visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::DateTime => {
                 let dti = read_i64(&mut self.reader)?;
@@ -135,17 +135,24 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                 let options = read_cstring(&mut self.reader)?;
 
                 let doc = doc! { "$regularExpression": { "pattern": pattern, "options": options } };
-                let len = doc.len();
-                visitor.visit_map(MapDeserializer {
-                    iter: doc.into_iter(),
-                    value: None,
-                    len
-                })
+                visitor.visit_map(MapDeserializer::new(doc))
             }
-            // ElementType::DbPointer => {}
-            // ElementType::JavaScriptCode => {}
+            ElementType::DbPointer => {
+                let ns = read_string(&mut self.reader, false)?;
+                let oid = ObjectId::from_reader(&mut self.reader)?;
+                let doc = doc! { "$dbPointer": { "$ref": ns, "$id": oid } };
+                visitor.visit_map(MapDeserializer::new(doc))
+            }
+            ElementType::JavaScriptCode => {
+                let code = read_string(&mut self.reader, false)?;
+                visitor.visit_map(MapDeserializer::new(doc! { "$code": code }))
+            }
+            ElementType::JavaScriptCodeWithScope => {
+                let code_w_scope = JavaScriptCodeWithScope::from_reader(&mut self.reader)?;
+                let doc = doc! { "$code": code_w_scope.code, "$scope": code_w_scope.scope };
+                visitor.visit_map(MapDeserializer::new(doc))
+            }
             // ElementType::Symbol => {}
-            // ElementType::JavaScriptCodeWithScope => {}
             // ElementType::Timestamp => {}
             // ElementType::Decimal128 => {}
             // ElementType::MaxKey => {}
@@ -261,7 +268,7 @@ impl<'d, 'de, T: Read + 'd> serde::de::SeqAccess<'de> for ArrayAccess<'d, T> {
 
     fn next_element_seed<S>(&mut self, seed: S) -> Result<Option<S::Value>>
     where
-        S: serde::de::DeserializeSeed<'de>
+        S: serde::de::DeserializeSeed<'de>,
     {
         let tag = read_u8(&mut self.root_deserializer.reader)?;
         self.length_remaining -= 1;
@@ -378,7 +385,7 @@ impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
 enum DateTimeDeserializationStage {
     TopLevel,
     NumberLong,
-    Done
+    Done,
 }
 
 struct DateTimeAccess<'d> {
@@ -543,9 +550,7 @@ mod test {
 
     use serde::Deserialize;
 
-    use crate::{DateTime, Regex};
-    use crate::{Binary, Bson, Document, oid::ObjectId};
-    use crate::tests::LOCK;
+    use crate::{oid::ObjectId, tests::LOCK, Binary, Bson, DateTime, Document, Regex};
 
     use super::Deserializer;
 

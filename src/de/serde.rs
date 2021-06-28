@@ -1,12 +1,19 @@
 use std::{collections::HashMap, convert::TryFrom, fmt, vec};
 
 use serde::de::{
-    self, Deserialize, DeserializeSeed, Deserializer as _, EnumAccess, Error, MapAccess, SeqAccess,
-    Unexpected, VariantAccess, Visitor,
+    self,
+    Deserialize,
+    DeserializeSeed,
+    Deserializer as _,
+    EnumAccess,
+    Error,
+    MapAccess,
+    SeqAccess,
+    Unexpected,
+    VariantAccess,
+    Visitor,
 };
 
-#[cfg(feature = "decimal128")]
-use crate::{decimal128::Decimal128, extjson};
 use crate::{
     bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
@@ -14,6 +21,8 @@ use crate::{
     oid::ObjectId,
     spec::BinarySubtype,
 };
+#[cfg(feature = "decimal128")]
+use crate::{decimal128::Decimal128, extjson};
 
 pub(crate) struct BsonVisitor;
 
@@ -268,7 +277,11 @@ impl<'de> Visitor<'de> for BsonVisitor {
 
                 "$binary" => {
                     let v = visitor.next_value::<extjson::models::BinaryBody>()?;
-                    return Ok(Bson::Binary(extjson::models::Binary { body: v }.parse().map_err(Error::custom)?));
+                    return Ok(Bson::Binary(
+                        extjson::models::Binary { body: v }
+                            .parse()
+                            .map_err(Error::custom)?,
+                    ));
                 }
 
                 "$code" => {
@@ -340,17 +353,23 @@ impl<'de> Visitor<'de> for BsonVisitor {
 
                 "$maxKey" => {
                     let i = visitor.next_value::<u8>()?;
-                    return extjson::models::MaxKey { value: i }.parse().map_err(Error::custom);
+                    return extjson::models::MaxKey { value: i }
+                        .parse()
+                        .map_err(Error::custom);
                 }
 
                 "$minKey" => {
                     let i = visitor.next_value::<u8>()?;
-                    return extjson::models::MinKey { value: i }.parse().map_err(Error::custom);
+                    return extjson::models::MinKey { value: i }
+                        .parse()
+                        .map_err(Error::custom);
                 }
 
                 "$undefined" => {
-                   let b = visitor.next_value::<bool>()?;
-                    return extjson::models::Undefined { value: b }.parse().map_err(Error::custom);
+                    let b = visitor.next_value::<bool>()?;
+                    return extjson::models::Undefined { value: b }
+                        .parse()
+                        .map_err(Error::custom);
                 }
 
                 _ => {
@@ -381,7 +400,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     {
         Ok(Bson::Binary(Binary {
             subtype: BinarySubtype::Generic,
-            bytes: v
+            bytes: v,
         }))
     }
 }
@@ -778,6 +797,17 @@ pub(crate) struct MapDeserializer {
     pub(crate) iter: IntoIter,
     pub(crate) value: Option<Bson>,
     pub(crate) len: usize,
+}
+
+impl MapDeserializer {
+    pub(crate) fn new(doc: Document) -> Self {
+        let len = doc.len();
+        MapDeserializer {
+            iter: doc.into_iter(),
+            len,
+            value: None,
+        }
+    }
 }
 
 impl<'de> MapAccess<'de> for MapDeserializer {

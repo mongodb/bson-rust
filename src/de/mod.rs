@@ -22,8 +22,8 @@
 //! Deserializer
 
 mod error;
-mod serde;
 mod raw;
+mod serde;
 
 pub use self::{
     error::{Error, Result},
@@ -44,10 +44,10 @@ use ::serde::{
     Deserialize,
 };
 
-const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
+pub(crate) const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
-const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
-const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
+pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
+pub(crate) const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
 /// Run the provided closure, ensuring that over the course of its execution, exactly `length` bytes
 /// were read from the reader.
@@ -73,7 +73,7 @@ where
     Ok(())
 }
 
-fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<String> {
+pub(crate) fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<String> {
     let len = read_i32(reader)?;
 
     // UTF-8 String must have at least 1 byte (the last 0x00).
@@ -286,30 +286,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             read_string(reader, utf8_lossy).map(Bson::JavaScriptCode)?
         }
         Some(ElementType::JavaScriptCodeWithScope) => {
-            let length = read_i32(reader)?;
-            if length < MIN_CODE_WITH_SCOPE_SIZE {
-                return Err(Error::invalid_length(
-                    length as usize,
-                    &format!(
-                        "code with scope length must be at least {}",
-                        MIN_CODE_WITH_SCOPE_SIZE
-                    )
-                    .as_str(),
-                ));
-            } else if length > MAX_BSON_SIZE {
-                return Err(Error::invalid_length(
-                    length as usize,
-                    &"code with scope length too large",
-                ));
-            }
-
-            let mut buf = vec![0u8; (length - 4) as usize];
-            reader.read_exact(&mut buf)?;
-
-            let mut slice = buf.as_slice();
-            let code = read_string(&mut slice, utf8_lossy)?;
-            let scope = Document::from_reader(&mut slice)?;
-            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope })
+            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope::from_reader(reader)?)
         }
         Some(ElementType::Int32) => read_i32(reader).map(Bson::Int32)?,
         Some(ElementType::Int64) => read_i64(reader).map(Bson::Int64)?,
@@ -362,7 +339,6 @@ where
 {
     from_bson(Bson::Document(doc))
 }
-
 
 /// Decode a BSON `Document` into a `T` Deserializable.
 pub fn from_reader<R, T>(reader: R) -> Result<T>
