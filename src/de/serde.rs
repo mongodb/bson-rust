@@ -27,8 +27,6 @@ use crate::{
     spec::BinarySubtype,
     Decimal128,
 };
-#[cfg(feature = "decimal128")]
-use crate::{decimal128::Decimal128, extjson};
 
 use super::raw::Decimal128Access;
 
@@ -382,15 +380,20 @@ impl<'de> Visitor<'de> for BsonVisitor {
 
                 "$numberDecimalBytes" => {
                     let bytes = visitor.next_value::<ByteBuf>()?;
-                    return Ok(Bson::Decimal128(Decimal128 {
-                        bytes: bytes.into_vec().try_into().map_err(|v: Vec<u8>| {
-                            Error::custom(format!(
-                                "expected decimal128 as byte buffer, instead got buffer of length \
-                                 {}",
-                                v.len()
-                            ))
-                        })?,
-                    }));
+                    let arr = bytes.into_vec().try_into().map_err(|v: Vec<u8>| {
+                        Error::custom(format!(
+                            "expected decimal128 as byte buffer, instead got buffer of length {}",
+                            v.len()
+                        ))
+                    })?;
+
+                    #[cfg(not(feature = "decimal128"))]
+                    return Ok(Bson::Decimal128(Decimal128 { bytes: arr }));
+
+                    #[cfg(feature = "decimal128")]
+                    unsafe {
+                        return Ok(Bson::Decimal128(Decimal128::from_raw_bytes_le(arr)));
+                    }
                 }
 
                 _ => {

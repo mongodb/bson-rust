@@ -332,7 +332,7 @@ impl Regex {
 
 impl Timestamp {
     pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
-        read_i64(&mut reader).map(|val| Timestamp::from_le_i64(val))
+        read_i64(&mut reader).map(Timestamp::from_le_i64)
     }
 }
 

@@ -1,6 +1,10 @@
 use std::io::Read;
 
-use serde::{de::Error as SerdeError, forward_to_deserialize_any};
+use serde::{
+    de::{EnumAccess, Error as SerdeError, IntoDeserializer, VariantAccess},
+    forward_to_deserialize_any,
+    Deserializer as SerdeDeserializer,
+};
 
 use crate::{
     oid::ObjectId,
@@ -52,12 +56,57 @@ where
             current_type: ElementType::EmbeddedDocument,
         }
     }
+
+    /// Ensure the entire document was visited, returning an error if not.
+    /// Will read the trailing null byte if necessary (i.e. the visitor stopped after visiting
+    /// exactly the number of elements in the document).
+    fn end_document(&mut self, length_remaining: i32) -> Result<()> {
+        match length_remaining.cmp(&1) {
+            std::cmp::Ordering::Equal => {
+                let nullbyte = read_u8(&mut self.reader)?;
+                if nullbyte != 0 {
+                    return Err(Error::custom(format!(
+                        "expected null byte at end of document, got {:#x} instead",
+                        nullbyte
+                    )));
+                }
+            }
+            std::cmp::Ordering::Greater => {
+                return Err(Error::custom(format!(
+                    "document has bytes remaining that were not visited: {}",
+                    length_remaining
+                )));
+            }
+            _ => (),
+        }
+        Ok(())
+    }
+
+    /// Read a string from the BSON.
+    fn parse_string(&mut self) -> Result<String> {
+        read_string(&mut self.reader, false)
+    }
+
+    /// Construct a `DocumentAccess` and pass it into the provided closure, returning the
+    /// result of the closure if no other errors are encountered.
+    fn deserialize_document<F, O>(&mut self, f: F) -> Result<O>
+    where
+        F: FnOnce(DocumentAccess<R>) -> Result<O>,
+    {
+        let mut length_remaining = read_i32(&mut self.reader)? - 4;
+        let out = f(DocumentAccess {
+            root_deserializer: self,
+            length_remaining: &mut length_remaining,
+        });
+        self.end_document(length_remaining)?;
+        out
+    }
 }
 
 impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> {
     type Error = Error;
 
-    fn deserialize_any<V>(mut self, visitor: V) -> Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
     {
@@ -65,27 +114,17 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
             ElementType::Int32 => visitor.visit_i32(read_i32(&mut self.reader)?),
             ElementType::Int64 => visitor.visit_i64(read_i64(&mut self.reader)?),
             ElementType::Double => visitor.visit_f64(read_f64(&mut self.reader)?),
-            ElementType::String => visitor.visit_string(read_string(&mut self.reader, false)?),
+            ElementType::String => visitor.visit_string(self.parse_string()?),
             ElementType::Boolean => visitor.visit_bool(read_bool(&mut self.reader)?),
-            ElementType::Null => visitor.visit_none(),
+            ElementType::Null => visitor.visit_unit(),
             ElementType::ObjectId => {
                 let oid = ObjectId::from_reader(&mut self.reader)?;
                 visitor.visit_map(ObjectIdAccess::new(oid))
             }
             ElementType::EmbeddedDocument => {
-                let length = read_i32(&mut self.reader)?;
-                visitor.visit_map(DocumentAccess {
-                    root_deserializer: &mut self,
-                    length_remaining: length - 4,
-                })
+                self.deserialize_document(|access| visitor.visit_map(access))
             }
-            ElementType::Array => {
-                let length = read_i32(&mut self.reader)?;
-                visitor.visit_seq(DocumentAccess {
-                    root_deserializer: &mut self,
-                    length_remaining: length - 4,
-                })
-            }
+            ElementType::Array => self.deserialize_document(|access| visitor.visit_seq(access)),
             ElementType::Binary => {
                 let binary = Binary::from_reader(&mut self.reader)?;
                 match binary.subtype {
@@ -157,9 +196,38 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
         }
     }
 
+    #[inline]
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        match self.current_type {
+            ElementType::Null => visitor.visit_none(),
+            _ => visitor.visit_some(self),
+        }
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        match self.current_type {
+            ElementType::String => visitor.visit_enum(self.parse_string()?.into_deserializer()),
+            ElementType::EmbeddedDocument => {
+                self.deserialize_document(|access| visitor.visit_enum(access))
+            }
+            t => Err(Error::custom(format!("expected enum, instead got {:?}", t))),
+        }
+    }
+
     forward_to_deserialize_any! {
-        bool char str bytes byte_buf option unit unit_struct string
-            newtype_struct seq tuple tuple_struct struct map enum
+        bool char str bytes byte_buf unit unit_struct string
+            newtype_struct seq tuple tuple_struct struct map
             ignored_any i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
     }
 
@@ -207,7 +275,7 @@ impl<R: Read> Read for CountReader<R> {
 
 struct DocumentAccess<'d, T: 'd> {
     root_deserializer: &'d mut Deserializer<T>,
-    length_remaining: i32,
+    length_remaining: &'d mut i32,
 }
 
 impl<'d, T: Read> DocumentAccess<'d, T> {
@@ -216,9 +284,9 @@ impl<'d, T: Read> DocumentAccess<'d, T> {
     /// Returns `Ok(None)` if the document has been fully read and has no more elements.
     fn read_next_tag(&mut self) -> Result<Option<ElementType>> {
         let tag = read_u8(&mut self.root_deserializer.reader)?;
-        self.length_remaining -= 1;
+        *self.length_remaining -= 1;
         if tag == 0 {
-            if self.length_remaining != 0 {
+            if *self.length_remaining != 0 {
                 return Err(Error::custom(format!(
                     "got null byte but still have length {} remaining",
                     self.length_remaining
@@ -229,6 +297,7 @@ impl<'d, T: Read> DocumentAccess<'d, T> {
 
         let tag = ElementType::from(tag)
             .ok_or_else(|| Error::custom(format!("invalid element type: {}", tag)))?;
+
         self.root_deserializer.current_type = tag;
         Ok(Some(tag))
     }
@@ -244,9 +313,9 @@ impl<'d, T: Read> DocumentAccess<'d, T> {
         let start_bytes = self.root_deserializer.reader.bytes_read();
         let out = f(self);
         let bytes_read = self.root_deserializer.reader.bytes_read() - start_bytes;
-        self.length_remaining -= bytes_read as i32;
+        *self.length_remaining -= bytes_read as i32;
 
-        if self.length_remaining <= 0 {
+        if *self.length_remaining <= 0 {
             return Err(Error::custom("length of document too short"));
         }
         out
@@ -298,9 +367,61 @@ impl<'d, 'de, T: Read + 'd> serde::de::SeqAccess<'de> for DocumentAccess<'d, T> 
         if self.read_next_tag()?.is_none() {
             return Ok(None);
         }
-
         let _index = self.read(|s| read_cstring(&mut s.root_deserializer.reader))?;
         self.read_next_value(seed).map(Some)
+    }
+}
+
+impl<'de, 'd, T: Read> EnumAccess<'de> for DocumentAccess<'d, T> {
+    type Error = Error;
+    type Variant = Self;
+
+    fn variant_seed<V>(mut self, seed: V) -> Result<(V::Value, Self::Variant)>
+    where
+        V: serde::de::DeserializeSeed<'de>,
+    {
+        if self.read_next_tag()?.is_none() {
+            return Err(Error::EndOfStream);
+        }
+
+        let key = self.read(|s| {
+            seed.deserialize(DocumentKeyDeserializer {
+                root_deserializer: &mut *s.root_deserializer,
+            })
+        })?;
+
+        Ok((key, self))
+    }
+}
+
+impl<'de, 'd, T: Read> VariantAccess<'de> for DocumentAccess<'d, T> {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<()> {
+        Err(Error::custom(
+            "expected a string enum, got a document instead",
+        ))
+    }
+
+    fn newtype_variant_seed<S>(mut self, seed: S) -> Result<S::Value>
+    where
+        S: serde::de::DeserializeSeed<'de>,
+    {
+        self.read_next_value(seed)
+    }
+
+    fn tuple_variant<V>(mut self, _len: usize, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        self.read(|s| s.root_deserializer.deserialize_seq(visitor))
+    }
+
+    fn struct_variant<V>(mut self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        self.read(|s| s.root_deserializer.deserialize_map(visitor))
     }
 }
 
@@ -454,7 +575,15 @@ impl<'de> serde::de::Deserializer<'de> for Decimal128Deserializer {
     where
         V: serde::de::Visitor<'de>,
     {
-        visitor.visit_bytes(&self.0.bytes)
+        #[cfg(not(feature = "decimal128"))]
+        {
+            visitor.visit_bytes(&self.0.bytes)
+        }
+
+        #[cfg(feature = "decimal128")]
+        {
+            visitor.visit_bytes(&self.0.to_raw_bytes_le())
+        }
     }
 
     serde::forward_to_deserialize_any! {
@@ -741,17 +870,7 @@ mod test {
 
     use serde::Deserialize;
 
-    use crate::{
-        oid::ObjectId,
-        tests::LOCK,
-        Binary,
-        Bson,
-        DateTime,
-        Decimal128,
-        Document,
-        Regex,
-        Timestamp,
-    };
+    use crate::{oid::ObjectId, tests::LOCK, Binary, Bson, DateTime, Document, Timestamp};
 
     use super::Deserializer;
 
@@ -832,7 +951,7 @@ mod test {
         let print = false;
 
         let binary_start = Instant::now();
-        for i in 0..10_000 {
+        for _ in 0..10_000 {
             let bytes =
                 base64::encode("hello world this is a string wooohooo big string yeah".as_bytes());
             let _decoded = base64::decode(bytes).unwrap();
@@ -842,13 +961,13 @@ mod test {
 
         let oid = ObjectId::new();
         let oid_start = Instant::now();
-        for i in 0..10_000 {
+        for _ in 0..10_000 {
             let hex = oid.to_hex();
             let _oid = ObjectId::parse_str(hex).unwrap();
             // let bytes = base64::encode(vec![36, 36, 36]);
             // let _decoded = base64::decode(bytes).unwrap();
         }
-        let oid_time = binary_start.elapsed();
+        let oid_time = oid_start.elapsed();
         println!("oid time: {}", oid_time.as_secs_f32());
 
         let raw_start = Instant::now();
