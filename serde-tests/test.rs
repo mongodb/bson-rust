@@ -794,3 +794,48 @@ fn all_types() {
 
     run_test(&v, &doc, "all types");
 }
+
+#[test]
+fn borrowed() {
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct Foo<'a> {
+        s: &'a str,
+        binary: &'a [u8],
+        doc: Inner<'a>,
+    }
+
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct Inner<'a> {
+        string: &'a str,
+    }
+
+    let binary = Binary {
+        bytes: vec![36, 36, 36],
+        subtype: BinarySubtype::Generic,
+    };
+
+    let doc = doc! {
+        "s": "borrowed string",
+        "binary": binary.clone(),
+        "doc": {
+            "string": "another borrowed string",
+        }
+    };
+    let mut bson = Vec::new();
+    doc.to_writer(&mut bson).unwrap();
+
+    let s = "borrowed string".to_string();
+    let ss = "another borrowed string".to_string();
+    let inner = Inner {
+        string: ss.as_str(),
+    };
+    let v = Foo {
+        s: s.as_str(),
+        binary: binary.bytes.as_slice(),
+        doc: inner,
+    };
+
+    let deserialized: Foo =
+        bson::from_slice(bson.as_slice()).expect("deserialization should succeed");
+    assert_eq!(deserialized, v);
+}

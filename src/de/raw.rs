@@ -1,4 +1,7 @@
-use std::io::{ErrorKind, Read};
+use std::{
+    borrow::Cow,
+    io::{ErrorKind, Read},
+};
 
 use serde::{
     de::{EnumAccess, Error as SerdeError, IntoDeserializer, VariantAccess},
@@ -84,8 +87,10 @@ impl<'de> Deserializer<'de> {
     }
 
     /// Read a string from the BSON.
-    fn deserialize_string(&mut self) -> Result<String> {
-        read_string(&mut self.bytes, false)
+    /// This will be an owned string if invalid UTF-8 is encountered in the string, otherwise it
+    /// will be borrowed.
+    fn deserialize_str(&mut self) -> Result<Cow<'de, str>> {
+        self.bytes.read_str()
     }
 
     fn deserialize_document_key(&mut self) -> Result<&'de str> {
@@ -122,7 +127,10 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
             ElementType::Int32 => visitor.visit_i32(read_i32(&mut self.bytes)?),
             ElementType::Int64 => visitor.visit_i64(read_i64(&mut self.bytes)?),
             ElementType::Double => visitor.visit_f64(read_f64(&mut self.bytes)?),
-            ElementType::String => visitor.visit_string(self.deserialize_string()?),
+            ElementType::String => match self.deserialize_str()? {
+                Cow::Borrowed(s) => visitor.visit_borrowed_str(s),
+                Cow::Owned(string) => visitor.visit_string(string),
+            },
             ElementType::Boolean => visitor.visit_bool(read_bool(&mut self.bytes)?),
             ElementType::Null => visitor.visit_unit(),
             ElementType::ObjectId => {
@@ -239,9 +247,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: serde::de::Visitor<'de>,
     {
         match self.current_type {
-            ElementType::String => {
-                visitor.visit_enum(self.deserialize_string()?.into_deserializer())
-            }
+            ElementType::String => visitor.visit_enum(self.deserialize_str()?.into_deserializer()),
             ElementType::EmbeddedDocument => {
                 self.deserialize_document(|access| visitor.visit_enum(access))
             }
@@ -895,7 +901,41 @@ impl<'a> BsonBuf<'a> {
         let s = std::str::from_utf8(&self.bytes[start..self.index]).map_err(Error::custom);
         // consume the null byte
         self.index += 1;
+        self.index_check()?;
+
         s
+    }
+
+    /// Attempts to read a null-terminated UTF-8 string from the data.
+    ///
+    /// If invalid UTF-8 is encountered, the unicode replacement character will be inserted in place
+    /// of the offending data, resulting in an owned `String`. Otherwise, the data will be
+    /// borrowed as-is.
+    fn read_str(&mut self) -> Result<Cow<'a, str>> {
+        let len = read_i32(self)?;
+        let start = self.index;
+
+        // UTF-8 String must have at least 1 byte (the last 0x00).
+        if len < 1 {
+            return Err(Error::invalid_length(
+                len as usize,
+                &"UTF-8 string must have at least 1 byte",
+            ));
+        }
+
+        self.index += (len - 1) as usize;
+        self.index_check()?;
+
+        let s = String::from_utf8_lossy(&self.bytes[start..self.index]);
+
+        // consume the null byte
+        if self.bytes[self.index] != 0 {
+            return Err(Error::custom("string was not null-terminated"));
+        }
+        self.index += 1;
+        self.index_check()?;
+
+        Ok(s)
     }
 
     fn read_slice(&mut self, length: usize) -> Result<&'a [u8]> {

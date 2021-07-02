@@ -173,8 +173,12 @@ fn run_test(test: TestFile) {
 
             let bson = hex::decode(&decode_error.bson).expect("should decode from hex");
             Document::from_reader(bson.as_slice()).expect_err(decode_error.description.as_str());
-            crate::from_reader::<_, Document>(bson.as_slice())
-                .expect_err(decode_error.description.as_str());
+
+            // the from_reader implementation supports deserializing from lossy UTF-8
+            if !decode_error.description.contains("invalid UTF-8") {
+                crate::from_reader::<_, Document>(bson.as_slice())
+                    .expect_err(decode_error.description.as_str());
+            }
         }
 
         // TODO RUST-36: Enable decimal128 tests.

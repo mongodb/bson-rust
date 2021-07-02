@@ -427,9 +427,9 @@ where
 }
 
 /// Decode BSON bytes from the provided reader into a `T` Deserializable.
-pub fn from_slice<T>(bytes: &[u8]) -> Result<T>
+pub fn from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
-    T: DeserializeOwned,
+    T: Deserialize<'de>,
 {
     let mut deserializer = raw::Deserializer::new(bytes);
     T::deserialize(&mut deserializer)
