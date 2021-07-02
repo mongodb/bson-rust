@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{tests::LOCK, Bson, Document};
-// use pretty_assertions::assert_eq;
+use pretty_assertions::assert_eq;
 use serde::Deserialize;
 
 use super::run_spec_test;
@@ -69,8 +69,6 @@ fn run_test(test: TestFile) {
 
         let native_to_native_cb_serde: Document =
             crate::from_document(bson_to_native_cb.clone()).expect(&description);
-
-        // assert_eq!(bson_to_native_cb_serde, bson_to_native_cb, "{}", description);
 
         let mut native_to_bson_bson_to_native_cb = Vec::new();
         bson_to_native_cb

@@ -21,7 +21,6 @@ use crate::{
 
 use super::{
     read_bool,
-    read_cstring,
     read_f128,
     read_f64,
     read_i32,
@@ -290,8 +289,8 @@ impl<'d, 'de> DocumentAccess<'d, 'de> {
         Ok(Some(tag))
     }
 
-    /// Executes a closure that reads from the BSON bytes and returns an error if the number of bytes read
-    /// exceeds length_remaining.
+    /// Executes a closure that reads from the BSON bytes and returns an error if the number of
+    /// bytes read exceeds length_remaining.
     ///
     /// A mutable reference to this `DocumentAccess` is passed into the closure.
     fn read<F, O>(&mut self, f: F) -> Result<O>
@@ -495,7 +494,6 @@ impl<'de> serde::de::MapAccess<'de> for ObjectIdAccess {
     }
 }
 
-// TODO: update this to avoid having to go through hex
 struct ObjectIdDeserializer(ObjectId);
 
 impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
@@ -659,7 +657,9 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut TimestampDeserializer {
                 self.stage = TimestampDeserializationStage::Done;
                 visitor.visit_u32(self.ts.increment)
             }
-            TimestampDeserializationStage::Done => Err(Error::custom("timestamp fully deserialized")),
+            TimestampDeserializationStage::Done => {
+                Err(Error::custom("timestamp fully deserialized already"))
+            }
         }
     }
 
@@ -742,7 +742,9 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut DateTimeDeserializer {
                 self.stage = DateTimeDeserializationStage::Done;
                 visitor.visit_string(self.dt.timestamp_millis().to_string())
             }
-            DateTimeDeserializationStage::Done => Err(Error::custom("DateTime fully deserialized already")),
+            DateTimeDeserializationStage::Done => {
+                Err(Error::custom("DateTime fully deserialized already"))
+            }
         }
     }
 
@@ -828,7 +830,9 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut BinaryDeserializer {
                 self.stage = BinaryDeserializationStage::Done;
                 visitor.visit_string(base64::encode(self.binary.bytes.as_slice()))
             }
-            BinaryDeserializationStage::Done => Err(Error::custom("Binary fully deserialized already")),
+            BinaryDeserializationStage::Done => {
+                Err(Error::custom("Binary fully deserialized already"))
+            }
         }
     }
 
@@ -897,168 +901,5 @@ impl<'a> BsonBuf<'a> {
         self.index += length;
         self.index_check()?;
         Ok(&self.bytes[start..self.index])
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use std::time::Instant;
-
-    use serde::Deserialize;
-
-    use crate::{oid::ObjectId, tests::LOCK, Binary, Bson, DateTime, Document, Timestamp};
-
-    use super::Deserializer;
-
-    #[derive(Debug, Deserialize)]
-    struct D {
-        x: i32,
-        y: i32,
-        i: I,
-        // oid: ObjectId,
-        null: Option<i32>,
-        b: bool,
-        d: f32,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct I {
-        a: i32,
-        b: i32,
-    }
-
-    #[derive(Debug, Deserialize)]
-    struct B {
-        ok: i32,
-        x: i32,
-        y: i32,
-        s: String,
-        i: Ii,
-        array: Vec<Bson>,
-        oid: ObjectId,
-        null: Option<()>,
-        b: bool,
-        d: f64,
-        binary: Binary,
-        date: DateTime,
-        // regex: Regex,
-        ts: Timestamp,
-    }
-
-    #[derive(Deserialize, Debug)]
-    struct Ii {
-        a: i32,
-        b: i32,
-    }
-
-    #[derive(Debug)]
-    struct S {
-        s: String,
-    }
-
-    #[test]
-    fn raw() {
-        let _guard = LOCK.run_concurrently();
-
-        let doc = doc! {
-            "ok": 1,
-            "x": 1,
-            "y": 2,
-            "s": "o\nke",
-            "i": { "a": 300, "b": 12345 },
-            "array": [ true, "oke", { "12": 24 } ],
-            "oid": ObjectId::new(),
-            "null": crate::Bson::Null,
-            "b": true,
-            "d": 12.5,
-            "binary": crate::Binary { bytes: vec![36, 36, 36], subtype: crate::spec::BinarySubtype::Generic },
-            "date": DateTime::now(),
-            // "regex": Regex { pattern: "hello".to_string(), options: "x".to_string() },
-            "ts": Timestamp { time: 123, increment: 456 },
-            // "d128": Bson::Decimal128(Decimal128 { bytes: [0u8; 128 / 8] }),
-        };
-        let s = "ok\nok";
-        println!("{}", s);
-        println!("{:?}", S { s: s.to_string() });
-        println!("{:#?}", S { s: s.to_string() });
-        let mut bson = vec![0u8; 0];
-        doc.to_writer(&mut bson).unwrap();
-
-        // let mut de = Deserializer::new(bson.as_slice());
-        // // let cr = CommandResponse::deserialize(&mut de).unwrap();
-        // let t = B::deserialize(&mut de).unwrap();
-        // println!("doc: {:?}", t);
-
-        // let d = Document::from_reader(bson.as_slice()).unwrap();
-        // let t: Document = crate::from_document(d).unwrap();
-
-        // let j: serde_json::Value = crate::from_document(doc.clone()).unwrap();
-        // let j = serde_json::to_value(doc.clone()).unwrap();
-        // println!("{:?}", j);
-        let print = false;
-
-        let raw_start = Instant::now();
-        for i in 0..10_000 {
-            // let mut de = Deserializer::new(bson.as_slice());
-            // let t = B::deserialize(&mut de).unwrap();
-            let t: B = crate::from_slice(bson.as_slice()).unwrap();
-
-            if i == 0 && print {
-                println!("raw: {:#?}", t);
-            }
-        }
-        let raw_time = raw_start.elapsed();
-        println!("raw time: {}", raw_time.as_secs_f32());
-
-        let raw_start = Instant::now();
-        for i in 0..10_000 {
-            let t: Document = crate::from_slice(bson.as_slice()).unwrap();
-
-            if i == 0 {
-                assert_eq!(t, doc);
-                if print {
-                    println!("raw: {:#?}", t);
-                }
-            }
-        }
-        let raw_time = raw_start.elapsed();
-        println!("raw time doc: {}", raw_time.as_secs_f32());
-
-        let normal_start = Instant::now();
-        for i in 0..10_000 {
-            let d = Document::from_reader(bson.as_slice()).unwrap();
-            let t: B = crate::from_document(d).unwrap();
-            if i == 0 && print {
-                println!("normal: {:#?}", t);
-            }
-        }
-        let normal_time = normal_start.elapsed();
-        println!("normal time: {}", normal_time.as_secs_f32());
-
-        let normal_start = Instant::now();
-        for i in 0..10_000 {
-            let d = Document::from_reader(bson.as_slice()).unwrap();
-            let t: Document = crate::from_document(d).unwrap();
-            if i == 0 {
-                if print {
-                    println!("normal: {:#?}", t);
-                }
-                assert_eq!(t, doc);
-            }
-        }
-        let normal_time = normal_start.elapsed();
-        println!("normal time doc: {}", normal_time.as_secs_f32());
-
-        let normal_start = Instant::now();
-        for _ in 0..10_000 {
-            // let mut de = Deserializer::new(bson.as_slice());
-            // // let cr = CommandResponse::deserialize(&mut de).unwrap();
-            // let t = D::deserialize(&mut de).unwrap();
-            // let d = Document::from_reader(bson.as_slice()).unwrap();
-            // let t: Document = crate::from_document(doc.clone()).unwrap();
-            let _d = Document::from_reader(bson.as_slice()).unwrap();
-        }
-        let normal_time = normal_start.elapsed();
-        println!("decode time: {}", normal_time.as_secs_f32());
     }
 }

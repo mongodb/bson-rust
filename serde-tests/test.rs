@@ -750,7 +750,7 @@ fn all_types() {
         "binary_other": binary_other.clone(),
         "date": date,
         "regex": regex.clone(),
-        "ts": timestamp.clone(),
+        "ts": timestamp,
         "i": { "a": 300, "b": 12345 },
         "undefined": Bson::Undefined,
         "code": code.clone(),

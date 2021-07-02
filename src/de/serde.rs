@@ -225,7 +225,6 @@ impl<'de> Visitor<'de> for BsonVisitor {
         use crate::extjson;
 
         let mut doc = Document::new();
-        // let mut next_key = None;
 
         while let Some(k) = visitor.next_key::<String>()? {
             match k.as_str() {
@@ -300,7 +299,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                                 scope,
                             }));
                         } else {
-                            todo!()
+                            return Err(Error::unknown_field(key.as_str(), &["$scope"]));
                         }
                     } else {
                         return Ok(Bson::JavaScriptCode(code));
@@ -317,10 +316,10 @@ impl<'de> Visitor<'de> for BsonVisitor {
                                 scope,
                             }));
                         } else {
-                            todo!()
+                            return Err(Error::unknown_field(key.as_str(), &["$code"]));
                         }
                     } else {
-                        todo!()
+                        return Err(Error::missing_field("$code"));
                     }
                 }
 
