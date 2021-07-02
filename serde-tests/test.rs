@@ -9,7 +9,10 @@ use serde::{
     Serialize,
 };
 
-use std::collections::{BTreeMap, HashSet};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, HashSet},
+};
 
 use bson::{
     doc,
@@ -802,6 +805,10 @@ fn borrowed() {
         s: &'a str,
         binary: &'a [u8],
         doc: Inner<'a>,
+        #[serde(borrow)]
+        cow: Cow<'a, str>,
+        #[serde(borrow)]
+        array: Vec<&'a str>,
     }
 
     #[derive(Debug, Deserialize, PartialEq)]
@@ -819,13 +826,16 @@ fn borrowed() {
         "binary": binary.clone(),
         "doc": {
             "string": "another borrowed string",
-        }
+        },
+        "cow": "cow",
+        "array": ["borrowed string"],
     };
     let mut bson = Vec::new();
     doc.to_writer(&mut bson).unwrap();
 
     let s = "borrowed string".to_string();
     let ss = "another borrowed string".to_string();
+    let cow = "cow".to_string();
     let inner = Inner {
         string: ss.as_str(),
     };
@@ -833,6 +843,8 @@ fn borrowed() {
         s: s.as_str(),
         binary: binary.bytes.as_slice(),
         doc: inner,
+        cow: Cow::Borrowed(cow.as_str()),
+        array: vec![s.as_str()],
     };
 
     let deserialized: Foo =
