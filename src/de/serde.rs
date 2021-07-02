@@ -377,7 +377,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                         .map_err(Error::custom);
                 }
 
-                "$numberDecimalBytes" => {
+                "$numberDecimal" => {
                     let bytes = visitor.next_value::<ByteBuf>()?;
                     let arr = bytes.into_vec().try_into().map_err(|v: Vec<u8>| {
                         Error::custom(format!(

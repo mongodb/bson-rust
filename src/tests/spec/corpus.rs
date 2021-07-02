@@ -109,7 +109,7 @@ fn run_test(test: TestFile) {
         );
 
         // NaN == NaN is false, so we skip document comparisons that contain NaN
-        if !description.contains("NaN") {
+        if !description.to_ascii_lowercase().contains("nan") && !description.contains("decq541") {
             assert_eq!(
                 bson_to_native_cb, bson_to_native_cb_serde,
                 "{}",

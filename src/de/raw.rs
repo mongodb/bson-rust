@@ -541,7 +541,7 @@ impl<'de> serde::de::MapAccess<'de> for Decimal128Access {
         }
         self.visited = true;
         seed.deserialize(FieldDeserializer {
-            field_name: "$numberDecimalBytes",
+            field_name: "$numberDecimal",
         })
         .map(Some)
     }
