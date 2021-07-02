@@ -1,12 +1,8 @@
-use std::{
-    convert::{TryFrom, TryInto},
-    fmt,
-    vec,
-};
+use std::{borrow::{Borrow, Cow}, convert::{TryFrom, TryInto}, fmt, vec};
 
+use lazy_static::__Deref;
 use serde::de::{
     self,
-    Deserialize,
     DeserializeSeed,
     Deserializer as _,
     EnumAccess,
@@ -17,6 +13,7 @@ use serde::de::{
     VariantAccess,
     Visitor,
 };
+use serde::Deserialize;
 use serde_bytes::ByteBuf;
 
 use crate::{
@@ -225,10 +222,43 @@ impl<'de> Visitor<'de> for BsonVisitor {
         use crate::extjson;
 
         let mut doc = Document::new();
-        // let mut next_key = None;
 
-        while let Some(k) = visitor.next_key::<String>()? {
-            match k.as_str() {
+        /// A wrapper struct used to deserialize a string that is either borrowed or owned.
+        /// When deserializing from raw BSON, this can be borrowed, but from a `Document` it has to be
+        /// owned.
+        struct MaybeBorrowed<'a>(Cow<'a, str>);
+        impl<'de> Deserialize<'de> for MaybeBorrowed<'de> {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de> {
+                struct MaybeBorrowedVisitor;
+
+                impl<'de> Visitor<'de> for MaybeBorrowedVisitor {
+                    type Value = MaybeBorrowed<'de>;
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("a string")
+                    }
+
+                    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+                    where
+                        E: Error, {
+                        Ok(MaybeBorrowed(Cow::Borrowed(v)))
+                    }
+
+                    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                    where
+                        E: Error, {
+                        Ok(MaybeBorrowed(Cow::Owned(v.to_string())))
+                    }
+                }
+
+                deserializer.deserialize_str(MaybeBorrowedVisitor)
+            }
+        }
+
+        while let Some(k) = visitor.next_key::<MaybeBorrowed>()? {
+            match k.0.borrow() {
                 "$oid" => {
                     let hex: String = visitor.next_value()?;
                     return Ok(Bson::ObjectId(ObjectId::parse_str(hex.as_str()).map_err(
@@ -292,15 +322,15 @@ impl<'de> Visitor<'de> for BsonVisitor {
 
                 "$code" => {
                     let code = visitor.next_value::<String>()?;
-                    if let Some(key) = visitor.next_key::<String>()? {
-                        if key.as_str() == "$scope" {
+                    if let Some(key) = visitor.next_key::<MaybeBorrowed>()? {
+                        if key.0.deref() == "$scope" {
                             let scope = visitor.next_value::<Document>()?;
                             return Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
                                 code,
                                 scope,
                             }));
                         } else {
-                            todo!()
+                            return Err(Error::unknown_field(key.0.deref(), &["$scope"]))
                         }
                     } else {
                         return Ok(Bson::JavaScriptCode(code));
@@ -309,18 +339,18 @@ impl<'de> Visitor<'de> for BsonVisitor {
 
                 "$scope" => {
                     let scope = visitor.next_value::<Document>()?;
-                    if let Some(key) = visitor.next_key::<String>()? {
-                        if key.as_str() == "$code" {
+                    if let Some(key) = visitor.next_key::<MaybeBorrowed>()? {
+                        if key.0.deref() == "$code" {
                             let code = visitor.next_value::<String>()?;
                             return Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
                                 code,
                                 scope,
                             }));
                         } else {
-                            todo!()
+                            return Err(Error::unknown_field(key.0.deref(), &["$code"]))
                         }
                     } else {
-                        todo!()
+                        return Err(Error::missing_field("$code"));
                     }
                 }
 
@@ -396,7 +426,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                     }
                 }
 
-                _ => {
+                k => {
                     let v = visitor.next_value::<Bson>()?;
                     doc.insert(k, v);
                 }
@@ -982,7 +1012,10 @@ impl<'de> Deserialize<'de> for DateTime {
     {
         match Bson::deserialize(deserializer)? {
             Bson::DateTime(dt) => Ok(dt),
-            _ => Err(D::Error::custom("expecting DateTime")),
+            b => {
+                println!("expecting date time got {:?}", b);
+                Err(D::Error::custom("expecting DateTime"))
+            }
         }
     }
 }
