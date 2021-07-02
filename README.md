@@ -28,6 +28,8 @@ This crate works with Cargo and can be found on
 bson = "2.0.0-beta.2"
 ```
 
+This crate requires Rust 1.48+.
+
 ## Overview of BSON Format
 
 BSON, short for Binary JSON, is a binary-encoded serialization of JSON-like documents.
