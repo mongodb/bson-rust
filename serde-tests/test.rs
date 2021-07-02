@@ -1,6 +1,7 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::vec_init_then_push)]
 
+use pretty_assertions::assert_eq;
 use serde::{
     self,
     de::{DeserializeOwned, Unexpected},
@@ -10,7 +11,20 @@ use serde::{
 
 use std::collections::{BTreeMap, HashSet};
 
-use bson::{doc, Bson, Deserializer, Document};
+use bson::{
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    Binary,
+    Bson,
+    DateTime,
+    Decimal128,
+    Deserializer,
+    Document,
+    JavaScriptCodeWithScope,
+    Regex,
+    Timestamp,
+};
 
 /// Verifies the following:
 ///   - round trip `expected_value` through `Document`:
@@ -653,4 +667,130 @@ fn empty_array() {
         "a": []
     };
     run_deserialize_test(&v, &doc, "empty_array");
+}
+
+#[test]
+fn all_types() {
+    #[derive(Debug, Deserialize, Serialize, PartialEq)]
+    struct Bar {
+        a: i32,
+        b: i32,
+    }
+
+    #[derive(Debug, Deserialize, Serialize, PartialEq)]
+    struct Foo {
+        x: i32,
+        y: i64,
+        s: String,
+        array: Vec<Bson>,
+        bson: Bson,
+        oid: ObjectId,
+        null: Option<()>,
+        subdoc: Document,
+        b: bool,
+        d: f64,
+        binary: Binary,
+        binary_old: Binary,
+        binary_other: Binary,
+        date: DateTime,
+        regex: Regex,
+        ts: Timestamp,
+        i: Bar,
+        undefined: Bson,
+        code: Bson,
+        code_w_scope: JavaScriptCodeWithScope,
+        decimal: Decimal128,
+        symbol: Bson,
+        min_key: Bson,
+        max_key: Bson,
+    }
+
+    let binary = Binary {
+        bytes: vec![36, 36, 36],
+        subtype: BinarySubtype::Generic,
+    };
+    let binary_old = Binary {
+        bytes: vec![36, 36, 36],
+        subtype: BinarySubtype::BinaryOld,
+    };
+    let binary_other = Binary {
+        bytes: vec![36, 36, 36],
+        subtype: BinarySubtype::UserDefined(0x81),
+    };
+    let date = DateTime::now();
+    let regex = Regex {
+        pattern: "hello".to_string(),
+        options: "x".to_string(),
+    };
+    let timestamp = Timestamp {
+        time: 123,
+        increment: 456,
+    };
+    let code = Bson::JavaScriptCode("console.log(1)".to_string());
+    let code_w_scope = JavaScriptCodeWithScope {
+        code: "console.log(a)".to_string(),
+        scope: doc! { "a": 1 },
+    };
+    let oid = ObjectId::new();
+    let subdoc = doc! { "k": true, "b": { "hello": "world" } };
+
+    let doc = doc! {
+        "x": 1,
+        "y": 2_i64,
+        "s": "oke",
+        "array": [ true, "oke", { "12": 24 } ],
+        "bson": 1234.5,
+        "oid": oid,
+        "null": Bson::Null,
+        "subdoc": subdoc.clone(),
+        "b": true,
+        "d": 12.5,
+        "binary": binary.clone(),
+        "binary_old": binary_old.clone(),
+        "binary_other": binary_other.clone(),
+        "date": date,
+        "regex": regex.clone(),
+        "ts": timestamp.clone(),
+        "i": { "a": 300, "b": 12345 },
+        "undefined": Bson::Undefined,
+        "code": code.clone(),
+        "code_w_scope": code_w_scope.clone(),
+        "decimal": Bson::Decimal128(Decimal128::from_i32(5)),
+        "symbol": Bson::Symbol("ok".to_string()),
+        "min_key": Bson::MinKey,
+        "max_key": Bson::MaxKey,
+    };
+
+    let v = Foo {
+        x: 1,
+        y: 2,
+        s: "oke".to_string(),
+        array: vec![
+            Bson::Boolean(true),
+            Bson::String("oke".to_string()),
+            Bson::Document(doc! { "12": 24 }),
+        ],
+        bson: Bson::Double(1234.5),
+        oid,
+        null: None,
+        subdoc,
+        b: true,
+        d: 12.5,
+        binary,
+        binary_old,
+        binary_other,
+        date,
+        regex,
+        ts: timestamp,
+        i: Bar { a: 300, b: 12345 },
+        undefined: Bson::Undefined,
+        code,
+        code_w_scope,
+        decimal: Decimal128::from_i32(5),
+        symbol: Bson::Symbol("ok".to_string()),
+        min_key: Bson::MinKey,
+        max_key: Bson::MaxKey,
+    };
+
+    run_test(&v, &doc, "all types");
 }

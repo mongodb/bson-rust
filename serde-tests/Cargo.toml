@@ -5,8 +5,9 @@ authors = ["Kevin Yeh <kevinyeah@utexas.edu>"]
 edition = "2018"
 
 [dependencies]
-bson = { path = ".." }
+bson = { path = "..", features = ["decimal128"] }
 serde = { version = "1.0", features = ["derive"] }
+pretty_assertions = "0.6.1"
 
 [lib]
 name = "serde_tests"
