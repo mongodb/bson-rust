@@ -74,7 +74,11 @@ impl<'de> Deserializer<'de> {
                     length_remaining
                 )));
             }
-            _ => (),
+            std::cmp::Ordering::Less => {
+                if length_remaining < 0 {
+                    return Err(Error::custom("length of document was too short"));
+                }
+            }
         }
         Ok(())
     }
