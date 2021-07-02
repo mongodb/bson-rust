@@ -188,7 +188,7 @@
 pub use self::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
-    de::{from_bson, from_document, from_reader, Deserializer},
+    de::{from_bson, from_document, from_reader, from_slice, Deserializer},
     decimal128::Decimal128,
     ser::{to_bson, to_document, Serializer},
 };

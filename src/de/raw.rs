@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{ErrorKind, Read};
 
 use serde::{
     de::{EnumAccess, Error as SerdeError, IntoDeserializer, VariantAccess},
@@ -30,12 +30,13 @@ use super::{
     read_u8,
     Error,
     Result,
+    MAX_BSON_SIZE,
 };
 use crate::de::serde::MapDeserializer;
 
 /// Deserializer used to parse and deserialize raw BSON bytes.
-pub(crate) struct Deserializer<R> {
-    reader: CountReader<R>,
+pub(crate) struct Deserializer<'de> {
+    bytes: BsonBuf<'de>,
 
     /// The type of the element currently being deserialized.
     ///
@@ -46,13 +47,10 @@ pub(crate) struct Deserializer<R> {
     current_type: ElementType,
 }
 
-impl<R> Deserializer<R>
-where
-    R: Read,
-{
-    pub(crate) fn new(reader: R) -> Self {
+impl<'de> Deserializer<'de> {
+    pub(crate) fn new(buf: &'de [u8]) -> Self {
         Self {
-            reader: CountReader::new(reader),
+            bytes: BsonBuf::new(buf),
             current_type: ElementType::EmbeddedDocument,
         }
     }
@@ -63,7 +61,7 @@ where
     fn end_document(&mut self, length_remaining: i32) -> Result<()> {
         match length_remaining.cmp(&1) {
             std::cmp::Ordering::Equal => {
-                let nullbyte = read_u8(&mut self.reader)?;
+                let nullbyte = read_u8(&mut self.bytes)?;
                 if nullbyte != 0 {
                     return Err(Error::custom(format!(
                         "expected null byte at end of document, got {:#x} instead",
@@ -84,26 +82,29 @@ where
 
     /// Read a string from the BSON.
     fn parse_string(&mut self) -> Result<String> {
-        read_string(&mut self.reader, false)
+        read_string(&mut self.bytes, false)
     }
 
     /// Construct a `DocumentAccess` and pass it into the provided closure, returning the
     /// result of the closure if no other errors are encountered.
     fn deserialize_document<F, O>(&mut self, f: F) -> Result<O>
     where
-        F: FnOnce(DocumentAccess<R>) -> Result<O>,
+        F: FnOnce(DocumentAccess<'_, 'de>) -> Result<O>,
     {
-        let mut length_remaining = read_i32(&mut self.reader)? - 4;
+        let mut length_remaining = read_i32(&mut self.bytes)? - 4;
         let out = f(DocumentAccess {
             root_deserializer: self,
             length_remaining: &mut length_remaining,
         });
-        self.end_document(length_remaining)?;
+
+        if out.is_ok() {
+            self.end_document(length_remaining)?;
+        }
         out
     }
 }
 
-impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> {
+impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -111,14 +112,14 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
         V: serde::de::Visitor<'de>,
     {
         match self.current_type {
-            ElementType::Int32 => visitor.visit_i32(read_i32(&mut self.reader)?),
-            ElementType::Int64 => visitor.visit_i64(read_i64(&mut self.reader)?),
-            ElementType::Double => visitor.visit_f64(read_f64(&mut self.reader)?),
+            ElementType::Int32 => visitor.visit_i32(read_i32(&mut self.bytes)?),
+            ElementType::Int64 => visitor.visit_i64(read_i64(&mut self.bytes)?),
+            ElementType::Double => visitor.visit_f64(read_f64(&mut self.bytes)?),
             ElementType::String => visitor.visit_string(self.parse_string()?),
-            ElementType::Boolean => visitor.visit_bool(read_bool(&mut self.reader)?),
+            ElementType::Boolean => visitor.visit_bool(read_bool(&mut self.bytes)?),
             ElementType::Null => visitor.visit_unit(),
             ElementType::ObjectId => {
-                let oid = ObjectId::from_reader(&mut self.reader)?;
+                let oid = ObjectId::from_reader(&mut self.bytes)?;
                 visitor.visit_map(ObjectIdAccess::new(oid))
             }
             ElementType::EmbeddedDocument => {
@@ -126,10 +127,24 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
             }
             ElementType::Array => self.deserialize_document(|access| visitor.visit_seq(access)),
             ElementType::Binary => {
-                let binary = Binary::from_reader(&mut self.reader)?;
-                match binary.subtype {
-                    BinarySubtype::Generic => visitor.visit_byte_buf(binary.bytes),
+                let len = read_i32(&mut self.bytes)?;
+                if !(0..=MAX_BSON_SIZE).contains(&len) {
+                    return Err(Error::invalid_length(
+                        len as usize,
+                        &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
+                    ));
+                }
+                let subtype = BinarySubtype::from(read_u8(&mut self.bytes)?);
+                match subtype {
+                    BinarySubtype::Generic => {
+                        visitor.visit_borrowed_bytes(self.bytes.read_slice(len as usize)?)
+                    }
                     _ => {
+                        let binary = Binary::from_reader_with_len_and_payload(
+                            &mut self.bytes,
+                            len,
+                            subtype,
+                        )?;
                         let mut d = BinaryDeserializer::new(binary);
                         visitor.visit_map(BinaryAccess {
                             deserializer: &mut d,
@@ -142,7 +157,7 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::DateTime => {
-                let dti = read_i64(&mut self.reader)?;
+                let dti = read_i64(&mut self.bytes)?;
                 let dt = DateTime::from_millis(dti);
                 let mut d = DateTimeDeserializer::new(dt);
                 visitor.visit_map(DateTimeAccess {
@@ -150,39 +165,39 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
                 })
             }
             ElementType::RegularExpression => {
-                let doc = Bson::RegularExpression(Regex::from_reader(&mut self.reader)?)
+                let doc = Bson::RegularExpression(Regex::from_reader(&mut self.bytes)?)
                     .into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::DbPointer => {
-                let doc = Bson::DbPointer(DbPointer::from_reader(&mut self.reader)?)
+                let doc = Bson::DbPointer(DbPointer::from_reader(&mut self.bytes)?)
                     .into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::JavaScriptCode => {
-                let code = read_string(&mut self.reader, false)?;
+                let code = read_string(&mut self.bytes, false)?;
                 let doc = Bson::JavaScriptCode(code).into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::JavaScriptCodeWithScope => {
-                let code_w_scope = JavaScriptCodeWithScope::from_reader(&mut self.reader)?;
+                let code_w_scope = JavaScriptCodeWithScope::from_reader(&mut self.bytes)?;
                 let doc = Bson::JavaScriptCodeWithScope(code_w_scope).into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::Symbol => {
-                let symbol = read_string(&mut self.reader, false)?;
+                let symbol = read_string(&mut self.bytes, false)?;
                 let doc = Bson::Symbol(symbol).into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::Timestamp => {
-                let ts = Timestamp::from_reader(&mut self.reader)?;
+                let ts = Timestamp::from_reader(&mut self.bytes)?;
                 let mut d = TimestampDeserializer::new(ts);
                 visitor.visit_map(TimestampAccess {
                     deserializer: &mut d,
                 })
             }
             ElementType::Decimal128 => {
-                let d128 = read_f128(&mut self.reader)?;
+                let d128 = read_f128(&mut self.bytes)?;
                 visitor.visit_map(Decimal128Access::new(d128))
             }
             ElementType::MaxKey => {
@@ -235,8 +250,8 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
     where
         V: serde::de::Visitor<'de>,
     {
-        let s = read_cstring(&mut self.reader)?;
-        visitor.visit_string(s)
+        let s = self.bytes.read_cstr()?;
+        visitor.visit_borrowed_str(s)
     }
 
     fn is_human_readable(&self) -> bool {
@@ -244,46 +259,19 @@ impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for &'a mut Deserializer<R> 
     }
 }
 
-/// A wrapper around a reader that records how many bytes have been read so far.
-struct CountReader<R> {
-    reader: R,
-    bytes_read: usize,
-}
-
-impl<R: Read> CountReader<R> {
-    /// Constructs a new CountReader that wraps `reader`.
-    pub(super) fn new(reader: R) -> Self {
-        CountReader {
-            reader,
-            bytes_read: 0,
-        }
-    }
-
-    /// Gets the number of bytes read so far.
-    pub(super) fn bytes_read(&self) -> usize {
-        self.bytes_read
-    }
-}
-
-impl<R: Read> Read for CountReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let bytes = self.reader.read(buf)?;
-        self.bytes_read += bytes;
-        Ok(bytes)
-    }
-}
-
-struct DocumentAccess<'d, T: 'd> {
-    root_deserializer: &'d mut Deserializer<T>,
+/// Struct for accessing documents for deserialization purposes.
+/// This is used to deserialize maps, structs, sequences, and enums.
+struct DocumentAccess<'d, 'de> {
+    root_deserializer: &'d mut Deserializer<'de>,
     length_remaining: &'d mut i32,
 }
 
-impl<'d, T: Read> DocumentAccess<'d, T> {
+impl<'d, 'de> DocumentAccess<'d, 'de> {
     /// Read the next element type and update the root deserializer with it.
     ///
     /// Returns `Ok(None)` if the document has been fully read and has no more elements.
     fn read_next_tag(&mut self) -> Result<Option<ElementType>> {
-        let tag = read_u8(&mut self.root_deserializer.reader)?;
+        let tag = read_u8(&mut self.root_deserializer.bytes)?;
         *self.length_remaining -= 1;
         if tag == 0 {
             if *self.length_remaining != 0 {
@@ -302,17 +290,17 @@ impl<'d, T: Read> DocumentAccess<'d, T> {
         Ok(Some(tag))
     }
 
-    /// Executes a closure that reads from the reader and ensures it did not spill over the
-    /// length_remaining, returning an error if so.
+    /// Executes a closure that reads from the BSON bytes and returns an error if the number of bytes read
+    /// exceeds length_remaining.
     ///
     /// A mutable reference to this `DocumentAccess` is passed into the closure.
     fn read<F, O>(&mut self, f: F) -> Result<O>
     where
         F: FnOnce(&mut Self) -> Result<O>,
     {
-        let start_bytes = self.root_deserializer.reader.bytes_read();
+        let start_bytes = self.root_deserializer.bytes.bytes_read();
         let out = f(self);
-        let bytes_read = self.root_deserializer.reader.bytes_read() - start_bytes;
+        let bytes_read = self.root_deserializer.bytes.bytes_read() - start_bytes;
         *self.length_remaining -= bytes_read as i32;
 
         if *self.length_remaining <= 0 {
@@ -322,7 +310,7 @@ impl<'d, T: Read> DocumentAccess<'d, T> {
     }
 
     /// Read the next value from the document.
-    fn read_next_value<'de, V>(&mut self, seed: V) -> Result<V::Value>
+    fn read_next_value<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: serde::de::DeserializeSeed<'de>,
     {
@@ -330,7 +318,7 @@ impl<'d, T: Read> DocumentAccess<'d, T> {
     }
 }
 
-impl<'de, 'd, R: Read> serde::de::MapAccess<'de> for DocumentAccess<'d, R> {
+impl<'d, 'de> serde::de::MapAccess<'de> for DocumentAccess<'d, 'de> {
     type Error = crate::de::Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -357,7 +345,7 @@ impl<'de, 'd, R: Read> serde::de::MapAccess<'de> for DocumentAccess<'d, R> {
     }
 }
 
-impl<'d, 'de, T: Read + 'd> serde::de::SeqAccess<'de> for DocumentAccess<'d, T> {
+impl<'d, 'de> serde::de::SeqAccess<'de> for DocumentAccess<'d, 'de> {
     type Error = Error;
 
     fn next_element_seed<S>(&mut self, seed: S) -> Result<Option<S::Value>>
@@ -367,12 +355,12 @@ impl<'d, 'de, T: Read + 'd> serde::de::SeqAccess<'de> for DocumentAccess<'d, T> 
         if self.read_next_tag()?.is_none() {
             return Ok(None);
         }
-        let _index = self.read(|s| read_cstring(&mut s.root_deserializer.reader))?;
+        let _index = self.read(|s| s.root_deserializer.bytes.read_cstr())?;
         self.read_next_value(seed).map(Some)
     }
 }
 
-impl<'de, 'd, T: Read> EnumAccess<'de> for DocumentAccess<'d, T> {
+impl<'d, 'de> EnumAccess<'de> for DocumentAccess<'d, 'de> {
     type Error = Error;
     type Variant = Self;
 
@@ -394,7 +382,7 @@ impl<'de, 'd, T: Read> EnumAccess<'de> for DocumentAccess<'d, T> {
     }
 }
 
-impl<'de, 'd, T: Read> VariantAccess<'de> for DocumentAccess<'d, T> {
+impl<'d, 'de> VariantAccess<'de> for DocumentAccess<'d, 'de> {
     type Error = Error;
 
     fn unit_variant(self) -> Result<()> {
@@ -426,19 +414,19 @@ impl<'de, 'd, T: Read> VariantAccess<'de> for DocumentAccess<'d, T> {
 }
 
 /// Deserializer used specifically for deserializing a document's cstring keys.
-struct DocumentKeyDeserializer<'d, R> {
-    root_deserializer: &'d mut Deserializer<R>,
+struct DocumentKeyDeserializer<'d, 'de> {
+    root_deserializer: &'d mut Deserializer<'de>,
 }
 
-impl<'de, 'a, R: Read> serde::de::Deserializer<'de> for DocumentKeyDeserializer<'a, R> {
+impl<'d, 'de> serde::de::Deserializer<'de> for DocumentKeyDeserializer<'d, 'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
     {
-        let s = read_cstring(&mut self.root_deserializer.reader)?;
-        visitor.visit_string(s)
+        let s = &mut self.root_deserializer.bytes.read_cstr()?;
+        visitor.visit_borrowed_str(s)
     }
 
     forward_to_deserialize_any! {
@@ -671,7 +659,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut TimestampDeserializer {
                 self.stage = TimestampDeserializationStage::Done;
                 visitor.visit_u32(self.ts.increment)
             }
-            TimestampDeserializationStage::Done => todo!(),
+            TimestampDeserializationStage::Done => Err(Error::custom("timestamp fully deserialized")),
         }
     }
 
@@ -754,7 +742,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut DateTimeDeserializer {
                 self.stage = DateTimeDeserializationStage::Done;
                 visitor.visit_string(self.dt.timestamp_millis().to_string())
             }
-            DateTimeDeserializationStage::Done => todo!(),
+            DateTimeDeserializationStage::Done => Err(Error::custom("DateTime fully deserialized already")),
         }
     }
 
@@ -835,18 +823,12 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut BinaryDeserializer {
             BinaryDeserializationStage::Subtype => {
                 self.stage = BinaryDeserializationStage::Bytes;
                 visitor.visit_string(hex::encode([u8::from(self.binary.subtype)]))
-                // visitor.visit_u8(self.binary.subtype.into())
             }
             BinaryDeserializationStage::Bytes => {
-                // TODO: refactor this to save a copy
                 self.stage = BinaryDeserializationStage::Done;
-                // visitor.visit_byte_buf(self.binary.bytes)
                 visitor.visit_string(base64::encode(self.binary.bytes.as_slice()))
-                // visitor.visit_bytes(self.binary.bytes.as_slice())
-                // println!("visiting binary");
-                // visitor.visit_bytes(self.binary.bytes.as_slice())
             }
-            BinaryDeserializationStage::Done => todo!(),
+            BinaryDeserializationStage::Done => Err(Error::custom("Binary fully deserialized already")),
         }
     }
 
@@ -862,6 +844,60 @@ enum BinaryDeserializationStage {
     Subtype,
     Bytes,
     Done,
+}
+
+/// Struct wrapping a slice of BSON bytes.
+struct BsonBuf<'a> {
+    bytes: &'a [u8],
+    index: usize,
+}
+
+impl<'a> Read for BsonBuf<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.index_check()?;
+        let bytes_read = self.bytes[self.index..].as_ref().read(buf)?;
+        self.index += bytes_read;
+        Ok(bytes_read)
+    }
+}
+
+impl<'a> BsonBuf<'a> {
+    fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes, index: 0 }
+    }
+
+    fn bytes_read(&self) -> usize {
+        self.index
+    }
+
+    /// Verify the index has not run out of bounds.
+    fn index_check(&self) -> std::io::Result<()> {
+        if self.index >= self.bytes.len() {
+            return Err(ErrorKind::UnexpectedEof.into());
+        }
+        Ok(())
+    }
+
+    fn read_cstr(&mut self) -> Result<&'a str> {
+        let start = self.index;
+        while self.index < self.bytes.len() && self.bytes[self.index] != 0 {
+            self.index += 1
+        }
+
+        self.index_check()?;
+
+        let s = std::str::from_utf8(&self.bytes[start..self.index]).map_err(Error::custom);
+        // consume the null byte
+        self.index += 1;
+        s
+    }
+
+    fn read_slice(&mut self, length: usize) -> Result<&'a [u8]> {
+        let start = self.index;
+        self.index += length;
+        self.index_check()?;
+        Ok(&self.bytes[start..self.index])
+    }
 }
 
 #[cfg(test)]
@@ -896,6 +932,7 @@ mod test {
         ok: i32,
         x: i32,
         y: i32,
+        s: String,
         i: Ii,
         array: Vec<Bson>,
         oid: ObjectId,
@@ -914,6 +951,11 @@ mod test {
         b: i32,
     }
 
+    #[derive(Debug)]
+    struct S {
+        s: String,
+    }
+
     #[test]
     fn raw() {
         let _guard = LOCK.run_concurrently();
@@ -922,6 +964,7 @@ mod test {
             "ok": 1,
             "x": 1,
             "y": 2,
+            "s": "o\nke",
             "i": { "a": 300, "b": 12345 },
             "array": [ true, "oke", { "12": 24 } ],
             "oid": ObjectId::new(),
@@ -934,6 +977,10 @@ mod test {
             "ts": Timestamp { time: 123, increment: 456 },
             // "d128": Bson::Decimal128(Decimal128 { bytes: [0u8; 128 / 8] }),
         };
+        let s = "ok\nok";
+        println!("{}", s);
+        println!("{:?}", S { s: s.to_string() });
+        println!("{:#?}", S { s: s.to_string() });
         let mut bson = vec![0u8; 0];
         doc.to_writer(&mut bson).unwrap();
 
@@ -950,30 +997,11 @@ mod test {
         // println!("{:?}", j);
         let print = false;
 
-        let binary_start = Instant::now();
-        for _ in 0..10_000 {
-            let bytes =
-                base64::encode("hello world this is a string wooohooo big string yeah".as_bytes());
-            let _decoded = base64::decode(bytes).unwrap();
-        }
-        let binary_time = binary_start.elapsed();
-        println!("binary time: {}", binary_time.as_secs_f32());
-
-        let oid = ObjectId::new();
-        let oid_start = Instant::now();
-        for _ in 0..10_000 {
-            let hex = oid.to_hex();
-            let _oid = ObjectId::parse_str(hex).unwrap();
-            // let bytes = base64::encode(vec![36, 36, 36]);
-            // let _decoded = base64::decode(bytes).unwrap();
-        }
-        let oid_time = oid_start.elapsed();
-        println!("oid time: {}", oid_time.as_secs_f32());
-
         let raw_start = Instant::now();
         for i in 0..10_000 {
-            let mut de = Deserializer::new(bson.as_slice());
-            let t = B::deserialize(&mut de).unwrap();
+            // let mut de = Deserializer::new(bson.as_slice());
+            // let t = B::deserialize(&mut de).unwrap();
+            let t: B = crate::from_slice(bson.as_slice()).unwrap();
 
             if i == 0 && print {
                 println!("raw: {:#?}", t);
@@ -984,7 +1012,7 @@ mod test {
 
         let raw_start = Instant::now();
         for i in 0..10_000 {
-            let t: Document = crate::from_reader(bson.as_slice()).unwrap();
+            let t: Document = crate::from_slice(bson.as_slice()).unwrap();
 
             if i == 0 {
                 assert_eq!(t, doc);

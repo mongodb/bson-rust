@@ -35,6 +35,7 @@ use std::io::Read;
 use crate::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     oid::{self, ObjectId},
+    ser::write_i32,
     spec::{self, BinarySubtype},
     Decimal128,
 };
@@ -273,7 +274,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
 
 impl Binary {
     pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
-        let mut len = read_i32(&mut reader)?;
+        let len = read_i32(&mut reader)?;
         if !(0..=MAX_BSON_SIZE).contains(&len) {
             return Err(Error::invalid_length(
                 len as usize,
@@ -281,6 +282,20 @@ impl Binary {
             ));
         }
         let subtype = BinarySubtype::from(read_u8(&mut reader)?);
+        Self::from_reader_with_len_and_payload(reader, len, subtype)
+    }
+
+    pub(crate) fn from_reader_with_len_and_payload<R: Read>(
+        mut reader: R,
+        mut len: i32,
+        subtype: BinarySubtype,
+    ) -> Result<Self> {
+        if !(0..=MAX_BSON_SIZE).contains(&len) {
+            return Err(Error::invalid_length(
+                len as usize,
+                &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
+            ));
+        }
 
         // Skip length data in old binary.
         if let BinarySubtype::BinaryOld = subtype {
@@ -391,11 +406,31 @@ where
 }
 
 /// Decode BSON bytes from the provided reader into a `T` Deserializable.
-pub fn from_reader<R, T>(reader: R) -> Result<T>
+pub fn from_reader<R, T>(mut reader: R) -> Result<T>
 where
     T: DeserializeOwned,
     R: Read,
 {
-    let mut deserializer = raw::Deserializer::new(reader);
+    let length = read_i32(&mut reader)?;
+
+    if length < MIN_BSON_DOCUMENT_SIZE {
+        return Err(Error::custom("document size too small"));
+    }
+
+    let mut bytes = Vec::with_capacity(length as usize);
+    write_i32(&mut bytes, length).map_err(Error::custom)?;
+
+    reader.take(length as u64 - 4).read_to_end(&mut bytes)?;
+
+    let mut deserializer = raw::Deserializer::new(bytes.as_slice());
+    T::deserialize(&mut deserializer)
+}
+
+/// Decode BSON bytes from the provided reader into a `T` Deserializable.
+pub fn from_slice<T>(bytes: &[u8]) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    let mut deserializer = raw::Deserializer::new(bytes);
     T::deserialize(&mut deserializer)
 }

@@ -416,8 +416,6 @@ fn parse_enum() {
 
     let v = Foo { a: E::Empty };
     let doc = doc! { "a": "Empty" };
-    // assert_eq!(serialize!(v), bdoc! { "a" => "Empty" });
-    // assert_eq!(v, deserialize!(serialize!(v)));
     run_test(&v, &doc, "parse_enum: Empty");
 
     let v = Foo { a: E::Bar(10) };
