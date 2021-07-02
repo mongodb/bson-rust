@@ -84,8 +84,12 @@ impl<'de> Deserializer<'de> {
     }
 
     /// Read a string from the BSON.
-    fn parse_string(&mut self) -> Result<String> {
+    fn deserialize_string(&mut self) -> Result<String> {
         read_string(&mut self.bytes, false)
+    }
+
+    fn deserialize_document_key(&mut self) -> Result<&'de str> {
+        self.bytes.read_cstr()
     }
 
     /// Construct a `DocumentAccess` and pass it into the provided closure, returning the
@@ -118,7 +122,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
             ElementType::Int32 => visitor.visit_i32(read_i32(&mut self.bytes)?),
             ElementType::Int64 => visitor.visit_i64(read_i64(&mut self.bytes)?),
             ElementType::Double => visitor.visit_f64(read_f64(&mut self.bytes)?),
-            ElementType::String => visitor.visit_string(self.parse_string()?),
+            ElementType::String => visitor.visit_string(self.deserialize_string()?),
             ElementType::Boolean => visitor.visit_bool(read_bool(&mut self.bytes)?),
             ElementType::Null => visitor.visit_unit(),
             ElementType::ObjectId => {
@@ -235,7 +239,9 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: serde::de::Visitor<'de>,
     {
         match self.current_type {
-            ElementType::String => visitor.visit_enum(self.parse_string()?.into_deserializer()),
+            ElementType::String => {
+                visitor.visit_enum(self.deserialize_string()?.into_deserializer())
+            }
             ElementType::EmbeddedDocument => {
                 self.deserialize_document(|access| visitor.visit_enum(access))
             }
@@ -243,22 +249,14 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
     }
 
-    forward_to_deserialize_any! {
-        bool char str bytes byte_buf unit unit_struct string
-            newtype_struct seq tuple tuple_struct struct map
-            ignored_any i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-    }
-
-    fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: serde::de::Visitor<'de>,
-    {
-        let s = self.bytes.read_cstr()?;
-        visitor.visit_borrowed_str(s)
-    }
-
     fn is_human_readable(&self) -> bool {
         false
+    }
+
+    forward_to_deserialize_any! {
+        bool char str bytes byte_buf unit unit_struct string
+        identifier newtype_struct seq tuple tuple_struct struct
+        map ignored_any i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
     }
 }
 
@@ -358,7 +356,7 @@ impl<'d, 'de> serde::de::SeqAccess<'de> for DocumentAccess<'d, 'de> {
         if self.read_next_tag()?.is_none() {
             return Ok(None);
         }
-        let _index = self.read(|s| s.root_deserializer.bytes.read_cstr())?;
+        let _index = self.read(|s| s.root_deserializer.deserialize_document_key())?;
         self.read_next_value(seed).map(Some)
     }
 }
@@ -428,7 +426,7 @@ impl<'d, 'de> serde::de::Deserializer<'de> for DocumentKeyDeserializer<'d, 'de> 
     where
         V: serde::de::Visitor<'de>,
     {
-        let s = &mut self.root_deserializer.bytes.read_cstr()?;
+        let s = self.root_deserializer.deserialize_document_key()?;
         visitor.visit_borrowed_str(s)
     }
 
