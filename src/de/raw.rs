@@ -114,6 +114,21 @@ impl<'de> Deserializer<'de> {
         }
         out
     }
+
+    /// Deserialize the next element type and update `current_type` accordingly.
+    /// Returns `None` if a null byte is read.
+    fn deserialize_next_type(&mut self) -> Result<Option<ElementType>> {
+        let tag = read_u8(&mut self.bytes)?;
+        if tag == 0 {
+            return Ok(None);
+        }
+
+        let element_type = ElementType::from(tag)
+            .ok_or_else(|| Error::custom(format!("invalid element type: {}", tag)))?;
+
+        self.current_type = element_type;
+        Ok(Some(element_type))
+    }
 }
 
 impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
@@ -277,24 +292,17 @@ impl<'d, 'de> DocumentAccess<'d, 'de> {
     /// Read the next element type and update the root deserializer with it.
     ///
     /// Returns `Ok(None)` if the document has been fully read and has no more elements.
-    fn read_next_tag(&mut self) -> Result<Option<ElementType>> {
-        let tag = read_u8(&mut self.root_deserializer.bytes)?;
-        *self.length_remaining -= 1;
-        if tag == 0 {
-            if *self.length_remaining != 0 {
-                return Err(Error::custom(format!(
-                    "got null byte but still have length {} remaining",
-                    self.length_remaining
-                )));
-            }
-            return Ok(None);
+    fn read_next_type(&mut self) -> Result<Option<ElementType>> {
+        let t = self.read(|s| s.root_deserializer.deserialize_next_type())?;
+
+        if t.is_none() && *self.length_remaining != 0 {
+            return Err(Error::custom(format!(
+                "got null byte but still have length {} remaining",
+                self.length_remaining
+            )));
         }
 
-        let tag = ElementType::from(tag)
-            .ok_or_else(|| Error::custom(format!("invalid element type: {}", tag)))?;
-
-        self.root_deserializer.current_type = tag;
-        Ok(Some(tag))
+        Ok(t)
     }
 
     /// Executes a closure that reads from the BSON bytes and returns an error if the number of
@@ -310,7 +318,7 @@ impl<'d, 'de> DocumentAccess<'d, 'de> {
         let bytes_read = self.root_deserializer.bytes.bytes_read() - start_bytes;
         *self.length_remaining -= bytes_read as i32;
 
-        if *self.length_remaining <= 0 {
+        if *self.length_remaining < 0 {
             return Err(Error::custom("length of document too short"));
         }
         out
@@ -332,7 +340,7 @@ impl<'d, 'de> serde::de::MapAccess<'de> for DocumentAccess<'d, 'de> {
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        if self.read_next_tag()?.is_none() {
+        if self.read_next_type()?.is_none() {
             return Ok(None);
         }
 
@@ -359,7 +367,7 @@ impl<'d, 'de> serde::de::SeqAccess<'de> for DocumentAccess<'d, 'de> {
     where
         S: serde::de::DeserializeSeed<'de>,
     {
-        if self.read_next_tag()?.is_none() {
+        if self.read_next_type()?.is_none() {
             return Ok(None);
         }
         let _index = self.read(|s| s.root_deserializer.deserialize_document_key())?;
@@ -375,7 +383,7 @@ impl<'d, 'de> EnumAccess<'de> for DocumentAccess<'d, 'de> {
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        if self.read_next_tag()?.is_none() {
+        if self.read_next_type()?.is_none() {
             return Err(Error::EndOfStream);
         }
 
