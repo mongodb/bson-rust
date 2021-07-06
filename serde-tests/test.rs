@@ -35,7 +35,7 @@ use bson::{
 ///     - deserializing from the serialized document produces `expected_value`
 ///   - round trip through raw BSON:
 ///     - deserializing a `T` from the raw BSON version of `expected_doc` produces `expected_value`
-///     - desierializing a `Document` from the raw BSON version of `expected_doc` produces
+///     - deserializing a `Document` from the raw BSON version of `expected_doc` produces
 ///       `expected_doc`
 fn run_test<T>(expected_value: &T, expected_doc: &Document, description: &str)
 where
