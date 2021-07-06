@@ -378,6 +378,24 @@ impl<'de> Visitor<'de> for BsonVisitor {
                 }
 
                 "$numberDecimal" => {
+                    #[cfg(not(feature = "decimal128"))]
+                    {
+                        return Err(Error::custom(format!(
+                            "enable the experimental decimal128 feature flag to deserialize \
+                             decimal128 from string"
+                        )));
+                    }
+
+                    #[cfg(feature = "decimal128")]
+                    {
+                        let s = visitor.next_value::<String>()?;
+                        return Ok(Bson::Decimal128(s.parse().map_err(|_| {
+                            Error::custom(format!("malformatted decimal128 string: {}", s))
+                        })?));
+                    }
+                }
+
+                "$numberDecimalBytes" => {
                     let bytes = visitor.next_value::<ByteBuf>()?;
                     let arr = bytes.into_vec().try_into().map_err(|v: Vec<u8>| {
                         Error::custom(format!(
@@ -385,13 +403,16 @@ impl<'de> Visitor<'de> for BsonVisitor {
                             v.len()
                         ))
                     })?;
-
                     #[cfg(not(feature = "decimal128"))]
-                    return Ok(Bson::Decimal128(Decimal128 { bytes: arr }));
+                    {
+                        return Ok(Bson::Decimal128(Decimal128 { bytes: arr }));
+                    }
 
                     #[cfg(feature = "decimal128")]
-                    unsafe {
-                        return Ok(Bson::Decimal128(Decimal128::from_raw_bytes_le(arr)));
+                    {
+                        unsafe {
+                            return Ok(Bson::Decimal128(Decimal128::from_raw_bytes_le(arr)));
+                        }
                     }
                 }
 
