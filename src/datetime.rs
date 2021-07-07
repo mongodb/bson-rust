@@ -3,7 +3,42 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use chrono::{LocalResult, TimeZone, Utc};
+#[cfg(not(feature = "chrono-0_4"))]
+use std::os::raw::{c_char, c_int, c_long};
+#[cfg(not(feature = "chrono-0_4"))]
+#[repr(C)]
+pub struct tm {
+    pub tm_sec: c_int,
+    pub tm_min: c_int,
+    pub tm_hour: c_int,
+    pub tm_mday: c_int,
+    pub tm_mon: c_int,
+    pub tm_year: c_int,
+    pub tm_wday: c_int,
+    pub tm_yday: c_int,
+    pub tm_isdst: c_int,
+    pub tm_gmtoff: c_long,
+    pub tm_zone: *const c_char,
+}
+#[cfg(not(feature = "chrono-0_4"))]
+#[allow(non_camel_case_types)]
+type time_t = i64;
+#[cfg(not(feature = "chrono-0_4"))]
+extern "C" {
+    fn strftime(
+        buf: *mut c_char,
+        buf_len: usize,
+        time_format: *const c_char,
+        tm: *const tm,
+    ) -> usize;
+    fn strptime(
+        s: *const std::os::raw::c_char,
+        format: *const std::os::raw::c_char,
+        tm: *mut tm,
+    ) -> *const std::os::raw::c_char;
+    fn mktime(tm: *const tm) -> time_t;
+    fn gmtime_r(timep: *const time_t, tm: *mut tm) -> *const tm;
+}
 
 /// Struct representing a BSON datetime.
 /// Note: BSON datetimes have millisecond precision.
@@ -74,8 +109,32 @@ impl crate::DateTime {
     }
 
     #[cfg(not(feature = "chrono-0_4"))]
-    pub(crate) fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
-        Self::from_millis(dt.timestamp_millis())
+    pub fn parse_rfc3339(s: &str) -> Result<Self, ()> {
+        // add nul byte, or use std::ffi::Cstr
+        let s = format!("{}\0", s);
+        // len exclude nul byte
+        let timestamp = unsafe {
+            let mut tm = std::mem::zeroed();
+            let ret = strptime(
+                s.as_ptr().cast(),
+                "%Y-%m-%dT%H:%M:%S%z\0".as_ptr().cast(),
+                &mut tm,
+            );
+            let parse_len = ret.offset_from(s.as_ptr().cast());
+            if parse_len != (s.len() - 1) as isize {
+                return Err(());
+            }
+            mktime(&tm)
+        };
+        Ok(Self(timestamp * 1000))
+    }
+
+    #[cfg(feature = "chrono-0_4")]
+    pub fn parse_rfc3339(s: &str) -> Result<Self, ()> {
+        match chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(&s) {
+            Ok(val) => Ok(val),
+            Err(_) => Err(()),
+        }
     }
 
     /// Convert the given `chrono::DateTime` into a `bson::DateTime`, truncating it to millisecond
@@ -85,9 +144,16 @@ impl crate::DateTime {
         Self::from_millis(dt.timestamp_millis())
     }
 
+    #[cfg(test)]
+    pub fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
+        Self::from_millis(dt.timestamp_millis())
+    }
+
+    #[cfg(feature = "chrono-0_4")]
     fn to_chrono_private(self) -> chrono::DateTime<Utc> {
-        match Utc.timestamp_millis_opt(self.0) {
-            LocalResult::Single(dt) => dt,
+        use chrono::TimeZone;
+        match chrono::Utc.timestamp_millis_opt(self.0) {
+            chrono::LocalResult::Single(dt) => dt,
             _ => {
                 if self.0 < 0 {
                     chrono::MIN_DATETIME
@@ -98,10 +164,19 @@ impl crate::DateTime {
         }
     }
 
-    #[cfg(not(feature = "chrono-0_4"))]
-    #[allow(unused)]
-    pub(crate) fn to_chrono(self) -> chrono::DateTime<Utc> {
-        self.to_chrono_private()
+    #[cfg(test)]
+    fn to_chrono_private(self) -> chrono::DateTime<chrono::Utc> {
+        use chrono::TimeZone;
+        match chrono::Utc.timestamp_millis_opt(self.0) {
+            chrono::LocalResult::Single(dt) => dt,
+            _ => {
+                if self.0 < 0 {
+                    chrono::MIN_DATETIME
+                } else {
+                    chrono::MAX_DATETIME
+                }
+            }
+        }
     }
 
     /// Convert this [`DateTime`] to a [`chrono::DateTime<Utc>`].
@@ -120,6 +195,11 @@ impl crate::DateTime {
     /// ```
     #[cfg(feature = "chrono-0_4")]
     pub fn to_chrono(self) -> chrono::DateTime<Utc> {
+        self.to_chrono_private()
+    }
+
+    #[cfg(test)]
+    pub fn to_chrono(self) -> chrono::DateTime<chrono::Utc> {
         self.to_chrono_private()
     }
 
@@ -165,29 +245,83 @@ impl crate::DateTime {
         self.0
     }
 
+    #[cfg(feature = "chrono-0_4")]
     pub(crate) fn to_rfc3339(self) -> String {
         self.to_chrono()
             .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
     }
+
+    #[cfg(not(feature = "chrono-0_4"))]
+    pub(crate) fn to_rfc3339(self) -> String {
+        const BUFFER_LEN: usize = "1970-01-01T00:00:00+0000\0".len();
+        let tm = self.tm_struct();
+        let mut buffer = [0_u8; BUFFER_LEN];
+        let len = unsafe {
+            strftime(
+                buffer.as_mut_ptr().cast(),
+                BUFFER_LEN,
+                "%Y-%m-%dT%H:%M:%S%z\0".as_ptr().cast(),
+                &tm,
+            )
+        };
+        assert_eq!(len, BUFFER_LEN - 1);
+        let res = unsafe { String::from_utf8_unchecked(buffer[..BUFFER_LEN - 1].to_vec()) };
+        dbg!(&res);
+        res
+    }
+
+    #[cfg(feature = "chrono-0_4")]
+    pub(crate) fn year(self) -> i32 {
+        self.to_chrono().year()
+    }
+
+    #[cfg(not(feature = "chrono-0_4"))]
+    pub(crate) fn year(self) -> i32 {
+        self.tm_struct().tm_year
+    }
+
+    #[cfg(not(feature = "chrono-0_4"))]
+    pub(crate) fn tm_struct(self) -> tm {
+        let timestamp = self.0 / 1000;
+        let mut tm = unsafe { std::mem::zeroed() };
+        unsafe { gmtime_r(&timestamp, &mut tm) };
+        tm
+    }
 }
 
+#[cfg(feature = "chrono-0_4")]
 impl fmt::Debug for crate::DateTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut tup = f.debug_tuple("DateTime");
-        match Utc.timestamp_millis_opt(self.0) {
-            LocalResult::Single(ref dt) => tup.field(dt),
+        match chrono::Utc.timestamp_millis_opt(self.0) {
+            chrono::LocalResult::Single(ref dt) => tup.field(dt),
             _ => tup.field(&self.0),
         };
         tup.finish()
     }
 }
 
+#[cfg(feature = "chrono-0_4")]
 impl Display for crate::DateTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match Utc.timestamp_millis_opt(self.0) {
-            LocalResult::Single(ref dt) => Display::fmt(dt, f),
+        match chrono::Utc.timestamp_millis_opt(self.0) {
+            chrono::LocalResult::Single(ref dt) => Display::fmt(dt, f),
             _ => Display::fmt(&self.0, f),
         }
+    }
+}
+
+#[cfg(not(feature = "chrono-0_4"))]
+impl fmt::Debug for crate::DateTime {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.to_rfc3339(), f)
+    }
+}
+
+#[cfg(not(feature = "chrono-0_4"))]
+impl Display for crate::DateTime {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.to_rfc3339(), f)
     }
 }
 

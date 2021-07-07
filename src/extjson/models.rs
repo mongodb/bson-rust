@@ -1,6 +1,5 @@
 //! A module defining serde models for the extended JSON representations of the various BSON types.
 
-use chrono::Utc;
 use serde::{
     de::{Error, Unexpected},
     Deserialize,
@@ -244,16 +243,13 @@ impl DateTime {
                 Ok(crate::DateTime::from_millis(date))
             }
             DateTimeBody::Relaxed(date) => {
-                let datetime: chrono::DateTime<Utc> =
-                    chrono::DateTime::parse_from_rfc3339(date.as_str())
-                        .map_err(|_| {
-                            extjson::de::Error::invalid_value(
-                                Unexpected::Str(date.as_str()),
-                                &"rfc3339 formatted utc datetime",
-                            )
-                        })?
-                        .into();
-                Ok(crate::DateTime::from_chrono(datetime))
+                let datetime = crate::DateTime::parse_rfc3339(&date).map_err(|_| {
+                    extjson::de::Error::invalid_value(
+                        Unexpected::Str(date.as_str()),
+                        &"rfc3339 formatted utc datetime",
+                    )
+                })?;
+                Ok(datetime)
             }
         }
     }

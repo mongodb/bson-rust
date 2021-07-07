@@ -242,11 +242,10 @@ pub mod rfc3339_string_as_bson_datetime {
 
     /// Serializes an ISO string as a DateTime.
     pub fn serialize<S: Serializer>(val: &str, serializer: S) -> Result<S::Ok, S::Error> {
-        let date =
-            chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(val).map_err(|_| {
-                ser::Error::custom(format!("cannot convert {} to chrono::DateTime", val))
-            })?;
-        Bson::DateTime(crate::DateTime::from_chrono(date)).serialize(serializer)
+        let datetime = DateTime::parse_rfc3339(val).map_err(|_| {
+            ser::Error::custom(format!("cannot convert {} to chrono::DateTime", val))
+        })?;
+        Bson::DateTime(datetime).serialize(serializer)
     }
 }
 
@@ -273,11 +272,10 @@ pub mod bson_datetime_as_rfc3339_string {
         D: Deserializer<'de>,
     {
         let iso = String::deserialize(deserializer)?;
-        let date =
-            chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(&iso).map_err(|_| {
-                de::Error::custom(format!("cannot parse RFC 3339 datetime from \"{}\"", iso))
-            })?;
-        Ok(DateTime::from_chrono(date))
+        let datetime = DateTime::parse_rfc3339(&iso).map_err(|_| {
+            de::Error::custom(format!("cannot parse RFC 3339 datetime from \"{}\"", iso))
+        })?;
+        Ok(datetime)
     }
 
     /// Serializes a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted string.
