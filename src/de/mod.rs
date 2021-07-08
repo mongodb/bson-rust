@@ -405,12 +405,7 @@ where
     from_bson(Bson::Document(doc))
 }
 
-/// Decode BSON bytes from the provided reader into a `T` Deserializable.
-pub fn from_reader<R, T>(mut reader: R) -> Result<T>
-where
-    T: DeserializeOwned,
-    R: Read,
-{
+fn reader_to_vec<R: Read>(mut reader: R) -> Result<Vec<u8>> {
     let length = read_i32(&mut reader)?;
 
     if length < MIN_BSON_DOCUMENT_SIZE {
@@ -421,16 +416,53 @@ where
     write_i32(&mut bytes, length).map_err(Error::custom)?;
 
     reader.take(length as u64 - 4).read_to_end(&mut bytes)?;
-
-    let mut deserializer = raw::Deserializer::new(bytes.as_slice());
-    T::deserialize(&mut deserializer)
+    Ok(bytes)
 }
 
-/// Decode BSON bytes from the provided reader into a `T` Deserializable.
+/// Deserialize an instance of type `T` from an I/O stream of BSON.
+pub fn from_reader<R, T>(reader: R) -> Result<T>
+where
+    T: DeserializeOwned,
+    R: Read,
+{
+    let bytes = reader_to_vec(reader)?;
+    from_slice(bytes.as_slice())
+}
+
+/// Deserialize an instance of type `T` from an I/O stream of BSON, replacing any invalid UTF-8
+/// sequences with the Unicode replacement character.
+///
+/// This is mainly useful when reading raw BSON returned from a MongoDB server, which
+/// in rare cases can contain invalidly truncated strings (https://jira.mongodb.org/browse/SERVER-24007).
+/// For most use cases, `bson::from_slice` can be used instead.
+pub fn from_reader_utf8_lossy<R, T>(reader: R) -> Result<T>
+where
+    T: DeserializeOwned,
+    R: Read,
+{
+    let bytes = reader_to_vec(reader)?;
+    from_slice_utf8_lossy(bytes.as_slice())
+}
+
+/// Deserialize an instance of type `T` from a slice of BSON bytes.
 pub fn from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    let mut deserializer = raw::Deserializer::new(bytes);
+    let mut deserializer = raw::Deserializer::new(bytes, false);
+    T::deserialize(&mut deserializer)
+}
+
+/// Deserialize an instance of type `T` from a slice of BSON bytes, replacing any invalid UTF-8
+/// sequences with the Unicode replacement character.
+///
+/// This is mainly useful when reading raw BSON returned from a MongoDB server, which
+/// in rare cases can contain invalidly truncated strings (https://jira.mongodb.org/browse/SERVER-24007).
+/// For most use cases, `bson::from_slice` can be used instead.
+pub fn from_slice_utf8_lossy<'de, T>(bytes: &'de [u8]) -> Result<T>
+where
+    T: Deserialize<'de>,
+{
+    let mut deserializer = raw::Deserializer::new(bytes, true);
     T::deserialize(&mut deserializer)
 }

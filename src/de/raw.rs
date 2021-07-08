@@ -50,9 +50,9 @@ pub(crate) struct Deserializer<'de> {
 }
 
 impl<'de> Deserializer<'de> {
-    pub(crate) fn new(buf: &'de [u8]) -> Self {
+    pub(crate) fn new(buf: &'de [u8], utf8_lossy: bool) -> Self {
         Self {
-            bytes: BsonBuf::new(buf),
+            bytes: BsonBuf::new(buf, utf8_lossy),
             current_type: ElementType::EmbeddedDocument,
         }
     }
@@ -87,13 +87,14 @@ impl<'de> Deserializer<'de> {
     }
 
     /// Read a string from the BSON.
-    /// This will be an owned string if invalid UTF-8 is encountered in the string, otherwise it
-    /// will be borrowed.
+    ///
+    /// If utf8_lossy, this will be an owned string if invalid UTF-8 is encountered in the string,
+    /// otherwise it will be borrowed.
     fn deserialize_str(&mut self) -> Result<Cow<'de, str>> {
         self.bytes.read_str()
     }
 
-    fn deserialize_document_key(&mut self) -> Result<&'de str> {
+    fn deserialize_document_key(&mut self) -> Result<Cow<'de, str>> {
         self.bytes.read_cstr()
     }
 
@@ -441,7 +442,10 @@ impl<'d, 'de> serde::de::Deserializer<'de> for DocumentKeyDeserializer<'d, 'de> 
         V: serde::de::Visitor<'de>,
     {
         let s = self.root_deserializer.deserialize_document_key()?;
-        visitor.visit_borrowed_str(s)
+        match s {
+            Cow::Borrowed(b) => visitor.visit_borrowed_str(b),
+            Cow::Owned(string) => visitor.visit_string(string),
+        }
     }
 
     forward_to_deserialize_any! {
@@ -870,6 +874,10 @@ enum BinaryDeserializationStage {
 struct BsonBuf<'a> {
     bytes: &'a [u8],
     index: usize,
+
+    /// Whether or not to insert replacement characters in place of invalid UTF-8 sequences when
+    /// deserializing strings.
+    utf8_lossy: bool,
 }
 
 impl<'a> Read for BsonBuf<'a> {
@@ -882,8 +890,12 @@ impl<'a> Read for BsonBuf<'a> {
 }
 
 impl<'a> BsonBuf<'a> {
-    fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes, index: 0 }
+    fn new(bytes: &'a [u8], utf8_lossy: bool) -> Self {
+        Self {
+            bytes,
+            index: 0,
+            utf8_lossy,
+        }
     }
 
     fn bytes_read(&self) -> usize {
@@ -898,7 +910,31 @@ impl<'a> BsonBuf<'a> {
         Ok(())
     }
 
-    fn read_cstr(&mut self) -> Result<&'a str> {
+    /// Get the starting at the provided index and ending at the buffer's current index.
+    fn str(&mut self, start: usize) -> Result<Cow<'a, str>> {
+        let bytes = &self.bytes[start..self.index];
+        let s = if self.utf8_lossy {
+            String::from_utf8_lossy(bytes)
+        } else {
+            Cow::Borrowed(std::str::from_utf8(bytes).map_err(Error::custom)?)
+        };
+
+        // consume the null byte
+        if self.bytes[self.index] != 0 {
+            return Err(Error::custom("string was not null-terminated"));
+        }
+        self.index += 1;
+        self.index_check()?;
+
+        Ok(s)
+    }
+
+    /// Attempts to read a null-terminated UTF-8 cstring from the data.
+    ///
+    /// If utf8_lossy and invalid UTF-8 is encountered, the unicode replacement character will be
+    /// inserted in place of the offending data, resulting in an owned `String`. Otherwise, the
+    /// data will be borrowed as-is.
+    fn read_cstr(&mut self) -> Result<Cow<'a, str>> {
         let start = self.index;
         while self.index < self.bytes.len() && self.bytes[self.index] != 0 {
             self.index += 1
@@ -906,12 +942,7 @@ impl<'a> BsonBuf<'a> {
 
         self.index_check()?;
 
-        let s = std::str::from_utf8(&self.bytes[start..self.index]).map_err(Error::custom);
-        // consume the null byte
-        self.index += 1;
-        self.index_check()?;
-
-        s
+        self.str(start)
     }
 
     /// Attempts to read a null-terminated UTF-8 string from the data.
@@ -934,16 +965,7 @@ impl<'a> BsonBuf<'a> {
         self.index += (len - 1) as usize;
         self.index_check()?;
 
-        let s = String::from_utf8_lossy(&self.bytes[start..self.index]);
-
-        // consume the null byte
-        if self.bytes[self.index] != 0 {
-            return Err(Error::custom("string was not null-terminated"));
-        }
-        self.index += 1;
-        self.index_check()?;
-
-        Ok(s)
+        self.str(start)
     }
 
     fn read_slice(&mut self, length: usize) -> Result<&'a [u8]> {

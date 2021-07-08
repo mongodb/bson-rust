@@ -163,24 +163,6 @@ fn run_test(test: TestFile) {
             }
         }
 
-        for decode_error in test.decode_errors.iter() {
-            // No meaningful definition of "byte count" for an arbitrary reader.
-            if decode_error.description
-                == "Stated length less than byte count, with garbage after envelope"
-            {
-                continue;
-            }
-
-            let bson = hex::decode(&decode_error.bson).expect("should decode from hex");
-            Document::from_reader(bson.as_slice()).expect_err(decode_error.description.as_str());
-
-            // the from_reader implementation supports deserializing from lossy UTF-8
-            if !decode_error.description.contains("invalid UTF-8") {
-                crate::from_reader::<_, Document>(bson.as_slice())
-                    .expect_err(decode_error.description.as_str());
-            }
-        }
-
         // TODO RUST-36: Enable decimal128 tests.
         // extJSON not implemented for decimal128 without the feature flag, so we must stop here.
         if test.bson_type == "0x13" && !cfg!(feature = "decimal128") {
@@ -330,6 +312,32 @@ fn run_test(test: TestFile) {
                 "{}",
                 description,
             );
+        }
+    }
+
+    for decode_error in test.decode_errors.iter() {
+        // No meaningful definition of "byte count" for an arbitrary reader.
+        if decode_error.description
+            == "Stated length less than byte count, with garbage after envelope"
+        {
+            continue;
+        }
+
+        let description = format!(
+            "{} decode error: {}",
+            test.bson_type, decode_error.description
+        );
+        let bson = hex::decode(&decode_error.bson).expect("should decode from hex");
+        Document::from_reader(bson.as_slice()).expect_err(&description);
+        crate::from_reader::<_, Document>(bson.as_slice()).expect_err(description.as_str());
+
+        if decode_error.description.contains("invalid UTF-8") {
+            let d = crate::from_reader_utf8_lossy::<_, Document>(bson.as_slice())
+                .unwrap_or_else(|_| panic!("{}: utf8_lossy should not fail", description));
+            if let Some(ref key) = test.test_key {
+                d.get_str(key)
+                    .unwrap_or_else(|_| panic!("{}: value should be a string", description));
+            }
         }
     }
 
