@@ -620,7 +620,7 @@ fn unused_fields_deny() {
         "a": 1,
         "b": 2,
     };
-    bson::from_document::<Foo>(doc.clone()).expect_err("extra filds should cause failure");
+    bson::from_document::<Foo>(doc.clone()).expect_err("extra fields should cause failure");
 
     let mut bytes = Vec::new();
     doc.to_writer(&mut bytes).unwrap();
