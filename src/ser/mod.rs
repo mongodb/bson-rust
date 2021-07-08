@@ -29,7 +29,7 @@ pub use self::{
     serde::Serializer,
 };
 
-use std::{io::Write, mem};
+use std::{io::Write, iter::FromIterator, mem};
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
@@ -119,7 +119,11 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
             ref options,
         }) => {
             write_cstring(writer, pattern)?;
-            write_cstring(writer, options)
+
+            let mut chars: Vec<char> = options.chars().collect();
+            chars.sort_unstable();
+
+            write_cstring(writer, String::from_iter(chars).as_str())
         }
         Bson::JavaScriptCode(ref code) => write_string(writer, code),
         Bson::ObjectId(ref id) => writer.write_all(&id.bytes()).map_err(From::from),

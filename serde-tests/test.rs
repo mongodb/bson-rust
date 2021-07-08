@@ -1,76 +1,106 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::vec_init_then_push)]
 
-use serde::{self, de::Unexpected, Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet};
+use pretty_assertions::assert_eq;
+use serde::{
+    self,
+    de::{DeserializeOwned, Unexpected},
+    Deserialize,
+    Serialize,
+};
 
-use bson::{Bson, Deserializer, Serializer};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, HashSet},
+};
 
-macro_rules! bson {
-    ([]) => {{ bson::Bson::Array(Vec::new()) }};
+use bson::{
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    Binary,
+    Bson,
+    DateTime,
+    Decimal128,
+    Deserializer,
+    Document,
+    JavaScriptCodeWithScope,
+    Regex,
+    Timestamp,
+};
 
-    ([$($val:tt),*]) => {{
-        let mut array = Vec::new();
+/// Verifies the following:
+///   - round trip `expected_value` through `Document`:
+///     - serializing the `expected_value` to a `Document` matches the `expected_doc`
+///     - deserializing from the serialized document produces `expected_value`
+///   - round trip through raw BSON:
+///     - deserializing a `T` from the raw BSON version of `expected_doc` produces `expected_value`
+///     - deserializing a `Document` from the raw BSON version of `expected_doc` produces
+///       `expected_doc`
+fn run_test<T>(expected_value: &T, expected_doc: &Document, description: &str)
+where
+    T: Serialize + DeserializeOwned + PartialEq + std::fmt::Debug,
+{
+    let mut expected_bytes = Vec::new();
+    expected_doc
+        .to_writer(&mut expected_bytes)
+        .expect(description);
 
-        $(
-            array.push(bson!($val));
-        )*
+    let serialized_doc = bson::to_document(&expected_value).expect(description);
+    assert_eq!(&serialized_doc, expected_doc, "{}", description);
+    assert_eq!(
+        expected_value,
+        &bson::from_document::<T>(serialized_doc).expect(description),
+        "{}",
+        description
+    );
 
-        bson::Bson::Array(array)
-    }};
-
-    ([$val:expr]) => {{
-        bson::Bson::Array(vec!(::std::convert::From::from($val)))
-    }};
-
-    ({ $($k:expr => $v:tt),* }) => {{
-        bdoc! {
-            $(
-                $k => $v
-            ),*
-        }
-    }};
-
-    ($val:expr) => {{
-        ::std::convert::From::from($val)
-    }};
+    assert_eq!(
+        &bson::from_reader::<_, T>(expected_bytes.as_slice()).expect(description),
+        expected_value,
+        "{}",
+        description
+    );
+    assert_eq!(
+        &bson::from_reader::<_, Document>(expected_bytes.as_slice()).expect(description),
+        expected_doc,
+        "{}",
+        description
+    );
 }
 
-macro_rules! bdoc {
-    () => {{ Bson::Document(bson::Document::new()) }};
+/// Verifies the following:
+/// - deserializing a `T` from `expected_doc` produces `expected_value`
+/// - deserializing a `T` from the raw BSON version of `expected_doc` produces `expected_value`
+/// - deserializing a `Document` from the raw BSON version of `expected_doc` produces `expected_doc`
+fn run_deserialize_test<T>(expected_value: &T, expected_doc: &Document, description: &str)
+where
+    T: DeserializeOwned + PartialEq + std::fmt::Debug,
+{
+    let mut expected_bytes = Vec::new();
+    expected_doc
+        .to_writer(&mut expected_bytes)
+        .expect(description);
 
-    ( $($key:expr => $val:tt),* ) => {{
-        let mut document = bson::Document::new();
-
-        $(
-            document.insert::<_, Bson>($key.to_owned(), bson!($val));
-        )*
-
-        Bson::Document(document)
-    }};
+    assert_eq!(
+        &bson::from_document::<T>(expected_doc.clone()).expect(description),
+        expected_value,
+        "{}",
+        description
+    );
+    assert_eq!(
+        &bson::from_reader::<_, T>(expected_bytes.as_slice()).expect(description),
+        expected_value,
+        "{}",
+        description
+    );
+    assert_eq!(
+        &bson::from_reader::<_, Document>(expected_bytes.as_slice()).expect(description),
+        expected_doc,
+        "{}",
+        description
+    );
 }
-
-macro_rules! t {
-    ($e:expr) => {
-        match $e {
-            Ok(t) => t,
-            Err(e) => panic!("Failed with {:?}", e),
-        }
-    };
-}
-
-macro_rules! serialize( ($t:expr) => ({
-    let e = Serializer::new();
-    match $t.serialize(e) {
-        Ok(b) => b,
-        Err(e) => panic!("Failed to serialize: {}", e),
-    }
-}) );
-
-macro_rules! deserialize( ($t:expr) => ({
-    let d = Deserializer::new($t);
-    t!(Deserialize::deserialize(d))
-}) );
 
 #[test]
 fn smoke() {
@@ -80,8 +110,9 @@ fn smoke() {
     }
 
     let v = Foo { a: 2 };
-    assert_eq!(serialize!(v), bdoc! {"a" => (2_i64)});
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let expected = doc! { "a": 2_i64 };
+
+    run_test(&v, &expected, "smoke");
 }
 
 #[test]
@@ -92,12 +123,12 @@ fn smoke_under() {
     }
 
     let v = Foo { a_b: 2 };
-    assert_eq!(serialize!(v), bdoc! { "a_b" => (2_i64) });
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! { "a_b": 2_i64 };
+    run_test(&v, &doc, "smoke under");
 
     let mut m = BTreeMap::new();
     m.insert("a_b".to_string(), 2_i64);
-    assert_eq!(v, deserialize!(serialize!(m)));
+    run_test(&m, &doc, "smoke under BTreeMap");
 }
 
 #[test]
@@ -118,16 +149,13 @@ fn nested() {
             a: "test".to_string(),
         },
     };
-    assert_eq!(
-        serialize!(v),
-        bdoc! {
-            "a" => (2_i64),
-            "b" => {
-                "a" => "test"
-            }
+    let doc = doc! {
+        "a": 2_i64,
+        "b": {
+            "a": "test"
         }
-    );
-    assert_eq!(v, deserialize!(serialize!(v)));
+    };
+    run_test(&v, &doc, "nested");
 }
 
 #[test]
@@ -151,12 +179,13 @@ fn application_deserialize_error() {
     let d_bad1 = Deserializer::new(Bson::String("not an isize".to_string()));
     let d_bad2 = Deserializer::new(Bson::Int64(11));
 
-    assert_eq!(Range10(5), t!(Deserialize::deserialize(d_good)));
+    assert_eq!(
+        Range10(5),
+        Deserialize::deserialize(d_good).expect("deserialization should succeed")
+    );
 
-    let err1: Result<Range10, _> = Deserialize::deserialize(d_bad1);
-    assert!(err1.is_err());
-    let err2: Result<Range10, _> = Deserialize::deserialize(d_bad2);
-    assert!(err2.is_err());
+    Range10::deserialize(d_bad1).expect_err("deserialization from string should fail");
+    Range10::deserialize(d_bad2).expect_err("deserialization from 11 should fail");
 }
 
 #[test]
@@ -169,13 +198,10 @@ fn array() {
     let v = Foo {
         a: vec![1, 2, 3, 4],
     };
-    assert_eq!(
-        serialize!(v),
-        bdoc! {
-            "a" => [1, 2, 3, 4]
-        }
-    );
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! {
+        "a": [1, 2, 3, 4],
+    };
+    run_test(&v, &doc, "array");
 }
 
 #[test]
@@ -186,13 +212,10 @@ fn tuple() {
     }
 
     let v = Foo { a: (1, 2, 3, 4) };
-    assert_eq!(
-        serialize!(v),
-        bdoc! {
-            "a" => [1, 2, 3, 4]
-        }
-    );
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! {
+        "a": [1, 2, 3, 4],
+    };
+    run_test(&v, &doc, "tuple");
 }
 
 #[test]
@@ -221,23 +244,20 @@ fn inner_structs_with_options() {
             b: 1.0,
         },
     };
-    assert_eq!(
-        serialize!(v),
-        bdoc! {
-            "a" => {
-                "a" => (Bson::Null),
-                "b" => {
-                    "a" => "foo",
-                    "b" => (4.5)
-                }
-            },
-            "b" => {
-                "a" => "bar",
-                "b" => (1.0)
+    let doc = doc! {
+        "a": {
+            "a": Bson::Null,
+            "b": {
+                "a": "foo",
+                "b": 4.5,
             }
+        },
+        "b": {
+            "a": "bar",
+            "b": 1.0,
         }
-    );
-    assert_eq!(v, deserialize!(serialize!(v)));
+    };
+    run_test(&v, &doc, "inner_structs_with_options");
 }
 
 #[test]
@@ -267,22 +287,19 @@ fn inner_structs_with_skippable_options() {
             b: 1.0,
         },
     };
-    assert_eq!(
-        serialize!(v),
-        bdoc! {
-            "a" => {
-            "b" => {
-                    "a" => "foo",
-                    "b" => (4.5)
-                }
-            },
-            "b" => {
-                "a" => "bar",
-                "b" => (1.0)
+    let doc = doc! {
+        "a" : {
+            "b": {
+                "a": "foo",
+                "b": 4.5
             }
+        },
+        "b": {
+            "a": "bar",
+            "b": 1.0
         }
-    );
-    assert_eq!(v, deserialize!(serialize!(v)));
+    };
+    run_test(&v, &doc, "inner_structs_with_skippable_options");
 }
 
 #[test]
@@ -306,17 +323,14 @@ fn hashmap() {
             s
         },
     };
-    assert_eq!(
-        serialize!(v),
-        bdoc! {
-            "map" => {
-                "bar" => 4,
-                "foo" => 10
-            },
-            "set" => ["a"]
-        }
-    );
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! {
+        "map": {
+            "bar": 4,
+            "foo": 10
+        },
+        "set": ["a"]
+    };
+    run_test(&v, &doc, "hashmap");
 }
 
 #[test]
@@ -331,13 +345,10 @@ fn tuple_struct() {
     let v = Bar {
         whee: Foo(1, "foo".to_string(), 4.5),
     };
-    assert_eq!(
-        serialize!(v),
-        bdoc! {
-            "whee" => [1, "foo", (4.5)]
-        }
-    );
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! {
+        "whee": [1, "foo", 4.5],
+    };
+    run_test(&v, &doc, "tuple_struct");
 }
 
 #[test]
@@ -354,13 +365,10 @@ fn table_array() {
     let v = Foo {
         a: vec![Bar { a: 1 }, Bar { a: 2 }],
     };
-    assert_eq!(
-        serialize!(v),
-        bdoc! {
-            "a" => [{"a" => 1}, {"a" => 2}]
-        }
-    );
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! {
+        "a": [{ "a": 1 }, { "a": 2 }]
+    };
+    run_test(&v, &doc, "table_array");
 }
 
 #[test]
@@ -370,11 +378,18 @@ fn type_conversion() {
         bar: i32,
     }
 
-    let d = Deserializer::new(bdoc! {
-        "bar" => 1
-    });
-    let a: Result<Foo, bson::de::Error> = Deserialize::deserialize(d);
-    assert_eq!(a.unwrap(), Foo { bar: 1 });
+    let v = Foo { bar: 1 };
+    let doc = doc! {
+        "bar": 1_i64
+    };
+    let deserialized: Foo = bson::from_document(doc.clone()).unwrap();
+    assert_eq!(deserialized, v);
+
+    let mut bytes = Vec::new();
+    doc.to_writer(&mut bytes).unwrap();
+
+    let bson_deserialized: Foo = bson::from_reader(bytes.as_slice()).unwrap();
+    assert_eq!(bson_deserialized, v);
 }
 
 #[test]
@@ -384,10 +399,14 @@ fn missing_errors() {
         bar: i32,
     }
 
-    let d = Deserializer::new(bdoc! {});
-    let a: Result<Foo, bson::de::Error> = Deserialize::deserialize(d);
+    let doc = doc! {};
 
-    assert!(a.is_err());
+    bson::from_document::<Foo>(doc.clone()).unwrap_err();
+
+    let mut bytes = Vec::new();
+    doc.to_writer(&mut bytes).unwrap();
+
+    bson::from_reader::<_, Foo>(bytes.as_slice()).unwrap_err();
 }
 
 #[test]
@@ -413,51 +432,54 @@ fn parse_enum() {
     }
 
     let v = Foo { a: E::Empty };
-    assert_eq!(serialize!(v), bdoc! { "a" => "Empty" });
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! { "a": "Empty" };
+    run_test(&v, &doc, "parse_enum: Empty");
 
     let v = Foo { a: E::Bar(10) };
-    assert_eq!(serialize!(v), bdoc! { "a" => { "Bar" => 10 } });
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! { "a": { "Bar": 10 } };
+    run_test(&v, &doc, "parse_enum: newtype variant int");
 
     let v = Foo { a: E::Baz(10.2) };
-    assert_eq!(serialize!(v), bdoc! { "a" => { "Baz" => 10.2 } });
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! { "a": { "Baz": 10.2 } };
+    run_test(&v, &doc, "parse_enum: newtype variant double");
 
     let v = Foo { a: E::Pair(12, 42) };
-    assert_eq!(serialize!(v), bdoc! { "a" => { "Pair" => [ 12, 42] } });
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! { "a": { "Pair": [12, 42] } };
+    run_test(&v, &doc, "parse_enum: tuple variant");
 
     let v = Foo {
         a: E::Last(Foo2 {
             test: "test".to_string(),
         }),
     };
-    assert_eq!(
-        serialize!(v),
-        bdoc! { "a" => { "Last" => { "test" => "test" } } }
-    );
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! {
+        "a": { "Last": { "test": "test" } }
+    };
+    run_test(&v, &doc, "parse_enum: newtype variant struct");
 
     let v = Foo {
         a: E::Vector(vec![12, 42]),
     };
-    assert_eq!(serialize!(v), bdoc! { "a" => { "Vector" => [ 12, 42 ] } });
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! {
+        "a": { "Vector": [12, 42] }
+    };
+    run_test(&v, &doc, "parse_enum: newtype variant vector");
 
     let v = Foo {
         a: E::Named { a: 12 },
     };
-    assert_eq!(serialize!(v), bdoc! { "a" => { "Named" => { "a" => 12 } } });
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! {
+        "a": { "Named": { "a": 12 } }
+    };
+    run_test(&v, &doc, "parse_enum: struct variant");
+
     let v = Foo {
         a: E::MultiNamed { a: 12, b: 42 },
     };
-    assert_eq!(
-        serialize!(v),
-        bdoc! { "a" => { "MultiNamed" => { "a" => 12, "b" => 42 } } }
-    );
-    assert_eq!(v, deserialize!(serialize!(v)));
+    let doc = doc! {
+        "a": { "MultiNamed": { "a": 12, "b": 42 } }
+    };
+    run_test(&v, &doc, "parse_enum: struct variant multiple fields");
 }
 
 #[test]
@@ -468,12 +490,12 @@ fn unused_fields() {
     }
 
     let v = Foo { a: 2 };
-    let d = Deserializer::new(bdoc! {
-        "a" => 2,
-        "b" => 5
-    });
+    let doc = doc! {
+        "a": 2,
+        "b": 5,
+    };
 
-    assert_eq!(v, t!(Deserialize::deserialize(d)));
+    run_deserialize_test(&v, &doc, "unused_fields");
 }
 
 #[test]
@@ -488,14 +510,14 @@ fn unused_fields2() {
     }
 
     let v = Foo { a: Bar { a: 2 } };
-    let d = Deserializer::new(bdoc! {
-        "a" => {
-            "a" => 2,
-            "b" => 5
+    let doc = doc! {
+        "a": {
+            "a": 2,
+            "b": 5
         }
-    });
+    };
 
-    assert_eq!(v, t!(Deserialize::deserialize(d)));
+    run_deserialize_test(&v, &doc, "unused_fields2");
 }
 
 #[test]
@@ -510,12 +532,12 @@ fn unused_fields3() {
     }
 
     let v = Foo { a: Bar { a: 2 } };
-    let d = Deserializer::new(bdoc! {
-        "a" => {
-            "a" => 2
+    let doc = doc! {
+        "a": {
+            "a": 2
         }
-    });
-    assert_eq!(v, t!(Deserialize::deserialize(d)));
+    };
+    run_deserialize_test(&v, &doc, "unused_fields3");
 }
 
 #[test]
@@ -528,12 +550,12 @@ fn unused_fields4() {
     let mut map = BTreeMap::new();
     map.insert("a".to_owned(), "foo".to_owned());
     let v = Foo { a: map };
-    let d = Deserializer::new(bdoc! {
-        "a" => {
-            "a" => "foo"
+    let doc = doc! {
+        "a": {
+            "a": "foo"
         }
-    });
-    assert_eq!(v, t!(Deserialize::deserialize(d)));
+    };
+    run_deserialize_test(&v, &doc, "unused_fields4");
 }
 
 #[test]
@@ -546,10 +568,10 @@ fn unused_fields5() {
     let v = Foo {
         a: vec!["a".to_string()],
     };
-    let d = Deserializer::new(bdoc! {
-        "a" => ["a"]
-    });
-    assert_eq!(v, t!(Deserialize::deserialize(d)));
+    let doc = doc! {
+        "a": ["a"]
+    };
+    run_deserialize_test(&v, &doc, "unusued_fields5");
 }
 
 #[test]
@@ -560,10 +582,10 @@ fn unused_fields6() {
     }
 
     let v = Foo { a: Some(vec![]) };
-    let d = Deserializer::new(bdoc! {
-        "a" => []
-    });
-    assert_eq!(v, t!(Deserialize::deserialize(d)));
+    let doc = doc! {
+        "a": []
+    };
+    run_deserialize_test(&v, &doc, "unused_fieds6");
 }
 
 #[test]
@@ -580,10 +602,10 @@ fn unused_fields7() {
     let v = Foo {
         a: vec![Bar { a: 1 }],
     };
-    let d = Deserializer::new(bdoc! {
-        "a" => [{"a" => 1, "b" => 2}]
-    });
-    assert_eq!(v, t!(Deserialize::deserialize(d)));
+    let doc = doc! {
+        "a": [{"a": 1, "b": 2}]
+    };
+    run_deserialize_test(&v, &doc, "unused_fields7");
 }
 
 #[test]
@@ -594,15 +616,19 @@ fn unused_fields_deny() {
         a: i32,
     }
 
-    let d = Deserializer::new(bdoc! {
-        "a" => 1,
-        "b" => 2
-    });
-    Foo::deserialize(d).expect_err("extra fields should cause failure");
+    let doc = doc! {
+        "a": 1,
+        "b": 2,
+    };
+    bson::from_document::<Foo>(doc.clone()).expect_err("extra fields should cause failure");
+
+    let mut bytes = Vec::new();
+    doc.to_writer(&mut bytes).unwrap();
+    bson::from_reader::<_, Foo>(bytes.as_slice()).expect_err("extra fields should cause failure");
 }
 
 #[test]
-fn empty_arrays() {
+fn default_array() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo {
         #[serde(default)]
@@ -612,12 +638,12 @@ fn empty_arrays() {
     struct Bar;
 
     let v = Foo { a: vec![] };
-    let d = Deserializer::new(bdoc! {});
-    assert_eq!(v, t!(Deserialize::deserialize(d)));
+    let doc = doc! {};
+    run_deserialize_test(&v, &doc, "default_array");
 }
 
 #[test]
-fn empty_arrays2() {
+fn null_array() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo {
         a: Option<Vec<Bar>>,
@@ -626,12 +652,202 @@ fn empty_arrays2() {
     struct Bar;
 
     let v = Foo { a: None };
-    let d = Deserializer::new(bdoc! {});
-    assert_eq!(v, t!(Deserialize::deserialize(d)));
+    let doc = doc! {};
+    run_deserialize_test(&v, &doc, "null_array");
+}
+
+#[test]
+fn empty_array() {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo {
+        a: Option<Vec<Bar>>,
+    }
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Bar;
 
     let v = Foo { a: Some(vec![]) };
-    let d = Deserializer::new(bdoc! {
-        "a" => []
-    });
-    assert_eq!(v, t!(Deserialize::deserialize(d)));
+    let doc = doc! {
+        "a": []
+    };
+    run_deserialize_test(&v, &doc, "empty_array");
+}
+
+#[test]
+fn all_types() {
+    #[derive(Debug, Deserialize, Serialize, PartialEq)]
+    struct Bar {
+        a: i32,
+        b: i32,
+    }
+
+    #[derive(Debug, Deserialize, Serialize, PartialEq)]
+    struct Foo {
+        x: i32,
+        y: i64,
+        s: String,
+        array: Vec<Bson>,
+        bson: Bson,
+        oid: ObjectId,
+        null: Option<()>,
+        subdoc: Document,
+        b: bool,
+        d: f64,
+        binary: Binary,
+        binary_old: Binary,
+        binary_other: Binary,
+        date: DateTime,
+        regex: Regex,
+        ts: Timestamp,
+        i: Bar,
+        undefined: Bson,
+        code: Bson,
+        code_w_scope: JavaScriptCodeWithScope,
+        decimal: Decimal128,
+        symbol: Bson,
+        min_key: Bson,
+        max_key: Bson,
+    }
+
+    let binary = Binary {
+        bytes: vec![36, 36, 36],
+        subtype: BinarySubtype::Generic,
+    };
+    let binary_old = Binary {
+        bytes: vec![36, 36, 36],
+        subtype: BinarySubtype::BinaryOld,
+    };
+    let binary_other = Binary {
+        bytes: vec![36, 36, 36],
+        subtype: BinarySubtype::UserDefined(0x81),
+    };
+    let date = DateTime::now();
+    let regex = Regex {
+        pattern: "hello".to_string(),
+        options: "x".to_string(),
+    };
+    let timestamp = Timestamp {
+        time: 123,
+        increment: 456,
+    };
+    let code = Bson::JavaScriptCode("console.log(1)".to_string());
+    let code_w_scope = JavaScriptCodeWithScope {
+        code: "console.log(a)".to_string(),
+        scope: doc! { "a": 1 },
+    };
+    let oid = ObjectId::new();
+    let subdoc = doc! { "k": true, "b": { "hello": "world" } };
+
+    let doc = doc! {
+        "x": 1,
+        "y": 2_i64,
+        "s": "oke",
+        "array": [ true, "oke", { "12": 24 } ],
+        "bson": 1234.5,
+        "oid": oid,
+        "null": Bson::Null,
+        "subdoc": subdoc.clone(),
+        "b": true,
+        "d": 12.5,
+        "binary": binary.clone(),
+        "binary_old": binary_old.clone(),
+        "binary_other": binary_other.clone(),
+        "date": date,
+        "regex": regex.clone(),
+        "ts": timestamp,
+        "i": { "a": 300, "b": 12345 },
+        "undefined": Bson::Undefined,
+        "code": code.clone(),
+        "code_w_scope": code_w_scope.clone(),
+        "decimal": Bson::Decimal128(Decimal128::from_i32(5)),
+        "symbol": Bson::Symbol("ok".to_string()),
+        "min_key": Bson::MinKey,
+        "max_key": Bson::MaxKey,
+    };
+
+    let v = Foo {
+        x: 1,
+        y: 2,
+        s: "oke".to_string(),
+        array: vec![
+            Bson::Boolean(true),
+            Bson::String("oke".to_string()),
+            Bson::Document(doc! { "12": 24 }),
+        ],
+        bson: Bson::Double(1234.5),
+        oid,
+        null: None,
+        subdoc,
+        b: true,
+        d: 12.5,
+        binary,
+        binary_old,
+        binary_other,
+        date,
+        regex,
+        ts: timestamp,
+        i: Bar { a: 300, b: 12345 },
+        undefined: Bson::Undefined,
+        code,
+        code_w_scope,
+        decimal: Decimal128::from_i32(5),
+        symbol: Bson::Symbol("ok".to_string()),
+        min_key: Bson::MinKey,
+        max_key: Bson::MaxKey,
+    };
+
+    run_test(&v, &doc, "all types");
+}
+
+#[test]
+fn borrowed() {
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct Foo<'a> {
+        s: &'a str,
+        binary: &'a [u8],
+        doc: Inner<'a>,
+        #[serde(borrow)]
+        cow: Cow<'a, str>,
+        #[serde(borrow)]
+        array: Vec<&'a str>,
+    }
+
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct Inner<'a> {
+        string: &'a str,
+    }
+
+    let binary = Binary {
+        bytes: vec![36, 36, 36],
+        subtype: BinarySubtype::Generic,
+    };
+
+    let doc = doc! {
+        "s": "borrowed string",
+        "binary": binary.clone(),
+        "doc": {
+            "string": "another borrowed string",
+        },
+        "cow": "cow",
+        "array": ["borrowed string"],
+    };
+    let mut bson = Vec::new();
+    doc.to_writer(&mut bson).unwrap();
+
+    let s = "borrowed string".to_string();
+    let ss = "another borrowed string".to_string();
+    let cow = "cow".to_string();
+    let inner = Inner {
+        string: ss.as_str(),
+    };
+    let v = Foo {
+        s: s.as_str(),
+        binary: binary.bytes.as_slice(),
+        doc: inner,
+        cow: Cow::Borrowed(cow.as_str()),
+        array: vec![s.as_str()],
+    };
+
+    let deserialized: Foo =
+        bson::from_slice(bson.as_slice()).expect("deserialization should succeed");
+    assert_eq!(deserialized, v);
 }

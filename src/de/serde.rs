@@ -1,4 +1,8 @@
-use std::{convert::TryFrom, fmt, vec};
+use std::{
+    convert::{TryFrom, TryInto},
+    fmt,
+    vec,
+};
 
 use serde::de::{
     self,
@@ -13,16 +17,18 @@ use serde::de::{
     VariantAccess,
     Visitor,
 };
+use serde_bytes::ByteBuf;
 
-#[cfg(feature = "decimal128")]
-use crate::decimal128::Decimal128;
 use crate::{
     bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
-    document::{Document, DocumentVisitor, IntoIter},
+    document::{Document, IntoIter},
     oid::ObjectId,
     spec::BinarySubtype,
+    Decimal128,
 };
+
+use super::raw::Decimal128Access;
 
 pub(crate) struct BsonVisitor;
 
@@ -212,13 +218,212 @@ impl<'de> Visitor<'de> for BsonVisitor {
         Ok(Bson::Array(values))
     }
 
-    #[inline]
-    fn visit_map<V>(self, visitor: V) -> Result<Bson, V::Error>
+    fn visit_map<V>(self, mut visitor: V) -> Result<Bson, V::Error>
     where
         V: MapAccess<'de>,
     {
-        let values = DocumentVisitor::new().visit_map(visitor)?;
-        Ok(Bson::from_extended_document(values))
+        use crate::extjson;
+
+        let mut doc = Document::new();
+
+        while let Some(k) = visitor.next_key::<String>()? {
+            match k.as_str() {
+                "$oid" => {
+                    let hex: String = visitor.next_value()?;
+                    return Ok(Bson::ObjectId(ObjectId::parse_str(hex.as_str()).map_err(
+                        |_| {
+                            V::Error::invalid_value(
+                                Unexpected::Str(&hex),
+                                &"24-character, big-endian hex string",
+                            )
+                        },
+                    )?));
+                }
+                "$symbol" => {
+                    let string: String = visitor.next_value()?;
+                    return Ok(Bson::Symbol(string));
+                }
+
+                "$numberInt" => {
+                    let string: String = visitor.next_value()?;
+                    return Ok(Bson::Int32(string.parse().map_err(|_| {
+                        V::Error::invalid_value(
+                            Unexpected::Str(&string),
+                            &"32-bit signed integer as a string",
+                        )
+                    })?));
+                }
+
+                "$numberLong" => {
+                    let string: String = visitor.next_value()?;
+                    return Ok(Bson::Int64(string.parse().map_err(|_| {
+                        V::Error::invalid_value(
+                            Unexpected::Str(&string),
+                            &"64-bit signed integer as a string",
+                        )
+                    })?));
+                }
+
+                "$numberDouble" => {
+                    let string: String = visitor.next_value()?;
+                    let val = match string.as_str() {
+                        "Infinity" => Bson::Double(std::f64::INFINITY),
+                        "-Infinity" => Bson::Double(std::f64::NEG_INFINITY),
+                        "NaN" => Bson::Double(std::f64::NAN),
+                        _ => Bson::Int64(string.parse().map_err(|_| {
+                            V::Error::invalid_value(
+                                Unexpected::Str(&string),
+                                &"64-bit signed integer as a string",
+                            )
+                        })?),
+                    };
+                    return Ok(val);
+                }
+
+                "$binary" => {
+                    let v = visitor.next_value::<extjson::models::BinaryBody>()?;
+                    return Ok(Bson::Binary(
+                        extjson::models::Binary { body: v }
+                            .parse()
+                            .map_err(Error::custom)?,
+                    ));
+                }
+
+                "$code" => {
+                    let code = visitor.next_value::<String>()?;
+                    if let Some(key) = visitor.next_key::<String>()? {
+                        if key.as_str() == "$scope" {
+                            let scope = visitor.next_value::<Document>()?;
+                            return Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                                code,
+                                scope,
+                            }));
+                        } else {
+                            return Err(Error::unknown_field(key.as_str(), &["$scope"]));
+                        }
+                    } else {
+                        return Ok(Bson::JavaScriptCode(code));
+                    }
+                }
+
+                "$scope" => {
+                    let scope = visitor.next_value::<Document>()?;
+                    if let Some(key) = visitor.next_key::<String>()? {
+                        if key.as_str() == "$code" {
+                            let code = visitor.next_value::<String>()?;
+                            return Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                                code,
+                                scope,
+                            }));
+                        } else {
+                            return Err(Error::unknown_field(key.as_str(), &["$code"]));
+                        }
+                    } else {
+                        return Err(Error::missing_field("$code"));
+                    }
+                }
+
+                "$timestamp" => {
+                    let ts = visitor.next_value::<extjson::models::TimestampBody>()?;
+                    return Ok(Bson::Timestamp(Timestamp {
+                        time: ts.t,
+                        increment: ts.i,
+                    }));
+                }
+
+                "$regularExpression" => {
+                    let re = visitor.next_value::<extjson::models::RegexBody>()?;
+                    return Ok(Bson::RegularExpression(Regex {
+                        pattern: re.pattern,
+                        options: re.options,
+                    }));
+                }
+
+                "$dbPointer" => {
+                    let dbp = visitor.next_value::<extjson::models::DbPointerBody>()?;
+                    return Ok(Bson::DbPointer(DbPointer {
+                        id: dbp.id.parse().map_err(Error::custom)?,
+                        namespace: dbp.ref_ns,
+                    }));
+                }
+
+                "$date" => {
+                    let dt = visitor.next_value::<extjson::models::DateTimeBody>()?;
+                    return Ok(Bson::DateTime(
+                        extjson::models::DateTime { body: dt }
+                            .parse()
+                            .map_err(Error::custom)?,
+                    ));
+                }
+
+                "$maxKey" => {
+                    let i = visitor.next_value::<u8>()?;
+                    return extjson::models::MaxKey { value: i }
+                        .parse()
+                        .map_err(Error::custom);
+                }
+
+                "$minKey" => {
+                    let i = visitor.next_value::<u8>()?;
+                    return extjson::models::MinKey { value: i }
+                        .parse()
+                        .map_err(Error::custom);
+                }
+
+                "$undefined" => {
+                    let b = visitor.next_value::<bool>()?;
+                    return extjson::models::Undefined { value: b }
+                        .parse()
+                        .map_err(Error::custom);
+                }
+
+                "$numberDecimal" => {
+                    #[cfg(not(feature = "decimal128"))]
+                    {
+                        return Err(Error::custom(format!(
+                            "enable the experimental decimal128 feature flag to deserialize \
+                             decimal128 from string"
+                        )));
+                    }
+
+                    #[cfg(feature = "decimal128")]
+                    {
+                        let s = visitor.next_value::<String>()?;
+                        return Ok(Bson::Decimal128(s.parse().map_err(|_| {
+                            Error::custom(format!("malformatted decimal128 string: {}", s))
+                        })?));
+                    }
+                }
+
+                "$numberDecimalBytes" => {
+                    let bytes = visitor.next_value::<ByteBuf>()?;
+                    let arr = bytes.into_vec().try_into().map_err(|v: Vec<u8>| {
+                        Error::custom(format!(
+                            "expected decimal128 as byte buffer, instead got buffer of length {}",
+                            v.len()
+                        ))
+                    })?;
+                    #[cfg(not(feature = "decimal128"))]
+                    {
+                        return Ok(Bson::Decimal128(Decimal128 { bytes: arr }));
+                    }
+
+                    #[cfg(feature = "decimal128")]
+                    {
+                        unsafe {
+                            return Ok(Bson::Decimal128(Decimal128::from_raw_bytes_le(arr)));
+                        }
+                    }
+                }
+
+                _ => {
+                    let v = visitor.next_value::<Bson>()?;
+                    doc.insert(k, v);
+                }
+            }
+        }
+
+        Ok(Bson::Document(doc))
     }
 
     #[inline]
@@ -229,6 +434,17 @@ impl<'de> Visitor<'de> for BsonVisitor {
         Ok(Bson::Binary(Binary {
             subtype: BinarySubtype::Generic,
             bytes: v.to_vec(),
+        }))
+    }
+
+    #[inline]
+    fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Bson, E>
+    where
+        E: Error,
+    {
+        Ok(Bson::Binary(Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: v,
         }))
     }
 }
@@ -334,15 +550,16 @@ impl<'de> de::Deserializer<'de> for Deserializer {
             Bson::Int64(v) => visitor.visit_i64(v),
             Bson::Binary(Binary {
                 subtype: BinarySubtype::Generic,
-                ref bytes,
-            }) => visitor.visit_bytes(bytes),
+                bytes,
+            }) => visitor.visit_byte_buf(bytes),
             binary @ Bson::Binary(..) => visitor.visit_map(MapDeserializer {
-                iter: binary.to_extended_document().into_iter(),
+                iter: binary.into_extended_document().into_iter(),
                 value: None,
                 len: 2,
             }),
+            Bson::Decimal128(d) => visitor.visit_map(Decimal128Access::new(d)),
             _ => {
-                let doc = value.to_extended_document();
+                let doc = value.into_extended_document();
                 let len = doc.len();
                 visitor.visit_map(MapDeserializer {
                     iter: doc.into_iter(),
@@ -621,10 +838,21 @@ impl<'de> SeqAccess<'de> for SeqDeserializer {
     }
 }
 
-struct MapDeserializer {
-    iter: IntoIter,
-    value: Option<Bson>,
-    len: usize,
+pub(crate) struct MapDeserializer {
+    pub(crate) iter: IntoIter,
+    pub(crate) value: Option<Bson>,
+    pub(crate) len: usize,
+}
+
+impl MapDeserializer {
+    pub(crate) fn new(doc: Document) -> Self {
+        let len = doc.len();
+        MapDeserializer {
+            iter: doc.into_iter(),
+            len,
+            value: None,
+        }
+    }
 }
 
 impl<'de> MapAccess<'de> for MapDeserializer {

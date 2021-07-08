@@ -59,17 +59,109 @@ fn run_test(test: TestFile) {
     for valid in test.valid {
         let description = format!("{}: {}", test.description, valid.description);
 
-        let bson_to_native_cb = Document::from_reader(
-            &mut hex::decode(&valid.canonical_bson)
-                .expect(&description)
-                .as_slice(),
-        )
-        .expect(&description);
+        let canonical_bson = hex::decode(&valid.canonical_bson).expect(&description);
 
-        let mut native_to_bson_bson_to_native_cv = Vec::new();
+        let bson_to_native_cb =
+            Document::from_reader(canonical_bson.as_slice()).expect(&description);
+
+        let bson_to_native_cb_serde: Document =
+            crate::from_reader(canonical_bson.as_slice()).expect(&description);
+
+        let native_to_native_cb_serde: Document =
+            crate::from_document(bson_to_native_cb.clone()).expect(&description);
+
+        let mut native_to_bson_bson_to_native_cb = Vec::new();
         bson_to_native_cb
-            .to_writer(&mut native_to_bson_bson_to_native_cv)
+            .to_writer(&mut native_to_bson_bson_to_native_cb)
             .expect(&description);
+
+        let mut native_to_bson_bson_to_native_cb_serde = Vec::new();
+        bson_to_native_cb_serde
+            .to_writer(&mut native_to_bson_bson_to_native_cb_serde)
+            .expect(&description);
+
+        let mut native_to_bson_native_to_native_cb_serde = Vec::new();
+        native_to_native_cb_serde
+            .to_writer(&mut native_to_bson_native_to_native_cb_serde)
+            .expect(&description);
+
+        // native_to_bson( bson_to_native(cB) ) = cB
+
+        assert_eq!(
+            hex::encode(native_to_bson_bson_to_native_cb).to_lowercase(),
+            valid.canonical_bson.to_lowercase(),
+            "{}",
+            description,
+        );
+
+        assert_eq!(
+            hex::encode(native_to_bson_bson_to_native_cb_serde).to_lowercase(),
+            valid.canonical_bson.to_lowercase(),
+            "{}",
+            description,
+        );
+
+        assert_eq!(
+            hex::encode(native_to_bson_native_to_native_cb_serde).to_lowercase(),
+            valid.canonical_bson.to_lowercase(),
+            "{}",
+            description,
+        );
+
+        // NaN == NaN is false, so we skip document comparisons that contain NaN
+        if !description.to_ascii_lowercase().contains("nan") && !description.contains("decq541") {
+            assert_eq!(
+                bson_to_native_cb, bson_to_native_cb_serde,
+                "{}",
+                description
+            );
+
+            assert_eq!(
+                bson_to_native_cb, native_to_native_cb_serde,
+                "{}",
+                description
+            );
+        }
+
+        // native_to_bson( bson_to_native(dB) ) = cB
+
+        if let Some(db) = valid.degenerate_bson {
+            let db = hex::decode(&db).expect(&description);
+
+            let bson_to_native_db = Document::from_reader(db.as_slice()).expect(&description);
+            let mut native_to_bson_bson_to_native_db = Vec::new();
+            bson_to_native_db
+                .to_writer(&mut native_to_bson_bson_to_native_db)
+                .unwrap();
+            assert_eq!(
+                hex::encode(native_to_bson_bson_to_native_db).to_lowercase(),
+                valid.canonical_bson.to_lowercase(),
+                "{}",
+                description,
+            );
+
+            let bson_to_native_db_serde: Document =
+                crate::from_reader(db.as_slice()).expect(&description);
+            let mut native_to_bson_bson_to_native_db_serde = Vec::new();
+            bson_to_native_db_serde
+                .to_writer(&mut native_to_bson_bson_to_native_db_serde)
+                .unwrap();
+            assert_eq!(
+                hex::encode(native_to_bson_bson_to_native_db_serde).to_lowercase(),
+                valid.canonical_bson.to_lowercase(),
+                "{}",
+                description,
+            );
+
+            // NaN == NaN is false, so we skip document comparisons that contain NaN
+            if !description.contains("NaN") {
+                assert_eq!(
+                    bson_to_native_db_serde, bson_to_native_cb,
+                    "{}",
+                    description
+                );
+            }
+        }
 
         // TODO RUST-36: Enable decimal128 tests.
         // extJSON not implemented for decimal128 without the feature flag, so we must stop here.
@@ -79,15 +171,6 @@ fn run_test(test: TestFile) {
 
         let cej: serde_json::Value =
             serde_json::from_str(&valid.canonical_extjson).expect(&description);
-
-        // native_to_bson( bson_to_native(cB) ) = cB
-
-        assert_eq!(
-            hex::encode(native_to_bson_bson_to_native_cv).to_lowercase(),
-            valid.canonical_bson.to_lowercase(),
-            "{}",
-            description,
-        );
 
         // native_to_canonical_extended_json( bson_to_native(cB) ) = cEJ
 
@@ -172,26 +255,6 @@ fn run_test(test: TestFile) {
             }
         }
 
-        // native_to_bson( bson_to_native(dB) ) = cB
-
-        if let Some(db) = valid.degenerate_bson {
-            let bson_to_native_db =
-                Document::from_reader(&mut hex::decode(&db).expect(&description).as_slice())
-                    .expect(&description);
-
-            let mut native_to_bson_bson_to_native_db = Vec::new();
-            bson_to_native_db
-                .to_writer(&mut native_to_bson_bson_to_native_db)
-                .unwrap();
-
-            assert_eq!(
-                hex::encode(native_to_bson_bson_to_native_db).to_lowercase(),
-                valid.canonical_bson.to_lowercase(),
-                "{}",
-                description,
-            );
-        }
-
         if let Some(ref degenerate_extjson) = valid.degenerate_extjson {
             let dej: serde_json::Value =
                 serde_json::from_str(degenerate_extjson).expect(&description);
@@ -252,7 +315,7 @@ fn run_test(test: TestFile) {
         }
     }
 
-    for decode_error in test.decode_errors {
+    for decode_error in test.decode_errors.iter() {
         // No meaningful definition of "byte count" for an arbitrary reader.
         if decode_error.description
             == "Stated length less than byte count, with garbage after envelope"
@@ -260,8 +323,22 @@ fn run_test(test: TestFile) {
             continue;
         }
 
-        let bson = hex::decode(decode_error.bson).expect("should decode from hex");
-        Document::from_reader(&mut bson.as_slice()).expect_err(decode_error.description.as_str());
+        let description = format!(
+            "{} decode error: {}",
+            test.bson_type, decode_error.description
+        );
+        let bson = hex::decode(&decode_error.bson).expect("should decode from hex");
+        Document::from_reader(bson.as_slice()).expect_err(&description);
+        crate::from_reader::<_, Document>(bson.as_slice()).expect_err(description.as_str());
+
+        if decode_error.description.contains("invalid UTF-8") {
+            let d = crate::from_reader_utf8_lossy::<_, Document>(bson.as_slice())
+                .unwrap_or_else(|_| panic!("{}: utf8_lossy should not fail", description));
+            if let Some(ref key) = test.test_key {
+                d.get_str(key)
+                    .unwrap_or_else(|_| panic!("{}: value should be a string", description));
+            }
+        }
     }
 
     for parse_error in test.parse_errors {

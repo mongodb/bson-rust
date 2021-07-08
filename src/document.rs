@@ -5,13 +5,12 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
     io::{Read, Write},
     iter::{Extend, FromIterator, IntoIterator},
-    marker::PhantomData,
     mem,
 };
 
 use ahash::RandomState;
 use indexmap::IndexMap;
-use serde::de::{self, Error, MapAccess, Visitor};
+use serde::de::Error;
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
@@ -681,52 +680,6 @@ impl<'a> OccupiedEntry<'a> {
     /// Gets a reference to the key in the entry.
     pub fn key(&self) -> &str {
         self.inner.key()
-    }
-}
-
-pub(crate) struct DocumentVisitor {
-    marker: PhantomData<Document>,
-}
-
-impl DocumentVisitor {
-    #[allow(clippy::new_without_default)]
-    pub(crate) fn new() -> DocumentVisitor {
-        DocumentVisitor {
-            marker: PhantomData,
-        }
-    }
-}
-
-impl<'de> Visitor<'de> for DocumentVisitor {
-    type Value = Document;
-
-    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "expecting ordered document")
-    }
-
-    #[inline]
-    fn visit_unit<E>(self) -> Result<Document, E>
-    where
-        E: de::Error,
-    {
-        Ok(Document::new())
-    }
-
-    #[inline]
-    fn visit_map<V>(self, mut visitor: V) -> Result<Document, V::Error>
-    where
-        V: MapAccess<'de>,
-    {
-        let mut inner = match visitor.size_hint() {
-            Some(size) => IndexMap::with_capacity_and_hasher(size, RandomState::default()),
-            None => IndexMap::default(),
-        };
-
-        while let Some((key, value)) = visitor.next_entry()? {
-            inner.insert(key, value);
-        }
-
-        Ok(Document { inner })
     }
 }
 

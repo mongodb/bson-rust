@@ -22,6 +22,7 @@
 //! Deserializer
 
 mod error;
+mod raw;
 mod serde;
 
 pub use self::{
@@ -33,7 +34,8 @@ use std::io::Read;
 
 use crate::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
-    oid,
+    oid::{self, ObjectId},
+    ser::write_i32,
     spec::{self, BinarySubtype},
     Decimal128,
 };
@@ -43,10 +45,10 @@ use ::serde::{
     Deserialize,
 };
 
-const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
+pub(crate) const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
-const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
-const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
+pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
+pub(crate) const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
 /// Run the provided closure, ensuring that over the course of its execution, exactly `length` bytes
 /// were read from the reader.
@@ -72,7 +74,7 @@ where
     Ok(())
 }
 
-fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<String> {
+pub(crate) fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<String> {
     let len = read_i32(reader)?;
 
     // UTF-8 String must have at least 1 byte (the last 0x00).
@@ -104,6 +106,18 @@ fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<Str
     Ok(s)
 }
 
+fn read_bool<R: Read>(mut reader: R) -> Result<bool> {
+    let val = read_u8(&mut reader)?;
+    if val > 1 {
+        return Err(Error::invalid_value(
+            Unexpected::Unsigned(val as u64),
+            &"boolean must be stored as 0 or 1",
+        ));
+    }
+
+    Ok(val != 0)
+}
+
 fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> Result<String> {
     let mut v = Vec::new();
 
@@ -119,7 +133,7 @@ fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> Result<String> {
 }
 
 #[inline]
-fn read_u8<R: Read + ?Sized>(reader: &mut R) -> Result<u8> {
+pub(crate) fn read_u8<R: Read + ?Sized>(reader: &mut R) -> Result<u8> {
     let mut buf = [0; 1];
     reader.read_exact(&mut buf)?;
     Ok(u8::from_le_bytes(buf))
@@ -133,7 +147,7 @@ pub(crate) fn read_i32<R: Read + ?Sized>(reader: &mut R) -> Result<i32> {
 }
 
 #[inline]
-fn read_i64<R: Read + ?Sized>(reader: &mut R) -> Result<i64> {
+pub(crate) fn read_i64<R: Read + ?Sized>(reader: &mut R) -> Result<i64> {
     let mut buf = [0; 8];
     reader.read_exact(&mut buf)?;
     Ok(i64::from_le_bytes(buf))
@@ -214,43 +228,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::String) => read_string(reader, utf8_lossy).map(Bson::String)?,
         Some(ElementType::EmbeddedDocument) => Document::from_reader(reader).map(Bson::Document)?,
         Some(ElementType::Array) => deserialize_array(reader, utf8_lossy).map(Bson::Array)?,
-        Some(ElementType::Binary) => {
-            let mut len = read_i32(reader)?;
-            if !(0..=MAX_BSON_SIZE).contains(&len) {
-                return Err(Error::invalid_length(
-                    len as usize,
-                    &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
-                ));
-            }
-            let subtype = BinarySubtype::from(read_u8(reader)?);
-
-            // Skip length data in old binary.
-            if let BinarySubtype::BinaryOld = subtype {
-                let data_len = read_i32(reader)?;
-
-                if !(0..=(MAX_BSON_SIZE - 4)).contains(&data_len) {
-                    return Err(Error::invalid_length(
-                        data_len as usize,
-                        &format!("0x02 length must be between 0 and {}", MAX_BSON_SIZE - 4)
-                            .as_str(),
-                    ));
-                }
-
-                if data_len + 4 != len {
-                    return Err(Error::invalid_length(
-                        data_len as usize,
-                        &"0x02 length did not match top level binary length",
-                    ));
-                }
-
-                len -= 4;
-            }
-
-            let mut bytes = Vec::with_capacity(len as usize);
-
-            reader.take(len as u64).read_to_end(&mut bytes)?;
-            Bson::Binary(Binary { subtype, bytes })
-        }
+        Some(ElementType::Binary) => Bson::Binary(Binary::from_reader(reader)?),
         Some(ElementType::ObjectId) => {
             let mut objid = [0; 12];
             for x in &mut objid {
@@ -258,63 +236,20 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             }
             Bson::ObjectId(oid::ObjectId::from_bytes(objid))
         }
-        Some(ElementType::Boolean) => {
-            let val = read_u8(reader)?;
-            if val > 1 {
-                return Err(Error::invalid_value(
-                    Unexpected::Unsigned(val as u64),
-                    &"boolean must be stored as 0 or 1",
-                ));
-            }
-
-            Bson::Boolean(val != 0)
-        }
+        Some(ElementType::Boolean) => Bson::Boolean(read_bool(reader)?),
         Some(ElementType::Null) => Bson::Null,
         Some(ElementType::RegularExpression) => {
-            let pattern = read_cstring(reader)?;
-
-            let mut options: Vec<_> = read_cstring(reader)?.chars().collect();
-            options.sort_unstable();
-
-            Bson::RegularExpression(Regex {
-                pattern,
-                options: options.into_iter().collect(),
-            })
+            Bson::RegularExpression(Regex::from_reader(reader)?)
         }
         Some(ElementType::JavaScriptCode) => {
             read_string(reader, utf8_lossy).map(Bson::JavaScriptCode)?
         }
         Some(ElementType::JavaScriptCodeWithScope) => {
-            let length = read_i32(reader)?;
-            if length < MIN_CODE_WITH_SCOPE_SIZE {
-                return Err(Error::invalid_length(
-                    length as usize,
-                    &format!(
-                        "code with scope length must be at least {}",
-                        MIN_CODE_WITH_SCOPE_SIZE
-                    )
-                    .as_str(),
-                ));
-            } else if length > MAX_BSON_SIZE {
-                return Err(Error::invalid_length(
-                    length as usize,
-                    &"code with scope length too large",
-                ));
-            }
-
-            let mut buf = vec![0u8; (length - 4) as usize];
-            reader.read_exact(&mut buf)?;
-
-            let mut slice = buf.as_slice();
-            let code = read_string(&mut slice, utf8_lossy)?;
-            let scope = Document::from_reader(&mut slice)?;
-            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope })
+            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope::from_reader(reader)?)
         }
         Some(ElementType::Int32) => read_i32(reader).map(Bson::Int32)?,
         Some(ElementType::Int64) => read_i64(reader).map(Bson::Int64)?,
-        Some(ElementType::Timestamp) => {
-            read_i64(reader).map(|val| Bson::Timestamp(Timestamp::from_le_i64(val)))?
-        }
+        Some(ElementType::Timestamp) => Bson::Timestamp(Timestamp::from_reader(reader)?),
         Some(ElementType::DateTime) => {
             // The int64 is UTC milliseconds since the Unix epoch.
             let time = read_i64(reader)?;
@@ -323,15 +258,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
         Some(ElementType::Symbol) => read_string(reader, utf8_lossy).map(Bson::Symbol)?,
         Some(ElementType::Decimal128) => read_f128(reader).map(Bson::Decimal128)?,
         Some(ElementType::Undefined) => Bson::Undefined,
-        Some(ElementType::DbPointer) => {
-            let namespace = read_string(reader, utf8_lossy)?;
-            let mut objid = [0; 12];
-            reader.read_exact(&mut objid)?;
-            Bson::DbPointer(DbPointer {
-                namespace,
-                id: oid::ObjectId::from_bytes(objid),
-            })
-        }
+        Some(ElementType::DbPointer) => Bson::DbPointer(DbPointer::from_reader(reader)?),
         Some(ElementType::MaxKey) => Bson::MaxKey,
         Some(ElementType::MinKey) => Bson::MinKey,
         None => {
@@ -343,6 +270,122 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
     };
 
     Ok((key, val))
+}
+
+impl Binary {
+    pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
+        let len = read_i32(&mut reader)?;
+        if !(0..=MAX_BSON_SIZE).contains(&len) {
+            return Err(Error::invalid_length(
+                len as usize,
+                &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
+            ));
+        }
+        let subtype = BinarySubtype::from(read_u8(&mut reader)?);
+        Self::from_reader_with_len_and_payload(reader, len, subtype)
+    }
+
+    pub(crate) fn from_reader_with_len_and_payload<R: Read>(
+        mut reader: R,
+        mut len: i32,
+        subtype: BinarySubtype,
+    ) -> Result<Self> {
+        if !(0..=MAX_BSON_SIZE).contains(&len) {
+            return Err(Error::invalid_length(
+                len as usize,
+                &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
+            ));
+        }
+
+        // Skip length data in old binary.
+        if let BinarySubtype::BinaryOld = subtype {
+            let data_len = read_i32(&mut reader)?;
+
+            if !(0..=(MAX_BSON_SIZE - 4)).contains(&data_len) {
+                return Err(Error::invalid_length(
+                    data_len as usize,
+                    &format!("0x02 length must be between 0 and {}", MAX_BSON_SIZE - 4).as_str(),
+                ));
+            }
+
+            if data_len + 4 != len {
+                return Err(Error::invalid_length(
+                    data_len as usize,
+                    &"0x02 length did not match top level binary length",
+                ));
+            }
+
+            len -= 4;
+        }
+
+        let mut bytes = Vec::with_capacity(len as usize);
+
+        reader.take(len as u64).read_to_end(&mut bytes)?;
+        Ok(Binary { subtype, bytes })
+    }
+}
+
+impl DbPointer {
+    pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
+        let ns = read_string(&mut reader, false)?;
+        let oid = ObjectId::from_reader(&mut reader)?;
+        Ok(DbPointer {
+            namespace: ns,
+            id: oid,
+        })
+    }
+}
+
+impl Regex {
+    pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
+        let pattern = read_cstring(&mut reader)?;
+        let options = read_cstring(&mut reader)?;
+
+        Ok(Regex { pattern, options })
+    }
+}
+
+impl Timestamp {
+    pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
+        read_i64(&mut reader).map(Timestamp::from_le_i64)
+    }
+}
+
+impl ObjectId {
+    pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
+        let mut buf = [0u8; 12];
+        reader.read_exact(&mut buf)?;
+        Ok(Self::from_bytes(buf))
+    }
+}
+
+impl JavaScriptCodeWithScope {
+    pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
+        let length = read_i32(&mut reader)?;
+        if length < MIN_CODE_WITH_SCOPE_SIZE {
+            return Err(Error::invalid_length(
+                length as usize,
+                &format!(
+                    "code with scope length must be at least {}",
+                    MIN_CODE_WITH_SCOPE_SIZE
+                )
+                .as_str(),
+            ));
+        } else if length > MAX_BSON_SIZE {
+            return Err(Error::invalid_length(
+                length as usize,
+                &"code with scope length too large",
+            ));
+        }
+
+        let mut buf = vec![0u8; (length - 4) as usize];
+        reader.read_exact(&mut buf)?;
+
+        let mut slice = buf.as_slice();
+        let code = read_string(&mut slice, false)?;
+        let scope = Document::from_reader(&mut slice)?;
+        Ok(JavaScriptCodeWithScope { code, scope })
+    }
 }
 
 /// Decode a BSON `Value` into a `T` Deserializable.
@@ -360,4 +403,66 @@ where
     T: DeserializeOwned,
 {
     from_bson(Bson::Document(doc))
+}
+
+fn reader_to_vec<R: Read>(mut reader: R) -> Result<Vec<u8>> {
+    let length = read_i32(&mut reader)?;
+
+    if length < MIN_BSON_DOCUMENT_SIZE {
+        return Err(Error::custom("document size too small"));
+    }
+
+    let mut bytes = Vec::with_capacity(length as usize);
+    write_i32(&mut bytes, length).map_err(Error::custom)?;
+
+    reader.take(length as u64 - 4).read_to_end(&mut bytes)?;
+    Ok(bytes)
+}
+
+/// Deserialize an instance of type `T` from an I/O stream of BSON.
+pub fn from_reader<R, T>(reader: R) -> Result<T>
+where
+    T: DeserializeOwned,
+    R: Read,
+{
+    let bytes = reader_to_vec(reader)?;
+    from_slice(bytes.as_slice())
+}
+
+/// Deserialize an instance of type `T` from an I/O stream of BSON, replacing any invalid UTF-8
+/// sequences with the Unicode replacement character.
+///
+/// This is mainly useful when reading raw BSON returned from a MongoDB server, which
+/// in rare cases can contain invalidly truncated strings (https://jira.mongodb.org/browse/SERVER-24007).
+/// For most use cases, [`crate::from_reader`] can be used instead.
+pub fn from_reader_utf8_lossy<R, T>(reader: R) -> Result<T>
+where
+    T: DeserializeOwned,
+    R: Read,
+{
+    let bytes = reader_to_vec(reader)?;
+    from_slice_utf8_lossy(bytes.as_slice())
+}
+
+/// Deserialize an instance of type `T` from a slice of BSON bytes.
+pub fn from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
+where
+    T: Deserialize<'de>,
+{
+    let mut deserializer = raw::Deserializer::new(bytes, false);
+    T::deserialize(&mut deserializer)
+}
+
+/// Deserialize an instance of type `T` from a slice of BSON bytes, replacing any invalid UTF-8
+/// sequences with the Unicode replacement character.
+///
+/// This is mainly useful when reading raw BSON returned from a MongoDB server, which
+/// in rare cases can contain invalidly truncated strings (https://jira.mongodb.org/browse/SERVER-24007).
+/// For most use cases, [`crate::from_slice`] can be used instead.
+pub fn from_slice_utf8_lossy<'de, T>(bytes: &'de [u8]) -> Result<T>
+where
+    T: Deserialize<'de>,
+{
+    let mut deserializer = raw::Deserializer::new(bytes, true);
+    T::deserialize(&mut deserializer)
 }

@@ -21,7 +21,10 @@
 
 //! BSON definition
 
-use std::fmt::{self, Debug, Display, Formatter};
+use std::{
+    convert::TryFrom,
+    fmt::{self, Debug, Display, Formatter},
+};
 
 use chrono::Datelike;
 use serde_json::{json, Value};
@@ -182,7 +185,7 @@ impl Debug for Bson {
 
 impl From<f32> for Bson {
     fn from(a: f32) -> Bson {
-        Bson::Double(a as f64)
+        Bson::Double(a.into())
     }
 }
 
@@ -297,7 +300,11 @@ impl From<i64> for Bson {
 
 impl From<u32> for Bson {
     fn from(a: u32) -> Bson {
-        Bson::Int32(a as i32)
+        if let Ok(i) = i32::try_from(a) {
+            Bson::Int32(i)
+        } else {
+            Bson::Int64(a.into())
+        }
     }
 }
 
@@ -529,8 +536,8 @@ impl Bson {
     /// This function mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
     // TODO RUST-426: Investigate either removing this from the serde implementation or unifying
     // with the extended JSON implementation.
-    pub(crate) fn to_extended_document(&self) -> Document {
-        match *self {
+    pub(crate) fn into_extended_document(self) -> Document {
+        match self {
             Bson::RegularExpression(Regex {
                 ref pattern,
                 ref options,
@@ -542,23 +549,20 @@ impl Bson {
 
                 doc! {
                     "$regularExpression": {
-                        "pattern": pattern.clone(),
+                        "pattern": pattern,
                         "options": options,
                     }
                 }
             }
             Bson::JavaScriptCode(ref code) => {
                 doc! {
-                    "$code": code.clone(),
+                    "$code": code,
                 }
             }
-            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
-                ref code,
-                ref scope,
-            }) => {
+            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope }) => {
                 doc! {
-                    "$code": code.clone(),
-                    "$scope": scope.clone(),
+                    "$code": code,
+                    "$scope": scope,
                 }
             }
             Bson::Timestamp(Timestamp { time, increment }) => {
@@ -583,7 +587,7 @@ impl Bson {
                     "$oid": v.to_string(),
                 }
             }
-            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_chrono().year() <= 99999 => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_chrono().year() <= 9999 => {
                 doc! {
                     "$date": v.to_rfc3339(),
                 }
