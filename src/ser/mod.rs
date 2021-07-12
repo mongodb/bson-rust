@@ -22,6 +22,7 @@
 //! Serializer
 
 mod error;
+mod raw;
 mod serde;
 
 pub use self::{
@@ -50,6 +51,11 @@ fn write_cstring<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
     writer.write_all(s.as_bytes())?;
     writer.write_all(b"\0")?;
     Ok(())
+}
+
+#[inline]
+pub(crate) fn write_u8<W: Write + ?Sized>(writer: &mut W, val: u8) -> Result<()> {
+    writer.write_all(&[val]).map(|_| ()).map_err(From::from)
 }
 
 #[inline]
@@ -203,4 +209,24 @@ where
             ),
         }),
     }
+}
+
+pub fn to_writer<T, W>(value: &T, mut writer: W) -> Result<()>
+where
+    T: Serialize,
+    W: Write,
+{
+    let mut serializer = raw::Serializer::new();
+    value.serialize(&mut serializer)?;
+    writer.write_all(&mut serializer.into_vec())?;
+    Ok(())
+}
+
+pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
+where
+    T: Serialize,
+{
+    let mut serializer = raw::Serializer::new();
+    value.serialize(&mut serializer)?;
+    Ok(serializer.into_vec())
 }
