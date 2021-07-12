@@ -85,6 +85,9 @@ fn run_test(test: TestFile) {
             .to_writer(&mut native_to_bson_native_to_native_cb_serde)
             .expect(&description);
 
+        let mut native_to_bson_serde_bson_to_native_cb = Vec::new();
+        crate::to_writer(&bson_to_native_cb, &mut native_to_bson_serde_bson_to_native_cb).expect(&description);
+
         // native_to_bson( bson_to_native(cB) ) = cB
 
         assert_eq!(
@@ -96,6 +99,13 @@ fn run_test(test: TestFile) {
 
         assert_eq!(
             hex::encode(native_to_bson_bson_to_native_cb_serde).to_lowercase(),
+            valid.canonical_bson.to_lowercase(),
+            "{}",
+            description,
+        );
+
+        assert_eq!(
+            hex::encode(native_to_bson_serde_bson_to_native_cb).to_lowercase(),
             valid.canonical_bson.to_lowercase(),
             "{}",
             description,

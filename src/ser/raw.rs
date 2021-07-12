@@ -651,17 +651,21 @@ impl<'a> serde::Serializer for KeySerializer<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::doc;
+    use crate::{JavaScriptCodeWithScope, doc};
 
     #[test]
     fn raw_serialize() {
         let doc = doc! {
-            "x": { "y": "ok" },
-            "a": true,
-            "b": 1i32,
-            "c": 2i64,
-            "d": 5.5,
-            "e": [ true, "aaa", { "ok": 1.0 } ]
+            "a": JavaScriptCodeWithScope {
+                code: "".to_string(),
+                scope: doc! {}
+            }
+            // "x": { "y": "ok" },
+            // "a": true,
+            // "b": 1i32,
+            // "c": 2i64,
+            // "d": 5.5,
+            // "e": [ true, "aaa", { "ok": 1.0 } ]
         };
         println!("{}", doc);
         let mut v = Vec::new();
