@@ -1,15 +1,17 @@
 use std::{borrow::Borrow, io::Write, ops::Index};
 
 use serde::{
-    ser::{Error as SerdeError, Impossible, SerializeMap},
-    Serialize,
-    Serializer as SerdeSerializer,
+    de::IntoDeserializer,
+    ser::{Error as SerdeError, Impossible, SerializeMap, SerializeStruct},
+    Serialize, Serializer as SerdeSerializer,
 };
 
 use super::{write_cstring, write_f64, write_i32, write_i64, write_string, write_u8};
 use crate::{
-    ser::{Error, Result},
+    oid::ObjectId,
+    ser::{write_binary, Error, Result},
     spec::{BinarySubtype, ElementType},
+    Bson,
 };
 
 pub(crate) struct Serializer {
@@ -56,7 +58,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     type SerializeTupleStruct = DocumentSerializer<'a>;
     type SerializeTupleVariant = VariantSerializer<'a>;
     type SerializeMap = DocumentSerializer<'a>;
-    type SerializeStruct = DocumentSerializer<'a>;
+    type SerializeStruct = StructSerializer<'a>;
     type SerializeStructVariant = VariantSerializer<'a>;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
@@ -226,16 +228,15 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        match name {
-            "$oid" => {
-                self.update_element_type(ElementType::ObjectId)?;
-                todo!()
-            },
-            _ => {
-                self.update_element_type(ElementType::EmbeddedDocument)?;
-                DocumentSerializer::start(&mut *self)
-            }
-        }
+        let element_type = match name {
+            "$oid" => ElementType::ObjectId,
+            "$date" => ElementType::DateTime,
+            "$binary" => ElementType::Binary,
+            _ => ElementType::EmbeddedDocument,
+        };
+
+        self.update_element_type(element_type)?;
+        StructSerializer::new(&mut *self, element_type)
     }
 
     fn serialize_struct_variant(
@@ -384,6 +385,359 @@ impl<'a> serde::ser::SerializeTupleStruct for DocumentSerializer<'a> {
 
     fn end(self) -> Result<Self::Ok> {
         self.end_doc()
+    }
+}
+
+pub(crate) struct BsonTypeSerializer<'a> {
+    root_serializer: &'a mut Serializer,
+    state: SerializationStep,
+}
+
+impl<'a> BsonTypeSerializer<'a> {
+    fn new(rs: &'a mut Serializer, element_type: ElementType) -> Self {
+        let state = match element_type {
+            ElementType::DateTime => SerializationStep::DateTime,
+            ElementType::Binary => SerializationStep::Binary,
+            ElementType::ObjectId => SerializationStep::Oid,
+            _ => todo!(),
+        };
+        Self {
+            root_serializer: rs,
+            state,
+        }
+    }
+}
+
+impl<'a, 'b> serde::Serializer for &'b mut BsonTypeSerializer<'a> {
+    type Ok = ();
+    type Error = Error;
+
+    type SerializeSeq = Impossible<(), Error>;
+    type SerializeTuple = Impossible<(), Error>;
+    type SerializeTupleStruct = Impossible<(), Error>;
+    type SerializeTupleVariant = Impossible<(), Error>;
+    type SerializeMap = Impossible<(), Error>;
+    type SerializeStruct = Self;
+    type SerializeStructVariant = Impossible<(), Error>;
+
+    fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_i8(self, v: i8) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_i16(self, v: i16) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_i32(self, v: i32) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_u16(self, v: u16) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_u32(self, v: u32) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_f32(self, v: f32) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_f64(self, v: f64) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_char(self, v: char) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_str(self, v: &str) -> Result<Self::Ok> {
+        // match self.bson_type {
+        //     ElementType::ObjectId => {
+        //         let oid = ObjectId::parse_str(v).map_err(Error::custom)?;
+        //         self.root_serializer.bytes.write_all(&oid.bytes())?;
+        //     }
+        //     _ => todo!(),
+        // }
+
+        match &self.state {
+            SerializationStep::DateTimeNumberLong => {
+                let millis: i64 = v.parse().map_err(Error::custom)?;
+                write_i64(&mut self.root_serializer.bytes, millis)?;
+            }
+            SerializationStep::Oid => {
+                let oid = ObjectId::parse_str(v).map_err(Error::custom)?;
+                self.root_serializer.bytes.write_all(&oid.bytes())?;
+            }
+            SerializationStep::BinaryBase64 => {
+                self.state = SerializationStep::BinarySubType {
+                    base64: v.to_string(),
+                };
+            }
+            SerializationStep::BinarySubType { base64 } => {
+                let subtype_byte = hex::decode(v).map_err(Error::custom)?;
+                let subtype: BinarySubtype = subtype_byte[0].into();
+
+                let bytes = base64::decode(base64.as_str()).map_err(Error::custom)?;
+
+                write_binary(&mut self.root_serializer.bytes, bytes.as_slice(), subtype)?;
+            },
+            SerializationStep::Symbol => {
+                write_string(&mut self.root_serializer.bytes, v)?;
+            }
+            _ => todo!(),
+        }
+        Ok(())
+    }
+
+    fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_none(self) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>
+    where
+        T: Serialize,
+    {
+        todo!()
+    }
+
+    fn serialize_unit(self) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_unit_struct(self, name: &'static str) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_unit_variant(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+    ) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_newtype_struct<T: ?Sized>(self, name: &'static str, value: &T) -> Result<Self::Ok>
+    where
+        T: Serialize,
+    {
+        todo!()
+    }
+
+    fn serialize_newtype_variant<T: ?Sized>(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        value: &T,
+    ) -> Result<Self::Ok>
+    where
+        T: Serialize,
+    {
+        todo!()
+    }
+
+    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
+        todo!()
+    }
+
+    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
+        todo!()
+    }
+
+    fn serialize_tuple_struct(
+        self,
+        name: &'static str,
+        len: usize,
+    ) -> Result<Self::SerializeTupleStruct> {
+        todo!()
+    }
+
+    fn serialize_tuple_variant(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        len: usize,
+    ) -> Result<Self::SerializeTupleVariant> {
+        todo!()
+    }
+
+    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
+        todo!()
+    }
+
+    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+        Ok(self)
+    }
+
+    fn serialize_struct_variant(
+        self,
+        name: &'static str,
+        variant_index: u32,
+        variant: &'static str,
+        len: usize,
+    ) -> Result<Self::SerializeStructVariant> {
+        todo!()
+    }
+}
+
+impl<'a, 'b> SerializeStruct for &'a mut BsonTypeSerializer<'b> {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: Serialize,
+    {
+        // println!("{:?} + {}", self.state, key);
+        // match self.bson_type {
+        //     ElementType::DateTime => match key {
+        //         "$numberLong" => match crate::to_bson(value)? {
+        //             Bson::String(s) => write_i64(
+        //                 &mut self.root_serializer.bytes,
+        //                 s.parse().map_err(Error::custom)?,
+        //             ),
+        //             _ => todo!(),
+        //         },
+        //         // ElementType::Binary => match key {
+        //         //     "base64"
+        //         // }
+        //         _ => todo!(),
+        //     },
+        //     _ => todo!(),
+        // }
+
+        match (&self.state, key) {
+            (SerializationStep::DateTime, "$date") => {
+                self.state = SerializationStep::DateTimeNumberLong;
+                value.serialize(&mut **self)?;
+            }
+            (SerializationStep::DateTimeNumberLong, "$numberLong") => {
+                value.serialize(&mut **self)?;
+                self.state = SerializationStep::Done;
+            }
+            (SerializationStep::Oid, "$oid") => {
+                value.serialize(&mut **self)?;
+                self.state = SerializationStep::Done;
+            }
+            (SerializationStep::Binary, "$binary") => {
+                self.state = SerializationStep::BinaryBase64;
+                value.serialize(&mut **self)?;
+            }
+            (SerializationStep::BinaryBase64, "base64") => {
+                value.serialize(&mut **self)?;
+            }
+            (SerializationStep::BinarySubType { .. }, "subType") => {
+                value.serialize(&mut **self)?;
+                self.state = SerializationStep::Done;
+            }
+            (SerializationStep::Symbol, "$symbol") => {
+                value.serialize(&mut **self)?;
+                self.state = SerializationStep::Done;
+            }
+            (state, k) => panic!("bad combo: {:?} + {:?}", state, k),
+        }
+
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok> {
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+enum SerializationStep {
+    Oid,
+    DateTime,
+    DateTimeNumberLong,
+    Binary,
+    BinaryBase64,
+    BinarySubType { base64: String },
+    Symbol,
+    Done,
+}
+
+// pub(crate) struct StructSerializer<'a> {
+//     root_serializer: &'a mut Serializer,
+//     bson_type: ElementType
+// }
+
+pub(crate) enum StructSerializer<'a> {
+    Value(BsonTypeSerializer<'a>),
+    Document(DocumentSerializer<'a>),
+}
+
+impl<'a> StructSerializer<'a> {
+    fn new(rs: &'a mut Serializer, element_type: ElementType) -> Result<Self> {
+        if let ElementType::EmbeddedDocument = element_type {
+            Ok(Self::Document(DocumentSerializer::start(rs)?))
+        } else {
+            Ok(Self::Value(BsonTypeSerializer::new(rs, element_type)))
+        }
+    }
+}
+
+impl<'a> SerializeStruct for StructSerializer<'a> {
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: Serialize,
+    {
+        // println!("got field: {}", key);
+        match self {
+            // StructSerializer::Value {
+            //     element_type,
+            //     root_serializer,
+            // } => {
+            //     match element_type {
+            //         ElementType::ObjectId => {
+            //             assert_eq!(key, "$oid");
+            //         }
+            //         ElementType::DateTime => {
+            //             assert_eq!(key, "$date");
+            //         }
+            //         _ => todo!(),
+            //     }
+            //     let mut s = BsonTypeSerializer::new(&mut *root_serializer, *element_type);
+            //     value.serialize(&mut s)
+            // }
+            StructSerializer::Value(ref mut v) => (&mut *v).serialize_field(key, value),
+            StructSerializer::Document(d) => d.serialize_field(key, value),
+        }
+        // Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok> {
+        match self {
+            StructSerializer::Document(d) => SerializeStruct::end(d),
+            _ => Ok(()),
+        }
     }
 }
 
@@ -659,16 +1013,23 @@ impl<'a> serde::Serializer for KeySerializer<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::{JavaScriptCodeWithScope, doc};
+    use crate::{Binary, DateTime, JavaScriptCodeWithScope, doc};
     use serde::Serialize;
 
     #[test]
     fn raw_serialize() {
+        let binary = Binary {
+            subtype: crate::spec::BinarySubtype::BinaryOld,
+            bytes: Vec::new(),
+        };
         let doc = doc! {
-            "a": JavaScriptCodeWithScope {
-                code: "".to_string(),
-                scope: doc! {}
-            }
+            // "a": JavaScriptCodeWithScope {
+            //     code: "".to_string(),
+            //     scope: doc! {}
+            // }
+            "o": ObjectId::new(),
+            "d": DateTime::now(),
+            "b": binary,
             // "x": { "y": "ok" },
             // "a": true,
             // "b": 1i32,
@@ -677,8 +1038,8 @@ mod test {
             // "e": [ true, "aaa", { "ok": 1.0 } ]
         };
         println!("{}", doc);
-        let mut v = Vec::new();
-        doc.to_writer(&mut v).unwrap();
+        // let mut v = Vec::new();
+        // doc.to_writer(&mut v).unwrap();
 
         let raw_v = crate::ser::to_vec(&doc).unwrap();
         // assert_eq!(raw_v, v);
@@ -710,7 +1071,7 @@ mod test {
 
     #[derive(Debug, Serialize)]
     struct Code {
-        c: JavaScriptCodeWithScope
+        c: JavaScriptCodeWithScope,
     }
 
     // #[test]
@@ -733,6 +1094,10 @@ mod test {
 
     #[test]
     fn raw_bench() {
+        let binary = Binary {
+            subtype: crate::spec::BinarySubtype::Generic,
+            bytes: vec![1, 2, 3, 4, 5],
+        };
         let doc = doc! {
             "ok": 1,
             "x": 1,
@@ -741,7 +1106,9 @@ mod test {
             // "oid": ObjectId::new(),
             "null": crate::Bson::Null,
             "b": true,
+            "dt": DateTime::now(),
             "d": 12.5,
+            "b": binary,
         };
 
         let raw_start = Instant::now();

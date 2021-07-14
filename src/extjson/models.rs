@@ -4,6 +4,7 @@ use chrono::Utc;
 use serde::{
     de::{Error, Unexpected},
     Deserialize,
+    Serialize,
 };
 
 use crate::{extjson, oid, spec::BinarySubtype, Bson};
@@ -27,7 +28,7 @@ impl Int32 {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Int64 {
     #[serde(rename = "$numberLong")]
@@ -127,7 +128,7 @@ pub(crate) struct Binary {
     pub(crate) body: BinaryBody,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct BinaryBody {
     pub(crate) base64: String,
@@ -223,18 +224,24 @@ impl Timestamp {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DateTime {
     #[serde(rename = "$date")]
     pub(crate) body: DateTimeBody,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(untagged)]
 pub(crate) enum DateTimeBody {
     Canonical(Int64),
     Relaxed(String),
+}
+
+impl DateTimeBody {
+    pub(crate) fn from_millis(m: i64) -> Self {
+        DateTimeBody::Canonical(Int64 { value: m.to_string() })
+    }
 }
 
 impl DateTime {

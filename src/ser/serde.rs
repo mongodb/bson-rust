@@ -12,12 +12,7 @@ use serde::ser::{
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
-use crate::{
-    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
-    datetime::DateTime,
-    oid::ObjectId,
-    spec::BinarySubtype,
-};
+use crate::{bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp}, datetime::DateTime, extjson::{self, models::DateTimeBody}, oid::ObjectId, spec::BinarySubtype};
 
 use super::{to_bson, Error};
 
@@ -27,8 +22,8 @@ impl Serialize for ObjectId {
     where
         S: serde::ser::Serializer,
     {
-        let mut ser = serializer.serialize_map(Some(1))?;
-        ser.serialize_entry("$oid", &self.to_string())?;
+        let mut ser = serializer.serialize_struct("$oid", 1)?;
+        ser.serialize_field("$oid", &self.to_string())?;
         ser.end()
     }
 }
@@ -53,19 +48,18 @@ impl Serialize for Bson {
     where
         S: ser::Serializer,
     {
-        match *self {
-            Bson::Double(v) => serializer.serialize_f64(v),
-            Bson::String(ref v) => serializer.serialize_str(v),
-            Bson::Array(ref v) => v.serialize(serializer),
-            Bson::Document(ref v) => v.serialize(serializer),
-            Bson::Boolean(v) => serializer.serialize_bool(v),
+        match self {
+            Bson::Double(v) => serializer.serialize_f64(*v),
+            Bson::String(v) => serializer.serialize_str(v),
+            Bson::Array(v) => v.serialize(serializer),
+            Bson::Document(v) => v.serialize(serializer),
+            Bson::Boolean(v) => serializer.serialize_bool(*v),
             Bson::Null => serializer.serialize_unit(),
-            Bson::Int32(v) => serializer.serialize_i32(v),
-            Bson::Int64(v) => serializer.serialize_i64(v),
-            Bson::Binary(Binary {
-                subtype: BinarySubtype::Generic,
-                ref bytes,
-            }) => serializer.serialize_bytes(bytes),
+            Bson::Int32(v) => serializer.serialize_i32(*v),
+            Bson::Int64(v) => serializer.serialize_i64(*v),
+            Bson::ObjectId(oid) => oid.serialize(serializer),
+            Bson::DateTime(dt) => dt.serialize(serializer),
+            Bson::Binary(b) => b.serialize(serializer),
             _ => {
                 let doc = self.clone().into_extended_document();
                 doc.serialize(serializer)
@@ -539,8 +533,17 @@ impl Serialize for Binary {
     where
         S: ser::Serializer,
     {
-        let value = Bson::Binary(self.clone());
-        value.serialize(serializer)
+        if let BinarySubtype::Generic = self.subtype {
+            serializer.serialize_bytes(self.bytes.as_slice())
+        } else {
+            let mut state = serializer.serialize_struct("$binary", 1)?;
+            let body = extjson::models::BinaryBody {
+                base64: base64::encode(self.bytes.as_slice()),
+                subtype: hex::encode([self.subtype.into()]),
+            };
+            state.serialize_field("$binary", &body)?;
+            state.end()
+        }
     }
 }
 
@@ -563,8 +566,12 @@ impl Serialize for DateTime {
         S: ser::Serializer,
     {
         // Cloning a `DateTime` is extremely cheap
-        let value = Bson::DateTime(*self);
-        value.serialize(serializer)
+        // let value = Bson::DateTime(*self);
+        // value.serialize(serializer)
+        let mut state = serializer.serialize_struct("$date", 1)?;
+        let body = extjson::models::DateTimeBody::from_millis(self.timestamp_millis());
+        state.serialize_field("$date", &body)?;
+        state.end()
     }
 }
 

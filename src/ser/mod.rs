@@ -89,6 +89,24 @@ fn write_f128<W: Write + ?Sized>(writer: &mut W, val: Decimal128) -> Result<()> 
     writer.write_all(&raw).map_err(From::from)
 }
 
+#[inline]
+fn write_binary<W: Write>(mut writer: W, bytes: &[u8], subtype: BinarySubtype) -> Result<()> {
+    let len = if let BinarySubtype::BinaryOld = subtype {
+        bytes.len() + 4
+    } else {
+        bytes.len()
+    };
+
+    write_i32(&mut writer, len as i32)?;
+    writer.write_all(&[subtype.into()])?;
+
+    if let BinarySubtype::BinaryOld = subtype {
+        write_i32(&mut writer, len as i32 - 4)?;
+    };
+
+    writer.write_all(bytes).map_err(From::from)
+}
+
 fn serialize_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> Result<()> {
     let mut buf = Vec::new();
     for (key, val) in arr.iter().enumerate() {
@@ -148,20 +166,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
         Bson::Int64(v) => write_i64(writer, v),
         Bson::Timestamp(ts) => write_i64(writer, ts.to_le_i64()),
         Bson::Binary(Binary { subtype, ref bytes }) => {
-            let len = if let BinarySubtype::BinaryOld = subtype {
-                bytes.len() + 4
-            } else {
-                bytes.len()
-            };
-
-            write_i32(writer, len as i32)?;
-            writer.write_all(&[subtype.into()])?;
-
-            if let BinarySubtype::BinaryOld = subtype {
-                write_i32(writer, len as i32 - 4)?;
-            };
-
-            writer.write_all(bytes).map_err(From::from)
+            write_binary(writer, bytes, subtype)
         }
         Bson::DateTime(ref v) => write_i64(writer, v.timestamp_millis()),
         Bson::Null => Ok(()),
