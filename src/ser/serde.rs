@@ -1,18 +1,17 @@
 use serde::ser::{
-    self,
-    Serialize,
-    SerializeMap,
-    SerializeSeq,
-    SerializeStruct,
-    SerializeStructVariant,
-    SerializeTuple,
-    SerializeTupleStruct,
-    SerializeTupleVariant,
+    self, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
+    SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
 };
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
-use crate::{bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp}, datetime::DateTime, extjson::{self, models::DateTimeBody}, oid::ObjectId, spec::BinarySubtype};
+use crate::{
+    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
+    datetime::DateTime,
+    extjson::{self, models::DateTimeBody},
+    oid::ObjectId,
+    spec::BinarySubtype,
+};
 
 use super::{to_bson, Error};
 
