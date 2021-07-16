@@ -59,10 +59,36 @@ impl Serialize for Bson {
             Bson::ObjectId(oid) => oid.serialize(serializer),
             Bson::DateTime(dt) => dt.serialize(serializer),
             Bson::Binary(b) => b.serialize(serializer),
-            _ => {
-                let doc = self.clone().into_extended_document();
-                doc.serialize(serializer)
+            Bson::JavaScriptCode(c) => {
+                let mut state = serializer.serialize_struct("$code", 1)?;
+                state.serialize_field("$code", c)?;
+                state.end()
+            },
+            Bson::JavaScriptCodeWithScope(code_w_scope) => code_w_scope.serialize(serializer),
+            Bson::DbPointer(dbp) => dbp.serialize(serializer),
+            Bson::Symbol(s) => {
+                let mut state = serializer.serialize_struct("$symbol", 1)?;
+                state.serialize_field("$symbol", s)?;
+                state.end()
             }
+            Bson::RegularExpression(re) => re.serialize(serializer),
+            Bson::Timestamp(t) => t.serialize(serializer),
+            Bson::Decimal128(_) => todo!(),
+            Bson::Undefined => serializer.serialize_unit(),
+            Bson::MaxKey => {
+                let mut state = serializer.serialize_struct("$maxKey", 1)?;
+                state.serialize_field("$maxKey", &1)?;
+                state.end()
+            },
+            Bson::MinKey => {
+                let mut state = serializer.serialize_struct("$minKey", 1)?;
+                state.serialize_field("$minKey", &1)?;
+                state.end()
+            },
+            // Bson::Document(_) => {
+            //     let doc = self.clone().into_extended_document();
+            //     doc.serialize(serializer)
+            // }
         }
     }
 }

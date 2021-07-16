@@ -410,6 +410,11 @@ impl<'a> BsonTypeSerializer<'a> {
             ElementType::RegularExpression => SerializationStep::RegEx,
             ElementType::Timestamp => SerializationStep::Timestamp,
             ElementType::DbPointer => SerializationStep::DbPointer,
+            ElementType::JavaScriptCode => SerializationStep::Code,
+            ElementType::JavaScriptCodeWithScope => SerializationStep::CodeWithScopeCode,
+            ElementType::MinKey => SerializationStep::MinKey,
+            ElementType::MaxKey => SerializationStep::MaxKey,
+
             _ => todo!(),
         };
         Self {
@@ -427,7 +432,7 @@ impl<'a, 'b, 'c: 'a + 'b> serde::Serializer for &'b mut BsonTypeSerializer<'a> {
     type SerializeTuple = Impossible<(), Error>;
     type SerializeTupleStruct = Impossible<(), Error>;
     type SerializeTupleVariant = Impossible<(), Error>;
-    type SerializeMap = CodeWithScopeSerializer<'a>;
+    type SerializeMap = CodeWithScopeSerializer<'b>;
     type SerializeStruct = Self;
     type SerializeStructVariant = Impossible<(), Error>;
 
@@ -637,7 +642,7 @@ impl<'a, 'b, 'c: 'a + 'b> serde::Serializer for &'b mut BsonTypeSerializer<'a> {
     }
 }
 
-impl<'a> SerializeStruct for BsonTypeSerializer<'a> {
+impl<'a, 'b> SerializeStruct for &'b mut BsonTypeSerializer<'a> {
     type Ok = ();
     type Error = Error;
 
@@ -721,6 +726,12 @@ impl<'a> SerializeStruct for BsonTypeSerializer<'a> {
                 value.serialize(&mut **self)?;
                 self.state = SerializationStep::Done;
             }
+            (SerializationStep::MinKey { .. }, "$minKey") => {
+                self.state = SerializationStep::Done;
+            }
+            (SerializationStep::MaxKey { .. }, "$maxKey") => {
+                self.state = SerializationStep::Done;
+            }
             (state, k) => panic!("bad combo: {:?} + {:?}", state, k),
         }
 
@@ -761,6 +772,10 @@ enum SerializationStep {
 
     CodeWithScopeCode,
     CodeWithScopeScope { code: String },
+
+    MinKey,
+
+    MaxKey,
 
     Done,
 }
@@ -1089,7 +1104,7 @@ impl<'a> serde::Serializer for KeySerializer<'a> {
     }
 }
 
-struct CodeWithScopeSerializer<'a> {
+pub(crate) struct CodeWithScopeSerializer<'a> {
     code_length: usize,
     start: usize,
     doc: DocumentSerializer<'a>,
