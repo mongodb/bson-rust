@@ -86,7 +86,11 @@ fn run_test(test: TestFile) {
             .expect(&description);
 
         let mut native_to_bson_serde_bson_to_native_cb = Vec::new();
-        crate::to_writer(&bson_to_native_cb, &mut native_to_bson_serde_bson_to_native_cb).expect(&description);
+        crate::to_writer(
+            &bson_to_native_cb,
+            &mut native_to_bson_serde_bson_to_native_cb,
+        )
+        .expect(&description);
 
         // native_to_bson( bson_to_native(cB) ) = cB
 

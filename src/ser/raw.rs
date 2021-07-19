@@ -1,12 +1,19 @@
-use std::io::Write;
+use std::{borrow::Borrow, convert::TryFrom, io::Write};
 
 use serde::{
     ser::{Error as SerdeError, Impossible, SerializeMap, SerializeStruct},
-    Serialize, Serializer as SerdeSerializer,
+    Serialize,
+    Serializer as SerdeSerializer,
 };
 
 use super::{write_cstring, write_f64, write_i32, write_i64, write_string, write_u8};
-use crate::{Document, oid::ObjectId, ser::{write_binary, Error, Result}, spec::{BinarySubtype, ElementType}};
+use crate::{
+    oid::ObjectId,
+    ser::{write_binary, Error, Result},
+    spec::{BinarySubtype, ElementType},
+    Decimal128,
+    Document,
+};
 
 pub(crate) struct Serializer {
     bytes: Vec<u8>,
@@ -43,10 +50,8 @@ impl Serializer {
     }
 
     fn replace_i32(&mut self, at: usize, with: i32) {
-        self.bytes.splice(
-            at..at + 4,
-            with.to_le_bytes().iter().cloned(),
-        );
+        self.bytes
+            .splice(at..at + 4, with.to_le_bytes().iter().cloned());
     }
 }
 
@@ -234,6 +239,16 @@ impl<'a> serde::Serializer for &'a mut Serializer {
             "$oid" => ElementType::ObjectId,
             "$date" => ElementType::DateTime,
             "$binary" => ElementType::Binary,
+            "$timestamp" => ElementType::Timestamp,
+            "$minKey" => ElementType::MinKey,
+            "$maxKey" => ElementType::MaxKey,
+            "$code" => ElementType::JavaScriptCode,
+            "$codeWithScope" => ElementType::JavaScriptCodeWithScope,
+            "$symbol" => ElementType::Symbol,
+            "$undefined" => ElementType::Undefined,
+            "$regularExpression" => ElementType::RegularExpression,
+            "$dbPointer" => ElementType::DbPointer,
+            "$numberDecimal" => ElementType::Decimal128,
             _ => ElementType::EmbeddedDocument,
         };
 
@@ -295,7 +310,7 @@ impl<'a> DocumentSerializer<'a> {
         self.root_serializer.replace_i32(self.start, length);
         Ok(DocumentSerializationResult {
             length,
-            root_serializer: self.root_serializer
+            root_serializer: self.root_serializer,
         })
     }
 }
@@ -414,6 +429,8 @@ impl<'a> BsonTypeSerializer<'a> {
             ElementType::JavaScriptCodeWithScope => SerializationStep::CodeWithScopeCode,
             ElementType::MinKey => SerializationStep::MinKey,
             ElementType::MaxKey => SerializationStep::MaxKey,
+            ElementType::Decimal128 => SerializationStep::Decimal128,
+            ElementType::Undefined => SerializationStep::Undefined,
 
             _ => todo!(),
         };
@@ -449,17 +466,24 @@ impl<'a, 'b, 'c: 'a + 'b> serde::Serializer for &'b mut BsonTypeSerializer<'a> {
     }
 
     fn serialize_i32(self, v: i32) -> Result<Self::Ok> {
+        todo!()
+    }
+
+    fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
         match self.state {
-            SerializationStep::TimestampTime | SerializationStep::TimestampIncrement => {
-                write_i32(&mut self.root_serializer.bytes, v)?;
+            SerializationStep::TimestampTime => {
+                self.state = SerializationStep::TimestampIncrement { time: v };
+            }
+            SerializationStep::TimestampIncrement { time } => {
+                let t = u32::try_from(time).map_err(Error::custom)?;
+                let i = u32::try_from(v).map_err(Error::custom)?;
+
+                write_i32(&mut self.root_serializer.bytes, i as i32)?;
+                write_i32(&mut self.root_serializer.bytes, t as i32)?;
             }
             _ => todo!(),
         }
         Ok(())
-    }
-
-    fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
-        todo!()
     }
 
     fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
@@ -535,13 +559,24 @@ impl<'a, 'b, 'c: 'a + 'b> serde::Serializer for &'b mut BsonTypeSerializer<'a> {
                     code: v.to_string(),
                 };
             }
+            #[cfg(feature = "decimal128")]
+            SerializationStep::Decimal128Value => {
+                let d = Decimal128::from_str(v);
+                self.root_serializer.write_all(d.to_raw_bytes_le())?;
+            }
             _ => todo!(),
         }
         Ok(())
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
-        todo!()
+        match self.state {
+            SerializationStep::Decimal128Value => {
+                self.root_serializer.bytes.write_all(v)?;
+                Ok(())
+            }
+            _ => todo!(),
+        }
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
@@ -696,10 +731,10 @@ impl<'a, 'b> SerializeStruct for &'b mut BsonTypeSerializer<'a> {
                 value.serialize(&mut **self)?;
             }
             (SerializationStep::TimestampTime, "t") => {
+                // state is updated in serialize
                 value.serialize(&mut **self)?;
-                self.state = SerializationStep::TimestampIncrement;
             }
-            (SerializationStep::TimestampIncrement, "i") => {
+            (SerializationStep::TimestampIncrement { .. }, "i") => {
                 value.serialize(&mut **self)?;
                 self.state = SerializationStep::Done;
             }
@@ -726,10 +761,22 @@ impl<'a, 'b> SerializeStruct for &'b mut BsonTypeSerializer<'a> {
                 value.serialize(&mut **self)?;
                 self.state = SerializationStep::Done;
             }
-            (SerializationStep::MinKey { .. }, "$minKey") => {
+            (SerializationStep::MinKey, "$minKey") => {
                 self.state = SerializationStep::Done;
             }
-            (SerializationStep::MaxKey { .. }, "$maxKey") => {
+            (SerializationStep::MaxKey, "$maxKey") => {
+                self.state = SerializationStep::Done;
+            }
+            (SerializationStep::Undefined, "$undefined") => {
+                self.state = SerializationStep::Done;
+            }
+            (SerializationStep::Decimal128, "$numberDecimal")
+            | (SerializationStep::Decimal128, "$numberDecimalBytes") => {
+                self.state = SerializationStep::Decimal128Value;
+                value.serialize(&mut **self)?;
+            }
+            (SerializationStep::Decimal128Value, "$numberDecimal") => {
+                value.serialize(&mut **self)?;
                 self.state = SerializationStep::Done;
             }
             (state, k) => panic!("bad combo: {:?} + {:?}", state, k),
@@ -762,7 +809,7 @@ enum SerializationStep {
 
     Timestamp,
     TimestampTime,
-    TimestampIncrement,
+    TimestampIncrement { time: i64 },
 
     DbPointer,
     DbPointerRef,
@@ -776,6 +823,11 @@ enum SerializationStep {
     MinKey,
 
     MaxKey,
+
+    Undefined,
+
+    Decimal128,
+    Decimal128Value,
 
     Done,
 }
@@ -808,34 +860,16 @@ impl<'a> SerializeStruct for StructSerializer<'a> {
     where
         T: Serialize,
     {
-        // println!("got field: {}", key);
         match self {
-            // StructSerializer::Value {
-            //     element_type,
-            //     root_serializer,
-            // } => {
-            //     match element_type {
-            //         ElementType::ObjectId => {
-            //             assert_eq!(key, "$oid");
-            //         }
-            //         ElementType::DateTime => {
-            //             assert_eq!(key, "$date");
-            //         }
-            //         _ => todo!(),
-            //     }
-            //     let mut s = BsonTypeSerializer::new(&mut *root_serializer, *element_type);
-            //     value.serialize(&mut s)
-            // }
             StructSerializer::Value(ref mut v) => (&mut *v).serialize_field(key, value),
             StructSerializer::Document(d) => d.serialize_field(key, value),
         }
-        // Ok(())
     }
 
     fn end(self) -> Result<Self::Ok> {
         match self {
             StructSerializer::Document(d) => SerializeStruct::end(d),
-            _ => Ok(()),
+            StructSerializer::Value(mut v) => v.end(),
         }
     }
 }
@@ -894,7 +928,8 @@ impl<'a> VariantSerializer<'a> {
         // null byte for the inner
         self.root_serializer.bytes.push(0);
         let arr_length = (self.root_serializer.bytes.len() - self.inner_start) as i32;
-        self.root_serializer.replace_i32(self.inner_start, arr_length);
+        self.root_serializer
+            .replace_i32(self.inner_start, arr_length);
 
         // null byte for document
         self.root_serializer.bytes.push(0);
@@ -1105,7 +1140,6 @@ impl<'a> serde::Serializer for KeySerializer<'a> {
 }
 
 pub(crate) struct CodeWithScopeSerializer<'a> {
-    code_length: usize,
     start: usize,
     doc: DocumentSerializer<'a>,
 }
@@ -1117,11 +1151,7 @@ impl<'a> CodeWithScopeSerializer<'a> {
         write_string(&mut rs.bytes, code)?;
 
         let doc = DocumentSerializer::start(rs)?;
-        Ok(Self {
-            code_length: code.len(),
-            start,
-            doc,
-        })
+        Ok(Self { start, doc })
     }
 }
 
@@ -1146,7 +1176,7 @@ impl<'a> SerializeMap for CodeWithScopeSerializer<'a> {
     fn end(self) -> Result<Self::Ok> {
         let result = self.doc.end_doc()?;
 
-        let total_len = result.length + self.code_length as i32;
+        let total_len = (result.root_serializer.bytes.len() - self.start) as i32;
         result.root_serializer.replace_i32(self.start, total_len);
         Ok(())
     }

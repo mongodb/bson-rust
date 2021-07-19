@@ -165,9 +165,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
         Bson::Int32(v) => write_i32(writer, v),
         Bson::Int64(v) => write_i64(writer, v),
         Bson::Timestamp(ts) => write_i64(writer, ts.to_le_i64()),
-        Bson::Binary(Binary { subtype, ref bytes }) => {
-            write_binary(writer, bytes, subtype)
-        }
+        Bson::Binary(Binary { subtype, ref bytes }) => write_binary(writer, bytes, subtype),
         Bson::DateTime(ref v) => write_i64(writer, v.timestamp_millis()),
         Bson::Null => Ok(()),
         Bson::Symbol(ref v) => write_string(writer, v),

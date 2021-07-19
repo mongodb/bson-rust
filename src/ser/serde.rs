@@ -1,7 +1,15 @@
 use serde::ser::{
-    self, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
-    SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
+    self,
+    Serialize,
+    SerializeMap,
+    SerializeSeq,
+    SerializeStruct,
+    SerializeStructVariant,
+    SerializeTuple,
+    SerializeTupleStruct,
+    SerializeTupleVariant,
 };
+use serde_bytes::Bytes;
 
 #[cfg(feature = "decimal128")]
 use crate::decimal128::Decimal128;
@@ -63,7 +71,7 @@ impl Serialize for Bson {
                 let mut state = serializer.serialize_struct("$code", 1)?;
                 state.serialize_field("$code", c)?;
                 state.end()
-            },
+            }
             Bson::JavaScriptCodeWithScope(code_w_scope) => code_w_scope.serialize(serializer),
             Bson::DbPointer(dbp) => dbp.serialize(serializer),
             Bson::Symbol(s) => {
@@ -73,22 +81,29 @@ impl Serialize for Bson {
             }
             Bson::RegularExpression(re) => re.serialize(serializer),
             Bson::Timestamp(t) => t.serialize(serializer),
-            Bson::Decimal128(_) => todo!(),
-            Bson::Undefined => serializer.serialize_unit(),
+            #[cfg(not(feature = "decimal128"))]
+            Bson::Decimal128(d) => {
+                let mut state = serializer.serialize_struct("$numberDecimal", 1)?;
+                state.serialize_field("$numberDecimalBytes", Bytes::new(&d.bytes))?;
+                state.end()
+            }
+            #[cfg(feature = "decimal128")]
+            Bson::Decimal128(d) => d.serialize(serializer),
+            Bson::Undefined => {
+                let mut state = serializer.serialize_struct("$undefined", 1)?;
+                state.serialize_field("$undefined", &1)?;
+                state.end()
+            }
             Bson::MaxKey => {
                 let mut state = serializer.serialize_struct("$maxKey", 1)?;
                 state.serialize_field("$maxKey", &1)?;
                 state.end()
-            },
+            }
             Bson::MinKey => {
                 let mut state = serializer.serialize_struct("$minKey", 1)?;
                 state.serialize_field("$minKey", &1)?;
                 state.end()
-            },
-            // Bson::Document(_) => {
-            //     let doc = self.clone().into_extended_document();
-            //     doc.serialize(serializer)
-            // }
+            }
         }
     }
 }
@@ -525,8 +540,13 @@ impl Serialize for Timestamp {
     where
         S: ser::Serializer,
     {
-        let value = Bson::Timestamp(*self);
-        value.serialize(serializer)
+        let mut state = serializer.serialize_struct("$timestamp", 1)?;
+        let body = extjson::models::TimestampBody {
+            t: self.time,
+            i: self.increment,
+        };
+        state.serialize_field("$timestamp", &body)?;
+        state.end()
     }
 }
 
@@ -536,8 +556,15 @@ impl Serialize for Regex {
     where
         S: ser::Serializer,
     {
-        let value = Bson::RegularExpression(self.clone());
-        value.serialize(serializer)
+        // let value = Bson::RegularExpression(self.clone());
+        // value.serialize(serializer)
+        let mut state = serializer.serialize_struct("$regularExpression", 1)?;
+        let body = extjson::models::RegexBody {
+            pattern: self.pattern.clone(),
+            options: self.options.clone(),
+        };
+        state.serialize_field("$regularExpression", &body)?;
+        state.end()
     }
 }
 
@@ -547,8 +574,10 @@ impl Serialize for JavaScriptCodeWithScope {
     where
         S: ser::Serializer,
     {
-        let value = Bson::JavaScriptCodeWithScope(self.clone());
-        value.serialize(serializer)
+        let mut state = serializer.serialize_struct("$codeWithScope", 2)?;
+        state.serialize_field("$code", &self.code)?;
+        state.serialize_field("$scope", &self.scope)?;
+        state.end()
     }
 }
 
@@ -579,8 +608,12 @@ impl Serialize for Decimal128 {
     where
         S: ser::Serializer,
     {
-        let value = Bson::Decimal128(self.clone());
-        value.serialize(serializer)
+        let mut state = serializer.serialize_struct()?;
+        let body = extjson::models::Decimal128 {
+            value: self.to_string(),
+        };
+        state.serialize_field("$numberDecimal", body)?;
+        state.end()
     }
 }
 
@@ -590,9 +623,6 @@ impl Serialize for DateTime {
     where
         S: ser::Serializer,
     {
-        // Cloning a `DateTime` is extremely cheap
-        // let value = Bson::DateTime(*self);
-        // value.serialize(serializer)
         let mut state = serializer.serialize_struct("$date", 1)?;
         let body = extjson::models::DateTimeBody::from_millis(self.timestamp_millis());
         state.serialize_field("$date", &body)?;
@@ -606,7 +636,12 @@ impl Serialize for DbPointer {
     where
         S: ser::Serializer,
     {
-        let value = Bson::DbPointer(self.clone());
-        value.serialize(serializer)
+        let mut state = serializer.serialize_struct("$dbPointer", 1)?;
+        let body = extjson::models::DbPointerBody {
+            ref_ns: self.namespace.clone(),
+            id: self.id.into(),
+        };
+        state.serialize_field("$dbPointer", &body)?;
+        state.end()
     }
 }
