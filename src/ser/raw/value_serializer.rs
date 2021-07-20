@@ -1,25 +1,29 @@
-use std::convert::TryFrom;
-use std::io::Write;
+use std::{convert::TryFrom, io::Write};
 
-use serde::ser::{Error as SerdeError, Impossible, SerializeMap, SerializeStruct};
-use serde::Serialize;
+use serde::{
+    ser::{Error as SerdeError, Impossible, SerializeMap, SerializeStruct},
+    Serialize,
+};
 
-use crate::oid::ObjectId;
-use crate::ser::Result;
-use crate::ser::{write_binary, write_cstring, write_i32, write_i64, write_string, Error};
-use crate::spec::{BinarySubtype, ElementType};
+#[cfg(feature = "decimal128")]
+use crate::Decimal128;
+use crate::{
+    oid::ObjectId,
+    ser::{write_binary, write_cstring, write_i32, write_i64, write_string, Error, Result},
+    spec::{BinarySubtype, ElementType},
+};
 
-use super::document_serializer::DocumentSerializer;
-use super::Serializer;
+use super::{document_serializer::DocumentSerializer, Serializer};
 
-/// A serializer used specifically for serializing the serde-data-model form of a BSON type (e.g. `Binary`) to
-/// raw bytes.
+/// A serializer used specifically for serializing the serde-data-model form of a BSON type (e.g.
+/// `Binary`) to raw bytes.
 pub(crate) struct ValueSerializer<'a> {
     root_serializer: &'a mut Serializer,
     state: SerializationStep,
 }
 
-/// State machine used to track which step in the serialization of a given type the serializer is currently on.
+/// State machine used to track which step in the serialization of a given type the serializer is
+/// currently on.
 #[derive(Debug)]
 enum SerializationStep {
     Oid,
@@ -62,24 +66,60 @@ enum SerializationStep {
     Done,
 }
 
-impl<'a> ValueSerializer<'a> {
-    pub(super) fn new(rs: &'a mut Serializer, element_type: ElementType) -> Self {
-        let state = match element_type {
-            ElementType::DateTime => SerializationStep::DateTime,
-            ElementType::Binary => SerializationStep::Binary,
-            ElementType::ObjectId => SerializationStep::Oid,
-            ElementType::Symbol => SerializationStep::Symbol,
-            ElementType::RegularExpression => SerializationStep::RegEx,
-            ElementType::Timestamp => SerializationStep::Timestamp,
-            ElementType::DbPointer => SerializationStep::DbPointer,
-            ElementType::JavaScriptCode => SerializationStep::Code,
-            ElementType::JavaScriptCodeWithScope => SerializationStep::CodeWithScopeCode,
-            ElementType::MinKey => SerializationStep::MinKey,
-            ElementType::MaxKey => SerializationStep::MaxKey,
-            ElementType::Decimal128 => SerializationStep::Decimal128,
-            ElementType::Undefined => SerializationStep::Undefined,
+/// Enum of BSON "value" types that this serializer can serialize.
+#[derive(Debug, Clone, Copy)]
+pub(super) enum ValueType {
+    DateTime,
+    Binary,
+    ObjectId,
+    Symbol,
+    RegularExpression,
+    Timestamp,
+    DbPointer,
+    JavaScriptCode,
+    JavaScriptCodeWithScope,
+    MinKey,
+    MaxKey,
+    Decimal128,
+    Undefined,
+}
 
-            _ => todo!(),
+impl From<ValueType> for ElementType {
+    fn from(vt: ValueType) -> Self {
+        match vt {
+            ValueType::Binary => ElementType::Binary,
+            ValueType::DateTime => ElementType::DateTime,
+            ValueType::DbPointer => ElementType::DbPointer,
+            ValueType::Decimal128 => ElementType::Decimal128,
+            ValueType::Symbol => ElementType::Symbol,
+            ValueType::RegularExpression => ElementType::RegularExpression,
+            ValueType::Timestamp => ElementType::Timestamp,
+            ValueType::JavaScriptCode => ElementType::JavaScriptCode,
+            ValueType::JavaScriptCodeWithScope => ElementType::JavaScriptCodeWithScope,
+            ValueType::MaxKey => ElementType::MaxKey,
+            ValueType::MinKey => ElementType::MinKey,
+            ValueType::Undefined => ElementType::Undefined,
+            ValueType::ObjectId => ElementType::ObjectId,
+        }
+    }
+}
+
+impl<'a> ValueSerializer<'a> {
+    pub(super) fn new(rs: &'a mut Serializer, value_type: ValueType) -> Self {
+        let state = match value_type {
+            ValueType::DateTime => SerializationStep::DateTime,
+            ValueType::Binary => SerializationStep::Binary,
+            ValueType::ObjectId => SerializationStep::Oid,
+            ValueType::Symbol => SerializationStep::Symbol,
+            ValueType::RegularExpression => SerializationStep::RegEx,
+            ValueType::Timestamp => SerializationStep::Timestamp,
+            ValueType::DbPointer => SerializationStep::DbPointer,
+            ValueType::JavaScriptCode => SerializationStep::Code,
+            ValueType::JavaScriptCodeWithScope => SerializationStep::CodeWithScopeCode,
+            ValueType::MinKey => SerializationStep::MinKey,
+            ValueType::MaxKey => SerializationStep::MaxKey,
+            ValueType::Decimal128 => SerializationStep::Decimal128,
+            ValueType::Undefined => SerializationStep::Undefined,
         };
         Self {
             root_serializer: rs,
@@ -88,7 +128,10 @@ impl<'a> ValueSerializer<'a> {
     }
 
     fn invalid_step(&self, primitive_type: &'static str) -> Error {
-        Error::custom(format!("cannot serialize {} at step {:?}", primitive_type, self.state))
+        Error::custom(format!(
+            "cannot serialize {} at step {:?}",
+            primitive_type, self.state
+        ))
     }
 }
 
@@ -138,32 +181,32 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         }
     }
 
-    fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
-        todo!()
+    fn serialize_u8(self, _v: u8) -> Result<Self::Ok> {
+        Err(self.invalid_step("u8"))
     }
 
-    fn serialize_u16(self, v: u16) -> Result<Self::Ok> {
-        todo!()
+    fn serialize_u16(self, _v: u16) -> Result<Self::Ok> {
+        Err(self.invalid_step("u16"))
     }
 
-    fn serialize_u32(self, v: u32) -> Result<Self::Ok> {
-        todo!()
+    fn serialize_u32(self, _v: u32) -> Result<Self::Ok> {
+        Err(self.invalid_step("u32"))
     }
 
-    fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
-        todo!()
+    fn serialize_u64(self, _v: u64) -> Result<Self::Ok> {
+        Err(self.invalid_step("u64"))
     }
 
-    fn serialize_f32(self, v: f32) -> Result<Self::Ok> {
-        todo!()
+    fn serialize_f32(self, _v: f32) -> Result<Self::Ok> {
+        Err(self.invalid_step("f32"))
     }
 
-    fn serialize_f64(self, v: f64) -> Result<Self::Ok> {
-        todo!()
+    fn serialize_f64(self, _v: f64) -> Result<Self::Ok> {
+        Err(self.invalid_step("f64"))
     }
 
-    fn serialize_char(self, v: char) -> Result<Self::Ok> {
-        todo!()
+    fn serialize_char(self, _v: char) -> Result<Self::Ok> {
+        Err(self.invalid_step("char"))
     }
 
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
@@ -206,9 +249,14 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
             #[cfg(feature = "decimal128")]
             SerializationStep::Decimal128Value => {
                 let d = Decimal128::from_str(v);
-                self.root_serializer.write_all(d.to_raw_bytes_le())?;
+                self.root_serializer.bytes.write_all(&d.to_raw_bytes_le())?;
             }
-            s => return Err(Error::custom(format!("can't serialize string for step {:?}", s))),
+            s => {
+                return Err(Error::custom(format!(
+                    "can't serialize string for step {:?}",
+                    s
+                )))
+            }
         }
         Ok(())
     }
@@ -219,105 +267,109 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
                 self.root_serializer.bytes.write_all(v)?;
                 Ok(())
             }
-            _ => todo!(),
+            _ => Err(self.invalid_step("&[u8]")),
         }
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
-        todo!()
+        Err(self.invalid_step("none"))
     }
 
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>
+    fn serialize_some<T: ?Sized>(self, _value: &T) -> Result<Self::Ok>
     where
         T: Serialize,
     {
-        todo!()
+        Err(self.invalid_step("some"))
     }
 
     fn serialize_unit(self) -> Result<Self::Ok> {
-        todo!()
+        Err(self.invalid_step("unit"))
     }
 
-    fn serialize_unit_struct(self, name: &'static str) -> Result<Self::Ok> {
-        todo!()
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok> {
+        Err(self.invalid_step("unit_struct"))
     }
 
     fn serialize_unit_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
     ) -> Result<Self::Ok> {
-        todo!()
+        Err(self.invalid_step("unit_variant"))
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(self, name: &'static str, value: &T) -> Result<Self::Ok>
-    where
-        T: Serialize,
-    {
-        todo!()
-    }
-
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_struct<T: ?Sized>(
         self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        value: &T,
+        _name: &'static str,
+        _value: &T,
     ) -> Result<Self::Ok>
     where
         T: Serialize,
     {
-        todo!()
+        Err(self.invalid_step("newtype_struct"))
     }
 
-    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
-        todo!()
+    fn serialize_newtype_variant<T: ?Sized>(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _value: &T,
+    ) -> Result<Self::Ok>
+    where
+        T: Serialize,
+    {
+        Err(self.invalid_step("newtype_variant"))
     }
 
-    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
-        todo!()
+    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
+        Err(self.invalid_step("newtype_seq"))
+    }
+
+    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
+        Err(self.invalid_step("newtype_tuple"))
     }
 
     fn serialize_tuple_struct(
         self,
-        name: &'static str,
-        len: usize,
+        _name: &'static str,
+        _len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
-        todo!()
+        Err(self.invalid_step("tuple_struct"))
     }
 
     fn serialize_tuple_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        len: usize,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        todo!()
+        Err(self.invalid_step("tuple_variant"))
     }
 
-    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         match self.state {
             SerializationStep::CodeWithScopeScope { ref code } => {
                 CodeWithScopeSerializer::start(code.as_str(), self.root_serializer)
             }
-            _ => todo!(),
+            _ => Err(self.invalid_step("tuple_map")),
         }
     }
 
-    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         Ok(self)
     }
 
     fn serialize_struct_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        len: usize,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        todo!()
+        Err(self.invalid_step("struct_variant"))
     }
 }
 
@@ -433,10 +485,9 @@ impl<'a, 'b> SerializeStruct for &'b mut ValueSerializer<'a> {
             (state, k) => {
                 return Err(Error::custom(format!(
                     "mismatched serialization step and next key: {:?} + \"{}\"",
-                    state,
-                    k
+                    state, k
                 )));
-            },
+            }
         }
 
         Ok(())

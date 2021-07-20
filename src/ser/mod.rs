@@ -221,7 +221,7 @@ where
 {
     let mut serializer = raw::Serializer::new();
     value.serialize(&mut serializer)?;
-    writer.write_all(&mut serializer.into_vec())?;
+    writer.write_all(serializer.into_vec().as_slice())?;
     Ok(())
 }
 

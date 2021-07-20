@@ -3,7 +3,6 @@
 use chrono::Utc;
 use serde::{
     de::{Error, Unexpected},
-    ser::SerializeStruct,
     Deserialize,
     Serialize,
 };

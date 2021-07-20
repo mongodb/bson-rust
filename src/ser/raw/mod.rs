@@ -1,28 +1,29 @@
 mod document_serializer;
 mod value_serializer;
 
-use std::{borrow::Borrow, convert::TryFrom, io::Write};
+use std::io::Write;
 
 use serde::{
-    ser::{Error as SerdeError, Impossible, SerializeMap, SerializeStruct},
+    ser::{Error as SerdeError, SerializeMap, SerializeStruct},
     Serialize,
-    Serializer as SerdeSerializer,
 };
 
-use self::value_serializer::ValueSerializer;
+use self::value_serializer::{ValueSerializer, ValueType};
 
 use super::{write_cstring, write_f64, write_i32, write_i64, write_string, write_u8};
 use crate::{
-    oid::ObjectId,
-    ser::{write_binary, Error, Result},
+    ser::{Error, Result},
     spec::{BinarySubtype, ElementType},
-    Decimal128,
-    Document,
 };
 use document_serializer::DocumentSerializer;
 
+/// Serializer used to convert a type `T` into raw BSON bytes.
 pub(crate) struct Serializer {
     bytes: Vec<u8>,
+
+    /// The index into `bytes` where the current element type will need to be stored.
+    /// This needs to be set retroactively because in BSON, the element type comes before the key,
+    /// but in serde, the serializer learns of the type after serializing the key.
     type_index: usize,
 }
 
@@ -34,10 +35,12 @@ impl Serializer {
         }
     }
 
+    /// Convert this serializer into the vec of the serialized bytes.
     pub(crate) fn into_vec(self) -> Vec<u8> {
         self.bytes
     }
 
+    /// Retroactively set the element type of the most recently serialized element.
     fn update_element_type(&mut self, t: ElementType) -> Result<()> {
         if self.type_index == 0 {
             if matches!(t, ElementType::EmbeddedDocument) {
@@ -55,6 +58,7 @@ impl Serializer {
         Ok(())
     }
 
+    /// Replace an i32 value at the given index with the given value.
     fn replace_i32(&mut self, at: usize, with: i32) {
         self.bytes
             .splice(at..at + 4, with.to_le_bytes().iter().cloned());
@@ -104,19 +108,48 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
-        todo!()
+        #[cfg(feature = "u2i")]
+        {
+            self.serialize_i32(v.into())
+        }
+
+        #[cfg(not(feature = "u2i"))]
+        Err(Error::UnsupportedUnsignedInteger(v.into()))
     }
 
     fn serialize_u16(self, v: u16) -> Result<Self::Ok> {
-        todo!()
+        #[cfg(feature = "u2i")]
+        {
+            self.serialize_i32(v.into())
+        }
+
+        #[cfg(not(feature = "u2i"))]
+        Err(Error::UnsupportedUnsignedInteger(v.into()))
     }
 
     fn serialize_u32(self, v: u32) -> Result<Self::Ok> {
-        todo!()
+        #[cfg(feature = "u2i")]
+        {
+            self.serialize_i64(v.into())
+        }
+
+        #[cfg(not(feature = "u2i"))]
+        Err(Error::UnsupportedUnsignedInteger(v.into()))
     }
 
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
-        todo!()
+        #[cfg(feature = "u2i")]
+        {
+            use std::convert::TryFrom;
+
+            match i64::try_from(v) {
+                Ok(ivalue) => self.serialize_i64(ivalue),
+                Err(_) => Err(Error::UnsignedIntegerExceededRange(v)),
+            }
+        }
+
+        #[cfg(not(feature = "u2i"))]
+        Err(Error::UnsupportedUnsignedInteger(v))
     }
 
     fn serialize_f32(self, v: f32) -> Result<Self::Ok> {
@@ -126,11 +159,13 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     fn serialize_f64(self, v: f64) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Double)?;
-        write_f64(&mut self.bytes, v.into())
+        write_f64(&mut self.bytes, v)
     }
 
     fn serialize_char(self, v: char) -> Result<Self::Ok> {
-        todo!()
+        let mut s = String::new();
+        s.push(v);
+        self.serialize_str(&s)
     }
 
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
@@ -165,7 +200,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     #[inline]
-    fn serialize_unit_struct(self, name: &'static str) -> Result<Self::Ok> {
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok> {
         self.serialize_unit()
     }
 
@@ -226,40 +261,47 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     #[inline]
     fn serialize_tuple_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
+        _name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
-        len: usize,
+        _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
         self.update_element_type(ElementType::EmbeddedDocument)?;
         VariantSerializer::start(&mut *self, variant, VariantInnerType::Tuple)
     }
 
-    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         self.update_element_type(ElementType::EmbeddedDocument)?;
         DocumentSerializer::start(&mut *self)
     }
 
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        let element_type = match name {
-            "$oid" => ElementType::ObjectId,
-            "$date" => ElementType::DateTime,
-            "$binary" => ElementType::Binary,
-            "$timestamp" => ElementType::Timestamp,
-            "$minKey" => ElementType::MinKey,
-            "$maxKey" => ElementType::MaxKey,
-            "$code" => ElementType::JavaScriptCode,
-            "$codeWithScope" => ElementType::JavaScriptCodeWithScope,
-            "$symbol" => ElementType::Symbol,
-            "$undefined" => ElementType::Undefined,
-            "$regularExpression" => ElementType::RegularExpression,
-            "$dbPointer" => ElementType::DbPointer,
-            "$numberDecimal" => ElementType::Decimal128,
-            _ => ElementType::EmbeddedDocument,
+        let value_type = match name {
+            "$oid" => Some(ValueType::ObjectId),
+            "$date" => Some(ValueType::DateTime),
+            "$binary" => Some(ValueType::Binary),
+            "$timestamp" => Some(ValueType::Timestamp),
+            "$minKey" => Some(ValueType::MinKey),
+            "$maxKey" => Some(ValueType::MaxKey),
+            "$code" => Some(ValueType::JavaScriptCode),
+            "$codeWithScope" => Some(ValueType::JavaScriptCodeWithScope),
+            "$symbol" => Some(ValueType::Symbol),
+            "$undefined" => Some(ValueType::Undefined),
+            "$regularExpression" => Some(ValueType::RegularExpression),
+            "$dbPointer" => Some(ValueType::DbPointer),
+            "$numberDecimal" => Some(ValueType::Decimal128),
+            _ => None,
         };
 
-        self.update_element_type(element_type)?;
-        StructSerializer::new(&mut *self, element_type)
+        self.update_element_type(
+            value_type
+                .map(Into::into)
+                .unwrap_or(ElementType::EmbeddedDocument),
+        )?;
+        match value_type {
+            Some(vt) => Ok(StructSerializer::Value(ValueSerializer::new(self, vt))),
+            None => Ok(StructSerializer::Document(DocumentSerializer::start(self)?)),
+        }
     }
 
     fn serialize_struct_variant(
@@ -274,18 +316,11 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 }
 
 pub(crate) enum StructSerializer<'a> {
+    /// Serialize a BSON value currently represented in serde as a struct (e.g. ObjectId)
     Value(ValueSerializer<'a>),
-    Document(DocumentSerializer<'a>),
-}
 
-impl<'a> StructSerializer<'a> {
-    fn new(rs: &'a mut Serializer, element_type: ElementType) -> Result<Self> {
-        if let ElementType::EmbeddedDocument = element_type {
-            Ok(Self::Document(DocumentSerializer::start(rs)?))
-        } else {
-            Ok(Self::Value(ValueSerializer::new(rs, element_type)))
-        }
-    }
+    /// Serialize the struct as a document.
+    Document(DocumentSerializer<'a>),
 }
 
 impl<'a> SerializeStruct for StructSerializer<'a> {
@@ -315,10 +350,19 @@ enum VariantInnerType {
     Struct,
 }
 
+/// Serializer used for enum variants, including both tuple (e.g. Foo::Bar(1, 2, 3)) and
+/// struct (e.g. Foo::Bar { a: 1 }).
 pub(crate) struct VariantSerializer<'a> {
     root_serializer: &'a mut Serializer,
+
+    /// Variants are serialized as documents of the form `{ <variant name>: <document or array> }`,
+    /// and `doc_start` indicates the index at which the outer document begins.
     doc_start: usize,
+
+    /// `inner_start` indicates the index at which the inner document or array begins.
     inner_start: usize,
+
+    /// How many elements have been serialized in the inner document / array so far.
     num_elements_serialized: usize,
 }
 
@@ -409,129 +453,128 @@ impl<'a> serde::ser::SerializeStructVariant for VariantSerializer<'a> {
     }
 }
 
+// #[cfg(test)]
+// mod test {
+//     use crate::{doc, Binary, DateTime, JavaScriptCodeWithScope};
+//     use serde::Serialize;
 
-#[cfg(test)]
-mod test {
-    use crate::{doc, Binary, DateTime, JavaScriptCodeWithScope};
-    use serde::Serialize;
+//     #[test]
+//     fn raw_serialize() {
+//         let binary = Binary {
+//             subtype: crate::spec::BinarySubtype::BinaryOld,
+//             bytes: Vec::new(),
+//         };
+//         let doc = doc! {
+//             // "a": JavaScriptCodeWithScope {
+//             //     code: "".to_string(),
+//             //     scope: doc! {}
+//             // }
+//             "o": ObjectId::new(),
+//             "d": DateTime::now(),
+//             "b": binary,
+//             // "x": { "y": "ok" },
+//             // "a": true,
+//             // "b": 1i32,
+//             // "c": 2i64,
+//             // "d": 5.5,
+//             // "e": [ true, "aaa", { "ok": 1.0 } ]
+//         };
+//         println!("{}", doc);
+//         // let mut v = Vec::new();
+//         // doc.to_writer(&mut v).unwrap();
 
-    #[test]
-    fn raw_serialize() {
-        let binary = Binary {
-            subtype: crate::spec::BinarySubtype::BinaryOld,
-            bytes: Vec::new(),
-        };
-        let doc = doc! {
-            // "a": JavaScriptCodeWithScope {
-            //     code: "".to_string(),
-            //     scope: doc! {}
-            // }
-            "o": ObjectId::new(),
-            "d": DateTime::now(),
-            "b": binary,
-            // "x": { "y": "ok" },
-            // "a": true,
-            // "b": 1i32,
-            // "c": 2i64,
-            // "d": 5.5,
-            // "e": [ true, "aaa", { "ok": 1.0 } ]
-        };
-        println!("{}", doc);
-        // let mut v = Vec::new();
-        // doc.to_writer(&mut v).unwrap();
+//         let raw_v = crate::ser::to_vec(&doc).unwrap();
+//         // assert_eq!(raw_v, v);
+//         let d = Document::from_reader(raw_v.as_slice()).unwrap();
+//         println!("{:#?}", d);
+//     }
+//     use std::time::Instant;
 
-        let raw_v = crate::ser::to_vec(&doc).unwrap();
-        // assert_eq!(raw_v, v);
-        let d = Document::from_reader(raw_v.as_slice()).unwrap();
-        println!("{:#?}", d);
-    }
-    use std::time::Instant;
+//     use serde::Deserialize;
 
-    use serde::Deserialize;
+//     use crate::{oid::ObjectId, Document};
 
-    use crate::{oid::ObjectId, Document};
+//     #[derive(Debug, Deserialize)]
+//     struct D {
+//         x: i32,
+//         y: i32,
+//         i: I,
+//         // oid: ObjectId,
+//         null: Option<i32>,
+//         b: bool,
+//         d: f32,
+//     }
 
-    #[derive(Debug, Deserialize)]
-    struct D {
-        x: i32,
-        y: i32,
-        i: I,
-        // oid: ObjectId,
-        null: Option<i32>,
-        b: bool,
-        d: f32,
-    }
+//     #[derive(Debug, Deserialize)]
+//     struct I {
+//         a: i32,
+//         b: i32,
+//     }
 
-    #[derive(Debug, Deserialize)]
-    struct I {
-        a: i32,
-        b: i32,
-    }
+//     #[derive(Debug, Serialize)]
+//     struct Code {
+//         c: JavaScriptCodeWithScope,
+//     }
 
-    #[derive(Debug, Serialize)]
-    struct Code {
-        c: JavaScriptCodeWithScope,
-    }
+//     // #[test]
+//     // fn raw_serialize() {
+//     //     let c = Code {
+//     //         c: JavaScriptCodeWithScope {
+//     //             code: "".to_string(),
+//     //             scope: doc! {},
+//     //         }
+//     //     };
 
-    // #[test]
-    // fn raw_serialize() {
-    //     let c = Code {
-    //         c: JavaScriptCodeWithScope {
-    //             code: "".to_string(),
-    //             scope: doc! {},
-    //         }
-    //     };
+//     //     let v = crate::ser::to_vec(&c).unwrap();
 
-    //     let v = crate::ser::to_vec(&c).unwrap();
+//     //     let doc = crate::to_document(&c).unwrap();
+//     //     let mut v2 = Vec::new();
+//     //     doc.to_writer(&mut v2).unwrap();
 
-    //     let doc = crate::to_document(&c).unwrap();
-    //     let mut v2 = Vec::new();
-    //     doc.to_writer(&mut v2).unwrap();
+//     //     assert_eq!(v, v2);
+//     // }
 
-    //     assert_eq!(v, v2);
-    // }
+//     #[test]
+//     fn raw_bench() {
+//         let binary = Binary {
+//             subtype: crate::spec::BinarySubtype::Generic,
+//             bytes: vec![1, 2, 3, 4, 5],
+//         };
+//         let doc = doc! {
+//             "ok": 1,
+//             "x": 1,
+//             "y": 2,
+//             "i": { "a": 300, "b": 12345 },
+//             // "oid": ObjectId::new(),
+//             "null": crate::Bson::Null,
+//             "b": true,
+//             "dt": DateTime::now(),
+//             "d": 12.5,
+//             "b": binary,
+//         };
 
-    #[test]
-    fn raw_bench() {
-        let binary = Binary {
-            subtype: crate::spec::BinarySubtype::Generic,
-            bytes: vec![1, 2, 3, 4, 5],
-        };
-        let doc = doc! {
-            "ok": 1,
-            "x": 1,
-            "y": 2,
-            "i": { "a": 300, "b": 12345 },
-            // "oid": ObjectId::new(),
-            "null": crate::Bson::Null,
-            "b": true,
-            "dt": DateTime::now(),
-            "d": 12.5,
-            "b": binary,
-        };
+//         let raw_start = Instant::now();
+//         for _ in 0..10_000 {
+//             let _b = crate::ser::to_vec(&doc).unwrap();
+//         }
+//         let raw_time = raw_start.elapsed();
+//         println!("raw time: {}", raw_time.as_secs_f32());
 
-        let raw_start = Instant::now();
-        for _ in 0..10_000 {
-            let _b = crate::ser::to_vec(&doc).unwrap();
-        }
-        let raw_time = raw_start.elapsed();
-        println!("raw time: {}", raw_time.as_secs_f32());
+//         let normal_start = Instant::now();
+//         for _ in 0..10_000 {
+//             let d: Document = crate::to_document(&doc).unwrap();
+//             let mut v = Vec::new();
+//             d.to_writer(&mut v).unwrap();
+//         }
+//         let normal_time = normal_start.elapsed();
+//         println!("normal time: {}", normal_time.as_secs_f32());
 
-        let normal_start = Instant::now();
-        for _ in 0..10_000 {
-            let d: Document = crate::to_document(&doc).unwrap();
-            let mut v = Vec::new();
-            d.to_writer(&mut v).unwrap();
-        }
-        let normal_time = normal_start.elapsed();
-        println!("normal time: {}", normal_time.as_secs_f32());
-
-        let normal_start = Instant::now();
-        for _ in 0..10_000 {
-            let mut v = Vec::new();
-            doc.to_writer(&mut v).unwrap();
-        }
-        let normal_time = normal_start.elapsed();
-        println!("decode time: {}", normal_time.as_secs_f32());
-    }
-}
+//         let normal_start = Instant::now();
+//         for _ in 0..10_000 {
+//             let mut v = Vec::new();
+//             doc.to_writer(&mut v).unwrap();
+//         }
+//         let normal_time = normal_start.elapsed();
+//         println!("decode time: {}", normal_time.as_secs_f32());
+//     }
+// }

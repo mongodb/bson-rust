@@ -9,6 +9,7 @@ use serde::ser::{
     SerializeTupleStruct,
     SerializeTupleVariant,
 };
+#[cfg(not(feature = "decimal128"))]
 use serde_bytes::Bytes;
 
 #[cfg(feature = "decimal128")]
@@ -16,7 +17,7 @@ use crate::decimal128::Decimal128;
 use crate::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
-    extjson::{self, models::DateTimeBody},
+    extjson,
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -608,11 +609,8 @@ impl Serialize for Decimal128 {
     where
         S: ser::Serializer,
     {
-        let mut state = serializer.serialize_struct()?;
-        let body = extjson::models::Decimal128 {
-            value: self.to_string(),
-        };
-        state.serialize_field("$numberDecimal", body)?;
+        let mut state = serializer.serialize_struct("$numberDecimal", 1)?;
+        state.serialize_field("$numberDecimal", self.to_string().as_str())?;
         state.end()
     }
 }

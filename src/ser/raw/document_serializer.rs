@@ -1,18 +1,18 @@
-use serde::Serialize;
-use serde::ser::Impossible;
+use serde::{ser::Impossible, Serialize};
 
-use crate::ser::write_cstring;
-use crate::ser::write_i32;
-use crate::ser::Result;
-use crate::ser::Error;
+use crate::{
+    ser::{write_cstring, write_i32, Error, Result},
+    to_bson,
+    Bson,
+};
 
 use super::Serializer;
 
 pub(crate) struct DocumentSerializationResult<'a> {
-    pub(crate) length: i32,
     pub(crate) root_serializer: &'a mut Serializer,
 }
 
+/// Serializer used to serialize document or array bodies.
 pub(crate) struct DocumentSerializer<'a> {
     root_serializer: &'a mut Serializer,
     num_keys_serialized: usize,
@@ -50,7 +50,6 @@ impl<'a> DocumentSerializer<'a> {
         let length = (self.root_serializer.bytes.len() - self.start) as i32;
         self.root_serializer.replace_i32(self.start, length);
         Ok(DocumentSerializationResult {
-            length,
             root_serializer: self.root_serializer,
         })
     }
@@ -151,8 +150,15 @@ impl<'a> serde::ser::SerializeTupleStruct for DocumentSerializer<'a> {
     }
 }
 
+/// Serializer used specifically for serializing document keys.
 struct KeySerializer<'a> {
     root_serializer: &'a mut Serializer,
+}
+
+impl<'a> KeySerializer<'a> {
+    fn invalid_key<T: Serialize>(v: T) -> Error {
+        Error::InvalidDocumentKey(to_bson(&v).unwrap_or(Bson::Null))
+    }
 }
 
 impl<'a> serde::Serializer for KeySerializer<'a> {
@@ -169,51 +175,51 @@ impl<'a> serde::Serializer for KeySerializer<'a> {
     type SerializeStructVariant = Impossible<(), Error>;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_i8(self, v: i8) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_i16(self, v: i16) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_i32(self, v: i32) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_u16(self, v: u16) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_u32(self, v: u32) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_f32(self, v: f32) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_f64(self, v: f64) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_char(self, v: char) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
@@ -221,98 +227,98 @@ impl<'a> serde::Serializer for KeySerializer<'a> {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(v))
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(Bson::Null))
     }
 
     fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>
     where
         T: Serialize,
     {
-        todo!()
+        value.serialize(self)
     }
 
     fn serialize_unit(self) -> Result<Self::Ok> {
-        todo!()
+        Err(Self::invalid_key(Bson::Null))
     }
 
-    fn serialize_unit_struct(self, name: &'static str) -> Result<Self::Ok> {
-        todo!()
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok> {
+        Err(Self::invalid_key(Bson::Null))
     }
 
     fn serialize_unit_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
+        _name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok> {
-        todo!()
+        self.serialize_str(variant)
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(self, name: &'static str, value: &T) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
     where
         T: Serialize,
     {
-        todo!()
+        value.serialize(self)
     }
 
     fn serialize_newtype_variant<T: ?Sized>(
         self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
         value: &T,
     ) -> Result<Self::Ok>
     where
         T: Serialize,
     {
-        todo!()
+        Err(Self::invalid_key(value))
     }
 
-    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
-        todo!()
+    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
+        Err(Self::invalid_key(Bson::Array(vec![])))
     }
 
-    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
-        todo!()
+    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
+        Err(Self::invalid_key(Bson::Array(vec![])))
     }
 
     fn serialize_tuple_struct(
         self,
-        name: &'static str,
-        len: usize,
+        _name: &'static str,
+        _len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
-        todo!()
+        Err(Self::invalid_key(Bson::Document(doc! {})))
     }
 
     fn serialize_tuple_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        len: usize,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        todo!()
+        Err(Self::invalid_key(Bson::Array(vec![])))
     }
 
-    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
-        todo!()
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
+        Err(Self::invalid_key(Bson::Document(doc! {})))
     }
 
-    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        todo!()
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        Err(Self::invalid_key(Bson::Document(doc! {})))
     }
 
     fn serialize_struct_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        len: usize,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        todo!()
+        Err(Self::invalid_key(Bson::Document(doc! {})))
     }
 }
