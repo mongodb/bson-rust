@@ -610,7 +610,10 @@ impl Serialize for Decimal128 {
         S: ser::Serializer,
     {
         let mut state = serializer.serialize_struct("$numberDecimal", 1)?;
-        state.serialize_field("$numberDecimal", self.to_string().as_str())?;
+        state.serialize_field(
+            "$numberDecimalBytes",
+            serde_bytes::Bytes::new(&self.to_raw_bytes_le()),
+        )?;
         state.end()
     }
 }

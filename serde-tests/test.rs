@@ -12,7 +12,6 @@ use serde::{
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashSet},
-    convert::TryInto,
 };
 
 use bson::{

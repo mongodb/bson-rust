@@ -22,7 +22,7 @@
 //! BSON definition
 
 use std::{
-    convert::TryFrom,
+    convert::{TryFrom, TryInto},
     fmt::{self, Debug, Display, Formatter},
 };
 
@@ -694,6 +694,20 @@ impl Bson {
                 if let Ok(d) = doc.get_str("$numberDecimal") {
                     if let Ok(d) = d.parse() {
                         return Bson::Decimal128(d);
+                    }
+                }
+            }
+
+            ["$numberDecimalBytes"] => {
+                if let Ok(bytes) = doc.get_binary_generic("$numberDecimalBytes") {
+                    if let Ok(b) = bytes.clone().try_into() {
+                        #[cfg(not(feature = "decimal128"))]
+                        return Bson::Decimal128(Decimal128 { bytes: b });
+
+                        #[cfg(feature = "decimal128")]
+                        unsafe {
+                            return Bson::Decimal128(Decimal128::from_raw_bytes_le(b));
+                        }
                     }
                 }
             }
