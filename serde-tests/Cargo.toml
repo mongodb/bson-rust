@@ -8,6 +8,7 @@ edition = "2018"
 bson = { path = "..", features = ["decimal128"] }
 serde = { version = "1.0", features = ["derive"] }
 pretty_assertions = "0.6.1"
+hex = "0.4.2"
 
 [lib]
 name = "serde_tests"

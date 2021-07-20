@@ -41,10 +41,20 @@ fn run_test<T>(expected_value: &T, expected_doc: &Document, description: &str)
 where
     T: Serialize + DeserializeOwned + PartialEq + std::fmt::Debug,
 {
+    println!("{}", description);
+    println!("{:#?}", expected_value);
+    println!("{:#?}", expected_doc);
     let mut expected_bytes = Vec::new();
     expected_doc
         .to_writer(&mut expected_bytes)
         .expect(description);
+    println!("expected bytes: {}", hex::encode(expected_bytes.as_slice()));
+
+    let mut expected_bytes_serde = Vec::new();
+    bson::to_writer(&expected_value, &mut expected_bytes_serde).expect(description);
+    println!("expected bytes serde: {}", hex::encode(expected_bytes_serde.as_slice()));
+
+    assert_eq!(expected_bytes_serde, expected_bytes, "{}", description);
 
     let serialized_doc = bson::to_document(&expected_value).expect(description);
     assert_eq!(&serialized_doc, expected_doc, "{}", description);

@@ -372,7 +372,6 @@ impl<'a> VariantSerializer<'a> {
         variant: &'static str,
         inner_type: VariantInnerType,
     ) -> Result<Self> {
-        rs.update_element_type(ElementType::EmbeddedDocument)?;
         let doc_start = rs.bytes.len();
         write_i32(&mut rs.bytes, 0)?;
 

@@ -92,7 +92,7 @@ impl Serialize for Bson {
             Bson::Decimal128(d) => d.serialize(serializer),
             Bson::Undefined => {
                 let mut state = serializer.serialize_struct("$undefined", 1)?;
-                state.serialize_field("$undefined", &1)?;
+                state.serialize_field("$undefined", &true)?;
                 state.end()
             }
             Bson::MaxKey => {
