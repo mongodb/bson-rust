@@ -40,6 +40,12 @@ impl Serializer {
         self.bytes
     }
 
+    /// Reserve a spot for the element type to be set retroactively via `update_element_type`.
+    fn reserve_element_type(&mut self) {
+        self.type_index = self.bytes.len(); // record index
+        self.bytes.push(0); // push temporary placeholder
+    }
+
     /// Retroactively set the element type of the most recently serialized element.
     fn update_element_type(&mut self, t: ElementType) -> Result<()> {
         if self.type_index == 0 {
@@ -311,6 +317,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
+        self.update_element_type(ElementType::EmbeddedDocument)?;
         VariantSerializer::start(&mut *self, variant, VariantInnerType::Struct)
     }
 }
@@ -373,6 +380,7 @@ impl<'a> VariantSerializer<'a> {
         inner_type: VariantInnerType,
     ) -> Result<Self> {
         let doc_start = rs.bytes.len();
+        // write placeholder length for document, will be updated at end
         write_i32(&mut rs.bytes, 0)?;
 
         let inner = match inner_type {
@@ -382,6 +390,8 @@ impl<'a> VariantSerializer<'a> {
         rs.bytes.push(inner as u8);
         write_cstring(&mut rs.bytes, variant)?;
         let inner_start = rs.bytes.len();
+        // write placeholder length for inner, will be updated at end
+        write_i32(&mut rs.bytes, 0)?;
 
         Ok(Self {
             root_serializer: rs,
@@ -395,7 +405,7 @@ impl<'a> VariantSerializer<'a> {
     where
         T: Serialize + ?Sized,
     {
-        self.root_serializer.bytes.push(0);
+        self.root_serializer.reserve_element_type();
         write_cstring(&mut self.root_serializer.bytes, k)?;
         v.serialize(&mut *self.root_serializer)?;
 
@@ -451,129 +461,3 @@ impl<'a> serde::ser::SerializeStructVariant for VariantSerializer<'a> {
         self.end_both()
     }
 }
-
-// #[cfg(test)]
-// mod test {
-//     use crate::{doc, Binary, DateTime, JavaScriptCodeWithScope};
-//     use serde::Serialize;
-
-//     #[test]
-//     fn raw_serialize() {
-//         let binary = Binary {
-//             subtype: crate::spec::BinarySubtype::BinaryOld,
-//             bytes: Vec::new(),
-//         };
-//         let doc = doc! {
-//             // "a": JavaScriptCodeWithScope {
-//             //     code: "".to_string(),
-//             //     scope: doc! {}
-//             // }
-//             "o": ObjectId::new(),
-//             "d": DateTime::now(),
-//             "b": binary,
-//             // "x": { "y": "ok" },
-//             // "a": true,
-//             // "b": 1i32,
-//             // "c": 2i64,
-//             // "d": 5.5,
-//             // "e": [ true, "aaa", { "ok": 1.0 } ]
-//         };
-//         println!("{}", doc);
-//         // let mut v = Vec::new();
-//         // doc.to_writer(&mut v).unwrap();
-
-//         let raw_v = crate::ser::to_vec(&doc).unwrap();
-//         // assert_eq!(raw_v, v);
-//         let d = Document::from_reader(raw_v.as_slice()).unwrap();
-//         println!("{:#?}", d);
-//     }
-//     use std::time::Instant;
-
-//     use serde::Deserialize;
-
-//     use crate::{oid::ObjectId, Document};
-
-//     #[derive(Debug, Deserialize)]
-//     struct D {
-//         x: i32,
-//         y: i32,
-//         i: I,
-//         // oid: ObjectId,
-//         null: Option<i32>,
-//         b: bool,
-//         d: f32,
-//     }
-
-//     #[derive(Debug, Deserialize)]
-//     struct I {
-//         a: i32,
-//         b: i32,
-//     }
-
-//     #[derive(Debug, Serialize)]
-//     struct Code {
-//         c: JavaScriptCodeWithScope,
-//     }
-
-//     // #[test]
-//     // fn raw_serialize() {
-//     //     let c = Code {
-//     //         c: JavaScriptCodeWithScope {
-//     //             code: "".to_string(),
-//     //             scope: doc! {},
-//     //         }
-//     //     };
-
-//     //     let v = crate::ser::to_vec(&c).unwrap();
-
-//     //     let doc = crate::to_document(&c).unwrap();
-//     //     let mut v2 = Vec::new();
-//     //     doc.to_writer(&mut v2).unwrap();
-
-//     //     assert_eq!(v, v2);
-//     // }
-
-//     #[test]
-//     fn raw_bench() {
-//         let binary = Binary {
-//             subtype: crate::spec::BinarySubtype::Generic,
-//             bytes: vec![1, 2, 3, 4, 5],
-//         };
-//         let doc = doc! {
-//             "ok": 1,
-//             "x": 1,
-//             "y": 2,
-//             "i": { "a": 300, "b": 12345 },
-//             // "oid": ObjectId::new(),
-//             "null": crate::Bson::Null,
-//             "b": true,
-//             "dt": DateTime::now(),
-//             "d": 12.5,
-//             "b": binary,
-//         };
-
-//         let raw_start = Instant::now();
-//         for _ in 0..10_000 {
-//             let _b = crate::ser::to_vec(&doc).unwrap();
-//         }
-//         let raw_time = raw_start.elapsed();
-//         println!("raw time: {}", raw_time.as_secs_f32());
-
-//         let normal_start = Instant::now();
-//         for _ in 0..10_000 {
-//             let d: Document = crate::to_document(&doc).unwrap();
-//             let mut v = Vec::new();
-//             d.to_writer(&mut v).unwrap();
-//         }
-//         let normal_time = normal_start.elapsed();
-//         println!("normal time: {}", normal_time.as_secs_f32());
-
-//         let normal_start = Instant::now();
-//         for _ in 0..10_000 {
-//             let mut v = Vec::new();
-//             doc.to_writer(&mut v).unwrap();
-//         }
-//         let normal_time = normal_start.elapsed();
-//         println!("decode time: {}", normal_time.as_secs_f32());
-//     }
-// }

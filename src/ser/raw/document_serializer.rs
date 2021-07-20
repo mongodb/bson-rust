@@ -35,8 +35,7 @@ impl<'a> DocumentSerializer<'a> {
         T: serde::Serialize + ?Sized,
     {
         // push a dummy element type for now, will update this once we serialize the value
-        self.root_serializer.type_index = self.root_serializer.bytes.len();
-        self.root_serializer.bytes.push(0);
+        self.root_serializer.reserve_element_type();
         key.serialize(KeySerializer {
             root_serializer: &mut *self.root_serializer,
         })?;
