@@ -233,18 +233,6 @@ impl Timestamp {
     }
 }
 
-// impl Serialize for TimestampBody {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: serde::Serializer
-//     {
-//         let mut state = serializer.serialize_struct("TimestampBody", 2)?;
-//         state.serialize_field("t", Bson::from(self.t))?;
-//         state.serialize_field("i", Bson::from(self.i))?;
-//         state.end()
-//     }
-// }
-
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DateTime {

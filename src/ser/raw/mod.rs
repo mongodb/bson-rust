@@ -90,15 +90,11 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     fn serialize_i8(self, v: i8) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Int32)?;
-        write_i32(&mut self.bytes, v.into())?;
-        Ok(())
+        self.serialize_i32(v.into())
     }
 
     fn serialize_i16(self, v: i16) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Int32)?;
-        write_i32(&mut self.bytes, v.into())?;
-        Ok(())
+        self.serialize_i32(v.into())
     }
 
     fn serialize_i32(self, v: i32) -> Result<Self::Ok> {
@@ -159,8 +155,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     fn serialize_f32(self, v: f32) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Double)?;
-        write_f64(&mut self.bytes, v.into())
+        self.serialize_f64(v.into())
     }
 
     fn serialize_f64(self, v: f64) -> Result<Self::Ok> {

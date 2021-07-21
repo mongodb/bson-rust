@@ -140,14 +140,6 @@ impl ElementType {
     }
 }
 
-// impl From<ElementType> for u8 {
-//     fn from(et: ElementType) -> Self {
-//         match et {
-//             ElementType::Array =>
-//         }
-//     }
-// }
-
 /// The available binary subtypes, plus a user-defined slot.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[non_exhaustive]
