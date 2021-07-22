@@ -557,8 +557,6 @@ impl Serialize for Regex {
     where
         S: ser::Serializer,
     {
-        // let value = Bson::RegularExpression(self.clone());
-        // value.serialize(serializer)
         let mut state = serializer.serialize_struct("$regularExpression", 1)?;
         let body = extjson::models::RegexBody {
             pattern: self.pattern.clone(),
