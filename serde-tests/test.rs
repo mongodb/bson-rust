@@ -870,3 +870,83 @@ fn borrowed() {
         bson::from_slice(bson.as_slice()).expect("deserialization should succeed");
     assert_eq!(deserialized, v);
 }
+
+#[cfg(feature = "u2i")]
+#[test]
+fn u2i() {
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    struct Foo {
+        u_8: u8,
+        u_16: u16,
+        u_32: u32,
+        u_32_max: u32,
+        u_64: u64,
+        i_64_max: u64,
+    }
+
+    let v = Foo {
+        u_8: 15,
+        u_16: 123,
+        u_32: 1234,
+        u_32_max: u32::MAX,
+        u_64: 12345,
+        i_64_max: i64::MAX as u64,
+    };
+
+    let expected = doc! {
+        "u_8": 15_i32,
+        "u_16": 123_i32,
+        "u_32": 1234_i64,
+        "u_32_max": u32::MAX as i64,
+        "u_64": 12345_i64,
+        "i_64_max": i64::MAX as u64,
+    };
+
+    run_test(&v, &expected, "u2i - valid");
+
+    #[derive(Serialize, Debug)]
+    struct TooBig {
+        u_64: u64
+    }
+    let v = TooBig {
+        u_64: i64::MAX as u64 + 1,
+    };
+    bson::to_document(&v).unwrap_err();
+    bson::to_vec(&v).unwrap_err();
+}
+
+#[cfg(not(feature = "u2i"))]
+#[test]
+fn unsigned() {
+    #[derive(Serialize, Debug)]
+    struct U8 {
+        v: u8,
+    }
+    let v = U8 { v: 1 };
+    bson::to_document(&v).unwrap_err();
+    bson::to_vec(&v).unwrap_err();
+
+    #[derive(Serialize, Debug)]
+    struct U16 {
+        v: u16,
+    }
+    let v = U16 { v: 1 };
+    bson::to_document(&v).unwrap_err();
+    bson::to_vec(&v).unwrap_err();
+
+    #[derive(Serialize, Debug)]
+    struct U32 {
+        v: u32,
+    }
+    let v = U32 { v: 1 };
+    bson::to_document(&v).unwrap_err();
+    bson::to_vec(&v).unwrap_err();
+
+    #[derive(Serialize, Debug)]
+    struct U64 {
+        v: u64,
+    }
+    let v = U64 { v: 1 };
+    bson::to_document(&v).unwrap_err();
+    bson::to_vec(&v).unwrap_err();
+}
