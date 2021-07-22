@@ -196,7 +196,6 @@ impl TryFrom<serde_json::Value> for Bson {
                         Bson::Int64(i)
                     }
                 })
-                .or_else(|| x.as_u64().map(Bson::from))
                 .or_else(|| x.as_f64().map(Bson::from))
                 .ok_or_else(|| {
                     Error::invalid_value(
