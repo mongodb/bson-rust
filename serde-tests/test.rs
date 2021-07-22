@@ -53,7 +53,11 @@ where
 
     let mut expected_bytes_from_doc_serde = Vec::new();
     bson::to_writer(&expected_doc, &mut expected_bytes_from_doc_serde).expect(description);
-    assert_eq!(expected_bytes_from_doc_serde, expected_bytes, "{}", description);
+    assert_eq!(
+        expected_bytes_from_doc_serde, expected_bytes,
+        "{}",
+        description
+    );
 
     let serialized_doc = bson::to_document(&expected_value).expect(description);
     assert_eq!(&serialized_doc, expected_doc, "{}", description);
@@ -906,7 +910,7 @@ fn u2i() {
 
     #[derive(Serialize, Debug)]
     struct TooBig {
-        u_64: u64
+        u_64: u64,
     }
     let v = TooBig {
         u_64: i64::MAX as u64 + 1,
