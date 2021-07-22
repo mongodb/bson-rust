@@ -22,6 +22,7 @@
 //! BSON definition
 
 use std::{
+    convert::{TryFrom, TryInto},
     fmt::{self, Debug, Display},
     ops::{Deref, DerefMut},
 };
@@ -266,13 +267,22 @@ impl From<i64> for Bson {
 
 impl From<u32> for Bson {
     fn from(a: u32) -> Bson {
-        Bson::Int32(a as i32)
+        if let Ok(i) = i32::try_from(a) {
+            Bson::Int32(i)
+        } else {
+            Bson::Int64(a.into())
+        }
     }
 }
 
 impl From<u64> for Bson {
+    /// This conversion is lossy if the provided `u64` is greater than `i64::MAX`, which it will be
+    /// converted to. Using this `From` implementation is highly discouraged and it will be
+    /// removed in the next major version.
+    ///
+    /// Note: due to https://github.com/rust-lang/rust/issues/39935 we cannot deprecate this implementation.
     fn from(a: u64) -> Bson {
-        Bson::Int64(a as i64)
+        Bson::Int64(a.try_into().unwrap_or(i64::MAX))
     }
 }
 
