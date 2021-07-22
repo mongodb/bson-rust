@@ -214,6 +214,7 @@ where
     }
 }
 
+/// Serialize the given `T` as BSON bytes into the provided writer.
 pub fn to_writer<T, W>(value: &T, mut writer: W) -> Result<()>
 where
     T: Serialize,
@@ -225,6 +226,7 @@ where
     Ok(())
 }
 
+/// Serialize the given `T` as a BSON byte vector.
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize,
