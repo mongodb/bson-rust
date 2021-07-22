@@ -36,9 +36,10 @@ use std::{io::Write, iter::FromIterator, mem};
 use crate::decimal128::Decimal128;
 use crate::{
     bson::{Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex},
+    de::MAX_BSON_SIZE,
     spec::BinarySubtype,
 };
-use ::serde::Serialize;
+use ::serde::{ser::Error as SerdeError, Serialize};
 
 fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
     writer.write_all(&(s.len() as i32 + 1).to_le_bytes())?;
@@ -51,11 +52,6 @@ fn write_cstring<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
     writer.write_all(s.as_bytes())?;
     writer.write_all(b"\0")?;
     Ok(())
-}
-
-#[inline]
-pub(crate) fn write_u8<W: Write + ?Sized>(writer: &mut W, val: u8) -> Result<()> {
-    writer.write_all(&[val]).map(|_| ()).map_err(From::from)
 }
 
 #[inline]
@@ -96,6 +92,13 @@ fn write_binary<W: Write>(mut writer: W, bytes: &[u8], subtype: BinarySubtype) -
     } else {
         bytes.len()
     };
+
+    if len > MAX_BSON_SIZE as usize {
+        return Err(Error::custom(format!(
+            "binary length {} exceeded maximum size",
+            bytes.len()
+        )));
+    }
 
     write_i32(&mut writer, len as i32)?;
     writer.write_all(&[subtype.into()])?;

@@ -1,8 +1,6 @@
 mod document_serializer;
 mod value_serializer;
 
-use std::io::Write;
-
 use serde::{
     ser::{Error as SerdeError, SerializeMap, SerializeStruct},
     Serialize,
@@ -10,7 +8,7 @@ use serde::{
 
 use self::value_serializer::{ValueSerializer, ValueType};
 
-use super::{write_cstring, write_f64, write_i32, write_i64, write_string, write_u8};
+use super::{write_binary, write_cstring, write_f64, write_i32, write_i64, write_string};
 use crate::{
     ser::{Error, Result},
     spec::{BinarySubtype, ElementType},
@@ -176,10 +174,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Binary)?;
-        let len = v.len() as i32;
-        write_i32(&mut self.bytes, len)?;
-        write_u8(&mut self.bytes, BinarySubtype::Generic.into())?;
-        self.bytes.write_all(v)?;
+        write_binary(&mut self.bytes, v, BinarySubtype::Generic)?;
         Ok(())
     }
 
