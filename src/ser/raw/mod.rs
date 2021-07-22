@@ -39,12 +39,14 @@ impl Serializer {
     }
 
     /// Reserve a spot for the element type to be set retroactively via `update_element_type`.
+    #[inline]
     fn reserve_element_type(&mut self) {
         self.type_index = self.bytes.len(); // record index
         self.bytes.push(0); // push temporary placeholder
     }
 
     /// Retroactively set the element type of the most recently serialized element.
+    #[inline]
     fn update_element_type(&mut self, t: ElementType) -> Result<()> {
         if self.type_index == 0 {
             if matches!(t, ElementType::EmbeddedDocument) {
@@ -63,6 +65,7 @@ impl Serializer {
     }
 
     /// Replace an i32 value at the given index with the given value.
+    #[inline]
     fn replace_i32(&mut self, at: usize, with: i32) {
         self.bytes
             .splice(at..at + 4, with.to_le_bytes().iter().cloned());
@@ -81,32 +84,38 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     type SerializeStruct = StructSerializer<'a>;
     type SerializeStructVariant = VariantSerializer<'a>;
 
+    #[inline]
     fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Boolean)?;
         self.bytes.push(if v { 1 } else { 0 });
         Ok(())
     }
 
+    #[inline]
     fn serialize_i8(self, v: i8) -> Result<Self::Ok> {
         self.serialize_i32(v.into())
     }
 
+    #[inline]
     fn serialize_i16(self, v: i16) -> Result<Self::Ok> {
         self.serialize_i32(v.into())
     }
 
+    #[inline]
     fn serialize_i32(self, v: i32) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Int32)?;
         write_i32(&mut self.bytes, v)?;
         Ok(())
     }
 
+    #[inline]
     fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Int64)?;
         write_i64(&mut self.bytes, v)?;
         Ok(())
     }
 
+    #[inline]
     fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
         #[cfg(feature = "u2i")]
         {
@@ -117,6 +126,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         Err(Error::UnsupportedUnsignedInteger(v.into()))
     }
 
+    #[inline]
     fn serialize_u16(self, v: u16) -> Result<Self::Ok> {
         #[cfg(feature = "u2i")]
         {
@@ -127,6 +137,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         Err(Error::UnsupportedUnsignedInteger(v.into()))
     }
 
+    #[inline]
     fn serialize_u32(self, v: u32) -> Result<Self::Ok> {
         #[cfg(feature = "u2i")]
         {
@@ -137,6 +148,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         Err(Error::UnsupportedUnsignedInteger(v.into()))
     }
 
+    #[inline]
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
         #[cfg(feature = "u2i")]
         {
@@ -152,37 +164,44 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         Err(Error::UnsupportedUnsignedInteger(v))
     }
 
+    #[inline]
     fn serialize_f32(self, v: f32) -> Result<Self::Ok> {
         self.serialize_f64(v.into())
     }
 
+    #[inline]
     fn serialize_f64(self, v: f64) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Double)?;
         write_f64(&mut self.bytes, v)
     }
 
+    #[inline]
     fn serialize_char(self, v: char) -> Result<Self::Ok> {
         let mut s = String::new();
         s.push(v);
         self.serialize_str(&s)
     }
 
+    #[inline]
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
         self.update_element_type(ElementType::String)?;
         write_string(&mut self.bytes, v)
     }
 
+    #[inline]
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Binary)?;
         write_binary(&mut self.bytes, v, BinarySubtype::Generic)?;
         Ok(())
     }
 
+    #[inline]
     fn serialize_none(self) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Null)?;
         Ok(())
     }
 
+    #[inline]
     fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>
     where
         T: serde::Serialize,
@@ -210,6 +229,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         self.serialize_str(variant)
     }
 
+    #[inline]
     fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
     where
         T: serde::Serialize,
@@ -217,6 +237,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         value.serialize(self)
     }
 
+    #[inline]
     fn serialize_newtype_variant<T: ?Sized>(
         self,
         _name: &'static str,
@@ -266,11 +287,13 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         VariantSerializer::start(&mut *self, variant, VariantInnerType::Tuple)
     }
 
+    #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         self.update_element_type(ElementType::EmbeddedDocument)?;
         DocumentSerializer::start(&mut *self)
     }
 
+    #[inline]
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         let value_type = match name {
             "$oid" => Some(ValueType::ObjectId),
@@ -300,6 +323,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         }
     }
 
+    #[inline]
     fn serialize_struct_variant(
         self,
         _name: &'static str,
@@ -324,6 +348,7 @@ impl<'a> SerializeStruct for StructSerializer<'a> {
     type Ok = ();
     type Error = Error;
 
+    #[inline]
     fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
         T: Serialize,
@@ -334,6 +359,7 @@ impl<'a> SerializeStruct for StructSerializer<'a> {
         }
     }
 
+    #[inline]
     fn end(self) -> Result<Self::Ok> {
         match self {
             StructSerializer::Document(d) => SerializeStruct::end(d),
@@ -391,6 +417,7 @@ impl<'a> VariantSerializer<'a> {
         })
     }
 
+    #[inline]
     fn serialize_element<T>(&mut self, k: &str, v: &T) -> Result<()>
     where
         T: Serialize + ?Sized,
@@ -403,6 +430,7 @@ impl<'a> VariantSerializer<'a> {
         Ok(())
     }
 
+    #[inline]
     fn end_both(self) -> Result<()> {
         // null byte for the inner
         self.root_serializer.bytes.push(0);
@@ -423,6 +451,7 @@ impl<'a> serde::ser::SerializeTupleVariant for VariantSerializer<'a> {
 
     type Error = Error;
 
+    #[inline]
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<()>
     where
         T: Serialize,
@@ -430,6 +459,7 @@ impl<'a> serde::ser::SerializeTupleVariant for VariantSerializer<'a> {
         self.serialize_element(format!("{}", self.num_elements_serialized).as_str(), value)
     }
 
+    #[inline]
     fn end(self) -> Result<Self::Ok> {
         self.end_both()
     }
@@ -440,6 +470,7 @@ impl<'a> serde::ser::SerializeStructVariant for VariantSerializer<'a> {
 
     type Error = Error;
 
+    #[inline]
     fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
         T: Serialize,
@@ -447,6 +478,7 @@ impl<'a> serde::ser::SerializeStructVariant for VariantSerializer<'a> {
         self.serialize_element(key, value)
     }
 
+    #[inline]
     fn end(self) -> Result<Self::Ok> {
         self.end_both()
     }

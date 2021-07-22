@@ -147,22 +147,27 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
     type SerializeStruct = Self;
     type SerializeStructVariant = Impossible<(), Error>;
 
+    #[inline]
     fn serialize_bool(self, _v: bool) -> Result<Self::Ok> {
         Err(self.invalid_step("bool"))
     }
 
+    #[inline]
     fn serialize_i8(self, _v: i8) -> Result<Self::Ok> {
         Err(self.invalid_step("i8"))
     }
 
+    #[inline]
     fn serialize_i16(self, _v: i16) -> Result<Self::Ok> {
         Err(self.invalid_step("i16"))
     }
 
+    #[inline]
     fn serialize_i32(self, _v: i32) -> Result<Self::Ok> {
         Err(self.invalid_step("i32"))
     }
 
+    #[inline]
     fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
         match self.state {
             SerializationStep::TimestampTime => {
@@ -181,30 +186,37 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         }
     }
 
+    #[inline]
     fn serialize_u8(self, _v: u8) -> Result<Self::Ok> {
         Err(self.invalid_step("u8"))
     }
 
+    #[inline]
     fn serialize_u16(self, _v: u16) -> Result<Self::Ok> {
         Err(self.invalid_step("u16"))
     }
 
+    #[inline]
     fn serialize_u32(self, _v: u32) -> Result<Self::Ok> {
         Err(self.invalid_step("u32"))
     }
 
+    #[inline]
     fn serialize_u64(self, _v: u64) -> Result<Self::Ok> {
         Err(self.invalid_step("u64"))
     }
 
+    #[inline]
     fn serialize_f32(self, _v: f32) -> Result<Self::Ok> {
         Err(self.invalid_step("f32"))
     }
 
+    #[inline]
     fn serialize_f64(self, _v: f64) -> Result<Self::Ok> {
         Err(self.invalid_step("f64"))
     }
 
+    #[inline]
     fn serialize_char(self, _v: char) -> Result<Self::Ok> {
         Err(self.invalid_step("char"))
     }
@@ -261,6 +273,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         Ok(())
     }
 
+    #[inline]
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         match self.state {
             SerializationStep::Decimal128Value => {
@@ -271,10 +284,12 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         }
     }
 
+    #[inline]
     fn serialize_none(self) -> Result<Self::Ok> {
         Err(self.invalid_step("none"))
     }
 
+    #[inline]
     fn serialize_some<T: ?Sized>(self, _value: &T) -> Result<Self::Ok>
     where
         T: Serialize,
@@ -282,14 +297,17 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         Err(self.invalid_step("some"))
     }
 
+    #[inline]
     fn serialize_unit(self) -> Result<Self::Ok> {
         Err(self.invalid_step("unit"))
     }
 
+    #[inline]
     fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok> {
         Err(self.invalid_step("unit_struct"))
     }
 
+    #[inline]
     fn serialize_unit_variant(
         self,
         _name: &'static str,
@@ -299,6 +317,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         Err(self.invalid_step("unit_variant"))
     }
 
+    #[inline]
     fn serialize_newtype_struct<T: ?Sized>(
         self,
         _name: &'static str,
@@ -310,6 +329,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         Err(self.invalid_step("newtype_struct"))
     }
 
+    #[inline]
     fn serialize_newtype_variant<T: ?Sized>(
         self,
         _name: &'static str,
@@ -323,14 +343,17 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         Err(self.invalid_step("newtype_variant"))
     }
 
+    #[inline]
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         Err(self.invalid_step("newtype_seq"))
     }
 
+    #[inline]
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
         Err(self.invalid_step("newtype_tuple"))
     }
 
+    #[inline]
     fn serialize_tuple_struct(
         self,
         _name: &'static str,
@@ -339,6 +362,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         Err(self.invalid_step("tuple_struct"))
     }
 
+    #[inline]
     fn serialize_tuple_variant(
         self,
         _name: &'static str,
@@ -349,6 +373,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         Err(self.invalid_step("tuple_variant"))
     }
 
+    #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         match self.state {
             SerializationStep::CodeWithScopeScope { ref code } => {
@@ -358,10 +383,12 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         }
     }
 
+    #[inline]
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         Ok(self)
     }
 
+    #[inline]
     fn serialize_struct_variant(
         self,
         _name: &'static str,
@@ -493,6 +520,7 @@ impl<'a, 'b> SerializeStruct for &'b mut ValueSerializer<'a> {
         Ok(())
     }
 
+    #[inline]
     fn end(self) -> Result<Self::Ok> {
         Ok(())
     }
@@ -504,6 +532,7 @@ pub(crate) struct CodeWithScopeSerializer<'a> {
 }
 
 impl<'a> CodeWithScopeSerializer<'a> {
+    #[inline]
     fn start(code: &str, rs: &'a mut Serializer) -> Result<Self> {
         let start = rs.bytes.len();
         write_i32(&mut rs.bytes, 0)?; // placeholder length
@@ -518,6 +547,7 @@ impl<'a> SerializeMap for CodeWithScopeSerializer<'a> {
     type Ok = ();
     type Error = Error;
 
+    #[inline]
     fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<()>
     where
         T: Serialize,
@@ -525,6 +555,7 @@ impl<'a> SerializeMap for CodeWithScopeSerializer<'a> {
         self.doc.serialize_key(key)
     }
 
+    #[inline]
     fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<()>
     where
         T: Serialize,
@@ -532,6 +563,7 @@ impl<'a> SerializeMap for CodeWithScopeSerializer<'a> {
         self.doc.serialize_value(value)
     }
 
+    #[inline]
     fn end(self) -> Result<Self::Ok> {
         let result = self.doc.end_doc()?;
 
