@@ -110,7 +110,10 @@ fn from_impls() {
     assert_eq!(Bson::from(-48i32), Bson::Int32(-48));
     assert_eq!(Bson::from(-96i64), Bson::Int64(-96));
     assert_eq!(Bson::from(152u32), Bson::Int32(152));
-    assert_eq!(Bson::from(i32::MAX as u32 + 1), Bson::Int64(i32::MAX as i64 + 1));
+    assert_eq!(
+        Bson::from(i32::MAX as u32 + 1),
+        Bson::Int64(i32::MAX as i64 + 1)
+    );
     assert_eq!(Bson::from(4096u64), Bson::Int64(4096));
 
     let oid = ObjectId::new();
