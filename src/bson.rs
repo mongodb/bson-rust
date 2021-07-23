@@ -308,12 +308,6 @@ impl From<u32> for Bson {
     }
 }
 
-impl From<u64> for Bson {
-    fn from(a: u64) -> Bson {
-        Bson::Int64(a as i64)
-    }
-}
-
 impl From<[u8; 12]> for Bson {
     fn from(a: [u8; 12]) -> Bson {
         Bson::ObjectId(oid::ObjectId::from_bytes(a))
