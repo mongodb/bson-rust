@@ -217,19 +217,6 @@ where
     }
 }
 
-/// Serialize the given `T` as BSON bytes into the provided writer.
-#[inline]
-pub fn to_writer<T, W>(value: &T, mut writer: W) -> Result<()>
-where
-    T: Serialize,
-    W: Write,
-{
-    let mut serializer = raw::Serializer::new();
-    value.serialize(&mut serializer)?;
-    writer.write_all(serializer.into_vec().as_slice())?;
-    Ok(())
-}
-
 /// Serialize the given `T` as a BSON byte vector.
 #[inline]
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>

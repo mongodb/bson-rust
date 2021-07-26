@@ -14,6 +14,8 @@ use std::{
     collections::{BTreeMap, HashSet},
 };
 
+#[cfg(feature = "decimal128")]
+use bson::Decimal128;
 use bson::{
     doc,
     oid::ObjectId,
@@ -21,7 +23,6 @@ use bson::{
     Binary,
     Bson,
     DateTime,
-    Decimal128,
     Deserializer,
     Document,
     JavaScriptCodeWithScope,
@@ -47,12 +48,10 @@ where
         .to_writer(&mut expected_bytes)
         .expect(description);
 
-    let mut expected_bytes_serde = Vec::new();
-    bson::to_writer(&expected_value, &mut expected_bytes_serde).expect(description);
+    let expected_bytes_serde = bson::to_vec(&expected_value).expect(description);
     assert_eq!(expected_bytes_serde, expected_bytes, "{}", description);
 
-    let mut expected_bytes_from_doc_serde = Vec::new();
-    bson::to_writer(&expected_doc, &mut expected_bytes_from_doc_serde).expect(description);
+    let expected_bytes_from_doc_serde = bson::to_vec(&expected_doc).expect(description);
     assert_eq!(
         expected_bytes_from_doc_serde, expected_bytes,
         "{}",

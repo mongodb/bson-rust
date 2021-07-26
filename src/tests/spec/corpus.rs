@@ -95,9 +95,8 @@ fn run_test(test: TestFile) {
             .to_writer(&mut documenttowriter_todocument_documentfromreader_cb)
             .expect(&description);
 
-        let mut towriter_documentfromreader_cb = Vec::new();
-        crate::to_writer(&documentfromreader_cb, &mut towriter_documentfromreader_cb)
-            .expect(&description);
+        let tovec_documentfromreader_cb =
+            crate::to_vec(&documentfromreader_cb).expect(&description);
 
         // native_to_bson( bson_to_native(cB) ) = cB
 
@@ -132,7 +131,7 @@ fn run_test(test: TestFile) {
         );
 
         assert_eq!(
-            hex::encode(towriter_documentfromreader_cb).to_lowercase(),
+            hex::encode(tovec_documentfromreader_cb).to_lowercase(),
             valid.canonical_bson.to_lowercase(),
             "{}",
             description,

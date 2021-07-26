@@ -198,7 +198,7 @@ pub use self::{
         Deserializer,
     },
     decimal128::Decimal128,
-    ser::{to_bson, to_document, to_vec, to_writer, Serializer},
+    ser::{to_bson, to_document, to_vec, Serializer},
 };
 
 #[macro_use]
