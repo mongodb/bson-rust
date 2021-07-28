@@ -14,6 +14,8 @@ use std::{
     collections::{BTreeMap, HashSet},
 };
 
+#[cfg(feature = "decimal128")]
+use bson::Decimal128;
 use bson::{
     doc,
     oid::ObjectId,
@@ -21,7 +23,6 @@ use bson::{
     Binary,
     Bson,
     DateTime,
-    Decimal128,
     Deserializer,
     Document,
     JavaScriptCodeWithScope,
@@ -37,6 +38,7 @@ use bson::{
 ///     - deserializing a `T` from the raw BSON version of `expected_doc` produces `expected_value`
 ///     - deserializing a `Document` from the raw BSON version of `expected_doc` produces
 ///       `expected_doc`
+///   - `bson::to_writer` and `Document::to_writer` produce the same result given the same input
 fn run_test<T>(expected_value: &T, expected_doc: &Document, description: &str)
 where
     T: Serialize + DeserializeOwned + PartialEq + std::fmt::Debug,
@@ -45,6 +47,16 @@ where
     expected_doc
         .to_writer(&mut expected_bytes)
         .expect(description);
+
+    let expected_bytes_serde = bson::to_vec(&expected_value).expect(description);
+    assert_eq!(expected_bytes_serde, expected_bytes, "{}", description);
+
+    let expected_bytes_from_doc_serde = bson::to_vec(&expected_doc).expect(description);
+    assert_eq!(
+        expected_bytes_from_doc_serde, expected_bytes,
+        "{}",
+        description
+    );
 
     let serialized_doc = bson::to_document(&expected_value).expect(description);
     assert_eq!(&serialized_doc, expected_doc, "{}", description);
@@ -702,7 +714,7 @@ fn all_types() {
         undefined: Bson,
         code: Bson,
         code_w_scope: JavaScriptCodeWithScope,
-        decimal: Decimal128,
+        decimal: Bson,
         symbol: Bson,
         min_key: Bson,
         max_key: Bson,
@@ -737,6 +749,16 @@ fn all_types() {
     let oid = ObjectId::new();
     let subdoc = doc! { "k": true, "b": { "hello": "world" } };
 
+    #[cfg(not(feature = "decimal128"))]
+    let decimal = {
+        let bytes = hex::decode("18000000136400D0070000000000000000000000003A3000").unwrap();
+        let d = Document::from_reader(bytes.as_slice()).unwrap();
+        d.get("d").unwrap().clone()
+    };
+
+    #[cfg(feature = "decimal128")]
+    let decimal = Bson::Decimal128(Decimal128::from_str("2.000"));
+
     let doc = doc! {
         "x": 1,
         "y": 2_i64,
@@ -758,7 +780,7 @@ fn all_types() {
         "undefined": Bson::Undefined,
         "code": code.clone(),
         "code_w_scope": code_w_scope.clone(),
-        "decimal": Bson::Decimal128(Decimal128::from_i32(5)),
+        "decimal": decimal.clone(),
         "symbol": Bson::Symbol("ok".to_string()),
         "min_key": Bson::MinKey,
         "max_key": Bson::MaxKey,
@@ -789,7 +811,7 @@ fn all_types() {
         undefined: Bson::Undefined,
         code,
         code_w_scope,
-        decimal: Decimal128::from_i32(5),
+        decimal,
         symbol: Bson::Symbol("ok".to_string()),
         min_key: Bson::MinKey,
         max_key: Bson::MaxKey,
@@ -850,4 +872,84 @@ fn borrowed() {
     let deserialized: Foo =
         bson::from_slice(bson.as_slice()).expect("deserialization should succeed");
     assert_eq!(deserialized, v);
+}
+
+#[cfg(feature = "u2i")]
+#[test]
+fn u2i() {
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    struct Foo {
+        u_8: u8,
+        u_16: u16,
+        u_32: u32,
+        u_32_max: u32,
+        u_64: u64,
+        i_64_max: u64,
+    }
+
+    let v = Foo {
+        u_8: 15,
+        u_16: 123,
+        u_32: 1234,
+        u_32_max: u32::MAX,
+        u_64: 12345,
+        i_64_max: i64::MAX as u64,
+    };
+
+    let expected = doc! {
+        "u_8": 15_i32,
+        "u_16": 123_i32,
+        "u_32": 1234_i64,
+        "u_32_max": u32::MAX as i64,
+        "u_64": 12345_i64,
+        "i_64_max": i64::MAX as u64,
+    };
+
+    run_test(&v, &expected, "u2i - valid");
+
+    #[derive(Serialize, Debug)]
+    struct TooBig {
+        u_64: u64,
+    }
+    let v = TooBig {
+        u_64: i64::MAX as u64 + 1,
+    };
+    bson::to_document(&v).unwrap_err();
+    bson::to_vec(&v).unwrap_err();
+}
+
+#[cfg(not(feature = "u2i"))]
+#[test]
+fn unsigned() {
+    #[derive(Serialize, Debug)]
+    struct U8 {
+        v: u8,
+    }
+    let v = U8 { v: 1 };
+    bson::to_document(&v).unwrap_err();
+    bson::to_vec(&v).unwrap_err();
+
+    #[derive(Serialize, Debug)]
+    struct U16 {
+        v: u16,
+    }
+    let v = U16 { v: 1 };
+    bson::to_document(&v).unwrap_err();
+    bson::to_vec(&v).unwrap_err();
+
+    #[derive(Serialize, Debug)]
+    struct U32 {
+        v: u32,
+    }
+    let v = U32 { v: 1 };
+    bson::to_document(&v).unwrap_err();
+    bson::to_vec(&v).unwrap_err();
+
+    #[derive(Serialize, Debug)]
+    struct U64 {
+        v: u64,
+    }
+    let v = U64 { v: 1 };
+    bson::to_document(&v).unwrap_err();
+    bson::to_vec(&v).unwrap_err();
 }

@@ -22,6 +22,7 @@
 //! Serializer
 
 mod error;
+mod raw;
 mod serde;
 
 pub use self::{
@@ -35,9 +36,10 @@ use std::{io::Write, iter::FromIterator, mem};
 use crate::decimal128::Decimal128;
 use crate::{
     bson::{Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex},
+    de::MAX_BSON_SIZE,
     spec::BinarySubtype,
 };
-use ::serde::Serialize;
+use ::serde::{ser::Error as SerdeError, Serialize};
 
 fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
     writer.write_all(&(s.len() as i32 + 1).to_le_bytes())?;
@@ -81,6 +83,31 @@ fn write_f64<W: Write + ?Sized>(writer: &mut W, val: f64) -> Result<()> {
 fn write_f128<W: Write + ?Sized>(writer: &mut W, val: Decimal128) -> Result<()> {
     let raw = val.to_raw_bytes_le();
     writer.write_all(&raw).map_err(From::from)
+}
+
+#[inline]
+fn write_binary<W: Write>(mut writer: W, bytes: &[u8], subtype: BinarySubtype) -> Result<()> {
+    let len = if let BinarySubtype::BinaryOld = subtype {
+        bytes.len() + 4
+    } else {
+        bytes.len()
+    };
+
+    if len > MAX_BSON_SIZE as usize {
+        return Err(Error::custom(format!(
+            "binary length {} exceeded maximum size",
+            bytes.len()
+        )));
+    }
+
+    write_i32(&mut writer, len as i32)?;
+    writer.write_all(&[subtype.into()])?;
+
+    if let BinarySubtype::BinaryOld = subtype {
+        write_i32(&mut writer, len as i32 - 4)?;
+    };
+
+    writer.write_all(bytes).map_err(From::from)
 }
 
 fn serialize_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> Result<()> {
@@ -141,22 +168,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
         Bson::Int32(v) => write_i32(writer, v),
         Bson::Int64(v) => write_i64(writer, v),
         Bson::Timestamp(ts) => write_i64(writer, ts.to_le_i64()),
-        Bson::Binary(Binary { subtype, ref bytes }) => {
-            let len = if let BinarySubtype::BinaryOld = subtype {
-                bytes.len() + 4
-            } else {
-                bytes.len()
-            };
-
-            write_i32(writer, len as i32)?;
-            writer.write_all(&[subtype.into()])?;
-
-            if let BinarySubtype::BinaryOld = subtype {
-                write_i32(writer, len as i32 - 4)?;
-            };
-
-            writer.write_all(bytes).map_err(From::from)
-        }
+        Bson::Binary(Binary { subtype, ref bytes }) => write_binary(writer, bytes, subtype),
         Bson::DateTime(ref v) => write_i64(writer, v.timestamp_millis()),
         Bson::Null => Ok(()),
         Bson::Symbol(ref v) => write_string(writer, v),
@@ -203,4 +215,15 @@ where
             ),
         }),
     }
+}
+
+/// Serialize the given `T` as a BSON byte vector.
+#[inline]
+pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
+where
+    T: Serialize,
+{
+    let mut serializer = raw::Serializer::new();
+    value.serialize(&mut serializer)?;
+    Ok(serializer.into_vec())
 }

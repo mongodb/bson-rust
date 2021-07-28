@@ -4,6 +4,7 @@ use chrono::Utc;
 use serde::{
     de::{Error, Unexpected},
     Deserialize,
+    Serialize,
 };
 
 use crate::{extjson, oid, spec::BinarySubtype, Bson};
@@ -27,7 +28,7 @@ impl Int32 {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Int64 {
     #[serde(rename = "$numberLong")]
@@ -72,7 +73,7 @@ impl Double {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ObjectId {
     #[serde(rename = "$oid")]
@@ -83,6 +84,12 @@ impl ObjectId {
     pub(crate) fn parse(self) -> extjson::de::Result<oid::ObjectId> {
         let oid = oid::ObjectId::parse_str(self.oid.as_str())?;
         Ok(oid)
+    }
+}
+
+impl From<crate::oid::ObjectId> for ObjectId {
+    fn from(id: crate::oid::ObjectId) -> Self {
+        Self { oid: id.to_hex() }
     }
 }
 
@@ -100,7 +107,7 @@ pub(crate) struct Regex {
     body: RegexBody,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RegexBody {
     pub(crate) pattern: String,
@@ -127,7 +134,7 @@ pub(crate) struct Binary {
     pub(crate) body: BinaryBody,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct BinaryBody {
     pub(crate) base64: String,
@@ -207,10 +214,13 @@ pub(crate) struct Timestamp {
     body: TimestampBody,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct TimestampBody {
+    #[serde(serialize_with = "crate::serde_helpers::serialize_u32_as_i64")]
     pub(crate) t: u32,
+
+    #[serde(serialize_with = "crate::serde_helpers::serialize_u32_as_i64")]
     pub(crate) i: u32,
 }
 
@@ -223,18 +233,26 @@ impl Timestamp {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DateTime {
     #[serde(rename = "$date")]
     pub(crate) body: DateTimeBody,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(untagged)]
 pub(crate) enum DateTimeBody {
     Canonical(Int64),
     Relaxed(String),
+}
+
+impl DateTimeBody {
+    pub(crate) fn from_millis(m: i64) -> Self {
+        DateTimeBody::Canonical(Int64 {
+            value: m.to_string(),
+        })
+    }
 }
 
 impl DateTime {
@@ -307,7 +325,7 @@ pub(crate) struct DbPointer {
     body: DbPointerBody,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DbPointerBody {
     #[serde(rename = "$ref")]

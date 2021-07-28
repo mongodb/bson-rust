@@ -61,48 +61,77 @@ fn run_test(test: TestFile) {
 
         let canonical_bson = hex::decode(&valid.canonical_bson).expect(&description);
 
-        let bson_to_native_cb =
+        // these four cover the four ways to create a `Document` from the provided BSON.
+        let documentfromreader_cb =
             Document::from_reader(canonical_bson.as_slice()).expect(&description);
 
-        let bson_to_native_cb_serde: Document =
+        let fromreader_cb: Document =
             crate::from_reader(canonical_bson.as_slice()).expect(&description);
 
-        let native_to_native_cb_serde: Document =
-            crate::from_document(bson_to_native_cb.clone()).expect(&description);
+        let fromdocument_documentfromreader_cb: Document =
+            crate::from_document(documentfromreader_cb.clone()).expect(&description);
 
-        let mut native_to_bson_bson_to_native_cb = Vec::new();
-        bson_to_native_cb
-            .to_writer(&mut native_to_bson_bson_to_native_cb)
+        let todocument_documentfromreader_cb: Document =
+            crate::to_document(&documentfromreader_cb).expect(&description);
+
+        // These cover the ways to serialize those `Documents` back to BSON.
+        let mut documenttowriter_documentfromreader_cb = Vec::new();
+        documentfromreader_cb
+            .to_writer(&mut documenttowriter_documentfromreader_cb)
             .expect(&description);
 
-        let mut native_to_bson_bson_to_native_cb_serde = Vec::new();
-        bson_to_native_cb_serde
-            .to_writer(&mut native_to_bson_bson_to_native_cb_serde)
+        let mut documenttowriter_fromreader_cb = Vec::new();
+        fromreader_cb
+            .to_writer(&mut documenttowriter_fromreader_cb)
             .expect(&description);
 
-        let mut native_to_bson_native_to_native_cb_serde = Vec::new();
-        native_to_native_cb_serde
-            .to_writer(&mut native_to_bson_native_to_native_cb_serde)
+        let mut documenttowriter_fromdocument_documentfromreader_cb = Vec::new();
+        fromdocument_documentfromreader_cb
+            .to_writer(&mut documenttowriter_fromdocument_documentfromreader_cb)
             .expect(&description);
+
+        let mut documenttowriter_todocument_documentfromreader_cb = Vec::new();
+        todocument_documentfromreader_cb
+            .to_writer(&mut documenttowriter_todocument_documentfromreader_cb)
+            .expect(&description);
+
+        let tovec_documentfromreader_cb =
+            crate::to_vec(&documentfromreader_cb).expect(&description);
 
         // native_to_bson( bson_to_native(cB) ) = cB
 
+        // now we ensure the hex for all 5 are equivalent to the canonical BSON provided by the
+        // test.
         assert_eq!(
-            hex::encode(native_to_bson_bson_to_native_cb).to_lowercase(),
+            hex::encode(documenttowriter_documentfromreader_cb).to_lowercase(),
             valid.canonical_bson.to_lowercase(),
             "{}",
             description,
         );
 
         assert_eq!(
-            hex::encode(native_to_bson_bson_to_native_cb_serde).to_lowercase(),
+            hex::encode(documenttowriter_fromreader_cb).to_lowercase(),
             valid.canonical_bson.to_lowercase(),
             "{}",
             description,
         );
 
         assert_eq!(
-            hex::encode(native_to_bson_native_to_native_cb_serde).to_lowercase(),
+            hex::encode(documenttowriter_fromdocument_documentfromreader_cb).to_lowercase(),
+            valid.canonical_bson.to_lowercase(),
+            "{}",
+            description,
+        );
+
+        assert_eq!(
+            hex::encode(documenttowriter_todocument_documentfromreader_cb).to_lowercase(),
+            valid.canonical_bson.to_lowercase(),
+            "{}",
+            description,
+        );
+
+        assert_eq!(
+            hex::encode(tovec_documentfromreader_cb).to_lowercase(),
             valid.canonical_bson.to_lowercase(),
             "{}",
             description,
@@ -110,14 +139,16 @@ fn run_test(test: TestFile) {
 
         // NaN == NaN is false, so we skip document comparisons that contain NaN
         if !description.to_ascii_lowercase().contains("nan") && !description.contains("decq541") {
+            assert_eq!(documentfromreader_cb, fromreader_cb, "{}", description);
+
             assert_eq!(
-                bson_to_native_cb, bson_to_native_cb_serde,
+                documentfromreader_cb, fromdocument_documentfromreader_cb,
                 "{}",
                 description
             );
 
             assert_eq!(
-                bson_to_native_cb, native_to_native_cb_serde,
+                documentfromreader_cb, todocument_documentfromreader_cb,
                 "{}",
                 description
             );
@@ -156,7 +187,7 @@ fn run_test(test: TestFile) {
             // NaN == NaN is false, so we skip document comparisons that contain NaN
             if !description.contains("NaN") {
                 assert_eq!(
-                    bson_to_native_db_serde, bson_to_native_cb,
+                    bson_to_native_db_serde, documentfromreader_cb,
                     "{}",
                     description
                 );
@@ -201,7 +232,7 @@ fn run_test(test: TestFile) {
         // TODO RUST-36: Enable decimal128 tests.
         if test.bson_type != "0x13" {
             assert_eq!(
-                Bson::Document(bson_to_native_cb.clone()).into_canonical_extjson(),
+                Bson::Document(documentfromreader_cb.clone()).into_canonical_extjson(),
                 cej_updated_float,
                 "{}",
                 description
@@ -214,7 +245,7 @@ fn run_test(test: TestFile) {
             let rej: serde_json::Value = serde_json::from_str(relaxed_extjson).expect(&description);
 
             assert_eq!(
-                Bson::Document(bson_to_native_cb.clone()).into_relaxed_extjson(),
+                Bson::Document(documentfromreader_cb.clone()).into_relaxed_extjson(),
                 rej,
                 "{}",
                 description
