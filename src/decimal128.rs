@@ -5,7 +5,7 @@ use std::fmt;
 /// Struct representing a BSON Decimal128 type.
 ///
 /// Currently, this type can only be used to round-trip through BSON. See
-/// [RUST-36](https://jira.mongodb.org/browse/RUST-36) to track the progress towards a complete implementation. 
+/// [RUST-36](https://jira.mongodb.org/browse/RUST-36) to track the progress towards a complete implementation.
 #[derive(Clone, PartialEq)]
 pub struct Decimal128 {
     /// BSON bytes containing the decimal128. Stored for round tripping.
