@@ -4,7 +4,7 @@
 use serde::{self, de::Unexpected, Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 
-use bson::{Bson, Deserializer, Serializer};
+use bson::{Bson, Deserializer, Document, Serializer};
 
 macro_rules! bson {
     ([]) => {{ bson::Bson::Array(Vec::new()) }};
@@ -634,4 +634,24 @@ fn empty_arrays2() {
         "a" => []
     });
     assert_eq!(v, t!(Deserialize::deserialize(d)));
+}
+
+#[test]
+fn decimal128() {
+    #[derive(Serialize, Deserialize)]
+    struct Wrapper {
+        d: Bson,
+    }
+
+    // { "d": Decimal128("2") } from "Regular - 2" corpus test
+    let bytes = hex::decode("180000001364000200000000000000000000000000403000").unwrap();
+    let doc = Document::from_reader(&mut bytes.as_slice()).unwrap();
+
+    assert!(matches!(doc.get("d"), Some(Bson::Decimal128(_))));
+
+    let deserialized: Wrapper = bson::from_document(doc.clone()).unwrap();
+    assert!(matches!(deserialized.d, Bson::Decimal128(_)));
+
+    let round = bson::to_document(&deserialized).unwrap();
+    assert_eq!(round, doc);
 }
