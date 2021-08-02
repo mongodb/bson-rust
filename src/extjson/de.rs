@@ -160,16 +160,7 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
         }
 
         if obj.contains_key("$numberDecimal") {
-            #[cfg(feature = "decimal128")]
-            {
-                let decimal: models::Decimal128 = serde_json::from_value(obj.into())?;
-                return Ok(Bson::Decimal128(decimal.parse()?));
-            }
-
-            #[cfg(not(feature = "decimal128"))]
-            {
-                return Err(Error::custom("decimal128 extjson support not implemented"));
-            }
+            return Err(Error::custom("decimal128 extjson support not implemented"));
         }
 
         if obj.contains_key("$undefined") {

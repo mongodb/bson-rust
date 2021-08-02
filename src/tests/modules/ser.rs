@@ -2,8 +2,6 @@ use std::{collections::BTreeMap, u16, u32, u64, u8};
 
 use assert_matches::assert_matches;
 
-#[cfg(feature = "decimal128")]
-use crate::decimal128::Decimal128;
 use crate::{from_bson, oid::ObjectId, ser, tests::LOCK, to_bson, Bson};
 
 #[test]
@@ -65,19 +63,6 @@ fn int32() {
     assert_eq!(i, 101);
 
     let deser: Bson = to_bson(&i).unwrap();
-    assert_eq!(deser, obj);
-}
-
-#[cfg(feature = "decimal128")]
-#[test]
-fn dec128() {
-    let _guard = LOCK.run_concurrently();
-    let d128 = Decimal128::from_str("1.05E+3");
-    let obj = Bson::Decimal128(d128.clone());
-    let ser: Decimal128 = from_bson(obj.clone()).unwrap();
-    assert_eq!(ser, d128);
-
-    let deser: Bson = to_bson(&ser).unwrap();
     assert_eq!(deser, obj);
 }
 

@@ -9,17 +9,15 @@ use serde::ser::{
     SerializeTupleStruct,
     SerializeTupleVariant,
 };
-#[cfg(not(feature = "decimal128"))]
 use serde_bytes::Bytes;
 
-#[cfg(feature = "decimal128")]
-use crate::decimal128::Decimal128;
 use crate::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     extjson,
     oid::ObjectId,
     spec::BinarySubtype,
+    Decimal128,
 };
 
 use super::{to_bson, Error};
@@ -82,14 +80,11 @@ impl Serialize for Bson {
             }
             Bson::RegularExpression(re) => re.serialize(serializer),
             Bson::Timestamp(t) => t.serialize(serializer),
-            #[cfg(not(feature = "decimal128"))]
             Bson::Decimal128(d) => {
                 let mut state = serializer.serialize_struct("$numberDecimal", 1)?;
                 state.serialize_field("$numberDecimalBytes", Bytes::new(&d.bytes))?;
                 state.end()
             }
-            #[cfg(feature = "decimal128")]
-            Bson::Decimal128(d) => d.serialize(serializer),
             Bson::Undefined => {
                 let mut state = serializer.serialize_struct("$undefined", 1)?;
                 state.serialize_field("$undefined", &true)?;
@@ -600,7 +595,6 @@ impl Serialize for Binary {
     }
 }
 
-#[cfg(feature = "decimal128")]
 impl Serialize for Decimal128 {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -608,10 +602,7 @@ impl Serialize for Decimal128 {
         S: ser::Serializer,
     {
         let mut state = serializer.serialize_struct("$numberDecimal", 1)?;
-        state.serialize_field(
-            "$numberDecimalBytes",
-            serde_bytes::Bytes::new(&self.to_raw_bytes_le()),
-        )?;
+        state.serialize_field("$numberDecimalBytes", serde_bytes::Bytes::new(&self.bytes))?;
         state.end()
     }
 }

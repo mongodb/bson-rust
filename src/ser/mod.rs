@@ -32,8 +32,6 @@ pub use self::{
 
 use std::{io::Write, iter::FromIterator, mem};
 
-#[cfg(feature = "decimal128")]
-use crate::decimal128::Decimal128;
 use crate::{
     bson::{Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex},
     de::MAX_BSON_SIZE,
@@ -76,13 +74,6 @@ fn write_f64<W: Write + ?Sized>(writer: &mut W, val: f64) -> Result<()> {
         .write_all(&val.to_le_bytes())
         .map(|_| ())
         .map_err(From::from)
-}
-
-#[cfg(feature = "decimal128")]
-#[inline]
-fn write_f128<W: Write + ?Sized>(writer: &mut W, val: Decimal128) -> Result<()> {
-    let raw = val.to_raw_bytes_le();
-    writer.write_all(&raw).map_err(From::from)
 }
 
 #[inline]
@@ -172,13 +163,10 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
         Bson::DateTime(ref v) => write_i64(writer, v.timestamp_millis()),
         Bson::Null => Ok(()),
         Bson::Symbol(ref v) => write_string(writer, v),
-        #[cfg(not(feature = "decimal128"))]
         Bson::Decimal128(ref v) => {
             writer.write_all(&v.bytes)?;
             Ok(())
         }
-        #[cfg(feature = "decimal128")]
-        Bson::Decimal128(ref v) => write_f128(writer, v.clone()),
         Bson::Undefined => Ok(()),
         Bson::MinKey => Ok(()),
         Bson::MaxKey => Ok(()),

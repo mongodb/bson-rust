@@ -39,8 +39,6 @@ chrono-0_4 = []
 uuid-0_8 = []
 # attempt to encode unsigned types in signed types
 u2i = []
-# Decimal128 in BSON 1.1
-decimal128 = ["decimal"]
 
 [lib]
 name = "bson"
@@ -53,7 +51,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 indexmap = "1.6.2"
 hex = "0.4.2"
-decimal = { version = "2.1.0", default_features = false, optional = true }
 base64 = "0.13.0"
 lazy_static = "1.4.0"
 uuid = "0.8.1"
@@ -64,6 +61,3 @@ assert_matches = "1.2"
 serde_bytes = "0.11"
 pretty_assertions = "0.6.1"
 chrono = { version = "0.4", features = ["serde"] }
-
-[package.metadata.docs.rs]
-features = ["decimal128"]

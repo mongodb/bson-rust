@@ -195,8 +195,8 @@ fn run_test(test: TestFile) {
         }
 
         // TODO RUST-36: Enable decimal128 tests.
-        // extJSON not implemented for decimal128 without the feature flag, so we must stop here.
-        if test.bson_type == "0x13" && !cfg!(feature = "decimal128") {
+        // extJSON not implemented for decimal128, so we must stop here.
+        if test.bson_type == "0x13" {
             continue;
         }
 
@@ -384,7 +384,7 @@ fn run_test(test: TestFile) {
         }
 
         // TODO RUST-36: Enable decimal128 tests.
-        if !cfg!(feature = "decimal128") && parse_error.description.contains("$numberDecimal") {
+        if parse_error.description.contains("$numberDecimal") {
             continue;
         }
 
