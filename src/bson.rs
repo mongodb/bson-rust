@@ -122,7 +122,7 @@ impl Display for Bson {
             }) => write!(fmt, "/{}/{}", pattern, options),
             Bson::JavaScriptCode(ref code)
             | Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { ref code, .. }) => {
-                fmt.write_str(&code)
+                fmt.write_str(code)
             }
             Bson::Int32(i) => write!(fmt, "{}", i),
             Bson::Int64(i) => write!(fmt, "{}", i),

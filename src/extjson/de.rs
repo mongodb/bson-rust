@@ -200,7 +200,7 @@ impl TryFrom<serde_json::Value> for Bson {
                 .or_else(|| x.as_f64().map(Bson::from))
                 .ok_or_else(|| {
                     Error::invalid_value(
-                        Unexpected::Other(&format!("{}", x).as_str()),
+                        Unexpected::Other(format!("{}", x).as_str()),
                         &"a number that could fit in i32, i64, or f64",
                     )
                 }),
