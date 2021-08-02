@@ -148,8 +148,8 @@ impl ObjectId {
         hex::encode(self.id)
     }
 
-    // Generates a new timestamp representing the current seconds since epoch.
-    // Represented in Big Endian.
+    /// Generates a new timestamp representing the current seconds since epoch.
+    /// Represented in Big Endian.
     fn gen_timestamp() -> [u8; 4] {
         let timestamp: u32 = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -160,22 +160,17 @@ impl ObjectId {
         timestamp.to_be_bytes()
     }
 
-    // Generate a random 5-byte array.
+    /// Generate a random 5-byte array.
     fn gen_process_id() -> [u8; 5] {
         lazy_static! {
-            static ref BUF: [u8; 5] = {
-                let rng = thread_rng().gen_range(0, MAX_U24) as u32;
-                let mut buf: [u8; 5] = [0; 5];
-                buf[0..4].copy_from_slice(&rng.to_be_bytes());
-                buf
-            };
+            static ref BUF: [u8; 5] = thread_rng().gen();
         }
 
         *BUF
     }
 
-    // Gets an incremental 3-byte count.
-    // Represented in Big Endian.
+    /// Gets an incremental 3-byte count.
+    /// Represented in Big Endian.
     fn gen_count() -> [u8; 3] {
         let u_counter = OID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
