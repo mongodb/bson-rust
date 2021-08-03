@@ -902,7 +902,7 @@ fn u2i() {
         "u_32": 1234_i64,
         "u_32_max": u32::MAX as i64,
         "u_64": 12345_i64,
-        "i_64_max": i64::MAX as u64,
+        "i_64_max": i64::MAX,
     };
 
     run_test(&v, &expected, "u2i - valid");
