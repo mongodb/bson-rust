@@ -122,7 +122,7 @@ impl Display for Bson {
             }) => write!(fmt, "/{}/{}", pattern, options),
             Bson::JavaScriptCode(ref code)
             | Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { ref code, .. }) => {
-                fmt.write_str(&code)
+                fmt.write_str(code)
             }
             Bson::Int32(i) => write!(fmt, "{}", i),
             Bson::Int64(i) => write!(fmt, "{}", i),
@@ -574,6 +574,15 @@ impl Bson {
                     "$numberDecimal": (v.to_string())
                 }
             }
+            #[cfg(not(feature = "decimal128"))]
+            Bson::Decimal128(ref v) => {
+                doc! {
+                    "$numberDecimalBytes": Bson::Binary(Binary {
+                        bytes: v.bytes.to_vec(),
+                        subtype: BinarySubtype::Generic,
+                    }).to_extended_document()
+                }
+            }
             Bson::Undefined => {
                 doc! {
                     "$undefined": true,
@@ -662,6 +671,16 @@ impl Bson {
                 if let Ok(d) = doc.get_str("$numberDecimal") {
                     if let Ok(d) = d.parse() {
                         return Bson::Decimal128(d);
+                    }
+                }
+            }
+
+            #[cfg(not(feature = "decimal128"))]
+            ["$numberDecimalBytes"] => {
+                if let Ok(d) = doc.get_binary_generic("$numberDecimalBytes") {
+                    let boxed_slice = d.clone().into_boxed_slice();
+                    if let Ok(ba) = Box::<[u8; 128 / 8]>::try_from(boxed_slice) {
+                        return Bson::Decimal128(Decimal128 { bytes: *ba });
                     }
                 }
             }

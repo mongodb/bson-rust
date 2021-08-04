@@ -325,7 +325,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
             Bson::Binary(Binary {
                 subtype: BinarySubtype::Generic,
                 ref bytes,
-            }) => visitor.visit_bytes(&bytes),
+            }) => visitor.visit_bytes(bytes),
             binary @ Bson::Binary(..) => visitor.visit_map(MapDeserializer {
                 iter: binary.to_extended_document().into_iter(),
                 value: None,
