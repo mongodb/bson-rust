@@ -344,27 +344,6 @@ impl DbPointer {
     }
 }
 
-#[cfg(feature = "decimal128")]
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct Decimal128 {
-    #[serde(rename = "$numberDecimal")]
-    value: String,
-}
-
-#[cfg(feature = "decimal128")]
-impl Decimal128 {
-    pub(crate) fn parse(self) -> extjson::de::Result<crate::Decimal128> {
-        let decimal128: crate::Decimal128 = self.value.parse().map_err(|_| {
-            extjson::de::Error::invalid_value(
-                Unexpected::Str(self.value.as_str()),
-                &"decimal128 value as a string",
-            )
-        })?;
-        Ok(decimal128)
-    }
-}
-
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Undefined {

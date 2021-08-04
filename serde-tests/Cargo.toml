@@ -6,7 +6,6 @@ edition = "2018"
 
 [features]
 u2i = ["bson/u2i"]
-decimal128 = ["bson/decimal128"]
 
 [dependencies]
 bson = { path = ".." }

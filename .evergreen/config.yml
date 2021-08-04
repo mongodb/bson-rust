@@ -92,16 +92,6 @@ functions:
           ${PREPARE_SHELL}
           .evergreen/run-tests-u2i.sh
 
-  "run decimal128 tests":
-    - command: shell.exec
-      type: test
-      params:
-        shell: bash
-        working_dir: "src"
-        script: |
-          ${PREPARE_SHELL}
-          .evergreen/run-tests-decimal128.sh
-
   "compile only":
     - command: shell.exec
       type: test
@@ -160,10 +150,6 @@ tasks:
     commands:
       - func: "run u2i tests"
 
-  - name: "test-decimal128"
-    commands:
-      - func: "run decimal128 tests"
-
   - name: "compile-only"
     commands:
       - func: "compile only"
@@ -197,7 +183,6 @@ buildvariants:
   tasks:
     - name: "test"
     - name: "test-u2i"
-    - name: "test-decimal128"
 
 - matrix_name: "compile only"
   matrix_spec:

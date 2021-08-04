@@ -14,8 +14,6 @@ use std::{
     collections::{BTreeMap, HashSet},
 };
 
-#[cfg(feature = "decimal128")]
-use bson::Decimal128;
 use bson::{
     doc,
     oid::ObjectId,
@@ -749,15 +747,11 @@ fn all_types() {
     let oid = ObjectId::new();
     let subdoc = doc! { "k": true, "b": { "hello": "world" } };
 
-    #[cfg(not(feature = "decimal128"))]
     let decimal = {
         let bytes = hex::decode("18000000136400D0070000000000000000000000003A3000").unwrap();
         let d = Document::from_reader(bytes.as_slice()).unwrap();
         d.get("d").unwrap().clone()
     };
-
-    #[cfg(feature = "decimal128")]
-    let decimal = Bson::Decimal128(Decimal128::from_str("2.000"));
 
     let doc = doc! {
         "x": 1,

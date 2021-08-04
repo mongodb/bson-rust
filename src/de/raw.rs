@@ -581,15 +581,7 @@ impl<'de> serde::de::Deserializer<'de> for Decimal128Deserializer {
     where
         V: serde::de::Visitor<'de>,
     {
-        #[cfg(not(feature = "decimal128"))]
-        {
-            visitor.visit_bytes(&self.0.bytes)
-        }
-
-        #[cfg(feature = "decimal128")]
-        {
-            visitor.visit_bytes(&self.0.to_raw_bytes_le())
-        }
+        visitor.visit_bytes(&self.0.bytes)
     }
 
     serde::forward_to_deserialize_any! {

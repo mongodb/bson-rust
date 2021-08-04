@@ -5,8 +5,6 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "decimal128")]
-use crate::decimal128::Decimal128;
 use crate::{
     de::from_document,
     doc,
@@ -17,6 +15,7 @@ use crate::{
     to_document,
     Binary,
     Bson,
+    Decimal128,
     Document,
     JavaScriptCodeWithScope,
     Regex,
@@ -389,11 +388,12 @@ fn test_deserialize_multiply_overflows_issue64() {
     assert!(Document::from_reader(&mut Cursor::new(&buffer[..])).is_err());
 }
 
-#[cfg(feature = "decimal128")]
 #[test]
 fn test_serialize_deserialize_decimal128() {
     let _guard = LOCK.run_concurrently();
-    let val = Bson::Decimal128(Decimal128::from_i32(0));
+    let val = Bson::Decimal128(Decimal128 {
+        bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 34],
+    });
     let dst = vec![
         26, 0, 0, 0, 19, 107, 101, 121, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 34, 0,
     ];

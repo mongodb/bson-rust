@@ -1,5 +1,3 @@
-#[cfg(feature = "decimal128")]
-use crate::decimal128::Decimal128;
 use crate::{
     doc,
     document::ValueAccessError,
@@ -47,15 +45,6 @@ fn ordered_insert_shorthand() {
 
     let keys: Vec<_> = doc.iter().map(|(key, _)| key.to_owned()).collect();
     assert_eq!(expected_keys, keys);
-}
-
-#[cfg(feature = "decimal128")]
-fn test_decimal128(doc: &mut Document) {
-    let _guard = LOCK.run_concurrently();
-    let dec = Decimal128::from_str("968E+1");
-    doc.insert("decimal128".to_string(), Bson::Decimal128(dec.clone()));
-    assert_eq!(Some(&Bson::Decimal128(dec.clone())), doc.get("decimal128"));
-    assert_eq!(Ok(&dec), doc.get_decimal128("decimal128"));
 }
 
 #[test]
@@ -139,9 +128,6 @@ fn test_getters() {
     let dt = crate::DateTime::from_chrono(datetime);
     assert_eq!(Some(&Bson::DateTime(dt)), doc.get("datetime"));
     assert_eq!(Ok(&dt), doc.get_datetime("datetime"));
-
-    #[cfg(feature = "decimal128")]
-    test_decimal128(&mut doc);
 
     let object_id = ObjectId::new();
     doc.insert("_id".to_string(), Bson::ObjectId(object_id));

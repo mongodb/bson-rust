@@ -361,9 +361,7 @@ impl From<Bson> for Value {
 impl Bson {
     /// Converts the Bson value into its [relaxed extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
     ///
-    /// Note: extended json encoding for `Decimal128` values is not supported without the
-    /// "decimal128" feature flag. If this method is called on a case which contains a
-    /// `Decimal128` value, it will panic.
+    /// Note: If this method is called on a case which contains a `Decimal128` value, it will panic.
     pub fn into_relaxed_extjson(self) -> Value {
         match self {
             Bson::Double(v) if v.is_nan() => {
@@ -433,13 +431,7 @@ impl Bson {
                 "$date": { "$numberLong": v.timestamp_millis().to_string() },
             }),
             Bson::Symbol(v) => json!({ "$symbol": v }),
-            #[cfg(feature = "decimal128")]
-            Bson::Decimal128(ref v) => json!({ "$numberDecimal": v.to_string() }),
-            #[cfg(not(feature = "decimal128"))]
-            Bson::Decimal128(_) => panic!(
-                "Decimal128 extended JSON not implemented yet. Use the decimal128 feature to \
-                 enable experimental support for it."
-            ),
+            Bson::Decimal128(_) => panic!("Decimal128 extended JSON not implemented yet."),
             Bson::Undefined => json!({ "$undefined": true }),
             Bson::MinKey => json!({ "$minKey": 1 }),
             Bson::MaxKey => json!({ "$maxKey": 1 }),
@@ -459,9 +451,8 @@ impl Bson {
 
     /// Converts the Bson value into its [canonical extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
     ///
-    /// Note: extended json encoding for `Decimal128` values is not supported without the
-    /// "decimal128" feature flag. If this method is called on a case which contains a
-    /// `Decimal128` value, it will panic.
+    /// Note: extended json encoding for `Decimal128` values is not supported. If this method is
+    /// called on a case which contains a `Decimal128` value, it will panic.
     pub fn into_canonical_extjson(self) -> Value {
         match self {
             Bson::Int32(i) => json!({ "$numberInt": i.to_string() }),
@@ -594,12 +585,6 @@ impl Bson {
                     "$symbol": v.to_owned(),
                 }
             }
-            #[cfg(feature = "decimal128")]
-            Bson::Decimal128(ref v) => {
-                doc! {
-                    "$numberDecimal": (v.to_string())
-                }
-            }
             Bson::Undefined => {
                 doc! {
                     "$undefined": true,
@@ -683,25 +668,10 @@ impl Bson {
                 _ => {}
             },
 
-            #[cfg(feature = "decimal128")]
-            ["$numberDecimal"] => {
-                if let Ok(d) = doc.get_str("$numberDecimal") {
-                    if let Ok(d) = d.parse() {
-                        return Bson::Decimal128(d);
-                    }
-                }
-            }
-
             ["$numberDecimalBytes"] => {
                 if let Ok(bytes) = doc.get_binary_generic("$numberDecimalBytes") {
                     if let Ok(b) = bytes.clone().try_into() {
-                        #[cfg(not(feature = "decimal128"))]
                         return Bson::Decimal128(Decimal128 { bytes: b });
-
-                        #[cfg(feature = "decimal128")]
-                        unsafe {
-                            return Bson::Decimal128(Decimal128::from_raw_bytes_le(b));
-                        }
                     }
                 }
             }

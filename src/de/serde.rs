@@ -378,21 +378,10 @@ impl<'de> Visitor<'de> for BsonVisitor {
                 }
 
                 "$numberDecimal" => {
-                    #[cfg(not(feature = "decimal128"))]
-                    {
-                        return Err(Error::custom(format!(
-                            "enable the experimental decimal128 feature flag to deserialize \
-                             decimal128 from string"
-                        )));
-                    }
-
-                    #[cfg(feature = "decimal128")]
-                    {
-                        let s = visitor.next_value::<String>()?;
-                        return Ok(Bson::Decimal128(s.parse().map_err(|_| {
-                            Error::custom(format!("malformatted decimal128 string: {}", s))
-                        })?));
-                    }
+                    return Err(Error::custom(
+                        "deserializing decimal128 values from strings is not currently supported"
+                            .to_string(),
+                    ));
                 }
 
                 "$numberDecimalBytes" => {
@@ -403,17 +392,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                             v.len()
                         ))
                     })?;
-                    #[cfg(not(feature = "decimal128"))]
-                    {
-                        return Ok(Bson::Decimal128(Decimal128 { bytes: arr }));
-                    }
-
-                    #[cfg(feature = "decimal128")]
-                    {
-                        unsafe {
-                            return Ok(Bson::Decimal128(Decimal128::from_raw_bytes_le(arr)));
-                        }
-                    }
+                    return Ok(Bson::Decimal128(Decimal128 { bytes: arr }));
                 }
 
                 _ => {
@@ -982,7 +961,6 @@ impl<'de> Deserialize<'de> for Binary {
     }
 }
 
-#[cfg(feature = "decimal128")]
 impl<'de> Deserialize<'de> for Decimal128 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

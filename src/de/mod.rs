@@ -162,21 +162,11 @@ fn read_f64<R: Read + ?Sized>(reader: &mut R) -> Result<f64> {
 
 /// Placeholder decoder for `Decimal128`. Reads 128 bits and just stores them, does no validation or
 /// parsing.
-#[cfg(not(feature = "decimal128"))]
 #[inline]
 fn read_f128<R: Read + ?Sized>(reader: &mut R) -> Result<Decimal128> {
     let mut buf = [0u8; 128 / 8];
     reader.read_exact(&mut buf)?;
     Ok(Decimal128 { bytes: buf })
-}
-
-#[cfg(feature = "decimal128")]
-#[inline]
-fn read_f128<R: Read + ?Sized>(reader: &mut R) -> Result<Decimal128> {
-    let mut local_buf = [0u8; 16];
-    reader.read_exact(&mut local_buf)?;
-    let val = unsafe { Decimal128::from_raw_bytes_le(local_buf) };
-    Ok(val)
 }
 
 fn deserialize_array<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<Array> {

@@ -5,8 +5,6 @@ use serde::{
     Serialize,
 };
 
-#[cfg(feature = "decimal128")]
-use crate::Decimal128;
 use crate::{
     oid::ObjectId,
     ser::{write_binary, write_cstring, write_i32, write_i64, write_string, Error, Result},
@@ -257,11 +255,6 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
                 self.state = SerializationStep::CodeWithScopeScope {
                     code: v.to_string(),
                 };
-            }
-            #[cfg(feature = "decimal128")]
-            SerializationStep::Decimal128Value => {
-                let d = Decimal128::from_str(v);
-                self.root_serializer.bytes.write_all(&d.to_raw_bytes_le())?;
             }
             s => {
                 return Err(Error::custom(format!(

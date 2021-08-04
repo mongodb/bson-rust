@@ -12,14 +12,13 @@ use ahash::RandomState;
 use indexmap::IndexMap;
 use serde::de::Error;
 
-#[cfg(feature = "decimal128")]
-use crate::decimal128::Decimal128;
 use crate::{
     bson::{Array, Binary, Bson, Timestamp},
     de::{deserialize_bson_kvp, ensure_read_exactly, read_i32, MIN_BSON_DOCUMENT_SIZE},
     oid::ObjectId,
     ser::{serialize_bson, write_i32},
     spec::BinarySubtype,
+    Decimal128,
 };
 
 /// Error to indicate that either a value was empty or it contained an unexpected
@@ -231,7 +230,6 @@ impl Document {
     }
 
     /// Get a reference to a Decimal128 value for key, if it exists.
-    #[cfg(feature = "decimal128")]
     pub fn get_decimal128(&self, key: impl AsRef<str>) -> ValueAccessResult<&Decimal128> {
         match self.get(key) {
             Some(&Bson::Decimal128(ref v)) => Ok(v),
@@ -241,7 +239,6 @@ impl Document {
     }
 
     /// Get a mutable reference to a Decimal128 value for key, if it exists.
-    #[cfg(feature = "decimal128")]
     pub fn get_decimal128_mut(
         &mut self,
         key: impl AsRef<str>,
