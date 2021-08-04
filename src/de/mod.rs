@@ -162,6 +162,7 @@ fn read_f128<R: Read + ?Sized>(reader: &mut R) -> Result<Decimal128> {
 }
 
 #[cfg(feature = "decimal128")]
+#[allow(deprecated)]
 #[inline]
 fn read_f128<R: Read + ?Sized>(reader: &mut R) -> Result<Decimal128> {
     let mut local_buf = [0u8; 16];

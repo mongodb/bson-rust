@@ -79,6 +79,7 @@ fn write_f64<W: Write + ?Sized>(writer: &mut W, val: f64) -> Result<()> {
 }
 
 #[cfg(feature = "decimal128")]
+#[allow(deprecated)]
 #[inline]
 fn write_f128<W: Write + ?Sized>(writer: &mut W, val: Decimal128) -> Result<()> {
     let raw = val.to_raw_bytes_le();

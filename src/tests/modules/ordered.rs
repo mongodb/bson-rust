@@ -50,6 +50,7 @@ fn ordered_insert_shorthand() {
 }
 
 #[cfg(feature = "decimal128")]
+#[allow(deprecated)]
 fn test_decimal128(doc: &mut Document) {
     let _guard = LOCK.run_concurrently();
     let dec = Decimal128::from_str("968E+1");

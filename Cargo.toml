@@ -34,7 +34,10 @@ exclude = [
 default = []
 # attempt to encode unsigned types in signed types
 u2i = []
-# Decimal128 in BSON 1.1
+# Experimental / unstable Decimal128 support
+# Note: this feature is deprecated and will be removed in 2.0.0.
+# The feature is not recommended for use as it causes decimal128
+# values to be serialized incorrectly to BSON.
 decimal128 = ["decimal"]
 
 [lib]
