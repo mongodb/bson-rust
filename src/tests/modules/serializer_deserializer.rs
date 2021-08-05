@@ -386,6 +386,7 @@ fn test_deserialize_multiply_overflows_issue64() {
 }
 
 #[cfg(feature = "decimal128")]
+#[allow(deprecated)]
 #[test]
 fn test_serialize_deserialize_decimal128() {
     let _guard = LOCK.run_concurrently();

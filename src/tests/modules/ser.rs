@@ -69,6 +69,7 @@ fn int32() {
 }
 
 #[cfg(feature = "decimal128")]
+#[allow(deprecated)]
 #[test]
 fn dec128() {
     let _guard = LOCK.run_concurrently();

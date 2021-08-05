@@ -10,8 +10,12 @@ use std::fmt;
 /// deserialized from existing documents that contain BSON decimal128s.
 ///
 /// Experimental functionality can be enabled through the usage of the `"decimal128"`
-/// feature flag. Note that the API and behavior of such functionality are unstable and
-/// subject to change.
+/// feature flag. The flag is not recommended for use however, as it causes `Decimal128` values to
+/// serialize to BSON incorrectly. See [this issue](https://github.com/mongodb/bson-rust/issues/282#issuecomment-889958970) for
+/// more information.
+///
+/// Note that the API and behavior of the feature-gated functionality are unstable and subject to
+/// change, and the feature flag will be removed completely in 2.0.0.
 #[derive(Clone, PartialEq, PartialOrd)]
 pub struct Decimal128 {
     #[cfg(not(feature = "decimal128"))]
@@ -23,6 +27,8 @@ pub struct Decimal128 {
 }
 
 #[cfg(feature = "decimal128")]
+#[deprecated = "The feature-gated decimal128 implementation serializes to BSON incorrectly and \
+                should not be used. It will be removed completely in 2.0.0"]
 impl Decimal128 {
     /// Construct a `Decimal128` from string.
     ///
@@ -231,6 +237,7 @@ impl fmt::LowerExp for Decimal128 {
 }
 
 #[cfg(feature = "decimal128")]
+#[allow(deprecated)]
 impl std::str::FromStr for Decimal128 {
     type Err = ();
     fn from_str(s: &str) -> Result<Decimal128, ()> {
@@ -253,6 +260,7 @@ impl From<d128> for Decimal128 {
 }
 
 #[cfg(feature = "decimal128")]
+#[allow(deprecated)]
 impl Default for Decimal128 {
     fn default() -> Decimal128 {
         Decimal128::zero()
@@ -261,6 +269,7 @@ impl Default for Decimal128 {
 
 #[cfg(test)]
 #[cfg(feature = "decimal128")]
+#[allow(deprecated)]
 mod test {
     use super::*;
 
