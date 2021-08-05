@@ -32,32 +32,66 @@ use super::raw::Decimal128Access;
 
 pub(crate) struct BsonVisitor;
 
-impl<'de> Deserialize<'de> for ObjectId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        #[derive(serde::Deserialize)]
-        #[serde(untagged)]
-        enum OidHelper {
-            HexString(String),
-            Bson(Bson),
-        }
+struct ObjectIdVisitor;
 
-        match OidHelper::deserialize(deserializer)
-            .map_err(|_| de::Error::custom("expected ObjectId extended document or hex string"))?
-        {
-            OidHelper::HexString(s) => ObjectId::parse_str(&s).map_err(de::Error::custom),
-            OidHelper::Bson(bson) => match bson {
-                Bson::ObjectId(oid) => Ok(oid),
-                bson => {
-                    let err = format!(
-                        "expected objectId extended document or hex string, found {}",
-                        bson
-                    );
-                    Err(de::Error::invalid_type(Unexpected::Map, &&err[..]))
-                }
-            },
+impl<'de> Visitor<'de> for ObjectIdVisitor {
+    type Value = ObjectId;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("expecting an ObjectId")
+    }
+
+    #[inline]
+    fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        ObjectId::parse_str(value).map_err(|_| {
+            E::invalid_value(
+                Unexpected::Str(value),
+                &"24-character, big-endian hex string",
+            )
+        })
+    }
+
+    #[inline]
+    fn visit_bytes<E>(self, v: &[u8]) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let bytes: [u8; 12] = v
+            .try_into()
+            .map_err(|_| E::invalid_length(v.len(), &"12 bytes"))?;
+        Ok(ObjectId::from_bytes(bytes))
+    }
+
+    #[inline]
+    fn visit_map<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>
+    where
+        V: MapAccess<'de>,
+    {
+        match BsonVisitor.visit_map(&mut visitor)? {
+            Bson::ObjectId(oid) => Ok(oid),
+            bson => {
+                let err = format!(
+                    "expected map containing extended-JSON formatted ObjectId, instead found {}",
+                    bson
+                );
+                Err(de::Error::custom(err))
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for ObjectId {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        if !deserializer.is_human_readable() {
+            deserializer.deserialize_bytes(ObjectIdVisitor)
+        } else {
+            deserializer.deserialize_any(ObjectIdVisitor)
         }
     }
 }

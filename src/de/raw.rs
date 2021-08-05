@@ -271,12 +271,22 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
     }
 
+    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        match self.current_type {
+            ElementType::ObjectId => visitor.visit_borrowed_bytes(self.bytes.read_slice(12)?),
+            _ => self.deserialize_any(visitor),
+        }
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     forward_to_deserialize_any! {
-        bool char str bytes byte_buf unit unit_struct string
+        bool char str byte_buf unit unit_struct string
         identifier newtype_struct seq tuple tuple_struct struct
         map ignored_any i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
     }
