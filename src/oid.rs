@@ -26,7 +26,7 @@ const COUNTER_OFFSET: usize = PROCESS_ID_OFFSET + PROCESS_ID_SIZE;
 const MAX_U24: usize = 0xFF_FFFF;
 
 lazy_static! {
-    static ref OID_COUNTER: AtomicUsize = AtomicUsize::new(thread_rng().gen_range(0, MAX_U24 + 1));
+    static ref OID_COUNTER: AtomicUsize = AtomicUsize::new(thread_rng().gen_range(0..=MAX_U24));
 }
 
 /// Errors that can occur during [`ObjectId`] construction and generation.
