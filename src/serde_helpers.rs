@@ -6,50 +6,62 @@ use serde::{ser, Serialize, Serializer};
 
 use crate::oid::ObjectId;
 
+#[doc(inline)]
 pub use bson_datetime_as_rfc3339_string::{
     deserialize as deserialize_bson_datetime_from_rfc3339_string,
     serialize as serialize_bson_datetime_as_rfc3339_string,
 };
 #[cfg(feature = "chrono-0_4")]
+#[doc(inline)]
 pub use chrono_datetime_as_bson_datetime::{
     deserialize as deserialize_chrono_datetime_from_bson_datetime,
     serialize as serialize_chrono_datetime_as_bson_datetime,
 };
+#[doc(inline)]
 pub use hex_string_as_object_id::{
     deserialize as deserialize_hex_string_from_object_id,
     serialize as serialize_hex_string_as_object_id,
 };
+#[doc(inline)]
 pub use rfc3339_string_as_bson_datetime::{
     deserialize as deserialize_rfc3339_string_from_bson_datetime,
     serialize as serialize_rfc3339_string_as_bson_datetime,
 };
+#[doc(inline)]
 pub use timestamp_as_u32::{
     deserialize as deserialize_timestamp_from_u32,
     serialize as serialize_timestamp_as_u32,
 };
+#[doc(inline)]
 pub use u32_as_f64::{deserialize as deserialize_u32_from_f64, serialize as serialize_u32_as_f64};
+#[doc(inline)]
 pub use u32_as_timestamp::{
     deserialize as deserialize_u32_from_timestamp,
     serialize as serialize_u32_as_timestamp,
 };
+#[doc(inline)]
 pub use u64_as_f64::{deserialize as deserialize_u64_from_f64, serialize as serialize_u64_as_f64};
 
 #[cfg(feature = "uuid-0_8")]
+#[doc(inline)]
 pub use uuid_as_binary::{
     deserialize as deserialize_uuid_from_binary,
     serialize as serialize_uuid_as_binary,
 };
 #[cfg(feature = "uuid-0_8")]
+#[doc(inline)]
 pub use uuid_as_c_sharp_legacy_binary::{
     deserialize as deserialize_uuid_from_c_sharp_legacy_binary,
     serialize as serialize_uuid_as_c_sharp_legacy_binary,
 };
 #[cfg(feature = "uuid-0_8")]
+#[doc(inline)]
 pub use uuid_as_java_legacy_binary::{
     deserialize as deserialize_uuid_from_java_legacy_binary,
     serialize as serialize_uuid_as_java_legacy_binary,
 };
 #[cfg(feature = "uuid-0_8")]
+#[doc(inline)]
 pub use uuid_as_python_legacy_binary::{
     deserialize as deserialize_uuid_from_python_legacy_binary,
     serialize as serialize_uuid_as_python_legacy_binary,
@@ -189,6 +201,7 @@ pub mod u64_as_f64 {
 /// # }
 /// ```
 #[cfg(feature = "chrono-0_4")]
+#[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
 pub mod chrono_datetime_as_bson_datetime {
     use crate::DateTime;
     use chrono::Utc;
@@ -196,6 +209,7 @@ pub mod chrono_datetime_as_bson_datetime {
     use std::result::Result;
 
     /// Deserializes a [`chrono::DateTime`] from a [`crate::DateTime`].
+    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<chrono::DateTime<Utc>, D::Error>
     where
         D: Deserializer<'de>,
@@ -205,6 +219,7 @@ pub mod chrono_datetime_as_bson_datetime {
     }
 
     /// Serializes a [`chrono::DateTime`] as a [`crate::DateTime`].
+    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn serialize<S: Serializer>(
         val: &chrono::DateTime<Utc>,
         serializer: S,
@@ -338,6 +353,7 @@ pub mod hex_string_as_object_id {
 /// }
 /// ```
 #[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -345,15 +361,14 @@ pub mod uuid_as_binary {
     use uuid::Uuid;
 
     /// Serializes a Uuid as a Binary.
+    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-        let binary = Binary {
-            subtype: BinarySubtype::Uuid,
-            bytes: val.as_bytes().to_vec(),
-        };
+        let binary: Binary = (*val).into();
         binary.serialize(serializer)
     }
 
     /// Deserializes a Uuid from a Binary.
+    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,
@@ -395,6 +410,7 @@ pub mod uuid_as_binary {
 /// }
 /// ```
 #[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_java_legacy_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -402,6 +418,7 @@ pub mod uuid_as_java_legacy_binary {
     use uuid::Uuid;
 
     /// Serializes a Uuid as a Binary in a Java Legacy UUID format.
+    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
         let mut bytes = val.as_bytes().to_vec();
         bytes[0..8].reverse();
@@ -414,6 +431,7 @@ pub mod uuid_as_java_legacy_binary {
     }
 
     /// Deserializes a Uuid from a Binary in a Java Legacy UUID format.
+    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,
@@ -451,6 +469,7 @@ pub mod uuid_as_java_legacy_binary {
 /// }
 /// ```
 #[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_python_legacy_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -458,6 +477,7 @@ pub mod uuid_as_python_legacy_binary {
     use uuid::Uuid;
 
     /// Serializes a Uuid as a Binary in a Python Legacy UUID format.
+    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
         let binary = Binary {
             subtype: BinarySubtype::UuidOld,
@@ -467,6 +487,7 @@ pub mod uuid_as_python_legacy_binary {
     }
 
     /// Deserializes a Uuid from a Binary in a Python Legacy UUID format.
+    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,
@@ -502,6 +523,7 @@ pub mod uuid_as_python_legacy_binary {
 /// }
 /// ```
 #[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_c_sharp_legacy_binary {
     use crate::{spec::BinarySubtype, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -509,6 +531,7 @@ pub mod uuid_as_c_sharp_legacy_binary {
     use uuid::Uuid;
 
     /// Serializes a Uuid as a Binary in a C# Legacy UUID format.
+    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
         let mut bytes = val.as_bytes().to_vec();
         bytes[0..4].reverse();
@@ -522,6 +545,7 @@ pub mod uuid_as_c_sharp_legacy_binary {
     }
 
     /// Deserializes a Uuid from a Binary in a C# Legacy UUID format.
+    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,

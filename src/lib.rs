@@ -41,6 +41,34 @@
 //!
 //! For more information about BSON itself, see [bsonspec.org](http://bsonspec.org).
 //!
+//! ## Installation
+//! ### Requirements
+//! - Rust 1.48+
+//!
+//! ### Importing
+//! This crate is available on [crates.io](https://crates.io/crates/bson). To use it in your application,
+//! simply add it to your project's `Cargo.toml`.
+//!
+//! ```toml
+//! [dependencies]
+//! bson = "2.0.0-beta.3"
+//! ```
+//!
+//! Note that if you are using `bson` through the `mongodb` crate, you do not need to specify it in
+//! your `Cargo.toml`, since the `mongodb` crate already re-exports it.
+//!
+//! #### Feature Flags
+//!
+//! | Feature      | Description
+//! | Extra dependencies | Default | |:-------------|:
+//! -----------------------------------------------------------------------------------------------|:
+//! -------------------|:--------| | `u2i`        | Attempt to serialize unsigned integer types
+//! found in `Serialize` structs to signed BSON types. | n/a                | yes     |
+//! | `chrono-0_4` | Enable support for v0.4 of the [`chrono`](docs.rs/chrono/0.4) crate in the
+//! public API.         | n/a                | no      | | `uuid-0_8`   | Enable support for v0.8 of
+//! the [`uuid`](docs.rs/uuid/0.8) crate in the public API.             | `uuid` 0.8         | no
+//! |
+//!
 //! ## BSON values
 //!
 //! Many different types can be represented as a BSON value, including 32-bit and 64-bit signed
@@ -182,6 +210,88 @@
 //! translates the data to/from its serialized form. This can lead to more clear and concise code
 //! that is also less error prone.
 //!
+//! ## Working with datetimes
+//!
+//! The BSON format includes a datetime type, which is modeled in this crate by the
+//! [`bson::DateTime`] struct, and the
+//! `Serialize` and `Deserialize` implementations for this struct produce and parse BSON datetimes
+//! when serializing to or deserializing from BSON. The popular crate [`chrono`](docs.rs/chrono)
+//! also provides a `DateTime` type, but its `Serialize` and `Deserialize` implementations operate
+//! on strings instead, so when using it with BSON, the BSON datetime type is not used. To work
+//! around this, the `chrono-0_4` feature flag can be enabled. This flag exposes a number of
+//! convenient conversions between `bson::DateTime` and `chrono::DateTime`, including the
+//! [`serde_helpers::chrono_datetime_as_bson_datetime`]
+//! serde helper, which can be used to (de)serialize `chrono::DateTime`s to/from BSON datetimes, and
+//! the `From<chrono::DateTime>` implementation for [`Bson`], which allows `chrono::DateTime` values
+//! to be used in the `doc!` and `bson!` macros.
+//!
+//! e.g.
+//! ``` rust
+//! # #[cfg(feature = "chrono-0_4")]
+//! # {
+//! use serde::{Serialize, Deserialize};
+//!
+//! #[derive(Serialize, Deserialize)]
+//! struct Foo {
+//!     // serializes as a BSON datetime.
+//!     date_time: bson::DateTime,
+//!
+//!     // serializes as an RFC 3339 / ISO-8601 string.
+//!     chrono_datetime: chrono::DateTime<chrono::Utc>,
+//!
+//!     // serializes as a BSON datetime.
+//!     // this requires the "chrono-0_4" feature flag
+//!     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+//!     chrono_as_bson: chrono::DateTime<chrono::Utc>,
+//! }
+//!
+//! // this automatic conversion also requires the "chrono-0_4" feature flag
+//! let query = doc! {
+//!     "created_at": chrono::Utc::now(),
+//! };
+//! # }
+//! ```
+//!
+//! ## Working with UUIDs
+//!
+//! The BSON format does not contain a dedicated UUID type, though it does have a "binary" type
+//! which has UUID subtypes. Accordingly, this crate provides a
+//! [`Binary`] struct which models this binary type and
+//! serializes to and deserializes from it. The popular `uuid` crate does provide a UUID type
+//! (`Uuid`), though its `Serialize` and `Deserialize` implementations operate on strings, so when
+//! using it with BSON, the BSON binary type will not be used. To facilitate the conversion between
+//! `Uuid` values and BSON binary values, the `uuid-0_8` feature flag can be enabled. This flag
+//! exposes a number of convenient conversions from `Uuid`, including the
+//! [`serde_helpers::uuid_as_bson_binary`]
+//! serde helper, which can be used to (de)serialize `Uuid`s to/from BSON binaries with the UUID
+//! subtype, and the `From<Uuid>` implementation for `Bson`, which allows `Uuid` values to be used
+//! in the `doc!` and `bson!` macros.
+//!
+//! e.g.
+//!
+//! ``` rust
+//! # #[cfg(feature = "chrono-0_4")]
+//! # {
+//! use serde::{Serialize, Deserialize};
+//!
+//! #[derive(Serialize, Deserialize)]
+//! struct Foo {
+//!     // serializes as a String.
+//!     uuid: Uuid,
+//!
+//!     // serializes as a BSON binary with subtype 4.
+//!     // this requires the "uuid-0_8" feature flag
+//!     #[serde(with = "bson::serde_helpers::uuid_as_binary")]
+//!     uuid_as_bson: uuid::Uuid,
+//! }
+//!
+//! // this automatic conversion also requires the "uuid-0_8" feature flag
+//! let query = doc! {
+//!     "uuid": uuid::Uuid::new_v4(),
+//! };
+//! # }
+//! ```
+//!
 //! ## Minimum supported Rust version (MSRV)
 //!
 //! The MSRV for this crate is currently 1.48.0. This will be rarely be increased, and if it ever is,
@@ -189,7 +299,9 @@
 
 #![allow(clippy::cognitive_complexity)]
 #![doc(html_root_url = "https://docs.rs/bson/2.0.0-beta.3")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[doc(inline)]
 pub use self::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,

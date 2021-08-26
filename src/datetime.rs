@@ -81,6 +81,7 @@ impl crate::DateTime {
     /// Convert the given `chrono::DateTime` into a `bson::DateTime`, truncating it to millisecond
     /// precision.
     #[cfg(feature = "chrono-0_4")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
         Self::from_millis(dt.timestamp_millis())
     }
@@ -119,6 +120,7 @@ impl crate::DateTime {
     /// assert_eq!(chrono_big, chrono::MAX_DATETIME)
     /// ```
     #[cfg(feature = "chrono-0_4")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn to_chrono(self) -> chrono::DateTime<Utc> {
         self.to_chrono_private()
     }
@@ -204,6 +206,7 @@ impl From<crate::DateTime> for SystemTime {
 }
 
 #[cfg(feature = "chrono-0_4")]
+#[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
 impl From<crate::DateTime> for chrono::DateTime<Utc> {
     fn from(bson_dt: DateTime) -> Self {
         bson_dt.to_chrono()
@@ -211,6 +214,7 @@ impl From<crate::DateTime> for chrono::DateTime<Utc> {
 }
 
 #[cfg(feature = "chrono-0_4")]
+#[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
 impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for crate::DateTime {
     fn from(x: chrono::DateTime<T>) -> Self {
         Self::from_chrono(x)
