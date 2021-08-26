@@ -35,7 +35,7 @@ pub enum Error {
     InvalidObjectId(oid::Error),
 
     /// A general error encountered during deserialization.
-    /// See: https://docs.serde.rs/serde/de/trait.Error.html
+    /// See: <https://docs.serde.rs/serde/de/trait.Error.html>
     DeserializationError { message: String },
 }
 

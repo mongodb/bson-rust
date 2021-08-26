@@ -15,7 +15,7 @@ pub enum Error {
     InvalidDocumentKey(Bson),
 
     /// A general error that occurred during serialization.
-    /// See: https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom
+    /// See: <https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom>
     #[non_exhaustive]
     SerializationError {
         /// A message describing the error.

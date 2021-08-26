@@ -213,7 +213,7 @@
 //! ## Working with datetimes
 //!
 //! The BSON format includes a datetime type, which is modeled in this crate by the
-//! [`bson::DateTime`] struct, and the
+//! [`DateTime`] struct, and the
 //! `Serialize` and `Deserialize` implementations for this struct produce and parse BSON datetimes
 //! when serializing to or deserializing from BSON. The popular crate [`chrono`](docs.rs/chrono)
 //! also provides a `DateTime` type, but its `Serialize` and `Deserialize` implementations operate
@@ -262,7 +262,7 @@
 //! using it with BSON, the BSON binary type will not be used. To facilitate the conversion between
 //! `Uuid` values and BSON binary values, the `uuid-0_8` feature flag can be enabled. This flag
 //! exposes a number of convenient conversions from `Uuid`, including the
-//! [`serde_helpers::uuid_as_bson_binary`]
+//! [`serde_helpers::uuid_as_binary`]
 //! serde helper, which can be used to (de)serialize `Uuid`s to/from BSON binaries with the UUID
 //! subtype, and the `From<Uuid>` implementation for `Bson`, which allows `Uuid` values to be used
 //! in the `doc!` and `bson!` macros.
