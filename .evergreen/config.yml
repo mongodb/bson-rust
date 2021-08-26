@@ -82,7 +82,7 @@ functions:
           ${PREPARE_SHELL}
           .evergreen/run-tests.sh
 
-  "run u2i tests":
+  "run tests no default features":
     - command: shell.exec
       type: test
       params:
@@ -90,7 +90,7 @@ functions:
         working_dir: "src"
         script: |
           ${PREPARE_SHELL}
-          .evergreen/run-tests-u2i.sh
+          .evergreen/run-tests-no-default-features.sh
 
   "compile only":
     - command: shell.exec
@@ -146,9 +146,9 @@ tasks:
     commands:
       - func: "run tests"
 
-  - name: "test-u2i"
+  - name: "test-no-default-features"
     commands:
-      - func: "run u2i tests"
+      - func: "run tests no default features"
 
   - name: "compile-only"
     commands:
@@ -182,7 +182,7 @@ buildvariants:
     - ubuntu1804-test
   tasks:
     - name: "test"
-    - name: "test-u2i"
+    - name: "test-no-default-features"
 
 - matrix_name: "compile only"
   matrix_spec:
