@@ -5,10 +5,11 @@ authors = ["Kevin Yeh <kevinyeah@utexas.edu>"]
 edition = "2018"
 
 [features]
+default = ["u2i"]
 u2i = ["bson/u2i"]
 
 [dependencies]
-bson = { path = ".." }
+bson = { path = "..", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 pretty_assertions = "0.6.1"
 hex = "0.4.2"
