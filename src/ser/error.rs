@@ -22,15 +22,6 @@ pub enum Error {
         message: String,
     },
 
-    #[cfg(not(feature = "u2i"))]
-    /// Returned when serialization of an unsigned integer was attempted. BSON only supports
-    /// 32-bit and 64-bit signed integers.
-    ///
-    /// To serialize unsigned integers to BSON, use an appropriate helper from
-    /// [`crate::serde_helpers`] or enable the "u2i" feature flag.
-    UnsupportedUnsignedInteger(u64),
-
-    #[cfg(feature = "u2i")]
     /// An unsigned integer type could not fit into a signed integer type.
     UnsignedIntegerExceededRange(u64),
 }
@@ -47,15 +38,6 @@ impl fmt::Display for Error {
             Error::Io(ref inner) => inner.fmt(fmt),
             Error::InvalidDocumentKey(ref key) => write!(fmt, "Invalid map key type: {}", key),
             Error::SerializationError { ref message } => message.fmt(fmt),
-            #[cfg(not(feature = "u2i"))]
-            Error::UnsupportedUnsignedInteger(value) => write!(
-                fmt,
-                "BSON does not support unsigned integers, cannot serialize value: {}. To \
-                 serialize unsigned integers to BSON, use an appropriate serde helper or enable \
-                 the u2i feature.",
-                value
-            ),
-            #[cfg(feature = "u2i")]
             Error::UnsignedIntegerExceededRange(value) => write!(
                 fmt,
                 "BSON does not support unsigned integers.

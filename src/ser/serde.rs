@@ -140,13 +140,7 @@ impl ser::Serializer for Serializer {
 
     #[inline]
     fn serialize_u8(self, value: u8) -> crate::ser::Result<Bson> {
-        #[cfg(feature = "u2i")]
-        {
-            Ok(Bson::Int32(value as i32))
-        }
-
-        #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedInteger(value as u64))
+        Ok(Bson::Int32(value as i32))
     }
 
     #[inline]
@@ -156,13 +150,7 @@ impl ser::Serializer for Serializer {
 
     #[inline]
     fn serialize_u16(self, value: u16) -> crate::ser::Result<Bson> {
-        #[cfg(feature = "u2i")]
-        {
-            Ok(Bson::Int32(value as i32))
-        }
-
-        #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedInteger(value as u64))
+        Ok(Bson::Int32(value as i32))
     }
 
     #[inline]
@@ -172,13 +160,7 @@ impl ser::Serializer for Serializer {
 
     #[inline]
     fn serialize_u32(self, value: u32) -> crate::ser::Result<Bson> {
-        #[cfg(feature = "u2i")]
-        {
-            Ok(Bson::Int64(value as i64))
-        }
-
-        #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedInteger(value as u64))
+        Ok(Bson::Int64(value as i64))
     }
 
     #[inline]
@@ -188,18 +170,12 @@ impl ser::Serializer for Serializer {
 
     #[inline]
     fn serialize_u64(self, value: u64) -> crate::ser::Result<Bson> {
-        #[cfg(feature = "u2i")]
-        {
-            use std::convert::TryFrom;
+        use std::convert::TryFrom;
 
-            match i64::try_from(value) {
-                Ok(ivalue) => Ok(Bson::Int64(ivalue)),
-                Err(_) => Err(Error::UnsignedIntegerExceededRange(value)),
-            }
+        match i64::try_from(value) {
+            Ok(ivalue) => Ok(Bson::Int64(ivalue)),
+            Err(_) => Err(Error::UnsignedIntegerExceededRange(value)),
         }
-
-        #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedInteger(value))
     }
 
     #[inline]

@@ -868,7 +868,6 @@ fn borrowed() {
     assert_eq!(deserialized, v);
 }
 
-#[cfg(feature = "u2i")]
 #[test]
 fn u2i() {
     #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -908,42 +907,6 @@ fn u2i() {
     let v = TooBig {
         u_64: i64::MAX as u64 + 1,
     };
-    bson::to_document(&v).unwrap_err();
-    bson::to_vec(&v).unwrap_err();
-}
-
-#[cfg(not(feature = "u2i"))]
-#[test]
-fn unsigned() {
-    #[derive(Serialize, Debug)]
-    struct U8 {
-        v: u8,
-    }
-    let v = U8 { v: 1 };
-    bson::to_document(&v).unwrap_err();
-    bson::to_vec(&v).unwrap_err();
-
-    #[derive(Serialize, Debug)]
-    struct U16 {
-        v: u16,
-    }
-    let v = U16 { v: 1 };
-    bson::to_document(&v).unwrap_err();
-    bson::to_vec(&v).unwrap_err();
-
-    #[derive(Serialize, Debug)]
-    struct U32 {
-        v: u32,
-    }
-    let v = U32 { v: 1 };
-    bson::to_document(&v).unwrap_err();
-    bson::to_vec(&v).unwrap_err();
-
-    #[derive(Serialize, Debug)]
-    struct U64 {
-        v: u64,
-    }
-    let v = U64 { v: 1 };
     bson::to_document(&v).unwrap_err();
     bson::to_vec(&v).unwrap_err();
 }

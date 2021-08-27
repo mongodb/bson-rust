@@ -31,13 +31,11 @@ exclude = [
 ]
 
 [features]
-default = ["u2i"]
+default = []
 # if enabled, include API for interfacing with chrono 0.4
 chrono-0_4 = []
 # if enabled, include API for interfacing with uuid 0.8
 uuid-0_8 = []
-# attempt to encode unsigned types in signed types in serde serializers
-u2i = []
 
 [lib]
 name = "bson"

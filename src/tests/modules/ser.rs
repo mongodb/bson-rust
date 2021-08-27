@@ -67,15 +67,6 @@ fn int32() {
 }
 
 #[test]
-#[cfg(not(feature = "u2i"))]
-fn uint8() {
-    let _guard = LOCK.run_concurrently();
-    let obj_min: ser::Result<Bson> = to_bson(&u8::MIN);
-    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedInteger(_)));
-}
-
-#[test]
-#[cfg(feature = "u2i")]
 fn uint8_u2i() {
     let _guard = LOCK.run_concurrently();
     let obj: Bson = to_bson(&u8::MIN).unwrap();
@@ -88,15 +79,6 @@ fn uint8_u2i() {
 }
 
 #[test]
-#[cfg(not(feature = "u2i"))]
-fn uint16() {
-    let _guard = LOCK.run_concurrently();
-    let obj_min: ser::Result<Bson> = to_bson(&u16::MIN);
-    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedInteger(_)));
-}
-
-#[test]
-#[cfg(feature = "u2i")]
 fn uint16_u2i() {
     let _guard = LOCK.run_concurrently();
     let obj: Bson = to_bson(&u16::MIN).unwrap();
@@ -109,15 +91,6 @@ fn uint16_u2i() {
 }
 
 #[test]
-#[cfg(not(feature = "u2i"))]
-fn uint32() {
-    let _guard = LOCK.run_concurrently();
-    let obj_min: ser::Result<Bson> = to_bson(&u32::MIN);
-    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedInteger(_)));
-}
-
-#[test]
-#[cfg(feature = "u2i")]
 fn uint32_u2i() {
     let _guard = LOCK.run_concurrently();
     let obj_min: Bson = to_bson(&u32::MIN).unwrap();
@@ -130,15 +103,6 @@ fn uint32_u2i() {
 }
 
 #[test]
-#[cfg(not(feature = "u2i"))]
-fn uint64() {
-    let _guard = LOCK.run_concurrently();
-    let obj_min: ser::Result<Bson> = to_bson(&u64::MIN);
-    assert_matches!(obj_min, Err(ser::Error::UnsupportedUnsignedInteger(_)));
-}
-
-#[test]
-#[cfg(feature = "u2i")]
 fn uint64_u2i() {
     let _guard = LOCK.run_concurrently();
     let obj_min: Bson = to_bson(&u64::MIN).unwrap();

@@ -5,8 +5,7 @@ authors = ["Kevin Yeh <kevinyeah@utexas.edu>"]
 edition = "2018"
 
 [features]
-default = ["u2i"]
-u2i = ["bson/u2i"]
+default = []
 
 [dependencies]
 bson = { path = "..", default-features = false }
