@@ -82,7 +82,8 @@
 //! [`bson!`](macro.bson.html) macro:
 //!
 //! ```rust
-//! # use bson::{bson, Bson};
+//! use bson::{bson, Bson};
+//!
 //! let string = Bson::String("hello world".to_string());
 //! let int = Bson::Int32(5);
 //! let array = Bson::Array(vec![Bson::Int32(5), Bson::Boolean(false)]);
@@ -105,7 +106,8 @@
 //!
 //! e.g.:
 //! ```rust
-//! # use bson::{bson, Bson};
+//! use bson::{bson, Bson};
+//!
 //! let value = Bson::Int32(5);
 //! let int = value.as_i32(); // Some(5)
 //! let bool = value.as_bool(); // None
@@ -126,8 +128,9 @@
 //! [`Document`](document/struct.Document.html)s can be created directly either from a byte
 //! reader containing BSON data or via the `doc!` macro:
 //! ```rust
-//! # use bson::{doc, Document};
-//! # use std::io::Read;
+//! use bson::{doc, Document};
+//! use std::io::Read;
+//!
 //! let mut bytes = hex::decode("0C0000001069000100000000").unwrap();
 //! let doc = Document::from_reader(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
 //!
@@ -146,7 +149,8 @@
 //! access:
 //!
 //! ```rust
-//! # use bson::doc;
+//! use bson::doc;
+//!
 //! let doc = doc! {
 //!    "string": "string",
 //!    "bool": true,
@@ -173,8 +177,9 @@
 //!
 //! e.g.:
 //! ```rust
-//! # use serde::{Deserialize, Serialize};
-//! # use bson::{bson, Bson};
+//! use serde::{Deserialize, Serialize};
+//! use bson::{bson, Bson};
+//!
 //! #[derive(Serialize, Deserialize)]
 //! struct Person {
 //!     name: String,
@@ -230,6 +235,7 @@
 //! # #[cfg(feature = "chrono-0_4")]
 //! # {
 //! use serde::{Serialize, Deserialize};
+//! use bson::doc;
 //!
 //! #[derive(Serialize, Deserialize)]
 //! struct Foo {
@@ -273,11 +279,12 @@
 //! # #[cfg(feature = "chrono-0_4")]
 //! # {
 //! use serde::{Serialize, Deserialize};
+//! use bson::doc;
 //!
 //! #[derive(Serialize, Deserialize)]
 //! struct Foo {
 //!     // serializes as a String.
-//!     uuid: Uuid,
+//!     uuid: uuid::Uuid,
 //!
 //!     // serializes as a BSON binary with subtype 4.
 //!     // this requires the "uuid-0_8" feature flag
