@@ -59,15 +59,10 @@
 //!
 //! #### Feature Flags
 //!
-//! | Feature      | Description
-//! | Extra dependencies | Default | |:-------------|:
-//! -----------------------------------------------------------------------------------------------|:
-//! -------------------|:--------| | `u2i`        | Attempt to serialize unsigned integer types
-//! found in `Serialize` structs to signed BSON types. | n/a                | yes     |
-//! | `chrono-0_4` | Enable support for v0.4 of the [`chrono`](docs.rs/chrono/0.4) crate in the
-//! public API.         | n/a                | no      | | `uuid-0_8`   | Enable support for v0.8 of
-//! the [`uuid`](docs.rs/uuid/0.8) crate in the public API.             | `uuid` 0.8         | no
-//! |
+//! | Feature      | Description                                                                                    | Extra dependencies | Default |
+//! |:-------------|:-----------------------------------------------------------------------------------------------|:-------------------|:--------|
+//! | `chrono-0_4` | Enable support for v0.4 of the [`chrono`](docs.rs/chrono/0.4) crate in the public API.         | n/a                | no      |
+//! | `uuid-0_8`   | Enable support for v0.8 of the [`uuid`](docs.rs/uuid/0.8) crate in the public API.             | `uuid` 0.8         | no      |
 //!
 //! ## BSON values
 //!
