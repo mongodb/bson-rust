@@ -117,51 +117,27 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
-        #[cfg(feature = "u2i")]
-        {
-            self.serialize_i32(v.into())
-        }
-
-        #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedInteger(v.into()))
+        self.serialize_i32(v.into())
     }
 
     #[inline]
     fn serialize_u16(self, v: u16) -> Result<Self::Ok> {
-        #[cfg(feature = "u2i")]
-        {
-            self.serialize_i32(v.into())
-        }
-
-        #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedInteger(v.into()))
+        self.serialize_i32(v.into())
     }
 
     #[inline]
     fn serialize_u32(self, v: u32) -> Result<Self::Ok> {
-        #[cfg(feature = "u2i")]
-        {
-            self.serialize_i64(v.into())
-        }
-
-        #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedInteger(v.into()))
+        self.serialize_i64(v.into())
     }
 
     #[inline]
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
-        #[cfg(feature = "u2i")]
-        {
-            use std::convert::TryFrom;
+        use std::convert::TryFrom;
 
-            match i64::try_from(v) {
-                Ok(ivalue) => self.serialize_i64(ivalue),
-                Err(_) => Err(Error::UnsignedIntegerExceededRange(v)),
-            }
+        match i64::try_from(v) {
+            Ok(ivalue) => self.serialize_i64(ivalue),
+            Err(_) => Err(Error::UnsignedIntegerExceededRange(v)),
         }
-
-        #[cfg(not(feature = "u2i"))]
-        Err(Error::UnsupportedUnsignedInteger(v))
     }
 
     #[inline]
