@@ -112,6 +112,16 @@ functions:
           ${PREPARE_SHELL}
           .evergreen/check-clippy.sh
 
+  "check rustdoc":
+    - command: shell.exec
+      type: test
+      params:
+        shell: bash
+        working_dir: "src"
+        script: |
+          ${PREPARE_SHELL}
+          .evergreen/check-rustdoc.sh
+
   "init test-results":
     - command: shell.exec
       params:
@@ -147,6 +157,10 @@ tasks:
   - name: "check-clippy"
     commands:
       - func: "check clippy"
+
+  - name: "check-rustdoc"
+    commands:
+      - func: "check rustdoc"
 
 axes:
   - id: "extra-rust-versions"
@@ -185,3 +199,4 @@ buildvariants:
   tasks:
     - name: "check-clippy"
     - name: "check-rustfmt"
+    - name: "check-rustdoc"

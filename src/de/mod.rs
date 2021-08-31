@@ -423,7 +423,7 @@ where
 /// sequences with the Unicode replacement character.
 ///
 /// This is mainly useful when reading raw BSON returned from a MongoDB server, which
-/// in rare cases can contain invalidly truncated strings (https://jira.mongodb.org/browse/SERVER-24007).
+/// in rare cases can contain invalidly truncated strings (<https://jira.mongodb.org/browse/SERVER-24007>).
 /// For most use cases, [`crate::from_reader`] can be used instead.
 pub fn from_reader_utf8_lossy<R, T>(reader: R) -> Result<T>
 where
@@ -447,7 +447,7 @@ where
 /// sequences with the Unicode replacement character.
 ///
 /// This is mainly useful when reading raw BSON returned from a MongoDB server, which
-/// in rare cases can contain invalidly truncated strings (https://jira.mongodb.org/browse/SERVER-24007).
+/// in rare cases can contain invalidly truncated strings (<https://jira.mongodb.org/browse/SERVER-24007>).
 /// For most use cases, [`crate::from_slice`] can be used instead.
 pub fn from_slice_utf8_lossy<'de, T>(bytes: &'de [u8]) -> Result<T>
 where

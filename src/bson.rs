@@ -321,9 +321,18 @@ impl From<oid::ObjectId> for Bson {
 }
 
 #[cfg(feature = "chrono-0_4")]
+#[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
 impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for Bson {
     fn from(a: chrono::DateTime<T>) -> Bson {
         Bson::DateTime(crate::DateTime::from(a))
+    }
+}
+
+#[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+impl From<uuid::Uuid> for Bson {
+    fn from(uuid: uuid::Uuid) -> Self {
+        Bson::Binary(uuid.into())
     }
 }
 
@@ -1041,6 +1050,17 @@ impl Binary {
             })
         } else {
             None
+        }
+    }
+}
+
+#[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+impl From<uuid::Uuid> for Binary {
+    fn from(uuid: uuid::Uuid) -> Self {
+        Binary {
+            subtype: BinarySubtype::Uuid,
+            bytes: uuid.as_bytes().to_vec(),
         }
     }
 }

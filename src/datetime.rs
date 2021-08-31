@@ -30,7 +30,7 @@ use chrono::{LocalResult, TimeZone, Utc};
 /// will serialize to and deserialize from that format's equivalent of the
 /// [extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/) of a datetime.
 /// To serialize a [`chrono::DateTime`] as a BSON datetime, you can use
-/// [`serde_helpers::chrono_datetime_as_bson_datetime`].
+/// [`crate::serde_helpers::chrono_datetime_as_bson_datetime`].
 ///
 /// ```rust
 /// # #[cfg(feature = "chrono-0_4")]
@@ -81,6 +81,7 @@ impl crate::DateTime {
     /// Convert the given `chrono::DateTime` into a `bson::DateTime`, truncating it to millisecond
     /// precision.
     #[cfg(feature = "chrono-0_4")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
         Self::from_millis(dt.timestamp_millis())
     }
@@ -119,11 +120,12 @@ impl crate::DateTime {
     /// assert_eq!(chrono_big, chrono::MAX_DATETIME)
     /// ```
     #[cfg(feature = "chrono-0_4")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn to_chrono(self) -> chrono::DateTime<Utc> {
         self.to_chrono_private()
     }
 
-    /// Convert the given [`std::SystemTime`] to a [`DateTime`].
+    /// Convert the given [`std::time::SystemTime`] to a [`DateTime`].
     ///
     /// If the provided time is too far in the future or too far in the past to be represented
     /// by a BSON datetime, either [`DateTime::MAX`] or [`DateTime::MIN`] will be
@@ -149,7 +151,7 @@ impl crate::DateTime {
         }
     }
 
-    /// Convert this [`DateTime`] to a [`std::SystemTime`].
+    /// Convert this [`DateTime`] to a [`std::time::SystemTime`].
     pub fn to_system_time(self) -> SystemTime {
         if self.0 >= 0 {
             SystemTime::UNIX_EPOCH + Duration::from_millis(self.0 as u64)
@@ -204,6 +206,7 @@ impl From<crate::DateTime> for SystemTime {
 }
 
 #[cfg(feature = "chrono-0_4")]
+#[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
 impl From<crate::DateTime> for chrono::DateTime<Utc> {
     fn from(bson_dt: DateTime) -> Self {
         bson_dt.to_chrono()
@@ -211,6 +214,7 @@ impl From<crate::DateTime> for chrono::DateTime<Utc> {
 }
 
 #[cfg(feature = "chrono-0_4")]
+#[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
 impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for crate::DateTime {
     fn from(x: chrono::DateTime<T>) -> Self {
         Self::from_chrono(x)

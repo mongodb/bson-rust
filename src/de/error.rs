@@ -30,7 +30,7 @@ pub enum Error {
     EndOfStream,
 
     /// A general error encountered during deserialization.
-    /// See: https://docs.serde.rs/serde/de/trait.Error.html
+    /// See: <https://docs.serde.rs/serde/de/trait.Error.html>
     #[non_exhaustive]
     DeserializationError {
         /// A message describing the error.
