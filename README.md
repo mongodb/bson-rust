@@ -186,6 +186,11 @@ separate the "business logic" that operates over the data from the (de)serializa
 translates the data to/from its serialized form. This can lead to more clear and concise code
 that is also less error prone.
 
+## Minimum supported Rust version (MSRV)
+
+The MSRV for this crate is currently 1.48.0. This will be rarely be increased, and if it ever is,
+it will only happen in a minor or major version release.
+
 ## Contributing
 
 We encourage and would happily accept contributions in the form of GitHub pull requests. Before opening one, be sure to run the tests locally; check out the [testing section](#running-the-tests) for information on how to do that. Once you open a pull request, your branch will be run against the same testing matrix that we use for our [continuous integration](#continuous-integration) system, so it is usually sufficient to only run the integration tests locally against a standalone. Remember to always run the linter tests before opening a pull request.
