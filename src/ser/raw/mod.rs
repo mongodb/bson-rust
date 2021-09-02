@@ -84,6 +84,10 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     type SerializeStruct = StructSerializer<'a>;
     type SerializeStructVariant = VariantSerializer<'a>;
 
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
     #[inline]
     fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Boolean)?;
