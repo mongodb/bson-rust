@@ -212,7 +212,8 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::JavaScriptCodeWithScope => {
-                let code_w_scope = JavaScriptCodeWithScope::from_reader(&mut self.bytes)?;
+                let utf8_lossy = self.bytes.utf8_lossy;
+                let code_w_scope = JavaScriptCodeWithScope::from_reader(&mut self.bytes, utf8_lossy)?;
                 let doc = Bson::JavaScriptCodeWithScope(code_w_scope).into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
