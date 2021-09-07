@@ -51,7 +51,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! bson = "2.0.0-beta.3"
+//! bson = "2.0.0"
 //! ```
 //!
 //! Note that if you are using `bson` through the `mongodb` crate, you do not need to specify it in
@@ -59,10 +59,10 @@
 //!
 //! #### Feature Flags
 //!
-//! | Feature      | Description                                                                                    | Extra dependencies | Default |
-//! |:-------------|:-----------------------------------------------------------------------------------------------|:-------------------|:--------|
-//! | `chrono-0_4` | Enable support for v0.4 of the [`chrono`](docs.rs/chrono/0.4) crate in the public API.         | n/a                | no      |
-//! | `uuid-0_8`   | Enable support for v0.8 of the [`uuid`](docs.rs/uuid/0.8) crate in the public API.             | `uuid` 0.8         | no      |
+//! | Feature      | Description                                                                            | Extra dependencies | Default |
+//! |:-------------|:---------------------------------------------------------------------------------------|:-------------------|:--------|
+//! | `chrono-0_4` | Enable support for v0.4 of the [`chrono`](docs.rs/chrono/0.4) crate in the public API. | n/a                | no      |
+//! | `uuid-0_8`   | Enable support for v0.8 of the [`uuid`](docs.rs/uuid/0.8) crate in the public API.     | n/a                | no      |
 //!
 //! ## BSON values
 //!
@@ -300,7 +300,7 @@
 //! it will only happen in a minor or major version release.
 
 #![allow(clippy::cognitive_complexity)]
-#![doc(html_root_url = "https://docs.rs/bson/2.0.0-beta.3")]
+#![doc(html_root_url = "https://docs.rs/bson/2.0.0")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[doc(inline)]

@@ -36,7 +36,7 @@ This crate is available on [crates.io](https://crates.io/crates/bson). To use it
 
 ```toml
 [dependencies]
-bson = "2.0.0-beta.3"
+bson = "2.0.0"
 ```
 
 Note that if you are using `bson` through the `mongodb` crate, you do not need to specify it in your
@@ -44,10 +44,10 @@ Note that if you are using `bson` through the `mongodb` crate, you do not need t
 
 #### Feature Flags
 
-| Feature      | Description                                                                                    | Extra dependencies | Default |
-|:-------------|:-----------------------------------------------------------------------------------------------|:-------------------|:--------|
-| `chrono-0_4` | Enable support for v0.4 of the [`chrono`](docs.rs/chrono/0.4) crate in the public API.         | n/a                | no      |
-| `uuid-0_8`   | Enable support for v0.8 of the [`uuid`](docs.rs/uuid/0.8) crate in the public API.             | `uuid` 0.8         | no      |
+| Feature      | Description                                                                            | Extra dependencies | Default |
+|:-------------|:---------------------------------------------------------------------------------------|:-------------------|:--------|
+| `chrono-0_4` | Enable support for v0.4 of the [`chrono`](docs.rs/chrono/0.4) crate in the public API. | n/a                | no      |
+| `uuid-0_8`   | Enable support for v0.8 of the [`uuid`](docs.rs/uuid/0.8) crate in the public API.     | n/a                | no      |
 
 ## Overview of the BSON Format
 
@@ -208,14 +208,14 @@ that is also less error prone.
 ### Working with datetimes
 
 The BSON format includes a datetime type, which is modeled in this crate by the
-[`bson::DateTime`](https://docs.rs/bson/2.0.0-beta.3/bson/struct.DateTime.html) struct, and the
+[`bson::DateTime`](https://docs.rs/bson/latest/bson/struct.DateTime.html) struct, and the
 `Serialize` and `Deserialize` implementations for this struct produce and parse BSON datetimes when
 serializing to or deserializing from BSON. The popular crate [`chrono`](https://docs.rs/chrono) also
 provides a `DateTime` type, but its `Serialize` and `Deserialize` implementations operate on strings
 instead, so when using it with BSON, the BSON datetime type is not used. To work around this, the
 `chrono-0_4` feature flag can be enabled. This flag exposes a number of convenient conversions
 between `bson::DateTime` and `chrono::DateTime`, including the
-[`chrono_datetime_as_bson_datetime`](https://docs.rs/bson/2.0.0-beta.3/bson/serde_helpers/chrono_datetime_as_bson_datetime/index.html)
+[`chrono_datetime_as_bson_datetime`](https://docs.rs/bson/latest/bson/serde_helpers/chrono_datetime_as_bson_datetime/index.html)
 serde helper, which can be used to (de)serialize `chrono::DateTime`s to/from BSON datetimes, and the
 `From<chrono::DateTime>` implementation for `Bson`, which allows `chrono::DateTime` values to be
 used in the `doc!` and `bson!` macros.
@@ -254,7 +254,7 @@ provide a UUID type (`Uuid`), though its `Serialize` and `Deserialize` implement
 strings, so when using it with BSON, the BSON binary type will not be used. To facilitate the
 conversion between `Uuid` values and BSON binary values, the `uuid-0_8` feature flag can be
 enabled. This flag exposes a number of convenient conversions from `Uuid`, including the
-[`uuid_as_binary`](https://docs.rs/bson/2.0.0-beta.3/bson/serde_helpers/uuid_as_binary/index.html)
+[`uuid_as_binary`](https://docs.rs/bson/latest/bson/serde_helpers/uuid_as_binary/index.html)
 serde helper, which can be used to (de)serialize `Uuid`s to/from BSON binaries with the UUID
 subtype, and the `From<Uuid>` implementation for `Bson`, which allows `Uuid` values to be used in
 the `doc!` and `bson!` macros.
