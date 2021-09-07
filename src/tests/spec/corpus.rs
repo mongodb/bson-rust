@@ -363,12 +363,8 @@ fn run_test(test: TestFile) {
         crate::from_reader::<_, Document>(bson.as_slice()).expect_err(description.as_str());
 
         if decode_error.description.contains("invalid UTF-8") {
-            let d = crate::from_reader_utf8_lossy::<_, Document>(bson.as_slice())
-                .unwrap_or_else(|_| panic!("{}: utf8_lossy should not fail", description));
-            if let Some(ref key) = test.test_key {
-                d.get_str(key)
-                    .unwrap_or_else(|_| panic!("{}: value should be a string", description));
-            }
+            crate::from_reader_utf8_lossy::<_, Document>(bson.as_slice())
+                .unwrap_or_else(|err| panic!("{}: utf8_lossy should not fail (failed with {:?})", description, err));
         }
     }
 

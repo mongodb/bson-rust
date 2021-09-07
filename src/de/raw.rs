@@ -206,7 +206,8 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::JavaScriptCode => {
-                let code = read_string(&mut self.bytes, false)?;
+                let utf8_lossy = self.bytes.utf8_lossy;
+                let code = read_string(&mut self.bytes, utf8_lossy)?;
                 let doc = Bson::JavaScriptCode(code).into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
@@ -216,7 +217,8 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 visitor.visit_map(MapDeserializer::new(doc))
             }
             ElementType::Symbol => {
-                let symbol = read_string(&mut self.bytes, false)?;
+                let utf8_lossy = self.bytes.utf8_lossy;
+                let symbol = read_string(&mut self.bytes, utf8_lossy)?;
                 let doc = Bson::Symbol(symbol).into_extended_document();
                 visitor.visit_map(MapDeserializer::new(doc))
             }
@@ -912,7 +914,7 @@ impl<'a> BsonBuf<'a> {
         Ok(())
     }
 
-    /// Get the starting at the provided index and ending at the buffer's current index.
+    /// Get the string starting at the provided index and ending at the buffer's current index.
     fn str(&mut self, start: usize) -> Result<Cow<'a, str>> {
         let bytes = &self.bytes[start..self.index];
         let s = if self.utf8_lossy {
