@@ -175,7 +175,7 @@ macro_rules! bson {
     };
 
     ({$($tt:tt)+}) => {
-        $crate::Bson::Document($crate::doc!{$($tt)+});
+        $crate::Bson::Document($crate::doc!{$($tt)+})
     };
 
     // Any Into<Bson> type.
