@@ -235,7 +235,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
             read_string(reader, utf8_lossy).map(Bson::JavaScriptCode)?
         }
         Some(ElementType::JavaScriptCodeWithScope) => {
-            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope::from_reader(reader)?)
+            Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope::from_reader(reader, utf8_lossy)?)
         }
         Some(ElementType::Int32) => read_i32(reader).map(Bson::Int32)?,
         Some(ElementType::Int64) => read_i64(reader).map(Bson::Int64)?,
@@ -350,7 +350,7 @@ impl ObjectId {
 }
 
 impl JavaScriptCodeWithScope {
-    pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
+    pub(crate) fn from_reader<R: Read>(mut reader: R, utf8_lossy: bool) -> Result<Self> {
         let length = read_i32(&mut reader)?;
         if length < MIN_CODE_WITH_SCOPE_SIZE {
             return Err(Error::invalid_length(
@@ -372,7 +372,7 @@ impl JavaScriptCodeWithScope {
         reader.read_exact(&mut buf)?;
 
         let mut slice = buf.as_slice();
-        let code = read_string(&mut slice, false)?;
+        let code = read_string(&mut slice, utf8_lossy)?;
         let scope = Document::from_reader(&mut slice)?;
         Ok(JavaScriptCodeWithScope { code, scope })
     }
