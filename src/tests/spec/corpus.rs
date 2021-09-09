@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::{Bson, Document, tests::LOCK};
+use crate::{tests::LOCK, Bson, Document};
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 
