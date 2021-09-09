@@ -14,6 +14,9 @@ pub enum Error {
     /// A key could not be serialized to a BSON string.
     InvalidDocumentKey(Bson),
 
+    /// An invalid string was specified.
+    InvalidCString(String),
+
     /// A general error that occurred during serialization.
     /// See: <https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom>
     #[non_exhaustive]
@@ -37,6 +40,9 @@ impl fmt::Display for Error {
         match *self {
             Error::Io(ref inner) => inner.fmt(fmt),
             Error::InvalidDocumentKey(ref key) => write!(fmt, "Invalid map key type: {}", key),
+            Error::InvalidCString(ref string) => {
+                write!(fmt, "cstrings cannot contain null bytes: {}", string)
+            }
             Error::SerializationError { ref message } => message.fmt(fmt),
             Error::UnsignedIntegerExceededRange(value) => write!(
                 fmt,

@@ -246,6 +246,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
                 write_string(&mut self.root_serializer.bytes, v)?;
             }
             SerializationStep::RegExPattern | SerializationStep::RegExOptions => {
+                dbg!("regex");
                 write_cstring(&mut self.root_serializer.bytes, v)?;
             }
             SerializationStep::Code => {

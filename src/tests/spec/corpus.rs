@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::{tests::LOCK, Bson, Document};
+use crate::{Bson, Document, tests::LOCK};
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 
@@ -391,7 +391,10 @@ fn run_test(test: TestFile) {
         let json: serde_json::Value =
             serde_json::from_str(parse_error.string.as_str()).expect(&parse_error.description);
 
-        Bson::try_from(json).expect_err(&parse_error.description);
+        if let Ok(bson) = Bson::try_from(json.clone()) {
+            // if converting to bson succeeds, assert that translating that bson to bytes fails
+            assert!(crate::to_vec(&bson).is_err());
+        }
     }
 }
 
