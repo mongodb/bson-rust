@@ -47,6 +47,9 @@ fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
 }
 
 fn write_cstring<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
+    if s.contains('\0') {
+        return Err(Error::InvalidCString(s.into()));
+    }
     writer.write_all(s.as_bytes())?;
     writer.write_all(b"\0")?;
     Ok(())
