@@ -89,12 +89,13 @@ fn test_display_jscodewithcontext_type() {
 
 #[test]
 fn test_display_binary_type() {
-    let bytes = base64::decode("aGVsbG8gd29ybGQ=").unwrap();
+    let encoded_bytes = "aGVsbG8gd29ybGQ=";
+    let bytes = base64::decode(encoded_bytes).unwrap();
     let x = Binary {
         subtype: BinarySubtype::Generic,
         bytes,
     };
-    assert_eq!(format!("{}", x), "Binary(0x0, aGVsbG8gd29ybGQ=)");
+    assert_eq!(format!("{}", x), format!("Binary(0x0, {})", encoded_bytes));
 }
 
 #[test]
