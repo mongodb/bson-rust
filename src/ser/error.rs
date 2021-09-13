@@ -17,8 +17,12 @@ pub enum Error {
         key: Bson,
     },
 
-    /// A general error that ocurred during serialization.
-    /// See: https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom
+    /// An invalid string was specified.
+    InvalidCString(String),
+
+    /// A general error that occurred during serialization.
+    /// See: <https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom>
+    #[non_exhaustive]
     SerializationError {
         /// A message describing the error.
         message: String,
@@ -48,6 +52,9 @@ impl fmt::Display for Error {
         match *self {
             Error::IoError(ref inner) => inner.fmt(fmt),
             Error::InvalidMapKeyType { ref key } => write!(fmt, "Invalid map key type: {}", key),
+            Error::InvalidCString(ref string) => {
+                write!(fmt, "cstrings cannot contain null bytes: {:?}", string)
+            }
             Error::SerializationError { ref message } => message.fmt(fmt),
             #[cfg(not(feature = "u2i"))]
             Error::UnsupportedUnsignedType => fmt.write_str("BSON does not support unsigned type"),

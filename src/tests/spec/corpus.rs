@@ -283,7 +283,11 @@ fn run_test(test: TestFile) {
         let json: serde_json::Value =
             serde_json::from_str(parse_error.string.as_str()).expect(&parse_error.description);
 
-        Bson::try_from(json).expect_err(&parse_error.description);
+        if let Ok(bson) = Bson::try_from(json.clone()) {
+            // if converting to bson succeeds, assert that translating that bson to bytes fails
+            let mut vec = Vec::new();
+            assert!(bson.as_document().unwrap().to_writer(&mut vec).is_err());
+        }
     }
 }
 
