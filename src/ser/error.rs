@@ -41,7 +41,7 @@ impl fmt::Display for Error {
             Error::Io(ref inner) => inner.fmt(fmt),
             Error::InvalidDocumentKey(ref key) => write!(fmt, "Invalid map key type: {}", key),
             Error::InvalidCString(ref string) => {
-                write!(fmt, "cstrings cannot contain null bytes: {}", string)
+                write!(fmt, "cstrings cannot contain null bytes: {:?}", string)
             }
             Error::SerializationError { ref message } => message.fmt(fmt),
             Error::UnsignedIntegerExceededRange(value) => write!(
