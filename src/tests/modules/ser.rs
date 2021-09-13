@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, u16, u32, u64, u8};
 
 use assert_matches::assert_matches;
 
-use crate::{from_bson, oid::ObjectId, ser, tests::LOCK, to_bson, Bson};
+use crate::{from_bson, oid::ObjectId, ser, tests::LOCK, to_bson, to_vec, Bson, Document, Regex};
 
 #[test]
 #[allow(clippy::float_cmp)]
@@ -140,4 +140,33 @@ fn oid() {
 
     let deser: Bson = to_bson(&s).unwrap();
     assert_eq!(deser, obj);
+}
+
+#[test]
+fn cstring_null_bytes_error() {
+    let _guard = LOCK.run_concurrently();
+
+    let doc = doc! { "\0": "a" };
+    verify_doc(doc);
+
+    let doc = doc! { "a": { "\0": "b" } };
+    verify_doc(doc);
+
+    let regex = doc! { "regex": Regex { pattern: "\0".into(), options: "a".into() } };
+    verify_doc(regex);
+
+    let regex = doc! { "regex": Regex { pattern: "a".into(), options: "\0".into() } };
+    verify_doc(regex);
+
+    fn verify_doc(doc: Document) {
+        let mut vec = Vec::new();
+        assert!(matches!(
+            doc.to_writer(&mut vec).unwrap_err(),
+            ser::Error::InvalidCString(_)
+        ));
+        assert!(matches!(
+            to_vec(&doc).unwrap_err(),
+            ser::Error::InvalidCString(_)
+        ));
+    }
 }
