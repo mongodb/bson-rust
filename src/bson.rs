@@ -984,6 +984,13 @@ pub struct Timestamp {
     pub increment: u32,
 }
 
+impl Display for Timestamp {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let x: Bson = self.into();
+        write!(fmt, "{}", x)
+    }
+}
+
 impl Timestamp {
     pub(crate) fn to_le_i64(self) -> i64 {
         let upper = (self.time.to_le() as u64) << 32;
@@ -1018,11 +1025,25 @@ pub struct Regex {
     pub options: String,
 }
 
+impl Display for Regex {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let x: Bson = self.into();
+        write!(fmt, "{}", x)
+    }
+}
+
 /// Represents a BSON code with scope value.
 #[derive(Debug, Clone, PartialEq)]
 pub struct JavaScriptCodeWithScope {
     pub code: String,
     pub scope: Document,
+}
+
+impl Display for JavaScriptCodeWithScope {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let x: Bson = self.into();
+        write!(fmt, "{}", x)
+    }
 }
 
 /// Represents a BSON binary value.
@@ -1033,6 +1054,13 @@ pub struct Binary {
 
     /// The binary bytes.
     pub bytes: Vec<u8>,
+}
+
+impl Display for Binary {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let x: Bson = self.into();
+        write!(fmt, "{}", x)
+    }
 }
 
 impl Binary {

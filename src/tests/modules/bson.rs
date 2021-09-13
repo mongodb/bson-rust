@@ -61,6 +61,43 @@ fn bson_default() {
 }
 
 #[test]
+fn test_display_timestamp_type() {
+    let x = Timestamp {
+        time: 100,
+        increment: 200,
+    };
+    assert_eq!(format!("{}", x), "Timestamp(100, 200)");
+}
+
+#[test]
+fn test_display_regex_type() {
+    let x = Regex {
+        pattern: String::from("pattern"),
+        options: String::from("options"),
+    };
+    assert_eq!(format!("{}", x), "/pattern/options");
+}
+
+#[test]
+fn test_display_jscodewithcontext_type() {
+    let x = JavaScriptCodeWithScope {
+        code: String::from("code"),
+        scope: doc! {"x": 2},
+    };
+    assert_eq!(format!("{}", x), "code");
+}
+
+#[test]
+fn test_display_binary_type() {
+    let bytes = base64::decode("aGVsbG8gd29ybGQ=").unwrap();
+    let x = Binary {
+        subtype: BinarySubtype::Generic,
+        bytes,
+    };
+    assert_eq!(format!("{}", x), "Binary(0x0, aGVsbG8gd29ybGQ=)");
+}
+
+#[test]
 fn document_default() {
     let _guard = LOCK.run_concurrently();
     let doc1 = Document::default();
