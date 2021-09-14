@@ -10,6 +10,7 @@ use serde::Deserialize;
 use super::run_spec_test;
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct TestFile {
     description: String,
     bson_type: String,
@@ -26,10 +27,12 @@ struct TestFile {
     #[serde(default)]
     parse_errors: Vec<ParseError>,
 
+    #[allow(dead_code)]
     deprecated: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Valid {
     description: String,
     canonical_bson: String,
@@ -37,7 +40,9 @@ struct Valid {
     relaxed_extjson: Option<String>,
     degenerate_bson: Option<String>,
     degenerate_extjson: Option<String>,
+    #[allow(dead_code)]
     converted_bson: Option<String>,
+    #[allow(dead_code)]
     converted_extjson: Option<String>,
     lossy: Option<bool>,
 }
