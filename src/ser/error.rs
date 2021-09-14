@@ -21,8 +21,7 @@ pub enum Error {
     InvalidCString(String),
 
     /// A general error that occurred during serialization.
-    /// See: <https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom>
-    #[non_exhaustive]
+    /// See: https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom
     SerializationError {
         /// A message describing the error.
         message: String,
