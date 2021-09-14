@@ -115,25 +115,15 @@ impl Display for Bson {
             Bson::Document(ref doc) => write!(fmt, "{}", doc),
             Bson::Boolean(b) => write!(fmt, "{}", b),
             Bson::Null => write!(fmt, "null"),
-            Bson::RegularExpression(Regex {
-                ref pattern,
-                ref options,
-            }) => write!(fmt, "/{}/{}", pattern, options),
+            Bson::RegularExpression(ref x) => write!(fmt, "{}", x),
             Bson::JavaScriptCode(ref code)
             | Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { ref code, .. }) => {
                 fmt.write_str(code)
             }
             Bson::Int32(i) => write!(fmt, "{}", i),
             Bson::Int64(i) => write!(fmt, "{}", i),
-            Bson::Timestamp(Timestamp { time, increment }) => {
-                write!(fmt, "Timestamp({}, {})", time, increment)
-            }
-            Bson::Binary(Binary { subtype, ref bytes }) => write!(
-                fmt,
-                "Binary({:#x}, {})",
-                u8::from(subtype),
-                base64::encode(bytes)
-            ),
+            Bson::Timestamp(ref x) => write!(fmt, "{}", x),
+            Bson::Binary(ref x) => write!(fmt, "{}", x),
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             Bson::DateTime(date_time) => write!(fmt, "DateTime(\"{}\")", date_time),
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
@@ -986,8 +976,7 @@ pub struct Timestamp {
 
 impl Display for Timestamp {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let x: Bson = self.into();
-        write!(fmt, "{}", x)
+        write!(fmt, "Timestamp({}, {})", self.time, self.increment)
     }
 }
 
@@ -1027,8 +1016,7 @@ pub struct Regex {
 
 impl Display for Regex {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let x: Bson = self.into();
-        write!(fmt, "{}", x)
+        write!(fmt, "/{}/{}", self.pattern, self.options)
     }
 }
 
@@ -1041,8 +1029,7 @@ pub struct JavaScriptCodeWithScope {
 
 impl Display for JavaScriptCodeWithScope {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let x: Bson = self.into();
-        write!(fmt, "{}", x)
+        fmt.write_str(&self.code)
     }
 }
 
@@ -1058,8 +1045,12 @@ pub struct Binary {
 
 impl Display for Binary {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let x: Bson = self.into();
-        write!(fmt, "{}", x)
+        write!(
+            fmt,
+            "Binary({:#x}, {})",
+            u8::from(self.subtype),
+            base64::encode(&self.bytes)
+        )
     }
 }
 

@@ -66,7 +66,9 @@ fn test_display_timestamp_type() {
         time: 100,
         increment: 200,
     };
-    assert_eq!(format!("{}", x), "Timestamp(100, 200)");
+    let output = "Timestamp(100, 200)";
+    assert_eq!(format!("{}", x), output);
+    assert_eq!(format!("{}", Bson::from(x)), output);
 }
 
 #[test]
@@ -75,7 +77,9 @@ fn test_display_regex_type() {
         pattern: String::from("pattern"),
         options: String::from("options"),
     };
-    assert_eq!(format!("{}", x), "/pattern/options");
+    let output = "/pattern/options";
+    assert_eq!(format!("{}", x), output);
+    assert_eq!(format!("{}", Bson::from(x)), output);
 }
 
 #[test]
@@ -84,7 +88,9 @@ fn test_display_jscodewithcontext_type() {
         code: String::from("code"),
         scope: doc! {"x": 2},
     };
-    assert_eq!(format!("{}", x), "code");
+    let output = "code";
+    assert_eq!(format!("{}", x), output);
+    assert_eq!(format!("{}", Bson::from(x)), output);
 }
 
 #[test]
@@ -95,7 +101,9 @@ fn test_display_binary_type() {
         subtype: BinarySubtype::Generic,
         bytes,
     };
-    assert_eq!(format!("{}", x), format!("Binary(0x0, {})", encoded_bytes));
+    let output = format!("Binary(0x0, {})", encoded_bytes);
+    assert_eq!(format!("{}", x), output);
+    assert_eq!(format!("{}", Bson::from(x)), output);
 }
 
 #[test]
