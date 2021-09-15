@@ -355,7 +355,7 @@ pub mod hex_string_as_object_id {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_binary {
-    use crate::{spec::BinarySubtype, Binary};
+    use crate::Binary;
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
@@ -374,20 +374,9 @@ pub mod uuid_as_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        if binary.subtype == BinarySubtype::Uuid {
-            if binary.bytes.len() == 16 {
-                let mut bytes = [0u8; 16];
-                bytes.copy_from_slice(&binary.bytes);
-                Ok(Uuid::from_bytes(bytes))
-            } else {
-                Err(de::Error::custom(
-                    "cannot convert Binary to Uuid: incorrect bytes length",
-                ))
-            }
-        } else {
-            Err(de::Error::custom(
-                "cannot convert Binary to Uuid: incorrect binary subtype",
-            ))
+        match binary.to_uuid() {
+            Ok(x) => Ok(x),
+            Err(msg) => Err(de::Error::custom(msg)),
         }
     }
 }
@@ -412,7 +401,7 @@ pub mod uuid_as_binary {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_java_legacy_binary {
-    use crate::{spec::BinarySubtype, Binary};
+    use crate::{bson::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
@@ -420,13 +409,7 @@ pub mod uuid_as_java_legacy_binary {
     /// Serializes a Uuid as a Binary in a Java Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut bytes = val.as_bytes().to_vec();
-        bytes[0..8].reverse();
-        bytes[8..16].reverse();
-        let binary = Binary {
-            subtype: BinarySubtype::UuidOld,
-            bytes,
-        };
+        let binary = Binary::from_uuid_with_representation(val, UuidRepresentation::JavaLegacy);
         binary.serialize(serializer)
     }
 
@@ -437,16 +420,9 @@ pub mod uuid_as_java_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        if binary.subtype != BinarySubtype::UuidOld {
-            Err(de::Error::custom("expecting BinarySubtype::UuidOld"))
-        } else if binary.bytes.len() != 16 {
-            Err(de::Error::custom("expecting 16 bytes"))
-        } else {
-            let mut buf = [0u8; 16];
-            buf.copy_from_slice(&binary.bytes);
-            buf[0..8].reverse();
-            buf[8..16].reverse();
-            Ok(Uuid::from_bytes(buf))
+        match binary.to_uuid_with_representation(UuidRepresentation::JavaLegacy) {
+            Ok(x) => Ok(x),
+            Err(msg) => Err(de::Error::custom(msg)),
         }
     }
 }
@@ -471,7 +447,7 @@ pub mod uuid_as_java_legacy_binary {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_python_legacy_binary {
-    use crate::{spec::BinarySubtype, Binary};
+    use crate::{bson::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
@@ -479,10 +455,7 @@ pub mod uuid_as_python_legacy_binary {
     /// Serializes a Uuid as a Binary in a Python Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-        let binary = Binary {
-            subtype: BinarySubtype::UuidOld,
-            bytes: val.as_bytes().to_vec(),
-        };
+        let binary = Binary::from_uuid_with_representation(val, UuidRepresentation::PythonLegacy);
         binary.serialize(serializer)
     }
 
@@ -493,14 +466,9 @@ pub mod uuid_as_python_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        if binary.subtype != BinarySubtype::UuidOld {
-            Err(de::Error::custom("expecting BinarySubtype::UuidOld"))
-        } else if binary.bytes.len() != 16 {
-            Err(de::Error::custom("expecting 16 bytes"))
-        } else {
-            let mut buf = [0u8; 16];
-            buf.copy_from_slice(&binary.bytes);
-            Ok(Uuid::from_bytes(buf))
+        match binary.to_uuid_with_representation(UuidRepresentation::PythonLegacy) {
+            Ok(x) => Ok(x),
+            Err(msg) => Err(de::Error::custom(msg)),
         }
     }
 }
@@ -525,7 +493,7 @@ pub mod uuid_as_python_legacy_binary {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_c_sharp_legacy_binary {
-    use crate::{spec::BinarySubtype, Binary};
+    use crate::{bson::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
@@ -533,14 +501,7 @@ pub mod uuid_as_c_sharp_legacy_binary {
     /// Serializes a Uuid as a Binary in a C# Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut bytes = val.as_bytes().to_vec();
-        bytes[0..4].reverse();
-        bytes[4..6].reverse();
-        bytes[6..8].reverse();
-        let binary = Binary {
-            subtype: BinarySubtype::UuidOld,
-            bytes,
-        };
+        let binary = Binary::from_uuid_with_representation(val, UuidRepresentation::CSharpLegacy);
         binary.serialize(serializer)
     }
 
@@ -551,17 +512,9 @@ pub mod uuid_as_c_sharp_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        if binary.subtype != BinarySubtype::UuidOld {
-            Err(de::Error::custom("expecting BinarySubtype::UuidOld"))
-        } else if binary.bytes.len() != 16 {
-            Err(de::Error::custom("expecting 16 bytes"))
-        } else {
-            let mut buf = [0u8; 16];
-            buf.copy_from_slice(&binary.bytes);
-            buf[0..4].reverse();
-            buf[4..6].reverse();
-            buf[6..8].reverse();
-            Ok(Uuid::from_bytes(buf))
+        match binary.to_uuid_with_representation(UuidRepresentation::CSharpLegacy) {
+            Ok(x) => Ok(x),
+            Err(msg) => Err(de::Error::custom(msg)),
         }
     }
 }

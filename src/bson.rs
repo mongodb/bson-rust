@@ -1056,6 +1056,110 @@ impl Binary {
 
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+pub enum UuidRepresentation {
+    Standard,
+    CSharpLegacy,
+    JavaLegacy,
+    PythonLegacy,
+}
+
+#[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+impl Binary {
+    pub fn from_uuid(uuid: &uuid::Uuid) -> Self {
+        Binary::from(*uuid)
+    }
+
+    pub fn from_uuid_with_representation(uuid: &uuid::Uuid, rep: UuidRepresentation) -> Self {
+        match rep {
+            UuidRepresentation::Standard => Binary::from_uuid(uuid),
+            UuidRepresentation::CSharpLegacy => {
+                let mut bytes = uuid.as_bytes().to_vec();
+                bytes[0..4].reverse();
+                bytes[4..6].reverse();
+                bytes[6..8].reverse();
+                Binary {
+                    subtype: BinarySubtype::UuidOld,
+                    bytes,
+                }
+            }
+            UuidRepresentation::PythonLegacy => Binary {
+                subtype: BinarySubtype::UuidOld,
+                bytes: uuid.as_bytes().to_vec(),
+            },
+            UuidRepresentation::JavaLegacy => {
+                let mut bytes = uuid.as_bytes().to_vec();
+                bytes[0..8].reverse();
+                bytes[8..16].reverse();
+                Binary {
+                    subtype: BinarySubtype::UuidOld,
+                    bytes,
+                }
+            }
+        }
+    }
+
+    pub fn to_uuid_with_representation(&self, rep: UuidRepresentation) -> Result<uuid::Uuid, &str> {
+        match rep {
+            UuidRepresentation::Standard => self.to_uuid(),
+            UuidRepresentation::CSharpLegacy => {
+                if self.subtype != BinarySubtype::UuidOld {
+                    Err("expecting BinarySubtype::UuidOld")
+                } else if self.bytes.len() != 16 {
+                    Err("expecting 16 bytes")
+                } else {
+                    let mut buf = [0u8; 16];
+                    buf.copy_from_slice(&self.bytes);
+                    buf[0..4].reverse();
+                    buf[4..6].reverse();
+                    buf[6..8].reverse();
+                    Ok(uuid::Uuid::from_bytes(buf))
+                }
+            }
+            UuidRepresentation::PythonLegacy => {
+                if self.subtype != BinarySubtype::UuidOld {
+                    Err("expecting BinarySubtype::UuidOld")
+                } else if self.bytes.len() != 16 {
+                    Err("expecting 16 bytes")
+                } else {
+                    let mut buf = [0u8; 16];
+                    buf.copy_from_slice(&self.bytes);
+                    Ok(uuid::Uuid::from_bytes(buf))
+                }
+            }
+            UuidRepresentation::JavaLegacy => {
+                if self.subtype != BinarySubtype::UuidOld {
+                    Err("expecting BinarySubtype::UuidOld")
+                } else if self.bytes.len() != 16 {
+                    Err("expecting 16 bytes")
+                } else {
+                    let mut buf = [0u8; 16];
+                    buf.copy_from_slice(&self.bytes);
+                    buf[0..8].reverse();
+                    buf[8..16].reverse();
+                    Ok(uuid::Uuid::from_bytes(buf))
+                }
+            }
+        }
+    }
+
+    pub fn to_uuid(&self) -> Result<uuid::Uuid, &str> {
+        if self.subtype == BinarySubtype::Uuid {
+            if self.bytes.len() == 16 {
+                let mut bytes = [0u8; 16];
+                bytes.copy_from_slice(&self.bytes);
+                Ok(uuid::Uuid::from_bytes(bytes))
+            } else {
+                Err("cannot convert Binary to Uuid: incorrect bytes length")
+            }
+        } else {
+            Err("cannot convert Binary to Uuid: incorrect binary subtype")
+        }
+    }
+}
+
+#[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 impl From<uuid::Uuid> for Binary {
     fn from(uuid: uuid::Uuid) -> Self {
         Binary {
