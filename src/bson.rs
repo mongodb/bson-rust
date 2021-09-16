@@ -1061,6 +1061,9 @@ impl Binary {
 /// deserializing a Binary object to a Uuid.
 /// This enum is necessary because the different drivers used to have different ways of encoding
 /// UUID, with the BSON subtype: 0x03 UUID old.
+/// If a UUID has been serialized with a particular representation, it MUST
+/// be deserialized with the same representation.
+///
 /// Example:
 /// ```
 /// use crate::{bson::UuidRepresentation, bson::Binary};
@@ -1076,9 +1079,13 @@ impl Binary {
 #[non_exhaustive]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum UuidRepresentation {
+    /// The canonical representation of UUID BSON binary subtype 4
     Standard,
+    /// The legacy representation of UUID used by the C# driver BSON binary subtype 3
     CSharpLegacy,
+    /// The legacy representation of UUID used by the Java driver BSON binary subtype 3
     JavaLegacy,
+    /// The legacy representation of UUID used by the Python driver, which is the same format as STANDARD, but has the UUID old BSON subtype (\x03) BSON binary subtype 3
     PythonLegacy,
 }
 
