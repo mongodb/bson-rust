@@ -61,6 +61,52 @@ fn bson_default() {
 }
 
 #[test]
+fn test_display_timestamp_type() {
+    let x = Timestamp {
+        time: 100,
+        increment: 200,
+    };
+    let output = "Timestamp(100, 200)";
+    assert_eq!(format!("{}", x), output);
+    assert_eq!(format!("{}", Bson::from(x)), output);
+}
+
+#[test]
+fn test_display_regex_type() {
+    let x = Regex {
+        pattern: String::from("pattern"),
+        options: String::from("options"),
+    };
+    let output = "/pattern/options";
+    assert_eq!(format!("{}", x), output);
+    assert_eq!(format!("{}", Bson::from(x)), output);
+}
+
+#[test]
+fn test_display_jscodewithcontext_type() {
+    let x = JavaScriptCodeWithScope {
+        code: String::from("code"),
+        scope: doc! {"x": 2},
+    };
+    let output = "code";
+    assert_eq!(format!("{}", x), output);
+    assert_eq!(format!("{}", Bson::from(x)), output);
+}
+
+#[test]
+fn test_display_binary_type() {
+    let encoded_bytes = "aGVsbG8gd29ybGQ=";
+    let bytes = base64::decode(encoded_bytes).unwrap();
+    let x = Binary {
+        subtype: BinarySubtype::Generic,
+        bytes,
+    };
+    let output = format!("Binary(0x0, {})", encoded_bytes);
+    assert_eq!(format!("{}", x), output);
+    assert_eq!(format!("{}", Bson::from(x)), output);
+}
+
+#[test]
 fn document_default() {
     let _guard = LOCK.run_concurrently();
     let doc1 = Document::default();

@@ -115,25 +115,15 @@ impl Display for Bson {
             Bson::Document(ref doc) => write!(fmt, "{}", doc),
             Bson::Boolean(b) => write!(fmt, "{}", b),
             Bson::Null => write!(fmt, "null"),
-            Bson::RegularExpression(Regex {
-                ref pattern,
-                ref options,
-            }) => write!(fmt, "/{}/{}", pattern, options),
+            Bson::RegularExpression(ref x) => write!(fmt, "{}", x),
             Bson::JavaScriptCode(ref code)
             | Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { ref code, .. }) => {
                 fmt.write_str(code)
             }
             Bson::Int32(i) => write!(fmt, "{}", i),
             Bson::Int64(i) => write!(fmt, "{}", i),
-            Bson::Timestamp(Timestamp { time, increment }) => {
-                write!(fmt, "Timestamp({}, {})", time, increment)
-            }
-            Bson::Binary(Binary { subtype, ref bytes }) => write!(
-                fmt,
-                "Binary({:#x}, {})",
-                u8::from(subtype),
-                base64::encode(bytes)
-            ),
+            Bson::Timestamp(ref x) => write!(fmt, "{}", x),
+            Bson::Binary(ref x) => write!(fmt, "{}", x),
             Bson::ObjectId(ref id) => write!(fmt, "ObjectId(\"{}\")", id),
             Bson::DateTime(date_time) => write!(fmt, "DateTime(\"{}\")", date_time),
             Bson::Symbol(ref sym) => write!(fmt, "Symbol(\"{}\")", sym),
@@ -984,6 +974,12 @@ pub struct Timestamp {
     pub increment: u32,
 }
 
+impl Display for Timestamp {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "Timestamp({}, {})", self.time, self.increment)
+    }
+}
+
 impl Timestamp {
     pub(crate) fn to_le_i64(self) -> i64 {
         let upper = (self.time.to_le() as u64) << 32;
@@ -1018,11 +1014,23 @@ pub struct Regex {
     pub options: String,
 }
 
+impl Display for Regex {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "/{}/{}", self.pattern, self.options)
+    }
+}
+
 /// Represents a BSON code with scope value.
 #[derive(Debug, Clone, PartialEq)]
 pub struct JavaScriptCodeWithScope {
     pub code: String,
     pub scope: Document,
+}
+
+impl Display for JavaScriptCodeWithScope {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(&self.code)
+    }
 }
 
 /// Represents a BSON binary value.
@@ -1033,6 +1041,17 @@ pub struct Binary {
 
     /// The binary bytes.
     pub bytes: Vec<u8>,
+}
+
+impl Display for Binary {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            fmt,
+            "Binary({:#x}, {})",
+            u8::from(self.subtype),
+            base64::encode(&self.bytes)
+        )
+    }
 }
 
 impl Binary {
