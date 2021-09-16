@@ -4,7 +4,6 @@ use std::{
 };
 
 use crate::{
-    bson::UuidRepresentation,
     doc,
     oid::ObjectId,
     spec::BinarySubtype,
@@ -18,7 +17,6 @@ use crate::{
     Timestamp,
 };
 use serde_json::{json, Value};
-use uuid::Uuid;
 
 #[test]
 fn to_json() {
@@ -351,6 +349,9 @@ fn debug_print() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_constructors() {
+    use bson::UuidRepresentation;
+    use uuid::Uuid;
+
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
     let bin = Binary::from_uuid(&uuid);
     assert_eq!(bin.bytes, uuid.as_bytes());
@@ -387,6 +388,9 @@ fn test_binary_constructors() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid() {
+    use bson::UuidRepresentation;
+    use uuid::Uuid;
+
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
     let bin = Binary::from_uuid(&uuid);
 
@@ -413,6 +417,9 @@ fn test_binary_to_uuid() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid_java_rep() {
+    use bson::UuidRepresentation;
+    use uuid::Uuid;
+
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
     let bin = Binary::from_uuid_with_representation(&uuid, UuidRepresentation::JavaLegacy);
     assert_eq!(
@@ -434,6 +441,9 @@ fn test_binary_to_uuid_java_rep() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid_csharp_legacy_rep() {
+    use bson::UuidRepresentation;
+    use uuid::Uuid;
+
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
     let bin = Binary::from_uuid_with_representation(&uuid, UuidRepresentation::CSharpLegacy);
     assert_eq!(
@@ -455,6 +465,9 @@ fn test_binary_to_uuid_csharp_legacy_rep() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid_python_legacy_rep() {
+    use bson::UuidRepresentation;
+    use uuid::Uuid;
+
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
     let bin = Binary::from_uuid_with_representation(&uuid, UuidRepresentation::PythonLegacy);
     assert_eq!(
