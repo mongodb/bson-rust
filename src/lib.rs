@@ -305,7 +305,7 @@
 
 #[doc(inline)]
 pub use self::{
-    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
+    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp, UuidRepresentation},
     datetime::DateTime,
     de::{
         from_bson,

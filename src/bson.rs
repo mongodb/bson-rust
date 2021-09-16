@@ -36,6 +36,9 @@ use crate::{
     Decimal128,
 };
 
+#[cfg(feature = "uuid-0_8")]
+use serde::de::Error;
+
 /// Possible BSON value types.
 #[derive(Clone, PartialEq)]
 pub enum Bson {
@@ -1054,9 +1057,24 @@ impl Binary {
     }
 }
 
-#[cfg(feature = "uuid-0_8")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
-#[derive(PartialEq)]
+/// Enum for serializing a Uuid to Binary object and
+/// deserializing a Binary object to a Uuid.
+/// This enum is necessary because the different drivers used to have different ways of encoding
+/// UUID, with the BSON subtype: 0x03 UUID old.
+/// Example:
+/// ```
+/// use crate::{bson::UuidRepresentation, bson::Binary};
+/// use uuid::Uuid;
+/// let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+/// let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::PythonLegacy);
+/// let new_uuid = bin.to_uuid();
+/// assert!(new_uuid.is_err());
+/// let new_uuid = bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy);
+/// assert!(new_uuid.is_ok());
+/// assert_eq!(new_uuid.unwrap(), uuid);
+/// ```
+#[non_exhaustive]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum UuidRepresentation {
     Standard,
     CSharpLegacy,
@@ -1067,11 +1085,11 @@ pub enum UuidRepresentation {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 impl Binary {
-    pub fn from_uuid(uuid: &uuid::Uuid) -> Self {
-        Binary::from(*uuid)
+    pub fn from_uuid(uuid: uuid::Uuid) -> Self {
+        Binary::from(uuid)
     }
 
-    pub fn from_uuid_with_representation(uuid: &uuid::Uuid, rep: UuidRepresentation) -> Self {
+    pub fn from_uuid_with_representation(uuid: uuid::Uuid, rep: UuidRepresentation) -> Self {
         match rep {
             UuidRepresentation::Standard => Binary::from_uuid(uuid),
             UuidRepresentation::CSharpLegacy => {
@@ -1100,31 +1118,38 @@ impl Binary {
         }
     }
 
-    pub fn to_uuid_with_representation(&self, rep: UuidRepresentation) -> Result<uuid::Uuid, &str> {
-        if self.subtype != BinarySubtype::UuidOld && UuidRepresentation::Standard != rep {
-            return Err("expecting BinarySubtype::UuidOld");
+    pub fn to_uuid_with_representation(
+        &self,
+        rep: UuidRepresentation,
+    ) -> Result<uuid::Uuid, crate::de::Error> {
+        // If representation is non-standard, then its subtype must be UuidOld
+        if rep != UuidRepresentation::Standard && self.subtype != BinarySubtype::UuidOld {
+            return Err(Error::custom(
+                "expecting binary subtype 3 for non-standard representations",
+            ));
         }
+        // If representation is standard, then its subtype must be Uuid
+        if rep == UuidRepresentation::Standard && self.subtype != BinarySubtype::Uuid {
+            return Err(Error::custom(
+                "expecting binary subtype 4 for standard representation",
+            ));
+        }
+        // Must be 16 bytes long
         if self.bytes.len() != 16 {
-            return Err("expecting 16 bytes");
+            return Err(Error::custom("expecting 16 bytes"));
         }
+        let mut buf = [0u8; 16];
+        buf.copy_from_slice(&self.bytes);
         match rep {
-            UuidRepresentation::Standard => self.to_uuid(),
+            UuidRepresentation::Standard => Ok(uuid::Uuid::from_bytes(buf)),
             UuidRepresentation::CSharpLegacy => {
-                let mut buf = [0u8; 16];
-                buf.copy_from_slice(&self.bytes);
                 buf[0..4].reverse();
                 buf[4..6].reverse();
                 buf[6..8].reverse();
                 Ok(uuid::Uuid::from_bytes(buf))
             }
-            UuidRepresentation::PythonLegacy => {
-                let mut buf = [0u8; 16];
-                buf.copy_from_slice(&self.bytes);
-                Ok(uuid::Uuid::from_bytes(buf))
-            }
+            UuidRepresentation::PythonLegacy => Ok(uuid::Uuid::from_bytes(buf)),
             UuidRepresentation::JavaLegacy => {
-                let mut buf = [0u8; 16];
-                buf.copy_from_slice(&self.bytes);
                 buf[0..8].reverse();
                 buf[8..16].reverse();
                 Ok(uuid::Uuid::from_bytes(buf))
@@ -1132,18 +1157,8 @@ impl Binary {
         }
     }
 
-    pub fn to_uuid(&self) -> Result<uuid::Uuid, &str> {
-        if self.subtype == BinarySubtype::Uuid {
-            if self.bytes.len() == 16 {
-                let mut bytes = [0u8; 16];
-                bytes.copy_from_slice(&self.bytes);
-                Ok(uuid::Uuid::from_bytes(bytes))
-            } else {
-                Err("cannot convert Binary to Uuid: incorrect bytes length")
-            }
-        } else {
-            Err("cannot convert Binary to Uuid: incorrect binary subtype")
-        }
+    pub fn to_uuid(&self) -> Result<uuid::Uuid, crate::de::Error> {
+        self.to_uuid_with_representation(UuidRepresentation::Standard)
     }
 }
 

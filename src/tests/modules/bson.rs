@@ -353,11 +353,11 @@ fn test_binary_constructors() {
     use uuid::Uuid;
 
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
-    let bin = Binary::from_uuid(&uuid);
+    let bin = Binary::from_uuid(uuid);
     assert_eq!(bin.bytes, uuid.as_bytes());
     assert_eq!(bin.subtype, BinarySubtype::Uuid);
 
-    let bin = Binary::from_uuid_with_representation(&uuid, UuidRepresentation::JavaLegacy);
+    let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::JavaLegacy);
     assert_eq!(
         bin.bytes,
         Uuid::parse_str("7766554433221100FFEEDDCCBBAA9988")
@@ -366,7 +366,7 @@ fn test_binary_constructors() {
     );
     assert_eq!(bin.subtype, BinarySubtype::UuidOld);
 
-    let bin = Binary::from_uuid_with_representation(&uuid, UuidRepresentation::CSharpLegacy);
+    let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::CSharpLegacy);
     assert_eq!(
         bin.bytes,
         Uuid::parse_str("33221100554477668899AABBCCDDEEFF")
@@ -375,7 +375,7 @@ fn test_binary_constructors() {
     );
     assert_eq!(bin.subtype, BinarySubtype::UuidOld);
 
-    let bin = Binary::from_uuid_with_representation(&uuid, UuidRepresentation::PythonLegacy);
+    let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::PythonLegacy);
     assert_eq!(
         bin.bytes,
         Uuid::parse_str("00112233445566778899AABBCCDDEEFF")
@@ -388,11 +388,11 @@ fn test_binary_constructors() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid() {
-    use crate::bson::UuidRepresentation;
+    use crate::{bson::UuidRepresentation, de::Error};
     use uuid::Uuid;
 
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
-    let bin = Binary::from_uuid(&uuid);
+    let bin = Binary::from_uuid(uuid);
 
     assert_eq!(bin.to_uuid().unwrap(), uuid);
     assert_eq!(
@@ -400,36 +400,63 @@ fn test_binary_to_uuid() {
             .unwrap(),
         uuid
     );
-    assert_eq!(
-        bin.to_uuid_with_representation(UuidRepresentation::CSharpLegacy),
-        Err("expecting BinarySubtype::UuidOld")
-    );
-    assert_eq!(
-        bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy),
-        Err("expecting BinarySubtype::UuidOld")
-    );
-    assert_eq!(
-        bin.to_uuid_with_representation(UuidRepresentation::JavaLegacy),
-        Err("expecting BinarySubtype::UuidOld")
-    );
+
+    if let Error::DeserializationError { message: msg } = bin
+        .to_uuid_with_representation(UuidRepresentation::CSharpLegacy)
+        .unwrap_err()
+    {
+        assert_eq!(
+            msg,
+            "expecting binary subtype 3 for non-standard representations"
+        );
+    }
+
+    if let Error::DeserializationError { message: msg } = bin
+        .to_uuid_with_representation(UuidRepresentation::PythonLegacy)
+        .unwrap_err()
+    {
+        assert_eq!(
+            msg,
+            "expecting binary subtype 3 for non-standard representations"
+        );
+    }
+
+    if let Error::DeserializationError { message: msg } = bin
+        .to_uuid_with_representation(UuidRepresentation::PythonLegacy)
+        .unwrap_err()
+    {
+        assert_eq!(
+            msg,
+            "expecting binary subtype 3 for non-standard representations"
+        );
+    }
 }
 
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid_java_rep() {
-    use crate::bson::UuidRepresentation;
+    use crate::{bson::UuidRepresentation, de::Error};
     use uuid::Uuid;
 
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
-    let bin = Binary::from_uuid_with_representation(&uuid, UuidRepresentation::JavaLegacy);
-    assert_eq!(
-        bin.to_uuid(),
-        Err("cannot convert Binary to Uuid: incorrect binary subtype")
-    );
-    assert_eq!(
-        bin.to_uuid_with_representation(UuidRepresentation::Standard),
-        Err("cannot convert Binary to Uuid: incorrect binary subtype")
-    );
+    let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::JavaLegacy);
+
+    if let Error::DeserializationError { message: msg } = bin.to_uuid().unwrap_err() {
+        assert_eq!(
+            msg,
+            "expecting binary subtype 4 for standard representation"
+        );
+    }
+
+    if let Error::DeserializationError { message: msg } = bin
+        .to_uuid_with_representation(UuidRepresentation::Standard)
+        .unwrap_err()
+    {
+        assert_eq!(
+            msg,
+            "expecting binary subtype 4 for standard representation"
+        );
+    }
 
     assert_eq!(
         bin.to_uuid_with_representation(UuidRepresentation::JavaLegacy)
@@ -441,19 +468,28 @@ fn test_binary_to_uuid_java_rep() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid_csharp_legacy_rep() {
-    use crate::bson::UuidRepresentation;
+    use crate::{bson::UuidRepresentation, de::Error};
     use uuid::Uuid;
 
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
-    let bin = Binary::from_uuid_with_representation(&uuid, UuidRepresentation::CSharpLegacy);
-    assert_eq!(
-        bin.to_uuid(),
-        Err("cannot convert Binary to Uuid: incorrect binary subtype")
-    );
-    assert_eq!(
-        bin.to_uuid_with_representation(UuidRepresentation::Standard),
-        Err("cannot convert Binary to Uuid: incorrect binary subtype")
-    );
+    let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::CSharpLegacy);
+
+    if let Error::DeserializationError { message: msg } = bin.to_uuid().unwrap_err() {
+        assert_eq!(
+            msg,
+            "expecting binary subtype 4 for standard representation"
+        );
+    }
+
+    if let Error::DeserializationError { message: msg } = bin
+        .to_uuid_with_representation(UuidRepresentation::Standard)
+        .unwrap_err()
+    {
+        assert_eq!(
+            msg,
+            "expecting binary subtype 4 for standard representation"
+        );
+    }
 
     assert_eq!(
         bin.to_uuid_with_representation(UuidRepresentation::CSharpLegacy)
@@ -465,19 +501,28 @@ fn test_binary_to_uuid_csharp_legacy_rep() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid_python_legacy_rep() {
-    use crate::bson::UuidRepresentation;
+    use crate::{bson::UuidRepresentation, de::Error};
     use uuid::Uuid;
 
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
-    let bin = Binary::from_uuid_with_representation(&uuid, UuidRepresentation::PythonLegacy);
-    assert_eq!(
-        bin.to_uuid(),
-        Err("cannot convert Binary to Uuid: incorrect binary subtype")
-    );
-    assert_eq!(
-        bin.to_uuid_with_representation(UuidRepresentation::Standard),
-        Err("cannot convert Binary to Uuid: incorrect binary subtype")
-    );
+    let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::PythonLegacy);
+
+    if let Error::DeserializationError { message: msg } = bin.to_uuid().unwrap_err() {
+        assert_eq!(
+            msg,
+            "expecting binary subtype 4 for standard representation"
+        );
+    }
+
+    if let Error::DeserializationError { message: msg } = bin
+        .to_uuid_with_representation(UuidRepresentation::Standard)
+        .unwrap_err()
+    {
+        assert_eq!(
+            msg,
+            "expecting binary subtype 4 for standard representation"
+        );
+    }
 
     assert_eq!(
         bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy)
