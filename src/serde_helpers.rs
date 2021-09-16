@@ -378,7 +378,8 @@ pub mod uuid_as_binary {
         if let Err(Error::DeserializationError { message: msg }) = res {
             Err(de::Error::custom(msg))
         } else {
-            // Guaranteed to not error because to_uuid_with_representation
+            // Guaranteed to not error because to_uuid_with_representation only returns Err(Error::DeserializationError)
+            // Or it succeeds
             Ok(res.unwrap())
         }
     }
@@ -427,7 +428,8 @@ pub mod uuid_as_java_legacy_binary {
         if let Err(Error::DeserializationError { message: msg }) = res {
             Err(de::Error::custom(msg))
         } else {
-            // Guaranteed to not error because to_uuid_with_representation
+            // Guaranteed to not error because to_uuid_with_representation only returns Err(Error::DeserializationError)
+            // Or it succeeds
             Ok(res.unwrap())
         }
     }
@@ -476,7 +478,8 @@ pub mod uuid_as_python_legacy_binary {
         if let Err(Error::DeserializationError { message: msg }) = res {
             Err(de::Error::custom(msg))
         } else {
-            // Guaranteed to not error because to_uuid_with_representation
+            // Guaranteed to not error because to_uuid_with_representation only returns Err(Error::DeserializationError)
+            // Or it succeeds
             Ok(res.unwrap())
         }
     }
@@ -525,7 +528,8 @@ pub mod uuid_as_c_sharp_legacy_binary {
         if let Err(Error::DeserializationError { message: msg }) = res {
             Err(de::Error::custom(msg))
         } else {
-            // Guaranteed to not error because to_uuid_with_representation
+            // Guaranteed to not error because to_uuid_with_representation only returns Err(Error::DeserializationError)
+            // Or it succeeds
             Ok(res.unwrap())
         }
     }
