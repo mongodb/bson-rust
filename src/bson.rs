@@ -1057,9 +1057,9 @@ impl Binary {
     }
 }
 
-/// Enum of the possible representations to use when converting between Uuid and Binary.
+/// Enum of the possible representations to use when converting between [Uuid](https://docs.rs/uuid/0.8.2/uuid/) and [`Binary`].
 /// This enum is necessary because the different drivers used to have different ways of encoding
-/// UUID, with the BSON subtype: 0x03 UUID old.
+/// UUIDs, with the BSON subtype: 0x03 (UUID old).
 /// If a UUID has been serialized with a particular representation, it MUST
 /// be deserialized with the same representation.
 ///
@@ -1094,13 +1094,13 @@ pub enum UuidRepresentation {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 impl Binary {
-    /// Serializes a UUID into BSON binary type
+    /// Serializes a [Uuid](https://docs.rs/uuid/0.8.2/uuid/) into BSON [`Binary`] type
     pub fn from_uuid(uuid: uuid::Uuid) -> Self {
         Binary::from(uuid)
     }
     /// Serializes a UUID into BSON binary type and takes the desired representation as a parameter.
-    /// ``Binary::from_uuid_with_representation(uuid, UuidRepresentation::Standard)`` is equivalent
-    /// to ``Binary::from_uuid(uuid)``.
+    /// `Binary::from_uuid_with_representation(uuid, UuidRepresentation::Standard)` is equivalent
+    /// to `Binary::from_uuid(uuid)`.
     ///
     /// See the documentation for [`UuidRepresentation`] for more information on the possible
     /// representations.
@@ -1132,7 +1132,7 @@ impl Binary {
             }
         }
     }
-    /// Deserializes a BSON binary type into a UUID, takes the representation with which the Binary
+    /// Deserializes a BSON [`Binary`] type into a [Uuid](https://docs.rs/uuid/0.8.2/uuid/), takes the representation with which the [`Binary`]
     /// was serialized.
     ///
     /// See the documentation for [`UuidRepresentation`] for more information on the possible
@@ -1182,7 +1182,7 @@ impl Binary {
             }
         }
     }
-    /// Deserializes a BSON binary type into a UUID using the standard representation.
+    /// Deserializes a BSON [`Binary`] type into a [Uuid](https://docs.rs/uuid/0.8.2/uuid/) using the standard representation.
     pub fn to_uuid(&self) -> Result<uuid::Uuid, crate::de::Error> {
         self.to_uuid_with_representation(UuidRepresentation::Standard)
     }

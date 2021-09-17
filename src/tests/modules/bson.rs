@@ -381,6 +381,7 @@ fn test_binary_constructors() {
     );
     assert_eq!(bin.subtype, BinarySubtype::UuidOld);
 
+    // Same byte ordering as standard representation
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::PythonLegacy);
     assert_eq!(
         bin.bytes,
