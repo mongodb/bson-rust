@@ -1075,6 +1075,8 @@ impl Binary {
 /// assert!(new_uuid.is_ok());
 /// assert_eq!(new_uuid.unwrap(), uuid);
 /// ```
+#[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 #[non_exhaustive]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum UuidRepresentation {
@@ -1097,8 +1099,11 @@ impl Binary {
         Binary::from(uuid)
     }
     /// Serializes a UUID into BSON binary type and takes the desired representation as a parameter.
-    /// Binary::from_uuid_with_representation(uuid, UuidRepresentation::Standard) is equivalent
-    /// to Binary::from_uuid.
+    /// ``Binary::from_uuid_with_representation(uuid, UuidRepresentation::Standard)`` is equivalent
+    /// to ``Binary::from_uuid(uuid)``.
+    ///
+    /// See the documentation for [`UuidRepresentation`] for more information on the possible
+    /// representations.
     pub fn from_uuid_with_representation(uuid: uuid::Uuid, rep: UuidRepresentation) -> Self {
         match rep {
             UuidRepresentation::Standard => Binary::from_uuid(uuid),
@@ -1129,6 +1134,9 @@ impl Binary {
     }
     /// Deserializes a BSON binary type into a UUID, takes the representation with which the Binary
     /// was serialized.
+    ///
+    /// See the documentation for [`UuidRepresentation`] for more information on the possible
+    /// representations.
     pub fn to_uuid_with_representation(
         &self,
         rep: UuidRepresentation,

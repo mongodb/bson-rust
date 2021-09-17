@@ -305,7 +305,7 @@
 
 #[doc(inline)]
 pub use self::{
-    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp, UuidRepresentation},
+    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     de::{
         from_bson,
@@ -319,6 +319,9 @@ pub use self::{
     decimal128::Decimal128,
     ser::{to_bson, to_document, to_vec, Serializer},
 };
+
+#[cfg(feature = "uuid-0_8")]
+pub use self::bson::UuidRepresentation;
 
 #[macro_use]
 mod macros;
