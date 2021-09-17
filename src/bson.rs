@@ -1057,8 +1057,6 @@ impl Binary {
     }
 }
 
-#[cfg(feature = "uuid-0_8")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 /// Enum of the possible representations to use when converting between Uuid and Binary.
 /// This enum is necessary because the different drivers used to have different ways of encoding
 /// UUID, with the BSON subtype: 0x03 UUID old.
