@@ -355,7 +355,7 @@ pub mod hex_string_as_object_id {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_binary {
-    use crate::{de::Error, Binary};
+    use crate::Binary;
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
@@ -374,14 +374,7 @@ pub mod uuid_as_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        let res = binary.to_uuid();
-        if let Err(Error::DeserializationError { message: msg }) = res {
-            Err(de::Error::custom(msg))
-        } else {
-            // Guaranteed to not error because to_uuid_with_representation only returns Err(Error::DeserializationError)
-            // Or it succeeds
-            Ok(res.unwrap())
-        }
+        binary.to_uuid().map_err(de::Error::custom)
     }
 }
 
@@ -405,7 +398,7 @@ pub mod uuid_as_binary {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_java_legacy_binary {
-    use crate::{bson::UuidRepresentation, de::Error, Binary};
+    use crate::{bson::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
@@ -424,14 +417,7 @@ pub mod uuid_as_java_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        let res = binary.to_uuid_with_representation(UuidRepresentation::JavaLegacy);
-        if let Err(Error::DeserializationError { message: msg }) = res {
-            Err(de::Error::custom(msg))
-        } else {
-            // Guaranteed to not error because to_uuid_with_representation only returns Err(Error::DeserializationError)
-            // Or it succeeds
-            Ok(res.unwrap())
-        }
+        binary.to_uuid_with_representation(UuidRepresentation::JavaLegacy).map_err(de::Error::custom)
     }
 }
 
@@ -455,7 +441,7 @@ pub mod uuid_as_java_legacy_binary {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_python_legacy_binary {
-    use crate::{bson::UuidRepresentation, de::Error, Binary};
+    use crate::{bson::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
@@ -474,14 +460,7 @@ pub mod uuid_as_python_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        let res = binary.to_uuid_with_representation(UuidRepresentation::PythonLegacy);
-        if let Err(Error::DeserializationError { message: msg }) = res {
-            Err(de::Error::custom(msg))
-        } else {
-            // Guaranteed to not error because to_uuid_with_representation only returns Err(Error::DeserializationError)
-            // Or it succeeds
-            Ok(res.unwrap())
-        }
+        binary.to_uuid_with_representation(UuidRepresentation::PythonLegacy).map_err(de::Error::custom)
     }
 }
 
@@ -505,7 +484,7 @@ pub mod uuid_as_python_legacy_binary {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_c_sharp_legacy_binary {
-    use crate::{bson::UuidRepresentation, de::Error, Binary};
+    use crate::{bson::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
@@ -524,14 +503,7 @@ pub mod uuid_as_c_sharp_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        let res = binary.to_uuid_with_representation(UuidRepresentation::CSharpLegacy);
-        if let Err(Error::DeserializationError { message: msg }) = res {
-            Err(de::Error::custom(msg))
-        } else {
-            // Guaranteed to not error because to_uuid_with_representation only returns Err(Error::DeserializationError)
-            // Or it succeeds
-            Ok(res.unwrap())
-        }
+        binary.to_uuid_with_representation(UuidRepresentation::CSharpLegacy).map_err(de::Error::custom)
     }
 }
 

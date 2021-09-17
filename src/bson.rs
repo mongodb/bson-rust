@@ -1057,8 +1057,7 @@ impl Binary {
     }
 }
 
-/// Enum for serializing a Uuid to Binary object and
-/// deserializing a Binary object to a Uuid.
+/// Enum of the possible representations to use when converting between Uuid and Binary.
 /// This enum is necessary because the different drivers used to have different ways of encoding
 /// UUID, with the BSON subtype: 0x03 UUID old.
 /// If a UUID has been serialized with a particular representation, it MUST
@@ -1079,23 +1078,26 @@ impl Binary {
 #[non_exhaustive]
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum UuidRepresentation {
-    /// The canonical representation of UUID BSON binary subtype 4
+    /// The canonical representation of UUIDs in BSON (binary with subtype 0x04)
     Standard,
-    /// The legacy representation of UUID used by the C# driver BSON binary subtype 3
+    /// The legacy representation of UUIDs in BSON used by the C# driver (binary subtype 0x03)
     CSharpLegacy,
-    /// The legacy representation of UUID used by the Java driver BSON binary subtype 3
+    /// The legacy representation of UUIDs in BSON used by the Java driver (binary subtype 0x03)
     JavaLegacy,
-    /// The legacy representation of UUID used by the Python driver, which is the same format as STANDARD, but has the UUID old BSON subtype (\x03) BSON binary subtype 3
+    /// The legacy representation of UUIDs in BSON used by the Python driver, which is the same format as STANDARD, but has binary subtype 0x03
     PythonLegacy,
 }
 
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 impl Binary {
+    /// Serializes a uuid into BSON binary type
     pub fn from_uuid(uuid: uuid::Uuid) -> Self {
         Binary::from(uuid)
     }
-
+    /// Serializes a uuid into BSON binary type and takes the desired representation as a parameter.
+    /// Binary::from_uuid_with_representation(uuid, UuidRepresentation::Standard) is equivalent
+    /// to Binary::from_uuid.
     pub fn from_uuid_with_representation(uuid: uuid::Uuid, rep: UuidRepresentation) -> Self {
         match rep {
             UuidRepresentation::Standard => Binary::from_uuid(uuid),
@@ -1124,7 +1126,7 @@ impl Binary {
             }
         }
     }
-
+    /// Deserializes a BSON binary type into a UUID, takes the representation with which the Binary was serialized.
     pub fn to_uuid_with_representation(
         &self,
         rep: UuidRepresentation,
@@ -1132,18 +1134,18 @@ impl Binary {
         // If representation is non-standard, then its subtype must be UuidOld
         if rep != UuidRepresentation::Standard && self.subtype != BinarySubtype::UuidOld {
             return Err(Error::custom(
-                "expecting binary subtype 3 for non-standard representations",
+                format!("expected binary subtype 3 when converting to UUID with a non-standard representation, instead got {:#04x}", u8::from(self.subtype)),
             ));
         }
         // If representation is standard, then its subtype must be Uuid
         if rep == UuidRepresentation::Standard && self.subtype != BinarySubtype::Uuid {
             return Err(Error::custom(
-                "expecting binary subtype 4 for standard representation",
+                format!("expected binary subtype 4 when converting to UUID with the standard representation, instead got {:#04x}", u8::from(self.subtype))
             ));
         }
         // Must be 16 bytes long
         if self.bytes.len() != 16 {
-            return Err(Error::custom("expecting 16 bytes"));
+            return Err(Error::custom(format!("expected UUID to contain 16 bytes, instead got {}", self.bytes.len())));
         }
         let mut buf = [0u8; 16];
         buf.copy_from_slice(&self.bytes);
@@ -1163,7 +1165,7 @@ impl Binary {
             }
         }
     }
-
+    /// Deserializes a BSON binary type into a UUID using the standard representation.
     pub fn to_uuid(&self) -> Result<uuid::Uuid, crate::de::Error> {
         self.to_uuid_with_representation(UuidRepresentation::Standard)
     }
