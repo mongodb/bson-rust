@@ -393,9 +393,10 @@ fn test_binary_to_uuid() {
 
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
     let bin = Binary::from_uuid(uuid);
-    // Error message for attempting to deserialize binary to a UUID using a non-standard representation
-    // when the representation is standard.
-    let error_msg = "expected binary subtype 3 when converting to UUID with a non-standard representation, instead got 0x04";
+    // Error message for attempting to deserialize binary to a UUID using a non-standard
+    // representation when the representation is standard.
+    let error_msg = "expected binary subtype 3 when converting to UUID with a non-standard \
+                     representation, instead got 0x04";
 
     assert_eq!(bin.to_uuid().unwrap(), uuid);
     assert_eq!(
@@ -408,30 +409,21 @@ fn test_binary_to_uuid() {
         .to_uuid_with_representation(UuidRepresentation::CSharpLegacy)
         .unwrap_err()
     {
-        assert_eq!(
-            msg,
-            error_msg
-        );
+        assert_eq!(msg, error_msg);
     }
 
     if let Error::DeserializationError { message: msg } = bin
         .to_uuid_with_representation(UuidRepresentation::PythonLegacy)
         .unwrap_err()
     {
-        assert_eq!(
-            msg,
-            error_msg
-        );
+        assert_eq!(msg, error_msg);
     }
 
     if let Error::DeserializationError { message: msg } = bin
         .to_uuid_with_representation(UuidRepresentation::PythonLegacy)
         .unwrap_err()
     {
-        assert_eq!(
-            msg,
-            error_msg
-        );
+        assert_eq!(msg, error_msg);
     }
 }
 
@@ -445,23 +437,18 @@ fn test_binary_to_uuid_java_rep() {
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::JavaLegacy);
     // Error message for attempting to deserialize binary to uuid using standard representation
     // when the representation is non-standard.
-    let error_msg = "expected binary subtype 4 when converting to UUID with the standard representation, instead got 0x03";
+    let error_msg = "expected binary subtype 4 when converting to UUID with the standard \
+                     representation, instead got 0x03";
 
     if let Error::DeserializationError { message: msg } = bin.to_uuid().unwrap_err() {
-        assert_eq!(
-            msg,
-            error_msg
-        );
+        assert_eq!(msg, error_msg);
     }
 
     if let Error::DeserializationError { message: msg } = bin
         .to_uuid_with_representation(UuidRepresentation::Standard)
         .unwrap_err()
     {
-        assert_eq!(
-            msg,
-            error_msg
-        );
+        assert_eq!(msg, error_msg);
     }
 
     assert_eq!(
@@ -479,25 +466,20 @@ fn test_binary_to_uuid_csharp_legacy_rep() {
 
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::CSharpLegacy);
-    // Error message for attempting to deserialize from binary to UUID using the standard representation
-    // when the representation is actually non-standard.
-    let error_msg = "expected binary subtype 4 when converting to UUID with the standard representation, instead got 0x03";
+    // Error message for attempting to deserialize from binary to UUID using the standard
+    // representation when the representation is actually non-standard.
+    let error_msg = "expected binary subtype 4 when converting to UUID with the standard \
+                     representation, instead got 0x03";
 
     if let Error::DeserializationError { message: msg } = bin.to_uuid().unwrap_err() {
-        assert_eq!(
-            msg,
-            error_msg
-        );
+        assert_eq!(msg, error_msg);
     }
 
     if let Error::DeserializationError { message: msg } = bin
         .to_uuid_with_representation(UuidRepresentation::Standard)
         .unwrap_err()
     {
-        assert_eq!(
-            msg,
-            error_msg
-        );
+        assert_eq!(msg, error_msg);
     }
 
     assert_eq!(
@@ -517,23 +499,18 @@ fn test_binary_to_uuid_python_legacy_rep() {
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::PythonLegacy);
     // Error message for attempting to deserialize binary to UUID using the standard representation,
     // when the  representation is actually non-standard
-    let error_msg = "expected binary subtype 4 when converting to UUID with the standard representation, instead got 0x03";
+    let error_msg = "expected binary subtype 4 when converting to UUID with the standard \
+                     representation, instead got 0x03";
 
     if let Error::DeserializationError { message: msg } = bin.to_uuid().unwrap_err() {
-        assert_eq!(
-            msg,
-            error_msg
-        );
+        assert_eq!(msg, error_msg);
     }
 
     if let Error::DeserializationError { message: msg } = bin
         .to_uuid_with_representation(UuidRepresentation::Standard)
         .unwrap_err()
     {
-        assert_eq!(
-            msg,
-            error_msg
-        );
+        assert_eq!(msg, error_msg);
     }
 
     assert_eq!(

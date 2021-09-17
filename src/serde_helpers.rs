@@ -417,7 +417,9 @@ pub mod uuid_as_java_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        binary.to_uuid_with_representation(UuidRepresentation::JavaLegacy).map_err(de::Error::custom)
+        binary
+            .to_uuid_with_representation(UuidRepresentation::JavaLegacy)
+            .map_err(de::Error::custom)
     }
 }
 
@@ -460,7 +462,9 @@ pub mod uuid_as_python_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        binary.to_uuid_with_representation(UuidRepresentation::PythonLegacy).map_err(de::Error::custom)
+        binary
+            .to_uuid_with_representation(UuidRepresentation::PythonLegacy)
+            .map_err(de::Error::custom)
     }
 }
 
@@ -503,7 +507,9 @@ pub mod uuid_as_c_sharp_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        binary.to_uuid_with_representation(UuidRepresentation::CSharpLegacy).map_err(de::Error::custom)
+        binary
+            .to_uuid_with_representation(UuidRepresentation::CSharpLegacy)
+            .map_err(de::Error::custom)
     }
 }
 

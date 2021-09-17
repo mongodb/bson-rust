@@ -1084,7 +1084,8 @@ pub enum UuidRepresentation {
     CSharpLegacy,
     /// The legacy representation of UUIDs in BSON used by the Java driver (binary subtype 0x03)
     JavaLegacy,
-    /// The legacy representation of UUIDs in BSON used by the Python driver, which is the same format as STANDARD, but has binary subtype 0x03
+    /// The legacy representation of UUIDs in BSON used by the Python driver, which is the same
+    /// format as STANDARD, but has binary subtype 0x03
     PythonLegacy,
 }
 
@@ -1126,26 +1127,34 @@ impl Binary {
             }
         }
     }
-    /// Deserializes a BSON binary type into a UUID, takes the representation with which the Binary was serialized.
+    /// Deserializes a BSON binary type into a UUID, takes the representation with which the Binary
+    /// was serialized.
     pub fn to_uuid_with_representation(
         &self,
         rep: UuidRepresentation,
     ) -> Result<uuid::Uuid, crate::de::Error> {
         // If representation is non-standard, then its subtype must be UuidOld
         if rep != UuidRepresentation::Standard && self.subtype != BinarySubtype::UuidOld {
-            return Err(Error::custom(
-                format!("expected binary subtype 3 when converting to UUID with a non-standard representation, instead got {:#04x}", u8::from(self.subtype)),
-            ));
+            return Err(Error::custom(format!(
+                "expected binary subtype 3 when converting to UUID with a non-standard \
+                 representation, instead got {:#04x}",
+                u8::from(self.subtype)
+            )));
         }
         // If representation is standard, then its subtype must be Uuid
         if rep == UuidRepresentation::Standard && self.subtype != BinarySubtype::Uuid {
-            return Err(Error::custom(
-                format!("expected binary subtype 4 when converting to UUID with the standard representation, instead got {:#04x}", u8::from(self.subtype))
-            ));
+            return Err(Error::custom(format!(
+                "expected binary subtype 4 when converting to UUID with the standard \
+                 representation, instead got {:#04x}",
+                u8::from(self.subtype)
+            )));
         }
         // Must be 16 bytes long
         if self.bytes.len() != 16 {
-            return Err(Error::custom(format!("expected UUID to contain 16 bytes, instead got {}", self.bytes.len())));
+            return Err(Error::custom(format!(
+                "expected UUID to contain 16 bytes, instead got {}",
+                self.bytes.len()
+            )));
         }
         let mut buf = [0u8; 16];
         buf.copy_from_slice(&self.bytes);
