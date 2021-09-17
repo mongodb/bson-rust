@@ -359,6 +359,10 @@ fn test_binary_constructors() {
     assert_eq!(bin.bytes, uuid.as_bytes());
     assert_eq!(bin.subtype, BinarySubtype::Uuid);
 
+    let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::Standard);
+    assert_eq!(bin.bytes, uuid.as_bytes());
+    assert_eq!(bin.subtype, BinarySubtype::Uuid);
+
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::JavaLegacy);
     assert_eq!(
         bin.bytes,
@@ -415,13 +419,9 @@ fn test_binary_to_uuid_standard_rep() {
 #[test]
 fn test_binary_to_uuid_explicitly_standard_rep() {
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
-    let bin = Binary::from_uuid(uuid);
+    let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::Standard);
 
-    assert_eq!(
-        bin.to_uuid_with_representation(UuidRepresentation::Standard)
-            .unwrap(),
-        uuid
-    );
+    assert_eq!(bin.to_uuid().unwrap(), uuid);
     assert_eq!(
         bin.to_uuid_with_representation(UuidRepresentation::Standard)
             .unwrap(),
