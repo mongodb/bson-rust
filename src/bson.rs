@@ -36,6 +36,9 @@ use crate::{
     Decimal128,
 };
 
+#[cfg(feature = "uuid-0_8")]
+use serde::de::Error;
+
 /// Possible BSON value types.
 #[derive(Clone, PartialEq)]
 pub enum Bson {
@@ -1070,6 +1073,137 @@ impl Binary {
         } else {
             None
         }
+    }
+}
+
+/// Enum of the possible representations to use when converting between [Uuid](https://docs.rs/uuid/0.8.2/uuid/) and [`Binary`].
+/// This enum is necessary because the different drivers used to have different ways of encoding
+/// UUIDs, with the BSON subtype: 0x03 (UUID old).
+/// If a UUID has been serialized with a particular representation, it MUST
+/// be deserialized with the same representation.
+///
+/// Example:
+/// ```
+/// use crate::{bson::UuidRepresentation, bson::Binary};
+/// use uuid::Uuid;
+/// let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+/// let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::PythonLegacy);
+/// let new_uuid = bin.to_uuid();
+/// assert!(new_uuid.is_err());
+/// let new_uuid = bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy);
+/// assert!(new_uuid.is_ok());
+/// assert_eq!(new_uuid.unwrap(), uuid);
+/// ```
+#[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+#[non_exhaustive]
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum UuidRepresentation {
+    /// The canonical representation of UUIDs in BSON (binary with subtype 0x04)
+    Standard,
+    /// The legacy representation of UUIDs in BSON used by the C# driver (binary subtype 0x03)
+    CSharpLegacy,
+    /// The legacy representation of UUIDs in BSON used by the Java driver (binary subtype 0x03)
+    JavaLegacy,
+    /// The legacy representation of UUIDs in BSON used by the Python driver, which is the same
+    /// format as STANDARD, but has binary subtype 0x03
+    PythonLegacy,
+}
+
+#[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+impl Binary {
+    /// Serializes a [Uuid](https://docs.rs/uuid/0.8.2/uuid/) into BSON [`Binary`] type
+    pub fn from_uuid(uuid: uuid::Uuid) -> Self {
+        Binary::from(uuid)
+    }
+    /// Serializes a UUID into BSON binary type and takes the desired representation as a parameter.
+    /// `Binary::from_uuid_with_representation(uuid, UuidRepresentation::Standard)` is equivalent
+    /// to `Binary::from_uuid(uuid)`.
+    ///
+    /// See the documentation for [`UuidRepresentation`] for more information on the possible
+    /// representations.
+    pub fn from_uuid_with_representation(uuid: uuid::Uuid, rep: UuidRepresentation) -> Self {
+        match rep {
+            UuidRepresentation::Standard => Binary::from_uuid(uuid),
+            UuidRepresentation::CSharpLegacy => {
+                let mut bytes = uuid.as_bytes().to_vec();
+                bytes[0..4].reverse();
+                bytes[4..6].reverse();
+                bytes[6..8].reverse();
+                Binary {
+                    subtype: BinarySubtype::UuidOld,
+                    bytes,
+                }
+            }
+            UuidRepresentation::PythonLegacy => Binary {
+                subtype: BinarySubtype::UuidOld,
+                bytes: uuid.as_bytes().to_vec(),
+            },
+            UuidRepresentation::JavaLegacy => {
+                let mut bytes = uuid.as_bytes().to_vec();
+                bytes[0..8].reverse();
+                bytes[8..16].reverse();
+                Binary {
+                    subtype: BinarySubtype::UuidOld,
+                    bytes,
+                }
+            }
+        }
+    }
+    /// Deserializes a BSON [`Binary`] type into a [Uuid](https://docs.rs/uuid/0.8.2/uuid/), takes the representation with which the [`Binary`]
+    /// was serialized.
+    ///
+    /// See the documentation for [`UuidRepresentation`] for more information on the possible
+    /// representations.
+    pub fn to_uuid_with_representation(
+        &self,
+        rep: UuidRepresentation,
+    ) -> Result<uuid::Uuid, crate::de::Error> {
+        // If representation is non-standard, then its subtype must be UuidOld
+        if rep != UuidRepresentation::Standard && self.subtype != BinarySubtype::UuidOld {
+            return Err(Error::custom(format!(
+                "expected binary subtype 3 when converting to UUID with a non-standard \
+                 representation, instead got {:#04x}",
+                u8::from(self.subtype)
+            )));
+        }
+        // If representation is standard, then its subtype must be Uuid
+        if rep == UuidRepresentation::Standard && self.subtype != BinarySubtype::Uuid {
+            return Err(Error::custom(format!(
+                "expected binary subtype 4 when converting to UUID with the standard \
+                 representation, instead got {:#04x}",
+                u8::from(self.subtype)
+            )));
+        }
+        // Must be 16 bytes long
+        if self.bytes.len() != 16 {
+            return Err(Error::custom(format!(
+                "expected UUID to contain 16 bytes, instead got {}",
+                self.bytes.len()
+            )));
+        }
+        let mut buf = [0u8; 16];
+        buf.copy_from_slice(&self.bytes);
+        match rep {
+            UuidRepresentation::Standard => Ok(uuid::Uuid::from_bytes(buf)),
+            UuidRepresentation::CSharpLegacy => {
+                buf[0..4].reverse();
+                buf[4..6].reverse();
+                buf[6..8].reverse();
+                Ok(uuid::Uuid::from_bytes(buf))
+            }
+            UuidRepresentation::PythonLegacy => Ok(uuid::Uuid::from_bytes(buf)),
+            UuidRepresentation::JavaLegacy => {
+                buf[0..8].reverse();
+                buf[8..16].reverse();
+                Ok(uuid::Uuid::from_bytes(buf))
+            }
+        }
+    }
+    /// Deserializes a BSON [`Binary`] type into a [Uuid](https://docs.rs/uuid/0.8.2/uuid/) using the standard representation.
+    pub fn to_uuid(&self) -> Result<uuid::Uuid, crate::de::Error> {
+        self.to_uuid_with_representation(UuidRepresentation::Standard)
     }
 }
 

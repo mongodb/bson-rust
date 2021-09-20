@@ -320,6 +320,9 @@ pub use self::{
     ser::{to_bson, to_document, to_vec, Serializer},
 };
 
+#[cfg(feature = "uuid-0_8")]
+pub use self::bson::UuidRepresentation;
+
 #[macro_use]
 mod macros;
 mod bson;
