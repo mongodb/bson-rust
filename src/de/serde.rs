@@ -661,12 +661,40 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         visitor.visit_newtype_struct(self)
     }
 
+    #[inline]
+    fn deserialize_u64<V>(self, visitor: V) -> crate::de::Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        let value = self.value.ok_or(crate::de::Error::EndOfStream)?;
+        let value = match value {
+            Bson::String(v) => v.parse().map_err::<crate::de::Error, _>(|_| {
+                de::Error::invalid_type(
+                    Unexpected::Str(&v),
+                    &"a string representation of an unsigned integer",
+                )
+            })?,
+            Bson::Int32(v) => u64::try_from(v).map_err::<crate::de::Error, _>(|_| {
+                de::Error::invalid_type(Unexpected::Signed(v.into()), &"an unsigned integer")
+            })?,
+            Bson::Int64(v) => u64::try_from(v).map_err::<crate::de::Error, _>(|_| {
+                de::Error::invalid_type(Unexpected::Signed(v), &"an unsigned integer")
+            })?,
+            v => {
+                return Err(de::Error::invalid_type(
+                    v.as_unexpected(),
+                    &"an unsigned integer",
+                ))
+            }
+        };
+        visitor.visit_u64(value)
+    }
+
     forward_to_deserialize! {
         deserialize_bool();
         deserialize_u8();
         deserialize_u16();
         deserialize_u32();
-        deserialize_u64();
         deserialize_i8();
         deserialize_i16();
         deserialize_i32();

@@ -109,11 +109,10 @@ fn uint64_u2i() {
     let deser_min: u64 = from_bson(obj_min).unwrap();
     assert_eq!(deser_min, u64::MIN);
 
-    let obj_max: ser::Result<Bson> = to_bson(&u64::MAX);
-    assert_matches!(
-        obj_max,
-        Err(ser::Error::UnsignedIntegerExceededRange(u64::MAX))
-    );
+    let obj_max = to_bson(&u64::MAX).unwrap();
+    assert_eq!(obj_max, Bson::String(u64::MAX.to_string()));
+    let deser_max: u64 = from_bson(obj_max).unwrap();
+    assert_eq!(deser_max, u64::MAX);
 }
 
 #[test]

@@ -138,9 +138,10 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
         use std::convert::TryFrom;
 
-        match i64::try_from(v) {
-            Ok(ivalue) => self.serialize_i64(ivalue),
-            Err(_) => Err(Error::UnsignedIntegerExceededRange(v)),
+        if let Ok(ivalue) = i64::try_from(v) {
+            self.serialize_i64(ivalue)
+        } else {
+            self.serialize_str(&v.to_string())
         }
     }
 

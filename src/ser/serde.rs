@@ -1,13 +1,6 @@
 use serde::ser::{
-    self,
-    Serialize,
-    SerializeMap,
-    SerializeSeq,
-    SerializeStruct,
-    SerializeStructVariant,
-    SerializeTuple,
-    SerializeTupleStruct,
-    SerializeTupleVariant,
+    self, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
+    SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
 };
 use serde_bytes::Bytes;
 
@@ -172,9 +165,10 @@ impl ser::Serializer for Serializer {
     fn serialize_u64(self, value: u64) -> crate::ser::Result<Bson> {
         use std::convert::TryFrom;
 
-        match i64::try_from(value) {
-            Ok(ivalue) => Ok(Bson::Int64(ivalue)),
-            Err(_) => Err(Error::UnsignedIntegerExceededRange(value)),
+        if let Ok(ivalue) = i64::try_from(value) {
+            Ok(Bson::Int64(ivalue))
+        } else {
+            self.serialize_str(&value.to_string())
         }
     }
 
