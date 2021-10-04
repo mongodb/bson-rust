@@ -207,7 +207,7 @@ fn boolean() {
         .as_bool()
         .expect("result was not boolean");
 
-    assert_eq!(boolean, true);
+    assert!(boolean);
 }
 
 #[test]
@@ -301,7 +301,7 @@ fn javascript_with_scope() {
         .expect("invalid element");
     assert_eq!(scope_key, "ok");
     let scope_value = scope_value_bson.as_bool().expect("not a boolean");
-    assert_eq!(scope_value, true);
+    assert!(scope_value);
 }
 
 #[test]
