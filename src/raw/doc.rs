@@ -4,7 +4,7 @@ use std::{
     ops::Deref,
 };
 
-use chrono::{DateTime, Utc};
+use crate::DateTime;
 
 use super::{
     i32_from_slice,
@@ -130,8 +130,8 @@ impl RawDocument {
     /// Element<'_>>`.
     ///
     /// ```
-    /// # use bson::raw::{elem, RawDocument, Error};
-    /// use bson::doc;
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::RawDocument};
     ///
     /// let doc = RawDocument::from_document(&doc! { "ferris": true });
     ///
@@ -218,7 +218,9 @@ impl ToOwned for RawDocumentRef {
 /// original document without making any additional allocations.
 
 /// ```
-/// # use bson::raw::{Doc, Error};
+/// # use bson::raw::{Error};
+/// use bson::raw::RawDocumentRef;
+///
 /// let doc = RawDocumentRef::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// let mut iter = doc.into_iter();
 /// let (key, value) = iter.next().unwrap()?;
@@ -259,9 +261,10 @@ impl RawDocumentRef {
     /// the RawDocument will return Errors where appropriate.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, Error};
+    /// use bson::raw::RawDocumentRef;
+    ///
     /// let doc = RawDocumentRef::new(b"\x05\0\0\0\0")?;
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), bson::raw::Error>(())
     /// ```
     pub fn new<D: AsRef<[u8]> + ?Sized>(data: &D) -> Result<&RawDocumentRef> {
         let data = data.as_ref();
@@ -306,8 +309,7 @@ impl RawDocumentRef {
     /// Creates a new RawDocument with an owned copy of the BSON bytes.
     ///
     /// ```
-    /// # use bson::raw::{Doc, Error};
-    /// use bson::raw::RawDocument;
+    /// use bson::raw::{RawDocumentRef, RawDocument, Error};
     ///
     /// let data = b"\x05\0\0\0\0";
     /// let doc_ref = RawDocumentRef::new(data)?;
@@ -323,9 +325,8 @@ impl RawDocumentRef {
     /// found.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, elem::Element, Error};
-    /// #
-    /// use bson::{doc, oid::ObjectId};
+    /// # use bson::raw::Error;
+    /// use bson::{doc, oid::ObjectId, raw::{RawDocument, RawBson}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
@@ -359,7 +360,8 @@ impl RawDocumentRef {
     /// if the key corresponds to a value which isn't a double.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, elem::Element, Error};
+    /// # use bson::raw::Error;
+    /// use bson::raw::RawDocument;
     /// use bson::doc;
     ///
     /// let doc = RawDocument::from_document(&doc! {
@@ -380,8 +382,7 @@ impl RawDocumentRef {
     /// key corresponds to a value which isn't a string.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, elem::Element, Error};
-    /// use bson::doc;
+    /// use bson::{doc, raw::{RawDocument, Error}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "string": "hello",
@@ -401,8 +402,8 @@ impl RawDocumentRef {
     /// the key corresponds to a value which isn't a document.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, elem::Element, Error};
-    /// use bson::doc;
+    /// use bson::raw::Error;
+    /// use bson::{doc, raw::RawDocument};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "doc": { "key": "value"},
@@ -422,17 +423,17 @@ impl RawDocumentRef {
     /// the key corresponds to a value which isn't an array.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, elem::Element, Error};
-    /// use bson::doc;
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::RawDocument};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "array": [true, 3],
     ///     "bool": true,
     /// });
     ///
-    /// let mut arr_iter = docbuf.get_array("array")?.expect("finding key array").into_iter();
-    /// let _: bool = arriter.next().unwrap()?.as_bool()?;
-    /// let _: i32 = arriter.next().unwrap()?.as_i32()?;
+    /// let mut arr_iter = doc.get_array("array")?.expect("finding key array").into_iter();
+    /// let _: bool = arr_iter.next().unwrap()?.as_bool()?;
+    /// let _: i32 = arr_iter.next().unwrap()?.as_i32()?;
     ///
     /// assert!(arr_iter.next().is_none());
     /// assert!(doc.get_array("bool").is_err());
@@ -447,11 +448,12 @@ impl RawDocumentRef {
     /// if the key corresponds to a value which isn't a binary value.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, elem, Error};
-    ///
+    /// # use bson::raw::Error;
     /// use bson::{
-    ///     spec::BinarySubtype
-    ///     doc, Binary,
+    ///     doc,
+    ///     raw::{RawDocument, RawBinary},
+    ///     spec::BinarySubtype,
+    ///     Binary,
     /// };
     ///
     /// let doc = RawDocument::from_document(&doc! {
@@ -459,7 +461,7 @@ impl RawDocumentRef {
     ///     "bool": true,
     /// });
     ///
-    /// assert_eq!(doc.get_binary("binary")?.map(elem::RawBsonBinary::as_bytes), Some(&[1, 2, 3][..]));
+    /// assert_eq!(doc.get_binary("binary")?.map(RawBinary::as_bytes), Some(&[1, 2, 3][..]));
     /// assert_eq!(doc.get_binary("bool").unwrap_err(), Error::UnexpectedType);
     /// assert!(doc.get_binary("unknown")?.is_none());
     /// # Ok::<(), Error>(())
@@ -472,8 +474,8 @@ impl RawDocumentRef {
     /// the key corresponds to a value which isn't an ObjectId.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, Error};
-    /// use bson::{doc, oid::ObjectId};
+    /// # use bson::raw::Error;
+    /// use bson::{doc, oid::ObjectId, raw::RawDocument};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
@@ -514,28 +516,28 @@ impl RawDocumentRef {
     /// if the key corresponds to a value which isn't a DateTime.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, Error};
-    /// use bson::doc;
-    /// use chrono::{Utc, Datelike, TimeZone};
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::RawDocument, DateTime};
     ///
+    /// let dt = DateTime::now();
     /// let doc = RawDocument::from_document(&doc! {
-    ///     "created_at": Utc.ymd(2020, 3, 15).and_hms(17, 0, 0),
+    ///     "created_at": dt,
     ///     "bool": true,
     /// });
-    /// assert_eq!(doc.get_datetime("created_at")?.unwrap().year(), 2020);
+    /// assert_eq!(doc.get_datetime("created_at")?, Some(dt));
     /// assert_eq!(doc.get_datetime("bool").unwrap_err(), Error::UnexpectedType);
     /// assert!(doc.get_datetime("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_datetime(&self, key: &str) -> Result<Option<DateTime<Utc>>> {
+    pub fn get_datetime(&self, key: &str) -> Result<Option<DateTime>> {
         self.get_with(key, RawBson::as_datetime)
     }
+
     /// Gets a reference to the BSON regex value corresponding to a given key or returns an error if
     /// the key corresponds to a value which isn't a regex.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, Error, elem};
-    /// use bson::{doc, Regex};
+    /// use bson::{doc, Regex, raw::{RawDocument, Error}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "regex": Regex {
@@ -559,8 +561,7 @@ impl RawDocumentRef {
     /// error if the key corresponds to a value which isn't a timestamp.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, elem, Error};
-    /// use bson::{doc, Timestamp};
+    /// use bson::{doc, Timestamp, raw::{RawDocument, Error}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
@@ -604,8 +605,8 @@ impl RawDocumentRef {
     /// the key corresponds to a value which isn't a 64-bit integer.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, elem::Element, Error};
-    /// use bson::doc;
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::RawDocument};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
@@ -624,8 +625,8 @@ impl RawDocumentRef {
     /// Return a reference to the contained data as a `&[u8]`
     ///
     /// ```
-    /// # use bson::raw::RawDocument;
-    /// use bson::doc;
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::RawDocument};
     /// let docbuf = RawDocument::from_document(&doc!{});
     /// assert_eq!(docbuf.as_bytes(), b"\x05\x00\x00\x00\x00");
     /// ```

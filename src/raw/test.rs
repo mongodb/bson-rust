@@ -1,6 +1,16 @@
 use super::*;
-use crate::{doc, spec::BinarySubtype, Binary, Bson, JavaScriptCodeWithScope, Regex, Timestamp};
-use chrono::TimeZone;
+use crate::{
+    doc,
+    oid::ObjectId,
+    spec::{BinarySubtype, ElementType},
+    Binary,
+    Bson,
+    DateTime,
+    JavaScriptCodeWithScope,
+    Regex,
+    Timestamp,
+};
+use chrono::{TimeZone, Utc};
 
 fn to_bytes(doc: &crate::Document) -> Vec<u8> {
     let mut docbytes = Vec::new();
@@ -76,9 +86,9 @@ fn rawdoc_to_doc() {
         "document": {},
         "array": ["binary", "serialized", "object", "notation"],
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1, 2, 3] },
-        "object_id": ObjectId::with_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
+        "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
         "boolean": true,
-        "datetime": Utc::now(),
+        "datetime": DateTime::now(),
         "null": Bson::Null,
         "regex": Bson::RegularExpression(Regex { pattern: String::from(r"end\s*$"), options: String::from("i")}),
         "javascript": Bson::JavaScriptCode(String::from("console.log(console);")),
@@ -124,6 +134,7 @@ fn string() {
         "hello",
     );
 }
+
 #[test]
 fn document() {
     let rawdoc = RawDocument::from_document(&doc! {"document": {}});
@@ -134,7 +145,7 @@ fn document() {
         .expect("no key document")
         .as_document()
         .expect("result was not a document");
-    assert_eq!(&doc.data, [5, 0, 0, 0, 0].as_ref()); // Empty document
+    assert_eq!(doc.as_bytes(), [5u8, 0, 0, 0, 0].as_ref()); // Empty document
 }
 
 #[test]
@@ -172,7 +183,7 @@ fn binary() {
 #[test]
 fn object_id() {
     let rawdoc = RawDocument::from_document(&doc! {
-        "object_id": ObjectId::with_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+        "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
     });
     let oid = rawdoc
         .get("object_id")
@@ -203,7 +214,7 @@ fn boolean() {
 fn datetime() {
     let rawdoc = RawDocument::from_document(&doc! {
         "boolean": true,
-        "datetime": Utc.ymd(2000,10,31).and_hms(12, 30, 45),
+        "datetime": DateTime::from_chrono(Utc.ymd(2000,10,31).and_hms(12, 30, 45)),
     });
     let datetime = rawdoc
         .get("datetime")
@@ -211,7 +222,7 @@ fn datetime() {
         .expect("no key datetime")
         .as_datetime()
         .expect("result was not datetime");
-    assert_eq!(datetime.to_rfc3339(), "2000-10-31T12:30:45+00:00");
+    assert_eq!(datetime.to_rfc3339(), "2000-10-31T12:30:45Z");
 }
 
 #[test]
@@ -275,14 +286,15 @@ fn javascript_with_scope() {
     let rawdoc = RawDocument::from_document(&doc! {
         "javascript_with_scope": Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope{ code: String::from("console.log(msg);"), scope: doc!{"ok": true}}),
     });
-    let (js, scopedoc) = rawdoc
+    let js_with_scope = rawdoc
         .get("javascript_with_scope")
         .expect("error finding key javascript_with_scope")
         .expect("no key javascript_with_scope")
         .as_javascript_with_scope()
         .expect("was not javascript with scope");
-    assert_eq!(js, "console.log(msg);");
-    let (scope_key, scope_value_bson) = scopedoc
+    assert_eq!(js_with_scope.code(), "console.log(msg);");
+    let (scope_key, scope_value_bson) = js_with_scope
+        .scope()
         .into_iter()
         .next()
         .expect("no next value in scope")
@@ -337,15 +349,15 @@ fn int64() {
 }
 #[test]
 fn document_iteration() {
-    let docbytes = to_bytes(&doc! {
+    let doc = doc! {
         "f64": 2.5,
         "string": "hello",
         "document": {},
         "array": ["binary", "serialized", "object", "notation"],
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
-        "object_id": ObjectId::with_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
+        "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
         "boolean": true,
-        "datetime": Utc::now(),
+        "datetime": DateTime::now(),
         "null": Bson::Null,
         "regex": Bson::RegularExpression(Regex { pattern: String::from(r"end\s*$"), options: String::from("i")}),
         "javascript": Bson::JavaScriptCode(String::from("console.log(console);")),
@@ -355,13 +367,14 @@ fn document_iteration() {
         "timestamp": Bson::Timestamp(Timestamp { time: 3542578, increment: 0 }),
         "int64": 46i64,
         "end": "END",
-    });
-    let rawdoc = unsafe { RawDocumentRef::new_unchecked(&docbytes) };
+    };
+    let rawdoc = RawDocument::from_document(&doc);
+    let rawdocref = rawdoc.as_ref();
 
     assert_eq!(
-        rawdoc
+        rawdocref
             .into_iter()
-            .collect::<Result<Vec<(&str, _)>, Error>>()
+            .collect::<Result<Vec<(&str, _)>>>()
             .expect("collecting iterated doc")
             .len(),
         17
@@ -382,7 +395,7 @@ fn into_bson_conversion() {
         "string": "hello",
         "document": {},
         "array": ["binary", "serialized", "object", "notation"],
-        "object_id": ObjectId::with_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+        "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
         "boolean": false,
     });
@@ -409,7 +422,7 @@ fn into_bson_conversion() {
     );
     assert_eq!(
         *doc.get("object_id").expect("object_id not found"),
-        Bson::ObjectId(ObjectId::with_bytes([
+        Bson::ObjectId(ObjectId::from_bytes([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
         ]))
     );
@@ -426,17 +439,9 @@ fn into_bson_conversion() {
     );
 }
 
+use super::props::arbitrary_bson;
 use proptest::prelude::*;
 use std::convert::TryInto;
-
-use super::{props::arbitrary_bson, RawDocument};
-use crate::doc;
-
-fn to_bytes(doc: &crate::Document) -> Vec<u8> {
-    let mut docbytes = Vec::new();
-    doc.to_writer(&mut docbytes).unwrap();
-    docbytes
-}
 
 proptest! {
     #[test]
@@ -452,7 +457,7 @@ proptest! {
         let raw = RawDocument::new(raw);
         prop_assert!(raw.is_ok());
         let raw = raw.unwrap();
-        let roundtrip: Result<crate::Document, _> = raw.try_into();
+        let roundtrip: Result<crate::Document> = raw.try_into();
         prop_assert!(roundtrip.is_ok());
         let roundtrip = roundtrip.unwrap();
         prop_assert_eq!(doc, roundtrip);

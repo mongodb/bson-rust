@@ -21,9 +21,14 @@ pub(crate) fn arbitrary_bson() -> impl Strategy<Value = Bson> {
         any::<f64>().prop_map(Bson::Double),
         any::<i32>().prop_map(Bson::Int32),
         any::<i64>().prop_map(Bson::Int64),
-        any::<(String, String)>()
-            .prop_map(|(pattern, options)| Bson::RegularExpression(Regex { pattern, options })),
-        any::<[u8; 12]>().prop_map(|bytes| Bson::ObjectId(crate::oid::ObjectId::with_bytes(bytes))),
+        any::<(String, String)>().prop_map(|(pattern, options)| {
+            let mut chars: Vec<_> = options.chars().collect();
+            chars.sort_unstable();
+
+            let options: String = chars.into_iter().collect();
+            Bson::RegularExpression(Regex { pattern, options })
+        }),
+        any::<[u8; 12]>().prop_map(|bytes| Bson::ObjectId(crate::oid::ObjectId::from_bytes(bytes))),
         (arbitrary_binary_subtype(), any::<Vec<u8>>()).prop_map(|(subtype, bytes)| {
             let bytes = if let BinarySubtype::BinaryOld = subtype {
                 // BinarySubtype::BinaryOld expects a four byte prefix, which the bson::Bson type
@@ -32,7 +37,7 @@ pub(crate) fn arbitrary_bson() -> impl Strategy<Value = Bson> {
                 let mut newbytes = Vec::with_capacity(bytes.len() + 4);
                 newbytes.extend_from_slice(&(bytes.len() as i32).to_le_bytes());
                 newbytes.extend_from_slice(&bytes);
-                newbytes 
+                newbytes
             } else {
                 bytes
             };

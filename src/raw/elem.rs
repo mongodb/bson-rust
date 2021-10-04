@@ -1,9 +1,7 @@
-use std::{
-    convert::{TryFrom, TryInto},
-    time::Duration,
-};
+use std::convert::{TryFrom, TryInto};
 
-use chrono::{DateTime, TimeZone, Utc};
+// use chrono::{DateTime, TimeZone, Utc};
+use crate::DateTime;
 
 #[cfg(feature = "decimal128")]
 use super::d128_from_slice;
@@ -122,7 +120,7 @@ impl<'a> RawBson<'a> {
     /// Gets the ObjectId that's referenced or returns an error if the value isn't a BSON ObjectId.
     pub fn as_object_id(self) -> Result<ObjectId> {
         if let ElementType::ObjectId = self.element_type {
-            Ok(ObjectId::with_bytes(self.data.try_into().map_err(
+            Ok(ObjectId::from_bytes(self.data.try_into().map_err(
                 |_| Error::MalformedValue {
                     message: "object id should be 12 bytes long".into(),
                 },
@@ -154,26 +152,10 @@ impl<'a> RawBson<'a> {
     }
 
     /// Gets the DateTime that's referenced or returns an error if the value isn't a BSON DateTime.
-    pub fn as_datetime(self) -> Result<DateTime<Utc>> {
+    pub fn as_datetime(self) -> Result<DateTime> {
         if let ElementType::DateTime = self.element_type {
             let millis = i64_from_slice(self.data);
-            if millis >= 0 {
-                let duration = Duration::from_millis(millis as u64);
-                Ok(Utc.timestamp(
-                    duration.as_secs().try_into().unwrap(),
-                    duration.subsec_nanos(),
-                ))
-            } else {
-                let duration = Duration::from_millis((-millis).try_into().unwrap());
-                let mut secs: i64 = duration.as_secs().try_into().unwrap();
-                secs *= -1;
-                let mut nanos = duration.subsec_nanos();
-                if nanos > 0 {
-                    secs -= 1;
-                    nanos = 1_000_000_000 - nanos;
-                }
-                Ok(Utc.timestamp(secs, nanos))
-            }
+            Ok(DateTime::from_millis(millis))
         } else {
             Err(Error::UnexpectedType)
         }
@@ -261,7 +243,15 @@ impl<'a> RawBson<'a> {
             assert_eq!(self.data.len(), 16);
             Ok(d128_from_slice(self.data))
         } else {
-            Err(RawError::UnexpectedType)
+            Err(Error::UnexpectedType)
+        }
+    }
+
+    pub fn as_null(self) -> Result<()> {
+        if let ElementType::Null = self.element_type {
+            Ok(())
+        } else {
+            Err(Error::UnexpectedType)
         }
     }
 }

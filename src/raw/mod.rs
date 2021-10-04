@@ -11,13 +11,13 @@
 //!
 //! // See http://bsonspec.org/spec.html for details on the binary encoding of BSON.
 //! let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-//! let elem: Option<RawBson> = doc.get("hi")?;
+//! let elem = doc.get("hi")?.unwrap();
 //!
 //! assert_eq!(
-//!   elem?.as_str()?,
+//!   elem.as_str()?,
 //!   "y'all",
 //! );
-//! # Ok::<(), bson::raw::RawError>(())
+//! # Ok::<(), bson::raw::Error>(())
 //! ```
 //!
 //! ### bson-rust interop
@@ -48,7 +48,7 @@
 //!     value,
 //!     Some("world"),
 //! );
-//! # Ok::<(), bson::raw::RawError>(())
+//! # Ok::<(), bson::raw::Error>(())
 //! ```
 //! 
 //! ### Reference types
@@ -60,22 +60,20 @@
 //!
 //! The below example constructs a bson document in a stack-based array,
 //! and extracts a &str from it, performing no heap allocation.
-
 //! ```rust
-//! use bson::raw::Doc;
+//! use bson::raw::RawDocumentRef;
 //!
 //! let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
 //! assert_eq!(RawDocumentRef::new(bytes)?.get_str("hi")?, Some("y'all"));
-//! # Ok::<(), bson::raw::RawError>(())
+//! # Ok::<(), bson::raw::Error>(())
 //! ```
-//!
+//! 
 //! ### Iteration
 //!
 //! [`RawDocumentRef`] implements [`IntoIterator`](std::iter::IntoIterator), which can also be
 //! accessed via [`RawDocument::iter`].
 
 //! ```rust
-//! use bson::doc;
 //! use bson::{
 //!    raw::{
 //!        RawBson,
@@ -92,14 +90,14 @@
 //! let doc = RawDocument::from_document(&original_doc);
 //! let mut doc_iter = doc.iter();
 //!
-//! let (key, value): (&str, Element) = doc_iter.next().unwrap()?;
+//! let (key, value): (&str, RawBson) = doc_iter.next().unwrap()?;
 //! assert_eq!(key, "crate");
-//! assert_eq!(value.as_str()?, "rawbson");
+//! assert_eq!(value.as_str()?, "bson");
 //!
-//! let (key, value): (&str, Element) = doc_iter.next().unwrap()?;
+//! let (key, value): (&str, RawBson) = doc_iter.next().unwrap()?;
 //! assert_eq!(key, "year");
 //! assert_eq!(value.as_str()?, "2021");
-//! # Ok::<(), bson::raw::RawError>(())
+//! # Ok::<(), bson::raw::Error>(())
 //! ```
 
 mod array;
