@@ -86,7 +86,7 @@ impl<'a> RawBson<'a> {
     pub fn as_binary(self) -> Result<RawBinary<'a>> {
         self.validate_type(ElementType::Binary)?;
 
-        let length = i32_from_slice(&self.data[0..4]);
+        let length = i32_from_slice(&self.data[0..4])?;
         let subtype = BinarySubtype::from(self.data[4]); // TODO: This mishandles reserved values
         if self.data.len() as i32 != length + 5 {
             return Err(Error::MalformedValue {
@@ -100,7 +100,7 @@ impl<'a> RawBson<'a> {
                         message: "old binary subtype has no inner declared length".into(),
                     });
                 }
-                let oldlength = i32_from_slice(&self.data[5..9]);
+                let oldlength = i32_from_slice(&self.data[5..9])?;
                 if oldlength + 4 != length {
                     return Err(Error::MalformedValue {
                         message: "old binary subtype has wrong inner declared length".into(),
@@ -144,7 +144,7 @@ impl<'a> RawBson<'a> {
     /// Gets the DateTime that's referenced or returns an error if the value isn't a BSON DateTime.
     pub fn as_datetime(self) -> Result<DateTime> {
         self.validate_type(ElementType::DateTime)?;
-        let millis = i64_from_slice(self.data);
+        let millis = i64_from_slice(self.data)?;
         Ok(DateTime::from_millis(millis))
     }
 
@@ -171,8 +171,13 @@ impl<'a> RawBson<'a> {
     /// isn't BSON JavaScript code with scope.
     pub fn as_javascript_with_scope(self) -> Result<RawJavaScriptCodeWithScope<'a>> {
         self.validate_type(ElementType::JavaScriptCodeWithScope)?;
-        let length = i32_from_slice(&self.data[..4]);
-        assert_eq!(self.data.len() as i32, length);
+        let length = i32_from_slice(&self.data[..4])?;
+
+        if (self.data.len() as i32) != length {
+            return Err(Error::MalformedValue {
+                message: "".to_string(),
+            });
+        }
 
         let code = read_lenencoded(&self.data[4..])?;
         let scope = RawDocumentRef::new(&self.data[9 + code.len()..])?;
@@ -191,15 +196,13 @@ impl<'a> RawBson<'a> {
     /// Gets the i32 that's referenced or returns an error if the value isn't a BSON int32.
     pub fn as_i32(self) -> Result<i32> {
         self.validate_type(ElementType::Int32)?;
-        assert_eq!(self.data.len(), 4);
-        Ok(i32_from_slice(self.data))
+        i32_from_slice(self.data)
     }
 
     /// Gets the i64 that's referenced or returns an error if the value isn't a BSON int64.
     pub fn as_i64(self) -> Result<i64> {
         self.validate_type(ElementType::Int64)?;
-        assert_eq!(self.data.len(), 8);
-        Ok(i64_from_slice(self.data))
+        i64_from_slice(self.data)
     }
 
     /// Gets the decimal that's referenced or returns an error if the value isn't a BSON Decimal128.
@@ -351,14 +354,14 @@ impl<'a> RawTimestamp<'a> {
     pub fn time(&self) -> u32 {
         // RawBsonTimestamp can only be constructed with the correct data length, so this should
         // always succeed.
-        u32_from_slice(&self.data[4..8])
+        u32_from_slice(&self.data[4..8]).unwrap()
     }
 
     /// Gets the increment portion of the timestamp.
     pub fn increment(&self) -> u32 {
         // RawBsonTimestamp can only be constructed with the correct data length, so this should
         // always succeed.
-        u32_from_slice(&self.data[0..4])
+        u32_from_slice(&self.data[0..4]).unwrap()
     }
 }
 

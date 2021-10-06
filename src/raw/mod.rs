@@ -115,34 +115,39 @@ pub use self::{
     elem::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex, RawTimestamp},
     error::{Error, Result},
 };
+
 /// Given a 4 byte u8 slice, return an i32 calculated from the bytes in
 /// little endian order
 ///
 /// # Panics
 ///
 /// This function panics if given a slice that is not four bytes long.
-fn i32_from_slice(val: &[u8]) -> i32 {
-    i32::from_le_bytes(val.try_into().expect("i32 is four bytes"))
+fn i32_from_slice(val: &[u8]) -> Result<i32> {
+    Ok(i32::from_le_bytes(val.try_into().map_err(|_| {
+        Error::MalformedValue {
+            message: format!("expected 4 bytes to read i32, instead got {}", val.len()),
+        }
+    })?))
 }
 
 /// Given an 8 byte u8 slice, return an i64 calculated from the bytes in
 /// little endian order
-///
-/// # Panics
-///
-/// This function panics if given a slice that is not eight bytes long.
-fn i64_from_slice(val: &[u8]) -> i64 {
-    i64::from_le_bytes(val.try_into().expect("i64 is eight bytes"))
+fn i64_from_slice(val: &[u8]) -> Result<i64> {
+    Ok(i64::from_le_bytes(val.try_into().map_err(|_| {
+        Error::MalformedValue {
+            message: format!("expected 8 bytes to read i64, instead got {}", val.len()),
+        }
+    })?))
 }
 
 /// Given a 4 byte u8 slice, return a u32 calculated from the bytes in
 /// little endian order
-///
-/// # Panics
-///
-/// This function panics if given a slice that is not four bytes long.
-fn u32_from_slice(val: &[u8]) -> u32 {
-    u32::from_le_bytes(val.try_into().expect("u32 is four bytes"))
+fn u32_from_slice(val: &[u8]) -> Result<u32> {
+    Ok(u32::from_le_bytes(val.try_into().map_err(|_| {
+        Error::MalformedValue {
+            message: format!("expected 4 bytes to read u32, instead got {}", val.len()),
+        }
+    })?))
 }
 
 #[cfg(feature = "decimal128")]
@@ -168,8 +173,16 @@ fn read_nullterminated(buf: &[u8]) -> Result<&str> {
 }
 
 fn read_lenencoded(buf: &[u8]) -> Result<&str> {
-    let length = i32_from_slice(&buf[..4]);
-    assert!(buf.len() as i32 >= length + 4);
+    let length = i32_from_slice(&buf[..4])?;
+    if (buf.len() as i32) < length + 4 {
+        return Err(Error::MalformedValue {
+            message: format!(
+                "expected buffer to contain at least {} bytes, but it only has {}",
+                length + 4,
+                buf.len()
+            ),
+        });
+    }
     try_to_str(&buf[4..4 + length as usize - 1])
 }
 

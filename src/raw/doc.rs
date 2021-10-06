@@ -84,7 +84,7 @@ impl RawDocument {
             });
         }
 
-        let length = i32_from_slice(&data[..4]);
+        let length = i32_from_slice(&data[..4])?;
 
         if data.len() as i32 != length {
             return Err(Error::MalformedValue {
@@ -275,7 +275,7 @@ impl RawDocumentRef {
             });
         }
 
-        let length = i32_from_slice(&data[..4]);
+        let length = i32_from_slice(&data[..4])?;
 
         if data.len() as i32 != length {
             return Err(Error::MalformedValue {
@@ -692,134 +692,140 @@ impl<'a> Iterator for RawDocumentIter<'a> {
             }
         }
 
-        let key = match read_nullterminated(&self.doc.data[self.offset + 1..]) {
-            Ok(key) => key,
-            Err(err) => return Some(Err(err)),
-        };
+        // helper function to ease the use of the `?` operator
+        fn read_next<'a>(iter: &mut RawDocumentIter<'a>) -> Result<(&'a str, RawBson<'a>)> {
+            let key = read_nullterminated(&iter.doc.data[iter.offset + 1..])?;
 
-        let valueoffset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
+            let valueoffset = iter.offset + 1 + key.len() + 1; // type specifier + key + \0
 
-        let element_type = match ElementType::from(self.doc.data[self.offset]) {
-            Some(et) => et,
-            None => {
-                return Some(Err(Error::MalformedValue {
-                    message: format!("invalid tag: {}", self.doc.data[self.offset]),
-                }))
-            }
-        };
-
-        let element_size = match element_type {
-            ElementType::Double => 8,
-            ElementType::String => {
-                let size =
-                    4 + i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
-
-                if self.doc.data[valueoffset + size - 1] != 0 {
-                    return Some(Err(Error::MalformedValue {
-                        message: "string not null terminated".into(),
-                    }));
+            let element_type = match ElementType::from(iter.doc.data[iter.offset]) {
+                Some(et) => et,
+                None => {
+                    return Err(Error::MalformedValue {
+                        message: format!("invalid tag: {}", iter.doc.data[iter.offset]),
+                    })
                 }
+            };
 
-                size
-            }
-            ElementType::EmbeddedDocument => {
-                let size = i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
+            let element_size = match element_type {
+                ElementType::Double => 8,
+                ElementType::String => {
+                    let size =
+                        4 + i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
 
-                if self.doc.data[valueoffset + size - 1] != 0 {
-                    return Some(Err(Error::MalformedValue {
-                        message: "document not null terminated".into(),
-                    }));
+                    if iter.doc.data[valueoffset + size - 1] != 0 {
+                        return Err(Error::MalformedValue {
+                            message: "string not null terminated".into(),
+                        });
+                    }
+
+                    size
                 }
+                ElementType::EmbeddedDocument => {
+                    let size =
+                        i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
 
-                size
-            }
-            ElementType::Array => {
-                let size = i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
+                    if iter.doc.data[valueoffset + size - 1] != 0 {
+                        return Err(Error::MalformedValue {
+                            message: "document not null terminated".into(),
+                        });
+                    }
 
-                if self.doc.data[valueoffset + size - 1] != 0 {
-                    return Some(Err(Error::MalformedValue {
-                        message: "array not null terminated".into(),
-                    }));
+                    size
                 }
+                ElementType::Array => {
+                    let size =
+                        i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
 
-                size
-            }
-            ElementType::Binary => {
-                5 + i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize
-            }
-            ElementType::Undefined => 0,
-            ElementType::ObjectId => 12,
-            ElementType::Boolean => 1,
-            ElementType::DateTime => 8,
-            ElementType::Null => 0,
-            ElementType::RegularExpression => {
-                let regex = match read_nullterminated(&self.doc.data[valueoffset..]) {
-                    Ok(regex) => regex,
-                    Err(err) => return Some(Err(err)),
-                };
+                    if iter.doc.data[valueoffset + size - 1] != 0 {
+                        return Err(Error::MalformedValue {
+                            message: "array not null terminated".into(),
+                        });
+                    }
 
-                let options =
-                    match read_nullterminated(&self.doc.data[valueoffset + regex.len() + 1..]) {
-                        Ok(options) => options,
-                        Err(err) => return Some(Err(err)),
+                    size
+                }
+                ElementType::Binary => {
+                    5 + i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize
+                }
+                ElementType::Undefined => 0,
+                ElementType::ObjectId => 12,
+                ElementType::Boolean => 1,
+                ElementType::DateTime => 8,
+                ElementType::Null => 0,
+                ElementType::RegularExpression => {
+                    let regex = match read_nullterminated(&iter.doc.data[valueoffset..]) {
+                        Ok(regex) => regex,
+                        Err(err) => return Err(err),
                     };
 
-                regex.len() + options.len() + 2
-            }
-            ElementType::DbPointer => {
-                let string_size =
-                    4 + i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
+                    let options = match read_nullterminated(
+                        &iter.doc.data[valueoffset + regex.len() + 1..],
+                    ) {
+                        Ok(options) => options,
+                        Err(err) => return Err(err),
+                    };
 
-                let id_size = 12;
-
-                if self.doc.data[valueoffset + string_size - 1] != 0 {
-                    return Some(Err(Error::MalformedValue {
-                        message: "DBPointer string not null-terminated".into(),
-                    }));
+                    regex.len() + options.len() + 2
                 }
+                ElementType::DbPointer => {
+                    let string_size =
+                        4 + i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
 
-                string_size + id_size
-            }
-            ElementType::JavaScriptCode => {
-                let size =
-                    4 + i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
+                    let id_size = 12;
 
-                if self.doc.data[valueoffset + size - 1] != 0 {
-                    return Some(Err(Error::MalformedValue {
-                        message: "javascript code not null-terminated".into(),
-                    }));
+                    if iter.doc.data[valueoffset + string_size - 1] != 0 {
+                        return Err(Error::MalformedValue {
+                            message: "DBPointer string not null-terminated".into(),
+                        });
+                    }
+
+                    string_size + id_size
                 }
+                ElementType::JavaScriptCode => {
+                    let size =
+                        4 + i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
 
-                size
-            }
-            ElementType::Symbol => {
-                4 + i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize
-            }
-            ElementType::JavaScriptCodeWithScope => {
-                let size = i32_from_slice(&self.doc.data[valueoffset..valueoffset + 4]) as usize;
+                    if iter.doc.data[valueoffset + size - 1] != 0 {
+                        return Err(Error::MalformedValue {
+                            message: "javascript code not null-terminated".into(),
+                        });
+                    }
 
-                if self.doc.data[valueoffset + size - 1] != 0 {
-                    return Some(Err(Error::MalformedValue {
-                        message: "javascript with scope not null-terminated".into(),
-                    }));
+                    size
                 }
+                ElementType::Symbol => {
+                    4 + i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize
+                }
+                ElementType::JavaScriptCodeWithScope => {
+                    let size =
+                        i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
 
-                size
-            }
-            ElementType::Int32 => 4,
-            ElementType::Timestamp => 8,
-            ElementType::Int64 => 8,
-            ElementType::Decimal128 => 16,
-            ElementType::MaxKey => 0,
-            ElementType::MinKey => 0,
-        };
+                    if iter.doc.data[valueoffset + size - 1] != 0 {
+                        return Err(Error::MalformedValue {
+                            message: "javascript with scope not null-terminated".into(),
+                        });
+                    }
 
-        let nextoffset = valueoffset + element_size;
-        self.offset = nextoffset;
+                    size
+                }
+                ElementType::Int32 => 4,
+                ElementType::Timestamp => 8,
+                ElementType::Int64 => 8,
+                ElementType::Decimal128 => 16,
+                ElementType::MaxKey => 0,
+                ElementType::MinKey => 0,
+            };
 
-        Some(Ok((
-            key,
-            RawBson::new(element_type, &self.doc.data[valueoffset..nextoffset]),
-        )))
+            let nextoffset = valueoffset + element_size;
+            iter.offset = nextoffset;
+
+            Ok((
+                key,
+                RawBson::new(element_type, &iter.doc.data[valueoffset..nextoffset]),
+            ))
+        }
+
+        Some(read_next(self))
     }
 }
