@@ -159,9 +159,9 @@ impl RawDocument {
     /// use bson::doc;
     ///
     /// let doc = RawDocument::from_document(&doc!{});
-    /// assert_eq!(doc.into_inner(), b"\x05\x00\x00\x00\x00".to_vec());
+    /// assert_eq!(doc.into_vec(), b"\x05\x00\x00\x00\x00".to_vec());
     /// ```
-    pub fn into_inner(self) -> Vec<u8> {
+    pub fn into_vec(self) -> Vec<u8> {
         self.data.to_vec()
     }
 }
