@@ -1,5 +1,5 @@
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     convert::{TryFrom, TryInto},
     ops::Deref,
 };
@@ -163,6 +163,18 @@ impl RawDocument {
     /// ```
     pub fn into_vec(self) -> Vec<u8> {
         self.data.to_vec()
+    }
+}
+
+impl<'a> From<RawDocument> for Cow<'a, RawDocumentRef> {
+    fn from(rd: RawDocument) -> Self {
+        Cow::Owned(rd)
+    }
+}
+
+impl<'a> From<&'a RawDocument> for Cow<'a, RawDocumentRef> {
+    fn from(rd: &'a RawDocument) -> Self {
+        Cow::Borrowed(rd.as_ref())
     }
 }
 
@@ -646,6 +658,12 @@ impl Deref for RawDocument {
 
     fn deref(&self) -> &Self::Target {
         RawDocumentRef::new_unchecked(&self.data)
+    }
+}
+
+impl<'a> From<&'a RawDocumentRef> for Cow<'a, RawDocumentRef> {
+    fn from(rdr: &'a RawDocumentRef) -> Self {
+        Cow::Borrowed(rdr)
     }
 }
 
