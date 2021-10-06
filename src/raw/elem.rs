@@ -1,7 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
 // use chrono::{DateTime, TimeZone, Utc};
-use crate::DateTime;
+use crate::{DateTime, Decimal128};
 
 #[cfg(feature = "decimal128")]
 use super::d128_from_slice;
@@ -44,218 +44,179 @@ impl<'a> RawBson<'a> {
         self.data
     }
 
+    fn validate_type(self, expected: ElementType) -> Result<()> {
+        if self.element_type != expected {
+            return Err(Error::UnexpectedType {
+                actual: self.element_type,
+                expected,
+            });
+        }
+        Ok(())
+    }
+
     /// Gets the f64 that's referenced or returns an error if the value isn't a BSON double.
     pub fn as_f64(self) -> Result<f64> {
-        if let ElementType::Double = self.element_type {
-            Ok(f64::from_bits(u64::from_le_bytes(
-                self.data.try_into().map_err(|_| Error::MalformedValue {
-                    message: "f64 should be 8 bytes long".into(),
-                })?,
-            )))
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::Double)?;
+        Ok(f64::from_bits(u64::from_le_bytes(
+            self.data.try_into().map_err(|_| Error::MalformedValue {
+                message: "f64 should be 8 bytes long".into(),
+            })?,
+        )))
     }
 
     /// Gets the string that's referenced or returns an error if the value isn't a BSON string.
     pub fn as_str(self) -> Result<&'a str> {
-        if let ElementType::String = self.element_type {
-            read_lenencoded(self.data)
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::String)?;
+        read_lenencoded(self.data)
     }
 
     /// Gets the document that's referenced or returns an error if the value isn't a BSON document.
     pub fn as_document(self) -> Result<&'a RawDocumentRef> {
-        if let ElementType::EmbeddedDocument = self.element_type {
-            RawDocumentRef::new(self.data)
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::EmbeddedDocument)?;
+        RawDocumentRef::new(self.data)
     }
 
     /// Gets the array that's referenced or returns an error if the value isn't a BSON array.
     pub fn as_array(self) -> Result<&'a RawArray> {
-        if let ElementType::Array = self.element_type {
-            RawArray::new(self.data)
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::Array)?;
+        RawArray::new(self.data)
     }
 
     /// Gets the BSON binary value that's referenced or returns an error if the value a BSON binary.
     pub fn as_binary(self) -> Result<RawBinary<'a>> {
-        if let ElementType::Binary = self.element_type {
-            let length = i32_from_slice(&self.data[0..4]);
-            let subtype = BinarySubtype::from(self.data[4]); // TODO: This mishandles reserved values
-            if self.data.len() as i32 != length + 5 {
-                return Err(Error::MalformedValue {
-                    message: "binary bson has wrong declared length".into(),
-                });
-            }
-            let data = match subtype {
-                BinarySubtype::BinaryOld => {
-                    if length < 4 {
-                        return Err(Error::MalformedValue {
-                            message: "old binary subtype has no inner declared length".into(),
-                        });
-                    }
-                    let oldlength = i32_from_slice(&self.data[5..9]);
-                    if oldlength + 4 != length {
-                        return Err(Error::MalformedValue {
-                            message: "old binary subtype has wrong inner declared length".into(),
-                        });
-                    }
-                    &self.data[9..]
-                }
-                _ => &self.data[5..],
-            };
-            Ok(RawBinary::new(subtype, data))
-        } else {
-            Err(Error::UnexpectedType)
+        self.validate_type(ElementType::Binary)?;
+
+        let length = i32_from_slice(&self.data[0..4]);
+        let subtype = BinarySubtype::from(self.data[4]); // TODO: This mishandles reserved values
+        if self.data.len() as i32 != length + 5 {
+            return Err(Error::MalformedValue {
+                message: "binary bson has wrong declared length".into(),
+            });
         }
+        let data = match subtype {
+            BinarySubtype::BinaryOld => {
+                if length < 4 {
+                    return Err(Error::MalformedValue {
+                        message: "old binary subtype has no inner declared length".into(),
+                    });
+                }
+                let oldlength = i32_from_slice(&self.data[5..9]);
+                if oldlength + 4 != length {
+                    return Err(Error::MalformedValue {
+                        message: "old binary subtype has wrong inner declared length".into(),
+                    });
+                }
+                &self.data[9..]
+            }
+            _ => &self.data[5..],
+        };
+        Ok(RawBinary::new(subtype, data))
     }
 
     /// Gets the ObjectId that's referenced or returns an error if the value isn't a BSON ObjectId.
     pub fn as_object_id(self) -> Result<ObjectId> {
-        if let ElementType::ObjectId = self.element_type {
-            Ok(ObjectId::from_bytes(self.data.try_into().map_err(
-                |_| Error::MalformedValue {
-                    message: "object id should be 12 bytes long".into(),
-                },
-            )?))
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::ObjectId)?;
+        Ok(ObjectId::from_bytes(self.data.try_into().map_err(
+            |_| Error::MalformedValue {
+                message: "object id should be 12 bytes long".into(),
+            },
+        )?))
     }
 
     /// Gets the boolean that's referenced or returns an error if the value isn't a BSON boolean.
     pub fn as_bool(self) -> Result<bool> {
-        if let ElementType::Boolean = self.element_type {
-            if self.data.len() != 1 {
-                Err(Error::MalformedValue {
-                    message: "boolean has length != 1".into(),
-                })
-            } else {
-                match self.data[0] {
-                    0 => Ok(false),
-                    1 => Ok(true),
-                    _ => Err(Error::MalformedValue {
-                        message: "boolean value was not 0 or 1".into(),
-                    }),
-                }
-            }
+        self.validate_type(ElementType::Boolean)?;
+        if self.data.len() != 1 {
+            Err(Error::MalformedValue {
+                message: "boolean has length != 1".into(),
+            })
         } else {
-            Err(Error::UnexpectedType)
+            match self.data[0] {
+                0 => Ok(false),
+                1 => Ok(true),
+                _ => Err(Error::MalformedValue {
+                    message: "boolean value was not 0 or 1".into(),
+                }),
+            }
         }
     }
 
     /// Gets the DateTime that's referenced or returns an error if the value isn't a BSON DateTime.
     pub fn as_datetime(self) -> Result<DateTime> {
-        if let ElementType::DateTime = self.element_type {
-            let millis = i64_from_slice(self.data);
-            Ok(DateTime::from_millis(millis))
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::DateTime)?;
+        let millis = i64_from_slice(self.data);
+        Ok(DateTime::from_millis(millis))
     }
 
     /// Gets the regex that's referenced or returns an error if the value isn't a BSON regex.
     pub fn as_regex(self) -> Result<RawRegex<'a>> {
-        if let ElementType::RegularExpression = self.element_type {
-            RawRegex::new(self.data)
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::RegularExpression)?;
+        RawRegex::new(self.data)
     }
 
     /// Gets the BSON JavaScript code that's referenced or returns an error if the value isn't BSON
     /// JavaScript code.
     pub fn as_javascript(self) -> Result<&'a str> {
-        if let ElementType::JavaScriptCode = self.element_type {
-            read_lenencoded(self.data)
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::JavaScriptCode)?;
+        read_lenencoded(self.data)
     }
 
     /// Gets the symbol that's referenced or returns an error if the value isn't a BSON symbol.
     pub fn as_symbol(self) -> Result<&'a str> {
-        if let ElementType::Symbol = self.element_type {
-            read_lenencoded(self.data)
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::Symbol)?;
+        read_lenencoded(self.data)
     }
 
     /// Gets the BSON JavaScript code with scope that's referenced or returns an error if the value
     /// isn't BSON JavaScript code with scope.
     pub fn as_javascript_with_scope(self) -> Result<RawJavaScriptCodeWithScope<'a>> {
-        if let ElementType::JavaScriptCodeWithScope = self.element_type {
-            let length = i32_from_slice(&self.data[..4]);
-            assert_eq!(self.data.len() as i32, length);
+        self.validate_type(ElementType::JavaScriptCodeWithScope)?;
+        let length = i32_from_slice(&self.data[..4]);
+        assert_eq!(self.data.len() as i32, length);
 
-            let code = read_lenencoded(&self.data[4..])?;
-            let scope = RawDocumentRef::new(&self.data[9 + code.len()..])?;
+        let code = read_lenencoded(&self.data[4..])?;
+        let scope = RawDocumentRef::new(&self.data[9 + code.len()..])?;
 
-            Ok(RawJavaScriptCodeWithScope { code, scope })
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        Ok(RawJavaScriptCodeWithScope { code, scope })
     }
 
     /// Gets the timestamp that's referenced or returns an error if the value isn't a BSON
     /// timestamp.
     pub fn as_timestamp(self) -> Result<RawTimestamp<'a>> {
-        if let ElementType::Timestamp = self.element_type {
-            assert_eq!(self.data.len(), 8);
-            Ok(RawTimestamp { data: self.data })
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::Timestamp)?;
+        assert_eq!(self.data.len(), 8);
+        Ok(RawTimestamp { data: self.data })
     }
 
     /// Gets the i32 that's referenced or returns an error if the value isn't a BSON int32.
     pub fn as_i32(self) -> Result<i32> {
-        if let ElementType::Int32 = self.element_type {
-            assert_eq!(self.data.len(), 4);
-            Ok(i32_from_slice(self.data))
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::Int32)?;
+        assert_eq!(self.data.len(), 4);
+        Ok(i32_from_slice(self.data))
     }
 
     /// Gets the i64 that's referenced or returns an error if the value isn't a BSON int64.
     pub fn as_i64(self) -> Result<i64> {
-        if let ElementType::Int64 = self.element_type {
-            assert_eq!(self.data.len(), 8);
-            Ok(i64_from_slice(self.data))
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::Int64)?;
+        assert_eq!(self.data.len(), 8);
+        Ok(i64_from_slice(self.data))
     }
 
     /// Gets the decimal that's referenced or returns an error if the value isn't a BSON Decimal128.
-    #[cfg(feature = "decimal128")]
     pub fn as_decimal128(self) -> Result<Decimal128> {
-        if let ElementType::Decimal128 = self.element_type {
-            assert_eq!(self.data.len(), 16);
-            Ok(d128_from_slice(self.data))
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::Decimal128)?;
+        let bytes: [u8; 128 / 8] = self.data.try_into().map_err(|_| Error::MalformedValue {
+            message: format!("decimal128 value has invalid length: {}", self.data.len()),
+        })?;
+        Ok(Decimal128::from_bytes(bytes))
     }
 
     pub fn as_null(self) -> Result<()> {
-        if let ElementType::Null = self.element_type {
-            Ok(())
-        } else {
-            Err(Error::UnexpectedType)
-        }
+        self.validate_type(ElementType::Null)
     }
 }
 
+// TODO: finish implementation
 impl<'a> TryFrom<RawBson<'a>> for Bson {
     type Error = Error;
 
@@ -315,11 +276,7 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
                     scope: scope.try_into()?,
                 })
             }
-            #[cfg(feature = "decimal128")]
             ElementType::Decimal128 => Bson::Decimal128(rawbson.as_decimal128()?),
-
-            #[cfg(not(feature = "decimal128"))]
-            ElementType::Decimal128 => return Err(Error::UnexpectedType),
             ElementType::MaxKey => unimplemented!(),
             ElementType::MinKey => unimplemented!(),
         })

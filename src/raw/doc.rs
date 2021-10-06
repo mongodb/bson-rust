@@ -370,7 +370,7 @@ impl RawDocumentRef {
     /// });
     ///
     /// assert_eq!(doc.get_f64("f64"), Ok(Some(2.5)));
-    /// assert_eq!(doc.get_f64("bool"), Err(Error::UnexpectedType));
+    /// assert!(matches!(doc.get_f64("bool"), Err(Error::UnexpectedType { .. })));
     /// assert_eq!(doc.get_f64("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
@@ -390,7 +390,7 @@ impl RawDocumentRef {
     /// });
     ///
     /// assert_eq!(doc.get_str("string"), Ok(Some("hello")));
-    /// assert_eq!(doc.get_str("bool"), Err(Error::UnexpectedType));
+    /// assert!(matches!(doc.get_str("bool"), Err(Error::UnexpectedType { .. })));
     /// assert_eq!(doc.get_str("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
@@ -411,7 +411,7 @@ impl RawDocumentRef {
     /// });
     ///
     /// assert_eq!(doc.get_document("doc")?.expect("finding key doc").get_str("key"), Ok(Some("value")));
-    /// assert_eq!(doc.get_document("bool").unwrap_err(), Error::UnexpectedType);
+    /// assert!(matches!(doc.get_document("bool").unwrap_err(), Error::UnexpectedType { .. }));
     /// assert!(doc.get_document("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -462,7 +462,7 @@ impl RawDocumentRef {
     /// });
     ///
     /// assert_eq!(doc.get_binary("binary")?.map(RawBinary::as_bytes), Some(&[1, 2, 3][..]));
-    /// assert_eq!(doc.get_binary("bool").unwrap_err(), Error::UnexpectedType);
+    /// assert!(matches!(doc.get_binary("bool").unwrap_err(), Error::UnexpectedType { .. }));
     /// assert!(doc.get_binary("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -483,7 +483,7 @@ impl RawDocumentRef {
     /// });
     ///
     /// let oid = doc.get_object_id("_id")?.unwrap();
-    /// assert_eq!(doc.get_object_id("bool").unwrap_err(), Error::UnexpectedType);
+    /// assert!(matches!(doc.get_object_id("bool").unwrap_err(), Error::UnexpectedType { .. }));
     /// assert!(doc.get_object_id("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -504,7 +504,7 @@ impl RawDocumentRef {
     /// });
     ///
     /// assert!(doc.get_bool("bool")?.unwrap());
-    /// assert_eq!(doc.get_bool("_id").unwrap_err(), Error::UnexpectedType);
+    /// assert!(matches!(doc.get_bool("_id").unwrap_err(), Error::UnexpectedType { .. }));
     /// assert!(doc.get_object_id("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -525,7 +525,7 @@ impl RawDocumentRef {
     ///     "bool": true,
     /// });
     /// assert_eq!(doc.get_datetime("created_at")?, Some(dt));
-    /// assert_eq!(doc.get_datetime("bool").unwrap_err(), Error::UnexpectedType);
+    /// assert!(matches!(doc.get_datetime("bool").unwrap_err(), Error::UnexpectedType { .. }));
     /// assert!(doc.get_datetime("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -549,7 +549,7 @@ impl RawDocumentRef {
     ///
     /// assert_eq!(doc.get_regex("regex")?.unwrap().pattern(), r"end\s*$");
     /// assert_eq!(doc.get_regex("regex")?.unwrap().options(), "i");
-    /// assert_eq!(doc.get_regex("bool").unwrap_err(), Error::UnexpectedType);
+    /// assert!(matches!(doc.get_regex("bool").unwrap_err(), Error::UnexpectedType { .. }));
     /// assert!(doc.get_regex("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -572,7 +572,7 @@ impl RawDocumentRef {
     ///
     /// assert_eq!(timestamp.time(), 649876543);
     /// assert_eq!(timestamp.increment(), 9);
-    /// assert_eq!(doc.get_timestamp("bool"), Err(Error::UnexpectedType));
+    /// assert!(matches!(doc.get_timestamp("bool"), Err(Error::UnexpectedType { .. })));
     /// assert_eq!(doc.get_timestamp("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
@@ -593,7 +593,7 @@ impl RawDocumentRef {
     /// });
     ///
     /// assert_eq!(doc.get_i32("i32"), Ok(Some(1_000_000)));
-    /// assert_eq!(doc.get_i32("bool"), Err(Error::UnexpectedType));
+    /// assert!(matches!(doc.get_i32("bool"), Err(Error::UnexpectedType { .. })));
     /// assert_eq!(doc.get_i32("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
@@ -614,7 +614,7 @@ impl RawDocumentRef {
     /// });
     ///
     /// assert_eq!(doc.get_i64("i64"), Ok(Some(9223372036854775807)));
-    /// assert_eq!(doc.get_i64("bool"), Err(Error::UnexpectedType));
+    /// assert!(matches!(doc.get_i64("bool"), Err(Error::UnexpectedType { .. })));
     /// assert_eq!(doc.get_i64("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
