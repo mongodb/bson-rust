@@ -110,7 +110,7 @@ fn rawdoc_to_doc() {
 fn f64() {
     #![allow(clippy::float_cmp)]
 
-    let rawdoc = RawDocument::from_document(&doc! {"f64": 2.5});
+    let rawdoc = RawDocument::from_document(&doc! { "f64": 2.5 }).unwrap();
     assert_eq!(
         rawdoc
             .get("f64")
@@ -124,7 +124,7 @@ fn f64() {
 
 #[test]
 fn string() {
-    let rawdoc = RawDocument::from_document(&doc! {"string": "hello"});
+    let rawdoc = RawDocument::from_document(&doc! {"string": "hello"}).unwrap();
 
     assert_eq!(
         rawdoc
@@ -139,7 +139,7 @@ fn string() {
 
 #[test]
 fn document() {
-    let rawdoc = RawDocument::from_document(&doc! {"document": {}});
+    let rawdoc = RawDocument::from_document(&doc! {"document": {}}).unwrap();
 
     let doc = rawdoc
         .get("document")
@@ -154,7 +154,8 @@ fn document() {
 fn array() {
     let rawdoc = RawDocument::from_document(
         &doc! { "array": ["binary", "serialized", "object", "notation"]},
-    );
+    )
+    .unwrap();
 
     let array = rawdoc
         .get("array")
@@ -171,7 +172,8 @@ fn array() {
 fn binary() {
     let rawdoc = RawDocument::from_document(&doc! {
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] }
-    });
+    })
+    .unwrap();
     let binary: elem::RawBinary<'_> = rawdoc
         .get("binary")
         .expect("error finding key binary")
@@ -186,7 +188,8 @@ fn binary() {
 fn object_id() {
     let rawdoc = RawDocument::from_document(&doc! {
         "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
-    });
+    })
+    .unwrap();
     let oid = rawdoc
         .get("object_id")
         .expect("error finding key object_id")
@@ -200,7 +203,8 @@ fn object_id() {
 fn boolean() {
     let rawdoc = RawDocument::from_document(&doc! {
         "boolean": true,
-    });
+    })
+    .unwrap();
 
     let boolean = rawdoc
         .get("boolean")
@@ -217,7 +221,8 @@ fn datetime() {
     let rawdoc = RawDocument::from_document(&doc! {
         "boolean": true,
         "datetime": DateTime::from_chrono(Utc.ymd(2000,10,31).and_hms(12, 30, 45)),
-    });
+    })
+    .unwrap();
     let datetime = rawdoc
         .get("datetime")
         .expect("error finding key datetime")
@@ -231,7 +236,8 @@ fn datetime() {
 fn null() {
     let rawdoc = RawDocument::from_document(&doc! {
         "null": null,
-    });
+    })
+    .unwrap();
     let () = rawdoc
         .get("null")
         .expect("error finding key null")
@@ -244,7 +250,7 @@ fn null() {
 fn regex() {
     let rawdoc = RawDocument::from_document(&doc! {
         "regex": Bson::RegularExpression(Regex { pattern: String::from(r"end\s*$"), options: String::from("i")}),
-    });
+    }).unwrap();
     let regex = rawdoc
         .get("regex")
         .expect("error finding key regex")
@@ -258,7 +264,8 @@ fn regex() {
 fn javascript() {
     let rawdoc = RawDocument::from_document(&doc! {
         "javascript": Bson::JavaScriptCode(String::from("console.log(console);")),
-    });
+    })
+    .unwrap();
     let js = rawdoc
         .get("javascript")
         .expect("error finding key javascript")
@@ -272,7 +279,8 @@ fn javascript() {
 fn symbol() {
     let rawdoc = RawDocument::from_document(&doc! {
         "symbol": Bson::Symbol(String::from("artist-formerly-known-as")),
-    });
+    })
+    .unwrap();
 
     let symbol = rawdoc
         .get("symbol")
@@ -286,8 +294,12 @@ fn symbol() {
 #[test]
 fn javascript_with_scope() {
     let rawdoc = RawDocument::from_document(&doc! {
-        "javascript_with_scope": Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope{ code: String::from("console.log(msg);"), scope: doc!{"ok": true}}),
-    });
+        "javascript_with_scope": Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+            code: String::from("console.log(msg);"),
+            scope: doc! { "ok": true }
+        }),
+    })
+    .unwrap();
     let js_with_scope = rawdoc
         .get("javascript_with_scope")
         .expect("error finding key javascript_with_scope")
@@ -310,7 +322,8 @@ fn javascript_with_scope() {
 fn int32() {
     let rawdoc = RawDocument::from_document(&doc! {
         "int32": 23i32,
-    });
+    })
+    .unwrap();
     let int32 = rawdoc
         .get("int32")
         .expect("error finding key int32")
@@ -324,7 +337,8 @@ fn int32() {
 fn timestamp() {
     let rawdoc = RawDocument::from_document(&doc! {
         "timestamp": Bson::Timestamp(Timestamp { time: 3542578, increment: 7 }),
-    });
+    })
+    .unwrap();
     let ts = rawdoc
         .get("timestamp")
         .expect("error finding key timestamp")
@@ -340,7 +354,8 @@ fn timestamp() {
 fn int64() {
     let rawdoc = RawDocument::from_document(&doc! {
         "int64": 46i64,
-    });
+    })
+    .unwrap();
     let int64 = rawdoc
         .get("int64")
         .expect("error finding key int64")
@@ -370,7 +385,7 @@ fn document_iteration() {
         "int64": 46i64,
         "end": "END",
     };
-    let rawdoc = RawDocument::from_document(&doc);
+    let rawdoc = RawDocument::from_document(&doc).unwrap();
     let rawdocref = rawdoc.as_ref();
 
     assert_eq!(

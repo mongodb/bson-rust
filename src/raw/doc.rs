@@ -117,13 +117,13 @@ impl RawDocument {
     /// let doc = RawDocument::from_document(&document);
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn from_document(doc: &Document) -> RawDocument {
+    pub fn from_document(doc: &Document) -> crate::ser::Result<RawDocument> {
         let mut data = Vec::new();
-        doc.to_writer(&mut data).unwrap();
+        doc.to_writer(&mut data)?;
 
-        Self {
+        Ok(Self {
             data: data.into_boxed_slice(),
-        }
+        })
     }
 
     /// Gets an iterator over the elements in the `RawDocument`, which yields `Result<&str,
