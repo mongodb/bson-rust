@@ -13,6 +13,7 @@ use super::{
 use crate::{oid::ObjectId, Bson, DateTime};
 
 /// A BSON array referencing raw bytes stored elsewhere.
+#[repr(transparent)]
 pub struct RawArray {
     doc: RawDocumentRef,
 }

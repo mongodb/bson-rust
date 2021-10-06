@@ -255,6 +255,7 @@ impl ToOwned for RawDocumentRef {
 /// # Ok::<(), Error>(())
 /// ```
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct RawDocumentRef {
     data: [u8],
 }
