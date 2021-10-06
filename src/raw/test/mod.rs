@@ -1,3 +1,5 @@
+mod props;
+
 use super::*;
 use crate::{
     doc,
@@ -439,7 +441,7 @@ fn into_bson_conversion() {
     );
 }
 
-use super::props::arbitrary_bson;
+use props::arbitrary_bson;
 use proptest::prelude::*;
 use std::convert::TryInto;
 

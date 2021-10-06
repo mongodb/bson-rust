@@ -105,8 +105,6 @@ mod doc;
 mod elem;
 mod error;
 #[cfg(test)]
-mod props;
-#[cfg(test)]
 mod test;
 
 use std::convert::TryInto;
