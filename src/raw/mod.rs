@@ -181,6 +181,6 @@ fn read_lenencoded(buf: &[u8]) -> Result<&str> {
 fn try_to_str(data: &[u8]) -> Result<&str> {
     match std::str::from_utf8(data) {
         Ok(s) => Ok(s),
-        Err(_) => Err(Error::Utf8EncodingError(data.into())),
+        Err(e) => Err(Error::Utf8EncodingError(e)),
     }
 }
