@@ -1,7 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
 // use chrono::{DateTime, TimeZone, Utc};
-use crate::{DateTime, Decimal128};
+use crate::{de::read_bool, DateTime, Decimal128};
 
 #[cfg(feature = "decimal128")]
 use super::d128_from_slice;
@@ -87,7 +87,7 @@ impl<'a> RawBson<'a> {
         self.validate_type(ElementType::Binary)?;
 
         let length = i32_from_slice(&self.data[0..4])?;
-        let subtype = BinarySubtype::from(self.data[4]); // TODO: This mishandles reserved values
+        let subtype = BinarySubtype::from(self.data[4]);
         if self.data.len() as i32 != length + 5 {
             return Err(Error::MalformedValue {
                 message: "binary bson has wrong declared length".into(),
@@ -131,13 +131,9 @@ impl<'a> RawBson<'a> {
                 message: "boolean has length != 1".into(),
             })
         } else {
-            match self.data[0] {
-                0 => Ok(false),
-                1 => Ok(true),
-                _ => Err(Error::MalformedValue {
-                    message: "boolean value was not 0 or 1".into(),
-                }),
-            }
+            read_bool(self.data).map_err(|e| Error::MalformedValue {
+                message: e.to_string(),
+            })
         }
     }
 
@@ -214,6 +210,7 @@ impl<'a> RawBson<'a> {
         Ok(Decimal128::from_bytes(bytes))
     }
 
+    /// Gets the null value that's referenced or returns an error if the value isn't a BSON null.
     pub fn as_null(self) -> Result<()> {
         self.validate_type(ElementType::Null)
     }

@@ -150,14 +150,6 @@ fn u32_from_slice(val: &[u8]) -> Result<u32> {
     })?))
 }
 
-#[cfg(feature = "decimal128")]
-fn d128_from_slice(val: &[u8]) -> Decimal128 {
-    // TODO: Handle Big Endian platforms
-    let d =
-        unsafe { decimal::d128::from_raw_bytes(val.try_into().expect("d128 is sixteen bytes")) };
-    Decimal128::from(d)
-}
-
 fn read_nullterminated(buf: &[u8]) -> Result<&str> {
     let mut splits = buf.splitn(2, |x| *x == 0);
     let value = splits.next().ok_or_else(|| Error::MalformedValue {

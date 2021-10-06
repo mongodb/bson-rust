@@ -108,7 +108,7 @@ pub(crate) fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) ->
     Ok(s)
 }
 
-fn read_bool<R: Read>(mut reader: R) -> Result<bool> {
+pub(crate) fn read_bool<R: Read>(mut reader: R) -> Result<bool> {
     let val = read_u8(&mut reader)?;
     if val > 1 {
         return Err(Error::invalid_value(
