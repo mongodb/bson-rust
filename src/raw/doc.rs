@@ -56,7 +56,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// ```
 #[derive(Clone, Debug)]
 pub struct RawDocument {
-    data: Box<[u8]>,
+    data: Vec<u8>,
 }
 
 impl RawDocument {
@@ -98,9 +98,7 @@ impl RawDocument {
             });
         }
 
-        Ok(Self {
-            data: data.into_boxed_slice(),
-        })
+        Ok(Self { data })
     }
 
     /// Create a RawDocument from a Document.
@@ -117,13 +115,14 @@ impl RawDocument {
     /// let doc = RawDocument::from_document(&document);
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn from_document(doc: &Document) -> crate::ser::Result<RawDocument> {
+    pub fn from_document(doc: &Document) -> Result<RawDocument> {
         let mut data = Vec::new();
-        doc.to_writer(&mut data)?;
+        doc.to_writer(&mut data)
+            .map_err(|e| Error::MalformedValue {
+                message: e.to_string(),
+            })?;
 
-        Ok(Self {
-            data: data.into_boxed_slice(),
-        })
+        Ok(Self { data })
     }
 
     /// Gets an iterator over the elements in the `RawDocument`, which yields `Result<&str,
@@ -133,7 +132,7 @@ impl RawDocument {
     /// # use bson::raw::Error;
     /// use bson::{doc, raw::RawDocument};
     ///
-    /// let doc = RawDocument::from_document(&doc! { "ferris": true });
+    /// let doc = RawDocument::from_document(&doc! { "ferris": true })?;
     ///
     /// for element in doc.iter() {
     ///     let (key, value) = element?;
@@ -155,11 +154,12 @@ impl RawDocument {
     /// Return the contained data as a `Vec<u8>`
     ///
     /// ```
-    /// # use bson::raw::RawDocument;
-    /// use bson::doc;
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::RawDocument};
     ///
-    /// let doc = RawDocument::from_document(&doc!{});
+    /// let doc = RawDocument::from_document(&doc!{})?;
     /// assert_eq!(doc.into_vec(), b"\x05\x00\x00\x00\x00".to_vec());
+    /// # Ok::<(), Error>(())
     /// ```
     pub fn into_vec(self) -> Vec<u8> {
         self.data.to_vec()
@@ -330,7 +330,7 @@ impl RawDocumentRef {
     /// # Ok::<(), Error>(())
     pub fn to_raw_document(&self) -> RawDocument {
         RawDocument {
-            data: self.data.to_owned().into_boxed_slice(),
+            data: self.data.to_owned(),
         }
     }
 
@@ -344,7 +344,7 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
     ///     "f64": 2.5,
-    /// });
+    /// })?;
     ///
     /// let element = doc.get("f64")?.expect("finding key f64");
     /// assert_eq!(element.as_f64(), Ok(2.5));
@@ -380,7 +380,7 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
     ///     "f64": 2.5,
-    /// });
+    /// })?;
     ///
     /// assert_eq!(doc.get_f64("f64"), Ok(Some(2.5)));
     /// assert!(matches!(doc.get_f64("bool"), Err(Error::UnexpectedType { .. })));
@@ -400,7 +400,7 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "string": "hello",
     ///     "bool": true,
-    /// });
+    /// })?;
     ///
     /// assert_eq!(doc.get_str("string"), Ok(Some("hello")));
     /// assert!(matches!(doc.get_str("bool"), Err(Error::UnexpectedType { .. })));
@@ -421,7 +421,7 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "doc": { "key": "value"},
     ///     "bool": true,
-    /// });
+    /// })?;
     ///
     /// assert_eq!(doc.get_document("doc")?.expect("finding key doc").get_str("key"), Ok(Some("value")));
     /// assert!(matches!(doc.get_document("bool").unwrap_err(), Error::UnexpectedType { .. }));
@@ -442,7 +442,7 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "array": [true, 3],
     ///     "bool": true,
-    /// });
+    /// })?;
     ///
     /// let mut arr_iter = doc.get_array("array")?.expect("finding key array").into_iter();
     /// let _: bool = arr_iter.next().unwrap()?.as_bool()?;
@@ -472,7 +472,7 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1, 2, 3] },
     ///     "bool": true,
-    /// });
+    /// })?;
     ///
     /// assert_eq!(doc.get_binary("binary")?.map(RawBinary::as_bytes), Some(&[1, 2, 3][..]));
     /// assert!(matches!(doc.get_binary("bool").unwrap_err(), Error::UnexpectedType { .. }));
@@ -493,7 +493,7 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
     ///     "bool": true,
-    /// });
+    /// })?;
     ///
     /// let oid = doc.get_object_id("_id")?.unwrap();
     /// assert!(matches!(doc.get_object_id("bool").unwrap_err(), Error::UnexpectedType { .. }));
@@ -514,7 +514,7 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
     ///     "bool": true,
-    /// });
+    /// })?;
     ///
     /// assert!(doc.get_bool("bool")?.unwrap());
     /// assert!(matches!(doc.get_bool("_id").unwrap_err(), Error::UnexpectedType { .. }));
@@ -536,7 +536,8 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "created_at": dt,
     ///     "bool": true,
-    /// });
+    /// })?;
+    ///
     /// assert_eq!(doc.get_datetime("created_at")?, Some(dt));
     /// assert!(matches!(doc.get_datetime("bool").unwrap_err(), Error::UnexpectedType { .. }));
     /// assert!(doc.get_datetime("unknown")?.is_none());
@@ -558,7 +559,7 @@ impl RawDocumentRef {
     ///         options: "i".into(),
     ///     },
     ///     "bool": true,
-    /// });
+    /// })?;
     ///
     /// assert_eq!(doc.get_regex("regex")?.unwrap().pattern(), r"end\s*$");
     /// assert_eq!(doc.get_regex("regex")?.unwrap().options(), "i");
@@ -579,7 +580,7 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
     ///     "ts": Timestamp { time: 649876543, increment: 9 },
-    /// });
+    /// })?;
     ///
     /// let timestamp = doc.get_timestamp("ts")?.unwrap();
     ///
@@ -603,7 +604,7 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
     ///     "i32": 1_000_000,
-    /// });
+    /// })?;
     ///
     /// assert_eq!(doc.get_i32("i32"), Ok(Some(1_000_000)));
     /// assert!(matches!(doc.get_i32("bool"), Err(Error::UnexpectedType { .. })));
@@ -624,7 +625,7 @@ impl RawDocumentRef {
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
     ///     "i64": 9223372036854775807_i64,
-    /// });
+    /// })?;
     ///
     /// assert_eq!(doc.get_i64("i64"), Ok(Some(9223372036854775807)));
     /// assert!(matches!(doc.get_i64("bool"), Err(Error::UnexpectedType { .. })));
@@ -640,8 +641,9 @@ impl RawDocumentRef {
     /// ```
     /// # use bson::raw::Error;
     /// use bson::{doc, raw::RawDocument};
-    /// let docbuf = RawDocument::from_document(&doc!{});
+    /// let docbuf = RawDocument::from_document(&doc!{})?;
     /// assert_eq!(docbuf.as_bytes(), b"\x05\x00\x00\x00\x00");
+    /// # Ok::<(), Error>(())
     /// ```
     pub fn as_bytes(&self) -> &[u8] {
         &self.data

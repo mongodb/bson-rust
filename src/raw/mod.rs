@@ -37,7 +37,7 @@
 //!    }
 //! };
 
-//! let raw = RawDocument::from_document(&document);
+//! let raw = RawDocument::from_document(&document)?;
 //! let value: Option<&str> = raw
 //!     .get_document("goodbye")?
 //!     .map(|doc| doc.get_str("cruel"))
@@ -87,7 +87,7 @@
 //!     "year": "2021",
 //! };
 //!
-//! let doc = RawDocument::from_document(&original_doc);
+//! let doc = RawDocument::from_document(&original_doc)?;
 //! let mut doc_iter = doc.iter();
 //!
 //! let (key, value): (&str, RawBson) = doc_iter.next().unwrap()?;
