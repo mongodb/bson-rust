@@ -150,7 +150,7 @@ impl<'a> IntoIterator for &'a RawArray {
     }
 }
 
-/// An iterator over borrwed raw BSON array values.
+/// An iterator over borrowed raw BSON array values.
 pub struct RawArrayIter<'a> {
     inner: RawDocumentIter<'a>,
 }
