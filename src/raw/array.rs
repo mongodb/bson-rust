@@ -1,15 +1,6 @@
 use std::convert::TryFrom;
 
-use super::{
-    Error,
-    RawBinary,
-    RawBson,
-    RawDocumentIter,
-    RawDocumentRef,
-    RawRegex,
-    RawTimestamp,
-    Result,
-};
+use super::{Error, Iter, RawBinary, RawBson, RawDocumentRef, RawRegex, RawTimestamp, Result};
 use crate::{oid::ObjectId, Bson, DateTime};
 
 /// A BSON array referencing raw bytes stored elsewhere.
@@ -153,7 +144,7 @@ impl<'a> IntoIterator for &'a RawArray {
 
 /// An iterator over borrowed raw BSON array values.
 pub struct RawArrayIter<'a> {
-    inner: RawDocumentIter<'a>,
+    inner: Iter<'a>,
 }
 
 impl<'a> Iterator for RawArrayIter<'a> {

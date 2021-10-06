@@ -147,7 +147,7 @@ impl RawDocument {
     /// There is no owning iterator for RawDocument.  If you need ownership over
     /// elements that might need to allocate, you must explicitly convert
     /// them to owned types yourself.
-    pub fn iter(&self) -> RawDocumentIter<'_> {
+    pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
     }
 
@@ -187,11 +187,11 @@ impl TryFrom<RawDocument> for Document {
 }
 
 impl<'a> IntoIterator for &'a RawDocument {
-    type IntoIter = RawDocumentIter<'a>;
+    type IntoIter = Iter<'a>;
     type Item = Result<(&'a str, RawBson<'a>)>;
 
-    fn into_iter(self) -> RawDocumentIter<'a> {
-        RawDocumentIter {
+    fn into_iter(self) -> Iter<'a> {
+        Iter {
             doc: &self,
             offset: 4,
         }
@@ -682,23 +682,24 @@ impl TryFrom<&RawDocumentRef> for crate::Document {
 }
 
 impl<'a> IntoIterator for &'a RawDocumentRef {
-    type IntoIter = RawDocumentIter<'a>;
+    type IntoIter = Iter<'a>;
     type Item = Result<(&'a str, RawBson<'a>)>;
 
-    fn into_iter(self) -> RawDocumentIter<'a> {
-        RawDocumentIter {
+    fn into_iter(self) -> Iter<'a> {
+        Iter {
             doc: self,
             offset: 4,
         }
     }
 }
 
-pub struct RawDocumentIter<'a> {
+/// An iterator over the document's entries.
+pub struct Iter<'a> {
     doc: &'a RawDocumentRef,
     offset: usize,
 }
 
-impl<'a> Iterator for RawDocumentIter<'a> {
+impl<'a> Iterator for Iter<'a> {
     type Item = Result<(&'a str, RawBson<'a>)>;
 
     fn next(&mut self) -> Option<Result<(&'a str, RawBson<'a>)>> {
@@ -714,7 +715,7 @@ impl<'a> Iterator for RawDocumentIter<'a> {
         }
 
         // helper function to ease the use of the `?` operator
-        fn read_next<'a>(iter: &mut RawDocumentIter<'a>) -> Result<(&'a str, RawBson<'a>)> {
+        fn read_next<'a>(iter: &mut Iter<'a>) -> Result<(&'a str, RawBson<'a>)> {
             let key = read_nullterminated(&iter.doc.data[iter.offset + 1..])?;
 
             let valueoffset = iter.offset + 1 + key.len() + 1; // type specifier + key + \0

@@ -111,7 +111,7 @@ use std::convert::TryInto;
 
 pub use self::{
     array::{RawArray, RawArrayIter},
-    doc::{RawDocument, RawDocumentIter, RawDocumentRef},
+    doc::{Iter, RawDocument, RawDocumentRef},
     elem::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex, RawTimestamp},
     error::{Error, Result},
 };
