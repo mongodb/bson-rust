@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use super::{Error, Iter, RawBinary, RawBson, RawDocumentRef, RawRegex, RawTimestamp, Result};
-use crate::{oid::ObjectId, Bson, DateTime};
+use crate::{oid::ObjectId, Bson, DateTime, Timestamp};
 
 /// A BSON array referencing raw bytes stored elsewhere.
 #[repr(transparent)]
@@ -35,9 +35,9 @@ impl RawArray {
     fn get_with<'a, T>(
         &'a self,
         index: usize,
-        f: impl FnOnce(RawBson<'a>) -> Result<T>,
+        f: impl FnOnce(RawBson<'a>) -> Option<T>,
     ) -> Result<Option<T>> {
-        self.get(index)?.map(f).transpose()
+        Ok(self.get(index)?.and_then(f))
     }
 
     /// Gets the BSON double at the given index or returns an error if the value at that index isn't
@@ -96,7 +96,7 @@ impl RawArray {
 
     /// Gets a reference to the BSON timestamp at the given index or returns an error if the
     /// value at that index isn't a timestamp.
-    pub fn get_timestamp(&self, index: usize) -> Result<Option<RawTimestamp<'_>>> {
+    pub fn get_timestamp(&self, index: usize) -> Result<Option<Timestamp>> {
         self.get_with(index, RawBson::as_timestamp)
     }
 

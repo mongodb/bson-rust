@@ -346,8 +346,8 @@ fn timestamp() {
         .as_timestamp()
         .expect("was not a timestamp");
 
-    assert_eq!(ts.increment(), 7);
-    assert_eq!(ts.time(), 3542578);
+    assert_eq!(ts.increment, 7);
+    assert_eq!(ts.time, 3542578);
 }
 
 #[test]
@@ -416,7 +416,7 @@ fn into_bson_conversion() {
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
         "boolean": false,
     });
-    let rawbson = elem::RawBson::new(ElementType::EmbeddedDocument, &docbytes);
+    let rawbson = RawBson::Document(RawDocumentRef::new(docbytes.as_slice()).unwrap());
     let b: Bson = rawbson.try_into().expect("invalid bson");
     let doc = b.as_document().expect("not a document");
     assert_eq!(*doc.get("f64").expect("f64 not found"), Bson::Double(2.5));

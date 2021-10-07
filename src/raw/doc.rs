@@ -11,6 +11,7 @@ use crate::{
 
 use super::{
     i32_from_slice,
+    read_lenencoded,
     read_nullterminated,
     Error,
     RawArray,
@@ -375,283 +376,283 @@ impl RawDocumentRef {
         Ok(None)
     }
 
-    fn get_with<'a, T>(
-        &'a self,
-        key: &str,
-        f: impl FnOnce(RawBson<'a>) -> Result<T>,
-    ) -> Result<Option<T>> {
-        self.get(key)?.map(f).transpose()
-    }
+    // fn get_with<'a, T>(
+    //     &'a self,
+    //     key: &str,
+    //     f: impl FnOnce(RawBson<'a>) -> Result<T>,
+    // ) -> Result<Option<T>> {
+    //     self.get(key)?.map(f).transpose()
+    // }
 
-    /// Gets a reference to the BSON double value corresponding to a given key or returns an error
-    /// if the key corresponds to a value which isn't a double.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::raw::{ErrorKind, RawDocument};
-    /// use bson::doc;
-    ///
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "bool": true,
-    ///     "f64": 2.5,
-    /// })?;
-    ///
-    /// assert_eq!(doc.get_f64("f64"), Ok(Some(2.5)));
-    /// assert!(matches!(doc.get_f64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert_eq!(doc.get_f64("unknown"), Ok(None));
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_f64(&self, key: &str) -> Result<Option<f64>> {
-        self.get_with(key, RawBson::as_f64)
-    }
+    // /// Gets a reference to the BSON double value corresponding to a given key or returns an
+    // error /// if the key corresponds to a value which isn't a double.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::raw::{ErrorKind, RawDocument};
+    // /// use bson::doc;
+    // ///
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "bool": true,
+    // ///     "f64": 2.5,
+    // /// })?;
+    // ///
+    // /// assert_eq!(doc.get_f64("f64"), Ok(Some(2.5)));
+    // /// assert!(matches!(doc.get_f64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
+    // })); /// assert_eq!(doc.get_f64("unknown"), Ok(None));
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_f64(&self, key: &str) -> Result<Option<f64>> {
+    //     self.get_with(key, RawBson::as_f64)
+    // }
 
-    /// Gets a reference to the string value corresponding to a given key or returns an error if the
-    /// key corresponds to a value which isn't a string.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{RawDocument, ErrorKind}};
-    ///
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "string": "hello",
-    ///     "bool": true,
-    /// })?;
-    ///
-    /// assert_eq!(doc.get_str("string"), Ok(Some("hello")));
-    /// assert!(matches!(doc.get_str("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert_eq!(doc.get_str("unknown"), Ok(None));
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_str<'a>(&'a self, key: &str) -> Result<Option<&'a str>> {
-        self.get_with(key, RawBson::as_str)
-    }
+    // /// Gets a reference to the string value corresponding to a given key or returns an error if
+    // the /// key corresponds to a value which isn't a string.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::{doc, raw::{RawDocument, ErrorKind}};
+    // ///
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "string": "hello",
+    // ///     "bool": true,
+    // /// })?;
+    // ///
+    // /// assert_eq!(doc.get_str("string"), Ok(Some("hello")));
+    // /// assert!(matches!(doc.get_str("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
+    // })); /// assert_eq!(doc.get_str("unknown"), Ok(None));
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_str<'a>(&'a self, key: &str) -> Result<Option<&'a str>> {
+    //     self.get_with(key, RawBson::as_str)
+    // }
 
-    /// Gets a reference to the document value corresponding to a given key or returns an error if
-    /// the key corresponds to a value which isn't a document.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{ErrorKind, RawDocument}};
-    ///
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "doc": { "key": "value"},
-    ///     "bool": true,
-    /// })?;
-    ///
-    /// assert_eq!(doc.get_document("doc")?.expect("finding key doc").get_str("key"), Ok(Some("value")));
-    /// assert!(matches!(doc.get_document("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_document("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_document<'a>(&'a self, key: &str) -> Result<Option<&'a RawDocumentRef>> {
-        self.get_with(key, RawBson::as_document)
-    }
+    // /// Gets a reference to the document value corresponding to a given key or returns an error
+    // if /// the key corresponds to a value which isn't a document.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::{doc, raw::{ErrorKind, RawDocument}};
+    // ///
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "doc": { "key": "value"},
+    // ///     "bool": true,
+    // /// })?;
+    // ///
+    // /// assert_eq!(doc.get_document("doc")?.expect("finding key doc").get_str("key"),
+    // Ok(Some("value"))); /// assert!(matches!(doc.get_document("bool").unwrap_err().kind,
+    // ErrorKind::UnexpectedType { .. })); /// assert!(doc.get_document("unknown")?.is_none());
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_document<'a>(&'a self, key: &str) -> Result<Option<&'a RawDocumentRef>> {
+    //     self.get_with(key, RawBson::as_document)
+    // }
 
-    /// Gets a reference to the array value corresponding to a given key or returns an error if
-    /// the key corresponds to a value which isn't an array.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocument};
-    ///
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "array": [true, 3],
-    ///     "bool": true,
-    /// })?;
-    ///
-    /// let mut arr_iter = doc.get_array("array")?.expect("finding key array").into_iter();
-    /// let _: bool = arr_iter.next().unwrap()?.as_bool()?;
-    /// let _: i32 = arr_iter.next().unwrap()?.as_i32()?;
-    ///
-    /// assert!(arr_iter.next().is_none());
-    /// assert!(doc.get_array("bool").is_err());
-    /// assert!(doc.get_array("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_array<'a>(&'a self, key: &str) -> Result<Option<&'a RawArray>> {
-        self.get_with(key, RawBson::as_array)
-    }
+    // /// Gets a reference to the array value corresponding to a given key or returns an error if
+    // /// the key corresponds to a value which isn't an array.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::{doc, raw::RawDocument};
+    // ///
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "array": [true, 3],
+    // ///     "bool": true,
+    // /// })?;
+    // ///
+    // /// let mut arr_iter = doc.get_array("array")?.expect("finding key array").into_iter();
+    // /// let _: bool = arr_iter.next().unwrap()?.as_bool()?;
+    // /// let _: i32 = arr_iter.next().unwrap()?.as_i32()?;
+    // ///
+    // /// assert!(arr_iter.next().is_none());
+    // /// assert!(doc.get_array("bool").is_err());
+    // /// assert!(doc.get_array("unknown")?.is_none());
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_array<'a>(&'a self, key: &str) -> Result<Option<&'a RawArray>> {
+    //     self.get_with(key, RawBson::as_array)
+    // }
 
-    /// Gets a reference to the BSON binary value corresponding to a given key or returns an error
-    /// if the key corresponds to a value which isn't a binary value.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{
-    ///     doc,
-    ///     raw::{ErrorKind, RawDocument, RawBinary},
-    ///     spec::BinarySubtype,
-    ///     Binary,
-    /// };
-    ///
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1, 2, 3] },
-    ///     "bool": true,
-    /// })?;
-    ///
-    /// assert_eq!(doc.get_binary("binary")?.map(RawBinary::as_bytes), Some(&[1, 2, 3][..]));
-    /// assert!(matches!(doc.get_binary("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_binary("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_binary<'a>(&'a self, key: &str) -> Result<Option<RawBinary<'a>>> {
-        self.get_with(key, RawBson::as_binary)
-    }
+    // /// Gets a reference to the BSON binary value corresponding to a given key or returns an
+    // error /// if the key corresponds to a value which isn't a binary value.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::{
+    // ///     doc,
+    // ///     raw::{ErrorKind, RawDocument, RawBinary},
+    // ///     spec::BinarySubtype,
+    // ///     Binary,
+    // /// };
+    // ///
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1, 2, 3] },
+    // ///     "bool": true,
+    // /// })?;
+    // ///
+    // /// assert_eq!(doc.get_binary("binary")?.map(RawBinary::as_bytes), Some(&[1, 2, 3][..]));
+    // /// assert!(matches!(doc.get_binary("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
+    // })); /// assert!(doc.get_binary("unknown")?.is_none());
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_binary<'a>(&'a self, key: &str) -> Result<Option<RawBinary<'a>>> {
+    //     self.get_with(key, RawBson::as_binary)
+    // }
 
-    /// Gets a reference to the ObjectId value corresponding to a given key or returns an error if
-    /// the key corresponds to a value which isn't an ObjectId.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, oid::ObjectId, raw::{ErrorKind, RawDocument}};
-    ///
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "_id": ObjectId::new(),
-    ///     "bool": true,
-    /// })?;
-    ///
-    /// let oid = doc.get_object_id("_id")?.unwrap();
-    /// assert!(matches!(doc.get_object_id("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_object_id("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_object_id(&self, key: &str) -> Result<Option<ObjectId>> {
-        self.get_with(key, RawBson::as_object_id)
-    }
+    // /// Gets a reference to the ObjectId value corresponding to a given key or returns an error
+    // if /// the key corresponds to a value which isn't an ObjectId.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::{doc, oid::ObjectId, raw::{ErrorKind, RawDocument}};
+    // ///
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "_id": ObjectId::new(),
+    // ///     "bool": true,
+    // /// })?;
+    // ///
+    // /// let oid = doc.get_object_id("_id")?.unwrap();
+    // /// assert!(matches!(doc.get_object_id("bool").unwrap_err().kind, ErrorKind::UnexpectedType {
+    // .. })); /// assert!(doc.get_object_id("unknown")?.is_none());
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_object_id(&self, key: &str) -> Result<Option<ObjectId>> {
+    //     self.get_with(key, RawBson::as_object_id)
+    // }
 
-    /// Gets a reference to the boolean value corresponding to a given key or returns an error if
-    /// the key corresponds to a value which isn't a boolean.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, oid::ObjectId, raw::{RawDocument, ErrorKind}};
-    ///
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "_id": ObjectId::new(),
-    ///     "bool": true,
-    /// })?;
-    ///
-    /// assert!(doc.get_bool("bool")?.unwrap());
-    /// assert!(matches!(doc.get_bool("_id").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_object_id("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_bool(&self, key: &str) -> Result<Option<bool>> {
-        self.get_with(key, RawBson::as_bool)
-    }
+    // /// Gets a reference to the boolean value corresponding to a given key or returns an error if
+    // /// the key corresponds to a value which isn't a boolean.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::{doc, oid::ObjectId, raw::{RawDocument, ErrorKind}};
+    // ///
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "_id": ObjectId::new(),
+    // ///     "bool": true,
+    // /// })?;
+    // ///
+    // /// assert!(doc.get_bool("bool")?.unwrap());
+    // /// assert!(matches!(doc.get_bool("_id").unwrap_err().kind, ErrorKind::UnexpectedType { ..
+    // })); /// assert!(doc.get_object_id("unknown")?.is_none());
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_bool(&self, key: &str) -> Result<Option<bool>> {
+    //     self.get_with(key, RawBson::as_bool)
+    // }
 
-    /// Gets a reference to the BSON DateTime value corresponding to a given key or returns an error
-    /// if the key corresponds to a value which isn't a DateTime.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{ErrorKind, RawDocument}, DateTime};
-    ///
-    /// let dt = DateTime::now();
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "created_at": dt,
-    ///     "bool": true,
-    /// })?;
-    ///
-    /// assert_eq!(doc.get_datetime("created_at")?, Some(dt));
-    /// assert!(matches!(doc.get_datetime("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_datetime("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_datetime(&self, key: &str) -> Result<Option<DateTime>> {
-        self.get_with(key, RawBson::as_datetime)
-    }
+    // /// Gets a reference to the BSON DateTime value corresponding to a given key or returns an
+    // error /// if the key corresponds to a value which isn't a DateTime.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::{doc, raw::{ErrorKind, RawDocument}, DateTime};
+    // ///
+    // /// let dt = DateTime::now();
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "created_at": dt,
+    // ///     "bool": true,
+    // /// })?;
+    // ///
+    // /// assert_eq!(doc.get_datetime("created_at")?, Some(dt));
+    // /// assert!(matches!(doc.get_datetime("bool").unwrap_err().kind, ErrorKind::UnexpectedType {
+    // .. })); /// assert!(doc.get_datetime("unknown")?.is_none());
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_datetime(&self, key: &str) -> Result<Option<DateTime>> {
+    //     self.get_with(key, RawBson::as_datetime)
+    // }
 
-    /// Gets a reference to the BSON regex value corresponding to a given key or returns an error if
-    /// the key corresponds to a value which isn't a regex.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, Regex, raw::{RawDocument, ErrorKind}};
-    ///
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "regex": Regex {
-    ///         pattern: r"end\s*$".into(),
-    ///         options: "i".into(),
-    ///     },
-    ///     "bool": true,
-    /// })?;
-    ///
-    /// assert_eq!(doc.get_regex("regex")?.unwrap().pattern(), r"end\s*$");
-    /// assert_eq!(doc.get_regex("regex")?.unwrap().options(), "i");
-    /// assert!(matches!(doc.get_regex("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_regex("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_regex<'a>(&'a self, key: &str) -> Result<Option<RawRegex<'a>>> {
-        self.get_with(key, RawBson::as_regex)
-    }
+    // /// Gets a reference to the BSON regex value corresponding to a given key or returns an error
+    // if /// the key corresponds to a value which isn't a regex.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::{doc, Regex, raw::{RawDocument, ErrorKind}};
+    // ///
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "regex": Regex {
+    // ///         pattern: r"end\s*$".into(),
+    // ///         options: "i".into(),
+    // ///     },
+    // ///     "bool": true,
+    // /// })?;
+    // ///
+    // /// assert_eq!(doc.get_regex("regex")?.unwrap().pattern(), r"end\s*$");
+    // /// assert_eq!(doc.get_regex("regex")?.unwrap().options(), "i");
+    // /// assert!(matches!(doc.get_regex("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
+    // })); /// assert!(doc.get_regex("unknown")?.is_none());
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_regex<'a>(&'a self, key: &str) -> Result<Option<RawRegex<'a>>> {
+    //     self.get_with(key, RawBson::as_regex)
+    // }
 
-    /// Gets a reference to the BSON timestamp value corresponding to a given key or returns an
-    /// error if the key corresponds to a value which isn't a timestamp.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, Timestamp, raw::{RawDocument, ErrorKind}};
-    ///
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "bool": true,
-    ///     "ts": Timestamp { time: 649876543, increment: 9 },
-    /// })?;
-    ///
-    /// let timestamp = doc.get_timestamp("ts")?.unwrap();
-    ///
-    /// assert_eq!(timestamp.time(), 649876543);
-    /// assert_eq!(timestamp.increment(), 9);
-    /// assert!(matches!(doc.get_timestamp("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert_eq!(doc.get_timestamp("unknown"), Ok(None));
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_timestamp<'a>(&'a self, key: &str) -> Result<Option<RawTimestamp<'a>>> {
-        self.get_with(key, RawBson::as_timestamp)
-    }
+    // /// Gets a reference to the BSON timestamp value corresponding to a given key or returns an
+    // /// error if the key corresponds to a value which isn't a timestamp.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::{doc, Timestamp, raw::{RawDocument, ErrorKind}};
+    // ///
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "bool": true,
+    // ///     "ts": Timestamp { time: 649876543, increment: 9 },
+    // /// })?;
+    // ///
+    // /// let timestamp = doc.get_timestamp("ts")?.unwrap();
+    // ///
+    // /// assert_eq!(timestamp.time(), 649876543);
+    // /// assert_eq!(timestamp.increment(), 9);
+    // /// assert!(matches!(doc.get_timestamp("bool").unwrap_err().kind, ErrorKind::UnexpectedType {
+    // .. })); /// assert_eq!(doc.get_timestamp("unknown"), Ok(None));
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_timestamp<'a>(&'a self, key: &str) -> Result<Option<RawTimestamp<'a>>> {
+    //     self.get_with(key, RawBson::as_timestamp)
+    // }
 
-    /// Gets a reference to the BSON int32 value corresponding to a given key or returns an error if
-    /// the key corresponds to a value which isn't a 32-bit integer.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{RawDocument, ErrorKind}};
-    ///
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "bool": true,
-    ///     "i32": 1_000_000,
-    /// })?;
-    ///
-    /// assert_eq!(doc.get_i32("i32"), Ok(Some(1_000_000)));
-    /// assert!(matches!(doc.get_i32("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert_eq!(doc.get_i32("unknown"), Ok(None));
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_i32(&self, key: &str) -> Result<Option<i32>> {
-        self.get_with(key, RawBson::as_i32)
-    }
+    // /// Gets a reference to the BSON int32 value corresponding to a given key or returns an error
+    // if /// the key corresponds to a value which isn't a 32-bit integer.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::{doc, raw::{RawDocument, ErrorKind}};
+    // ///
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "bool": true,
+    // ///     "i32": 1_000_000,
+    // /// })?;
+    // ///
+    // /// assert_eq!(doc.get_i32("i32"), Ok(Some(1_000_000)));
+    // /// assert!(matches!(doc.get_i32("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
+    // })); /// assert_eq!(doc.get_i32("unknown"), Ok(None));
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_i32(&self, key: &str) -> Result<Option<i32>> {
+    //     self.get_with(key, RawBson::as_i32)
+    // }
 
-    /// Gets a reference to the BSON int64 value corresponding to a given key or returns an error if
-    /// the key corresponds to a value which isn't a 64-bit integer.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{ErrorKind, RawDocument}};
-    ///
-    /// let doc = RawDocument::from_document(&doc! {
-    ///     "bool": true,
-    ///     "i64": 9223372036854775807_i64,
-    /// })?;
-    ///
-    /// assert_eq!(doc.get_i64("i64"), Ok(Some(9223372036854775807)));
-    /// assert!(matches!(doc.get_i64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert_eq!(doc.get_i64("unknown"), Ok(None));
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn get_i64(&self, key: &str) -> Result<Option<i64>> {
-        self.get_with(key, RawBson::as_i64)
-    }
+    // /// Gets a reference to the BSON int64 value corresponding to a given key or returns an error
+    // if /// the key corresponds to a value which isn't a 64-bit integer.
+    // ///
+    // /// ```
+    // /// # use bson::raw::Error;
+    // /// use bson::{doc, raw::{ErrorKind, RawDocument}};
+    // ///
+    // /// let doc = RawDocument::from_document(&doc! {
+    // ///     "bool": true,
+    // ///     "i64": 9223372036854775807_i64,
+    // /// })?;
+    // ///
+    // /// assert_eq!(doc.get_i64("i64"), Ok(Some(9223372036854775807)));
+    // /// assert!(matches!(doc.get_i64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
+    // })); /// assert_eq!(doc.get_i64("unknown"), Ok(None));
+    // /// # Ok::<(), Error>(())
+    // /// ```
+    // pub fn get_i64(&self, key: &str) -> Result<Option<i64>> {
+    //     self.get_with(key, RawBson::as_i64)
+    // }
 
     /// Return a reference to the contained data as a `&[u8]`
     ///
@@ -794,67 +795,82 @@ impl<'a> Iterator for Iter<'a> {
                 }
             };
 
-            let element_size = match element_type {
-                ElementType::Double => 8,
+            let (element, element_size) = match element_type {
+                ElementType::Double => {
+                    todo!()
+                    // Ok(f64::from_bits(u64::from_le_bytes(
+                    //     self.data.try_into().map_err(|_| Error {
+                    //         key: None,
+                    //         kind: ErrorKind::MalformedValue {
+                    //             message: "f64 should be 8 bytes long".into(),
+                    //         },
+                    //     })?,
+                    // )))
+                }
                 ElementType::String => {
-                    let size = 4 + i32_from_slice(&self.doc.data[valueoffset..])? as usize;
-                    self.verify_null_terminated(valueoffset..(valueoffset + size))?;
-                    size
+                    // let size = 4 + i32_from_slice(&self.doc.data[valueoffset..])? as usize;
+                    // self.verify_null_terminated(valueoffset..(valueoffset + size))?;
+                    let s = read_lenencoded(&self.doc.data[valueoffset..])?;
+                    (RawBson::String(s), s.len() + 1)
+                    // size
                 }
                 ElementType::EmbeddedDocument => {
-                    let size = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
-                    self.verify_null_terminated(valueoffset..(valueoffset + size))?;
-                    size
+                    // let size = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
+                    // self.verify_null_terminated(valueoffset..(valueoffset + size))?;
+                    // size
+                    let doc = RawDocumentRef::new(&self.doc.data[valueoffset..])?;
+                    (RawBson::Document(doc), doc.as_bytes().len())
                 }
-                ElementType::Array => {
-                    let size = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
-                    self.verify_null_terminated(valueoffset..(valueoffset + size))?;
-                    size
-                }
-                ElementType::Binary => 5 + i32_from_slice(&self.doc.data[valueoffset..])? as usize,
-                ElementType::Undefined => 0,
-                ElementType::ObjectId => 12,
-                ElementType::Boolean => 1,
-                ElementType::DateTime => 8,
-                ElementType::Null => 0,
-                ElementType::RegularExpression => {
-                    let regex = match read_nullterminated(&self.doc.data[valueoffset..]) {
-                        Ok(regex) => regex,
-                        Err(err) => return Err(err),
-                    };
+                _ => todo!(),
+                /* ElementType::Array => {
+                 *     let size = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
+                 *     self.verify_null_terminated(valueoffset..(valueoffset + size))?;
+                 *     size
+                 * }
+                 * ElementType::Binary => 5 + i32_from_slice(&self.doc.data[valueoffset..])? as
+                 * usize, ElementType::Undefined => 0,
+                 * ElementType::ObjectId => 12,
+                 * ElementType::Boolean => 1,
+                 * ElementType::DateTime => 8,
+                 * ElementType::Null => 0,
+                 * ElementType::RegularExpression => {
+                 *     let regex = match read_nullterminated(&self.doc.data[valueoffset..]) {
+                 *         Ok(regex) => regex,
+                 *         Err(err) => return Err(err),
+                 *     }; */
 
-                    let options = match read_nullterminated(
-                        &self.doc.data[valueoffset + regex.len() + 1..],
-                    ) {
-                        Ok(options) => options,
-                        Err(err) => return Err(err),
-                    };
+                /*     let options = match read_nullterminated(
+                 *         &self.doc.data[valueoffset + regex.len() + 1..],
+                 *     ) {
+                 *         Ok(options) => options,
+                 *         Err(err) => return Err(err),
+                 *     }; */
 
-                    regex.len() + options.len() + 2
-                }
-                ElementType::DbPointer => {
-                    let string_size = 4 + i32_from_slice(&self.doc.data[valueoffset..])? as usize;
-                    let id_size = 12;
-                    self.verify_null_terminated(valueoffset..(valueoffset + string_size))?;
-                    string_size + id_size
-                }
-                ElementType::JavaScriptCode => {
-                    let size = 4 + i32_from_slice(&self.doc.data[valueoffset..])? as usize;
-                    self.verify_null_terminated(valueoffset..(valueoffset + size))?;
-                    size
-                }
-                ElementType::Symbol => 4 + i32_from_slice(&self.doc.data[valueoffset..])? as usize,
-                ElementType::JavaScriptCodeWithScope => {
-                    let size = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
-                    self.verify_null_terminated(valueoffset..(valueoffset + size))?;
-                    size
-                }
-                ElementType::Int32 => 4,
-                ElementType::Timestamp => 8,
-                ElementType::Int64 => 8,
-                ElementType::Decimal128 => 16,
-                ElementType::MaxKey => 0,
-                ElementType::MinKey => 0,
+                /*     regex.len() + options.len() + 2
+                 * }
+                 * ElementType::DbPointer => {
+                 *     let string_size = 4 + i32_from_slice(&self.doc.data[valueoffset..])? as
+                 * usize;     let id_size = 12;
+                 *     self.verify_null_terminated(valueoffset..(valueoffset + string_size))?;
+                 *     string_size + id_size
+                 * }
+                 * ElementType::JavaScriptCode => {
+                 *     let size = 4 + i32_from_slice(&self.doc.data[valueoffset..])? as usize;
+                 *     self.verify_null_terminated(valueoffset..(valueoffset + size))?;
+                 *     size
+                 * }
+                 * ElementType::Symbol => 4 + i32_from_slice(&self.doc.data[valueoffset..])? as
+                 * usize, ElementType::JavaScriptCodeWithScope => {
+                 *     let size = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
+                 *     self.verify_null_terminated(valueoffset..(valueoffset + size))?;
+                 *     size
+                 * }
+                 * ElementType::Int32 => 4,
+                 * ElementType::Timestamp => 8,
+                 * ElementType::Int64 => 8,
+                 * ElementType::Decimal128 => 16,
+                 * ElementType::MaxKey => 0,
+                 * ElementType::MinKey => 0, */
             };
 
             let nextoffset = valueoffset + element_size;
@@ -862,10 +878,7 @@ impl<'a> Iterator for Iter<'a> {
 
             self.verify_in_range(valueoffset..nextoffset)?;
 
-            Ok((
-                key,
-                RawBson::new(element_type, &self.doc.data[valueoffset..nextoffset]),
-            ))
+            Ok((key, element))
         });
 
         Some(kvp_result)
