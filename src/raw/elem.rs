@@ -6,6 +6,7 @@ use crate::{de::read_bool, DateTime, Decimal128};
 #[cfg(feature = "decimal128")]
 use super::d128_from_slice;
 use super::{
+    error::ErrorKind,
     i32_from_slice,
     i64_from_slice,
     read_lenencoded,
@@ -46,9 +47,12 @@ impl<'a> RawBson<'a> {
 
     fn validate_type(self, expected: ElementType) -> Result<()> {
         if self.element_type != expected {
-            return Err(Error::UnexpectedType {
-                actual: self.element_type,
-                expected,
+            return Err(Error {
+                key: None,
+                kind: ErrorKind::UnexpectedType {
+                    actual: self.element_type,
+                    expected,
+                },
             });
         }
         Ok(())
@@ -58,8 +62,11 @@ impl<'a> RawBson<'a> {
     pub fn as_f64(self) -> Result<f64> {
         self.validate_type(ElementType::Double)?;
         Ok(f64::from_bits(u64::from_le_bytes(
-            self.data.try_into().map_err(|_| Error::MalformedValue {
-                message: "f64 should be 8 bytes long".into(),
+            self.data.try_into().map_err(|_| Error {
+                key: None,
+                kind: ErrorKind::MalformedValue {
+                    message: "f64 should be 8 bytes long".into(),
+                },
             })?,
         )))
     }
@@ -89,22 +96,25 @@ impl<'a> RawBson<'a> {
         let length = i32_from_slice(&self.data[0..4])?;
         let subtype = BinarySubtype::from(self.data[4]);
         if self.data.len() as i32 != length + 5 {
-            return Err(Error::MalformedValue {
-                message: "binary bson has wrong declared length".into(),
+            return Err(Error {
+                key: None,
+                kind: ErrorKind::MalformedValue {
+                    message: "binary bson has wrong declared length".into(),
+                },
             });
         }
         let data = match subtype {
             BinarySubtype::BinaryOld => {
                 if length < 4 {
-                    return Err(Error::MalformedValue {
+                    return Err(Error::new_without_key(ErrorKind::MalformedValue {
                         message: "old binary subtype has no inner declared length".into(),
-                    });
+                    }));
                 }
                 let oldlength = i32_from_slice(&self.data[5..9])?;
                 if oldlength + 4 != length {
-                    return Err(Error::MalformedValue {
+                    return Err(Error::new_without_key(ErrorKind::MalformedValue {
                         message: "old binary subtype has wrong inner declared length".into(),
-                    });
+                    }));
                 }
                 &self.data[9..]
             }
@@ -117,8 +127,10 @@ impl<'a> RawBson<'a> {
     pub fn as_object_id(self) -> Result<ObjectId> {
         self.validate_type(ElementType::ObjectId)?;
         Ok(ObjectId::from_bytes(self.data.try_into().map_err(
-            |_| Error::MalformedValue {
-                message: "object id should be 12 bytes long".into(),
+            |_| {
+                Error::new_without_key(ErrorKind::MalformedValue {
+                    message: "object id should be 12 bytes long".into(),
+                })
             },
         )?))
     }
@@ -127,12 +139,14 @@ impl<'a> RawBson<'a> {
     pub fn as_bool(self) -> Result<bool> {
         self.validate_type(ElementType::Boolean)?;
         if self.data.len() != 1 {
-            Err(Error::MalformedValue {
+            Err(Error::new_without_key(ErrorKind::MalformedValue {
                 message: "boolean has length != 1".into(),
-            })
+            }))
         } else {
-            read_bool(self.data).map_err(|e| Error::MalformedValue {
-                message: e.to_string(),
+            read_bool(self.data).map_err(|e| {
+                Error::new_without_key(ErrorKind::MalformedValue {
+                    message: e.to_string(),
+                })
             })
         }
     }
@@ -170,9 +184,9 @@ impl<'a> RawBson<'a> {
         let length = i32_from_slice(&self.data[..4])?;
 
         if (self.data.len() as i32) != length {
-            return Err(Error::MalformedValue {
-                message: "".to_string(),
-            });
+            return Err(Error::new_without_key(ErrorKind::MalformedValue {
+                message: format!("TODO: Java"),
+            }));
         }
 
         let code = read_lenencoded(&self.data[4..])?;
@@ -204,8 +218,10 @@ impl<'a> RawBson<'a> {
     /// Gets the decimal that's referenced or returns an error if the value isn't a BSON Decimal128.
     pub fn as_decimal128(self) -> Result<Decimal128> {
         self.validate_type(ElementType::Decimal128)?;
-        let bytes: [u8; 128 / 8] = self.data.try_into().map_err(|_| Error::MalformedValue {
-            message: format!("decimal128 value has invalid length: {}", self.data.len()),
+        let bytes: [u8; 128 / 8] = self.data.try_into().map_err(|_| {
+            Error::new_without_key(ErrorKind::MalformedValue {
+                message: format!("decimal128 value has invalid length: {}", self.data.len()),
+            })
         })?;
         Ok(Decimal128::from_bytes(bytes))
     }
@@ -323,9 +339,9 @@ impl<'a> RawRegex<'a> {
                 options: opts,
             })
         } else {
-            Err(Error::MalformedValue {
+            Err(Error::new_without_key(ErrorKind::MalformedValue {
                 message: "expected two null-terminated strings".into(),
-            })
+            }))
         }
     }
 

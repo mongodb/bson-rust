@@ -3,9 +3,44 @@ use std::str::Utf8Error;
 use crate::spec::ElementType;
 
 /// An error that occurs when attempting to parse raw BSON bytes.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 #[non_exhaustive]
-pub enum Error {
+pub struct Error {
+    /// The type of error that was encountered.
+    pub kind: ErrorKind,
+
+    /// They key associated with the error, if any.
+    pub key: Option<String>,
+}
+
+impl Error {
+    pub(crate) fn new_with_key(key: impl AsRef<str>, kind: ErrorKind) -> Self {
+        Self {
+            kind,
+            key: Some(key.as_ref().to_string()),
+        }
+    }
+
+    pub(crate) fn new_without_key(kind: ErrorKind) -> Self {
+        Self { key: None, kind }
+    }
+
+    pub(crate) fn with_key(mut self, key: impl AsRef<str>) -> Self {
+        self.key = Some(key.as_ref().to_string());
+        self
+    }
+}
+
+/// Execute the provided closure, mapping the key of the returned error (if any) to the provided
+/// key.
+pub(crate) fn try_with_key<G, F: FnOnce() -> Result<G>>(key: impl AsRef<str>, f: F) -> Result<G> {
+    f().map_err(|e| e.with_key(key))
+}
+
+/// The different categories of errors that can be returned when reading from raw BSON.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub enum ErrorKind {
     /// A BSON value did not fit the expected type.
     #[non_exhaustive]
     UnexpectedType {
@@ -24,14 +59,23 @@ pub enum Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::UnexpectedType { actual, expected } => write!(
+        let p = self
+            .key
+            .as_ref()
+            .map(|k| format!("error at key \"{}\": ", k));
+
+        let prefix = p.as_ref().map_or("", |p| p.as_str());
+
+        match &self.kind {
+            ErrorKind::UnexpectedType { actual, expected } => write!(
                 f,
-                "unexpected element type: {:?}, expected: {:?}",
-                actual, expected
+                "{} unexpected element type: {:?}, expected: {:?}",
+                prefix, actual, expected
             ),
-            Self::MalformedValue { message } => write!(f, "malformed value: {:?}", message),
-            Self::Utf8EncodingError(e) => write!(f, "utf-8 encoding error: {}", e),
+            ErrorKind::MalformedValue { message } => {
+                write!(f, "{}malformed value: {:?}", prefix, message)
+            }
+            ErrorKind::Utf8EncodingError(e) => write!(f, "{}utf-8 encoding error: {}", prefix, e),
         }
     }
 }

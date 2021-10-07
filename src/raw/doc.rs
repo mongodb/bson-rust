@@ -1,10 +1,13 @@
 use std::{
     borrow::{Borrow, Cow},
     convert::{TryFrom, TryInto},
-    ops::Deref,
+    ops::{Deref, Range},
 };
 
-use crate::DateTime;
+use crate::{
+    raw::error::{try_with_key, ErrorKind},
+    DateTime,
+};
 
 use super::{
     i32_from_slice,
@@ -79,23 +82,23 @@ impl RawDocument {
     /// ```
     pub fn new(data: Vec<u8>) -> Result<RawDocument> {
         if data.len() < 5 {
-            return Err(Error::MalformedValue {
+            return Err(Error::new_without_key(ErrorKind::MalformedValue {
                 message: "document too short".into(),
-            });
+            }));
         }
 
-        let length = i32_from_slice(&data[..4])?;
+        let length = i32_from_slice(&data)?;
 
         if data.len() as i32 != length {
-            return Err(Error::MalformedValue {
+            return Err(Error::new_without_key(ErrorKind::MalformedValue {
                 message: "document length incorrect".into(),
-            });
+            }));
         }
 
         if data[data.len() - 1] != 0 {
-            return Err(Error::MalformedValue {
+            return Err(Error::new_without_key(ErrorKind::MalformedValue {
                 message: "document not null-terminated".into(),
-            });
+            }));
         }
 
         Ok(Self { data })
@@ -117,10 +120,12 @@ impl RawDocument {
     /// ```
     pub fn from_document(doc: &Document) -> Result<RawDocument> {
         let mut data = Vec::new();
-        doc.to_writer(&mut data)
-            .map_err(|e| Error::MalformedValue {
+        doc.to_writer(&mut data).map_err(|e| Error {
+            key: None,
+            kind: ErrorKind::MalformedValue {
                 message: e.to_string(),
-            })?;
+            },
+        })?;
 
         Ok(Self { data })
     }
@@ -283,22 +288,31 @@ impl RawDocumentRef {
         let data = data.as_ref();
 
         if data.len() < 5 {
-            return Err(Error::MalformedValue {
-                message: "document too short".into(),
+            return Err(Error {
+                key: None,
+                kind: ErrorKind::MalformedValue {
+                    message: "document too short".into(),
+                },
             });
         }
 
-        let length = i32_from_slice(&data[..4])?;
+        let length = i32_from_slice(&data)?;
 
         if data.len() as i32 != length {
-            return Err(Error::MalformedValue {
-                message: "document length incorrect".into(),
+            return Err(Error {
+                key: None,
+                kind: ErrorKind::MalformedValue {
+                    message: "document length incorrect".into(),
+                },
             });
         }
 
         if data[data.len() - 1] != 0 {
-            return Err(Error::MalformedValue {
-                message: "document not null-terminated".into(),
+            return Err(Error {
+                key: None,
+                kind: ErrorKind::MalformedValue {
+                    message: "document not null-terminated".into(),
+                },
             });
         }
 
@@ -374,7 +388,7 @@ impl RawDocumentRef {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::raw::RawDocument;
+    /// use bson::raw::{ErrorKind, RawDocument};
     /// use bson::doc;
     ///
     /// let doc = RawDocument::from_document(&doc! {
@@ -383,7 +397,7 @@ impl RawDocumentRef {
     /// })?;
     ///
     /// assert_eq!(doc.get_f64("f64"), Ok(Some(2.5)));
-    /// assert!(matches!(doc.get_f64("bool"), Err(Error::UnexpectedType { .. })));
+    /// assert!(matches!(doc.get_f64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
     /// assert_eq!(doc.get_f64("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
@@ -395,7 +409,8 @@ impl RawDocumentRef {
     /// key corresponds to a value which isn't a string.
     ///
     /// ```
-    /// use bson::{doc, raw::{RawDocument, Error}};
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::{RawDocument, ErrorKind}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "string": "hello",
@@ -403,7 +418,7 @@ impl RawDocumentRef {
     /// })?;
     ///
     /// assert_eq!(doc.get_str("string"), Ok(Some("hello")));
-    /// assert!(matches!(doc.get_str("bool"), Err(Error::UnexpectedType { .. })));
+    /// assert!(matches!(doc.get_str("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
     /// assert_eq!(doc.get_str("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
@@ -415,8 +430,8 @@ impl RawDocumentRef {
     /// the key corresponds to a value which isn't a document.
     ///
     /// ```
-    /// use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocument};
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::{ErrorKind, RawDocument}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "doc": { "key": "value"},
@@ -424,7 +439,7 @@ impl RawDocumentRef {
     /// })?;
     ///
     /// assert_eq!(doc.get_document("doc")?.expect("finding key doc").get_str("key"), Ok(Some("value")));
-    /// assert!(matches!(doc.get_document("bool").unwrap_err(), Error::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_document("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
     /// assert!(doc.get_document("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -464,7 +479,7 @@ impl RawDocumentRef {
     /// # use bson::raw::Error;
     /// use bson::{
     ///     doc,
-    ///     raw::{RawDocument, RawBinary},
+    ///     raw::{ErrorKind, RawDocument, RawBinary},
     ///     spec::BinarySubtype,
     ///     Binary,
     /// };
@@ -475,7 +490,7 @@ impl RawDocumentRef {
     /// })?;
     ///
     /// assert_eq!(doc.get_binary("binary")?.map(RawBinary::as_bytes), Some(&[1, 2, 3][..]));
-    /// assert!(matches!(doc.get_binary("bool").unwrap_err(), Error::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_binary("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
     /// assert!(doc.get_binary("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -488,7 +503,7 @@ impl RawDocumentRef {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, oid::ObjectId, raw::RawDocument};
+    /// use bson::{doc, oid::ObjectId, raw::{ErrorKind, RawDocument}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
@@ -496,7 +511,7 @@ impl RawDocumentRef {
     /// })?;
     ///
     /// let oid = doc.get_object_id("_id")?.unwrap();
-    /// assert!(matches!(doc.get_object_id("bool").unwrap_err(), Error::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_object_id("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
     /// assert!(doc.get_object_id("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -508,8 +523,8 @@ impl RawDocumentRef {
     /// the key corresponds to a value which isn't a boolean.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, Error};
-    /// use bson::{doc, oid::ObjectId};
+    /// # use bson::raw::Error;
+    /// use bson::{doc, oid::ObjectId, raw::{RawDocument, ErrorKind}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
@@ -517,7 +532,7 @@ impl RawDocumentRef {
     /// })?;
     ///
     /// assert!(doc.get_bool("bool")?.unwrap());
-    /// assert!(matches!(doc.get_bool("_id").unwrap_err(), Error::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_bool("_id").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
     /// assert!(doc.get_object_id("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -530,7 +545,7 @@ impl RawDocumentRef {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocument, DateTime};
+    /// use bson::{doc, raw::{ErrorKind, RawDocument}, DateTime};
     ///
     /// let dt = DateTime::now();
     /// let doc = RawDocument::from_document(&doc! {
@@ -539,7 +554,7 @@ impl RawDocumentRef {
     /// })?;
     ///
     /// assert_eq!(doc.get_datetime("created_at")?, Some(dt));
-    /// assert!(matches!(doc.get_datetime("bool").unwrap_err(), Error::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_datetime("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
     /// assert!(doc.get_datetime("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -551,7 +566,8 @@ impl RawDocumentRef {
     /// the key corresponds to a value which isn't a regex.
     ///
     /// ```
-    /// use bson::{doc, Regex, raw::{RawDocument, Error}};
+    /// # use bson::raw::Error;
+    /// use bson::{doc, Regex, raw::{RawDocument, ErrorKind}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "regex": Regex {
@@ -563,7 +579,7 @@ impl RawDocumentRef {
     ///
     /// assert_eq!(doc.get_regex("regex")?.unwrap().pattern(), r"end\s*$");
     /// assert_eq!(doc.get_regex("regex")?.unwrap().options(), "i");
-    /// assert!(matches!(doc.get_regex("bool").unwrap_err(), Error::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_regex("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
     /// assert!(doc.get_regex("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -575,7 +591,8 @@ impl RawDocumentRef {
     /// error if the key corresponds to a value which isn't a timestamp.
     ///
     /// ```
-    /// use bson::{doc, Timestamp, raw::{RawDocument, Error}};
+    /// # use bson::raw::Error;
+    /// use bson::{doc, Timestamp, raw::{RawDocument, ErrorKind}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
@@ -586,7 +603,7 @@ impl RawDocumentRef {
     ///
     /// assert_eq!(timestamp.time(), 649876543);
     /// assert_eq!(timestamp.increment(), 9);
-    /// assert!(matches!(doc.get_timestamp("bool"), Err(Error::UnexpectedType { .. })));
+    /// assert!(matches!(doc.get_timestamp("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
     /// assert_eq!(doc.get_timestamp("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
@@ -598,8 +615,8 @@ impl RawDocumentRef {
     /// the key corresponds to a value which isn't a 32-bit integer.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, Error};
-    /// use bson::doc;
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::{RawDocument, ErrorKind}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
@@ -607,7 +624,7 @@ impl RawDocumentRef {
     /// })?;
     ///
     /// assert_eq!(doc.get_i32("i32"), Ok(Some(1_000_000)));
-    /// assert!(matches!(doc.get_i32("bool"), Err(Error::UnexpectedType { .. })));
+    /// assert!(matches!(doc.get_i32("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
     /// assert_eq!(doc.get_i32("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
@@ -620,7 +637,7 @@ impl RawDocumentRef {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocument};
+    /// use bson::{doc, raw::{ErrorKind, RawDocument}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
@@ -628,7 +645,7 @@ impl RawDocumentRef {
     /// })?;
     ///
     /// assert_eq!(doc.get_i64("i64"), Ok(Some(9223372036854775807)));
-    /// assert!(matches!(doc.get_i64("bool"), Err(Error::UnexpectedType { .. })));
+    /// assert!(matches!(doc.get_i64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
     /// assert_eq!(doc.get_i64("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
@@ -699,6 +716,43 @@ pub struct Iter<'a> {
     offset: usize,
 }
 
+impl<'a> Iter<'a> {
+    fn verify_null_terminated(&self, range: Range<usize>) -> Result<()> {
+        if range.is_empty() {
+            return Err(Error::new_without_key(ErrorKind::MalformedValue {
+                message: "value has empty range".to_string(),
+            }));
+        }
+
+        self.verify_in_range(range.clone())?;
+        if self.doc.data[range.end - 1] == 0 {
+            return Ok(());
+        } else {
+            return Err(Error {
+                key: None,
+                kind: ErrorKind::MalformedValue {
+                    message: "not null terminated".into(),
+                },
+            });
+        }
+    }
+
+    fn verify_in_range(&self, range: Range<usize>) -> Result<()> {
+        let start = range.start;
+        let len = range.len();
+        if self.doc.data.get(range).is_none() {
+            return Err(Error::new_without_key(ErrorKind::MalformedValue {
+                message: format!(
+                    "length exceeds remaining length of buffer: {} vs {}",
+                    len,
+                    self.doc.data.len() - start
+                ),
+            }));
+        }
+        Ok(())
+    }
+}
+
 impl<'a> Iterator for Iter<'a> {
     type Item = Result<(&'a str, RawBson<'a>)>;
 
@@ -708,81 +762,69 @@ impl<'a> Iterator for Iter<'a> {
                 // end of document marker
                 return None;
             } else {
-                return Some(Err(Error::MalformedValue {
-                    message: "document not null terminated".into(),
+                return Some(Err(Error {
+                    key: None,
+                    kind: ErrorKind::MalformedValue {
+                        message: "document not null terminated".into(),
+                    },
                 }));
             }
+        } else if self.offset >= self.doc.data.len() {
+            // return None on subsequent iterations after an error
+            return None;
         }
 
-        // helper function to ease the use of the `?` operator
-        fn read_next<'a>(iter: &mut Iter<'a>) -> Result<(&'a str, RawBson<'a>)> {
-            let key = read_nullterminated(&iter.doc.data[iter.offset + 1..])?;
+        let key = match read_nullterminated(&self.doc.data[self.offset + 1..]) {
+            Ok(k) => k,
+            Err(e) => return Some(Err(e)),
+        };
 
-            let valueoffset = iter.offset + 1 + key.len() + 1; // type specifier + key + \0
+        let kvp_result = try_with_key(key, || {
+            let valueoffset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
 
-            let element_type = match ElementType::from(iter.doc.data[iter.offset]) {
+            let element_type = match ElementType::from(self.doc.data[self.offset]) {
                 Some(et) => et,
                 None => {
-                    return Err(Error::MalformedValue {
-                        message: format!("invalid tag: {}", iter.doc.data[iter.offset]),
-                    })
+                    return Err(Error::new_with_key(
+                        key,
+                        ErrorKind::MalformedValue {
+                            message: format!("invalid tag: {}", self.doc.data[self.offset]),
+                        },
+                    ))
                 }
             };
 
             let element_size = match element_type {
                 ElementType::Double => 8,
                 ElementType::String => {
-                    let size =
-                        4 + i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
-
-                    if iter.doc.data[valueoffset + size - 1] != 0 {
-                        return Err(Error::MalformedValue {
-                            message: "string not null terminated".into(),
-                        });
-                    }
-
+                    let size = 4 + i32_from_slice(&self.doc.data[valueoffset..])? as usize;
+                    self.verify_null_terminated(valueoffset..(valueoffset + size))?;
                     size
                 }
                 ElementType::EmbeddedDocument => {
-                    let size =
-                        i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
-
-                    if iter.doc.data[valueoffset + size - 1] != 0 {
-                        return Err(Error::MalformedValue {
-                            message: "document not null terminated".into(),
-                        });
-                    }
-
+                    let size = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
+                    self.verify_null_terminated(valueoffset..(valueoffset + size))?;
                     size
                 }
                 ElementType::Array => {
-                    let size =
-                        i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
-
-                    if iter.doc.data[valueoffset + size - 1] != 0 {
-                        return Err(Error::MalformedValue {
-                            message: "array not null terminated".into(),
-                        });
-                    }
-
+                    let size = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
+                    self.verify_null_terminated(valueoffset..(valueoffset + size))?;
                     size
                 }
-                ElementType::Binary => {
-                    5 + i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize
-                }
+                ElementType::Binary => 5 + i32_from_slice(&self.doc.data[valueoffset..])? as usize,
                 ElementType::Undefined => 0,
                 ElementType::ObjectId => 12,
                 ElementType::Boolean => 1,
                 ElementType::DateTime => 8,
                 ElementType::Null => 0,
                 ElementType::RegularExpression => {
-                    let regex = match read_nullterminated(&iter.doc.data[valueoffset..]) {
+                    let regex = match read_nullterminated(&self.doc.data[valueoffset..]) {
                         Ok(regex) => regex,
                         Err(err) => return Err(err),
                     };
 
                     let options = match read_nullterminated(
-                        &iter.doc.data[valueoffset + regex.len() + 1..],
+                        &self.doc.data[valueoffset + regex.len() + 1..],
                     ) {
                         Ok(options) => options,
                         Err(err) => return Err(err),
@@ -791,44 +833,20 @@ impl<'a> Iterator for Iter<'a> {
                     regex.len() + options.len() + 2
                 }
                 ElementType::DbPointer => {
-                    let string_size =
-                        4 + i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
-
+                    let string_size = 4 + i32_from_slice(&self.doc.data[valueoffset..])? as usize;
                     let id_size = 12;
-
-                    if iter.doc.data[valueoffset + string_size - 1] != 0 {
-                        return Err(Error::MalformedValue {
-                            message: "DBPointer string not null-terminated".into(),
-                        });
-                    }
-
+                    self.verify_null_terminated(valueoffset..(valueoffset + string_size))?;
                     string_size + id_size
                 }
                 ElementType::JavaScriptCode => {
-                    let size =
-                        4 + i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
-
-                    if iter.doc.data[valueoffset + size - 1] != 0 {
-                        return Err(Error::MalformedValue {
-                            message: "javascript code not null-terminated".into(),
-                        });
-                    }
-
+                    let size = 4 + i32_from_slice(&self.doc.data[valueoffset..])? as usize;
+                    self.verify_null_terminated(valueoffset..(valueoffset + size))?;
                     size
                 }
-                ElementType::Symbol => {
-                    4 + i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize
-                }
+                ElementType::Symbol => 4 + i32_from_slice(&self.doc.data[valueoffset..])? as usize,
                 ElementType::JavaScriptCodeWithScope => {
-                    let size =
-                        i32_from_slice(&iter.doc.data[valueoffset..valueoffset + 4])? as usize;
-
-                    if iter.doc.data[valueoffset + size - 1] != 0 {
-                        return Err(Error::MalformedValue {
-                            message: "javascript with scope not null-terminated".into(),
-                        });
-                    }
-
+                    let size = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
+                    self.verify_null_terminated(valueoffset..(valueoffset + size))?;
                     size
                 }
                 ElementType::Int32 => 4,
@@ -840,14 +858,16 @@ impl<'a> Iterator for Iter<'a> {
             };
 
             let nextoffset = valueoffset + element_size;
-            iter.offset = nextoffset;
+            self.offset = nextoffset;
+
+            self.verify_in_range(valueoffset..nextoffset)?;
 
             Ok((
                 key,
-                RawBson::new(element_type, &iter.doc.data[valueoffset..nextoffset]),
+                RawBson::new(element_type, &self.doc.data[valueoffset..nextoffset]),
             ))
-        }
+        });
 
-        Some(read_next(self))
+        Some(kvp_result)
     }
 }

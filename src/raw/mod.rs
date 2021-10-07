@@ -113,53 +113,70 @@ pub use self::{
     array::{RawArray, RawArrayIter},
     doc::{Iter, RawDocument, RawDocumentRef},
     elem::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex, RawTimestamp},
-    error::{Error, Result},
+    error::{Error, ErrorKind, Result},
 };
 
-/// Given a 4 byte u8 slice, return an i32 calculated from the bytes in
-/// little endian order
-///
-/// # Panics
-///
-/// This function panics if given a slice that is not four bytes long.
+/// Given a u8 slice, return an i32 calculated from the first four bytes in
+/// little endian order.
 fn i32_from_slice(val: &[u8]) -> Result<i32> {
-    Ok(i32::from_le_bytes(val.try_into().map_err(|_| {
-        Error::MalformedValue {
-            message: format!("expected 4 bytes to read i32, instead got {}", val.len()),
-        }
-    })?))
+    let arr = val
+        .get(0..4)
+        .and_then(|s| s.try_into().ok())
+        .ok_or_else(|| Error {
+            key: None,
+            kind: ErrorKind::MalformedValue {
+                message: format!("expected 4 bytes to read i32, instead got {}", val.len()),
+            },
+        })?;
+    Ok(i32::from_le_bytes(arr))
 }
 
-/// Given an 8 byte u8 slice, return an i64 calculated from the bytes in
-/// little endian order
+/// Given an u8 slice, return an i64 calculated from the first 8 bytes in
+/// little endian order.
 fn i64_from_slice(val: &[u8]) -> Result<i64> {
-    Ok(i64::from_le_bytes(val.try_into().map_err(|_| {
-        Error::MalformedValue {
-            message: format!("expected 8 bytes to read i64, instead got {}", val.len()),
-        }
-    })?))
+    let arr = val
+        .get(0..8)
+        .and_then(|s| s.try_into().ok())
+        .ok_or_else(|| Error {
+            key: None,
+            kind: ErrorKind::MalformedValue {
+                message: format!("expected 8 bytes to read i64, instead got {}", val.len()),
+            },
+        })?;
+    Ok(i64::from_le_bytes(arr))
 }
 
-/// Given a 4 byte u8 slice, return a u32 calculated from the bytes in
-/// little endian order
+/// Given a 4 byte u8 slice, return a u32 calculated from the first 4 bytes in
+/// little endian order.
 fn u32_from_slice(val: &[u8]) -> Result<u32> {
-    Ok(u32::from_le_bytes(val.try_into().map_err(|_| {
-        Error::MalformedValue {
-            message: format!("expected 4 bytes to read u32, instead got {}", val.len()),
-        }
-    })?))
+    let arr = val
+        .get(0..4)
+        .and_then(|s| s.try_into().ok())
+        .ok_or_else(|| Error {
+            key: None,
+            kind: ErrorKind::MalformedValue {
+                message: format!("expected 4 bytes to read u32, instead got {}", val.len()),
+            },
+        })?;
+    Ok(u32::from_le_bytes(arr))
 }
 
 fn read_nullterminated(buf: &[u8]) -> Result<&str> {
     let mut splits = buf.splitn(2, |x| *x == 0);
-    let value = splits.next().ok_or_else(|| Error::MalformedValue {
-        message: "no value".into(),
+    let value = splits.next().ok_or_else(|| Error {
+        key: None,
+        kind: ErrorKind::MalformedValue {
+            message: "no value".into(),
+        },
     })?;
     if splits.next().is_some() {
         Ok(try_to_str(value)?)
     } else {
-        Err(Error::MalformedValue {
-            message: "expected null terminator".into(),
+        Err(Error {
+            key: None,
+            kind: ErrorKind::MalformedValue {
+                message: "expected null terminator".into(),
+            },
         })
     }
 }
@@ -167,12 +184,15 @@ fn read_nullterminated(buf: &[u8]) -> Result<&str> {
 fn read_lenencoded(buf: &[u8]) -> Result<&str> {
     let length = i32_from_slice(&buf[..4])?;
     if (buf.len() as i32) < length + 4 {
-        return Err(Error::MalformedValue {
-            message: format!(
-                "expected buffer to contain at least {} bytes, but it only has {}",
-                length + 4,
-                buf.len()
-            ),
+        return Err(Error {
+            key: None,
+            kind: ErrorKind::MalformedValue {
+                message: format!(
+                    "expected buffer to contain at least {} bytes, but it only has {}",
+                    length + 4,
+                    buf.len()
+                ),
+            },
         });
     }
     try_to_str(&buf[4..4 + length as usize - 1])
@@ -181,6 +201,9 @@ fn read_lenencoded(buf: &[u8]) -> Result<&str> {
 fn try_to_str(data: &[u8]) -> Result<&str> {
     match std::str::from_utf8(data) {
         Ok(s) => Ok(s),
-        Err(e) => Err(Error::Utf8EncodingError(e)),
+        Err(e) => Err(Error {
+            key: None,
+            kind: ErrorKind::Utf8EncodingError(e),
+        }),
     }
 }
