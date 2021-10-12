@@ -6,7 +6,7 @@ use crate::{oid::ObjectId, Bson, DateTime, Timestamp};
 /// A BSON array referencing raw bytes stored elsewhere.
 #[repr(transparent)]
 pub struct RawArray {
-    doc: RawDocumentRef,
+    pub(crate) doc: RawDocumentRef,
 }
 
 impl RawArray {
@@ -14,7 +14,7 @@ impl RawArray {
         Ok(RawArray::from_doc(RawDocumentRef::new(data)?))
     }
 
-    fn from_doc(doc: &RawDocumentRef) -> &RawArray {
+    pub(crate) fn from_doc(doc: &RawDocumentRef) -> &RawArray {
         // SAFETY:
         //
         // Dereferencing a raw pointer requires unsafe due to the potential that the pointer is

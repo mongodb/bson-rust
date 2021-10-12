@@ -118,6 +118,21 @@ pub use self::{
 
 /// Given a u8 slice, return an i32 calculated from the first four bytes in
 /// little endian order.
+fn f64_from_slice(val: &[u8]) -> Result<f64> {
+    let arr = val
+        .get(0..8)
+        .and_then(|s| s.try_into().ok())
+        .ok_or_else(|| Error {
+            key: None,
+            kind: ErrorKind::MalformedValue {
+                message: format!("expected 8 bytes to read double, instead got {}", val.len()),
+            },
+        })?;
+    Ok(f64::from_le_bytes(arr))
+}
+
+/// Given a u8 slice, return an i32 calculated from the first four bytes in
+/// little endian order.
 fn i32_from_slice(val: &[u8]) -> Result<i32> {
     let arr = val
         .get(0..4)

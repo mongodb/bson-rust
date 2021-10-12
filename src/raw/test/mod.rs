@@ -39,22 +39,34 @@ fn nested_document() {
     let docbytes = to_bytes(&doc! {
         "outer": {
             "inner": "surprise",
+            "double": 5.5,
         },
     });
     let rawdoc = RawDocumentRef::new(&docbytes).unwrap();
+    let subdoc = rawdoc
+        .get("outer")
+        .expect("get doc result")
+        .expect("get doc option")
+        .as_document()
+        .expect("as doc");
     assert_eq!(
-        rawdoc
-            .get("outer")
-            .expect("get doc result")
-            .expect("get doc option")
-            .as_document()
-            .expect("as doc")
+        subdoc
             .get("inner")
             .expect("get str result")
             .expect("get str option")
             .as_str()
             .expect("as str"),
         "surprise",
+    );
+
+    assert_eq!(
+        subdoc
+            .get("double")
+            .expect("get double result")
+            .expect("get double option")
+            .as_f64()
+            .expect("as f64 result"),
+        5.5
     );
 }
 

@@ -1,7 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
 // use chrono::{DateTime, TimeZone, Utc};
-use crate::{de::read_bool, oid, DateTime, DbPointer, Decimal128, Timestamp};
+use crate::{de::read_bool, oid, DateTime, DbPointer, Decimal128, Document, Timestamp};
 
 #[cfg(feature = "decimal128")]
 use super::d128_from_slice;
@@ -419,9 +419,8 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
                 Bson::Document(doc)
             }
             RawBson::Array(rawarray) => {
-                todo!()
-                // let v = rawarray.try_into()?;
-                // Bson::Array(v)
+                let doc: Document = rawarray.doc.try_into()?;
+                Bson::Array(doc.into_iter().map(|(_k, v)| v).collect())
             }
             RawBson::Binary(rawbson) => {
                 let RawBinary { subtype, data } = rawbson;
@@ -459,7 +458,7 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
 }
 
 /// A BSON binary value referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawBinary<'a> {
     pub(super) subtype: BinarySubtype,
     pub(super) data: &'a [u8],
@@ -540,8 +539,8 @@ impl<'a> RawTimestamp<'a> {
 /// A BSON "code with scope" value referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug)]
 pub struct RawJavaScriptCodeWithScope<'a> {
-    code: &'a str,
-    scope: &'a RawDocumentRef,
+    pub(crate) code: &'a str,
+    pub(crate) scope: &'a RawDocumentRef,
 }
 
 impl<'a> RawJavaScriptCodeWithScope<'a> {
