@@ -7,7 +7,6 @@ use crate::{
     Bson,
     DbPointer,
     Decimal128,
-    Document,
     Timestamp,
 };
 
@@ -405,8 +404,12 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
                 Bson::Document(doc)
             }
             RawBson::Array(rawarray) => {
-                let doc: Document = rawarray.doc.try_into()?;
-                Bson::Array(doc.into_iter().map(|(_k, v)| v).collect())
+                let mut items = Vec::new();
+                for v in rawarray {
+                    let bson: Bson = v?.try_into()?;
+                    items.push(bson);
+                }
+                Bson::Array(items)
             }
             RawBson::Binary(rawbson) => {
                 let RawBinary { subtype, data } = rawbson;
@@ -419,10 +422,10 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
             RawBson::Boolean(rawbson) => Bson::Boolean(rawbson),
             RawBson::DateTime(rawbson) => Bson::DateTime(rawbson),
             RawBson::Null => Bson::Null,
-            RawBson::RegularExpression(rawregex) => Bson::RegularExpression(crate::Regex {
-                pattern: String::from(rawregex.pattern()),
-                options: String::from(rawregex.options()),
-            }),
+            RawBson::RegularExpression(rawregex) => Bson::RegularExpression(crate::Regex::new(
+                rawregex.pattern.to_string(),
+                rawregex.options.to_string(),
+            )),
             RawBson::JavaScriptCode(rawbson) => Bson::JavaScriptCode(rawbson.to_string()),
             RawBson::Int32(rawbson) => Bson::Int32(rawbson),
             RawBson::Timestamp(rawbson) => Bson::Timestamp(rawbson),

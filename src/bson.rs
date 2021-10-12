@@ -730,13 +730,10 @@ impl Bson {
                 if let Ok(regex) = doc.get_document("$regularExpression") {
                     if let Ok(pattern) = regex.get_str("pattern") {
                         if let Ok(options) = regex.get_str("options") {
-                            let mut options: Vec<_> = options.chars().collect();
-                            options.sort_unstable();
-
-                            return Bson::RegularExpression(Regex {
-                                pattern: pattern.into(),
-                                options: options.into_iter().collect(),
-                            });
+                            return Bson::RegularExpression(Regex::new(
+                                pattern.into(),
+                                options.into(),
+                            ));
                         }
                     }
                 }
@@ -1012,6 +1009,15 @@ pub struct Regex {
     /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
     /// unicode.
     pub options: String,
+}
+
+impl Regex {
+    pub(crate) fn new(pattern: String, options: String) -> Self {
+        let mut chars: Vec<_> = options.chars().collect();
+        chars.sort_unstable();
+        let options: String = chars.into_iter().collect();
+        Self { pattern, options }
+    }
 }
 
 impl Display for Regex {

@@ -4,7 +4,7 @@ use super::*;
 use crate::{
     doc,
     oid::ObjectId,
-    spec::{BinarySubtype, ElementType},
+    spec::BinarySubtype,
     Binary,
     Bson,
     DateTime,

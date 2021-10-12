@@ -116,14 +116,7 @@ pub(crate) struct RegexBody {
 
 impl Regex {
     pub(crate) fn parse(self) -> crate::Regex {
-        let mut chars: Vec<_> = self.body.options.chars().collect();
-        chars.sort_unstable();
-        let options: String = chars.into_iter().collect();
-
-        crate::Regex {
-            pattern: self.body.pattern,
-            options,
-        }
+        crate::Regex::new(self.body.pattern, self.body.options)
     }
 }
 
