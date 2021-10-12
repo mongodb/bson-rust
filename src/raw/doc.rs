@@ -387,217 +387,232 @@ impl RawDocumentRef {
         Ok(None)
     }
 
-    // fn get_with<'a, T>(
-    //     &'a self,
-    //     key: &str,
-    //     f: impl FnOnce(RawBson<'a>) -> Result<T>,
-    // ) -> Result<Option<T>> {
-    //     self.get(key)?.map(f).transpose()
-    // }
+    fn get_with<'a, T>(
+        &'a self,
+        key: &str,
+        expected_type: ElementType,
+        f: impl FnOnce(RawBson<'a>) -> Option<T>,
+    ) -> ValueAccessResult<T> {
+        let bson = self.get(key)?.ok_or(ValueAccessError::NotPresent)?;
+        match f(bson) {
+            Some(t) => Ok(t),
+            None => Err(ValueAccessError::UnexpectedType {
+                expected: expected_type,
+                actual: bson.element_type(),
+            }),
+        }
+    }
 
-    // /// Gets a reference to the BSON double value corresponding to a given key or returns an
-    // error /// if the key corresponds to a value which isn't a double.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::raw::{ErrorKind, RawDocument};
-    // /// use bson::doc;
-    // ///
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "bool": true,
-    // ///     "f64": 2.5,
-    // /// })?;
-    // ///
-    // /// assert_eq!(doc.get_f64("f64"), Ok(Some(2.5)));
-    // /// assert!(matches!(doc.get_f64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
-    // })); /// assert_eq!(doc.get_f64("unknown"), Ok(None));
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_f64(&self, key: &str) -> Result<Option<f64>> {
-    //     self.get_with(key, RawBson::as_f64)
-    // }
+    /// Gets a reference to the BSON double value corresponding to a given key or returns an error
+    /// if the key corresponds to a value which isn't a double.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::raw::{ErrorKind, RawDocument};
+    /// use bson::doc;
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "bool": true,
+    ///     "f64": 2.5,
+    /// })?;
+    ///
+    /// assert_eq!(doc.get_f64("f64"), Ok(Some(2.5)));
+    /// assert!(matches!(doc.get_f64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
+    /// assert_eq!(doc.get_f64("unknown"), Ok(None));
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_f64(&self, key: &str) -> ValueAccessResult<f64> {
+        match self.get(key)? {
+            Some(RawBson::Double(f)) => Ok(f),
+            Some(bson) => Err(ValueAccessError::UnexpectedType {
+                expected: ElementType::Double,
+                actual: bson.element_type(),
+            }),
+            None => Err(ValueAccessError::NotPresent),
+        }
+    }
 
-    // /// Gets a reference to the string value corresponding to a given key or returns an error if
-    // the /// key corresponds to a value which isn't a string.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::{doc, raw::{RawDocument, ErrorKind}};
-    // ///
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "string": "hello",
-    // ///     "bool": true,
-    // /// })?;
-    // ///
-    // /// assert_eq!(doc.get_str("string"), Ok(Some("hello")));
-    // /// assert!(matches!(doc.get_str("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
-    // })); /// assert_eq!(doc.get_str("unknown"), Ok(None));
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_str<'a>(&'a self, key: &str) -> Result<Option<&'a str>> {
-    //     self.get_with(key, RawBson::as_str)
-    // }
+    /// Gets a reference to the string value corresponding to a given key or returns an error if the
+    /// key corresponds to a value which isn't a string.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::{RawDocument, ErrorKind}};
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "string": "hello",
+    ///     "bool": true,
+    /// })?;
+    ///
+    /// assert_eq!(doc.get_str("string"), Ok(Some("hello")));
+    /// assert!(matches!(doc.get_str("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
+    /// assert_eq!(doc.get_str("unknown"), Ok(None));
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_str<'a>(&'a self, key: &str) -> ValueAccessResult<&'a str> {
+        self.get_with(key, ElementType::String, RawBson::as_str)
+    }
 
-    // /// Gets a reference to the document value corresponding to a given key or returns an error
-    // if /// the key corresponds to a value which isn't a document.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::{doc, raw::{ErrorKind, RawDocument}};
-    // ///
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "doc": { "key": "value"},
-    // ///     "bool": true,
-    // /// })?;
-    // ///
-    // /// assert_eq!(doc.get_document("doc")?.expect("finding key doc").get_str("key"),
-    // Ok(Some("value"))); /// assert!(matches!(doc.get_document("bool").unwrap_err().kind,
-    // ErrorKind::UnexpectedType { .. })); /// assert!(doc.get_document("unknown")?.is_none());
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_document<'a>(&'a self, key: &str) -> Result<Option<&'a RawDocumentRef>> {
-    //     self.get_with(key, RawBson::as_document)
-    // }
+    /// Gets a reference to the document value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't a document.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::{ErrorKind, RawDocument}};
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "doc": { "key": "value"},
+    ///     "bool": true,
+    /// })?;
+    ///
+    /// assert_eq!(doc.get_document("doc")?.expect("finding key doc").get_str("key"), Ok(Some("value")));
+    /// assert!(matches!(doc.get_document("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
+    /// assert!(doc.get_document("unknown")?.is_none());
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_document<'a>(&'a self, key: &str) -> ValueAccessResult<&'a RawDocumentRef> {
+        self.get_with(key, ElementType::EmbeddedDocument, RawBson::as_document)
+    }
 
-    // /// Gets a reference to the array value corresponding to a given key or returns an error if
-    // /// the key corresponds to a value which isn't an array.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::{doc, raw::RawDocument};
-    // ///
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "array": [true, 3],
-    // ///     "bool": true,
-    // /// })?;
-    // ///
-    // /// let mut arr_iter = doc.get_array("array")?.expect("finding key array").into_iter();
-    // /// let _: bool = arr_iter.next().unwrap()?.as_bool()?;
-    // /// let _: i32 = arr_iter.next().unwrap()?.as_i32()?;
-    // ///
-    // /// assert!(arr_iter.next().is_none());
-    // /// assert!(doc.get_array("bool").is_err());
-    // /// assert!(doc.get_array("unknown")?.is_none());
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_array<'a>(&'a self, key: &str) -> Result<Option<&'a RawArray>> {
-    //     self.get_with(key, RawBson::as_array)
-    // }
+    /// Gets a reference to the array value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't an array.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::RawDocument};
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "array": [true, 3],
+    ///     "bool": true,
+    /// })?;
+    ///
+    /// let mut arr_iter = doc.get_array("array")?.expect("finding key array").into_iter();
+    /// let _: bool = arr_iter.next().unwrap()?.as_bool()?;
+    /// let _: i32 = arr_iter.next().unwrap()?.as_i32()?;
+    ///
+    /// assert!(arr_iter.next().is_none());
+    /// assert!(doc.get_array("bool").is_err());
+    /// assert!(doc.get_array("unknown")?.is_none());
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_array<'a>(&'a self, key: &str) -> ValueAccessResult<&'a RawArray> {
+        self.get_with(key, ElementType::Array, RawBson::as_array)
+    }
 
-    // /// Gets a reference to the BSON binary value corresponding to a given key or returns an
-    // error /// if the key corresponds to a value which isn't a binary value.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::{
-    // ///     doc,
-    // ///     raw::{ErrorKind, RawDocument, RawBinary},
-    // ///     spec::BinarySubtype,
-    // ///     Binary,
-    // /// };
-    // ///
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1, 2, 3] },
-    // ///     "bool": true,
-    // /// })?;
-    // ///
-    // /// assert_eq!(doc.get_binary("binary")?.map(RawBinary::as_bytes), Some(&[1, 2, 3][..]));
-    // /// assert!(matches!(doc.get_binary("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
-    // })); /// assert!(doc.get_binary("unknown")?.is_none());
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_binary<'a>(&'a self, key: &str) -> Result<Option<RawBinary<'a>>> {
-    //     self.get_with(key, RawBson::as_binary)
-    // }
+    /// Gets a reference to the BSON binary value corresponding to a given key or returns an error
+    /// if the key corresponds to a value which isn't a binary value.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{
+    ///     doc,
+    ///     raw::{ErrorKind, RawDocument, RawBinary},
+    ///     spec::BinarySubtype,
+    ///     Binary,
+    /// };
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1, 2, 3] },
+    ///     "bool": true,
+    /// })?;
+    ///
+    /// assert_eq!(doc.get_binary("binary")?.map(RawBinary::as_bytes), Some(&[1, 2, 3][..]));
+    /// assert!(matches!(doc.get_binary("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
+    /// assert!(doc.get_binary("unknown")?.is_none());
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_binary<'a>(&'a self, key: &str) -> ValueAccessResult<RawBinary<'a>> {
+        self.get_with(key, ElementType::Binary, RawBson::as_binary)
+    }
 
-    // /// Gets a reference to the ObjectId value corresponding to a given key or returns an error
-    // if /// the key corresponds to a value which isn't an ObjectId.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::{doc, oid::ObjectId, raw::{ErrorKind, RawDocument}};
-    // ///
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "_id": ObjectId::new(),
-    // ///     "bool": true,
-    // /// })?;
-    // ///
-    // /// let oid = doc.get_object_id("_id")?.unwrap();
-    // /// assert!(matches!(doc.get_object_id("bool").unwrap_err().kind, ErrorKind::UnexpectedType {
-    // .. })); /// assert!(doc.get_object_id("unknown")?.is_none());
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_object_id(&self, key: &str) -> Result<Option<ObjectId>> {
-    //     self.get_with(key, RawBson::as_object_id)
-    // }
+    /// Gets a reference to the ObjectId value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't an ObjectId.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{doc, oid::ObjectId, raw::{ErrorKind, RawDocument}};
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "_id": ObjectId::new(),
+    ///     "bool": true,
+    /// })?;
+    ///
+    /// let oid = doc.get_object_id("_id")?.unwrap();
+    /// assert!(matches!(doc.get_object_id("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
+    /// assert!(doc.get_object_id("unknown")?.is_none());
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_object_id(&self, key: &str) -> ValueAccessResult<ObjectId> {
+        self.get_with(key, ElementType::ObjectId, RawBson::as_object_id)
+    }
 
-    // /// Gets a reference to the boolean value corresponding to a given key or returns an error if
-    // /// the key corresponds to a value which isn't a boolean.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::{doc, oid::ObjectId, raw::{RawDocument, ErrorKind}};
-    // ///
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "_id": ObjectId::new(),
-    // ///     "bool": true,
-    // /// })?;
-    // ///
-    // /// assert!(doc.get_bool("bool")?.unwrap());
-    // /// assert!(matches!(doc.get_bool("_id").unwrap_err().kind, ErrorKind::UnexpectedType { ..
-    // })); /// assert!(doc.get_object_id("unknown")?.is_none());
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_bool(&self, key: &str) -> Result<Option<bool>> {
-    //     self.get_with(key, RawBson::as_bool)
-    // }
+    /// Gets a reference to the boolean value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't a boolean.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{doc, oid::ObjectId, raw::{RawDocument, ErrorKind}};
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "_id": ObjectId::new(),
+    ///     "bool": true,
+    /// })?;
+    ///
+    /// assert!(doc.get_bool("bool")?.unwrap());
+    /// assert!(matches!(doc.get_bool("_id").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
+    /// assert!(doc.get_object_id("unknown")?.is_none());
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_bool(&self, key: &str) -> ValueAccessResult<bool> {
+        self.get_with(key, ElementType::Boolean, RawBson::as_bool)
+    }
 
-    // /// Gets a reference to the BSON DateTime value corresponding to a given key or returns an
-    // error /// if the key corresponds to a value which isn't a DateTime.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::{doc, raw::{ErrorKind, RawDocument}, DateTime};
-    // ///
-    // /// let dt = DateTime::now();
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "created_at": dt,
-    // ///     "bool": true,
-    // /// })?;
-    // ///
-    // /// assert_eq!(doc.get_datetime("created_at")?, Some(dt));
-    // /// assert!(matches!(doc.get_datetime("bool").unwrap_err().kind, ErrorKind::UnexpectedType {
-    // .. })); /// assert!(doc.get_datetime("unknown")?.is_none());
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_datetime(&self, key: &str) -> Result<Option<DateTime>> {
-    //     self.get_with(key, RawBson::as_datetime)
-    // }
+    /// Gets a reference to the BSON DateTime value corresponding to a given key or returns an
+    /// error if the key corresponds to a value which isn't a DateTime.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::{ErrorKind, RawDocument}, DateTime};
+    ///
+    /// let dt = DateTime::now();
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "created_at": dt,
+    ///     "bool": true,
+    /// })?;
+    ///
+    /// assert_eq!(doc.get_datetime("created_at")?, Some(dt));
+    /// assert!(matches!(doc.get_datetime("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
+    /// assert!(doc.get_datetime("unknown")?.is_none());
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_datetime(&self, key: &str) -> ValueAccessResult<DateTime> {
+        self.get_with(key, ElementType::DateTime, RawBson::as_datetime)
+    }
 
-    // /// Gets a reference to the BSON regex value corresponding to a given key or returns an error
-    // if /// the key corresponds to a value which isn't a regex.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::{doc, Regex, raw::{RawDocument, ErrorKind}};
-    // ///
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "regex": Regex {
-    // ///         pattern: r"end\s*$".into(),
-    // ///         options: "i".into(),
-    // ///     },
-    // ///     "bool": true,
-    // /// })?;
-    // ///
-    // /// assert_eq!(doc.get_regex("regex")?.unwrap().pattern(), r"end\s*$");
-    // /// assert_eq!(doc.get_regex("regex")?.unwrap().options(), "i");
-    // /// assert!(matches!(doc.get_regex("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
-    // })); /// assert!(doc.get_regex("unknown")?.is_none());
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_regex<'a>(&'a self, key: &str) -> Result<Option<RawRegex<'a>>> {
-    //     self.get_with(key, RawBson::as_regex)
-    // }
+    /// Gets a reference to the BSON regex value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't a regex.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{doc, Regex, raw::{RawDocument, ErrorKind}};
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "regex": Regex {
+    ///         pattern: r"end\s*$".into(),
+    ///         options: "i".into(),
+    ///     },
+    ///     "bool": true,
+    /// })?;
+    ///
+    /// assert_eq!(doc.get_regex("regex")?.unwrap().pattern(), r"end\s*$");
+    /// assert_eq!(doc.get_regex("regex")?.unwrap().options(), "i");
+    /// assert!(matches!(doc.get_regex("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
+    /// assert!(doc.get_regex("unknown")?.is_none());
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_regex<'a>(&'a self, key: &str) -> ValueAccessResult<RawRegex<'a>> {
+        self.get_with(key, ElementType::RegularExpression, RawBson::as_regex)
+    }
 
     // /// Gets a reference to the BSON timestamp value corresponding to a given key or returns an
     // /// error if the key corresponds to a value which isn't a timestamp.
@@ -989,5 +1004,31 @@ impl<'a> Iterator for Iter<'a> {
         }
 
         Some(kvp_result)
+    }
+}
+
+type ValueAccessResult<T> = std::result::Result<T, ValueAccessError>;
+
+/// Error to indicate that either a value was empty or it contained an unexpected
+/// type, for use with the direct getters.
+#[derive(PartialEq, Clone)]
+#[non_exhaustive]
+pub enum ValueAccessError {
+    /// Cannot find the expected field with the specified key
+    NotPresent,
+
+    /// Found a Bson value with the specified key, but not with the expected type
+    UnexpectedType {
+        expected: ElementType,
+        actual: ElementType,
+    },
+
+    /// An error was encountered attempting to decode the document.
+    InvalidBson(super::Error),
+}
+
+impl From<super::Error> for ValueAccessError {
+    fn from(e: super::Error) -> Self {
+        ValueAccessError::InvalidBson(e)
     }
 }
