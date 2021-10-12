@@ -107,7 +107,9 @@ mod error;
 #[cfg(test)]
 mod test;
 
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
+
+use crate::de::MIN_BSON_STRING_SIZE;
 
 pub use self::{
     array::{RawArray, RawArrayIter},
@@ -183,19 +185,38 @@ fn read_nullterminated(buf: &[u8]) -> Result<&str> {
 
 fn read_lenencoded(buf: &[u8]) -> Result<&str> {
     let length = i32_from_slice(&buf[..4])?;
-    if (buf.len() as i32) < length + 4 {
+    let end = checked_add(usize_try_from_i32(length)?, 4)?;
+
+    if end < MIN_BSON_STRING_SIZE as usize {
+        return Err(Error::new_without_key(ErrorKind::MalformedValue {
+            message: format!(
+                "BSON length encoded string needs to be at least {} bytes, instead got {}",
+                MIN_BSON_STRING_SIZE, end
+            ),
+        }));
+    }
+
+    if buf.len() < end {
         return Err(Error {
             key: None,
             kind: ErrorKind::MalformedValue {
                 message: format!(
                     "expected buffer to contain at least {} bytes, but it only has {}",
-                    length + 4,
+                    end,
                     buf.len()
                 ),
             },
         });
     }
-    try_to_str(&buf[4..4 + length as usize - 1])
+
+    if buf[end - 1] != 0 {
+        return Err(Error::new_without_key(ErrorKind::MalformedValue {
+            message: "expected string to be null-terminated".to_string(),
+        }));
+    }
+
+    // exclude null byte
+    try_to_str(&buf[4..(end - 1)])
 }
 
 fn try_to_str(data: &[u8]) -> Result<&str> {
@@ -206,4 +227,20 @@ fn try_to_str(data: &[u8]) -> Result<&str> {
             kind: ErrorKind::Utf8EncodingError(e),
         }),
     }
+}
+
+fn usize_try_from_i32(i: i32) -> Result<usize> {
+    usize::try_from(i).map_err(|e| {
+        Error::new_without_key(ErrorKind::MalformedValue {
+            message: e.to_string(),
+        })
+    })
+}
+
+fn checked_add(lhs: usize, rhs: usize) -> Result<usize> {
+    lhs.checked_add(rhs).ok_or_else(|| {
+        Error::new_without_key(ErrorKind::MalformedValue {
+            message: "attempted to add with overflow".to_string(),
+        })
+    })
 }

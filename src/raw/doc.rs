@@ -1,12 +1,13 @@
 use std::{
     borrow::{Borrow, Cow},
     convert::{TryFrom, TryInto},
-    ops::{Deref, Range},
+    ops::Deref,
 };
 
 use crate::{
-    de::read_bool,
+    de::{read_bool, MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
     raw::{
+        checked_add,
         elem::RawDbPointer,
         error::{try_with_key, ErrorKind},
         f64_from_slice,
@@ -209,6 +210,7 @@ impl<'a> IntoIterator for &'a RawDocument {
         Iter {
             doc: &self,
             offset: 4,
+            valid: true,
         }
     }
 }
@@ -307,7 +309,6 @@ impl RawDocumentRef {
         }
 
         let length = i32_from_slice(&data)?;
-        println!("got length {}", length);
 
         if data.len() as i32 != length {
             return Err(Error {
@@ -717,6 +718,7 @@ impl<'a> IntoIterator for &'a RawDocumentRef {
         Iter {
             doc: self,
             offset: 4,
+            valid: true,
         }
     }
 }
@@ -725,37 +727,21 @@ impl<'a> IntoIterator for &'a RawDocumentRef {
 pub struct Iter<'a> {
     doc: &'a RawDocumentRef,
     offset: usize,
+
+    /// Whether the underlying doc is assumed to be valid or if an error has been encountered.
+    /// After an error, all subsequent iterations will return None.
+    valid: bool,
 }
 
 impl<'a> Iter<'a> {
-    fn verify_null_terminated(&self, range: Range<usize>) -> Result<()> {
-        if range.is_empty() {
-            return Err(Error::new_without_key(ErrorKind::MalformedValue {
-                message: "value has empty range".to_string(),
-            }));
-        }
-
-        self.verify_in_range(range.clone())?;
-        if self.doc.data[range.end - 1] == 0 {
-            return Ok(());
-        } else {
-            return Err(Error {
-                key: None,
-                kind: ErrorKind::MalformedValue {
-                    message: "not null terminated".into(),
-                },
-            });
-        }
-    }
-
-    fn verify_in_range(&self, range: Range<usize>) -> Result<()> {
-        let start = range.start;
-        let len = range.len();
+    fn verify_enough_bytes(&self, start: usize, num_bytes: usize) -> Result<()> {
+        let end = checked_add(start, num_bytes)?;
+        let range = start..end;
         if self.doc.data.get(range).is_none() {
             return Err(Error::new_without_key(ErrorKind::MalformedValue {
                 message: format!(
                     "length exceeds remaining length of buffer: {} vs {}",
-                    len,
+                    num_bytes,
                     self.doc.data.len() - start
                 ),
             }));
@@ -764,7 +750,7 @@ impl<'a> Iter<'a> {
     }
 
     fn next_oid(&self, starting_at: usize) -> Result<ObjectId> {
-        self.verify_in_range(starting_at..(starting_at + 12))?;
+        self.verify_enough_bytes(starting_at, 12)?;
         let oid = ObjectId::from_bytes(
             self.doc.data[starting_at..(starting_at + 12)]
                 .try_into()
@@ -775,9 +761,25 @@ impl<'a> Iter<'a> {
 
     fn next_document(&self, starting_at: usize) -> Result<&'a RawDocumentRef> {
         let size = i32_from_slice(&self.doc.data[starting_at..])? as usize;
-        let range = starting_at..(starting_at + size);
-        self.verify_null_terminated(range.clone())?;
-        RawDocumentRef::new(&self.doc.data[range])
+
+        if size < MIN_BSON_DOCUMENT_SIZE as usize {
+            return Err(Error::new_without_key(ErrorKind::MalformedValue {
+                message: format!("document too small: {} bytes", size),
+            }));
+        }
+
+        self.verify_enough_bytes(starting_at, size)?;
+        let end = starting_at + size;
+
+        if self.doc.data[end - 1] != 0 {
+            return Err(Error {
+                key: None,
+                kind: ErrorKind::MalformedValue {
+                    message: "not null terminated".into(),
+                },
+            });
+        }
+        RawDocumentRef::new(&self.doc.data[starting_at..end])
     }
 }
 
@@ -785,11 +787,14 @@ impl<'a> Iterator for Iter<'a> {
     type Item = Result<(&'a str, RawBson<'a>)>;
 
     fn next(&mut self) -> Option<Result<(&'a str, RawBson<'a>)>> {
-        if self.offset == self.doc.data.len() - 1 {
+        if !self.valid {
+            return None;
+        } else if self.offset == self.doc.data.len() - 1 {
             if self.doc.data[self.offset] == 0 {
                 // end of document marker
                 return None;
             } else {
+                self.valid = false;
                 return Some(Err(Error {
                     key: None,
                     kind: ErrorKind::MalformedValue {
@@ -798,16 +803,19 @@ impl<'a> Iterator for Iter<'a> {
                 }));
             }
         } else if self.offset >= self.doc.data.len() {
-            // return None on subsequent iterations after an error
-            return None;
+            self.valid = false;
+            return Some(Err(Error::new_without_key(ErrorKind::MalformedValue {
+                message: "iteration overflowed document".to_string(),
+            })));
         }
 
         let key = match read_nullterminated(&self.doc.data[self.offset + 1..]) {
             Ok(k) => k,
-            Err(e) => return Some(Err(e)),
+            Err(e) => {
+                self.valid = false;
+                return Some(Err(e));
+            }
         };
-
-        println!("iterating {}", key);
 
         let kvp_result = try_with_key(key, || {
             let valueoffset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
@@ -823,8 +831,6 @@ impl<'a> Iterator for Iter<'a> {
                     ))
                 }
             };
-
-            println!("et: {:?}", element_type);
 
             let (element, element_size) = match element_type {
                 ElementType::Int32 => {
@@ -857,7 +863,7 @@ impl<'a> Iterator for Iter<'a> {
                 ElementType::Binary => {
                     let len = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
                     let data_start = valueoffset + 4 + 1;
-                    self.verify_in_range(valueoffset..(data_start + len))?;
+                    self.verify_enough_bytes(valueoffset, len)?;
                     let subtype = BinarySubtype::from(self.doc.data[valueoffset + 4]);
                     let data = match subtype {
                         BinarySubtype::BinaryOld => {
@@ -868,7 +874,7 @@ impl<'a> Iterator for Iter<'a> {
                                 }));
                             }
                             let oldlength = i32_from_slice(&self.doc.data[data_start..])? as usize;
-                            if oldlength + 4 != len {
+                            if checked_add(oldlength, 4)? != len {
                                 return Err(Error::new_without_key(ErrorKind::MalformedValue {
                                     message: "old binary subtype has wrong inner declared length"
                                         .into(),
@@ -925,12 +931,18 @@ impl<'a> Iterator for Iter<'a> {
                 }
                 ElementType::JavaScriptCodeWithScope => {
                     let length = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
-                    self.verify_in_range(valueoffset..(valueoffset + length))?;
-                    let code = read_lenencoded(&self.doc.data[valueoffset + 4..])?;
 
-                    let scope_start = valueoffset + 4 + 4 + code.len() + 1;
-                    let scope =
-                        RawDocumentRef::new(&self.doc.data[scope_start..(valueoffset + length)])?;
+                    if length < MIN_CODE_WITH_SCOPE_SIZE as usize {
+                        return Err(Error::new_without_key(ErrorKind::MalformedValue {
+                            message: "code with scope length too small".to_string(),
+                        }));
+                    }
+
+                    self.verify_enough_bytes(valueoffset, length)?;
+                    let slice = &self.doc.data[valueoffset..(valueoffset + length)];
+                    let code = read_lenencoded(&slice[4..])?;
+                    let scope_start = 4 + 4 + code.len() + 1;
+                    let scope = RawDocumentRef::new(&slice[scope_start..])?;
                     (
                         RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
                             code,
@@ -952,7 +964,7 @@ impl<'a> Iterator for Iter<'a> {
                     (RawBson::Symbol(s), 4 + s.len() + 1)
                 }
                 ElementType::Decimal128 => {
-                    self.verify_in_range(valueoffset..(valueoffset + 16))?;
+                    self.verify_enough_bytes(valueoffset, 16)?;
                     (
                         RawBson::Decimal128(Decimal128::from_bytes(
                             self.doc.data[valueoffset..(valueoffset + 16)]
@@ -966,13 +978,15 @@ impl<'a> Iterator for Iter<'a> {
                 ElementType::MaxKey => (RawBson::MaxKey, 0),
             };
 
-            let nextoffset = valueoffset + element_size;
-            self.offset = nextoffset;
-
-            self.verify_in_range(valueoffset..nextoffset)?;
+            self.offset = valueoffset + element_size;
+            self.verify_enough_bytes(valueoffset, element_size)?;
 
             Ok((key, element))
         });
+
+        if kvp_result.is_err() {
+            self.valid = false;
+        }
 
         Some(kvp_result)
     }
