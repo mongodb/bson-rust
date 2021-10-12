@@ -1,26 +1,14 @@
 use std::convert::{TryFrom, TryInto};
 
-// use chrono::{DateTime, TimeZone, Utc};
-use crate::{de::read_bool, oid, DateTime, DbPointer, Decimal128, Document, Timestamp};
-
-#[cfg(feature = "decimal128")]
-use super::d128_from_slice;
-use super::{
-    error::ErrorKind,
-    i32_from_slice,
-    i64_from_slice,
-    read_lenencoded,
-    read_nullterminated,
-    u32_from_slice,
-    Error,
-    RawArray,
-    RawDocumentRef,
-    Result,
-};
+use super::{Error, RawArray, RawDocumentRef, Result};
 use crate::{
-    oid::ObjectId,
+    oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
     Bson,
+    DbPointer,
+    Decimal128,
+    Document,
+    Timestamp,
 };
 
 /// A BSON value referencing raw bytes stored elsewhere.
@@ -66,9 +54,8 @@ pub enum RawBson<'a> {
     MaxKey,
     /// Min key
     MinKey,
-    // TODO: this
     /// DBPointer (Deprecated)
-    DbPointer(u8),
+    DbPointer(RawDbPointer<'a>),
 }
 
 // #[derive(Clone, Copy, Debug)]
@@ -406,7 +393,6 @@ impl<'a> RawBson<'a> {
 //     }
 // }
 
-// TODO: finish implementation
 impl<'a> TryFrom<RawBson<'a>> for Bson {
     type Error = Error;
 
@@ -442,7 +428,10 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
             RawBson::Timestamp(rawbson) => Bson::Timestamp(rawbson),
             RawBson::Int64(rawbson) => Bson::Int64(rawbson),
             RawBson::Undefined => Bson::Undefined,
-            RawBson::DbPointer(rawbson) => todo!("TODO finish this"),
+            RawBson::DbPointer(rawbson) => Bson::DbPointer(DbPointer {
+                namespace: rawbson.namespace.to_string(),
+                id: rawbson.id,
+            }),
             RawBson::Symbol(rawbson) => Bson::Symbol(rawbson.to_string()),
             RawBson::JavaScriptCodeWithScope(rawbson) => {
                 Bson::JavaScriptCodeWithScope(crate::JavaScriptCodeWithScope {
@@ -465,10 +454,6 @@ pub struct RawBinary<'a> {
 }
 
 impl<'a> RawBinary<'a> {
-    fn new(subtype: BinarySubtype, data: &'a [u8]) -> RawBinary<'a> {
-        RawBinary { subtype, data }
-    }
-
     /// Gets the subtype of the binary value.
     pub fn subtype(self) -> BinarySubtype {
         self.subtype
@@ -488,21 +473,6 @@ pub struct RawRegex<'a> {
 }
 
 impl<'a> RawRegex<'a> {
-    pub(super) fn new(data: &'a [u8]) -> Result<RawRegex<'a>> {
-        let pattern = read_nullterminated(data)?;
-        let opts = read_nullterminated(&data[pattern.len() + 1..])?;
-        if pattern.len() + opts.len() == data.len() - 2 {
-            Ok(RawRegex {
-                pattern,
-                options: opts,
-            })
-        } else {
-            Err(Error::new_without_key(ErrorKind::MalformedValue {
-                message: "expected two null-terminated strings".into(),
-            }))
-        }
-    }
-
     /// Gets the pattern portion of the regex.
     pub fn pattern(self) -> &'a str {
         self.pattern
@@ -511,28 +481,6 @@ impl<'a> RawRegex<'a> {
     /// Gets the options portion of the regex.
     pub fn options(self) -> &'a str {
         self.options
-    }
-}
-
-/// A BSON timestamp referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct RawTimestamp<'a> {
-    data: &'a [u8],
-}
-
-impl<'a> RawTimestamp<'a> {
-    /// Gets the time portion of the timestamp.
-    pub fn time(&self) -> u32 {
-        // RawBsonTimestamp can only be constructed with the correct data length, so this should
-        // always succeed.
-        u32_from_slice(&self.data[4..8]).unwrap()
-    }
-
-    /// Gets the increment portion of the timestamp.
-    pub fn increment(&self) -> u32 {
-        // RawBsonTimestamp can only be constructed with the correct data length, so this should
-        // always succeed.
-        u32_from_slice(&self.data[0..4]).unwrap()
     }
 }
 
@@ -553,4 +501,10 @@ impl<'a> RawJavaScriptCodeWithScope<'a> {
     pub fn scope(self) -> &'a RawDocumentRef {
         self.scope
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RawDbPointer<'a> {
+    pub(crate) namespace: &'a str,
+    pub(crate) id: ObjectId,
 }

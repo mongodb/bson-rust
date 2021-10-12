@@ -7,6 +7,7 @@ use std::{
 use crate::{
     de::read_bool,
     raw::{
+        elem::RawDbPointer,
         error::{try_with_key, ErrorKind},
         f64_from_slice,
         i64_from_slice,
@@ -27,7 +28,6 @@ use super::{
     RawBinary,
     RawBson,
     RawRegex,
-    RawTimestamp,
     Result,
 };
 #[cfg(feature = "decimal128")]
@@ -940,10 +940,12 @@ impl<'a> Iterator for Iter<'a> {
                     )
                 }
                 ElementType::DbPointer => {
-                    let ns = read_lenencoded(&self.doc.data[valueoffset..])?;
-                    let oid = self.next_oid(valueoffset + 4 + ns.len() + 1)?;
-                    // TODO: fix this
-                    (RawBson::DbPointer(0), 4 + ns.len() + 1 + 12)
+                    let namespace = read_lenencoded(&self.doc.data[valueoffset..])?;
+                    let id = self.next_oid(valueoffset + 4 + namespace.len() + 1)?;
+                    (
+                        RawBson::DbPointer(RawDbPointer { namespace, id }),
+                        4 + namespace.len() + 1 + 12,
+                    )
                 }
                 ElementType::Symbol => {
                     let s = read_lenencoded(&self.doc.data[valueoffset..])?;

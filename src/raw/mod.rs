@@ -112,7 +112,7 @@ use std::convert::TryInto;
 pub use self::{
     array::{RawArray, RawArrayIter},
     doc::{Iter, RawDocument, RawDocumentRef},
-    elem::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex, RawTimestamp},
+    elem::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex},
     error::{Error, ErrorKind, Result},
 };
 
@@ -159,21 +159,6 @@ fn i64_from_slice(val: &[u8]) -> Result<i64> {
             },
         })?;
     Ok(i64::from_le_bytes(arr))
-}
-
-/// Given a 4 byte u8 slice, return a u32 calculated from the first 4 bytes in
-/// little endian order.
-fn u32_from_slice(val: &[u8]) -> Result<u32> {
-    let arr = val
-        .get(0..4)
-        .and_then(|s| s.try_into().ok())
-        .ok_or_else(|| Error {
-            key: None,
-            kind: ErrorKind::MalformedValue {
-                message: format!("expected 4 bytes to read u32, instead got {}", val.len()),
-            },
-        })?;
-    Ok(u32::from_le_bytes(arr))
 }
 
 fn read_nullterminated(buf: &[u8]) -> Result<&str> {

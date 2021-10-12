@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use super::{Error, Iter, RawBinary, RawBson, RawDocumentRef, RawRegex, RawTimestamp, Result};
+use super::{Error, Iter, RawBinary, RawBson, RawDocumentRef, RawRegex, Result};
 use crate::{oid::ObjectId, Bson, DateTime, Timestamp};
 
 /// A BSON array referencing raw bytes stored elsewhere.
@@ -10,10 +10,6 @@ pub struct RawArray {
 }
 
 impl RawArray {
-    pub(super) fn new(data: &[u8]) -> Result<&RawArray> {
-        Ok(RawArray::from_doc(RawDocumentRef::new(data)?))
-    }
-
     pub(crate) fn from_doc(doc: &RawDocumentRef) -> &RawArray {
         // SAFETY:
         //
