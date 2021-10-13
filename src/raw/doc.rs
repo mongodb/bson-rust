@@ -37,12 +37,12 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// A BSON document, stored as raw bytes on the heap. This can be created from a `Vec<u8>` or
 /// a [`bson::Document`].
 ///
-/// Accessing elements within a `RawDocument` is similar to element access in [bson::Document], but
-/// because the contents are parsed during iteration, instead of at creation time, format errors can
-/// happen at any time during use.
+/// Accessing elements within a [`RawDocument`] is similar to element access in [`bson::Document`],
+/// but because the contents are parsed during iteration instead of at creation time, format errors
+/// can happen at any time during use.
 ///
-/// Iterating over a RawDocument yields either an error or a key-value pair that borrows from the
-/// original document without making any additional allocations.
+/// Iterating over a [`RawDocument`] yields either an error or a key-value pair that borrows from
+/// the original document without making any additional allocations.
 ///
 /// ```
 /// # use bson::raw::{RawDocument, Error};
@@ -55,11 +55,11 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// # Ok::<(), Error>(())
 /// ```
 ///
-/// Individual elements can be accessed using [`RawDocument::get`](RawDocument::get) or any of the
-/// type-specific getters, such as [`RawDocument::get_object_id`](RawDocument::get_object_id) or
-/// [`RawDocument::get_str`](RawDocument::get_str). Note that accessing elements is an O(N)
-/// operation, as it requires iterating through the document from the beginning to find the
-/// requested key.
+/// This type implements `Deref` to `RawDoc`, meaning that all methods on `RawDoc` slices are
+/// available on `RawDocument` values as well. This includes [`RawDoc::get`] or any of the
+/// type-specific getters, such as [`RawDoc::get_object_id`] or [`RawDoc::get_str`]. Note that
+/// accessing elements is an O(N) operation, as it requires iterating through the document from the
+/// beginning to find the requested key.
 ///
 /// ```
 /// # use bson::raw::{RawDocument, Error};
@@ -91,7 +91,7 @@ impl RawDocument {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn new(data: Vec<u8>) -> Result<RawDocument> {
-        let _ = RawDocumentRef::new(data.as_slice())?;
+        let _ = RawDoc::new(data.as_slice())?;
         Ok(Self { data })
     }
 
@@ -162,13 +162,13 @@ impl RawDocument {
     }
 }
 
-impl<'a> From<RawDocument> for Cow<'a, RawDocumentRef> {
+impl<'a> From<RawDocument> for Cow<'a, RawDoc> {
     fn from(rd: RawDocument) -> Self {
         Cow::Owned(rd)
     }
 }
 
-impl<'a> From<&'a RawDocument> for Cow<'a, RawDocumentRef> {
+impl<'a> From<&'a RawDocument> for Cow<'a, RawDoc> {
     fn from(rd: &'a RawDocument) -> Self {
         Cow::Borrowed(rd.as_ref())
     }
@@ -195,19 +195,19 @@ impl<'a> IntoIterator for &'a RawDocument {
     }
 }
 
-impl AsRef<RawDocumentRef> for RawDocument {
-    fn as_ref(&self) -> &RawDocumentRef {
-        RawDocumentRef::new_unchecked(&self.data)
+impl AsRef<RawDoc> for RawDocument {
+    fn as_ref(&self) -> &RawDoc {
+        RawDoc::new_unchecked(&self.data)
     }
 }
 
-impl Borrow<RawDocumentRef> for RawDocument {
-    fn borrow(&self) -> &RawDocumentRef {
+impl Borrow<RawDoc> for RawDocument {
+    fn borrow(&self) -> &RawDoc {
         &*self
     }
 }
 
-impl ToOwned for RawDocumentRef {
+impl ToOwned for RawDoc {
     type Owned = RawDocument;
 
     fn to_owned(&self) -> Self::Owned {
@@ -215,22 +215,25 @@ impl ToOwned for RawDocumentRef {
     }
 }
 
-/// A BSON document referencing raw bytes stored elsewhere. This can be created from a
-/// [RawDocument] or any type that contains valid BSON data, and can be referenced as a `[u8]`,
-/// including static binary literals, [Vec<u8>](std::vec::Vec), or arrays.
+/// A slice of a BSON document (akin to [`std::str`]). This can be created from a
+/// [`RawDocument`] or any type that contains valid BSON data, including static binary literals,
+/// [Vec<u8>](std::vec::Vec), or arrays.
 ///
-/// Accessing elements within a `RawDocumentRef` is similar to element access in [bson::Document],
-/// but because the contents are parsed during iteration, instead of at creation time, format errors
+/// This is an _unsized_ type, meaning that it must always be used behind a pointer like `&`. For an
+/// owned version of this type, see [`RawDocument`].
+///
+/// Accessing elements within a [`RawDoc`] is similar to element access in [`bson::Document`],
+/// but because the contents are parsed during iteration instead of at creation time, format errors
 /// can happen at any time during use.
 ///
-/// Iterating over a RawDocumentRef yields either an error or a key-value pair that borrows from the
+/// Iterating over a [`RawDoc`] yields either an error or a key-value pair that borrows from the
 /// original document without making any additional allocations.
 
 /// ```
 /// # use bson::raw::{Error};
-/// use bson::raw::RawDocumentRef;
+/// use bson::raw::RawDoc;
 ///
-/// let doc = RawDocumentRef::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
+/// let doc = RawDoc::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// let mut iter = doc.into_iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
@@ -239,10 +242,9 @@ impl ToOwned for RawDocumentRef {
 /// # Ok::<(), Error>(())
 /// ```
 ///
-/// Individual elements can be accessed using [`RawDocumentRef::get`](RawDocumentRef::get) or any of
-/// the type-specific getters, such as
-/// [`RawDocumentRef::get_object_id`](RawDocumentRef::get_object_id) or [`RawDocumentRef::
-/// get_str`](RawDocumentRef::get_str). Note that accessing elements is an O(N) operation, as it
+/// Individual elements can be accessed using [`RawDoc::get`] or any of
+/// the type-specific getters, such as [`RawDoc::get_object_id`] or
+/// [`RawDoc::get_str`]. Note that accessing elements is an O(N) operation, as it
 /// requires iterating through the document from the beginning to find the requested key.
 ///
 /// ```
@@ -253,12 +255,12 @@ impl ToOwned for RawDocumentRef {
 /// ```
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct RawDocumentRef {
+pub struct RawDoc {
     data: [u8],
 }
 
-impl RawDocumentRef {
-    /// Constructs a new RawDocumentRef, validating _only_ the
+impl RawDoc {
+    /// Constructs a new RawDoc, validating _only_ the
     /// following invariants:
     ///   * `data` is at least five bytes long (the minimum for a valid BSON document)
     ///   * the initial four bytes of `data` accurately represent the length of the bytes as
@@ -271,12 +273,12 @@ impl RawDocumentRef {
     /// the RawDocument will return Errors where appropriate.
     ///
     /// ```
-    /// use bson::raw::RawDocumentRef;
+    /// use bson::raw::RawDoc;
     ///
-    /// let doc = RawDocumentRef::new(b"\x05\0\0\0\0")?;
+    /// let doc = RawDoc::new(b"\x05\0\0\0\0")?;
     /// # Ok::<(), bson::raw::Error>(())
     /// ```
-    pub fn new<D: AsRef<[u8]> + ?Sized>(data: &D) -> Result<&RawDocumentRef> {
+    pub fn new<D: AsRef<[u8]> + ?Sized>(data: &D) -> Result<&RawDoc> {
         let data = data.as_ref();
 
         if data.len() < 5 {
@@ -308,30 +310,30 @@ impl RawDocumentRef {
             });
         }
 
-        Ok(RawDocumentRef::new_unchecked(data))
+        Ok(RawDoc::new_unchecked(data))
     }
 
     /// Creates a new Doc referencing the provided data slice.
-    fn new_unchecked<D: AsRef<[u8]> + ?Sized>(data: &D) -> &RawDocumentRef {
+    fn new_unchecked<D: AsRef<[u8]> + ?Sized>(data: &D) -> &RawDoc {
         // SAFETY:
         //
         // Dereferencing a raw pointer requires unsafe due to the potential that the pointer is
         // null, dangling, or misaligned. We know the pointer is not null or dangling due to the
         // fact that it's created by a safe reference. Converting &[u8] to *const [u8] will be
         // properly aligned due to them being references to the same type, and converting *const
-        // [u8] to *const RawDocumentRef is aligned due to the fact that the only field in a
-        // RawDocumentRef is a [u8], meaning the structs are represented identically at the byte
+        // [u8] to *const RawDoc is aligned due to the fact that the only field in a
+        // RawDoc is a [u8], meaning the structs are represented identically at the byte
         // level.
-        unsafe { &*(data.as_ref() as *const [u8] as *const RawDocumentRef) }
+        unsafe { &*(data.as_ref() as *const [u8] as *const RawDoc) }
     }
 
     /// Creates a new RawDocument with an owned copy of the BSON bytes.
     ///
     /// ```
-    /// use bson::raw::{RawDocumentRef, RawDocument, Error};
+    /// use bson::raw::{RawDoc, RawDocument, Error};
     ///
     /// let data = b"\x05\0\0\0\0";
-    /// let doc_ref = RawDocumentRef::new(data)?;
+    /// let doc_ref = RawDoc::new(data)?;
     /// let doc: RawDocument = doc_ref.to_raw_document();
     /// # Ok::<(), Error>(())
     pub fn to_raw_document(&self) -> RawDocument {
@@ -457,10 +459,7 @@ impl RawDocumentRef {
     /// assert!(doc.get_document("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_document<'a>(
-        &'a self,
-        key: impl AsRef<str>,
-    ) -> ValueAccessResult<&'a RawDocumentRef> {
+    pub fn get_document<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<&'a RawDoc> {
         self.get_with(key, ElementType::EmbeddedDocument, RawBson::as_document)
     }
 
@@ -684,30 +683,30 @@ impl RawDocumentRef {
     }
 }
 
-impl AsRef<RawDocumentRef> for RawDocumentRef {
-    fn as_ref(&self) -> &RawDocumentRef {
+impl AsRef<RawDoc> for RawDoc {
+    fn as_ref(&self) -> &RawDoc {
         self
     }
 }
 
 impl Deref for RawDocument {
-    type Target = RawDocumentRef;
+    type Target = RawDoc;
 
     fn deref(&self) -> &Self::Target {
-        RawDocumentRef::new_unchecked(&self.data)
+        RawDoc::new_unchecked(&self.data)
     }
 }
 
-impl<'a> From<&'a RawDocumentRef> for Cow<'a, RawDocumentRef> {
-    fn from(rdr: &'a RawDocumentRef) -> Self {
+impl<'a> From<&'a RawDoc> for Cow<'a, RawDoc> {
+    fn from(rdr: &'a RawDoc) -> Self {
         Cow::Borrowed(rdr)
     }
 }
 
-impl TryFrom<&RawDocumentRef> for crate::Document {
+impl TryFrom<&RawDoc> for crate::Document {
     type Error = Error;
 
-    fn try_from(rawdoc: &RawDocumentRef) -> Result<Document> {
+    fn try_from(rawdoc: &RawDoc) -> Result<Document> {
         rawdoc
             .into_iter()
             .map(|res| res.and_then(|(k, v)| Ok((k.to_owned(), v.try_into()?))))
@@ -715,7 +714,7 @@ impl TryFrom<&RawDocumentRef> for crate::Document {
     }
 }
 
-impl<'a> IntoIterator for &'a RawDocumentRef {
+impl<'a> IntoIterator for &'a RawDoc {
     type IntoIter = Iter<'a>;
     type Item = Result<(&'a str, RawBson<'a>)>;
 
@@ -730,7 +729,7 @@ impl<'a> IntoIterator for &'a RawDocumentRef {
 
 /// An iterator over the document's entries.
 pub struct Iter<'a> {
-    doc: &'a RawDocumentRef,
+    doc: &'a RawDoc,
     offset: usize,
 
     /// Whether the underlying doc is assumed to be valid or if an error has been encountered.
@@ -763,7 +762,7 @@ impl<'a> Iter<'a> {
         Ok(oid)
     }
 
-    fn next_document(&self, starting_at: usize) -> Result<&'a RawDocumentRef> {
+    fn next_document(&self, starting_at: usize) -> Result<&'a RawDoc> {
         self.verify_enough_bytes(starting_at, MIN_BSON_DOCUMENT_SIZE as usize)?;
         let size = i32_from_slice(&self.doc.data[starting_at..])? as usize;
 
@@ -784,7 +783,7 @@ impl<'a> Iter<'a> {
                 },
             });
         }
-        RawDocumentRef::new(&self.doc.data[starting_at..end])
+        RawDoc::new(&self.doc.data[starting_at..end])
     }
 }
 
@@ -947,7 +946,7 @@ impl<'a> Iterator for Iter<'a> {
                     let slice = &self.doc.data[valueoffset..(valueoffset + length)];
                     let code = read_lenencoded(&slice[4..])?;
                     let scope_start = 4 + 4 + code.len() + 1;
-                    let scope = RawDocumentRef::new(&slice[scope_start..])?;
+                    let scope = RawDoc::new(&slice[scope_start..])?;
                     (
                         RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
                             code,

@@ -1,7 +1,17 @@
-//! A RawDocument can be created from a `Vec<u8>` containing raw BSON data, and elements
-//! accessed via methods similar to those available on the Document type. Note that rawbson returns
-//! a raw::Result<Option<T>>, since the bytes contained in the document are not fully validated
-//! until trying to access the contained data.
+//! An API for interacting with raw BSON bytes.
+//!
+//! This module provides two document types, [`RawDocument`] and [`RawDoc`] (akin to [`std::String`]
+//! and [`std::str`], for working with raw BSON documents. These types differ from the regular
+//! [`Document`] type in that their storage is BSON bytes rather than a hash-map like Rust type. In
+//! certain circumstances, these types can be leveraged for increased performance.
+//!
+//! This module also provides a [`RawBson`] type for modeling any borrowed BSON element and a [`RawArray`] type
+//! for modeling a borrowed slice of a document containing a BSON array element.
+//! 
+//! A [`RawDocument`] can be created from a `Vec<u8>` containing raw BSON data, and elements
+//! accessed via methods similar to those available on the [`Document`] type. Note that
+//! [`RawDocument::get`] returns a [`raw::Result<Option<RawBson>>`], since the bytes contained in
+//! the document are not fully validated until trying to access the contained data.
 //!
 //! ```rust
 //! use bson::raw::{
@@ -20,10 +30,11 @@
 //! # Ok::<(), bson::raw::Error>(())
 //! ```
 //!
-//! ### bson-rust interop
+//! ### [`Document`] interop
 //!
-//! A [`RawDocument`] can be created from a [`bson::document::Document`]. Internally, this
-//! serializes the `Document` to a `Vec<u8>`, and then includes those bytes in the [`RawDocument`].
+//! A [`RawDocument`] can be created from a [`Document`]. Internally, this
+//! serializes the [`Document`] to a `Vec<u8>`, and then includes those bytes in the
+//! [`RawDocument`].
 //!
 //! ```rust
 //! use bson::{
@@ -36,7 +47,7 @@
 //!        "cruel": "world"
 //!    }
 //! };
-
+//! 
 //! let raw = RawDocument::from_document(&document)?;
 //! let value: Option<&str> = raw
 //!     .get_document("goodbye")?
@@ -51,26 +62,26 @@
 //! # Ok::<(), bson::raw::Error>(())
 //! ```
 //! 
-//! ### Reference types
+//! ### Reference types ([`RawDoc`])
 //!
-//! A BSON document can also be accessed with the [`RawDocumentRef`] reference type, which is an
+//! A BSON document can also be accessed with the [`RawDoc`] type, which is an
 //! unsized type that represents the BSON payload as a `[u8]`. This allows accessing nested
-//! documents without reallocation. [RawDocumentRef] must always be accessed via a pointer type,
+//! documents without reallocation. [`RawDoc`] must always be accessed via a pointer type,
 //! similarly to `[T]` and `str`.
 //!
 //! The below example constructs a bson document in a stack-based array,
 //! and extracts a &str from it, performing no heap allocation.
 //! ```rust
-//! use bson::raw::RawDocumentRef;
+//! use bson::raw::RawDoc;
 //!
 //! let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
-//! assert_eq!(RawDocumentRef::new(bytes)?.get_str("hi")?, Some("y'all"));
+//! assert_eq!(RawDoc::new(bytes)?.get_str("hi")?, Some("y'all"));
 //! # Ok::<(), bson::raw::Error>(())
 //! ```
 //! 
 //! ### Iteration
 //!
-//! [`RawDocumentRef`] implements [`IntoIterator`](std::iter::IntoIterator), which can also be
+//! [`RawDoc`] implements [`IntoIterator`](std::iter::IntoIterator), which can also be
 //! accessed via [`RawDocument::iter`].
 
 //! ```rust
@@ -113,7 +124,7 @@ use crate::de::MIN_BSON_STRING_SIZE;
 
 pub use self::{
     array::{RawArray, RawArrayIter},
-    doc::{Iter, RawDocument, RawDocumentRef},
+    doc::{Iter, RawDocument, RawDoc},
     elem::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex},
     error::{Error, ErrorKind, Result},
 };

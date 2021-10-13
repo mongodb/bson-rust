@@ -1,6 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 
-use super::{Error, RawArray, RawDocumentRef, Result};
+use super::{Error, RawArray, RawDoc, Result};
 use crate::{
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// A BSON value referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum RawBson<'a> {
     /// 64-bit binary floating point
     Double(f64),
@@ -20,7 +20,7 @@ pub enum RawBson<'a> {
     /// Array
     Array(&'a RawArray),
     /// Embedded document
-    Document(&'a RawDocumentRef),
+    Document(&'a RawDoc),
     /// Boolean value
     Boolean(bool),
     /// Null value
@@ -112,9 +112,9 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// Gets the [`&RawDocumentRef`] that's referenced or returns `None` if the referenced value
+    /// Gets the [`&RawDoc`] that's referenced or returns `None` if the referenced value
     /// isn't a BSON document.
-    pub fn as_document(self) -> Option<&'a RawDocumentRef> {
+    pub fn as_document(self) -> Option<&'a RawDoc> {
         match self {
             RawBson::Document(v) => Some(v),
             _ => None,
@@ -338,7 +338,7 @@ impl<'a> RawRegex<'a> {
 #[derive(Clone, Copy, Debug)]
 pub struct RawJavaScriptCodeWithScope<'a> {
     pub(crate) code: &'a str,
-    pub(crate) scope: &'a RawDocumentRef,
+    pub(crate) scope: &'a RawDoc,
 }
 
 impl<'a> RawJavaScriptCodeWithScope<'a> {
@@ -348,7 +348,7 @@ impl<'a> RawJavaScriptCodeWithScope<'a> {
     }
 
     /// Gets the scope in the value.
-    pub fn scope(self) -> &'a RawDocumentRef {
+    pub fn scope(self) -> &'a RawDoc {
         self.scope
     }
 }

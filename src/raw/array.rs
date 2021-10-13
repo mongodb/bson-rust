@@ -6,30 +6,80 @@ use super::{
     Iter,
     RawBinary,
     RawBson,
-    RawDocumentRef,
+    RawDoc,
     RawRegex,
     Result,
 };
 use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
 
-/// A BSON array referencing raw bytes stored elsewhere.
+/// A slice of a BSON document containing a BSON array value (akin to [`std::str`]). This can be retrieved from a
+/// [`RawDoc`] via [`RawDoc::get`].
+///
+/// This is an _unsized_ type, meaning that it must always be used behind a pointer like `&`.
+///
+/// Accessing elements within a [`RawArray`] is similar to element access in [`bson::Document`],
+/// but because the contents are parsed during iteration instead of at creation time, format errors
+/// can happen at any time during use.
+///
+/// Iterating over a [`RawArray`] yields either an error or a key-value pair that borrows from the
+/// original document without making any additional allocations.
+///
+/// ```
+/// # use bson::raw::{Error};
+/// use bson::{doc, raw::RawDoc};
+///
+/// let doc = doc! {
+///     "x": [1, true, "two", 5.5]
+/// };
+/// let bytes = bson::to_vec(&doc).unwrap();
+///
+/// let rawdoc = RawDoc::new(bytes.as_slice())?;
+/// let rawarray = rawdoc.get_array("x")?;
+///
+/// for v in rawarray {
+///     println!("{:?}", v?);
+/// }
+/// # Ok::<(), Error>(())
+/// ```
+///
+/// Individual elements can be accessed using [`RawArray::get`] or any of
+/// the type-specific getters, such as [`RawArray::get_object_id`] or
+/// [`RawArray::get_str`]. Note that accessing elements is an O(N) operation, as it
+/// requires iterating through the array from the beginning to find the requested index.
+///
+/// ```
+/// # use bson::raw::{ValueAccessError};
+/// use bson::{doc, raw::RawDoc};
+///
+/// let doc = doc! {
+///     "x": [1, true, "two", 5.5]
+/// };
+/// let bytes = bson::to_vec(&doc).unwrap();
+///
+/// let rawdoc = RawDoc::new(bytes.as_slice())?;
+/// let rawarray = rawdoc.get_array("x")?;
+///
+/// assert_eq!(rawarray.get_bool(1)?, true);
+/// # Ok::<(), ValueAccessError>(())
+/// ```
+#[derive(Debug)]
 #[repr(transparent)]
 pub struct RawArray {
-    pub(crate) doc: RawDocumentRef,
+    pub(crate) doc: RawDoc,
 }
 
 impl RawArray {
-    pub(crate) fn from_doc(doc: &RawDocumentRef) -> &RawArray {
+    pub(crate) fn from_doc(doc: &RawDoc) -> &RawArray {
         // SAFETY:
         //
         // Dereferencing a raw pointer requires unsafe due to the potential that the pointer is
         // null, dangling, or misaligned. We know the pointer is not null or dangling due to the
-        // fact that it's created by a safe reference. Converting &RawDocumentRef to *const
-        // RawDocumentRef will be properly aligned due to them being references to the same type,
-        // and converting *const RawDocumentRef to *const RawArray is aligned due to the fact that
-        // the only field in a RawArray is a RawDocumentRef, meaning the structs are represented
+        // fact that it's created by a safe reference. Converting &RawDoc to *const
+        // RawDoc will be properly aligned due to them being references to the same type,
+        // and converting *const RawDoc to *const RawArray is aligned due to the fact that
+        // the only field in a RawArray is a RawDoc, meaning the structs are represented
         // identically at the byte level.
-        unsafe { &*(doc as *const RawDocumentRef as *const RawArray) }
+        unsafe { &*(doc as *const RawDoc as *const RawArray) }
     }
 
     /// Gets a reference to the value at the given index.
@@ -79,7 +129,7 @@ impl RawArray {
 
     /// Gets a reference to the document at the given index or returns an error if the
     /// value at that index isn't a document.
-    pub fn get_document(&self, index: usize) -> ValueAccessResult<&RawDocumentRef> {
+    pub fn get_document(&self, index: usize) -> ValueAccessResult<&RawDoc> {
         self.get_with(index, ElementType::EmbeddedDocument, RawBson::as_document)
     }
 

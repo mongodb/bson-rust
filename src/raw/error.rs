@@ -86,7 +86,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type ValueAccessResult<T> = std::result::Result<T, ValueAccessError>;
 
 /// Error to indicate that either a value was empty or it contained an unexpected
-/// type, for use with the direct getters (e.g. [`RawDocumentRef::get_str`]).
+/// type, for use with the direct getters (e.g. [`RawDoc::get_str`]).
 #[derive(Debug, PartialEq, Clone)]
 #[non_exhaustive]
 pub struct ValueAccessError {

@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::{raw::RawDocumentRef, tests::LOCK, Bson, Document};
+use crate::{raw::RawDoc, tests::LOCK, Bson, Document};
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 
@@ -79,7 +79,7 @@ fn run_test(test: TestFile) {
         let todocument_documentfromreader_cb: Document =
             crate::to_document(&documentfromreader_cb).expect(&description);
 
-        let document_from_raw_document: Document = RawDocumentRef::new(canonical_bson.as_slice())
+        let document_from_raw_document: Document = RawDoc::new(canonical_bson.as_slice())
             .expect(&description)
             .try_into()
             .expect(&description);
@@ -212,7 +212,7 @@ fn run_test(test: TestFile) {
                 description,
             );
 
-            let document_from_raw_document: Document = RawDocumentRef::new(db.as_slice())
+            let document_from_raw_document: Document = RawDoc::new(db.as_slice())
                 .expect(&description)
                 .try_into()
                 .expect(&description);
@@ -411,7 +411,7 @@ fn run_test(test: TestFile) {
         Document::from_reader(bson.as_slice()).expect_err(&description);
         crate::from_reader::<_, Document>(bson.as_slice()).expect_err(description.as_str());
 
-        if let Ok(doc) = RawDocumentRef::new(bson.as_slice()) {
+        if let Ok(doc) = RawDoc::new(bson.as_slice()) {
             Document::try_from(doc).expect_err(&description.as_str());
         }
 

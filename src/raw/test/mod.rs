@@ -27,7 +27,7 @@ fn string_from_document() {
         "that": "second",
         "something": "else",
     });
-    let rawdoc = RawDocumentRef::new(&docbytes).unwrap();
+    let rawdoc = RawDoc::new(&docbytes).unwrap();
     assert_eq!(
         rawdoc.get("that").unwrap().unwrap().as_str().unwrap(),
         "second",
@@ -42,7 +42,7 @@ fn nested_document() {
             "double": 5.5,
         },
     });
-    let rawdoc = RawDocumentRef::new(&docbytes).unwrap();
+    let rawdoc = RawDoc::new(&docbytes).unwrap();
     let subdoc = rawdoc
         .get("outer")
         .expect("get doc result")
@@ -77,7 +77,7 @@ fn iterate() {
         "peanut butter": "chocolate",
         "easy as": {"do": 1, "re": 2, "mi": 3},
     });
-    let rawdoc = RawDocumentRef::new(&docbytes).expect("malformed bson document");
+    let rawdoc = RawDoc::new(&docbytes).expect("malformed bson document");
     let mut dociter = rawdoc.into_iter();
     let next = dociter.next().expect("no result").expect("invalid bson");
     assert_eq!(next.0, "apples");
@@ -114,7 +114,7 @@ fn rawdoc_to_doc() {
         "end": "END",
     });
 
-    let rawdoc = RawDocumentRef::new(&docbytes).expect("invalid document");
+    let rawdoc = RawDoc::new(&docbytes).expect("invalid document");
     let _doc: crate::Document = rawdoc.try_into().expect("invalid bson");
 }
 
@@ -428,7 +428,7 @@ fn into_bson_conversion() {
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
         "boolean": false,
     });
-    let rawbson = RawBson::Document(RawDocumentRef::new(docbytes.as_slice()).unwrap());
+    let rawbson = RawBson::Document(RawDoc::new(docbytes.as_slice()).unwrap());
     let b: Bson = rawbson.try_into().expect("invalid bson");
     let doc = b.as_document().expect("not a document");
     assert_eq!(*doc.get("f64").expect("f64 not found"), Bson::Double(2.5));
