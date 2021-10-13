@@ -21,6 +21,7 @@ use crate::{
 };
 
 use super::{
+    error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     i32_from_slice,
     read_lenencoded,
     read_nullterminated,
@@ -31,8 +32,6 @@ use super::{
     RawRegex,
     Result,
 };
-#[cfg(feature = "decimal128")]
-use crate::decimal128::Decimal128;
 use crate::{oid::ObjectId, spec::ElementType, Document};
 
 /// A BSON document, stored as raw bytes on the heap. This can be created from a `Vec<u8>` or
@@ -92,41 +91,22 @@ impl RawDocument {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn new(data: Vec<u8>) -> Result<RawDocument> {
-        if data.len() < 5 {
-            return Err(Error::new_without_key(ErrorKind::MalformedValue {
-                message: "document too short".into(),
-            }));
-        }
-
-        let length = i32_from_slice(&data)?;
-
-        if data.len() as i32 != length {
-            return Err(Error::new_without_key(ErrorKind::MalformedValue {
-                message: "document length incorrect".into(),
-            }));
-        }
-
-        if data[data.len() - 1] != 0 {
-            return Err(Error::new_without_key(ErrorKind::MalformedValue {
-                message: "document not null-terminated".into(),
-            }));
-        }
-
+        let _ = RawDocumentRef::new(data.as_slice())?;
         Ok(Self { data })
     }
 
     /// Create a RawDocument from a Document.
     ///
     /// ```
-    /// # use bson::raw::{RawDocument, Error};
-    /// use bson::{doc, oid::ObjectId};
+    /// # use bson::raw::Error;
+    /// use bson::{doc, oid::ObjectId, raw::RawDocument};
     ///
     /// let document = doc! {
     ///     "_id": ObjectId::new(),
     ///     "name": "Herman Melville",
     ///     "title": "Moby-Dick",
     /// };
-    /// let doc = RawDocument::from_document(&document);
+    /// let doc = RawDocument::from_document(&document)?;
     /// # Ok::<(), Error>(())
     /// ```
     pub fn from_document(doc: &Document) -> Result<RawDocument> {
@@ -160,7 +140,7 @@ impl RawDocument {
     ///
     /// # Note:
     ///
-    /// There is no owning iterator for RawDocument.  If you need ownership over
+    /// There is no owning iterator for RawDocument. If you need ownership over
     /// elements that might need to allocate, you must explicitly convert
     /// them to owned types yourself.
     pub fn iter(&self) -> Iter<'_> {
@@ -178,7 +158,7 @@ impl RawDocument {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn into_vec(self) -> Vec<u8> {
-        self.data.to_vec()
+        self.data
     }
 }
 
@@ -377,10 +357,10 @@ impl RawDocumentRef {
     /// assert!(doc.get("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get<'a>(&'a self, key: &str) -> Result<Option<RawBson<'a>>> {
+    pub fn get<'a>(&'a self, key: impl AsRef<str>) -> Result<Option<RawBson<'a>>> {
         for result in self.into_iter() {
             let (k, v) = result?;
-            if key == k {
+            if key.as_ref() == k {
                 return Ok(Some(v));
             }
         }
@@ -389,16 +369,30 @@ impl RawDocumentRef {
 
     fn get_with<'a, T>(
         &'a self,
-        key: &str,
+        key: impl AsRef<str>,
         expected_type: ElementType,
         f: impl FnOnce(RawBson<'a>) -> Option<T>,
     ) -> ValueAccessResult<T> {
-        let bson = self.get(key)?.ok_or(ValueAccessError::NotPresent)?;
+        let key = key.as_ref();
+
+        let bson = self
+            .get(key)
+            .map_err(|e| ValueAccessError {
+                key: key.to_string(),
+                kind: ValueAccessErrorKind::InvalidBson(e),
+            })?
+            .ok_or(ValueAccessError {
+                key: key.to_string(),
+                kind: ValueAccessErrorKind::NotPresent,
+            })?;
         match f(bson) {
             Some(t) => Ok(t),
-            None => Err(ValueAccessError::UnexpectedType {
-                expected: expected_type,
-                actual: bson.element_type(),
+            None => Err(ValueAccessError {
+                key: key.to_string(),
+                kind: ValueAccessErrorKind::UnexpectedType {
+                    expected: expected_type,
+                    actual: bson.element_type(),
+                },
             }),
         }
     }
@@ -421,15 +415,8 @@ impl RawDocumentRef {
     /// assert_eq!(doc.get_f64("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_f64(&self, key: &str) -> ValueAccessResult<f64> {
-        match self.get(key)? {
-            Some(RawBson::Double(f)) => Ok(f),
-            Some(bson) => Err(ValueAccessError::UnexpectedType {
-                expected: ElementType::Double,
-                actual: bson.element_type(),
-            }),
-            None => Err(ValueAccessError::NotPresent),
-        }
+    pub fn get_f64(&self, key: impl AsRef<str>) -> ValueAccessResult<f64> {
+        self.get_with(key, ElementType::Double, RawBson::as_f64)
     }
 
     /// Gets a reference to the string value corresponding to a given key or returns an error if the
@@ -449,7 +436,7 @@ impl RawDocumentRef {
     /// assert_eq!(doc.get_str("unknown"), Ok(None));
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_str<'a>(&'a self, key: &str) -> ValueAccessResult<&'a str> {
+    pub fn get_str<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<&'a str> {
         self.get_with(key, ElementType::String, RawBson::as_str)
     }
 
@@ -470,7 +457,10 @@ impl RawDocumentRef {
     /// assert!(doc.get_document("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_document<'a>(&'a self, key: &str) -> ValueAccessResult<&'a RawDocumentRef> {
+    pub fn get_document<'a>(
+        &'a self,
+        key: impl AsRef<str>,
+    ) -> ValueAccessResult<&'a RawDocumentRef> {
         self.get_with(key, ElementType::EmbeddedDocument, RawBson::as_document)
     }
 
@@ -495,7 +485,7 @@ impl RawDocumentRef {
     /// assert!(doc.get_array("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_array<'a>(&'a self, key: &str) -> ValueAccessResult<&'a RawArray> {
+    pub fn get_array<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<&'a RawArray> {
         self.get_with(key, ElementType::Array, RawBson::as_array)
     }
 
@@ -521,7 +511,7 @@ impl RawDocumentRef {
     /// assert!(doc.get_binary("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_binary<'a>(&'a self, key: &str) -> ValueAccessResult<RawBinary<'a>> {
+    pub fn get_binary<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<RawBinary<'a>> {
         self.get_with(key, ElementType::Binary, RawBson::as_binary)
     }
 
@@ -542,7 +532,7 @@ impl RawDocumentRef {
     /// assert!(doc.get_object_id("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_object_id(&self, key: &str) -> ValueAccessResult<ObjectId> {
+    pub fn get_object_id(&self, key: impl AsRef<str>) -> ValueAccessResult<ObjectId> {
         self.get_with(key, ElementType::ObjectId, RawBson::as_object_id)
     }
 
@@ -563,7 +553,7 @@ impl RawDocumentRef {
     /// assert!(doc.get_object_id("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_bool(&self, key: &str) -> ValueAccessResult<bool> {
+    pub fn get_bool(&self, key: impl AsRef<str>) -> ValueAccessResult<bool> {
         self.get_with(key, ElementType::Boolean, RawBson::as_bool)
     }
 
@@ -585,7 +575,7 @@ impl RawDocumentRef {
     /// assert!(doc.get_datetime("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_datetime(&self, key: &str) -> ValueAccessResult<DateTime> {
+    pub fn get_datetime(&self, key: impl AsRef<str>) -> ValueAccessResult<DateTime> {
         self.get_with(key, ElementType::DateTime, RawBson::as_datetime)
     }
 
@@ -610,75 +600,75 @@ impl RawDocumentRef {
     /// assert!(doc.get_regex("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_regex<'a>(&'a self, key: &str) -> ValueAccessResult<RawRegex<'a>> {
+    pub fn get_regex<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<RawRegex<'a>> {
         self.get_with(key, ElementType::RegularExpression, RawBson::as_regex)
     }
 
-    // /// Gets a reference to the BSON timestamp value corresponding to a given key or returns an
-    // /// error if the key corresponds to a value which isn't a timestamp.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::{doc, Timestamp, raw::{RawDocument, ErrorKind}};
-    // ///
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "bool": true,
-    // ///     "ts": Timestamp { time: 649876543, increment: 9 },
-    // /// })?;
-    // ///
-    // /// let timestamp = doc.get_timestamp("ts")?.unwrap();
-    // ///
-    // /// assert_eq!(timestamp.time(), 649876543);
-    // /// assert_eq!(timestamp.increment(), 9);
-    // /// assert!(matches!(doc.get_timestamp("bool").unwrap_err().kind, ErrorKind::UnexpectedType {
-    // .. })); /// assert_eq!(doc.get_timestamp("unknown"), Ok(None));
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_timestamp<'a>(&'a self, key: &str) -> Result<Option<RawTimestamp<'a>>> {
-    //     self.get_with(key, RawBson::as_timestamp)
-    // }
+    /// Gets a reference to the BSON timestamp value corresponding to a given key or returns an
+    /// error if the key corresponds to a value which isn't a timestamp.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{doc, Timestamp, raw::{RawDocument, ErrorKind}};
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "bool": true,
+    ///     "ts": Timestamp { time: 649876543, increment: 9 },
+    /// })?;
+    ///
+    /// let timestamp = doc.get_timestamp("ts")?.unwrap();
+    ///
+    /// assert_eq!(timestamp.time(), 649876543);
+    /// assert_eq!(timestamp.increment(), 9);
+    /// assert!(matches!(doc.get_timestamp("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
+    /// assert_eq!(doc.get_timestamp("unknown"), Ok(None));
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_timestamp(&self, key: impl AsRef<str>) -> ValueAccessResult<Timestamp> {
+        self.get_with(key, ElementType::Timestamp, RawBson::as_timestamp)
+    }
 
-    // /// Gets a reference to the BSON int32 value corresponding to a given key or returns an error
-    // if /// the key corresponds to a value which isn't a 32-bit integer.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::{doc, raw::{RawDocument, ErrorKind}};
-    // ///
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "bool": true,
-    // ///     "i32": 1_000_000,
-    // /// })?;
-    // ///
-    // /// assert_eq!(doc.get_i32("i32"), Ok(Some(1_000_000)));
-    // /// assert!(matches!(doc.get_i32("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
-    // })); /// assert_eq!(doc.get_i32("unknown"), Ok(None));
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_i32(&self, key: &str) -> Result<Option<i32>> {
-    //     self.get_with(key, RawBson::as_i32)
-    // }
+    /// Gets a reference to the BSON int32 value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't a 32-bit integer.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::{RawDocument, ErrorKind}};
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "bool": true,
+    ///     "i32": 1_000_000,
+    /// })?;
+    ///
+    /// assert_eq!(doc.get_i32("i32"), Ok(Some(1_000_000)));
+    /// assert!(matches!(doc.get_i32("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..}));
+    /// assert_eq!(doc.get_i32("unknown"), Ok(None));
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_i32(&self, key: impl AsRef<str>) -> ValueAccessResult<i32> {
+        self.get_with(key, ElementType::Int32, RawBson::as_i32)
+    }
 
-    // /// Gets a reference to the BSON int64 value corresponding to a given key or returns an error
-    // if /// the key corresponds to a value which isn't a 64-bit integer.
-    // ///
-    // /// ```
-    // /// # use bson::raw::Error;
-    // /// use bson::{doc, raw::{ErrorKind, RawDocument}};
-    // ///
-    // /// let doc = RawDocument::from_document(&doc! {
-    // ///     "bool": true,
-    // ///     "i64": 9223372036854775807_i64,
-    // /// })?;
-    // ///
-    // /// assert_eq!(doc.get_i64("i64"), Ok(Some(9223372036854775807)));
-    // /// assert!(matches!(doc.get_i64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..
-    // })); /// assert_eq!(doc.get_i64("unknown"), Ok(None));
-    // /// # Ok::<(), Error>(())
-    // /// ```
-    // pub fn get_i64(&self, key: &str) -> Result<Option<i64>> {
-    //     self.get_with(key, RawBson::as_i64)
-    // }
+    /// Gets a reference to the BSON int64 value corresponding to a given key or returns an error if
+    /// the key corresponds to a value which isn't a 64-bit integer.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::{ErrorKind, RawDocument}};
+    ///
+    /// let doc = RawDocument::from_document(&doc! {
+    ///     "bool": true,
+    ///     "i64": 9223372036854775807_i64,
+    /// })?;
+    ///
+    /// assert_eq!(doc.get_i64("i64"), Ok(Some(9223372036854775807)));
+    /// assert!(matches!(doc.get_i64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
+    /// assert_eq!(doc.get_i64("unknown"), Ok(None));
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn get_i64(&self, key: impl AsRef<str>) -> ValueAccessResult<i64> {
+        self.get_with(key, ElementType::Int64, RawBson::as_i64)
+    }
 
     /// Return a reference to the contained data as a `&[u8]`
     ///
@@ -751,8 +741,7 @@ pub struct Iter<'a> {
 impl<'a> Iter<'a> {
     fn verify_enough_bytes(&self, start: usize, num_bytes: usize) -> Result<()> {
         let end = checked_add(start, num_bytes)?;
-        let range = start..end;
-        if self.doc.data.get(range).is_none() {
+        if self.doc.data.get(start..end).is_none() {
             return Err(Error::new_without_key(ErrorKind::MalformedValue {
                 message: format!(
                     "length exceeds remaining length of buffer: {} vs {}",
@@ -775,6 +764,7 @@ impl<'a> Iter<'a> {
     }
 
     fn next_document(&self, starting_at: usize) -> Result<&'a RawDocumentRef> {
+        self.verify_enough_bytes(starting_at, MIN_BSON_DOCUMENT_SIZE as usize)?;
         let size = i32_from_slice(&self.doc.data[starting_at..])? as usize;
 
         if size < MIN_BSON_DOCUMENT_SIZE as usize {
@@ -1004,31 +994,5 @@ impl<'a> Iterator for Iter<'a> {
         }
 
         Some(kvp_result)
-    }
-}
-
-type ValueAccessResult<T> = std::result::Result<T, ValueAccessError>;
-
-/// Error to indicate that either a value was empty or it contained an unexpected
-/// type, for use with the direct getters.
-#[derive(PartialEq, Clone)]
-#[non_exhaustive]
-pub enum ValueAccessError {
-    /// Cannot find the expected field with the specified key
-    NotPresent,
-
-    /// Found a Bson value with the specified key, but not with the expected type
-    UnexpectedType {
-        expected: ElementType,
-        actual: ElementType,
-    },
-
-    /// An error was encountered attempting to decode the document.
-    InvalidBson(super::Error),
-}
-
-impl From<super::Error> for ValueAccessError {
-    fn from(e: super::Error) -> Self {
-        ValueAccessError::InvalidBson(e)
     }
 }

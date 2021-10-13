@@ -57,42 +57,36 @@ pub enum RawBson<'a> {
     DbPointer(RawDbPointer<'a>),
 }
 
-// #[derive(Clone, Copy, Debug)]
-// pub struct RawBson<'a> {
-//     element_type: ElementType,
-//     data: &'a [u8],
-// }
-
 impl<'a> RawBson<'a> {
-    // pub(super) fn new(element_type: ElementType, data: &'a [u8]) -> RawBson<'a> {
-    //     RawBson { element_type, data }
-    // }
-
-    /// Gets the type of the value.
-    pub fn element_type(self) -> ElementType {
-        // self.element_type
-        todo!()
+    /// Get the [`ElementType`] of this value.
+    pub fn element_type(&self) -> ElementType {
+        match *self {
+            RawBson::Double(..) => ElementType::Double,
+            RawBson::String(..) => ElementType::String,
+            RawBson::Array(..) => ElementType::Array,
+            RawBson::Document(..) => ElementType::EmbeddedDocument,
+            RawBson::Boolean(..) => ElementType::Boolean,
+            RawBson::Null => ElementType::Null,
+            RawBson::RegularExpression(..) => ElementType::RegularExpression,
+            RawBson::JavaScriptCode(..) => ElementType::JavaScriptCode,
+            RawBson::JavaScriptCodeWithScope(..) => ElementType::JavaScriptCodeWithScope,
+            RawBson::Int32(..) => ElementType::Int32,
+            RawBson::Int64(..) => ElementType::Int64,
+            RawBson::Timestamp(..) => ElementType::Timestamp,
+            RawBson::Binary(..) => ElementType::Binary,
+            RawBson::ObjectId(..) => ElementType::ObjectId,
+            RawBson::DateTime(..) => ElementType::DateTime,
+            RawBson::Symbol(..) => ElementType::Symbol,
+            RawBson::Decimal128(..) => ElementType::Decimal128,
+            RawBson::Undefined => ElementType::Undefined,
+            RawBson::MaxKey => ElementType::MaxKey,
+            RawBson::MinKey => ElementType::MinKey,
+            RawBson::DbPointer(..) => ElementType::DbPointer,
+        }
     }
 
-    // /// Gets a reference to the raw bytes of the value.
-    // pub fn as_bytes(self) -> &'a [u8] {
-    //     self.data
-    // }
-
-    // fn validate_type(self, expected: ElementType) -> Result<()> {
-    //     if self.element_type != expected {
-    //         return Err(Error {
-    //             key: None,
-    //             kind: ErrorKind::UnexpectedType {
-    //                 actual: self.element_type,
-    //                 expected,
-    //             },
-    //         });
-    //     }
-    //     Ok(())
-    // }
-
-    /// Gets the f64 that's referenced or returns an error if the value isn't a BSON double.
+    /// Gets the f64 that's referenced or returns `None` if the referenced value isn't a BSON
+    /// double.
     pub fn as_f64(self) -> Option<f64> {
         match self {
             RawBson::Double(d) => Some(d),
@@ -100,7 +94,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `String`, return its value as a `&str`. Returns `None` otherwise
+    /// Gets the `&str` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// String.
     pub fn as_str(self) -> Option<&'a str> {
         match self {
             RawBson::String(s) => Some(s),
@@ -108,7 +103,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `Array`, return its value. Returns `None` otherwise
+    /// Gets the [`&RawArray`] that's referenced or returns `None` if the referenced value isn't a
+    /// BSON array.
     pub fn as_array(self) -> Option<&'a RawArray> {
         match self {
             RawBson::Array(v) => Some(v),
@@ -116,7 +112,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `Document`, return its value. Returns `None` otherwise
+    /// Gets the [`&RawDocumentRef`] that's referenced or returns `None` if the referenced value
+    /// isn't a BSON document.
     pub fn as_document(self) -> Option<&'a RawDocumentRef> {
         match self {
             RawBson::Document(v) => Some(v),
@@ -124,7 +121,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `Bool`, return its value. Returns `None` otherwise
+    /// Gets the `bool` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// boolean.
     pub fn as_bool(self) -> Option<bool> {
         match self {
             RawBson::Boolean(v) => Some(v),
@@ -132,7 +130,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `I32`, return its value. Returns `None` otherwise
+    /// Gets the `i32` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Int32.
     pub fn as_i32(self) -> Option<i32> {
         match self {
             RawBson::Int32(v) => Some(v),
@@ -140,7 +139,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `I64`, return its value. Returns `None` otherwise
+    /// Gets the `i64` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Int64.
     pub fn as_i64(self) -> Option<i64> {
         match self {
             RawBson::Int64(v) => Some(v),
@@ -148,7 +148,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `Objectid`, return its value. Returns `None` otherwise
+    /// Gets the [`ObjectId`] that's referenced or returns `None` if the referenced value isn't a
+    /// BSON ObjectID.
     pub fn as_object_id(self) -> Option<oid::ObjectId> {
         match self {
             RawBson::ObjectId(v) => Some(v),
@@ -156,7 +157,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `Binary`, return its value. Returns `None` otherwise
+    /// Gets the [`RawBinary`] that's referenced or returns `None` if the referenced value isn't a
+    /// BSON binary.
     pub fn as_binary(self) -> Option<RawBinary<'a>> {
         match self {
             RawBson::Binary(v) => Some(v),
@@ -164,7 +166,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `Regex`, return its value. Returns `None` otherwise
+    /// Gets the [`RawRegex`] that's referenced or returns `None` if the referenced value isn't a
+    /// BSON regular expression.
     pub fn as_regex(self) -> Option<RawRegex<'a>> {
         match self {
             RawBson::RegularExpression(v) => Some(v),
@@ -172,7 +175,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `DateTime`, return its value. Returns `None` otherwise
+    /// Gets the [`DateTime`] that's referenced or returns `None` if the referenced value isn't a
+    /// BSON datetime.
     pub fn as_datetime(self) -> Option<crate::DateTime> {
         match self {
             RawBson::DateTime(v) => Some(v),
@@ -180,7 +184,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `Symbol`, return its value. Returns `None` otherwise
+    /// Gets the symbol that's referenced or returns `None` if the referenced value isn't a BSON
+    /// symbol.
     pub fn as_symbol(self) -> Option<&'a str> {
         match self {
             RawBson::Symbol(v) => Some(v),
@@ -188,7 +193,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `Timestamp`, return its value. Returns `None` otherwise
+    /// Gets the [`Timestamp`] that's referenced or returns `None` if the referenced value isn't a
+    /// BSON timestamp.
     pub fn as_timestamp(self) -> Option<Timestamp> {
         match self {
             RawBson::Timestamp(timestamp) => Some(timestamp),
@@ -196,7 +202,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `Null`, return its value. Returns `None` otherwise
+    /// Gets the null value that's referenced or returns `None` if the referenced value isn't a BSON
+    /// null.
     pub fn as_null(self) -> Option<()> {
         match self {
             RawBson::Null => Some(()),
@@ -204,15 +211,17 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    pub fn as_db_pointer(self) -> Option<u8> {
-        // match self {
-        //     Bson::DbPointer(db_pointer) => Some(db_pointer),
-        //     _ => None,
-        // }
-        todo!()
+    /// Gets the [`RawDbPointer`] that's referenced or returns `None` if the referenced value isn't
+    /// a BSON DB pointer.
+    pub fn as_db_pointer(self) -> Option<RawDbPointer<'a>> {
+        match self {
+            RawBson::DbPointer(d) => Some(d),
+            _ => None,
+        }
     }
 
-    /// If `Bson` is `JavaScriptCode`, return its value. Returns `None` otherwise
+    /// Gets the code that's referenced or returns `None` if the referenced value isn't a BSON
+    /// JavaScript.
     pub fn as_javascript(self) -> Option<&'a str> {
         match self {
             RawBson::JavaScriptCode(s) => Some(s),
@@ -220,7 +229,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// If `Bson` is `JavaScriptCodeWithScope`, return its value. Returns `None` otherwise
+    /// Gets the [`RawJavaScriptCodeWithScope`] that's referenced or returns `None` if the
+    /// referenced value isn't a BSON JavaScript with scope.
     pub fn as_javascript_with_scope(self) -> Option<RawJavaScriptCodeWithScope<'a>> {
         match self {
             RawBson::JavaScriptCodeWithScope(s) => Some(s),
@@ -228,169 +238,6 @@ impl<'a> RawBson<'a> {
         }
     }
 }
-
-// impl<'a> RawBson<'a> {
-
-//     /// Gets the string that's referenced or returns an error if the value isn't a BSON string.
-//     pub fn as_str(self) -> Result<&'a str> {
-//         self.validate_type(ElementType::String)?;
-//         read_lenencoded(self.data)
-//     }
-
-//     /// Gets the document that's referenced or returns an error if the value isn't a BSON
-// document.     pub fn as_document(self) -> Result<&'a RawDocumentRef> {
-//         self.validate_type(ElementType::EmbeddedDocument)?;
-//         RawDocumentRef::new(self.data)
-//     }
-
-//     /// Gets the array that's referenced or returns an error if the value isn't a BSON array.
-//     pub fn as_array(self) -> Result<&'a RawArray> {
-//         self.validate_type(ElementType::Array)?;
-//         RawArray::new(self.data)
-//     }
-
-//     /// Gets the BSON binary value that's referenced or returns an error if the value a BSON
-// binary.     pub fn as_binary(self) -> Result<RawBinary<'a>> {
-//         self.validate_type(ElementType::Binary)?;
-
-//         let length = i32_from_slice(&self.data[0..4])?;
-//         let subtype = BinarySubtype::from(self.data[4]);
-//         if self.data.len() as i32 != length + 5 {
-//             return Err(Error {
-//                 key: None,
-//                 kind: ErrorKind::MalformedValue {
-//                     message: "binary bson has wrong declared length".into(),
-//                 },
-//             });
-//         }
-//         let data = match subtype {
-//             BinarySubtype::BinaryOld => {
-//                 if length < 4 {
-//                     return Err(Error::new_without_key(ErrorKind::MalformedValue {
-//                         message: "old binary subtype has no inner declared length".into(),
-//                     }));
-//                 }
-//                 let oldlength = i32_from_slice(&self.data[5..9])?;
-//                 if oldlength + 4 != length {
-//                     return Err(Error::new_without_key(ErrorKind::MalformedValue {
-//                         message: "old binary subtype has wrong inner declared length".into(),
-//                     }));
-//                 }
-//                 &self.data[9..]
-//             }
-//             _ => &self.data[5..],
-//         };
-//         Ok(RawBinary::new(subtype, data))
-//     }
-
-//     /// Gets the ObjectId that's referenced or returns an error if the value isn't a BSON
-// ObjectId.     pub fn as_object_id(self) -> Result<ObjectId> {
-//         self.validate_type(ElementType::ObjectId)?;
-//         Ok(ObjectId::from_bytes(self.data.try_into().map_err(
-//             |_| {
-//                 Error::new_without_key(ErrorKind::MalformedValue {
-//                     message: "object id should be 12 bytes long".into(),
-//                 })
-//             },
-//         )?))
-//     }
-
-//     /// Gets the boolean that's referenced or returns an error if the value isn't a BSON boolean.
-//     pub fn as_bool(self) -> Result<bool> {
-//         self.validate_type(ElementType::Boolean)?;
-//         if self.data.len() != 1 {
-//             Err(Error::new_without_key(ErrorKind::MalformedValue {
-//                 message: "boolean has length != 1".into(),
-//             }))
-//         } else {
-//             read_bool(self.data).map_err(|e| {
-//                 Error::new_without_key(ErrorKind::MalformedValue {
-//                     message: e.to_string(),
-//                 })
-//             })
-//         }
-//     }
-
-//     /// Gets the DateTime that's referenced or returns an error if the value isn't a BSON
-// DateTime.     pub fn as_datetime(self) -> Result<DateTime> {
-//         self.validate_type(ElementType::DateTime)?;
-//         let millis = i64_from_slice(self.data)?;
-//         Ok(DateTime::from_millis(millis))
-//     }
-
-//     /// Gets the regex that's referenced or returns an error if the value isn't a BSON regex.
-//     pub fn as_regex(self) -> Result<RawRegex<'a>> {
-//         self.validate_type(ElementType::RegularExpression)?;
-//         RawRegex::new(self.data)
-//     }
-
-//     /// Gets the BSON JavaScript code that's referenced or returns an error if the value isn't
-// BSON     /// JavaScript code.
-//     pub fn as_javascript(self) -> Result<&'a str> {
-//         self.validate_type(ElementType::JavaScriptCode)?;
-//         read_lenencoded(self.data)
-//     }
-
-//     /// Gets the symbol that's referenced or returns an error if the value isn't a BSON symbol.
-//     pub fn as_symbol(self) -> Result<&'a str> {
-//         self.validate_type(ElementType::Symbol)?;
-//         read_lenencoded(self.data)
-//     }
-
-//     /// Gets the BSON JavaScript code with scope that's referenced or returns an error if the
-// value     /// isn't BSON JavaScript code with scope.
-//     pub fn as_javascript_with_scope(self) -> Result<RawJavaScriptCodeWithScope<'a>> {
-//         self.validate_type(ElementType::JavaScriptCodeWithScope)?;
-//         let length = i32_from_slice(&self.data[..4])?;
-
-//         if (self.data.len() as i32) != length {
-//             return Err(Error::new_without_key(ErrorKind::MalformedValue {
-//                 message: format!("TODO: Java"),
-//             }));
-//         }
-
-//         let code = read_lenencoded(&self.data[4..])?;
-//         let scope = RawDocumentRef::new(&self.data[9 + code.len()..])?;
-
-//         Ok(RawJavaScriptCodeWithScope { code, scope })
-//     }
-
-//     /// Gets the timestamp that's referenced or returns an error if the value isn't a BSON
-//     /// timestamp.
-//     pub fn as_timestamp(self) -> Result<RawTimestamp<'a>> {
-//         self.validate_type(ElementType::Timestamp)?;
-//         assert_eq!(self.data.len(), 8);
-//         Ok(RawTimestamp { data: self.data })
-//     }
-
-//     /// Gets the i32 that's referenced or returns an error if the value isn't a BSON int32.
-//     pub fn as_i32(self) -> Result<i32> {
-//         self.validate_type(ElementType::Int32)?;
-//         i32_from_slice(self.data)
-//     }
-
-//     /// Gets the i64 that's referenced or returns an error if the value isn't a BSON int64.
-//     pub fn as_i64(self) -> Result<i64> {
-//         self.validate_type(ElementType::Int64)?;
-//         i64_from_slice(self.data)
-//     }
-
-//     /// Gets the decimal that's referenced or returns an error if the value isn't a BSON
-// Decimal128.     pub fn as_decimal128(self) -> Result<Decimal128> {
-//         self.validate_type(ElementType::Decimal128)?;
-//         let bytes: [u8; 128 / 8] = self.data.try_into().map_err(|_| {
-//             Error::new_without_key(ErrorKind::MalformedValue {
-//                 message: format!("decimal128 value has invalid length: {}", self.data.len()),
-//             })
-//         })?;
-//         Ok(Decimal128::from_bytes(bytes))
-//     }
-
-//     /// Gets the null value that's referenced or returns an error if the value isn't a BSON null.
-//     pub fn as_null(self) -> Result<()> {
-//         self.validate_type(ElementType::Null)
-//     }
-// }
 
 impl<'a> TryFrom<RawBson<'a>> for Bson {
     type Error = Error;
@@ -506,6 +353,7 @@ impl<'a> RawJavaScriptCodeWithScope<'a> {
     }
 }
 
+/// A BSON DB pointer value referencing raw bytes stored elesewhere.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RawDbPointer<'a> {
     pub(crate) namespace: &'a str,
