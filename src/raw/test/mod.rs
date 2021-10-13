@@ -193,7 +193,7 @@ fn binary() {
         .as_binary()
         .expect("result was not a binary object");
     assert_eq!(binary.subtype, BinarySubtype::Generic);
-    assert_eq!(binary.data, &[1, 2, 3]);
+    assert_eq!(binary.bytes, &[1, 2, 3]);
 }
 
 #[test]

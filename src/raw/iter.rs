@@ -42,7 +42,7 @@ impl<'a> Iter<'a> {
         Self {
             doc,
             offset: 4,
-            valid: false,
+            valid: true,
         }
     }
 
@@ -194,7 +194,13 @@ impl<'a> Iterator for Iter<'a> {
                         }
                         _ => &self.doc.as_bytes()[data_start..(data_start + len)],
                     };
-                    (RawBson::Binary(RawBinary { subtype, data }), 4 + 1 + len)
+                    (
+                        RawBson::Binary(RawBinary {
+                            subtype,
+                            bytes: data,
+                        }),
+                        4 + 1 + len,
+                    )
                 }
                 ElementType::ObjectId => {
                     let oid = self.next_oid(valueoffset)?;

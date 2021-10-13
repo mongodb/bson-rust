@@ -41,7 +41,7 @@ use super::{Error, ErrorKind, Iter, RawBson, RawDoc, Result};
 /// assert_eq!(doc.get_str("hi")?, Some("y'all"));
 /// # Ok::<(), Error>(())
 /// ```
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct RawDocument {
     data: Vec<u8>,
 }
@@ -133,6 +133,14 @@ impl RawDocument {
     /// ```
     pub fn into_vec(self) -> Vec<u8> {
         self.data
+    }
+}
+
+impl std::fmt::Debug for RawDocument {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RawDocument")
+            .field("data", &hex::encode(&self.data))
+            .finish()
     }
 }
 

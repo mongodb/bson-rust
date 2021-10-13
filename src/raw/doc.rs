@@ -57,7 +57,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// assert_eq!(doc.get_str("hi")?, Some("y'all"));
 /// # Ok::<(), Error>(())
 /// ```
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 #[repr(transparent)]
 pub struct RawDoc {
     data: [u8],
@@ -483,6 +483,14 @@ impl RawDoc {
     /// ```
     pub fn as_bytes(&self) -> &[u8] {
         &self.data
+    }
+}
+
+impl std::fmt::Debug for RawDoc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RawDoc")
+            .field("data", &hex::encode(&self.data))
+            .finish()
     }
 }
 

@@ -62,7 +62,7 @@ use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
 /// assert_eq!(rawarray.get_bool(1)?, true);
 /// # Ok::<(), ValueAccessError>(())
 /// ```
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 #[repr(transparent)]
 pub struct RawArr {
     pub(crate) doc: RawDoc,
@@ -190,6 +190,14 @@ impl RawArr {
     /// Gets a reference to the raw bytes of the RawArr.
     pub fn as_bytes(&self) -> &[u8] {
         self.doc.as_bytes()
+    }
+}
+
+impl std::fmt::Debug for RawArr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RawArr")
+            .field("data", &hex::encode(self.doc.as_bytes()))
+            .finish()
     }
 }
 

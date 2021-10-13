@@ -259,7 +259,10 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
                 Bson::Array(items)
             }
             RawBson::Binary(rawbson) => {
-                let RawBinary { subtype, data } = rawbson;
+                let RawBinary {
+                    subtype,
+                    bytes: data,
+                } = rawbson;
                 Bson::Binary(crate::Binary {
                     subtype,
                     bytes: data.to_vec(),
@@ -300,7 +303,7 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawBinary<'a> {
     pub(super) subtype: BinarySubtype,
-    pub(super) data: &'a [u8],
+    pub(super) bytes: &'a [u8],
 }
 
 impl<'a> RawBinary<'a> {
@@ -311,7 +314,7 @@ impl<'a> RawBinary<'a> {
 
     /// Gets the contained bytes of the binary value.
     pub fn as_bytes(self) -> &'a [u8] {
-        self.data
+        self.bytes
     }
 }
 
