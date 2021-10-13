@@ -26,7 +26,7 @@ use super::{
     read_lenencoded,
     read_nullterminated,
     Error,
-    RawArray,
+    RawArr,
     RawBinary,
     RawBson,
     RawRegex,
@@ -484,7 +484,7 @@ impl RawDoc {
     /// assert!(doc.get_array("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get_array<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<&'a RawArray> {
+    pub fn get_array<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<&'a RawArr> {
         self.get_with(key, ElementType::Array, RawBson::as_array)
     }
 
@@ -859,10 +859,7 @@ impl<'a> Iterator for Iter<'a> {
                 }
                 ElementType::Array => {
                     let doc = self.next_document(valueoffset)?;
-                    (
-                        RawBson::Array(RawArray::from_doc(doc)),
-                        doc.as_bytes().len(),
-                    )
+                    (RawBson::Array(RawArr::from_doc(doc)), doc.as_bytes().len())
                 }
                 ElementType::Binary => {
                     let len = i32_from_slice(&self.doc.data[valueoffset..])? as usize;

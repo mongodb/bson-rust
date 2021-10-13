@@ -5,9 +5,9 @@
 //! [`Document`] type in that their storage is BSON bytes rather than a hash-map like Rust type. In
 //! certain circumstances, these types can be leveraged for increased performance.
 //!
-//! This module also provides a [`RawBson`] type for modeling any borrowed BSON element and a [`RawArray`] type
-//! for modeling a borrowed slice of a document containing a BSON array element.
-//! 
+//! This module also provides a [`RawBson`] type for modeling any borrowed BSON element and a
+//! [`RawArr`] type for modeling a borrowed slice of a document containing a BSON array element.
+//!
 //! A [`RawDocument`] can be created from a `Vec<u8>` containing raw BSON data, and elements
 //! accessed via methods similar to those available on the [`Document`] type. Note that
 //! [`RawDocument::get`] returns a [`raw::Result<Option<RawBson>>`], since the bytes contained in
@@ -47,7 +47,7 @@
 //!        "cruel": "world"
 //!    }
 //! };
-//! 
+//!
 //! let raw = RawDocument::from_document(&document)?;
 //! let value: Option<&str> = raw
 //!     .get_document("goodbye")?
@@ -61,7 +61,7 @@
 //! );
 //! # Ok::<(), bson::raw::Error>(())
 //! ```
-//! 
+//!
 //! ### Reference types ([`RawDoc`])
 //!
 //! A BSON document can also be accessed with the [`RawDoc`] type, which is an
@@ -78,7 +78,7 @@
 //! assert_eq!(RawDoc::new(bytes)?.get_str("hi")?, Some("y'all"));
 //! # Ok::<(), bson::raw::Error>(())
 //! ```
-//! 
+//!
 //! ### Iteration
 //!
 //! [`RawDoc`] implements [`IntoIterator`](std::iter::IntoIterator), which can also be
@@ -123,8 +123,8 @@ use std::convert::{TryFrom, TryInto};
 use crate::de::MIN_BSON_STRING_SIZE;
 
 pub use self::{
-    array::{RawArray, RawArrayIter},
-    doc::{Iter, RawDocument, RawDoc},
+    array::{RawArr, RawArrIter},
+    doc::{Iter, RawDoc, RawDocument},
     elem::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex},
     error::{Error, ErrorKind, Result},
 };

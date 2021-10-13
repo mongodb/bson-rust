@@ -12,16 +12,16 @@ use super::{
 };
 use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
 
-/// A slice of a BSON document containing a BSON array value (akin to [`std::str`]). This can be retrieved from a
-/// [`RawDoc`] via [`RawDoc::get`].
+/// A slice of a BSON document containing a BSON array value (akin to [`std::str`]). This can be
+/// retrieved from a [`RawDoc`] via [`RawDoc::get`].
 ///
 /// This is an _unsized_ type, meaning that it must always be used behind a pointer like `&`.
 ///
-/// Accessing elements within a [`RawArray`] is similar to element access in [`bson::Document`],
+/// Accessing elements within a [`RawArr`] is similar to element access in [`bson::Document`],
 /// but because the contents are parsed during iteration instead of at creation time, format errors
 /// can happen at any time during use.
 ///
-/// Iterating over a [`RawArray`] yields either an error or a key-value pair that borrows from the
+/// Iterating over a [`RawArr`] yields either an error or a key-value pair that borrows from the
 /// original document without making any additional allocations.
 ///
 /// ```
@@ -42,9 +42,9 @@ use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
 /// # Ok::<(), Error>(())
 /// ```
 ///
-/// Individual elements can be accessed using [`RawArray::get`] or any of
-/// the type-specific getters, such as [`RawArray::get_object_id`] or
-/// [`RawArray::get_str`]. Note that accessing elements is an O(N) operation, as it
+/// Individual elements can be accessed using [`RawArr::get`] or any of
+/// the type-specific getters, such as [`RawArr::get_object_id`] or
+/// [`RawArr::get_str`]. Note that accessing elements is an O(N) operation, as it
 /// requires iterating through the array from the beginning to find the requested index.
 ///
 /// ```
@@ -64,22 +64,22 @@ use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
 /// ```
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct RawArray {
+pub struct RawArr {
     pub(crate) doc: RawDoc,
 }
 
-impl RawArray {
-    pub(crate) fn from_doc(doc: &RawDoc) -> &RawArray {
+impl RawArr {
+    pub(crate) fn from_doc(doc: &RawDoc) -> &RawArr {
         // SAFETY:
         //
         // Dereferencing a raw pointer requires unsafe due to the potential that the pointer is
         // null, dangling, or misaligned. We know the pointer is not null or dangling due to the
         // fact that it's created by a safe reference. Converting &RawDoc to *const
         // RawDoc will be properly aligned due to them being references to the same type,
-        // and converting *const RawDoc to *const RawArray is aligned due to the fact that
-        // the only field in a RawArray is a RawDoc, meaning the structs are represented
+        // and converting *const RawDoc to *const RawArr is aligned due to the fact that
+        // the only field in a RawArr is a RawDoc, meaning the structs are represented
         // identically at the byte level.
-        unsafe { &*(doc as *const RawDoc as *const RawArray) }
+        unsafe { &*(doc as *const RawDoc as *const RawArr) }
     }
 
     /// Gets a reference to the value at the given index.
@@ -135,7 +135,7 @@ impl RawArray {
 
     /// Gets a reference to the array at the given index or returns an error if the
     /// value at that index isn't a array.
-    pub fn get_array(&self, index: usize) -> ValueAccessResult<&RawArray> {
+    pub fn get_array(&self, index: usize) -> ValueAccessResult<&RawArr> {
         self.get_with(index, ElementType::Array, RawBson::as_array)
     }
 
@@ -187,16 +187,16 @@ impl RawArray {
         self.get_with(index, ElementType::Int64, RawBson::as_i64)
     }
 
-    /// Gets a reference to the raw bytes of the RawArray.
+    /// Gets a reference to the raw bytes of the RawArr.
     pub fn as_bytes(&self) -> &[u8] {
         self.doc.as_bytes()
     }
 }
 
-impl TryFrom<&RawArray> for Vec<Bson> {
+impl TryFrom<&RawArr> for Vec<Bson> {
     type Error = Error;
 
-    fn try_from(arr: &RawArray) -> Result<Vec<Bson>> {
+    fn try_from(arr: &RawArr) -> Result<Vec<Bson>> {
         arr.into_iter()
             .map(|result| {
                 let rawbson = result?;
@@ -206,23 +206,23 @@ impl TryFrom<&RawArray> for Vec<Bson> {
     }
 }
 
-impl<'a> IntoIterator for &'a RawArray {
-    type IntoIter = RawArrayIter<'a>;
+impl<'a> IntoIterator for &'a RawArr {
+    type IntoIter = RawArrIter<'a>;
     type Item = Result<RawBson<'a>>;
 
-    fn into_iter(self) -> RawArrayIter<'a> {
-        RawArrayIter {
+    fn into_iter(self) -> RawArrIter<'a> {
+        RawArrIter {
             inner: self.doc.into_iter(),
         }
     }
 }
 
 /// An iterator over borrowed raw BSON array values.
-pub struct RawArrayIter<'a> {
+pub struct RawArrIter<'a> {
     inner: Iter<'a>,
 }
 
-impl<'a> Iterator for RawArrayIter<'a> {
+impl<'a> Iterator for RawArrIter<'a> {
     type Item = Result<RawBson<'a>>;
 
     fn next(&mut self) -> Option<Result<RawBson<'a>>> {

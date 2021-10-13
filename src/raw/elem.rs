@@ -1,6 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 
-use super::{Error, RawArray, RawDoc, Result};
+use super::{Error, RawArr, RawDoc, Result};
 use crate::{
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
@@ -18,7 +18,7 @@ pub enum RawBson<'a> {
     /// UTF-8 string
     String(&'a str),
     /// Array
-    Array(&'a RawArray),
+    Array(&'a RawArr),
     /// Embedded document
     Document(&'a RawDoc),
     /// Boolean value
@@ -103,9 +103,9 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// Gets the [`&RawArray`] that's referenced or returns `None` if the referenced value isn't a
+    /// Gets the [`&RawArr`] that's referenced or returns `None` if the referenced value isn't a
     /// BSON array.
-    pub fn as_array(self) -> Option<&'a RawArray> {
+    pub fn as_array(self) -> Option<&'a RawArr> {
         match self {
             RawBson::Array(v) => Some(v),
             _ => None,
