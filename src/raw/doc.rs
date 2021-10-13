@@ -32,7 +32,6 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 ///
 /// Iterating over a [`RawDoc`] yields either an error or a key-value pair that borrows from the
 /// original document without making any additional allocations.
-
 /// ```
 /// # use bson::raw::{Error};
 /// use bson::raw::RawDoc;

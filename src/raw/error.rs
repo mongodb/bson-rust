@@ -10,7 +10,7 @@ pub struct Error {
     pub kind: ErrorKind,
 
     /// They key associated with the error, if any.
-    pub key: Option<String>,
+    pub(crate) key: Option<String>,
 }
 
 impl Error {
@@ -29,12 +29,11 @@ impl Error {
         self.key = Some(key.as_ref().to_string());
         self
     }
-}
 
-/// Execute the provided closure, mapping the key of the returned error (if any) to the provided
-/// key.
-pub(crate) fn try_with_key<G, F: FnOnce() -> Result<G>>(key: impl AsRef<str>, f: F) -> Result<G> {
-    f().map_err(|e| e.with_key(key))
+    /// The key at which the error was encountered, if any.
+    pub fn key(&self) -> Option<&str> {
+        self.key.as_deref()
+    }
 }
 
 /// The different categories of errors that can be returned when reading from raw BSON.
@@ -45,8 +44,7 @@ pub enum ErrorKind {
     #[non_exhaustive]
     MalformedValue { message: String },
 
-    /// Improper UTF-8 bytes were found when proper UTF-8 was expected. The error value contains
-    /// the malformed data as bytes.
+    /// Improper UTF-8 bytes were found when proper UTF-8 was expected.
     Utf8EncodingError(Utf8Error),
 }
 
@@ -71,6 +69,13 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {}
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// Execute the provided closure, mapping the key of the returned error (if any) to the provided
+/// key.
+pub(crate) fn try_with_key<G, F: FnOnce() -> Result<G>>(key: impl AsRef<str>, f: F) -> Result<G> {
+    f().map_err(|e| e.with_key(key))
+}
+
 pub type ValueAccessResult<T> = std::result::Result<T, ValueAccessError>;
 
 /// Error to indicate that either a value was empty or it contained an unexpected
@@ -82,7 +87,14 @@ pub struct ValueAccessError {
     pub kind: ValueAccessErrorKind,
 
     /// The key at which the error was encountered.
-    pub key: String,
+    pub(crate) key: String,
+}
+
+impl ValueAccessError {
+    /// The key at which the error was encountered.
+    pub fn key(&self) -> &str {
+        self.key.as_str()
+    }
 }
 
 /// The type of error encountered when using a direct getter (e.g. [`crate::raw::RawDoc::get_str`]).

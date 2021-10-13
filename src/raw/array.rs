@@ -21,7 +21,7 @@ use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
 /// but because the contents are parsed during iteration instead of at creation time, format errors
 /// can happen at any time during use.
 ///
-/// Iterating over a [`RawArr`] yields either an error or a key-value pair that borrows from the
+/// Iterating over a [`RawArr`] yields either an error or a value that borrows from the
 /// original document without making any additional allocations.
 ///
 /// ```

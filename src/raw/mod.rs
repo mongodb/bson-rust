@@ -138,11 +138,10 @@ fn f64_from_slice(val: &[u8]) -> Result<f64> {
     let arr = val
         .get(0..8)
         .and_then(|s| s.try_into().ok())
-        .ok_or_else(|| Error {
-            key: None,
-            kind: ErrorKind::MalformedValue {
+        .ok_or_else(|| {
+            Error::new_without_key(ErrorKind::MalformedValue {
                 message: format!("expected 8 bytes to read double, instead got {}", val.len()),
-            },
+            })
         })?;
     Ok(f64::from_le_bytes(arr))
 }
@@ -153,11 +152,10 @@ fn i32_from_slice(val: &[u8]) -> Result<i32> {
     let arr = val
         .get(0..4)
         .and_then(|s| s.try_into().ok())
-        .ok_or_else(|| Error {
-            key: None,
-            kind: ErrorKind::MalformedValue {
+        .ok_or_else(|| {
+            Error::new_without_key(ErrorKind::MalformedValue {
                 message: format!("expected 4 bytes to read i32, instead got {}", val.len()),
-            },
+            })
         })?;
     Ok(i32::from_le_bytes(arr))
 }
@@ -168,32 +166,27 @@ fn i64_from_slice(val: &[u8]) -> Result<i64> {
     let arr = val
         .get(0..8)
         .and_then(|s| s.try_into().ok())
-        .ok_or_else(|| Error {
-            key: None,
-            kind: ErrorKind::MalformedValue {
+        .ok_or_else(|| {
+            Error::new_without_key(ErrorKind::MalformedValue {
                 message: format!("expected 8 bytes to read i64, instead got {}", val.len()),
-            },
+            })
         })?;
     Ok(i64::from_le_bytes(arr))
 }
 
 fn read_nullterminated(buf: &[u8]) -> Result<&str> {
     let mut splits = buf.splitn(2, |x| *x == 0);
-    let value = splits.next().ok_or_else(|| Error {
-        key: None,
-        kind: ErrorKind::MalformedValue {
+    let value = splits.next().ok_or_else(|| {
+        Error::new_without_key(ErrorKind::MalformedValue {
             message: "no value".into(),
-        },
+        })
     })?;
     if splits.next().is_some() {
         Ok(try_to_str(value)?)
     } else {
-        Err(Error {
-            key: None,
-            kind: ErrorKind::MalformedValue {
-                message: "expected null terminator".into(),
-            },
-        })
+        Err(Error::new_without_key(ErrorKind::MalformedValue {
+            message: "expected null terminator".into(),
+        }))
     }
 }
 
@@ -211,16 +204,13 @@ fn read_lenencoded(buf: &[u8]) -> Result<&str> {
     }
 
     if buf.len() < end {
-        return Err(Error {
-            key: None,
-            kind: ErrorKind::MalformedValue {
-                message: format!(
-                    "expected buffer to contain at least {} bytes, but it only has {}",
-                    end,
-                    buf.len()
-                ),
-            },
-        });
+        return Err(Error::new_without_key(ErrorKind::MalformedValue {
+            message: format!(
+                "expected buffer to contain at least {} bytes, but it only has {}",
+                end,
+                buf.len()
+            ),
+        }));
     }
 
     if buf[end - 1] != 0 {
@@ -236,10 +226,7 @@ fn read_lenencoded(buf: &[u8]) -> Result<&str> {
 fn try_to_str(data: &[u8]) -> Result<&str> {
     match std::str::from_utf8(data) {
         Ok(s) => Ok(s),
-        Err(e) => Err(Error {
-            key: None,
-            kind: ErrorKind::Utf8EncodingError(e),
-        }),
+        Err(e) => Err(Error::new_without_key(ErrorKind::Utf8EncodingError(e))),
     }
 }
 

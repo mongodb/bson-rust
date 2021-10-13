@@ -484,7 +484,6 @@ proptest! {
 
     #[test]
     fn roundtrip_bson(bson in arbitrary_bson()) {
-        println!("{:?}", bson);
         let doc = doc!{"bson": bson};
         let raw = to_bytes(&doc);
         let raw = RawDocument::new(raw);
