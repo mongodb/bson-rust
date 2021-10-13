@@ -41,13 +41,6 @@ pub(crate) fn try_with_key<G, F: FnOnce() -> Result<G>>(key: impl AsRef<str>, f:
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum ErrorKind {
-    /// A BSON value did not fit the expected type.
-    #[non_exhaustive]
-    UnexpectedType {
-        actual: ElementType,
-        expected: ElementType,
-    },
-
     /// A BSON value did not fit the proper format.
     #[non_exhaustive]
     MalformedValue { message: String },
@@ -67,11 +60,6 @@ impl std::fmt::Display for Error {
         let prefix = p.as_ref().map_or("", |p| p.as_str());
 
         match &self.kind {
-            ErrorKind::UnexpectedType { actual, expected } => write!(
-                f,
-                "{} unexpected element type: {:?}, expected: {:?}",
-                prefix, actual, expected
-            ),
             ErrorKind::MalformedValue { message } => {
                 write!(f, "{}malformed value: {:?}", prefix, message)
             }
@@ -97,6 +85,7 @@ pub struct ValueAccessError {
     pub key: String,
 }
 
+/// The type of error encountered when using a direct getter (e.g. [`RawDoc::get_str`]).
 #[derive(Debug, PartialEq, Clone)]
 #[non_exhaustive]
 pub enum ValueAccessErrorKind {
@@ -106,7 +95,10 @@ pub enum ValueAccessErrorKind {
     /// Found a Bson value with the specified key, but not with the expected type
     #[non_exhaustive]
     UnexpectedType {
+        /// The type that was expected.
         expected: ElementType,
+
+        /// The actual type that was encountered.
         actual: ElementType,
     },
 

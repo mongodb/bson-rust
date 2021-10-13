@@ -1,6 +1,7 @@
 use std::{
     borrow::{Borrow, Cow},
     convert::TryFrom,
+    ops::Deref,
 };
 
 use crate::Document;
@@ -40,9 +41,9 @@ use super::{Error, ErrorKind, Iter, RawBson, RawDoc, Result};
 /// assert_eq!(doc.get_str("hi")?, Some("y'all"));
 /// # Ok::<(), Error>(())
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RawDocument {
-    pub(crate) data: Vec<u8>,
+    data: Vec<u8>,
 }
 
 impl RawDocument {
@@ -113,7 +114,7 @@ impl RawDocument {
     ///
     /// # Note:
     ///
-    /// There is no owning iterator for RawDocument. If you need ownership over
+    /// There is no owning iterator for [`RawDocument`]. If you need ownership over
     /// elements that might need to allocate, you must explicitly convert
     /// them to owned types yourself.
     pub fn iter(&self) -> Iter<'_> {
@@ -166,6 +167,14 @@ impl<'a> IntoIterator for &'a RawDocument {
 
 impl AsRef<RawDoc> for RawDocument {
     fn as_ref(&self) -> &RawDoc {
+        RawDoc::new_unchecked(&self.data)
+    }
+}
+
+impl Deref for RawDocument {
+    type Target = RawDoc;
+
+    fn deref(&self) -> &Self::Target {
         RawDoc::new_unchecked(&self.data)
     }
 }

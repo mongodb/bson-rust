@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
     convert::{TryFrom, TryInto},
-    ops::Deref,
 };
 
 use crate::{raw::error::ErrorKind, DateTime, Timestamp};
@@ -54,11 +53,11 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 ///
 /// ```
 /// # use bson::raw::{RawDocument, Error};
-/// let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// let doc = RawDoc::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// assert_eq!(doc.get_str("hi")?, Some("y'all"));
 /// # Ok::<(), Error>(())
 /// ```
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[repr(transparent)]
 pub struct RawDoc {
     data: [u8],
@@ -127,8 +126,8 @@ impl RawDoc {
         // fact that it's created by a safe reference. Converting &[u8] to *const [u8] will be
         // properly aligned due to them being references to the same type, and converting *const
         // [u8] to *const RawDoc is aligned due to the fact that the only field in a
-        // RawDoc is a [u8], meaning the structs are represented identically at the byte
-        // level.
+        // RawDoc is a [u8] and it is #[repr(transparent), meaning the structs are represented
+        // identically at the byte level.
         unsafe { &*(data.as_ref() as *const [u8] as *const RawDoc) }
     }
 
@@ -142,9 +141,8 @@ impl RawDoc {
     /// let doc: RawDocument = doc_ref.to_raw_document();
     /// # Ok::<(), Error>(())
     pub fn to_raw_document(&self) -> RawDocument {
-        RawDocument {
-            data: self.data.to_owned(),
-        }
+        // unwrap is ok here because we already verified the bytes in `RawDocumentRef::new`
+        RawDocument::new(self.data.to_owned()).unwrap()
     }
 
     /// Gets a reference to the value corresponding to the given key by iterating until the key is
@@ -491,14 +489,6 @@ impl RawDoc {
 impl AsRef<RawDoc> for RawDoc {
     fn as_ref(&self) -> &RawDoc {
         self
-    }
-}
-
-impl Deref for RawDocument {
-    type Target = RawDoc;
-
-    fn deref(&self) -> &Self::Target {
-        RawDoc::new_unchecked(&self.data)
     }
 }
 

@@ -62,7 +62,7 @@ use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
 /// assert_eq!(rawarray.get_bool(1)?, true);
 /// # Ok::<(), ValueAccessError>(())
 /// ```
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[repr(transparent)]
 pub struct RawArr {
     pub(crate) doc: RawDoc,

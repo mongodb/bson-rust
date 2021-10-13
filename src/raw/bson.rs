@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// A BSON value referencing raw bytes stored elsewhere.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RawBson<'a> {
     /// 64-bit binary floating point
     Double(f64),
@@ -316,7 +316,7 @@ impl<'a> RawBinary<'a> {
 }
 
 /// A BSON regex referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawRegex<'a> {
     pub(super) pattern: &'a str,
     pub(super) options: &'a str,
@@ -335,7 +335,7 @@ impl<'a> RawRegex<'a> {
 }
 
 /// A BSON "code with scope" value referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawJavaScriptCodeWithScope<'a> {
     pub(crate) code: &'a str,
     pub(crate) scope: &'a RawDoc,
