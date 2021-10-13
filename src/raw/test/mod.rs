@@ -40,7 +40,7 @@ fn nested_document() {
     let docbytes = to_bytes(&doc! {
         "outer": {
             "inner": "surprise",
-            "double": 6,
+            "i64": 6_i64,
         },
     });
     let rawdoc = RawDoc::new(&docbytes).unwrap();
@@ -62,7 +62,7 @@ fn nested_document() {
 
     assert_eq!(
         subdoc
-            .get("double")
+            .get("i64")
             .expect("get i64 result")
             .expect("get i64 option")
             .as_i64()
