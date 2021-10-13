@@ -1,16 +1,17 @@
 //! An API for interacting with raw BSON bytes.
 //!
-//! This module provides two document types, [`RawDocument`] and [`RawDoc`] (akin to [`std::String`]
-//! and [`std::str`], for working with raw BSON documents. These types differ from the regular
-//! [`Document`] type in that their storage is BSON bytes rather than a hash-map like Rust type. In
-//! certain circumstances, these types can be leveraged for increased performance.
+//! This module provides two document types, [`RawDocument`] and [`RawDoc`] (akin to
+//! [`std::string::String`] and [`str`]), for working with raw BSON documents. These types differ
+//! from the regular [`crate::Document`] type in that their storage is BSON bytes rather than a
+//! hash-map like Rust type. In certain circumstances, these types can be leveraged for increased
+//! performance.
 //!
 //! This module also provides a [`RawBson`] type for modeling any borrowed BSON element and a
 //! [`RawArr`] type for modeling a borrowed slice of a document containing a BSON array element.
 //!
 //! A [`RawDocument`] can be created from a `Vec<u8>` containing raw BSON data, and elements
-//! accessed via methods similar to those available on the [`Document`] type. Note that
-//! [`RawDocument::get`] returns a [`raw::Result<Option<RawBson>>`], since the bytes contained in
+//! accessed via methods similar to those available on the [`crate::Document`] type. Note that
+//! [`RawDoc::get`] returns a [`Result<Option<RawBson>>`], since the bytes contained in
 //! the document are not fully validated until trying to access the contained data.
 //!
 //! ```rust
@@ -30,10 +31,10 @@
 //! # Ok::<(), bson::raw::Error>(())
 //! ```
 //!
-//! ### [`Document`] interop
+//! ### [`crate::Document`] interop
 //!
-//! A [`RawDocument`] can be created from a [`Document`]. Internally, this
-//! serializes the [`Document`] to a `Vec<u8>`, and then includes those bytes in the
+//! A [`RawDocument`] can be created from a [`crate::Document`]. Internally, this
+//! serializes the [`crate::Document`] to a `Vec<u8>`, and then includes those bytes in the
 //! [`RawDocument`].
 //!
 //! ```rust
@@ -124,7 +125,7 @@ use crate::de::MIN_BSON_STRING_SIZE;
 
 pub use self::{
     array::{RawArr, RawArrIter},
-    bson::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex},
+    bson::{RawBinary, RawBson, RawDbPointer, RawJavaScriptCodeWithScope, RawRegex},
     doc::RawDoc,
     document::RawDocument,
     error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},

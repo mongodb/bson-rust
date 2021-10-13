@@ -74,7 +74,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type ValueAccessResult<T> = std::result::Result<T, ValueAccessError>;
 
 /// Error to indicate that either a value was empty or it contained an unexpected
-/// type, for use with the direct getters (e.g. [`RawDoc::get_str`]).
+/// type, for use with the direct getters (e.g. [`crate::raw::RawDoc::get_str`]).
 #[derive(Debug, PartialEq, Clone)]
 #[non_exhaustive]
 pub struct ValueAccessError {
@@ -85,7 +85,7 @@ pub struct ValueAccessError {
     pub key: String,
 }
 
-/// The type of error encountered when using a direct getter (e.g. [`RawDoc::get_str`]).
+/// The type of error encountered when using a direct getter (e.g. [`crate::raw::RawDoc::get_str`]).
 #[derive(Debug, PartialEq, Clone)]
 #[non_exhaustive]
 pub enum ValueAccessErrorKind {

@@ -85,7 +85,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// Gets the f64 that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets the `f64` that's referenced or returns `None` if the referenced value isn't a BSON
     /// double.
     pub fn as_f64(self) -> Option<f64> {
         match self {
@@ -103,8 +103,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// Gets the [`&RawArr`] that's referenced or returns `None` if the referenced value isn't a
-    /// BSON array.
+    /// Gets the [`crate::raw::RawArr`] that's referenced or returns `None` if the referenced value
+    /// isn't a BSON array.
     pub fn as_array(self) -> Option<&'a RawArr> {
         match self {
             RawBson::Array(v) => Some(v),
@@ -112,7 +112,7 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// Gets the [`&RawDoc`] that's referenced or returns `None` if the referenced value
+    /// Gets the [`crate::raw::RawDoc`] that's referenced or returns `None` if the referenced value
     /// isn't a BSON document.
     pub fn as_document(self) -> Option<&'a RawDoc> {
         match self {
@@ -148,8 +148,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// Gets the [`ObjectId`] that's referenced or returns `None` if the referenced value isn't a
-    /// BSON ObjectID.
+    /// Gets the [`crate::oid::ObjectId`] that's referenced or returns `None` if the referenced
+    /// value isn't a BSON ObjectID.
     pub fn as_object_id(self) -> Option<oid::ObjectId> {
         match self {
             RawBson::ObjectId(v) => Some(v),
@@ -175,8 +175,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// Gets the [`DateTime`] that's referenced or returns `None` if the referenced value isn't a
-    /// BSON datetime.
+    /// Gets the [`crate::DateTime`] that's referenced or returns `None` if the referenced value
+    /// isn't a BSON datetime.
     pub fn as_datetime(self) -> Option<crate::DateTime> {
         match self {
             RawBson::DateTime(v) => Some(v),
@@ -193,8 +193,8 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// Gets the [`Timestamp`] that's referenced or returns `None` if the referenced value isn't a
-    /// BSON timestamp.
+    /// Gets the [`crate::Timestamp`] that's referenced or returns `None` if the referenced value
+    /// isn't a BSON timestamp.
     pub fn as_timestamp(self) -> Option<Timestamp> {
         match self {
             RawBson::Timestamp(timestamp) => Some(timestamp),

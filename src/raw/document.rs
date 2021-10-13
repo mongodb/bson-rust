@@ -9,9 +9,9 @@ use crate::Document;
 use super::{Error, ErrorKind, Iter, RawBson, RawDoc, Result};
 
 /// A BSON document, stored as raw bytes on the heap. This can be created from a `Vec<u8>` or
-/// a [`bson::Document`].
+/// a [`crate::Document`].
 ///
-/// Accessing elements within a [`RawDocument`] is similar to element access in [`bson::Document`],
+/// Accessing elements within a [`RawDocument`] is similar to element access in [`crate::Document`],
 /// but because the contents are parsed during iteration instead of at creation time, format errors
 /// can happen at any time during use.
 ///

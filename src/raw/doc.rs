@@ -26,7 +26,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// This is an _unsized_ type, meaning that it must always be used behind a pointer like `&`. For an
 /// owned version of this type, see [`RawDocument`].
 ///
-/// Accessing elements within a [`RawDoc`] is similar to element access in [`bson::Document`],
+/// Accessing elements within a [`RawDoc`] is similar to element access in [`crate::Document`],
 /// but because the contents are parsed during iteration instead of at creation time, format errors
 /// can happen at any time during use.
 ///
