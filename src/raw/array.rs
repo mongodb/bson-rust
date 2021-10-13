@@ -159,7 +159,7 @@ impl RawArr {
     /// Gets the DateTime at the given index or returns an error if the value at that index isn't a
     /// DateTime.
     pub fn get_datetime(&self, index: usize) -> ValueAccessResult<DateTime> {
-        Ok(self.get_with(index, ElementType::DateTime, RawBson::as_datetime)?)
+        self.get_with(index, ElementType::DateTime, RawBson::as_datetime)
     }
 
     /// Gets a reference to the BSON regex at the given index or returns an error if the

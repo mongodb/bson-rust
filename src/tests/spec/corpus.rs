@@ -396,6 +396,16 @@ fn run_test(test: TestFile) {
     }
 
     for decode_error in test.decode_errors.iter() {
+        let description = format!(
+            "{} decode error: {}",
+            test.bson_type, decode_error.description
+        );
+        let bson = hex::decode(&decode_error.bson).expect("should decode from hex");
+
+        if let Ok(doc) = RawDoc::new(bson.as_slice()) {
+            Document::try_from(doc).expect_err(description.as_str());
+        }
+
         // No meaningful definition of "byte count" for an arbitrary reader.
         if decode_error.description
             == "Stated length less than byte count, with garbage after envelope"
@@ -403,17 +413,8 @@ fn run_test(test: TestFile) {
             continue;
         }
 
-        let description = format!(
-            "{} decode error: {}",
-            test.bson_type, decode_error.description
-        );
-        let bson = hex::decode(&decode_error.bson).expect("should decode from hex");
         Document::from_reader(bson.as_slice()).expect_err(&description);
         crate::from_reader::<_, Document>(bson.as_slice()).expect_err(description.as_str());
-
-        if let Ok(doc) = RawDoc::new(bson.as_slice()) {
-            Document::try_from(doc).expect_err(&description.as_str());
-        }
 
         if decode_error.description.contains("invalid UTF-8") {
             crate::from_reader_utf8_lossy::<_, Document>(bson.as_slice()).unwrap_or_else(|err| {

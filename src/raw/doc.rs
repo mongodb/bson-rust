@@ -95,7 +95,7 @@ impl RawDoc {
             });
         }
 
-        let length = i32_from_slice(&data)?;
+        let length = i32_from_slice(data)?;
 
         if data.len() as i32 != length {
             return Err(Error {
@@ -163,7 +163,7 @@ impl RawDoc {
     /// assert!(doc.get("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get<'a>(&'a self, key: impl AsRef<str>) -> Result<Option<RawBson<'a>>> {
+    pub fn get(&self, key: impl AsRef<str>) -> Result<Option<RawBson<'_>>> {
         for result in self.into_iter() {
             let (k, v) = result?;
             if key.as_ref() == k {
@@ -241,7 +241,7 @@ impl RawDoc {
     /// assert!(matches!(doc.get_str("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn get_str<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<&'a str> {
+    pub fn get_str(&self, key: impl AsRef<str>) -> ValueAccessResult<&'_ str> {
         self.get_with(key, ElementType::String, RawBson::as_str)
     }
 
@@ -262,7 +262,7 @@ impl RawDoc {
     /// assert!(matches!(doc.get_document("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn get_document<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<&'a RawDoc> {
+    pub fn get_document(&self, key: impl AsRef<str>) -> ValueAccessResult<&'_ RawDoc> {
         self.get_with(key, ElementType::EmbeddedDocument, RawBson::as_document)
     }
 
@@ -286,7 +286,7 @@ impl RawDoc {
     /// assert!(matches!(doc.get_array("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn get_array<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<&'a RawArr> {
+    pub fn get_array(&self, key: impl AsRef<str>) -> ValueAccessResult<&'_ RawArr> {
         self.get_with(key, ElementType::Array, RawBson::as_array)
     }
 
@@ -311,7 +311,7 @@ impl RawDoc {
     /// assert!(matches!(doc.get_binary("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn get_binary<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<RawBinary<'a>> {
+    pub fn get_binary(&self, key: impl AsRef<str>) -> ValueAccessResult<RawBinary<'_>> {
         self.get_with(key, ElementType::Binary, RawBson::as_binary)
     }
 
@@ -399,7 +399,7 @@ impl RawDoc {
     /// assert!(matches!(doc.get_regex("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn get_regex<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<RawRegex<'a>> {
+    pub fn get_regex(&self, key: impl AsRef<str>) -> ValueAccessResult<RawRegex<'_>> {
         self.get_with(key, ElementType::RegularExpression, RawBson::as_regex)
     }
 
