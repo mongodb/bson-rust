@@ -1,219 +1,24 @@
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Cow,
     convert::{TryFrom, TryInto},
     ops::Deref,
 };
 
-use crate::{
-    de::{read_bool, MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
-    raw::{
-        checked_add,
-        elem::RawDbPointer,
-        error::{try_with_key, ErrorKind},
-        f64_from_slice,
-        i64_from_slice,
-        RawJavaScriptCodeWithScope,
-    },
-    spec::BinarySubtype,
-    DateTime,
-    Decimal128,
-    Timestamp,
-};
+use crate::{raw::error::ErrorKind, DateTime, Timestamp};
 
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     i32_from_slice,
-    read_lenencoded,
-    read_nullterminated,
     Error,
+    Iter,
     RawArr,
     RawBinary,
     RawBson,
+    RawDocument,
     RawRegex,
     Result,
 };
 use crate::{oid::ObjectId, spec::ElementType, Document};
-
-/// A BSON document, stored as raw bytes on the heap. This can be created from a `Vec<u8>` or
-/// a [`bson::Document`].
-///
-/// Accessing elements within a [`RawDocument`] is similar to element access in [`bson::Document`],
-/// but because the contents are parsed during iteration instead of at creation time, format errors
-/// can happen at any time during use.
-///
-/// Iterating over a [`RawDocument`] yields either an error or a key-value pair that borrows from
-/// the original document without making any additional allocations.
-///
-/// ```
-/// # use bson::raw::{RawDocument, Error};
-/// let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-/// let mut iter = doc.iter();
-/// let (key, value) = iter.next().unwrap()?;
-/// assert_eq!(key, "hi");
-/// assert_eq!(value.as_str(), Ok("y'all"));
-/// assert!(iter.next().is_none());
-/// # Ok::<(), Error>(())
-/// ```
-///
-/// This type implements `Deref` to `RawDoc`, meaning that all methods on `RawDoc` slices are
-/// available on `RawDocument` values as well. This includes [`RawDoc::get`] or any of the
-/// type-specific getters, such as [`RawDoc::get_object_id`] or [`RawDoc::get_str`]. Note that
-/// accessing elements is an O(N) operation, as it requires iterating through the document from the
-/// beginning to find the requested key.
-///
-/// ```
-/// # use bson::raw::{RawDocument, Error};
-/// let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-/// assert_eq!(doc.get_str("hi")?, Some("y'all"));
-/// # Ok::<(), Error>(())
-/// ```
-#[derive(Clone, Debug)]
-pub struct RawDocument {
-    data: Vec<u8>,
-}
-
-impl RawDocument {
-    /// Constructs a new RawDocument, validating _only_ the
-    /// following invariants:
-    ///   * `data` is at least five bytes long (the minimum for a valid BSON document)
-    ///   * the initial four bytes of `data` accurately represent the length of the bytes as
-    ///     required by the BSON spec.
-    ///   * the last byte of `data` is a 0
-    ///
-    /// Note that the internal structure of the bytes representing the
-    /// BSON elements is _not_ validated at all by this method. If the
-    /// bytes do not conform to the BSON spec, then method calls on
-    /// the RawDocument will return Errors where appropriate.
-    ///
-    /// ```
-    /// # use bson::raw::{RawDocument, Error};
-    /// let doc = RawDocument::new(b"\x05\0\0\0\0".to_vec())?;
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn new(data: Vec<u8>) -> Result<RawDocument> {
-        let _ = RawDoc::new(data.as_slice())?;
-        Ok(Self { data })
-    }
-
-    /// Create a RawDocument from a Document.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, oid::ObjectId, raw::RawDocument};
-    ///
-    /// let document = doc! {
-    ///     "_id": ObjectId::new(),
-    ///     "name": "Herman Melville",
-    ///     "title": "Moby-Dick",
-    /// };
-    /// let doc = RawDocument::from_document(&document)?;
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn from_document(doc: &Document) -> Result<RawDocument> {
-        let mut data = Vec::new();
-        doc.to_writer(&mut data).map_err(|e| Error {
-            key: None,
-            kind: ErrorKind::MalformedValue {
-                message: e.to_string(),
-            },
-        })?;
-
-        Ok(Self { data })
-    }
-
-    /// Gets an iterator over the elements in the `RawDocument`, which yields `Result<&str,
-    /// Element<'_>>`.
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocument};
-    ///
-    /// let doc = RawDocument::from_document(&doc! { "ferris": true })?;
-    ///
-    /// for element in doc.iter() {
-    ///     let (key, value) = element?;
-    ///     assert_eq!(key, "ferris");
-    ///     assert_eq!(value.as_bool()?, true);
-    /// }
-    /// # Ok::<(), Error>(())
-    /// ```
-    ///
-    /// # Note:
-    ///
-    /// There is no owning iterator for RawDocument. If you need ownership over
-    /// elements that might need to allocate, you must explicitly convert
-    /// them to owned types yourself.
-    pub fn iter(&self) -> Iter<'_> {
-        self.into_iter()
-    }
-
-    /// Return the contained data as a `Vec<u8>`
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocument};
-    ///
-    /// let doc = RawDocument::from_document(&doc!{})?;
-    /// assert_eq!(doc.into_vec(), b"\x05\x00\x00\x00\x00".to_vec());
-    /// # Ok::<(), Error>(())
-    /// ```
-    pub fn into_vec(self) -> Vec<u8> {
-        self.data
-    }
-}
-
-impl<'a> From<RawDocument> for Cow<'a, RawDoc> {
-    fn from(rd: RawDocument) -> Self {
-        Cow::Owned(rd)
-    }
-}
-
-impl<'a> From<&'a RawDocument> for Cow<'a, RawDoc> {
-    fn from(rd: &'a RawDocument) -> Self {
-        Cow::Borrowed(rd.as_ref())
-    }
-}
-
-impl TryFrom<RawDocument> for Document {
-    type Error = Error;
-
-    fn try_from(raw: RawDocument) -> Result<Document> {
-        Document::try_from(raw.as_ref())
-    }
-}
-
-impl<'a> IntoIterator for &'a RawDocument {
-    type IntoIter = Iter<'a>;
-    type Item = Result<(&'a str, RawBson<'a>)>;
-
-    fn into_iter(self) -> Iter<'a> {
-        Iter {
-            doc: &self,
-            offset: 4,
-            valid: true,
-        }
-    }
-}
-
-impl AsRef<RawDoc> for RawDocument {
-    fn as_ref(&self) -> &RawDoc {
-        RawDoc::new_unchecked(&self.data)
-    }
-}
-
-impl Borrow<RawDoc> for RawDocument {
-    fn borrow(&self) -> &RawDoc {
-        &*self
-    }
-}
-
-impl ToOwned for RawDoc {
-    type Owned = RawDocument;
-
-    fn to_owned(&self) -> Self::Owned {
-        self.to_raw_document()
-    }
-}
 
 /// A slice of a BSON document (akin to [`std::str`]). This can be created from a
 /// [`RawDocument`] or any type that contains valid BSON data, including static binary literals,
@@ -314,7 +119,7 @@ impl RawDoc {
     }
 
     /// Creates a new Doc referencing the provided data slice.
-    fn new_unchecked<D: AsRef<[u8]> + ?Sized>(data: &D) -> &RawDoc {
+    pub(crate) fn new_unchecked<D: AsRef<[u8]> + ?Sized>(data: &D) -> &RawDoc {
         // SAFETY:
         //
         // Dereferencing a raw pointer requires unsafe due to the potential that the pointer is
@@ -697,6 +502,14 @@ impl Deref for RawDocument {
     }
 }
 
+impl ToOwned for RawDoc {
+    type Owned = RawDocument;
+
+    fn to_owned(&self) -> Self::Owned {
+        self.to_raw_document()
+    }
+}
+
 impl<'a> From<&'a RawDoc> for Cow<'a, RawDoc> {
     fn from(rdr: &'a RawDoc) -> Self {
         Cow::Borrowed(rdr)
@@ -719,276 +532,6 @@ impl<'a> IntoIterator for &'a RawDoc {
     type Item = Result<(&'a str, RawBson<'a>)>;
 
     fn into_iter(self) -> Iter<'a> {
-        Iter {
-            doc: self,
-            offset: 4,
-            valid: true,
-        }
-    }
-}
-
-/// An iterator over the document's entries.
-pub struct Iter<'a> {
-    doc: &'a RawDoc,
-    offset: usize,
-
-    /// Whether the underlying doc is assumed to be valid or if an error has been encountered.
-    /// After an error, all subsequent iterations will return None.
-    valid: bool,
-}
-
-impl<'a> Iter<'a> {
-    fn verify_enough_bytes(&self, start: usize, num_bytes: usize) -> Result<()> {
-        let end = checked_add(start, num_bytes)?;
-        if self.doc.data.get(start..end).is_none() {
-            return Err(Error::new_without_key(ErrorKind::MalformedValue {
-                message: format!(
-                    "length exceeds remaining length of buffer: {} vs {}",
-                    num_bytes,
-                    self.doc.data.len() - start
-                ),
-            }));
-        }
-        Ok(())
-    }
-
-    fn next_oid(&self, starting_at: usize) -> Result<ObjectId> {
-        self.verify_enough_bytes(starting_at, 12)?;
-        let oid = ObjectId::from_bytes(
-            self.doc.data[starting_at..(starting_at + 12)]
-                .try_into()
-                .unwrap(), // ok because we know slice is 12 bytes long
-        );
-        Ok(oid)
-    }
-
-    fn next_document(&self, starting_at: usize) -> Result<&'a RawDoc> {
-        self.verify_enough_bytes(starting_at, MIN_BSON_DOCUMENT_SIZE as usize)?;
-        let size = i32_from_slice(&self.doc.data[starting_at..])? as usize;
-
-        if size < MIN_BSON_DOCUMENT_SIZE as usize {
-            return Err(Error::new_without_key(ErrorKind::MalformedValue {
-                message: format!("document too small: {} bytes", size),
-            }));
-        }
-
-        self.verify_enough_bytes(starting_at, size)?;
-        let end = starting_at + size;
-
-        if self.doc.data[end - 1] != 0 {
-            return Err(Error {
-                key: None,
-                kind: ErrorKind::MalformedValue {
-                    message: "not null terminated".into(),
-                },
-            });
-        }
-        RawDoc::new(&self.doc.data[starting_at..end])
-    }
-}
-
-impl<'a> Iterator for Iter<'a> {
-    type Item = Result<(&'a str, RawBson<'a>)>;
-
-    fn next(&mut self) -> Option<Result<(&'a str, RawBson<'a>)>> {
-        if !self.valid {
-            return None;
-        } else if self.offset == self.doc.data.len() - 1 {
-            if self.doc.data[self.offset] == 0 {
-                // end of document marker
-                return None;
-            } else {
-                self.valid = false;
-                return Some(Err(Error {
-                    key: None,
-                    kind: ErrorKind::MalformedValue {
-                        message: "document not null terminated".into(),
-                    },
-                }));
-            }
-        } else if self.offset >= self.doc.data.len() {
-            self.valid = false;
-            return Some(Err(Error::new_without_key(ErrorKind::MalformedValue {
-                message: "iteration overflowed document".to_string(),
-            })));
-        }
-
-        let key = match read_nullterminated(&self.doc.data[self.offset + 1..]) {
-            Ok(k) => k,
-            Err(e) => {
-                self.valid = false;
-                return Some(Err(e));
-            }
-        };
-
-        let kvp_result = try_with_key(key, || {
-            let valueoffset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
-
-            let element_type = match ElementType::from(self.doc.data[self.offset]) {
-                Some(et) => et,
-                None => {
-                    return Err(Error::new_with_key(
-                        key,
-                        ErrorKind::MalformedValue {
-                            message: format!("invalid tag: {}", self.doc.data[self.offset]),
-                        },
-                    ))
-                }
-            };
-
-            let (element, element_size) = match element_type {
-                ElementType::Int32 => {
-                    let i = i32_from_slice(&self.doc.data[valueoffset..])?;
-                    (RawBson::Int32(i), 4)
-                }
-                ElementType::Int64 => {
-                    let i = i64_from_slice(&self.doc.data[valueoffset..])?;
-                    (RawBson::Int64(i), 8)
-                }
-                ElementType::Double => {
-                    let f = f64_from_slice(&self.doc.data[valueoffset..])?;
-                    (RawBson::Double(f), 8)
-                }
-                ElementType::String => {
-                    let s = read_lenencoded(&self.doc.data[valueoffset..])?;
-                    (RawBson::String(s), 4 + s.len() + 1)
-                }
-                ElementType::EmbeddedDocument => {
-                    let doc = self.next_document(valueoffset)?;
-                    (RawBson::Document(doc), doc.as_bytes().len())
-                }
-                ElementType::Array => {
-                    let doc = self.next_document(valueoffset)?;
-                    (RawBson::Array(RawArr::from_doc(doc)), doc.as_bytes().len())
-                }
-                ElementType::Binary => {
-                    let len = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
-                    let data_start = valueoffset + 4 + 1;
-                    self.verify_enough_bytes(valueoffset, len)?;
-                    let subtype = BinarySubtype::from(self.doc.data[valueoffset + 4]);
-                    let data = match subtype {
-                        BinarySubtype::BinaryOld => {
-                            if len < 4 {
-                                return Err(Error::new_without_key(ErrorKind::MalformedValue {
-                                    message: "old binary subtype has no inner declared length"
-                                        .into(),
-                                }));
-                            }
-                            let oldlength = i32_from_slice(&self.doc.data[data_start..])? as usize;
-                            if checked_add(oldlength, 4)? != len {
-                                return Err(Error::new_without_key(ErrorKind::MalformedValue {
-                                    message: "old binary subtype has wrong inner declared length"
-                                        .into(),
-                                }));
-                            }
-                            &self.doc.data[(data_start + 4)..(data_start + len)]
-                        }
-                        _ => &self.doc.data[data_start..(data_start + len)],
-                    };
-                    (RawBson::Binary(RawBinary { subtype, data }), 4 + 1 + len)
-                }
-                ElementType::ObjectId => {
-                    let oid = self.next_oid(valueoffset)?;
-                    (RawBson::ObjectId(oid), 12)
-                }
-                ElementType::Boolean => {
-                    let b = read_bool(&self.doc.data[valueoffset..]).map_err(|e| {
-                        Error::new_with_key(
-                            key,
-                            ErrorKind::MalformedValue {
-                                message: e.to_string(),
-                            },
-                        )
-                    })?;
-                    (RawBson::Boolean(b), 1)
-                }
-                ElementType::DateTime => {
-                    let ms = i64_from_slice(&self.doc.data[valueoffset..])?;
-                    (RawBson::DateTime(DateTime::from_millis(ms)), 8)
-                }
-                ElementType::RegularExpression => {
-                    let pattern = read_nullterminated(&self.doc.data[valueoffset..])?;
-                    let options =
-                        read_nullterminated(&self.doc.data[(valueoffset + pattern.len() + 1)..])?;
-                    (
-                        RawBson::RegularExpression(RawRegex { pattern, options }),
-                        pattern.len() + 1 + options.len() + 1,
-                    )
-                }
-                ElementType::Null => (RawBson::Null, 0),
-                ElementType::Undefined => (RawBson::Undefined, 0),
-                ElementType::Timestamp => {
-                    let ts =
-                        Timestamp::from_reader(&self.doc.data[valueoffset..]).map_err(|e| {
-                            Error::new_without_key(ErrorKind::MalformedValue {
-                                message: e.to_string(),
-                            })
-                        })?;
-                    (RawBson::Timestamp(ts), 8)
-                }
-                ElementType::JavaScriptCode => {
-                    let code = read_lenencoded(&self.doc.data[valueoffset..])?;
-                    (RawBson::JavaScriptCode(code), 4 + code.len() + 1)
-                }
-                ElementType::JavaScriptCodeWithScope => {
-                    let length = i32_from_slice(&self.doc.data[valueoffset..])? as usize;
-
-                    if length < MIN_CODE_WITH_SCOPE_SIZE as usize {
-                        return Err(Error::new_without_key(ErrorKind::MalformedValue {
-                            message: "code with scope length too small".to_string(),
-                        }));
-                    }
-
-                    self.verify_enough_bytes(valueoffset, length)?;
-                    let slice = &self.doc.data[valueoffset..(valueoffset + length)];
-                    let code = read_lenencoded(&slice[4..])?;
-                    let scope_start = 4 + 4 + code.len() + 1;
-                    let scope = RawDoc::new(&slice[scope_start..])?;
-                    (
-                        RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
-                            code,
-                            scope,
-                        }),
-                        length,
-                    )
-                }
-                ElementType::DbPointer => {
-                    let namespace = read_lenencoded(&self.doc.data[valueoffset..])?;
-                    let id = self.next_oid(valueoffset + 4 + namespace.len() + 1)?;
-                    (
-                        RawBson::DbPointer(RawDbPointer { namespace, id }),
-                        4 + namespace.len() + 1 + 12,
-                    )
-                }
-                ElementType::Symbol => {
-                    let s = read_lenencoded(&self.doc.data[valueoffset..])?;
-                    (RawBson::Symbol(s), 4 + s.len() + 1)
-                }
-                ElementType::Decimal128 => {
-                    self.verify_enough_bytes(valueoffset, 16)?;
-                    (
-                        RawBson::Decimal128(Decimal128::from_bytes(
-                            self.doc.data[valueoffset..(valueoffset + 16)]
-                                .try_into()
-                                .unwrap(),
-                        )),
-                        16,
-                    )
-                }
-                ElementType::MinKey => (RawBson::MinKey, 0),
-                ElementType::MaxKey => (RawBson::MaxKey, 0),
-            };
-
-            self.offset = valueoffset + element_size;
-            self.verify_enough_bytes(valueoffset, element_size)?;
-
-            Ok((key, element))
-        });
-
-        if kvp_result.is_err() {
-            self.valid = false;
-        }
-
-        Some(kvp_result)
+        Iter::new(self)
     }
 }

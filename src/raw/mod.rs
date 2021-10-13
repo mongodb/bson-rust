@@ -112,9 +112,11 @@
 //! ```
 
 mod array;
+mod bson;
 mod doc;
-mod elem;
+mod document;
 mod error;
+mod iter;
 #[cfg(test)]
 mod test;
 
@@ -124,9 +126,11 @@ use crate::de::MIN_BSON_STRING_SIZE;
 
 pub use self::{
     array::{RawArr, RawArrIter},
-    doc::{Iter, RawDoc, RawDocument},
-    elem::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex},
+    bson::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex},
+    doc::RawDoc,
+    document::RawDocument,
     error::{Error, ErrorKind, Result},
+    iter::Iter,
 };
 
 /// Given a u8 slice, return an i32 calculated from the first four bytes in
