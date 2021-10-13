@@ -24,8 +24,8 @@
 //! let elem = doc.get("hi")?.unwrap();
 //!
 //! assert_eq!(
-//!   elem.as_str()?,
-//!   "y'all",
+//!   elem.as_str(),
+//!   Some("y'all"),
 //! );
 //! # Ok::<(), bson::raw::Error>(())
 //! ```
@@ -49,17 +49,15 @@
 //! };
 //!
 //! let raw = RawDocument::from_document(&document)?;
-//! let value: Option<&str> = raw
+//! let value = raw
 //!     .get_document("goodbye")?
-//!     .map(|doc| doc.get_str("cruel"))
-//!     .transpose()?
-//!     .flatten();
+//!     .get_str("cruel")?;
 //!
 //! assert_eq!(
 //!     value,
-//!     Some("world"),
+//!     "world",
 //! );
-//! # Ok::<(), bson::raw::Error>(())
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
 //! ### Reference types ([`RawDoc`])
@@ -75,8 +73,8 @@
 //! use bson::raw::RawDoc;
 //!
 //! let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
-//! assert_eq!(RawDoc::new(bytes)?.get_str("hi")?, Some("y'all"));
-//! # Ok::<(), bson::raw::Error>(())
+//! assert_eq!(RawDoc::new(bytes)?.get_str("hi")?, "y'all");
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
 //! ### Iteration
@@ -103,11 +101,11 @@
 //!
 //! let (key, value): (&str, RawBson) = doc_iter.next().unwrap()?;
 //! assert_eq!(key, "crate");
-//! assert_eq!(value.as_str()?, "bson");
+//! assert_eq!(value.as_str(), Some("bson"));
 //!
 //! let (key, value): (&str, RawBson) = doc_iter.next().unwrap()?;
 //! assert_eq!(key, "year");
-//! assert_eq!(value.as_str()?, "2021");
+//! assert_eq!(value.as_str(), Some("2021"));
 //! # Ok::<(), bson::raw::Error>(())
 //! ```
 
@@ -129,7 +127,7 @@ pub use self::{
     bson::{RawBinary, RawBson, RawJavaScriptCodeWithScope, RawRegex},
     doc::RawDoc,
     document::RawDocument,
-    error::{Error, ErrorKind, Result},
+    error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     iter::Iter,
 };
 

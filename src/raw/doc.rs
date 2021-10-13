@@ -41,7 +41,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// let mut iter = doc.into_iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
-/// assert_eq!(value.as_str(), Ok("y'all"));
+/// assert_eq!(value.as_str(), Some("y'all"));
 /// assert!(iter.next().is_none());
 /// # Ok::<(), Error>(())
 /// ```
@@ -52,10 +52,11 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// requires iterating through the document from the beginning to find the requested key.
 ///
 /// ```
-/// # use bson::raw::{RawDocument, Error};
+/// use bson::raw::RawDoc;
+///
 /// let doc = RawDoc::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
-/// assert_eq!(doc.get_str("hi")?, Some("y'all"));
-/// # Ok::<(), Error>(())
+/// assert_eq!(doc.get_str("hi")?, "y'all");
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(PartialEq)]
 #[repr(transparent)]
@@ -158,7 +159,7 @@ impl RawDoc {
     /// })?;
     ///
     /// let element = doc.get("f64")?.expect("finding key f64");
-    /// assert_eq!(element.as_f64(), Ok(2.5));
+    /// assert_eq!(element.as_f64(), Some(2.5));
     /// assert!(doc.get("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
@@ -207,7 +208,7 @@ impl RawDoc {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::raw::{ErrorKind, RawDocument};
+    /// use bson::raw::{ValueAccessErrorKind, RawDocument};
     /// use bson::doc;
     ///
     /// let doc = RawDocument::from_document(&doc! {
@@ -215,10 +216,10 @@ impl RawDoc {
     ///     "f64": 2.5,
     /// })?;
     ///
-    /// assert_eq!(doc.get_f64("f64"), Ok(Some(2.5)));
-    /// assert!(matches!(doc.get_f64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert_eq!(doc.get_f64("unknown"), Ok(None));
-    /// # Ok::<(), Error>(())
+    /// assert_eq!(doc.get_f64("f64")?, 2.5);
+    /// assert!(matches!(doc.get_f64("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_f64("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_f64(&self, key: impl AsRef<str>) -> ValueAccessResult<f64> {
         self.get_with(key, ElementType::Double, RawBson::as_f64)
@@ -228,18 +229,17 @@ impl RawDoc {
     /// key corresponds to a value which isn't a string.
     ///
     /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{RawDocument, ErrorKind}};
+    /// use bson::{doc, raw::{RawDocument, ValueAccessErrorKind}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "string": "hello",
     ///     "bool": true,
     /// })?;
     ///
-    /// assert_eq!(doc.get_str("string"), Ok(Some("hello")));
-    /// assert!(matches!(doc.get_str("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert_eq!(doc.get_str("unknown"), Ok(None));
-    /// # Ok::<(), Error>(())
+    /// assert_eq!(doc.get_str("string")?, "hello");
+    /// assert!(matches!(doc.get_str("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_str("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_str<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<&'a str> {
         self.get_with(key, ElementType::String, RawBson::as_str)
@@ -250,17 +250,17 @@ impl RawDoc {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{ErrorKind, RawDocument}};
+    /// use bson::{doc, raw::{ValueAccessErrorKind, RawDocument}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "doc": { "key": "value"},
     ///     "bool": true,
     /// })?;
     ///
-    /// assert_eq!(doc.get_document("doc")?.expect("finding key doc").get_str("key"), Ok(Some("value")));
-    /// assert!(matches!(doc.get_document("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_document("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
+    /// assert_eq!(doc.get_document("doc")?.get_str("key")?, "value");
+    /// assert!(matches!(doc.get_document("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_document("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_document<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<&'a RawDoc> {
         self.get_with(key, ElementType::EmbeddedDocument, RawBson::as_document)
@@ -270,22 +270,21 @@ impl RawDoc {
     /// the key corresponds to a value which isn't an array.
     ///
     /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocument};
+    /// use bson::{doc, raw::{RawDocument, ValueAccessErrorKind}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "array": [true, 3],
     ///     "bool": true,
     /// })?;
     ///
-    /// let mut arr_iter = doc.get_array("array")?.expect("finding key array").into_iter();
-    /// let _: bool = arr_iter.next().unwrap()?.as_bool()?;
-    /// let _: i32 = arr_iter.next().unwrap()?.as_i32()?;
+    /// let mut arr_iter = doc.get_array("array")?.into_iter();
+    /// let _: bool = arr_iter.next().unwrap()?.as_bool().unwrap();
+    /// let _: i32 = arr_iter.next().unwrap()?.as_i32().unwrap();
     ///
     /// assert!(arr_iter.next().is_none());
     /// assert!(doc.get_array("bool").is_err());
-    /// assert!(doc.get_array("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
+    /// assert!(matches!(doc.get_array("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_array<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<&'a RawArr> {
         self.get_with(key, ElementType::Array, RawBson::as_array)
@@ -295,10 +294,9 @@ impl RawDoc {
     /// if the key corresponds to a value which isn't a binary value.
     ///
     /// ```
-    /// # use bson::raw::Error;
     /// use bson::{
     ///     doc,
-    ///     raw::{ErrorKind, RawDocument, RawBinary},
+    ///     raw::{ValueAccessErrorKind, RawDocument, RawBinary},
     ///     spec::BinarySubtype,
     ///     Binary,
     /// };
@@ -308,10 +306,10 @@ impl RawDoc {
     ///     "bool": true,
     /// })?;
     ///
-    /// assert_eq!(doc.get_binary("binary")?.map(RawBinary::as_bytes), Some(&[1, 2, 3][..]));
-    /// assert!(matches!(doc.get_binary("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_binary("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
+    /// assert_eq!(doc.get_binary("binary")?.as_bytes(), &[1, 2, 3][..]);
+    /// assert!(matches!(doc.get_binary("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_binary("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_binary<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<RawBinary<'a>> {
         self.get_with(key, ElementType::Binary, RawBson::as_binary)
@@ -322,17 +320,17 @@ impl RawDoc {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, oid::ObjectId, raw::{ErrorKind, RawDocument}};
+    /// use bson::{doc, oid::ObjectId, raw::{ValueAccessErrorKind, RawDocument}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
     ///     "bool": true,
     /// })?;
     ///
-    /// let oid = doc.get_object_id("_id")?.unwrap();
-    /// assert!(matches!(doc.get_object_id("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_object_id("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
+    /// let oid = doc.get_object_id("_id")?;
+    /// assert!(matches!(doc.get_object_id("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_object_id("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_object_id(&self, key: impl AsRef<str>) -> ValueAccessResult<ObjectId> {
         self.get_with(key, ElementType::ObjectId, RawBson::as_object_id)
@@ -343,17 +341,17 @@ impl RawDoc {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, oid::ObjectId, raw::{RawDocument, ErrorKind}};
+    /// use bson::{doc, oid::ObjectId, raw::{RawDocument, ValueAccessErrorKind}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "_id": ObjectId::new(),
     ///     "bool": true,
     /// })?;
     ///
-    /// assert!(doc.get_bool("bool")?.unwrap());
-    /// assert!(matches!(doc.get_bool("_id").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_object_id("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
+    /// assert!(doc.get_bool("bool")?);
+    /// assert!(matches!(doc.get_bool("_id").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_bool("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_bool(&self, key: impl AsRef<str>) -> ValueAccessResult<bool> {
         self.get_with(key, ElementType::Boolean, RawBson::as_bool)
@@ -364,7 +362,7 @@ impl RawDoc {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{ErrorKind, RawDocument}, DateTime};
+    /// use bson::{doc, raw::{ValueAccessErrorKind, RawDocument}, DateTime};
     ///
     /// let dt = DateTime::now();
     /// let doc = RawDocument::from_document(&doc! {
@@ -372,10 +370,10 @@ impl RawDoc {
     ///     "bool": true,
     /// })?;
     ///
-    /// assert_eq!(doc.get_datetime("created_at")?, Some(dt));
-    /// assert!(matches!(doc.get_datetime("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_datetime("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
+    /// assert_eq!(doc.get_datetime("created_at")?, dt);
+    /// assert!(matches!(doc.get_datetime("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_datetime("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_datetime(&self, key: impl AsRef<str>) -> ValueAccessResult<DateTime> {
         self.get_with(key, ElementType::DateTime, RawBson::as_datetime)
@@ -385,8 +383,7 @@ impl RawDoc {
     /// the key corresponds to a value which isn't a regex.
     ///
     /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, Regex, raw::{RawDocument, ErrorKind}};
+    /// use bson::{doc, Regex, raw::{RawDocument, ValueAccessErrorKind}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "regex": Regex {
@@ -396,11 +393,11 @@ impl RawDoc {
     ///     "bool": true,
     /// })?;
     ///
-    /// assert_eq!(doc.get_regex("regex")?.unwrap().pattern(), r"end\s*$");
-    /// assert_eq!(doc.get_regex("regex")?.unwrap().options(), "i");
-    /// assert!(matches!(doc.get_regex("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert!(doc.get_regex("unknown")?.is_none());
-    /// # Ok::<(), Error>(())
+    /// assert_eq!(doc.get_regex("regex")?.pattern(), r"end\s*$");
+    /// assert_eq!(doc.get_regex("regex")?.options(), "i");
+    /// assert!(matches!(doc.get_regex("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_regex("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_regex<'a>(&'a self, key: impl AsRef<str>) -> ValueAccessResult<RawRegex<'a>> {
         self.get_with(key, ElementType::RegularExpression, RawBson::as_regex)
@@ -411,20 +408,20 @@ impl RawDoc {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, Timestamp, raw::{RawDocument, ErrorKind}};
+    /// use bson::{doc, Timestamp, raw::{RawDocument, ValueAccessErrorKind}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
     ///     "ts": Timestamp { time: 649876543, increment: 9 },
     /// })?;
     ///
-    /// let timestamp = doc.get_timestamp("ts")?.unwrap();
+    /// let timestamp = doc.get_timestamp("ts")?;
     ///
-    /// assert_eq!(timestamp.time(), 649876543);
-    /// assert_eq!(timestamp.increment(), 9);
-    /// assert!(matches!(doc.get_timestamp("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert_eq!(doc.get_timestamp("unknown"), Ok(None));
-    /// # Ok::<(), Error>(())
+    /// assert_eq!(timestamp.time, 649876543);
+    /// assert_eq!(timestamp.increment, 9);
+    /// assert!(matches!(doc.get_timestamp("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_timestamp("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_timestamp(&self, key: impl AsRef<str>) -> ValueAccessResult<Timestamp> {
         self.get_with(key, ElementType::Timestamp, RawBson::as_timestamp)
@@ -435,17 +432,17 @@ impl RawDoc {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{RawDocument, ErrorKind}};
+    /// use bson::{doc, raw::{RawDocument, ValueAccessErrorKind}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
     ///     "i32": 1_000_000,
     /// })?;
     ///
-    /// assert_eq!(doc.get_i32("i32"), Ok(Some(1_000_000)));
-    /// assert!(matches!(doc.get_i32("bool").unwrap_err().kind, ErrorKind::UnexpectedType { ..}));
-    /// assert_eq!(doc.get_i32("unknown"), Ok(None));
-    /// # Ok::<(), Error>(())
+    /// assert_eq!(doc.get_i32("i32")?, 1_000_000);
+    /// assert!(matches!(doc.get_i32("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { ..}));
+    /// assert!(matches!(doc.get_i32("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_i32(&self, key: impl AsRef<str>) -> ValueAccessResult<i32> {
         self.get_with(key, ElementType::Int32, RawBson::as_i32)
@@ -456,17 +453,17 @@ impl RawDoc {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{ErrorKind, RawDocument}};
+    /// use bson::{doc, raw::{ValueAccessErrorKind, RawDocument}};
     ///
     /// let doc = RawDocument::from_document(&doc! {
     ///     "bool": true,
     ///     "i64": 9223372036854775807_i64,
     /// })?;
     ///
-    /// assert_eq!(doc.get_i64("i64"), Ok(Some(9223372036854775807)));
-    /// assert!(matches!(doc.get_i64("bool").unwrap_err().kind, ErrorKind::UnexpectedType { .. }));
-    /// assert_eq!(doc.get_i64("unknown"), Ok(None));
-    /// # Ok::<(), Error>(())
+    /// assert_eq!(doc.get_i64("i64")?, 9223372036854775807);
+    /// assert!(matches!(doc.get_i64("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
+    /// assert!(matches!(doc.get_i64("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_i64(&self, key: impl AsRef<str>) -> ValueAccessResult<i64> {
         self.get_with(key, ElementType::Int64, RawBson::as_i64)

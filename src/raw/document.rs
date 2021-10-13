@@ -19,12 +19,14 @@ use super::{Error, ErrorKind, Iter, RawBson, RawDoc, Result};
 /// the original document without making any additional allocations.
 ///
 /// ```
-/// # use bson::raw::{RawDocument, Error};
+/// # use bson::raw::Error;
+/// use bson::raw::RawDocument;
+///
 /// let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 /// let mut iter = doc.iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
-/// assert_eq!(value.as_str(), Ok("y'all"));
+/// assert_eq!(value.as_str(), Some("y'all"));
 /// assert!(iter.next().is_none());
 /// # Ok::<(), Error>(())
 /// ```
@@ -36,10 +38,11 @@ use super::{Error, ErrorKind, Iter, RawBson, RawDoc, Result};
 /// beginning to find the requested key.
 ///
 /// ```
-/// # use bson::raw::{RawDocument, Error};
+/// use bson::raw::RawDocument;
+///
 /// let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-/// assert_eq!(doc.get_str("hi")?, Some("y'all"));
-/// # Ok::<(), Error>(())
+/// assert_eq!(doc.get_str("hi")?, "y'all");
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Clone, PartialEq)]
 pub struct RawDocument {
@@ -107,7 +110,7 @@ impl RawDocument {
     /// for element in doc.iter() {
     ///     let (key, value) = element?;
     ///     assert_eq!(key, "ferris");
-    ///     assert_eq!(value.as_bool()?, true);
+    ///     assert_eq!(value.as_bool(), Some(true));
     /// }
     /// # Ok::<(), Error>(())
     /// ```

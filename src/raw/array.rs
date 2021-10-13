@@ -25,13 +25,12 @@ use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
 /// original document without making any additional allocations.
 ///
 /// ```
-/// # use bson::raw::{Error};
 /// use bson::{doc, raw::RawDoc};
 ///
 /// let doc = doc! {
 ///     "x": [1, true, "two", 5.5]
 /// };
-/// let bytes = bson::to_vec(&doc).unwrap();
+/// let bytes = bson::to_vec(&doc)?;
 ///
 /// let rawdoc = RawDoc::new(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
@@ -39,7 +38,7 @@ use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
 /// for v in rawarray {
 ///     println!("{:?}", v?);
 /// }
-/// # Ok::<(), Error>(())
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 ///
 /// Individual elements can be accessed using [`RawArr::get`] or any of
@@ -54,13 +53,13 @@ use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
 /// let doc = doc! {
 ///     "x": [1, true, "two", 5.5]
 /// };
-/// let bytes = bson::to_vec(&doc).unwrap();
+/// let bytes = bson::to_vec(&doc)?;
 ///
 /// let rawdoc = RawDoc::new(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
 ///
 /// assert_eq!(rawarray.get_bool(1)?, true);
-/// # Ok::<(), ValueAccessError>(())
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(PartialEq)]
 #[repr(transparent)]

@@ -4,6 +4,7 @@ use super::*;
 use crate::{
     doc,
     oid::ObjectId,
+    raw::error::ValueAccessErrorKind,
     spec::BinarySubtype,
     Binary,
     Bson,
@@ -175,9 +176,12 @@ fn array() {
         .expect("no key array")
         .as_array()
         .expect("result was not an array");
-    assert_eq!(array.get_str(0), Ok(Some("binary")));
-    assert_eq!(array.get_str(3), Ok(Some("notation")));
-    assert_eq!(array.get_str(4), Ok(None));
+    assert_eq!(array.get_str(0), Ok("binary"));
+    assert_eq!(array.get_str(3), Ok("notation"));
+    assert_eq!(
+        array.get_str(4).unwrap_err().kind,
+        ValueAccessErrorKind::NotPresent
+    );
 }
 
 #[test]
@@ -186,7 +190,7 @@ fn binary() {
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] }
     })
     .unwrap();
-    let binary: elem::RawBinary<'_> = rawdoc
+    let binary: bson::RawBinary<'_> = rawdoc
         .get("binary")
         .expect("error finding key binary")
         .expect("no key binary")
