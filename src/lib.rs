@@ -318,10 +318,8 @@ pub use self::{
     },
     decimal128::Decimal128,
     ser::{to_bson, to_document, to_vec, Serializer},
+    uuid::{Uuid, UuidRepresentation},
 };
-
-#[cfg(feature = "uuid-0_8")]
-pub use self::bson::UuidRepresentation;
 
 #[macro_use]
 mod macros;
@@ -335,6 +333,7 @@ pub mod oid;
 pub mod ser;
 pub mod serde_helpers;
 pub mod spec;
+pub mod uuid;
 
 #[cfg(test)]
 mod tests;

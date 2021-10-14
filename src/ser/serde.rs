@@ -12,11 +12,12 @@ use serde::ser::{
 use serde_bytes::Bytes;
 
 use crate::{
-    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
+    bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     extjson,
     oid::ObjectId,
     spec::BinarySubtype,
+    Binary,
     Decimal128,
 };
 

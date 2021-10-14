@@ -33,9 +33,10 @@ pub use self::{
 use std::{io::Write, iter::FromIterator, mem};
 
 use crate::{
-    bson::{Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex},
+    bson::{Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex},
     de::MAX_BSON_SIZE,
     spec::BinarySubtype,
+    Binary,
 };
 use ::serde::{ser::Error as SerdeError, Serialize};
 

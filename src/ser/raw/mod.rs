@@ -12,6 +12,7 @@ use super::{write_binary, write_cstring, write_f64, write_i32, write_i64, write_
 use crate::{
     ser::{Error, Result},
     spec::{BinarySubtype, ElementType},
+    uuid::UUID_NEWTYPE_NAME,
 };
 use document_serializer::DocumentSerializer;
 
@@ -23,6 +24,10 @@ pub(crate) struct Serializer {
     /// This needs to be set retroactively because in BSON, the element type comes before the key,
     /// but in serde, the serializer learns of the type after serializing the key.
     type_index: usize,
+
+    /// Whether the binary value about to be serialized is a UUID or not.
+    /// This is indicated by serializing a newtype with name UUID_NEWTYPE_NAME;
+    is_uuid: bool,
 }
 
 impl Serializer {
@@ -30,6 +35,7 @@ impl Serializer {
         Self {
             bytes: Vec::new(),
             type_index: 0,
+            is_uuid: false,
         }
     }
 
@@ -171,7 +177,15 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     #[inline]
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Binary)?;
-        write_binary(&mut self.bytes, v, BinarySubtype::Generic)?;
+
+        let subtype = if self.is_uuid {
+            self.is_uuid = false;
+            BinarySubtype::Uuid
+        } else {
+            BinarySubtype::Generic
+        };
+
+        write_binary(&mut self.bytes, v, subtype)?;
         Ok(())
     }
 
@@ -210,10 +224,17 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T: ?Sized>(
+        mut self,
+        name: &'static str,
+        value: &T,
+    ) -> Result<Self::Ok>
     where
         T: serde::Serialize,
     {
+        if name == UUID_NEWTYPE_NAME {
+            self.is_uuid = true;
+        }
         value.serialize(self)
     }
 

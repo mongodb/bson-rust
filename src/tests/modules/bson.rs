@@ -19,7 +19,7 @@ use crate::{
 use serde_json::{json, Value};
 
 #[cfg(feature = "uuid-0_8")]
-use crate::bson::UuidRepresentation;
+use crate::uuid::UuidRepresentation;
 #[cfg(feature = "uuid-0_8")]
 use uuid::Uuid;
 
@@ -400,13 +400,13 @@ fn debug_print() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_constructors() {
-    let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+    let uuid = crate::Uuid(Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap());
     let bin = Binary::from_uuid(uuid);
-    assert_eq!(bin.bytes, uuid.as_bytes());
+    assert_eq!(bin.bytes, uuid.0.as_bytes());
     assert_eq!(bin.subtype, BinarySubtype::Uuid);
 
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::Standard);
-    assert_eq!(bin.bytes, uuid.as_bytes());
+    assert_eq!(bin.bytes, uuid.0.as_bytes());
     assert_eq!(bin.subtype, BinarySubtype::Uuid);
 
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::JavaLegacy);
@@ -441,7 +441,7 @@ fn test_binary_constructors() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid_standard_rep() {
-    let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+    let uuid = crate::Uuid(Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap());
     let bin = Binary::from_uuid(uuid);
 
     assert_eq!(bin.to_uuid().unwrap(), uuid);
@@ -465,7 +465,7 @@ fn test_binary_to_uuid_standard_rep() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid_explicitly_standard_rep() {
-    let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+    let uuid = crate::Uuid(Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap());
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::Standard);
 
     assert_eq!(bin.to_uuid().unwrap(), uuid);
@@ -489,7 +489,7 @@ fn test_binary_to_uuid_explicitly_standard_rep() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid_java_rep() {
-    let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+    let uuid = crate::Uuid(Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap());
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::JavaLegacy);
 
     assert!(bin.to_uuid().is_err());
@@ -507,7 +507,7 @@ fn test_binary_to_uuid_java_rep() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid_csharp_legacy_rep() {
-    let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+    let uuid = crate::Uuid(Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap());
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::CSharpLegacy);
 
     assert!(bin.to_uuid().is_err());
@@ -525,7 +525,7 @@ fn test_binary_to_uuid_csharp_legacy_rep() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_binary_to_uuid_python_legacy_rep() {
-    let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+    let uuid = crate::Uuid(Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap());
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::PythonLegacy);
 
     assert!(bin.to_uuid().is_err());
