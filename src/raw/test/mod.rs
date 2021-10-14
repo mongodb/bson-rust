@@ -116,7 +116,14 @@ fn rawdoc_to_doc() {
     });
 
     let rawdoc = RawDoc::new(&docbytes).expect("invalid document");
-    let _doc: crate::Document = rawdoc.try_into().expect("invalid bson");
+    let doc: crate::Document = rawdoc.try_into().expect("invalid bson");
+    let round_tripped_bytes = crate::to_vec(&doc).expect("serialize should work");
+    assert_eq!(round_tripped_bytes, docbytes);
+
+    let mut vec_writer_bytes = vec![];
+    doc.to_writer(&mut vec_writer_bytes)
+        .expect("to writer should work");
+    assert_eq!(vec_writer_bytes, docbytes);
 }
 
 #[test]
