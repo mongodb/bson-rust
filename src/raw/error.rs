@@ -14,10 +14,10 @@ pub struct Error {
 }
 
 impl Error {
-    pub(crate) fn new_with_key(key: impl AsRef<str>, kind: ErrorKind) -> Self {
+    pub(crate) fn new_with_key(key: impl Into<String>, kind: ErrorKind) -> Self {
         Self {
             kind,
-            key: Some(key.as_ref().to_string()),
+            key: Some(key.into()),
         }
     }
 
