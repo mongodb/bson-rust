@@ -64,7 +64,7 @@ pub struct RawDoc {
 }
 
 impl RawDoc {
-    /// Constructs a new RawDoc, validating _only_ the
+    /// Constructs a new [`RawDoc`], validating _only_ the
     /// following invariants:
     ///   * `data` is at least five bytes long (the minimum for a valid BSON document)
     ///   * the initial four bytes of `data` accurately represent the length of the bytes as
@@ -74,7 +74,7 @@ impl RawDoc {
     /// Note that the internal structure of the bytes representing the
     /// BSON elements is _not_ validated at all by this method. If the
     /// bytes do not conform to the BSON spec, then method calls on
-    /// the RawDocument will return Errors where appropriate.
+    /// the [`RawDoc`] will return Errors where appropriate.
     ///
     /// ```
     /// use bson::raw::RawDoc;
@@ -131,7 +131,7 @@ impl RawDoc {
         unsafe { &*(data.as_ref() as *const [u8] as *const RawDoc) }
     }
 
-    /// Creates a new RawDocument with an owned copy of the BSON bytes.
+    /// Creates a new [`RawDocument`] with an owned copy of the BSON bytes.
     ///
     /// ```
     /// use bson::raw::{RawDoc, RawDocument, Error};
