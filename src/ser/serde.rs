@@ -1,13 +1,6 @@
 use serde::ser::{
-    self,
-    Serialize,
-    SerializeMap,
-    SerializeSeq,
-    SerializeStruct,
-    SerializeStructVariant,
-    SerializeTuple,
-    SerializeTupleStruct,
-    SerializeTupleVariant,
+    self, Error as SerdeError, Serialize, SerializeMap, SerializeSeq, SerializeStruct,
+    SerializeStructVariant, SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
 };
 use serde_bytes::Bytes;
 
@@ -17,8 +10,8 @@ use crate::{
     extjson,
     oid::ObjectId,
     spec::BinarySubtype,
-    Binary,
-    Decimal128,
+    uuid::UUID_NEWTYPE_NAME,
+    Binary, Decimal128,
 };
 
 use super::{to_bson, Error};
@@ -249,13 +242,28 @@ impl ser::Serializer for Serializer {
     #[inline]
     fn serialize_newtype_struct<T: ?Sized>(
         self,
-        _name: &'static str,
+        name: &'static str,
         value: &T,
     ) -> crate::ser::Result<Bson>
     where
         T: Serialize,
     {
-        value.serialize(self)
+        if name == UUID_NEWTYPE_NAME {
+            match value.serialize(self)? {
+                Bson::String(s) => {
+                    // the serializer reports itself as human readable, so `Uuid` will
+                    // serialize itself as a string.
+                    let uuid = crate::Uuid::parse_str(s).map_err(Error::custom)?;
+                    Ok(Bson::Binary(uuid.into()))
+                }
+                b => Err(Error::custom(format!(
+                    "expected UUID to be serialized as a string but got {:?} instead",
+                    b
+                ))),
+            }
+        } else {
+            value.serialize(self)
+        }
     }
 
     #[inline]

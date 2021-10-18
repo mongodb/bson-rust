@@ -255,39 +255,87 @@
 //!
 //! ## Working with UUIDs
 //!
-//! The BSON format does not contain a dedicated UUID type, though it does have a "binary" type
-//! which has UUID subtypes. Accordingly, this crate provides a
-//! [`Binary`] struct which models this binary type and
-//! serializes to and deserializes from it. The popular `uuid` crate does provide a UUID type
-//! (`Uuid`), though its `Serialize` and `Deserialize` implementations operate on strings, so when
-//! using it with BSON, the BSON binary type will not be used. To facilitate the conversion between
-//! `Uuid` values and BSON binary values, the `uuid-0_8` feature flag can be enabled. This flag
-//! exposes a number of convenient conversions from `Uuid`, including the
-//! [`serde_helpers::uuid_as_binary`]
-//! serde helper, which can be used to (de)serialize `Uuid`s to/from BSON binaries with the UUID
-//! subtype, and the `From<Uuid>` implementation for `Bson`, which allows `Uuid` values to be used
-//! in the `doc!` and `bson!` macros.
+//! The BSON format supports UUIDs via the "binary" type with the UUID subtype (4).
+//! To facilitate working with these UUID-subtyped binary values, this crate provides a
+//! [`crate::Uuid`] type, whose `serde` implementation automatically serializes to and deserializes
+//! from binary values with subtype 4.
+//! 
+//! The popular [`uuid`](https://docs.rs/uuid) crate also provides a [UUID type](https://docs.rs/),
+//! though its `serde` implementation does not produce or parse subtype 4
+//! binary values. When used with `bson::to_bson`, it serializes as a string, and when used with
+//! `bson::to_vec`, it serializes as a binary value with subtype _0_ rather than 4. Because of this,
+//! it is highly recommended to use the [`crate::Uuid`] type when working with BSON instead of
+//! `uuid::Uuid`, since it correctly produces subtype 4 binary values via either serialization function.
+//! To facilitate the conversion between [`crate::Uuid`] values and `uuid::Uuid` values,
+//! the `uuid-0_8` feature flag can be enabled. This flag exposes a number of convenient conversions,
+//! including the [`crate::Uuid::to_uuid_0_8`] method and the `From<uuid::Uuid>`
+//! implementation for `Bson`, which allows `uuid::Uuid` values to be used in the `doc!` and `bson!` macros.
 //!
 //! e.g.
 //!
 //! ``` rust
-//! # #[cfg(feature = "chrono-0_4")]
+//! # #[cfg(feature = "uuid-0_8")]
 //! # {
 //! use serde::{Serialize, Deserialize};
 //! use bson::doc;
 //!
 //! #[derive(Serialize, Deserialize)]
 //! struct Foo {
-//!     // serializes as a String.
+//!     /// serializes as a String or subtype 0 BSON binary, depending
+//!     /// on whether `bson::to_bson` or `bson::to_vec` is used.
 //!     uuid: uuid::Uuid,
 //!
-//!     // serializes as a BSON binary with subtype 4.
-//!     // this requires the "uuid-0_8" feature flag
+//!     /// serializes as a BSON binary with subtype 4.
+//!     bson_uuid: bson::Uuid,
+//!
+//!     /// serializes as a BSON binary with subtype 4.
+//!     /// this requires the "uuid-0_8" feature flag
 //!     #[serde(with = "bson::serde_helpers::uuid_as_binary")]
 //!     uuid_as_bson: uuid::Uuid,
 //! }
 //!
-//! // this automatic conversion also requires the "uuid-0_8" feature flag
+//! // this automatic conversion does not require any feature flags
+//! let query = doc! {
+//!     "uuid": bson::Uuid::new(),
+//! }
+//!
+//! // this automatic conversion requires the "uuid-0_8" feature flag
+//! let query = doc! {
+//!     "uuid": uuid::Uuid::new_v4(),
+//! };
+//! # }
+//! ```
+//! 
+//! [`crate::Uuid`] can also be used with non-BSON formats (e.g. JSON), since it just forwards to the
+//! [`uuid::Uuid`] `serde` implementation.
+//! 
+//! ``` rust
+//! # #[cfg(feature = "uuid-0_8")]
+//! # {
+//! use serde::{Serialize, Deserialize};
+//! use bson::doc;
+//!
+//! #[derive(Serialize, Deserialize)]
+//! struct Foo {
+//!     /// serializes as a String or subtype 0 BSON binary, depending
+//!     /// on whether `bson::to_bson` or `bson::to_vec` is used.
+//!     uuid: uuid::Uuid,
+//!
+//!     /// serializes as a BSON binary with subtype 4.
+//!     bson_uuid: bson::Uuid,
+//!
+//!     /// serializes as a BSON binary with subtype 4.
+//!     /// this requires the "uuid-0_8" feature flag
+//!     #[serde(with = "bson::serde_helpers::uuid_as_binary")]
+//!     uuid_as_bson: uuid::Uuid,
+//! }
+//!
+//! // this automatic conversion does not require any feature flags
+//! let query = doc! {
+//!     "uuid": bson::Uuid::new(),
+//! }
+//!
+//! // this automatic conversion requires the "uuid-0_8" feature flag
 //! let query = doc! {
 //!     "uuid": uuid::Uuid::new_v4(),
 //! };

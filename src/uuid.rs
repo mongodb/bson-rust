@@ -11,8 +11,7 @@ pub(crate) const UUID_NEWTYPE_NAME: &'static str = "BsonUuid";
 
 /// A struct modeling a BSON UUID value (i.e. a Binary value with subtype 4).
 ///
-/// This struct can be used to ensure UUID values get serialized to and from BSON correctly.
-/// It should be used instead of [`uuid::Uuid`]() when serializing to BSON TODO
+/// This type should be used instead of [`uuid::Uuid`]() when serializing to or deserializing from BSON, since [`uuid::Uuid`]()'s `serde` integration doesn't serialize to or deserialize from BSON UUIDs. 
 ///
 /// To enable interop with the `Uuid` type from the `uuid` crate, enable the `uuid-0_8` feature flag.
 #[derive(Clone, Copy, PartialEq)]
@@ -119,7 +118,7 @@ impl Display for Uuid {
 
 impl std::fmt::Debug for Uuid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.uuid.fmt(f)
+        std::fmt::Debug::fmt(&self.uuid, f)
     }
 }
 
@@ -359,7 +358,7 @@ mod test {
         }
 
         let u = U {
-            uuid: Uuid(uuid::Uuid::new_v4()),
+            uuid: Uuid::new(),
         };
         let bytes = crate::to_vec(&u).unwrap();
 
@@ -370,7 +369,7 @@ mod test {
         assert_eq!(u_roundtrip, u);
 
         let json = serde_json::to_value(&u).unwrap();
-        assert_eq!(json, json!({ "uuid": u.uuid.0.to_string() }));
+        assert_eq!(json, json!({ "uuid": u.uuid.to_string() }));
 
         let u_roundtrip_json: U = serde_json::from_value(json).unwrap();
         assert_eq!(u_roundtrip_json, u);
