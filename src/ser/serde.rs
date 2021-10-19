@@ -1,6 +1,14 @@
 use serde::ser::{
-    self, Error as SerdeError, Serialize, SerializeMap, SerializeSeq, SerializeStruct,
-    SerializeStructVariant, SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
+    self,
+    Error as SerdeError,
+    Serialize,
+    SerializeMap,
+    SerializeSeq,
+    SerializeStruct,
+    SerializeStructVariant,
+    SerializeTuple,
+    SerializeTupleStruct,
+    SerializeTupleVariant,
 };
 use serde_bytes::Bytes;
 
@@ -11,7 +19,8 @@ use crate::{
     oid::ObjectId,
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
-    Binary, Decimal128,
+    Binary,
+    Decimal128,
 };
 
 use super::{to_bson, Error};

@@ -1,3 +1,103 @@
+//! UUID support for BSON.
+//!
+//! ## The [`crate::Uuid`] type
+//!
+//! The BSON format supports UUIDs via the "binary" type with the UUID subtype (4).
+//! To facilitate working with these UUID-subtyped binary values, this crate provides a
+//! [`crate::Uuid`] type, whose `serde` implementation automatically serializes to and deserializes
+//! from binary values with subtype 4.
+//!
+//! The popular [`uuid`](https://docs.rs/uuid) crate also provides a [UUID type](https://docs.rs/),
+//! though its `serde` implementation does not produce or parse subtype 4
+//! binary values. When used with `bson::to_bson`, it serializes as a string, and when used with
+//! `bson::to_vec`, it serializes as a binary value with subtype _0_ rather than 4. Because of this,
+//! it is highly recommended to use the [`crate::Uuid`] type when working with BSON instead of
+//! `uuid` `Uuid`, since it correctly produces subtype 4 binary values via either serialization
+//! function.
+//!
+//! e.g.
+//!
+//! ``` rust
+//! # #[cfg(feature = "uuid-0_8")]
+//! # {
+//! use serde::{Serialize, Deserialize};
+//! use bson::doc;
+//!
+//! #[derive(Serialize, Deserialize)]
+//! struct Foo {
+//!     /// serializes as a String or subtype 0 BSON binary, depending
+//!     /// on whether `bson::to_bson` or `bson::to_vec` is used.
+//!     uuid: uuid::Uuid,
+//!
+//!     /// serializes as a BSON binary with subtype 4.
+//!     bson_uuid: bson::Uuid,
+//!
+//!     /// serializes as a BSON binary with subtype 4.
+//!     /// this requires the "uuid-0_8" feature flag
+//!     #[serde(with = "bson::serde_helpers::uuid_as_binary")]
+//!     uuid_as_bson: uuid::Uuid,
+//! }
+//! # };
+//! ```
+//!
+//! ## The `uuid-0_8` feature flag
+//!
+//! To facilitate the conversion between [`crate::Uuid`] values and `uuid` `Uuid` values,
+//! the `uuid-0_8` feature flag can be enabled. This flag exposes a number of convenient
+//! conversions, including the [`crate::Uuid::to_uuid_0_8`] method and the `From<uuid::Uuid>`
+//! implementation for `Bson`, which allows `uuid` `Uuid` values to be used in the `doc!` and
+//! `bson!` macros.
+//!
+//! ```
+//! # #[cfg(feature = "uuid-0_8")]
+//! # {
+//! // this automatic conversion does not require any feature flags
+//! let query = doc! {
+//!     "uuid": bson::Uuid::new(),
+//! };
+//!
+//! // but this automatic conversion requires the "uuid-0_8" feature flag
+//! let query = doc! {
+//!     "uuid": uuid::Uuid::new_v4(),
+//! };
+//!
+//! // also requires the "uuid-0_8" feature flag.
+//! let uuid = bson::Uuid::new().to_uuid_0_8();
+//! # };
+//! ```
+//!
+//! ## Using `crate::Uuid` with non-BSON formats
+//!
+//! [`crate::Uuid`]'s `serde` implementation is the same as `uuid::Uuid`'s
+//! for non-BSON formats such as JSON:
+//!
+//! ``` rust
+//! # #[cfg(feature = "uuid-0_8")]
+//! # {
+//! # use serde::{Serialize, Deserialize};
+//! # #[derive(Serialize, Deserialize)]
+//! # struct Foo {
+//! #   /// serializes as a String or subtype 0 BSON binary, depending
+//! #   /// on whether `bson::to_bson` or `bson::to_vec` is used.
+//! #   uuid: uuid::Uuid,
+//! #
+//! #   /// serializes as a BSON binary with subtype 4.
+//! #   bson_uuid: bson::Uuid,
+//! # }
+//! use serde_json::json;
+//!
+//! let uuid = uuid::Uuid::new_v4();
+//! let bson_uuid: bson::Uuid = uuid.into();
+//! let foo = Foo { uuid, bson_uuid, };
+//!
+//! let json = serde_json::to_value(&foo)?;
+//! assert_eq!(json, json!({ "uuid": uuid.to_string(), "bson_uuid": uuid.to_string() }));
+//! # }
+//! # Ok::<(), Box::<dyn std::error::Error>>(())
+//! ```
+#[cfg(test)]
+mod test;
+
 use std::{
     fmt::{self, Display},
     str::FromStr,
@@ -11,9 +111,15 @@ pub(crate) const UUID_NEWTYPE_NAME: &'static str = "BsonUuid";
 
 /// A struct modeling a BSON UUID value (i.e. a Binary value with subtype 4).
 ///
-/// This type should be used instead of [`uuid::Uuid`]() when serializing to or deserializing from BSON, since [`uuid::Uuid`]()'s `serde` integration doesn't serialize to or deserialize from BSON UUIDs. 
+/// This type should be used instead of [`uuid::Uuid`](https://docs.rs/uuid/latest/uuid/struct.Uuid.html)
+/// when serializing to or deserializing from BSON, since
+/// [`uuid::Uuid`](https://docs.rs/uuid/latest/uuid/struct.Uuid.html)'s `serde` implementation doesn't
+/// produce or parse BSON UUIDs.
 ///
-/// To enable interop with the `Uuid` type from the `uuid` crate, enable the `uuid-0_8` feature flag.
+/// To enable interop with the `Uuid` type from the `uuid` crate, enable the `uuid-0_8` feature
+/// flag.
+///
+/// For more information on the usage of this type, see the [`uuid`] module-level documentation.
 #[derive(Clone, Copy, PartialEq)]
 pub struct Uuid {
     uuid: uuid::Uuid,
@@ -159,15 +265,17 @@ impl From<Uuid> for uuid::Uuid {
 ///
 /// Example:
 /// ```
-/// use crate::{bson::UuidRepresentation, bson::Binary};
-/// use uuid::Uuid;
-/// let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+/// use bson::{Binary, uuid::{Uuid, UuidRepresentation}};
+///
+/// let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF")?;
 /// let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::PythonLegacy);
-/// let new_uuid = bin.to_uuid();
-/// assert!(new_uuid.is_err());
-/// let new_uuid = bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy);
-/// assert!(new_uuid.is_ok());
-/// assert_eq!(new_uuid.unwrap(), uuid);
+///
+/// assert!(bin.to_uuid().is_err());
+///
+/// let new_uuid = bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy)?;
+/// assert_eq!(new_uuid, uuid);
+///
+/// # Ok::<(), Box::<dyn std::error::Error>>(())
 /// ```
 #[non_exhaustive]
 #[derive(PartialEq, Clone, Copy, Debug)]
@@ -343,35 +451,3 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
-
-#[cfg(test)]
-mod test {
-    use crate::{uuid::Uuid, Document};
-    use serde::{Deserialize, Serialize};
-    use serde_json::json;
-
-    #[test]
-    fn serialization() {
-        #[derive(Debug, Serialize, Deserialize, PartialEq)]
-        struct U {
-            uuid: Uuid,
-        }
-
-        let u = U {
-            uuid: Uuid::new(),
-        };
-        let bytes = crate::to_vec(&u).unwrap();
-
-        let doc: Document = crate::from_slice(bytes.as_slice()).unwrap();
-        assert_eq!(doc, doc! { "uuid": u.uuid });
-
-        let u_roundtrip: U = crate::from_slice(bytes.as_slice()).unwrap();
-        assert_eq!(u_roundtrip, u);
-
-        let json = serde_json::to_value(&u).unwrap();
-        assert_eq!(json, json!({ "uuid": u.uuid.to_string() }));
-
-        let u_roundtrip_json: U = serde_json::from_value(json).unwrap();
-        assert_eq!(u_roundtrip_json, u);
-    }
-}
