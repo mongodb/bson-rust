@@ -171,12 +171,14 @@ impl Default for Uuid {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 impl Uuid {
-    /// Convert this [`Uuid`] to a [`uuid::Uuid`] from the [`uuid`](https://docs.rs/uuid/latest) crate.
+    /// Create a [`Uuid`] from a [`uuid::Uuid`](https://docs.rs/uuid/latest/uuid/struct.Uuid.html) from
+    /// the [`uuid`](https://docs.rs/uuid/latest) crate.
     pub fn from_uuid_0_8(uuid: uuid::Uuid) -> Self {
         Self::from_external_uuid(uuid)
     }
 
-    /// Convert this [`Uuid`] to a [`uuid::Uuid`] from the [`uuid`](https://docs.rs/uuid/latest) crate.
+    /// Convert this [`Uuid`] to a [`uuid::Uuid`](https://docs.rs/uuid/latest/uuid/struct.Uuid.html) from
+    /// the [`uuid`](https://docs.rs/uuid/latest) crate.
     pub fn to_uuid_0_8(self) -> uuid::Uuid {
         self.uuid
     }
@@ -340,8 +342,8 @@ impl Binary {
         }
     }
 
-    /// Deserializes a BSON [`Binary`] type into a [Uuid](https://docs.rs/uuid/0.8.2/uuid/), takes the representation
-    /// with which the [`Binary`] was serialized.
+    /// Deserializes a BSON [`Binary`] type into a [Uuid](https://docs.rs/uuid/0.8.2/uuid/), takes the
+    /// representation with which the [`Binary`] was serialized.
     ///
     /// See the documentation for [`UuidRepresentation`] for more information on the possible
     /// representations.
@@ -364,10 +366,6 @@ impl Binary {
         }
         // Must be 16 bytes long
         if self.bytes.len() != 16 {
-            // return Err(crate::de::Error::custom(format!(
-            //     "expected UUID to contain 16 bytes, instead got {}",
-            //     self.bytes.len()
-            // )));
             return Err(Error::InvalidLength {
                 length: self.bytes.len(),
             });
@@ -413,18 +411,30 @@ impl From<uuid::Uuid> for Binary {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum Error {
+    /// Error returned when an invalid string is provided to [`Uuid::parse_str`].
     #[non_exhaustive]
     InvalidUuidString { message: String },
 
+    /// Error returned when the representation specified does not match the underlying
+    /// [`crate::Binary`] value in [`crate::Binary::to_uuid_with_representation`].
     #[non_exhaustive]
     RepresentationMismatch {
+        /// The subtype that was expected given the requested representation.
         expected_binary_subtype: BinarySubtype,
+
+        /// The actual subtype of the binary value.
         actual_binary_subtype: BinarySubtype,
+
+        /// The requested representation.
         requested_representation: UuidRepresentation,
     },
 
+    /// Error returned from [`crate::Binary::to_uuid`] if the underling data is not 16 bytes long.
     #[non_exhaustive]
-    InvalidLength { length: usize },
+    InvalidLength {
+        /// The actual length of the data.
+        length: usize,
+    },
 }
 
 /// Alias for `Result<T, bson::uuid::Error>`.
