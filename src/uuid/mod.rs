@@ -7,13 +7,15 @@
 //! [`crate::Uuid`] type, whose `serde` implementation automatically serializes to and deserializes
 //! from binary values with subtype 4.
 //!
-//! The popular [`uuid`](https://docs.rs/uuid) crate also provides a [UUID type](https://docs.rs/),
+//! The popular [`uuid`](https://docs.rs/uuid) crate also provides a
+//! [UUID type](https://docs.rs/uuid/latest/uuid/struct.Uuid.html),
 //! though its `serde` implementation does not produce or parse subtype 4
-//! binary values. When used with `bson::to_bson`, it serializes as a string, and when used with
-//! `bson::to_vec`, it serializes as a binary value with subtype _0_ rather than 4. Because of this,
+//! binary values. Instead, when serialized with `bson::to_bson`, it produces as a string, and when
+//! serialized with
+//! `bson::to_vec`, it produces a binary value with subtype _0_ rather than 4. Because of this,
 //! it is highly recommended to use the [`crate::Uuid`] type when working with BSON instead of
-//! `uuid` `Uuid`, since it correctly produces subtype 4 binary values via either serialization
-//! function.
+//! the `uuid` crate's `Uuid`, since [`crate::Uuid`] correctly produces subtype 4 binary values via
+//! either serialization function.
 //!
 //! e.g.
 //!
@@ -29,10 +31,10 @@
 //!     /// on whether `bson::to_bson` or `bson::to_vec` is used.
 //!     uuid: uuid::Uuid,
 //!
-//!     /// serializes as a BSON binary with subtype 4.
+//!     /// serializes as a BSON binary with subtype 4 when either is used.
 //!     bson_uuid: bson::Uuid,
 //!
-//!     /// serializes as a BSON binary with subtype 4.
+//!     /// serializes as a BSON binary with subtype 4 when either is used.
 //!     /// this requires the "uuid-0_8" feature flag
 //!     #[serde(with = "bson::serde_helpers::uuid_as_binary")]
 //!     uuid_as_bson: uuid::Uuid,
@@ -42,11 +44,11 @@
 //!
 //! ## The `uuid-0_8` feature flag
 //!
-//! To facilitate the conversion between [`crate::Uuid`] values and `uuid` `Uuid` values,
-//! the `uuid-0_8` feature flag can be enabled. This flag exposes a number of convenient
+//! To facilitate the conversion between [`crate::Uuid`] values and the `uuid` crate's `Uuid`
+//! values, the `uuid-0_8` feature flag can be enabled. This flag exposes a number of convenient
 //! conversions, including the [`crate::Uuid::to_uuid_0_8`] method and the `From<uuid::Uuid>`
-//! implementation for `Bson`, which allows `uuid` `Uuid` values to be used in the `doc!` and
-//! `bson!` macros.
+//! implementation for `Bson`, which allows the `uuid` crate's `Uuid` values to be used in the
+//! `doc!` and `bson!` macros.
 //!
 //! ```
 //! # #[cfg(feature = "uuid-0_8")]
@@ -63,7 +65,7 @@
 //!     "uuid": uuid::Uuid::new_v4(),
 //! };
 //!
-//! // also requires the "uuid-0_8" feature flag.
+//! // this also requires the "uuid-0_8" feature flag.
 //! let uuid = bson::Uuid::new().to_uuid_0_8();
 //! # };
 //! ```
