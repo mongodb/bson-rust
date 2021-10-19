@@ -275,8 +275,11 @@ impl From<Uuid> for uuid::Uuid {
 /// let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF")?;
 /// let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::PythonLegacy);
 ///
+/// // This conversion fails, since the binary holds a PythonLegacy UUID, so we're required to specify
+/// // that.
 /// assert!(bin.to_uuid().is_err());
 ///
+/// // This conversion succeeds, since we specified the correct representation.
 /// let new_uuid = bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy)?;
 /// assert_eq!(new_uuid, uuid);
 ///
