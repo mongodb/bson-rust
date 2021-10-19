@@ -51,6 +51,8 @@
 //! ```
 //! # #[cfg(feature = "uuid-0_8")]
 //! # {
+//! use bson::doc;
+//!
 //! // this automatic conversion does not require any feature flags
 //! let query = doc! {
 //!     "uuid": bson::Uuid::new(),
