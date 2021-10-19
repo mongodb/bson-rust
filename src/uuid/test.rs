@@ -23,7 +23,7 @@ fn into_bson() {
         subtype: BinarySubtype::Uuid,
     };
 
-    assert_eq!(bson, Bson::Binary(binary.clone()));
+    assert_eq!(bson, Bson::Binary(binary));
 }
 
 #[test]

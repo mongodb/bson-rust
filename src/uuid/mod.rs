@@ -11,11 +11,10 @@
 //! [UUID type](https://docs.rs/uuid/latest/uuid/struct.Uuid.html),
 //! though its `serde` implementation does not produce or parse subtype 4
 //! binary values. Instead, when serialized with `bson::to_bson`, it produces as a string, and when
-//! serialized with
-//! `bson::to_vec`, it produces a binary value with subtype _0_ rather than 4. Because of this,
-//! it is highly recommended to use the [`crate::Uuid`] type when working with BSON instead of
-//! the `uuid` crate's `Uuid`, since [`crate::Uuid`] correctly produces subtype 4 binary values via
-//! either serialization function.
+//! serialized with `bson::to_vec`, it produces a binary value with subtype _0_ rather than 4.
+//! Because of this, it is highly recommended to use the [`crate::Uuid`] type when working with BSON
+//! instead of the `uuid` crate's `Uuid`, since [`crate::Uuid`] correctly produces subtype 4 binary
+//! values via either serialization function.
 //!
 //! e.g.
 //!
@@ -111,7 +110,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{de::BsonVisitor, spec::BinarySubtype, Binary, Bson};
 
-pub(crate) const UUID_NEWTYPE_NAME: &'static str = "BsonUuid";
+pub(crate) const UUID_NEWTYPE_NAME: &str = "BsonUuid";
 
 /// A struct modeling a BSON UUID value (i.e. a Binary value with subtype 4).
 ///
@@ -124,7 +123,7 @@ pub(crate) const UUID_NEWTYPE_NAME: &'static str = "BsonUuid";
 /// flag.
 ///
 /// For more information on the usage of this type, see the [`uuid`] module-level documentation.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Hash)]
 pub struct Uuid {
     uuid: uuid::Uuid,
 }
@@ -160,6 +159,12 @@ impl Uuid {
     /// Returns an array of 16 bytes containing the [`Uuid`]'s data.
     pub const fn bytes(self) -> [u8; 16] {
         *self.uuid.as_bytes()
+    }
+}
+
+impl Default for Uuid {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -213,12 +218,6 @@ impl<'de> Deserialize<'de> for Uuid {
             }
             b => Err(serde::de::Error::invalid_type(b.as_unexpected(), &"a UUID")),
         }
-    }
-}
-
-impl std::hash::Hash for Uuid {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.uuid.hash(state)
     }
 }
 
