@@ -154,7 +154,7 @@ impl Uuid {
     }
 
     /// Returns an array of 16 bytes containing the [`Uuid`]'s data.
-    pub fn as_bytes(&self) -> [u8; 16] {
+    pub const fn bytes(self) -> [u8; 16] {
         *self.uuid.as_bytes()
     }
 }
@@ -232,7 +232,7 @@ impl From<Uuid> for Binary {
     fn from(uuid: Uuid) -> Self {
         Binary {
             subtype: BinarySubtype::Uuid,
-            bytes: uuid.as_bytes().to_vec(),
+            bytes: uuid.bytes().to_vec(),
         }
     }
 }
@@ -307,7 +307,7 @@ impl Binary {
         match rep {
             UuidRepresentation::Standard => Binary::from_uuid(uuid),
             UuidRepresentation::CSharpLegacy => {
-                let mut bytes = uuid.as_bytes().to_vec();
+                let mut bytes = uuid.bytes().to_vec();
                 bytes[0..4].reverse();
                 bytes[4..6].reverse();
                 bytes[6..8].reverse();
@@ -318,10 +318,10 @@ impl Binary {
             }
             UuidRepresentation::PythonLegacy => Binary {
                 subtype: BinarySubtype::UuidOld,
-                bytes: uuid.as_bytes().to_vec(),
+                bytes: uuid.bytes().to_vec(),
             },
             UuidRepresentation::JavaLegacy => {
-                let mut bytes = uuid.as_bytes().to_vec();
+                let mut bytes = uuid.bytes().to_vec();
                 bytes[0..8].reverse();
                 bytes[8..16].reverse();
                 Binary {
