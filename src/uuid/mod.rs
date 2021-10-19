@@ -110,7 +110,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{de::BsonVisitor, spec::BinarySubtype, Binary, Bson};
 
-pub(crate) const UUID_NEWTYPE_NAME: &str = "BsonUuid";
+/// Special type name used in the `Uuid` serialization implementation to indicate a BSON
+/// UUID is being serialized or deserialized. The BSON serializers/deserializers will handle this
+/// name specially, but other serializers/deserializers will just ignore it and use `uuid::Uuid`'s
+/// serde integration.
+pub(crate) const UUID_NEWTYPE_NAME: &str = "$__bson_private_uuid";
 
 /// A struct modeling a BSON UUID value (i.e. a Binary value with subtype 4).
 ///
