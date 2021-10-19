@@ -45,6 +45,8 @@ use ::serde::{
     Deserialize,
 };
 
+pub(crate) use self::serde::BsonVisitor;
+
 pub(crate) const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
 pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator

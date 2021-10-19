@@ -41,9 +41,17 @@ fn raw_serialization() {
 #[test]
 fn bson_serialization() {
     let u = U { uuid: Uuid::new() };
-    let doc = crate::to_document(&u).unwrap();
+    let correct = doc! {
+        "uuid": Binary {
+            bytes: u.uuid.bytes().to_vec(),
+            subtype: BinarySubtype::Uuid
+        }
+    };
 
-    assert_eq!(doc, doc! { "uuid": u.uuid });
+    assert_eq!(doc! { "uuid": u.uuid }, correct);
+
+    let doc = crate::to_document(&u).unwrap();
+    assert_eq!(doc, correct);
 
     let u_roundtrip: U = crate::from_document(doc).unwrap();
     assert_eq!(u_roundtrip, u);
@@ -58,6 +66,39 @@ fn json() {
 
     let u_roundtrip_json: U = serde_json::from_value(json).unwrap();
     assert_eq!(u_roundtrip_json, u);
+}
+
+#[test]
+fn wrong_subtype() {
+    let generic = doc! {
+        "uuid": Binary {
+            bytes: Uuid::new().bytes().to_vec(),
+            subtype: BinarySubtype::Generic
+        }
+    };
+    crate::from_document::<U>(generic.clone()).unwrap_err();
+    let generic_bytes = crate::to_vec(&generic).unwrap();
+    crate::from_slice::<U>(&generic_bytes).unwrap_err();
+
+    let old = doc! {
+        "uuid": Binary {
+            bytes: Uuid::new().bytes().to_vec(),
+            subtype: BinarySubtype::UuidOld
+        }
+    };
+    crate::from_document::<U>(old.clone()).unwrap_err();
+    let old_bytes = crate::to_vec(&old).unwrap();
+    crate::from_slice::<U>(&old_bytes).unwrap_err();
+
+    let other = doc! {
+        "uuid": Binary {
+            bytes: Uuid::new().bytes().to_vec(),
+            subtype: BinarySubtype::UserDefined(100)
+        }
+    };
+    crate::from_document::<U>(other.clone()).unwrap_err();
+    let other_bytes = crate::to_vec(&other).unwrap();
+    crate::from_slice::<U>(&other_bytes).unwrap_err();
 }
 
 #[test]

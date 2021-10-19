@@ -12,6 +12,7 @@ use serde::{
 use crate::{
     oid::ObjectId,
     spec::{BinarySubtype, ElementType},
+    uuid::UUID_NEWTYPE_NAME,
     Binary,
     Bson,
     DateTime,
@@ -130,15 +131,24 @@ impl<'de> Deserializer<'de> {
         self.current_type = element_type;
         Ok(Some(element_type))
     }
-}
 
-impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
-    type Error = Error;
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_next<V>(
+        &mut self,
+        visitor: V,
+        binary_subtype_hint: Option<BinarySubtype>,
+    ) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
     {
+        if let Some(expected_st) = binary_subtype_hint {
+            if self.current_type != ElementType::Binary {
+                return Err(Error::custom(format!(
+                    "expected Binary with subtype {:?}, instead got {:?}",
+                    expected_st, self.current_type
+                )));
+            }
+        }
+
         match self.current_type {
             ElementType::Int32 => visitor.visit_i32(read_i32(&mut self.bytes)?),
             ElementType::Int64 => visitor.visit_i64(read_i64(&mut self.bytes)?),
@@ -166,6 +176,16 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     ));
                 }
                 let subtype = BinarySubtype::from(read_u8(&mut self.bytes)?);
+
+                if let Some(expected_subtype) = binary_subtype_hint {
+                    if subtype != expected_subtype {
+                        return Err(Error::custom(format!(
+                            "expected binary subtype {:?} instead got {:?}",
+                            expected_subtype, subtype
+                        )));
+                    }
+                }
+
                 match subtype {
                     BinarySubtype::Generic => {
                         visitor.visit_borrowed_bytes(self.bytes.read_slice(len as usize)?)
@@ -245,6 +265,18 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
             }
         }
     }
+}
+
+impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
+    type Error = Error;
+
+    #[inline]
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        self.deserialize_next(visitor, None)
+    }
 
     #[inline]
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
@@ -285,13 +317,24 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
     }
 
+    fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        if name == UUID_NEWTYPE_NAME {
+            self.deserialize_next(visitor, Some(BinarySubtype::Uuid))
+        } else {
+            visitor.visit_newtype_struct(self)
+        }
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     forward_to_deserialize_any! {
         bool char str byte_buf unit unit_struct string
-        identifier newtype_struct seq tuple tuple_struct struct
+        identifier seq tuple tuple_struct struct
         map ignored_any i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
     }
 }

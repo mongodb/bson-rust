@@ -25,6 +25,7 @@ use crate::{
     document::{Document, IntoIter},
     oid::ObjectId,
     spec::BinarySubtype,
+    uuid::UUID_NEWTYPE_NAME,
     Decimal128,
 };
 
@@ -127,7 +128,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     type Value = Bson;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("expecting a Bson")
+        f.write_str("a Bson")
     }
 
     #[inline]
@@ -460,6 +461,14 @@ impl<'de> Visitor<'de> for BsonVisitor {
             bytes: v,
         }))
     }
+
+    #[inline]
+    fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(self)
+    }
 }
 
 fn convert_unsigned_to_signed<E>(value: u64) -> Result<Bson, E>
@@ -652,13 +661,26 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     #[inline]
     fn deserialize_newtype_struct<V>(
         self,
-        _name: &'static str,
+        name: &'static str,
         visitor: V,
     ) -> crate::de::Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_newtype_struct(self)
+        // if this is a UUID, ensure that value is a subtype 4 binary
+        if name == UUID_NEWTYPE_NAME {
+            match self.value {
+                Some(Bson::Binary(ref b)) if b.subtype == BinarySubtype::Uuid => {
+                    self.deserialize_any(visitor)
+                }
+                b => Err(Error::custom(format!(
+                    "expected Binary with subtype 4, instead got {:?}",
+                    b
+                ))),
+            }
+        } else {
+            visitor.visit_newtype_struct(self)
+        }
     }
 
     forward_to_deserialize! {

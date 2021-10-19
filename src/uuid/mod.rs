@@ -109,7 +109,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{spec::BinarySubtype, Binary, Bson};
+use crate::{de::BsonVisitor, spec::BinarySubtype, Binary, Bson};
 
 pub(crate) const UUID_NEWTYPE_NAME: &'static str = "BsonUuid";
 
@@ -182,7 +182,7 @@ impl Serialize for Uuid {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_newtype_struct("BsonUuid", &self.uuid)
+        serializer.serialize_newtype_struct(UUID_NEWTYPE_NAME, &self.uuid)
     }
 }
 
@@ -191,8 +191,10 @@ impl<'de> Deserialize<'de> for Uuid {
     where
         D: serde::Deserializer<'de>,
     {
-        match Bson::deserialize(deserializer)? {
-            // need to support deserializing from generic subtypes for non-BSON formats.
+        match deserializer.deserialize_newtype_struct(UUID_NEWTYPE_NAME, BsonVisitor)? {
+            // Need to support deserializing from generic subtypes for non-BSON formats.
+            // When using the BSON deserializer, the newtype name will ensure the subtype is only
+            // ever BinarySubtype::Uuid.
             Bson::Binary(b)
                 if matches!(b.subtype, BinarySubtype::Uuid | BinarySubtype::Generic) =>
             {
