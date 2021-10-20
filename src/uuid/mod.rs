@@ -80,11 +80,7 @@
 //! # use serde::{Serialize, Deserialize};
 //! # #[derive(Serialize, Deserialize)]
 //! # struct Foo {
-//! #   /// serializes as a String or subtype 0 BSON binary, depending
-//! #   /// on whether `bson::to_bson` or `bson::to_vec` is used.
 //! #   uuid: uuid::Uuid,
-//! #
-//! #   /// serializes as a BSON binary with subtype 4.
 //! #   bson_uuid: bson::Uuid,
 //! # }
 //! use serde_json::json;
