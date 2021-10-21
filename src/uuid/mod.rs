@@ -307,7 +307,7 @@ impl Binary {
         Binary::from(uuid)
     }
 
-    /// Serializes a UUID into BSON binary type and takes the desired representation as a parameter.
+    /// Serializes a [`Uuid`] into BSON binary type and takes the desired representation as a parameter.
     /// `Binary::from_uuid_with_representation(uuid, UuidRepresentation::Standard)` is equivalent
     /// to `Binary::from_uuid(uuid)`.
     ///
