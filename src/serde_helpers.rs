@@ -355,16 +355,14 @@ pub mod hex_string_as_object_id {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_binary {
-    use crate::Binary;
-    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
 
     /// Serializes a Uuid as a Binary.
     #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-        let binary: Binary = (*val).into();
-        binary.serialize(serializer)
+        crate::uuid::Uuid::from_external_uuid(*val).serialize(serializer)
     }
 
     /// Deserializes a Uuid from a Binary.
@@ -373,8 +371,8 @@ pub mod uuid_as_binary {
     where
         D: Deserializer<'de>,
     {
-        let binary = Binary::deserialize(deserializer)?;
-        binary.to_uuid().map_err(de::Error::custom)
+        let bson_uuid = crate::uuid::Uuid::deserialize(deserializer)?;
+        Ok(bson_uuid.into())
     }
 }
 
@@ -398,7 +396,7 @@ pub mod uuid_as_binary {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_java_legacy_binary {
-    use crate::{bson::UuidRepresentation, Binary};
+    use crate::{uuid::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
@@ -406,7 +404,10 @@ pub mod uuid_as_java_legacy_binary {
     /// Serializes a Uuid as a Binary in a Java Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-        let binary = Binary::from_uuid_with_representation(*val, UuidRepresentation::JavaLegacy);
+        let binary = Binary::from_uuid_with_representation(
+            crate::uuid::Uuid::from_external_uuid(*val),
+            UuidRepresentation::JavaLegacy,
+        );
         binary.serialize(serializer)
     }
 
@@ -417,9 +418,10 @@ pub mod uuid_as_java_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        binary
+        let uuid = binary
             .to_uuid_with_representation(UuidRepresentation::JavaLegacy)
-            .map_err(de::Error::custom)
+            .map_err(de::Error::custom)?;
+        Ok(uuid.to_uuid_0_8())
     }
 }
 
@@ -443,7 +445,7 @@ pub mod uuid_as_java_legacy_binary {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_python_legacy_binary {
-    use crate::{bson::UuidRepresentation, Binary};
+    use crate::{uuid::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
@@ -451,7 +453,10 @@ pub mod uuid_as_python_legacy_binary {
     /// Serializes a Uuid as a Binary in a Python Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-        let binary = Binary::from_uuid_with_representation(*val, UuidRepresentation::PythonLegacy);
+        let binary = Binary::from_uuid_with_representation(
+            crate::uuid::Uuid::from_external_uuid(*val),
+            UuidRepresentation::PythonLegacy,
+        );
         binary.serialize(serializer)
     }
 
@@ -462,9 +467,10 @@ pub mod uuid_as_python_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        binary
+        let uuid = binary
             .to_uuid_with_representation(UuidRepresentation::PythonLegacy)
-            .map_err(de::Error::custom)
+            .map_err(de::Error::custom)?;
+        Ok(uuid.into())
     }
 }
 
@@ -488,7 +494,7 @@ pub mod uuid_as_python_legacy_binary {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_c_sharp_legacy_binary {
-    use crate::{bson::UuidRepresentation, Binary};
+    use crate::{uuid::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
     use uuid::Uuid;
@@ -496,7 +502,10 @@ pub mod uuid_as_c_sharp_legacy_binary {
     /// Serializes a Uuid as a Binary in a C# Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-        let binary = Binary::from_uuid_with_representation(*val, UuidRepresentation::CSharpLegacy);
+        let binary = Binary::from_uuid_with_representation(
+            crate::uuid::Uuid::from_external_uuid(*val),
+            UuidRepresentation::CSharpLegacy,
+        );
         binary.serialize(serializer)
     }
 
@@ -507,9 +516,10 @@ pub mod uuid_as_c_sharp_legacy_binary {
         D: Deserializer<'de>,
     {
         let binary = Binary::deserialize(deserializer)?;
-        binary
+        let uuid = binary
             .to_uuid_with_representation(UuidRepresentation::CSharpLegacy)
-            .map_err(de::Error::custom)
+            .map_err(de::Error::custom)?;
+        Ok(uuid.into())
     }
 }
 

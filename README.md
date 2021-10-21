@@ -246,40 +246,7 @@ let query = doc! {
 
 ### Working with UUIDs
 
-The BSON format does not contain a dedicated UUID type, though it does have a "binary" type which
-has UUID subtypes. Accordingly, this crate provides a
-[`Binary`](https://docs.rs/bson/latest/bson/struct.Binary.html) struct which models this binary type
-and serializes to and deserializes from it. The popular [`uuid`](https://docs.rs/uuid) crate does
-provide a UUID type (`Uuid`), though its `Serialize` and `Deserialize` implementations operate on
-strings, so when using it with BSON, the BSON binary type will not be used. To facilitate the
-conversion between `Uuid` values and BSON binary values, the `uuid-0_8` feature flag can be
-enabled. This flag exposes a number of convenient conversions from `Uuid`, including the
-[`uuid_as_binary`](https://docs.rs/bson/latest/bson/serde_helpers/uuid_as_binary/index.html)
-serde helper, which can be used to (de)serialize `Uuid`s to/from BSON binaries with the UUID
-subtype, and the `From<Uuid>` implementation for `Bson`, which allows `Uuid` values to be used in
-the `doc!` and `bson!` macros.
-
-e.g.
-
-``` rust
-use serde::{Serialize, Deserialize};
-
-#[derive(Serialize, Deserialize)]
-struct Foo {
-    // serializes as a String.
-    uuid: Uuid,
-
-    // serializes as a BSON binary with subtype 4.
-    // this requires the "uuid-0_8" feature flag
-    #[serde(with = "bson::serde_helpers::uuid_as_binary")]
-    uuid_as_bson: uuid::Uuid,
-}
-
-// this automatic conversion also requires the "uuid-0_8" feature flag
-let query = doc! {
-    "uuid": uuid::Uuid::new_v4(),
-};
-```
+See the module-level documentation for the [`bson::uuid` module](https://docs.rs/bson/latest/bson/uuid).
 
 ## Minimum supported Rust version (MSRV)
 

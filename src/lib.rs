@@ -255,44 +255,7 @@
 //!
 //! ## Working with UUIDs
 //!
-//! The BSON format does not contain a dedicated UUID type, though it does have a "binary" type
-//! which has UUID subtypes. Accordingly, this crate provides a
-//! [`Binary`] struct which models this binary type and
-//! serializes to and deserializes from it. The popular `uuid` crate does provide a UUID type
-//! (`Uuid`), though its `Serialize` and `Deserialize` implementations operate on strings, so when
-//! using it with BSON, the BSON binary type will not be used. To facilitate the conversion between
-//! `Uuid` values and BSON binary values, the `uuid-0_8` feature flag can be enabled. This flag
-//! exposes a number of convenient conversions from `Uuid`, including the
-//! [`serde_helpers::uuid_as_binary`]
-//! serde helper, which can be used to (de)serialize `Uuid`s to/from BSON binaries with the UUID
-//! subtype, and the `From<Uuid>` implementation for `Bson`, which allows `Uuid` values to be used
-//! in the `doc!` and `bson!` macros.
-//!
-//! e.g.
-//!
-//! ``` rust
-//! # #[cfg(feature = "chrono-0_4")]
-//! # {
-//! use serde::{Serialize, Deserialize};
-//! use bson::doc;
-//!
-//! #[derive(Serialize, Deserialize)]
-//! struct Foo {
-//!     // serializes as a String.
-//!     uuid: uuid::Uuid,
-//!
-//!     // serializes as a BSON binary with subtype 4.
-//!     // this requires the "uuid-0_8" feature flag
-//!     #[serde(with = "bson::serde_helpers::uuid_as_binary")]
-//!     uuid_as_bson: uuid::Uuid,
-//! }
-//!
-//! // this automatic conversion also requires the "uuid-0_8" feature flag
-//! let query = doc! {
-//!     "uuid": uuid::Uuid::new_v4(),
-//! };
-//! # }
-//! ```
+//! See the module level documentation for the [`uuid`] module.
 //!
 //! ## Minimum supported Rust version (MSRV)
 //!
@@ -318,10 +281,8 @@ pub use self::{
     },
     decimal128::Decimal128,
     ser::{to_bson, to_document, to_vec, Serializer},
+    uuid::{Uuid, UuidRepresentation},
 };
-
-#[cfg(feature = "uuid-0_8")]
-pub use self::bson::UuidRepresentation;
 
 #[macro_use]
 mod macros;
@@ -335,6 +296,7 @@ pub mod oid;
 pub mod ser;
 pub mod serde_helpers;
 pub mod spec;
+pub mod uuid;
 
 #[cfg(test)]
 mod tests;
