@@ -126,8 +126,8 @@ pub(crate) const UUID_NEWTYPE_NAME: &str = "$__bson_private_uuid";
 ///
 /// Note: due to an issue in serde (see [here](https://github.com/serde-rs/serde/issues/2106)), this type
 /// will also allow deserialization from 16 byte + subtype 0 Binary values in BSON if part of a
-/// `#[serde(flatten)]` chain. This behavior shouldn't be relied upon as it may be fixed at some point
-/// in the future.
+/// `#[serde(flatten)]` chain. This behavior shouldn't be relied upon as it may be fixed at some
+/// point in the future.
 #[derive(Clone, Copy, PartialEq, Hash)]
 pub struct Uuid {
     uuid: uuid::Uuid,
