@@ -79,7 +79,7 @@ pub(crate) fn try_with_key<G, F: FnOnce() -> Result<G>>(key: impl AsRef<str>, f:
 pub type ValueAccessResult<T> = std::result::Result<T, ValueAccessError>;
 
 /// Error to indicate that either a value was empty or it contained an unexpected
-/// type, for use with the direct getters (e.g. [`crate::raw::RawDoc::get_str`]).
+/// type, for use with the direct getters (e.g. [`crate::RawDocument::get_str`]).
 #[derive(Debug, PartialEq, Clone)]
 #[non_exhaustive]
 pub struct ValueAccessError {
@@ -97,7 +97,7 @@ impl ValueAccessError {
     }
 }
 
-/// The type of error encountered when using a direct getter (e.g. [`crate::raw::RawDoc::get_str`]).
+/// The type of error encountered when using a direct getter (e.g. [`crate::RawDocument::get_str`]).
 #[derive(Debug, PartialEq, Clone)]
 #[non_exhaustive]
 pub enum ValueAccessErrorKind {

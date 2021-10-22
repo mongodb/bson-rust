@@ -28,7 +28,7 @@ fn string_from_document() {
         "that": "second",
         "something": "else",
     });
-    let rawdoc = RawDoc::new(&docbytes).unwrap();
+    let rawdoc = RawDocument::new(&docbytes).unwrap();
     assert_eq!(
         rawdoc.get("that").unwrap().unwrap().as_str().unwrap(),
         "second",
@@ -43,7 +43,7 @@ fn nested_document() {
             "i64": 6_i64,
         },
     });
-    let rawdoc = RawDoc::new(&docbytes).unwrap();
+    let rawdoc = RawDocument::new(&docbytes).unwrap();
     let subdoc = rawdoc
         .get("outer")
         .expect("get doc result")
@@ -78,7 +78,7 @@ fn iterate() {
         "peanut butter": "chocolate",
         "easy as": {"do": 1, "re": 2, "mi": 3},
     });
-    let rawdoc = RawDoc::new(&docbytes).expect("malformed bson document");
+    let rawdoc = RawDocument::new(&docbytes).expect("malformed bson document");
     let mut dociter = rawdoc.into_iter();
     let next = dociter.next().expect("no result").expect("invalid bson");
     assert_eq!(next.0, "apples");
@@ -115,7 +115,7 @@ fn rawdoc_to_doc() {
         "end": "END",
     });
 
-    let rawdoc = RawDoc::new(&docbytes).expect("invalid document");
+    let rawdoc = RawDocument::new(&docbytes).expect("invalid document");
     let doc: crate::Document = rawdoc.try_into().expect("invalid bson");
     let round_tripped_bytes = crate::to_vec(&doc).expect("serialize should work");
     assert_eq!(round_tripped_bytes, docbytes);
@@ -130,7 +130,7 @@ fn rawdoc_to_doc() {
 fn f64() {
     #![allow(clippy::float_cmp)]
 
-    let rawdoc = RawDocument::from_document(&doc! { "f64": 2.5 }).unwrap();
+    let rawdoc = RawDocumentBuf::from_document(&doc! { "f64": 2.5 }).unwrap();
     assert_eq!(
         rawdoc
             .get("f64")
@@ -144,7 +144,7 @@ fn f64() {
 
 #[test]
 fn string() {
-    let rawdoc = RawDocument::from_document(&doc! {"string": "hello"}).unwrap();
+    let rawdoc = RawDocumentBuf::from_document(&doc! {"string": "hello"}).unwrap();
 
     assert_eq!(
         rawdoc
@@ -159,7 +159,7 @@ fn string() {
 
 #[test]
 fn document() {
-    let rawdoc = RawDocument::from_document(&doc! {"document": {}}).unwrap();
+    let rawdoc = RawDocumentBuf::from_document(&doc! {"document": {}}).unwrap();
 
     let doc = rawdoc
         .get("document")
@@ -172,7 +172,7 @@ fn document() {
 
 #[test]
 fn array() {
-    let rawdoc = RawDocument::from_document(
+    let rawdoc = RawDocumentBuf::from_document(
         &doc! { "array": ["binary", "serialized", "object", "notation"]},
     )
     .unwrap();
@@ -193,7 +193,7 @@ fn array() {
 
 #[test]
 fn binary() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] }
     })
     .unwrap();
@@ -209,7 +209,7 @@ fn binary() {
 
 #[test]
 fn object_id() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
     })
     .unwrap();
@@ -224,7 +224,7 @@ fn object_id() {
 
 #[test]
 fn boolean() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "boolean": true,
     })
     .unwrap();
@@ -241,7 +241,7 @@ fn boolean() {
 
 #[test]
 fn datetime() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "boolean": true,
         "datetime": DateTime::from_chrono(Utc.ymd(2000,10,31).and_hms(12, 30, 45)),
     })
@@ -257,7 +257,7 @@ fn datetime() {
 
 #[test]
 fn null() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "null": null,
     })
     .unwrap();
@@ -271,7 +271,7 @@ fn null() {
 
 #[test]
 fn regex() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "regex": Bson::RegularExpression(Regex { pattern: String::from(r"end\s*$"), options: String::from("i")}),
     }).unwrap();
     let regex = rawdoc
@@ -285,7 +285,7 @@ fn regex() {
 }
 #[test]
 fn javascript() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "javascript": Bson::JavaScriptCode(String::from("console.log(console);")),
     })
     .unwrap();
@@ -300,7 +300,7 @@ fn javascript() {
 
 #[test]
 fn symbol() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "symbol": Bson::Symbol(String::from("artist-formerly-known-as")),
     })
     .unwrap();
@@ -316,7 +316,7 @@ fn symbol() {
 
 #[test]
 fn javascript_with_scope() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "javascript_with_scope": Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
             code: String::from("console.log(msg);"),
             scope: doc! { "ok": true }
@@ -343,7 +343,7 @@ fn javascript_with_scope() {
 
 #[test]
 fn int32() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "int32": 23i32,
     })
     .unwrap();
@@ -358,7 +358,7 @@ fn int32() {
 
 #[test]
 fn timestamp() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "timestamp": Bson::Timestamp(Timestamp { time: 3542578, increment: 7 }),
     })
     .unwrap();
@@ -375,7 +375,7 @@ fn timestamp() {
 
 #[test]
 fn int64() {
-    let rawdoc = RawDocument::from_document(&doc! {
+    let rawdoc = RawDocumentBuf::from_document(&doc! {
         "int64": 46i64,
     })
     .unwrap();
@@ -408,7 +408,7 @@ fn document_iteration() {
         "int64": 46i64,
         "end": "END",
     };
-    let rawdoc = RawDocument::from_document(&doc).unwrap();
+    let rawdoc = RawDocumentBuf::from_document(&doc).unwrap();
     let rawdocref = rawdoc.as_ref();
 
     assert_eq!(
@@ -439,7 +439,7 @@ fn into_bson_conversion() {
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
         "boolean": false,
     });
-    let rawbson = RawBson::Document(RawDoc::new(docbytes.as_slice()).unwrap());
+    let rawbson = RawBson::Document(RawDocument::new(docbytes.as_slice()).unwrap());
     let b: Bson = rawbson.try_into().expect("invalid bson");
     let doc = b.as_document().expect("not a document");
     assert_eq!(*doc.get("f64").expect("f64 not found"), Bson::Double(2.5));
@@ -486,14 +486,14 @@ use std::convert::TryInto;
 proptest! {
     #[test]
     fn no_crashes(s: Vec<u8>) {
-        let _ = RawDocument::new(s);
+        let _ = RawDocumentBuf::new(s);
     }
 
     #[test]
     fn roundtrip_bson(bson in arbitrary_bson()) {
         let doc = doc!{"bson": bson};
         let raw = to_bytes(&doc);
-        let raw = RawDocument::new(raw);
+        let raw = RawDocumentBuf::new(raw);
         prop_assert!(raw.is_ok());
         let raw = raw.unwrap();
         let roundtrip: Result<crate::Document> = raw.try_into();

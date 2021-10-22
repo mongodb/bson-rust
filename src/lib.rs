@@ -280,6 +280,7 @@ pub use self::{
         Deserializer,
     },
     decimal128::Decimal128,
+    raw::{RawDocument, RawDocumentBuf, RawArray},
     ser::{to_bson, to_document, to_vec, Serializer},
     uuid::{Uuid, UuidRepresentation},
 };

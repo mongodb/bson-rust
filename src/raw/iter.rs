@@ -19,17 +19,17 @@ use super::{
     i64_from_slice,
     read_lenencoded,
     read_nullterminated,
-    RawArr,
+    RawArray,
     RawBinary,
     RawBson,
-    RawDoc,
+    RawDocument,
     RawJavaScriptCodeWithScope,
     RawRegex,
 };
 
 /// An iterator over the document's entries.
 pub struct Iter<'a> {
-    doc: &'a RawDoc,
+    doc: &'a RawDocument,
     offset: usize,
 
     /// Whether the underlying doc is assumed to be valid or if an error has been encountered.
@@ -38,7 +38,7 @@ pub struct Iter<'a> {
 }
 
 impl<'a> Iter<'a> {
-    pub(crate) fn new(doc: &'a RawDoc) -> Self {
+    pub(crate) fn new(doc: &'a RawDocument) -> Self {
         Self {
             doc,
             offset: 4,
@@ -70,7 +70,7 @@ impl<'a> Iter<'a> {
         Ok(oid)
     }
 
-    fn next_document(&self, starting_at: usize) -> Result<&'a RawDoc> {
+    fn next_document(&self, starting_at: usize) -> Result<&'a RawDocument> {
         self.verify_enough_bytes(starting_at, MIN_BSON_DOCUMENT_SIZE as usize)?;
         let size = i32_from_slice(&self.doc.as_bytes()[starting_at..])? as usize;
 
@@ -91,7 +91,7 @@ impl<'a> Iter<'a> {
                 },
             });
         }
-        RawDoc::new(&self.doc.as_bytes()[starting_at..end])
+        RawDocument::new(&self.doc.as_bytes()[starting_at..end])
     }
 }
 
@@ -167,7 +167,10 @@ impl<'a> Iterator for Iter<'a> {
                 }
                 ElementType::Array => {
                     let doc = self.next_document(valueoffset)?;
-                    (RawBson::Array(RawArr::from_doc(doc)), doc.as_bytes().len())
+                    (
+                        RawBson::Array(RawArray::from_doc(doc)),
+                        doc.as_bytes().len(),
+                    )
                 }
                 ElementType::Binary => {
                     let len = i32_from_slice(&self.doc.as_bytes()[valueoffset..])? as usize;
@@ -260,7 +263,7 @@ impl<'a> Iterator for Iter<'a> {
                     let slice = &&self.doc.as_bytes()[valueoffset..(valueoffset + length)];
                     let code = read_lenencoded(&slice[4..])?;
                     let scope_start = 4 + 4 + code.len() + 1;
-                    let scope = RawDoc::new(&slice[scope_start..])?;
+                    let scope = RawDocument::new(&slice[scope_start..])?;
                     (
                         RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
                             code,
