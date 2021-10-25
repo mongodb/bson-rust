@@ -3,7 +3,13 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use crate::{raw::error::ErrorKind, DateTime, Timestamp};
+use serde::Deserialize;
+
+use crate::{
+    raw::{error::ErrorKind, RAW_DOCUMENT_NEWTYPE},
+    DateTime,
+    Timestamp,
+};
 
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
@@ -479,6 +485,21 @@ impl RawDocument {
     /// ```
     pub fn as_bytes(&self) -> &[u8] {
         &self.data
+    }
+}
+
+impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match RawBson::deserialize(deserializer)? {
+            RawBson::Document(d) => Ok(d),
+            b => Err(serde::de::Error::custom(format!(
+                "expected raw document reference, instead got {:?}",
+                b
+            ))),
+        }
     }
 }
 

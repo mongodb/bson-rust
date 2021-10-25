@@ -1,5 +1,7 @@
 use std::convert::TryFrom;
 
+use serde::Deserialize;
+
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     Error,
@@ -237,6 +239,21 @@ impl<'a> Iterator for RawArrayIter<'a> {
             Some(Ok((_, v))) => Some(Ok(v)),
             Some(Err(e)) => Some(Err(e)),
             None => None,
+        }
+    }
+}
+
+impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match RawBson::deserialize(deserializer)? {
+            RawBson::Array(d) => Ok(d),
+            b => Err(serde::de::Error::custom(format!(
+                "expected raw array reference, instead got {:?}",
+                b
+            ))),
         }
     }
 }

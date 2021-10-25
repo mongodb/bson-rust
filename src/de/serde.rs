@@ -24,6 +24,7 @@ use crate::{
     datetime::DateTime,
     document::{Document, IntoIter},
     oid::ObjectId,
+    raw::RawBson,
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Decimal128,
@@ -471,19 +472,43 @@ impl<'de> Visitor<'de> for BsonVisitor {
     }
 }
 
-fn convert_unsigned_to_signed<E>(value: u64) -> Result<Bson, E>
-where
-    E: Error,
-{
+enum BsonInteger {
+    Int32(i32),
+    Int64(i64),
+}
+
+fn _convert_unsigned<E: Error>(value: u64) -> Result<BsonInteger, E> {
     if let Ok(int32) = i32::try_from(value) {
-        Ok(Bson::Int32(int32))
+        Ok(BsonInteger::Int32(int32))
     } else if let Ok(int64) = i64::try_from(value) {
-        Ok(Bson::Int64(int64))
+        Ok(BsonInteger::Int64(int64))
     } else {
         Err(Error::custom(format!(
             "cannot represent {} as a signed number",
             value
         )))
+    }
+}
+
+fn convert_unsigned_to_signed<E>(value: u64) -> Result<Bson, E>
+where
+    E: Error,
+{
+    let bi = _convert_unsigned(value)?;
+    match bi {
+        BsonInteger::Int32(i) => Ok(Bson::Int32(i)),
+        BsonInteger::Int64(i) => Ok(Bson::Int64(i)),
+    }
+}
+
+pub(crate) fn convert_unsigned_to_signed_raw<'a, E>(value: u64) -> Result<RawBson<'a>, E>
+where
+    E: Error,
+{
+    let bi = _convert_unsigned(value)?;
+    match bi {
+        BsonInteger::Int32(i) => Ok(RawBson::Int32(i)),
+        BsonInteger::Int64(i) => Ok(RawBson::Int64(i)),
     }
 }
 
