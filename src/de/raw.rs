@@ -625,7 +625,7 @@ impl<'de> serde::de::MapAccess<'de> for Decimal128Access {
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        seed.deserialize(Decimal128Deserializer(self.decimal.clone()))
+        seed.deserialize(Decimal128Deserializer(self.decimal))
     }
 }
 

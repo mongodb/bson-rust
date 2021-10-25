@@ -280,6 +280,7 @@ pub use self::{
         Deserializer,
     },
     decimal128::Decimal128,
+    raw::{RawDocument, RawDocumentBuf, RawArray},
     ser::{to_bson, to_document, to_vec, Serializer},
     uuid::{Uuid, UuidRepresentation},
 };
@@ -293,6 +294,7 @@ pub mod decimal128;
 pub mod document;
 pub mod extjson;
 pub mod oid;
+pub mod raw;
 pub mod ser;
 pub mod serde_helpers;
 pub mod spec;

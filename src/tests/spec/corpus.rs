@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::{tests::LOCK, Bson, Document};
+use crate::{raw::RawDocument, tests::LOCK, Bson, Document};
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 
@@ -79,6 +79,11 @@ fn run_test(test: TestFile) {
         let todocument_documentfromreader_cb: Document =
             crate::to_document(&documentfromreader_cb).expect(&description);
 
+        let document_from_raw_document: Document = RawDocument::new(canonical_bson.as_slice())
+            .expect(&description)
+            .try_into()
+            .expect(&description);
+
         // These cover the ways to serialize those `Documents` back to BSON.
         let mut documenttowriter_documentfromreader_cb = Vec::new();
         documentfromreader_cb
@@ -102,6 +107,11 @@ fn run_test(test: TestFile) {
 
         let tovec_documentfromreader_cb =
             crate::to_vec(&documentfromreader_cb).expect(&description);
+
+        let mut documenttowriter_document_from_raw_document = Vec::new();
+        document_from_raw_document
+            .to_writer(&mut documenttowriter_document_from_raw_document)
+            .expect(&description);
 
         // native_to_bson( bson_to_native(cB) ) = cB
 
@@ -142,6 +152,13 @@ fn run_test(test: TestFile) {
             description,
         );
 
+        assert_eq!(
+            hex::encode(documenttowriter_document_from_raw_document).to_lowercase(),
+            valid.canonical_bson.to_lowercase(),
+            "{}",
+            description,
+        );
+
         // NaN == NaN is false, so we skip document comparisons that contain NaN
         if !description.to_ascii_lowercase().contains("nan") && !description.contains("decq541") {
             assert_eq!(documentfromreader_cb, fromreader_cb, "{}", description);
@@ -154,6 +171,12 @@ fn run_test(test: TestFile) {
 
             assert_eq!(
                 documentfromreader_cb, todocument_documentfromreader_cb,
+                "{}",
+                description
+            );
+
+            assert_eq!(
+                document_from_raw_document, documentfromreader_cb,
                 "{}",
                 description
             );
@@ -189,10 +212,31 @@ fn run_test(test: TestFile) {
                 description,
             );
 
+            let document_from_raw_document: Document = RawDocument::new(db.as_slice())
+                .expect(&description)
+                .try_into()
+                .expect(&description);
+            let mut documenttowriter_document_from_raw_document = Vec::new();
+            document_from_raw_document
+                .to_writer(&mut documenttowriter_document_from_raw_document)
+                .expect(&description);
+            assert_eq!(
+                hex::encode(documenttowriter_document_from_raw_document).to_lowercase(),
+                valid.canonical_bson.to_lowercase(),
+                "{}",
+                description,
+            );
+
             // NaN == NaN is false, so we skip document comparisons that contain NaN
             if !description.contains("NaN") {
                 assert_eq!(
                     bson_to_native_db_serde, documentfromreader_cb,
+                    "{}",
+                    description
+                );
+
+                assert_eq!(
+                    document_from_raw_document, documentfromreader_cb,
                     "{}",
                     description
                 );
@@ -352,6 +396,16 @@ fn run_test(test: TestFile) {
     }
 
     for decode_error in test.decode_errors.iter() {
+        let description = format!(
+            "{} decode error: {}",
+            test.bson_type, decode_error.description
+        );
+        let bson = hex::decode(&decode_error.bson).expect("should decode from hex");
+
+        if let Ok(doc) = RawDocument::new(bson.as_slice()) {
+            Document::try_from(doc).expect_err(description.as_str());
+        }
+
         // No meaningful definition of "byte count" for an arbitrary reader.
         if decode_error.description
             == "Stated length less than byte count, with garbage after envelope"
@@ -359,11 +413,6 @@ fn run_test(test: TestFile) {
             continue;
         }
 
-        let description = format!(
-            "{} decode error: {}",
-            test.bson_type, decode_error.description
-        );
-        let bson = hex::decode(&decode_error.bson).expect("should decode from hex");
         Document::from_reader(bson.as_slice()).expect_err(&description);
         crate::from_reader::<_, Document>(bson.as_slice()).expect_err(description.as_str());
 
