@@ -40,10 +40,19 @@ use super::{
 };
 use crate::de::serde::MapDeserializer;
 
+/// Hint provided to the deserializer via `deserialize_newtype_struct` as to the type of thing
+/// being deserialized.
 #[derive(Debug, Clone, Copy)]
 enum DeserializerHint {
+    /// No hint provided, deserialize normally.
     None,
+
+    /// The type being deserialized expects the BSON to contain a binary value with the provided
+    /// subtype. This is currently used to deserialize `bson::Uuid` values.
     BinarySubtype(BinarySubtype),
+
+    /// The type being deserialized is raw BSON, meaning no allocations should occur as part of
+    /// deserializing and everything should be visited via borrowing or `Copy`.
     RawBson,
 }
 
@@ -60,6 +69,8 @@ pub(crate) struct Deserializer<'de> {
     current_type: ElementType,
 }
 
+/// Enum used to determine what the type of document being deserialized is in
+/// `Deserializer::deserialize_document`.
 enum DocumentType {
     Array,
     EmbeddedDocument,
@@ -110,10 +121,19 @@ impl<'de> Deserializer<'de> {
         self.bytes.read_str()
     }
 
+    /// Read a null-terminated C style string from the underling BSON.
+    ///
+    /// If utf8_lossy, this will be an owned string if invalid UTF-8 is encountered in the string,
+    /// otherwise it will be borrowed.
     fn deserialize_cstr(&mut self) -> Result<Cow<'de, str>> {
         self.bytes.read_cstr()
     }
 
+    /// Read a document from the underling BSON, whether it's an array or an actual document.
+    ///
+    /// If hinted to use raw BSON, the bytes themselves will be visited using a special newtype
+    /// name. Otherwise, the key-value pairs will be accessed in order, either as part of a
+    /// `MapAccess` for documents or a `SeqAccess` for arrays.
     fn deserialize_document<V>(
         &mut self,
         visitor: V,
@@ -155,7 +175,6 @@ impl<'de> Deserializer<'de> {
     where
         F: FnOnce(DocumentAccess<'_, 'de>) -> Result<O>,
     {
-        println!("in access");
         let mut length_remaining = read_i32(&mut self.bytes)? - 4;
         let out = f(DocumentAccess {
             root_deserializer: self,
@@ -183,6 +202,8 @@ impl<'de> Deserializer<'de> {
         Ok(Some(element_type))
     }
 
+    /// Deserialize the next element in the BSON, using the type of the element along with the
+    /// provided hint to determine how to visit the data.
     fn deserialize_next<V>(&mut self, visitor: V, hint: DeserializerHint) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
@@ -277,7 +298,7 @@ impl<'de> Deserializer<'de> {
                 visitor.visit_map(RegexAccess::new(&mut de))
             }
             ElementType::DbPointer => {
-                let mut de = DbPointerDeserializer::new(&mut *self, hint);
+                let mut de = DbPointerDeserializer::new(&mut *self);
                 visitor.visit_map(DbPointerAccess::new(&mut de))
             }
             ElementType::JavaScriptCode => {
@@ -606,9 +627,15 @@ impl<'de> serde::de::Deserializer<'de> for FieldDeserializer {
     }
 }
 
+/// A `MapAccess` used to deserialize entire documents as chunks of bytes without deserializing
+/// the individual key/value pairs.
 struct RawDocumentAccess<'d> {
     deserializer: RawDocumentDeserializer<'d>,
-    first: bool,
+
+    /// Whether the first key has been deserialized yet or not.
+    deserialized_first: bool,
+
+    /// Whether or not this document being deserialized is for anarray or not.
     array: bool,
 }
 
@@ -616,7 +643,7 @@ impl<'de> RawDocumentAccess<'de> {
     fn new(doc: &'de RawDocument) -> Self {
         Self {
             deserializer: RawDocumentDeserializer { raw_doc: doc },
-            first: true,
+            deserialized_first: false,
             array: false,
         }
     }
@@ -624,7 +651,7 @@ impl<'de> RawDocumentAccess<'de> {
     fn for_array(doc: &'de RawDocument) -> Self {
         Self {
             deserializer: RawDocumentDeserializer { raw_doc: doc },
-            first: true,
+            deserialized_first: false,
             array: true,
         }
     }
@@ -637,8 +664,11 @@ impl<'de> serde::de::MapAccess<'de> for RawDocumentAccess<'de> {
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        if self.first {
-            self.first = false;
+        if !self.deserialized_first {
+            self.deserialized_first = true;
+
+            // the newtype name will indicate to the `RawBson` enum that the incoming
+            // bytes are meant to be treated as a document or array instead of a binary value.
             seed.deserialize(FieldDeserializer {
                 field_name: if self.array {
                     RAW_ARRAY_NEWTYPE
@@ -736,8 +766,6 @@ impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
     where
         V: serde::de::Visitor<'de>,
     {
-        println!("oid hint {:?}", self.hint);
-        println!("visitor: {:?}", std::any::type_name::<V>());
         // save an allocation when deserializing to raw bson
         match self.hint {
             DeserializerHint::RawBson => visitor.visit_bytes(&self.oid.bytes()),
@@ -901,23 +929,16 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut TimestampDeserializer {
     }
 }
 
-enum DateTimeDeserializationStage {
-    TopLevel,
-    NumberLong,
-    Done,
-}
-
+/// A `MapAccess` providing access to a BSON datetime being deserialized.
+///
+/// If hinted to be raw BSON, this deserializes the serde data model equivalent
+/// of { "$date": <i64 ms from epoch> }.
+///
+/// Otherwise, this deserializes the serde data model equivalent of
+/// { "$date": { "$numberLong": <ms from epoch as a string> } }.
 struct DateTimeAccess<'d> {
     deserializer: &'d mut DateTimeDeserializer,
 }
-
-// impl<'d> DateTimeAccess<'d> {
-//     fn new(deserializer: &'d mut DateTimeDeserializer) -> Self {
-//         Self {
-
-//         }
-//     }
-// }
 
 impl<'de, 'd> serde::de::MapAccess<'de> for DateTimeAccess<'d> {
     type Error = Error;
@@ -953,6 +974,12 @@ struct DateTimeDeserializer {
     dt: DateTime,
     stage: DateTimeDeserializationStage,
     hint: DeserializerHint,
+}
+
+enum DateTimeDeserializationStage {
+    TopLevel,
+    NumberLong,
+    Done,
 }
 
 impl DateTimeDeserializer {
@@ -1002,6 +1029,13 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut DateTimeDeserializer {
     }
 }
 
+/// A `MapAccess` providing access to a BSON binary being deserialized.
+///
+/// If hinted to be raw BSON, this deserializes the serde data model equivalent
+/// of { "$binary": { "subType": <u8>, "base64": <borrowed bytes> } }.
+///
+/// Otherwise, this deserializes the serde data model equivalent of
+/// { "$binary": { "subType": <hex string>, "base64": <base64 encoded data> } }.
 struct BinaryAccess<'d, 'de> {
     deserializer: &'d mut BinaryDeserializer<'de>,
 }
@@ -1041,6 +1075,7 @@ impl<'de, 'd> serde::de::MapAccess<'de> for BinaryAccess<'d, 'de> {
     }
 }
 
+/// Storage of possibly borrowed, possibly owned binary data.
 enum BinaryContent<'a> {
     Borrowed(RawBinary<'a>),
     Owned(Binary),
@@ -1121,6 +1156,13 @@ enum BinaryDeserializationStage {
     Done,
 }
 
+/// A `MapAccess` providing access to a BSON code with scope being deserialized.
+///
+/// If hinted to be raw BSON, this deserializes the serde data model equivalent
+/// of { "$code": <borrowed str>, "$scope": <&RawDocument> } }.
+///
+/// Otherwise, this deserializes the serde data model equivalent of
+/// { "$code": <borrowed str> "$scope": <map> }.
 struct CodeWithScopeAccess<'de, 'd, 'a> {
     deserializer: &'a mut CodeWithScopeDeserializer<'de, 'd>,
 }
@@ -1138,7 +1180,6 @@ impl<'de, 'd, 'a> serde::de::MapAccess<'de> for CodeWithScopeAccess<'de, 'd, 'a>
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        println!("key: {:?}", self.deserializer.stage);
         match self.deserializer.stage {
             CodeWithScopeDeserializationStage::Code => seed
                 .deserialize(FieldDeserializer {
@@ -1189,16 +1230,12 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut CodeWithScopeDeserial
             CodeWithScopeDeserializationStage::Code => {
                 self.stage = CodeWithScopeDeserializationStage::Scope;
                 match self.root_deserializer.deserialize_str()? {
-                    Cow::Borrowed(s) => {
-                        println!("visiting code: {}", s);
-                        visitor.visit_borrowed_str(s)
-                    }
+                    Cow::Borrowed(s) => visitor.visit_borrowed_str(s),
                     Cow::Owned(s) => visitor.visit_string(s),
                 }
             }
             CodeWithScopeDeserializationStage::Scope => {
                 self.stage = CodeWithScopeDeserializationStage::Done;
-                println!("deserializing scope");
                 self.root_deserializer.deserialize_document(
                     visitor,
                     self.hint,
@@ -1225,6 +1262,10 @@ enum CodeWithScopeDeserializationStage {
     Done,
 }
 
+/// A `MapAccess` providing access to a BSON DB pointer being deserialized.
+///
+/// Regardless of the hint, this deserializes the serde data model equivalent
+/// of { "$dbPointer": { "$ref": <borrowed str>, "$id": <bytes> } }.
 struct DbPointerAccess<'de, 'd, 'a> {
     deserializer: &'a mut DbPointerDeserializer<'de, 'd>,
 }
@@ -1242,7 +1283,6 @@ impl<'de, 'd, 'a> serde::de::MapAccess<'de> for DbPointerAccess<'de, 'd, 'a> {
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        println!("key: {:?}", self.deserializer.stage);
         match self.deserializer.stage {
             DbPointerDeserializationStage::TopLevel => seed
                 .deserialize(FieldDeserializer {
@@ -1270,15 +1310,13 @@ impl<'de, 'd, 'a> serde::de::MapAccess<'de> for DbPointerAccess<'de, 'd, 'a> {
 struct DbPointerDeserializer<'de, 'a> {
     root_deserializer: &'a mut Deserializer<'de>,
     stage: DbPointerDeserializationStage,
-    hint: DeserializerHint,
 }
 
 impl<'de, 'a> DbPointerDeserializer<'de, 'a> {
-    fn new(root_deserializer: &'a mut Deserializer<'de>, hint: DeserializerHint) -> Self {
+    fn new(root_deserializer: &'a mut Deserializer<'de>) -> Self {
         Self {
             root_deserializer,
             stage: DbPointerDeserializationStage::TopLevel,
-            hint,
         }
     }
 }
@@ -1290,7 +1328,6 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut DbPointerDeserializer
     where
         V: serde::de::Visitor<'de>,
     {
-        println!("deserializing {:?}", self.stage);
         match self.stage {
             DbPointerDeserializationStage::TopLevel => {
                 self.stage = DbPointerDeserializationStage::Namespace;
@@ -1328,6 +1365,10 @@ enum DbPointerDeserializationStage {
     Done,
 }
 
+/// A `MapAccess` providing access to a BSON regular expression being deserialized.
+///
+/// Regardless of the hint, this deserializes the serde data model equivalent
+/// of { "$regularExpression": { "pattern": <borrowed str>, "options": <borrowed str> } }.
 struct RegexAccess<'de, 'd, 'a> {
     deserializer: &'a mut RegexDeserializer<'de, 'd>,
 }
@@ -1345,7 +1386,6 @@ impl<'de, 'd, 'a> serde::de::MapAccess<'de> for RegexAccess<'de, 'd, 'a> {
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        println!("key: {:?}", self.deserializer.stage);
         match self.deserializer.stage {
             RegexDeserializationStage::TopLevel => seed
                 .deserialize(FieldDeserializer {
@@ -1594,7 +1634,7 @@ impl<'a> BsonBuf<'a> {
         self.str(start, None)
     }
 
-    fn advance_to_str(&mut self) -> Result<usize> {
+    fn _advance_to_len_encoded_str(&mut self) -> Result<usize> {
         let len = read_i32(self)?;
         let start = self.index;
 
@@ -1618,13 +1658,13 @@ impl<'a> BsonBuf<'a> {
     /// of the offending data, resulting in an owned `String`. Otherwise, the data will be
     /// borrowed as-is.
     fn read_str(&mut self) -> Result<Cow<'a, str>> {
-        let start = self.advance_to_str()?;
+        let start = self._advance_to_len_encoded_str()?;
         self.str(start, None)
     }
 
     /// Attempts to read a null-terminated UTF-8 string from the data.
     fn read_borrowed_str(&mut self) -> Result<&'a str> {
-        let start = self.advance_to_str()?;
+        let start = self._advance_to_len_encoded_str()?;
         match self.str(start, Some(false))? {
             Cow::Borrowed(s) => Ok(s),
             Cow::Owned(_) => panic!("should have errored when encountering invalid UTF-8"),

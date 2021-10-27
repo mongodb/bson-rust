@@ -345,7 +345,6 @@ impl<'a> RawBinary<'a> {
         // Skip length data in old binary.
         if let BinarySubtype::BinaryOld = subtype {
             let data_len = read_i32(&mut bytes)?;
-            println!("data_len={}", data_len);
 
             if data_len + 4 != len {
                 return Err(Error::invalid_length(
