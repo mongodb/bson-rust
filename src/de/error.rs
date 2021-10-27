@@ -15,6 +15,12 @@ pub enum Error {
     /// while decoding a UTF-8 String from the input data.
     InvalidUtf8String(string::FromUtf8Error),
 
+    /// An error encountered during the conversion of one datetime format to another.
+    InvalidTimestamp {
+        /// A message describing the error.
+        message: String,
+    },
+
     /// While decoding a `Document` from bytes, an unexpected or unsupported element type was
     /// encountered.
     #[non_exhaustive]
@@ -55,6 +61,7 @@ impl fmt::Display for Error {
         match *self {
             Error::Io(ref inner) => inner.fmt(fmt),
             Error::InvalidUtf8String(ref inner) => inner.fmt(fmt),
+            Error::InvalidTimestamp { ref message } => message.fmt(fmt),
             Error::UnrecognizedDocumentElementType {
                 ref key,
                 element_type,

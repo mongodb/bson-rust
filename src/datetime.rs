@@ -171,6 +171,15 @@ impl crate::DateTime {
         self.to_chrono()
             .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
     }
+
+    pub fn from_rfc3339(s: &str) -> Result<Self, crate::de::Error> {
+        match chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(s) {
+            Ok(d)  => Ok(Self::from_chrono(d)),
+            Err(_) => Err(crate::de::Error::InvalidTimestamp {
+                message: format!("cannot convert {} to chrono::Datetime", s)
+            })
+        }
+    }
 }
 
 impl fmt::Debug for crate::DateTime {
