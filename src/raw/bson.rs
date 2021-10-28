@@ -534,11 +534,7 @@ impl<'a> Serialize for RawBson<'a> {
             }
             RawBson::RegularExpression(re) => re.serialize(serializer),
             RawBson::Timestamp(t) => t.serialize(serializer),
-            RawBson::Decimal128(d) => {
-                let mut state = serializer.serialize_struct("$numberDecimal", 1)?;
-                state.serialize_field("$numberDecimalBytes", Bytes::new(&d.bytes))?;
-                state.end()
-            }
+            RawBson::Decimal128(d) => d.serialize(serializer),
             RawBson::Undefined => {
                 let mut state = serializer.serialize_struct("$undefined", 1)?;
                 state.serialize_field("$undefined", &true)?;
