@@ -1,4 +1,5 @@
 mod binary_subtype;
+mod datetime;
 mod modules;
 mod serde;
 mod spec;

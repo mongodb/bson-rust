@@ -172,12 +172,13 @@ impl crate::DateTime {
             .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
     }
 
+    /// Convert the given RFC 3339 format string to a [`DateTime`].
     pub fn from_rfc3339(s: &str) -> Result<Self, crate::de::Error> {
         match chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(s) {
-            Ok(d)  => Ok(Self::from_chrono(d)),
+            Ok(d) => Ok(Self::from_chrono(d)),
             Err(_) => Err(crate::de::Error::InvalidTimestamp {
-                message: format!("cannot convert {} to chrono::Datetime", s)
-            })
+                message: format!("cannot convert {} to chrono::Datetime", s),
+            }),
         }
     }
 }
