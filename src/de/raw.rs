@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    convert::TryInto,
     io::{ErrorKind, Read},
     sync::Arc,
 };
@@ -37,6 +38,7 @@ use super::{
     Error,
     Result,
     MAX_BSON_SIZE,
+    MIN_CODE_WITH_SCOPE_SIZE,
 };
 use crate::de::serde::MapDeserializer;
 
@@ -127,6 +129,18 @@ impl<'de> Deserializer<'de> {
     /// otherwise it will be borrowed.
     fn deserialize_cstr(&mut self) -> Result<Cow<'de, str>> {
         self.bytes.read_cstr()
+    }
+
+    /// Read an ObjectId from the underling BSON.
+    ///
+    /// If hinted to use raw BSON, the bytes of the ObjectId will be visited.
+    /// Otherwise, a map in the shape of the extended JSON format of an ObjectId will be.
+    fn deserialize_objectid<V>(&mut self, visitor: V, hint: DeserializerHint) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        let oid = ObjectId::from_reader(&mut self.bytes)?;
+        visitor.visit_map(ObjectIdAccess::new(oid, hint))
     }
 
     /// Read a document from the underling BSON, whether it's an array or an actual document.
@@ -227,10 +241,7 @@ impl<'de> Deserializer<'de> {
             },
             ElementType::Boolean => visitor.visit_bool(read_bool(&mut self.bytes)?),
             ElementType::Null => visitor.visit_unit(),
-            ElementType::ObjectId => {
-                let oid = ObjectId::from_reader(&mut self.bytes)?;
-                visitor.visit_map(ObjectIdAccess::new(oid, hint))
-            }
+            ElementType::ObjectId => self.deserialize_objectid(visitor, hint),
             ElementType::EmbeddedDocument => {
                 self.deserialize_document(visitor, hint, DocumentType::EmbeddedDocument)
             }
@@ -298,7 +309,7 @@ impl<'de> Deserializer<'de> {
                 visitor.visit_map(RegexAccess::new(&mut de))
             }
             ElementType::DbPointer => {
-                let mut de = DbPointerDeserializer::new(&mut *self);
+                let mut de = DbPointerDeserializer::new(&mut *self, hint);
                 visitor.visit_map(DbPointerAccess::new(&mut de))
             }
             ElementType::JavaScriptCode => {
@@ -317,9 +328,43 @@ impl<'de> Deserializer<'de> {
                 }
             }
             ElementType::JavaScriptCodeWithScope => {
-                let _len = read_i32(&mut self.bytes)?;
-                let mut de = CodeWithScopeDeserializer::new(&mut *self, hint);
-                visitor.visit_map(CodeWithScopeAccess::new(&mut de))
+                let len = read_i32(&mut self.bytes)?;
+
+                if len < MIN_CODE_WITH_SCOPE_SIZE {
+                    return Err(SerdeError::invalid_length(
+                        len.try_into().unwrap_or(0),
+                        &format!(
+                            "CodeWithScope to be at least {} bytes",
+                            MIN_CODE_WITH_SCOPE_SIZE
+                        )
+                        .as_str(),
+                    ));
+                } else if (self.bytes.bytes_remaining() as i32) < len - 4 {
+                    return Err(SerdeError::invalid_length(
+                        len.try_into().unwrap_or(0),
+                        &format!(
+                            "CodeWithScope to be at most {} bytes",
+                            self.bytes.bytes_remaining()
+                        )
+                        .as_str(),
+                    ));
+                }
+
+                let mut de = CodeWithScopeDeserializer::new(&mut *self, hint, len - 4);
+                let out = visitor.visit_map(CodeWithScopeAccess::new(&mut de));
+
+                if de.length_remaining != 0 {
+                    return Err(SerdeError::invalid_length(
+                        len.try_into().unwrap_or(0),
+                        &format!(
+                            "CodeWithScope length {} bytes greater than actual length",
+                            de.length_remaining
+                        )
+                        .as_str(),
+                    ));
+                }
+
+                out
             }
             ElementType::Symbol => {
                 let utf8_lossy = self.bytes.utf8_lossy;
@@ -1032,7 +1077,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut DateTimeDeserializer {
 /// A `MapAccess` providing access to a BSON binary being deserialized.
 ///
 /// If hinted to be raw BSON, this deserializes the serde data model equivalent
-/// of { "$binary": { "subType": <u8>, "base64": <borrowed bytes> } }.
+/// of { "$binary": { "subType": <u8>, "bytes": <borrowed bytes> } }.
 ///
 /// Otherwise, this deserializes the serde data model equivalent of
 /// { "$binary": { "subType": <hex string>, "base64": <base64 encoded data> } }.
@@ -1058,9 +1103,17 @@ impl<'de, 'd> serde::de::MapAccess<'de> for BinaryAccess<'d, 'de> {
                     field_name: "subType",
                 })
                 .map(Some),
+            BinaryDeserializationStage::Bytes
+                if matches!(self.deserializer.binary, BinaryContent::Borrowed(_)) =>
+            {
+                seed.deserialize(FieldDeserializer {
+                    field_name: "bytes",
+                })
+                .map(Some)
+            }
             BinaryDeserializationStage::Bytes => seed
                 .deserialize(FieldDeserializer {
-                    field_name: "bytes",
+                    field_name: "base64",
                 })
                 .map(Some),
             BinaryDeserializationStage::Done => Ok(None),
@@ -1076,6 +1129,7 @@ impl<'de, 'd> serde::de::MapAccess<'de> for BinaryAccess<'d, 'de> {
 }
 
 /// Storage of possibly borrowed, possibly owned binary data.
+#[derive(Debug)]
 enum BinaryContent<'a> {
     Borrowed(RawBinary<'a>),
     Owned(Binary),
@@ -1207,15 +1261,36 @@ struct CodeWithScopeDeserializer<'de, 'a> {
     root_deserializer: &'a mut Deserializer<'de>,
     stage: CodeWithScopeDeserializationStage,
     hint: DeserializerHint,
+    length_remaining: i32,
 }
 
 impl<'de, 'a> CodeWithScopeDeserializer<'de, 'a> {
-    fn new(root_deserializer: &'a mut Deserializer<'de>, hint: DeserializerHint) -> Self {
+    fn new(root_deserializer: &'a mut Deserializer<'de>, hint: DeserializerHint, len: i32) -> Self {
         Self {
             root_deserializer,
             stage: CodeWithScopeDeserializationStage::Code,
             hint,
+            length_remaining: len,
         }
+    }
+
+    /// Executes a closure that reads from the BSON bytes and returns an error if the number of
+    /// bytes read exceeds length_remaining.
+    ///
+    /// A mutable reference to this `CodeWithScopeDeserializer` is passed into the closure.
+    fn read<F, O>(&mut self, f: F) -> Result<O>
+    where
+        F: FnOnce(&mut Self) -> Result<O>,
+    {
+        let start_bytes = self.root_deserializer.bytes.bytes_read();
+        let out = f(self);
+        let bytes_read = self.root_deserializer.bytes.bytes_read() - start_bytes;
+        self.length_remaining -= bytes_read as i32;
+
+        if self.length_remaining < 0 {
+            return Err(Error::custom("length of CodeWithScope too short"));
+        }
+        out
     }
 }
 
@@ -1229,18 +1304,20 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut CodeWithScopeDeserial
         match self.stage {
             CodeWithScopeDeserializationStage::Code => {
                 self.stage = CodeWithScopeDeserializationStage::Scope;
-                match self.root_deserializer.deserialize_str()? {
+                match self.read(|s| s.root_deserializer.deserialize_str())? {
                     Cow::Borrowed(s) => visitor.visit_borrowed_str(s),
                     Cow::Owned(s) => visitor.visit_string(s),
                 }
             }
             CodeWithScopeDeserializationStage::Scope => {
                 self.stage = CodeWithScopeDeserializationStage::Done;
-                self.root_deserializer.deserialize_document(
-                    visitor,
-                    self.hint,
-                    DocumentType::EmbeddedDocument,
-                )
+                self.read(|s| {
+                    s.root_deserializer.deserialize_document(
+                        visitor,
+                        s.hint,
+                        DocumentType::EmbeddedDocument,
+                    )
+                })
             }
             CodeWithScopeDeserializationStage::Done => Err(Error::custom(
                 "JavaScriptCodeWithScope fully deserialized already",
@@ -1310,13 +1387,15 @@ impl<'de, 'd, 'a> serde::de::MapAccess<'de> for DbPointerAccess<'de, 'd, 'a> {
 struct DbPointerDeserializer<'de, 'a> {
     root_deserializer: &'a mut Deserializer<'de>,
     stage: DbPointerDeserializationStage,
+    hint: DeserializerHint,
 }
 
 impl<'de, 'a> DbPointerDeserializer<'de, 'a> {
-    fn new(root_deserializer: &'a mut Deserializer<'de>) -> Self {
+    fn new(root_deserializer: &'a mut Deserializer<'de>, hint: DeserializerHint) -> Self {
         Self {
             root_deserializer,
             stage: DbPointerDeserializationStage::TopLevel,
+            hint,
         }
     }
 }
@@ -1342,7 +1421,8 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut DbPointerDeserializer
             }
             DbPointerDeserializationStage::Id => {
                 self.stage = DbPointerDeserializationStage::Done;
-                visitor.visit_borrowed_bytes(self.root_deserializer.bytes.read_slice(12)?)
+                self.root_deserializer
+                    .deserialize_objectid(visitor, self.hint)
             }
             DbPointerDeserializationStage::Done => {
                 Err(Error::custom("DbPointer fully deserialized already"))
@@ -1587,6 +1667,10 @@ impl<'a> BsonBuf<'a> {
 
     fn bytes_read(&self) -> usize {
         self.index
+    }
+
+    fn bytes_remaining(&self) -> usize {
+        self.bytes.len() - self.bytes_read()
     }
 
     /// Verify the index has not run out of bounds.

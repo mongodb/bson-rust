@@ -256,8 +256,15 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
             SerializationStep::Symbol | SerializationStep::DbPointerRef => {
                 write_string(&mut self.root_serializer.bytes, v)?;
             }
-            SerializationStep::RegExPattern | SerializationStep::RegExOptions => {
+            SerializationStep::RegExPattern => {
                 write_cstring(&mut self.root_serializer.bytes, v)?;
+            }
+            SerializationStep::RegExOptions => {
+                let mut chars: Vec<_> = v.chars().collect();
+                chars.sort_unstable();
+
+                let sorted = chars.into_iter().collect::<String>();
+                write_cstring(&mut self.root_serializer.bytes, sorted.as_str())?;
             }
             SerializationStep::Code => {
                 write_string(&mut self.root_serializer.bytes, v)?;

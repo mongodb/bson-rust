@@ -3,7 +3,12 @@ use std::{
     str::FromStr,
 };
 
-use crate::{raw::RawDocument, tests::LOCK, Bson, Document};
+use crate::{
+    raw::{RawBson, RawDocument},
+    tests::LOCK,
+    Bson,
+    Document,
+};
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 
@@ -79,10 +84,18 @@ fn run_test(test: TestFile) {
         let todocument_documentfromreader_cb: Document =
             crate::to_document(&documentfromreader_cb).expect(&description);
 
-        let document_from_raw_document: Document = RawDocument::new(canonical_bson.as_slice())
+        let canonical_raw_document =
+            RawDocument::new(canonical_bson.as_slice()).expect(&description);
+        let document_from_raw_document: Document =
+            canonical_raw_document.try_into().expect(&description);
+
+        let canonical_raw_bson_from_slice = crate::from_slice::<RawBson>(canonical_bson.as_slice())
             .expect(&description)
-            .try_into()
+            .as_document()
             .expect(&description);
+
+        let canonical_raw_document_from_slice =
+            crate::from_slice::<&RawDocument>(canonical_bson.as_slice()).expect(&description);
 
         // These cover the ways to serialize those `Documents` back to BSON.
         let mut documenttowriter_documentfromreader_cb = Vec::new();
@@ -112,6 +125,12 @@ fn run_test(test: TestFile) {
         document_from_raw_document
             .to_writer(&mut documenttowriter_document_from_raw_document)
             .expect(&description);
+
+        // Serialize the raw versions "back" to BSON also.
+        let tovec_rawdocument = crate::to_vec(&canonical_raw_document).expect(&description);
+        let tovec_rawdocument_from_slice =
+            crate::to_vec(&canonical_raw_document_from_slice).expect(&description);
+        let tovec_rawbson = crate::to_vec(&canonical_raw_bson_from_slice).expect(&description);
 
         // native_to_bson( bson_to_native(cB) ) = cB
 
@@ -154,6 +173,20 @@ fn run_test(test: TestFile) {
 
         assert_eq!(
             hex::encode(documenttowriter_document_from_raw_document).to_lowercase(),
+            valid.canonical_bson.to_lowercase(),
+            "{}",
+            description,
+        );
+
+        assert_eq!(tovec_rawdocument, tovec_rawbson, "{}", description);
+        assert_eq!(
+            tovec_rawdocument, tovec_rawdocument_from_slice,
+            "{}",
+            description
+        );
+
+        assert_eq!(
+            hex::encode(tovec_rawdocument).to_lowercase(),
             valid.canonical_bson.to_lowercase(),
             "{}",
             description,
