@@ -4,7 +4,7 @@ use std::{
     ops::Deref,
 };
 
-use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 
 use crate::{
     raw::{RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
@@ -152,6 +152,16 @@ impl<'de> Deserialize<'de> for RawDocumentBuf {
         // TODO: RUST-1045 implement visit_map to deserialize from arbitrary maps.
         let doc: &'de RawDocument = Deserialize::deserialize(deserializer)?;
         Ok(doc.to_owned())
+    }
+}
+
+impl Serialize for RawDocumentBuf {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let doc: &RawDocument = &self;
+        doc.serialize(serializer)
     }
 }
 

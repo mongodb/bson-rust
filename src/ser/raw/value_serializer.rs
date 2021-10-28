@@ -54,7 +54,7 @@ enum SerializationStep {
     Code,
 
     CodeWithScopeCode,
-    CodeWithScopeScope { code: String },
+    CodeWithScopeScope { code: String, raw: bool },
 
     MinKey,
 
@@ -265,6 +265,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
             SerializationStep::CodeWithScopeCode => {
                 self.state = SerializationStep::CodeWithScopeScope {
                     code: v.to_string(),
+                    raw: false,
                 };
             }
             s => {
@@ -286,6 +287,14 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
             }
             SerializationStep::RawBinaryBytes => {
                 self.state = SerializationStep::RawBinarySubType { bytes: v.to_vec() };
+                Ok(())
+            }
+            SerializationStep::CodeWithScopeScope { ref code, raw } if raw => {
+                let len = 4 + 4 + code.len() as i32 + 1 + v.len() as i32;
+                write_i32(&mut self.root_serializer.bytes, len)?;
+                write_string(&mut self.root_serializer.bytes, code)?;
+                self.root_serializer.bytes.write_all(v)?;
+                self.state = SerializationStep::Done;
                 Ok(())
             }
             _ => Err(self.invalid_step("&[u8]")),
@@ -326,15 +335,23 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(
-        self,
-        _name: &'static str,
-        _value: &T,
-    ) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T: ?Sized>(self, name: &'static str, value: &T) -> Result<Self::Ok>
     where
         T: Serialize,
     {
-        Err(self.invalid_step("newtype_struct"))
+        match (&mut self.state, name) {
+            (
+                SerializationStep::CodeWithScopeScope {
+                    ref code,
+                    ref mut raw,
+                },
+                RAW_DOCUMENT_NEWTYPE,
+            ) => {
+                *raw = true;
+                value.serialize(self)
+            }
+            _ => Err(self.invalid_step("newtype_struct")),
+        }
     }
 
     #[inline]
@@ -384,10 +401,10 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         match self.state {
-            SerializationStep::CodeWithScopeScope { ref code } => {
+            SerializationStep::CodeWithScopeScope { ref code, raw } if !raw => {
                 CodeWithScopeSerializer::start(code.as_str(), self.root_serializer)
             }
-            _ => Err(self.invalid_step("tuple_map")),
+            _ => Err(self.invalid_step("map")),
         }
     }
 
@@ -405,6 +422,10 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
         Err(self.invalid_step("struct_variant"))
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
     }
 }
 

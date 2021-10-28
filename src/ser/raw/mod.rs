@@ -1,6 +1,8 @@
 mod document_serializer;
 mod value_serializer;
 
+use std::io::Write;
+
 use serde::{
     ser::{Error as SerdeError, SerializeMap, SerializeStruct},
     Serialize,
@@ -36,7 +38,7 @@ pub(crate) struct Serializer {
 enum SerializerHint {
     None,
     Uuid,
-    RawBinary,
+    RawDocument,
 }
 
 impl SerializerHint {
@@ -191,15 +193,23 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Binary)?;
+        match self.hint {
+            SerializerHint::RawDocument => {
+                self.update_element_type(ElementType::EmbeddedDocument)?;
+                self.bytes.write_all(v)?;
+            }
+            _ => {
+                self.update_element_type(ElementType::Binary)?;
 
-        let subtype = if matches!(self.hint.take(), SerializerHint::Uuid) {
-            BinarySubtype::Uuid
-        } else {
-            BinarySubtype::Generic
+                let subtype = if matches!(self.hint.take(), SerializerHint::Uuid) {
+                    BinarySubtype::Uuid
+                } else {
+                    BinarySubtype::Generic
+                };
+
+                write_binary(&mut self.bytes, v, subtype)?;
+            }
         };
-
-        write_binary(&mut self.bytes, v, subtype)?;
         Ok(())
     }
 
@@ -248,6 +258,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     {
         match name {
             UUID_NEWTYPE_NAME => self.hint = SerializerHint::Uuid,
+            RAW_DOCUMENT_NEWTYPE => self.hint = SerializerHint::RawDocument,
             _ => {}
         }
         value.serialize(self)
