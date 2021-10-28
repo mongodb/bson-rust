@@ -816,6 +816,21 @@ impl<'a> Serialize for RawDbPointer<'a> {
     where
         S: serde::Serializer,
     {
-        todo!()
+        #[derive(Serialize)]
+        struct BorrowedDbPointerBody<'a> {
+            #[serde(rename = "$ref")]
+            ref_ns: &'a str,
+
+            #[serde(rename = "$id")]
+            id: ObjectId,
+        }
+
+        let mut state = serializer.serialize_struct("$dbPointer", 1)?;
+        let body = BorrowedDbPointerBody {
+            ref_ns: self.namespace,
+            id: self.id,
+        };
+        state.serialize_field("$dbPointer", &body)?;
+        state.end()
     }
 }

@@ -17,7 +17,7 @@ use crate::{
     datetime::DateTime,
     extjson,
     oid::ObjectId,
-    raw::{RawBinary, RawRegex},
+    raw::{RawBinary, RawDbPointer, RawRegex},
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Binary,
@@ -624,12 +624,10 @@ impl Serialize for DbPointer {
     where
         S: ser::Serializer,
     {
-        let mut state = serializer.serialize_struct("$dbPointer", 1)?;
-        let body = extjson::models::DbPointerBody {
-            ref_ns: self.namespace.clone(),
-            id: self.id.into(),
+        let raw = RawDbPointer {
+            namespace: self.namespace.as_str(),
+            id: self.id,
         };
-        state.serialize_field("$dbPointer", &body)?;
-        state.end()
+        raw.serialize(serializer)
     }
 }
