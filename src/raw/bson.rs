@@ -657,44 +657,33 @@ impl<'a> Serialize for RawBinary<'a> {
     where
         S: serde::Serializer,
     {
-        struct BinarySerializer<'a>(RawBinary<'a>);
+        if let BinarySubtype::Generic = self.subtype {
+            serializer.serialize_bytes(self.bytes)
+        } else if !serializer.is_human_readable() {
+            #[derive(Serialize)]
+            struct BorrowedBinary<'a> {
+                bytes: &'a Bytes,
 
-        impl<'a> Serialize for BinarySerializer<'a> {
-            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                if let BinarySubtype::Generic = self.0.subtype {
-                    serializer.serialize_bytes(self.0.bytes)
-                } else if !serializer.is_human_readable() {
-                    #[derive(Serialize)]
-                    struct BorrowedBinary<'a> {
-                        bytes: &'a Bytes,
-
-                        #[serde(rename = "subType")]
-                        subtype: u8,
-                    }
-
-                    let mut state = serializer.serialize_struct("$binary", 1)?;
-                    let body = BorrowedBinary {
-                        bytes: Bytes::new(self.0.bytes),
-                        subtype: self.0.subtype.into(),
-                    };
-                    state.serialize_field("$binary", &body)?;
-                    state.end()
-                } else {
-                    let mut state = serializer.serialize_struct("$binary", 1)?;
-                    let body = extjson::models::BinaryBody {
-                        base64: base64::encode(self.0.bytes),
-                        subtype: hex::encode([self.0.subtype.into()]),
-                    };
-                    state.serialize_field("$binary", &body)?;
-                    state.end()
-                }
+                #[serde(rename = "subType")]
+                subtype: u8,
             }
-        }
 
-        serializer.serialize_newtype_struct(RAW_BINARY_NEWTYPE, &BinarySerializer(*self))
+            let mut state = serializer.serialize_struct("$binary", 1)?;
+            let body = BorrowedBinary {
+                bytes: Bytes::new(self.bytes),
+                subtype: self.subtype.into(),
+            };
+            state.serialize_field("$binary", &body)?;
+            state.end()
+        } else {
+            let mut state = serializer.serialize_struct("$binary", 1)?;
+            let body = extjson::models::BinaryBody {
+                base64: base64::encode(self.bytes),
+                subtype: hex::encode([self.subtype.into()]),
+            };
+            state.serialize_field("$binary", &body)?;
+            state.end()
+        }
     }
 }
 

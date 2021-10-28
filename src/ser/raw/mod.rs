@@ -246,12 +246,8 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     where
         T: serde::Serialize,
     {
-        if name == UUID_NEWTYPE_NAME {
-            self.hint = SerializerHint::Uuid;
-        }
         match name {
             UUID_NEWTYPE_NAME => self.hint = SerializerHint::Uuid,
-            RAW_BINARY_NEWTYPE => self.hint = SerializerHint::RawBinary,
             _ => {}
         }
         value.serialize(self)
@@ -309,14 +305,13 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        println!("map");
         self.update_element_type(ElementType::EmbeddedDocument)?;
         DocumentSerializer::start(&mut *self)
     }
 
     #[inline]
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        println!("struct {}", name);
+        // println!("struct {}", name);
         let value_type = match name {
             "$oid" => Some(ValueType::ObjectId),
             "$date" => Some(ValueType::DateTime),
