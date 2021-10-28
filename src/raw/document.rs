@@ -3,7 +3,7 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use serde::Deserialize;
+use serde::{ser::SerializeMap, Deserialize, Serialize};
 
 use crate::{
     raw::{error::ErrorKind, RAW_DOCUMENT_NEWTYPE},
@@ -500,6 +500,31 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
                 b
             ))),
         }
+    }
+}
+
+impl<'a> Serialize for &'a RawDocument {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        struct KvpSerializer<'a>(&'a RawDocument);
+
+        impl<'a> Serialize for KvpSerializer<'a> {
+            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                let mut map = serializer.serialize_map(None)?;
+                for kvp in self.0 {
+                    let (k, v) = kvp.map_err(serde::ser::Error::custom)?;
+                    map.serialize_entry(k, &v)?;
+                }
+                map.end()
+            }
+        }
+
+        serializer.serialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, &KvpSerializer(self))
     }
 }
 

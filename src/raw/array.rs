@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use serde::Deserialize;
+use serde::{ser::SerializeSeq, Deserialize, Serialize};
 
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
@@ -12,7 +12,7 @@ use super::{
     RawRegex,
     Result,
 };
-use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
+use crate::{oid::ObjectId, raw::RAW_ARRAY_NEWTYPE, spec::ElementType, Bson, DateTime, Timestamp};
 
 /// A slice of a BSON document containing a BSON array value (akin to [`std::str`]). This can be
 /// retrieved from a [`RawDocument`] via [`RawDocument::get`].
@@ -255,5 +255,30 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
                 b
             ))),
         }
+    }
+}
+
+impl<'a> Serialize for &'a RawArray {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        struct SeqSerializer<'a>(&'a RawArray);
+
+        impl<'a> Serialize for SeqSerializer<'a> {
+            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                let mut seq = serializer.serialize_seq(None)?;
+                for v in self.0 {
+                    let v = v.map_err(serde::ser::Error::custom)?;
+                    seq.serialize_element(&v)?;
+                }
+                seq.end()
+            }
+        }
+
+        serializer.serialize_newtype_struct(RAW_ARRAY_NEWTYPE, &SeqSerializer(self))
     }
 }

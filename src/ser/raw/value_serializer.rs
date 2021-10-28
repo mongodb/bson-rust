@@ -33,6 +33,10 @@ enum SerializationStep {
     BinaryBase64,
     BinarySubType { base64: String },
 
+    RawBinary,
+    RawBinaryBytes,
+    RawBinarySubType { bytes: Vec<u8> },
+
     Symbol,
 
     RegEx,
@@ -106,7 +110,7 @@ impl<'a> ValueSerializer<'a> {
     pub(super) fn new(rs: &'a mut Serializer, value_type: ValueType) -> Self {
         let state = match value_type {
             ValueType::DateTime => SerializationStep::DateTime,
-            ValueType::Binary => SerializationStep::Binary,
+            ValueType::Binary => SerializationStep::RawBinary,
             ValueType::ObjectId => SerializationStep::Oid,
             ValueType::Symbol => SerializationStep::Symbol,
             ValueType::RegularExpression => SerializationStep::RegEx,
@@ -185,8 +189,15 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
     }
 
     #[inline]
-    fn serialize_u8(self, _v: u8) -> Result<Self::Ok> {
-        Err(self.invalid_step("u8"))
+    fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
+        match self.state {
+            SerializationStep::RawBinarySubType { ref bytes } => {
+                write_binary(&mut self.root_serializer.bytes, bytes.as_slice(), v.into())?;
+                self.state = SerializationStep::Done;
+                Ok(())
+            }
+            _ => Err(self.invalid_step("u8")),
+        }
     }
 
     #[inline]
@@ -273,6 +284,10 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
                 self.root_serializer.bytes.write_all(v)?;
                 Ok(())
             }
+            SerializationStep::RawBinaryBytes => {
+                self.state = SerializationStep::RawBinarySubType { bytes: v.to_vec() };
+                Ok(())
+            }
             _ => Err(self.invalid_step("&[u8]")),
         }
     }
@@ -338,7 +353,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
 
     #[inline]
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        Err(self.invalid_step("newtype_seq"))
+        Err(self.invalid_step("seq"))
     }
 
     #[inline]
@@ -411,6 +426,18 @@ impl<'a, 'b> SerializeStruct for &'b mut ValueSerializer<'a> {
                 self.state = SerializationStep::Done;
             }
             (SerializationStep::Oid, "$oid") => {
+                value.serialize(&mut **self)?;
+                self.state = SerializationStep::Done;
+            }
+            (SerializationStep::RawBinary, "$binary") => {
+                self.state = SerializationStep::RawBinaryBytes;
+                value.serialize(&mut **self)?;
+            }
+            (SerializationStep::RawBinaryBytes, "bytes") => {
+                // state is updated in serialize
+                value.serialize(&mut **self)?;
+            }
+            (SerializationStep::RawBinarySubType { .. }, "subType") => {
                 value.serialize(&mut **self)?;
                 self.state = SerializationStep::Done;
             }

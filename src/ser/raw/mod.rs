@@ -10,6 +10,7 @@ use self::value_serializer::{ValueSerializer, ValueType};
 
 use super::{write_binary, write_cstring, write_f64, write_i32, write_i64, write_string};
 use crate::{
+    raw::RAW_BINARY_NEWTYPE,
     ser::{Error, Result},
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
@@ -25,9 +26,23 @@ pub(crate) struct Serializer {
     /// but in serde, the serializer learns of the type after serializing the key.
     type_index: usize,
 
-    /// Whether the binary value about to be serialized is a UUID or not.
-    /// This is indicated by serializing a newtype with name UUID_NEWTYPE_NAME;
-    is_uuid: bool,
+    // /// Whether the binary value about to be serialized is a UUID or not.
+    // /// This is indicated by serializing a newtype with name UUID_NEWTYPE_NAME;
+    // is_uuid: bool,
+    hint: SerializerHint,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum SerializerHint {
+    None,
+    Uuid,
+    RawBinary,
+}
+
+impl SerializerHint {
+    fn take(&mut self) -> SerializerHint {
+        std::mem::replace(self, SerializerHint::None)
+    }
 }
 
 impl Serializer {
@@ -35,7 +50,7 @@ impl Serializer {
         Self {
             bytes: Vec::new(),
             type_index: 0,
-            is_uuid: false,
+            hint: SerializerHint::None,
         }
     }
 
@@ -178,8 +193,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Binary)?;
 
-        let subtype = if self.is_uuid {
-            self.is_uuid = false;
+        let subtype = if matches!(self.hint.take(), SerializerHint::Uuid) {
             BinarySubtype::Uuid
         } else {
             BinarySubtype::Generic
@@ -233,7 +247,12 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         T: serde::Serialize,
     {
         if name == UUID_NEWTYPE_NAME {
-            self.is_uuid = true;
+            self.hint = SerializerHint::Uuid;
+        }
+        match name {
+            UUID_NEWTYPE_NAME => self.hint = SerializerHint::Uuid,
+            RAW_BINARY_NEWTYPE => self.hint = SerializerHint::RawBinary,
+            _ => {}
         }
         value.serialize(self)
     }
@@ -290,12 +309,14 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
+        println!("map");
         self.update_element_type(ElementType::EmbeddedDocument)?;
         DocumentSerializer::start(&mut *self)
     }
 
     #[inline]
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        println!("struct {}", name);
         let value_type = match name {
             "$oid" => Some(ValueType::ObjectId),
             "$date" => Some(ValueType::DateTime),

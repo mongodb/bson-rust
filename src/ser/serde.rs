@@ -17,6 +17,7 @@ use crate::{
     datetime::DateTime,
     extjson,
     oid::ObjectId,
+    raw::RawBinary,
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Binary,
@@ -575,17 +576,22 @@ impl Serialize for Binary {
     where
         S: ser::Serializer,
     {
-        if let BinarySubtype::Generic = self.subtype {
-            serializer.serialize_bytes(self.bytes.as_slice())
-        } else {
-            let mut state = serializer.serialize_struct("$binary", 1)?;
-            let body = extjson::models::BinaryBody {
-                base64: base64::encode(self.bytes.as_slice()),
-                subtype: hex::encode([self.subtype.into()]),
-            };
-            state.serialize_field("$binary", &body)?;
-            state.end()
-        }
+        // if let BinarySubtype::Generic = self.subtype {
+        //     serializer.serialize_bytes(self.bytes.as_slice())
+        // } else {
+        //     let mut state = serializer.serialize_struct("$binary", 1)?;
+        //     let body = extjson::models::BinaryBody {
+        //         base64: base64::encode(self.bytes.as_slice()),
+        //         subtype: hex::encode([self.subtype.into()]),
+        //     };
+        //     state.serialize_field("$binary", &body)?;
+        //     state.end()
+        // }
+        let raw_binary = RawBinary {
+            bytes: self.bytes.as_slice(),
+            subtype: self.subtype,
+        };
+        raw_binary.serialize(serializer)
     }
 }
 

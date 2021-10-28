@@ -1060,7 +1060,7 @@ impl<'de, 'd> serde::de::MapAccess<'de> for BinaryAccess<'d, 'de> {
                 .map(Some),
             BinaryDeserializationStage::Bytes => seed
                 .deserialize(FieldDeserializer {
-                    field_name: "base64",
+                    field_name: "bytes",
                 })
                 .map(Some),
             BinaryDeserializationStage::Done => Ok(None),
