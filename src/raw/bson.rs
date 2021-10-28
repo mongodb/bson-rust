@@ -690,8 +690,8 @@ impl<'a> Serialize for RawBinary<'a> {
 /// A BSON regex referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawRegex<'a> {
-    pub(super) pattern: &'a str,
-    pub(super) options: &'a str,
+    pub(crate) pattern: &'a str,
+    pub(crate) options: &'a str,
 }
 
 impl<'a> RawRegex<'a> {
@@ -726,7 +726,19 @@ impl<'a> Serialize for RawRegex<'a> {
     where
         S: serde::Serializer,
     {
-        todo!()
+        #[derive(Serialize)]
+        struct BorrowedRegexBody<'a> {
+            pattern: &'a str,
+            options: &'a str,
+        }
+
+        let mut state = serializer.serialize_struct("$regularExpression", 1)?;
+        let body = BorrowedRegexBody {
+            pattern: self.pattern,
+            options: self.options,
+        };
+        state.serialize_field("$regularExpression", &body)?;
+        state.end()
     }
 }
 
