@@ -782,7 +782,10 @@ impl<'a> Serialize for RawJavaScriptCodeWithScope<'a> {
     where
         S: serde::Serializer,
     {
-        todo!()
+        let mut state = serializer.serialize_struct("$codeWithScope", 2)?;
+        state.serialize_field("$code", &self.code)?;
+        state.serialize_field("$scope", &self.scope)?;
+        state.end()
     }
 }
 

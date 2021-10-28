@@ -508,23 +508,23 @@ impl<'a> Serialize for &'a RawDocument {
     where
         S: serde::Serializer,
     {
-        struct KvpSerializer<'a>(&'a RawDocument);
+        // struct KvpSerializer<'a>(&'a RawDocument);
 
-        impl<'a> Serialize for KvpSerializer<'a> {
-            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
+        // impl<'a> Serialize for KvpSerializer<'a> {
+        //     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        //     where
+        //         S: serde::Serializer,
+        //     {
                 let mut map = serializer.serialize_map(None)?;
-                for kvp in self.0 {
+                for kvp in *self {
                     let (k, v) = kvp.map_err(serde::ser::Error::custom)?;
                     map.serialize_entry(k, &v)?;
                 }
                 map.end()
-            }
-        }
+            // }
+        // }
 
-        serializer.serialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, &KvpSerializer(self))
+        // serializer.serialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, &KvpSerializer(self))
     }
 }
 
