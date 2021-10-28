@@ -12,7 +12,7 @@ use self::value_serializer::{ValueSerializer, ValueType};
 
 use super::{write_binary, write_cstring, write_f64, write_i32, write_i64, write_string};
 use crate::{
-    raw::RAW_BINARY_NEWTYPE,
+    raw::{RAW_ARRAY_NEWTYPE, RAW_BINARY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     ser::{Error, Result},
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
@@ -37,8 +37,15 @@ pub(crate) struct Serializer {
 #[derive(Debug, Clone, Copy)]
 enum SerializerHint {
     None,
+
+    /// The next call to `serialize_bytes` is for the purposes of serializing a UUID.
     Uuid,
+
+    /// The next call to `serialize_bytes` is for the purposes of serializing a raw document.
     RawDocument,
+
+    /// The next call to `serialize_bytes` is for the purposes of serializing a raw array.
+    RawArray,
 }
 
 impl SerializerHint {
@@ -259,6 +266,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         match name {
             UUID_NEWTYPE_NAME => self.hint = SerializerHint::Uuid,
             RAW_DOCUMENT_NEWTYPE => self.hint = SerializerHint::RawDocument,
+            RAW_ARRAY_NEWTYPE => self.hint = SerializerHint::RawArray,
             _ => {}
         }
         value.serialize(self)

@@ -270,12 +270,16 @@ impl<'a> Serialize for &'a RawArray {
             where
                 S: serde::Serializer,
             {
-                let mut seq = serializer.serialize_seq(None)?;
-                for v in self.0 {
-                    let v = v.map_err(serde::ser::Error::custom)?;
-                    seq.serialize_element(&v)?;
+                if serializer.is_human_readable() {
+                    let mut seq = serializer.serialize_seq(None)?;
+                    for v in self.0 {
+                        let v = v.map_err(serde::ser::Error::custom)?;
+                        seq.serialize_element(&v)?;
+                    }
+                    seq.end()
+                } else {
+                    serializer.serialize_bytes(self.0.as_bytes())
                 }
-                seq.end()
             }
         }
 
