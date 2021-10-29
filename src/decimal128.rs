@@ -1,6 +1,6 @@
 //! [BSON Decimal128](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst) data type representation
 
-use std::fmt;
+use std::{array::TryFromSliceError, convert::TryInto, fmt};
 
 /// Struct representing a BSON Decimal128 type.
 ///
@@ -21,6 +21,13 @@ impl Decimal128 {
     /// Returns the raw byte representation of this `Decimal128`.
     pub fn bytes(&self) -> [u8; 128 / 8] {
         self.bytes
+    }
+
+    pub(crate) fn deserialize_from_slice<E: serde::de::Error>(
+        bytes: &[u8],
+    ) -> std::result::Result<Self, E> {
+        let arr: [u8; 128 / 8] = bytes.try_into().map_err(E::custom)?;
+        return Ok(Decimal128 { bytes: arr });
     }
 }
 

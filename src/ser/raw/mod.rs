@@ -205,6 +205,10 @@ impl<'a> serde::Serializer for &'a mut Serializer {
                 self.update_element_type(ElementType::EmbeddedDocument)?;
                 self.bytes.write_all(v)?;
             }
+            SerializerHint::RawArray => {
+                self.update_element_type(ElementType::Array)?;
+                self.bytes.write_all(v)?;
+            }
             _ => {
                 self.update_element_type(ElementType::Binary)?;
 

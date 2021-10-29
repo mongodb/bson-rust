@@ -643,6 +643,10 @@ impl<'d, 'de> serde::de::Deserializer<'de> for DocumentKeyDeserializer<'d, 'de> 
         }
     }
 
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
     forward_to_deserialize_any! {
         bool char str bytes byte_buf option unit unit_struct string
         identifier newtype_struct seq tuple tuple_struct struct map enum
@@ -663,6 +667,10 @@ impl<'de> serde::de::Deserializer<'de> for FieldDeserializer {
         V: serde::de::Visitor<'de>,
     {
         visitor.visit_borrowed_str(self.field_name)
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
     }
 
     serde::forward_to_deserialize_any! {
@@ -750,6 +758,10 @@ impl<'de> serde::de::Deserializer<'de> for RawDocumentDeserializer<'de> {
         visitor.visit_borrowed_bytes(self.raw_doc.as_bytes())
     }
 
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
@@ -818,6 +830,10 @@ impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
         }
     }
 
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
@@ -874,6 +890,10 @@ impl<'de> serde::de::Deserializer<'de> for Decimal128Deserializer {
         V: serde::de::Visitor<'de>,
     {
         visitor.visit_bytes(&self.0.bytes)
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
     }
 
     serde::forward_to_deserialize_any! {
@@ -965,6 +985,10 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut TimestampDeserializer {
                 Err(Error::custom("timestamp fully deserialized already"))
             }
         }
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
     }
 
     serde::forward_to_deserialize_any! {
@@ -1065,6 +1089,10 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut DateTimeDeserializer {
                 Err(Error::custom("DateTime fully deserialized already"))
             }
         }
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
     }
 
     serde::forward_to_deserialize_any! {
@@ -1196,6 +1224,10 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut BinaryDeserializer<'de> {
         }
     }
 
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
@@ -1325,6 +1357,10 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut CodeWithScopeDeserial
         }
     }
 
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
@@ -1430,6 +1466,10 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut DbPointerDeserializer
         }
     }
 
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
@@ -1533,6 +1573,10 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut RegexDeserializer<'de
         }
     }
 
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit newtype_struct
@@ -1628,6 +1672,10 @@ impl<'de, 'a> serde::de::Deserializer<'de> for RawBsonDeserializer<'de> {
             BsonContent::Str(s) => visitor.visit_borrowed_str(s),
             BsonContent::Int32(i) => visitor.visit_i32(i),
         }
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
     }
 
     serde::forward_to_deserialize_any! {

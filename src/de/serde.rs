@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     convert::{TryFrom, TryInto},
     fmt,
     vec,
@@ -17,7 +18,7 @@ use serde::de::{
     VariantAccess,
     Visitor,
 };
-use serde_bytes::ByteBuf;
+use serde_bytes::{ByteBuf, Bytes};
 
 use crate::{
     bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
@@ -265,15 +266,68 @@ impl<'de> Visitor<'de> for BsonVisitor {
         while let Some(k) = visitor.next_key::<String>()? {
             match k.as_str() {
                 "$oid" => {
-                    let hex: String = visitor.next_value()?;
-                    return Ok(Bson::ObjectId(ObjectId::parse_str(hex.as_str()).map_err(
-                        |_| {
-                            V::Error::invalid_value(
-                                Unexpected::Str(&hex),
-                                &"24-character, big-endian hex string",
-                            )
-                        },
-                    )?));
+                    enum BytesOrHex<'a> {
+                        Bytes([u8; 12]),
+                        Hex(Cow<'a, str>),
+                    }
+
+                    impl<'a, 'de: 'a> Deserialize<'de> for BytesOrHex<'a> {
+                        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                        where
+                            D: serde::Deserializer<'de>,
+                        {
+                            struct BytesOrHexVisitor;
+
+                            impl<'de> Visitor<'de> for BytesOrHexVisitor {
+                                type Value = BytesOrHex<'de>;
+
+                                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                                    write!(formatter, "hexstring or byte array")
+                                }
+
+                                fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                                where
+                                    E: Error,
+                                {
+                                    Ok(BytesOrHex::Hex(Cow::Owned(v.to_string())))
+                                }
+
+                                fn visit_borrowed_str<E>(
+                                    self,
+                                    v: &'de str,
+                                ) -> Result<Self::Value, E>
+                                where
+                                    E: Error,
+                                {
+                                    Ok(BytesOrHex::Hex(Cow::Borrowed(v)))
+                                }
+
+                                fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+                                where
+                                    E: Error,
+                                {
+                                    Ok(BytesOrHex::Bytes(v.try_into().map_err(Error::custom)?))
+                                }
+                            }
+
+                            deserializer.deserialize_any(BytesOrHexVisitor)
+                        }
+                    }
+
+                    let bytes_or_hex: BytesOrHex = visitor.next_value()?;
+                    match bytes_or_hex {
+                        BytesOrHex::Bytes(b) => return Ok(Bson::ObjectId(ObjectId::from_bytes(b))),
+                        BytesOrHex::Hex(hex) => {
+                            return Ok(Bson::ObjectId(ObjectId::parse_str(&hex).map_err(
+                                |_| {
+                                    V::Error::invalid_value(
+                                        Unexpected::Str(&hex),
+                                        &"24-character, big-endian hex string",
+                                    )
+                                },
+                            )?));
+                        }
+                    }
                 }
                 "$symbol" => {
                     let string: String = visitor.next_value()?;
@@ -419,16 +473,12 @@ impl<'de> Visitor<'de> for BsonVisitor {
 
                 "$numberDecimalBytes" => {
                     let bytes = visitor.next_value::<ByteBuf>()?;
-                    let arr = bytes.into_vec().try_into().map_err(|v: Vec<u8>| {
-                        Error::custom(format!(
-                            "expected decimal128 as byte buffer, instead got buffer of length {}",
-                            v.len()
-                        ))
-                    })?;
-                    return Ok(Bson::Decimal128(Decimal128 { bytes: arr }));
+                    return Ok(Bson::Decimal128(Decimal128::deserialize_from_slice(
+                        &bytes,
+                    )?));
                 }
 
-                _ => {
+                k => {
                     let v = visitor.next_value::<Bson>()?;
                     doc.insert(k, v);
                 }
@@ -1046,7 +1096,10 @@ impl<'de> Deserialize<'de> for Decimal128 {
     {
         match Bson::deserialize(deserializer)? {
             Bson::Decimal128(d128) => Ok(d128),
-            _ => Err(D::Error::custom("expecting Decimal128")),
+            o => Err(D::Error::custom(format!(
+                "expecting Decimal128, got {:?}",
+                o
+            ))),
         }
     }
 }

@@ -6,7 +6,7 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use serde_bytes::Bytes;
+use serde_bytes::{ByteBuf, Bytes};
 
 use super::{Error, RawArray, RawDocument, Result};
 use crate::{
@@ -397,7 +397,12 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawBson<'a> {
                         let s: &str = map.next_value()?;
                         Ok(RawBson::Symbol(s))
                     }
-                    "$numberDecimalBytes" => Ok(RawBson::Decimal128(map.next_value()?)),
+                    "$numberDecimalBytes" => {
+                        let bytes = map.next_value::<ByteBuf>()?;
+                        return Ok(RawBson::Decimal128(Decimal128::deserialize_from_slice(
+                            &bytes,
+                        )?));
+                    }
                     "$regularExpression" => {
                         #[derive(Debug, Deserialize)]
                         struct BorrowedRegexBody<'a> {

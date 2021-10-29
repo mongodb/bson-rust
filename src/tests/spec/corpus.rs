@@ -1,5 +1,6 @@
 use std::{
     convert::{TryFrom, TryInto},
+    marker::PhantomData,
     str::FromStr,
 };
 
@@ -10,7 +11,7 @@ use crate::{
     Document,
 };
 use pretty_assertions::assert_eq;
-use serde::Deserialize;
+use serde::{de::DeserializeSeed, Deserialize, Deserializer};
 
 use super::run_spec_test;
 
@@ -62,6 +63,34 @@ struct DecodeError {
 struct ParseError {
     description: String,
     string: String,
+}
+
+struct FieldVisitor<'a, T>(&'a str, PhantomData<T>);
+
+impl<'de, 'a, T> serde::de::Visitor<'de> for FieldVisitor<'a, T>
+where
+    T: Deserialize<'de>,
+{
+    type Value = T;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(formatter, "expecting RawBson at field {}", self.0)
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        while let Some((k, v)) = map.next_entry::<String, T>()? {
+            if k.as_str() == self.0 {
+                return Ok(v);
+            }
+        }
+        Err(serde::de::Error::custom(format!(
+            "missing field: {}",
+            self.0
+        )))
+    }
 }
 
 fn run_test(test: TestFile) {
@@ -131,6 +160,56 @@ fn run_test(test: TestFile) {
         let tovec_rawdocument_from_slice =
             crate::to_vec(&canonical_raw_document_from_slice).expect(&description);
         let tovec_rawbson = crate::to_vec(&canonical_raw_bson_from_slice).expect(&description);
+
+        // test Bson / RawBson field deserialization
+        if let Some(ref test_key) = test.test_key {
+            // skip regex tests that don't have the value at the test key
+            if !description.contains("$regex query operator") {
+                // deserialize the field from raw Bytes into a RawBson
+                let mut deserializer_raw =
+                    crate::de::RawDeserializer::new(canonical_bson.as_slice(), false);
+                let raw_bson_field = deserializer_raw
+                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<RawBson>))
+                    .expect(&description);
+                // convert to an owned Bson and put into a Document
+                let bson: Bson = raw_bson_field.try_into().expect(&description);
+                let from_raw_doc = doc! {
+                    test_key: bson
+                };
+
+                // deserialize the field from raw Bytes into a Bson
+                let mut deserializer_value =
+                    crate::de::RawDeserializer::new(canonical_bson.as_slice(), false);
+                let bson_field = deserializer_value
+                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<Bson>))
+                    .expect(&description);
+                // put into a Document
+                let from_value_doc = doc! {
+                    test_key: bson_field,
+                };
+
+                // deserialize the field from a Bson into a Bson
+                let mut deserializer_value_value =
+                    crate::Deserializer::new(Bson::Document(documentfromreader_cb.clone()));
+                let bson_field = deserializer_value_value
+                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<Bson>))
+                    .expect(&description);
+                // put into a Document
+                let from_value_value_doc = doc! {
+                    test_key: bson_field,
+                };
+
+                // convert back into raw BSON for comparison with canonical BSON
+                let from_raw_vec = crate::to_vec(&from_raw_doc).expect(&description);
+                let from_value_vec = crate::to_vec(&from_value_doc).expect(&description);
+                let from_value_value_vec =
+                    crate::to_vec(&from_value_value_doc).expect(&description);
+
+                assert_eq!(from_raw_vec, canonical_bson, "{}", description);
+                assert_eq!(from_value_vec, canonical_bson, "{}", description);
+                assert_eq!(from_value_value_vec, canonical_bson, "{}", description);
+            }
+        }
 
         // native_to_bson( bson_to_native(cB) ) = cB
 

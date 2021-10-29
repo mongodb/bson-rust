@@ -24,8 +24,16 @@ use bson::{
     Deserializer,
     Document,
     JavaScriptCodeWithScope,
+    RawArray,
+    RawBinary,
+    RawDbPointer,
+    RawDocument,
+    RawDocumentBuf,
+    RawJavaScriptCodeWithScope,
+    RawRegex,
     Regex,
     Timestamp,
+    Uuid,
 };
 
 /// Verifies the following:
@@ -110,6 +118,18 @@ where
         "{}",
         description
     );
+}
+
+/// Verifies the following:
+/// - Deserializing a `T` from the provided bytes does not error
+/// - Serializing the `T` back to bytes produces the input.
+fn run_raw_round_trip_test<'de, T>(bytes: &'de [u8], description: &str)
+where
+    T: Deserialize<'de> + Serialize + std::fmt::Debug,
+{
+    let t: T = bson::from_slice(bytes).expect(description);
+    let vec = bson::to_vec(&t).expect(description);
+    assert_eq!(vec.as_slice(), bytes);
 }
 
 #[test]
@@ -680,6 +700,154 @@ fn empty_array() {
         "a": []
     };
     run_deserialize_test(&v, &doc, "empty_array");
+}
+
+#[test]
+fn raw_doc_buf() {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo {
+        d: RawDocumentBuf,
+    }
+
+    let bytes = bson::to_vec(&doc! {
+        "d": {
+            "a": 12,
+            "b": 5.5,
+            "c": [1, true, "ok"],
+            "d": { "a": "b" },
+            "e": ObjectId::new(),
+        }
+    })
+    .expect("raw_doc_buf");
+
+    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_doc_buf");
+}
+
+#[test]
+fn raw_doc() {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo<'a> {
+        #[serde(borrow)]
+        d: &'a RawDocument,
+    }
+
+    let bytes = bson::to_vec(&doc! {
+        "d": {
+            "a": 12,
+            "b": 5.5,
+            "c": [1, true, "ok"],
+            "d": { "a": "b" },
+            "e": ObjectId::new(),
+        }
+    })
+    .expect("raw doc");
+
+    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_doc");
+}
+
+#[test]
+fn raw_array() {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo<'a> {
+        #[serde(borrow)]
+        d: &'a RawArray,
+    }
+
+    let bytes = bson::to_vec(&doc! {
+        "d": [1, true, { "ok": 1 }, [ "sub", "array" ], Uuid::new()]
+    })
+    .expect("raw_array");
+
+    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_array");
+}
+
+#[test]
+fn raw_binary() {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo<'a> {
+        #[serde(borrow)]
+        generic: RawBinary<'a>,
+
+        #[serde(borrow)]
+        old: RawBinary<'a>,
+
+        #[serde(borrow)]
+        uuid: RawBinary<'a>,
+
+        #[serde(borrow)]
+        other: RawBinary<'a>,
+    }
+
+    let bytes = bson::to_vec(&doc! {
+        "generic": Binary {
+            bytes: vec![1, 2, 3, 4, 5],
+            subtype: BinarySubtype::Generic,
+        },
+        "old": Binary {
+            bytes: vec![1, 2, 3],
+            subtype: BinarySubtype::BinaryOld,
+        },
+        "uuid": Uuid::new(),
+        "other": Binary {
+            bytes: vec![1u8; 100],
+            subtype: BinarySubtype::UserDefined(100),
+        }
+    })
+    .expect("raw_binary");
+
+    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_binary");
+}
+
+#[test]
+fn raw_regex() {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo<'a> {
+        #[serde(borrow)]
+        r: RawRegex<'a>,
+    }
+
+    let bytes = bson::to_vec(&doc! {
+        "r": Regex {
+            pattern: "a[b-c]d".to_string(),
+            options: "ab".to_string(),
+        },
+    })
+    .expect("raw_regex");
+
+    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_regex");
+}
+
+#[test]
+fn raw_code_w_scope() {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo<'a> {
+        #[serde(borrow)]
+        r: RawJavaScriptCodeWithScope<'a>,
+    }
+
+    let bytes = bson::to_vec(&doc! {
+        "r": JavaScriptCodeWithScope {
+            code: "console.log(x)".to_string(),
+            scope: doc! { "x": 1 },
+        },
+    })
+    .expect("raw_code_w_scope");
+
+    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_code_w_scope");
+}
+
+#[test]
+fn raw_db_pointer() {
+    #[derive(Serialize, Deserialize, PartialEq, Debug)]
+    struct Foo<'a> {
+        #[serde(borrow)]
+        a: RawDbPointer<'a>,
+    }
+
+    // From the "DBpointer" bson corpus test
+    let bytes = hex::decode("1A0000000C610002000000620056E1FC72E0C917E9C471416100").unwrap();
+
+    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_db_pointer");
 }
 
 #[test]
