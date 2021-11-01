@@ -423,7 +423,7 @@ impl Bson {
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
             Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_chrono().year() <= 99999 => {
                 json!({
-                    "$date": v.to_rfc3339(),
+                    "$date": v.to_rfc3339_string(),
                 })
             }
             Bson::DateTime(v) => json!({
@@ -573,7 +573,7 @@ impl Bson {
             }
             Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_chrono().year() <= 9999 => {
                 doc! {
-                    "$date": v.to_rfc3339(),
+                    "$date": v.to_rfc3339_string(),
                 }
             }
             Bson::DateTime(v) => doc! {
