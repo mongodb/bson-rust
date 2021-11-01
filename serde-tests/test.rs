@@ -21,11 +21,13 @@ use bson::{
     Binary,
     Bson,
     DateTime,
+    Decimal128,
     Deserializer,
     Document,
     JavaScriptCodeWithScope,
     RawArray,
     RawBinary,
+    RawBson,
     RawDbPointer,
     RawDocument,
     RawDocumentBuf,
@@ -850,136 +852,264 @@ fn raw_db_pointer() {
     run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_db_pointer");
 }
 
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+struct SubDoc {
+    a: i32,
+    b: i32,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+struct AllTypes {
+    x: i32,
+    y: i64,
+    s: String,
+    array: Vec<Bson>,
+    bson: Bson,
+    oid: ObjectId,
+    null: Option<()>,
+    subdoc: Document,
+    b: bool,
+    d: f64,
+    binary: Binary,
+    binary_old: Binary,
+    binary_other: Binary,
+    date: DateTime,
+    regex: Regex,
+    ts: Timestamp,
+    i: SubDoc,
+    undefined: Bson,
+    code: Bson,
+    code_w_scope: JavaScriptCodeWithScope,
+    decimal: Decimal128,
+    symbol: Bson,
+    min_key: Bson,
+    max_key: Bson,
+}
+
+impl AllTypes {
+    fn fixtures() -> (Self, Document) {
+        let binary = Binary {
+            bytes: vec![36, 36, 36],
+            subtype: BinarySubtype::Generic,
+        };
+        let binary_old = Binary {
+            bytes: vec![36, 36, 36],
+            subtype: BinarySubtype::BinaryOld,
+        };
+        let binary_other = Binary {
+            bytes: vec![36, 36, 36],
+            subtype: BinarySubtype::UserDefined(0x81),
+        };
+        let date = DateTime::now();
+        let regex = Regex {
+            pattern: "hello".to_string(),
+            options: "x".to_string(),
+        };
+        let timestamp = Timestamp {
+            time: 123,
+            increment: 456,
+        };
+        let code = Bson::JavaScriptCode("console.log(1)".to_string());
+        let code_w_scope = JavaScriptCodeWithScope {
+            code: "console.log(a)".to_string(),
+            scope: doc! { "a": 1 },
+        };
+        let oid = ObjectId::new();
+        let subdoc = doc! { "k": true, "b": { "hello": "world" } };
+
+        let decimal = {
+            let bytes = hex::decode("18000000136400D0070000000000000000000000003A3000").unwrap();
+            let d = Document::from_reader(bytes.as_slice()).unwrap();
+            match d.get("d") {
+                Some(Bson::Decimal128(d)) => *d,
+                c => panic!("expected decimal128, got {:?}", c),
+            }
+        };
+
+        let doc = doc! {
+            "x": 1,
+            "y": 2_i64,
+            "s": "oke",
+            "array": [ true, "oke", { "12": 24 } ],
+            "bson": 1234.5,
+            "oid": oid,
+            "null": Bson::Null,
+            "subdoc": subdoc.clone(),
+            "b": true,
+            "d": 12.5,
+            "binary": binary.clone(),
+            "binary_old": binary_old.clone(),
+            "binary_other": binary_other.clone(),
+            "date": date,
+            "regex": regex.clone(),
+            "ts": timestamp,
+            "i": { "a": 300, "b": 12345 },
+            "undefined": Bson::Undefined,
+            "code": code.clone(),
+            "code_w_scope": code_w_scope.clone(),
+            "decimal": Bson::Decimal128(decimal),
+            "symbol": Bson::Symbol("ok".to_string()),
+            "min_key": Bson::MinKey,
+            "max_key": Bson::MaxKey,
+        };
+
+        let v = AllTypes {
+            x: 1,
+            y: 2,
+            s: "oke".to_string(),
+            array: vec![
+                Bson::Boolean(true),
+                Bson::String("oke".to_string()),
+                Bson::Document(doc! { "12": 24 }),
+            ],
+            bson: Bson::Double(1234.5),
+            oid,
+            null: None,
+            subdoc,
+            b: true,
+            d: 12.5,
+            binary,
+            binary_old,
+            binary_other,
+            date,
+            regex,
+            ts: timestamp,
+            i: SubDoc { a: 300, b: 12345 },
+            undefined: Bson::Undefined,
+            code,
+            code_w_scope,
+            decimal,
+            symbol: Bson::Symbol("ok".to_string()),
+            min_key: Bson::MinKey,
+            max_key: Bson::MaxKey,
+        };
+
+        (v, doc)
+    }
+}
+
 #[test]
 fn all_types() {
-    #[derive(Debug, Deserialize, Serialize, PartialEq)]
-    struct Bar {
-        a: i32,
-        b: i32,
-    }
-
-    #[derive(Debug, Deserialize, Serialize, PartialEq)]
-    struct Foo {
-        x: i32,
-        y: i64,
-        s: String,
-        array: Vec<Bson>,
-        bson: Bson,
-        oid: ObjectId,
-        null: Option<()>,
-        subdoc: Document,
-        b: bool,
-        d: f64,
-        binary: Binary,
-        binary_old: Binary,
-        binary_other: Binary,
-        date: DateTime,
-        regex: Regex,
-        ts: Timestamp,
-        i: Bar,
-        undefined: Bson,
-        code: Bson,
-        code_w_scope: JavaScriptCodeWithScope,
-        decimal: Bson,
-        symbol: Bson,
-        min_key: Bson,
-        max_key: Bson,
-    }
-
-    let binary = Binary {
-        bytes: vec![36, 36, 36],
-        subtype: BinarySubtype::Generic,
-    };
-    let binary_old = Binary {
-        bytes: vec![36, 36, 36],
-        subtype: BinarySubtype::BinaryOld,
-    };
-    let binary_other = Binary {
-        bytes: vec![36, 36, 36],
-        subtype: BinarySubtype::UserDefined(0x81),
-    };
-    let date = DateTime::now();
-    let regex = Regex {
-        pattern: "hello".to_string(),
-        options: "x".to_string(),
-    };
-    let timestamp = Timestamp {
-        time: 123,
-        increment: 456,
-    };
-    let code = Bson::JavaScriptCode("console.log(1)".to_string());
-    let code_w_scope = JavaScriptCodeWithScope {
-        code: "console.log(a)".to_string(),
-        scope: doc! { "a": 1 },
-    };
-    let oid = ObjectId::new();
-    let subdoc = doc! { "k": true, "b": { "hello": "world" } };
-
-    let decimal = {
-        let bytes = hex::decode("18000000136400D0070000000000000000000000003A3000").unwrap();
-        let d = Document::from_reader(bytes.as_slice()).unwrap();
-        d.get("d").unwrap().clone()
-    };
-
-    let doc = doc! {
-        "x": 1,
-        "y": 2_i64,
-        "s": "oke",
-        "array": [ true, "oke", { "12": 24 } ],
-        "bson": 1234.5,
-        "oid": oid,
-        "null": Bson::Null,
-        "subdoc": subdoc.clone(),
-        "b": true,
-        "d": 12.5,
-        "binary": binary.clone(),
-        "binary_old": binary_old.clone(),
-        "binary_other": binary_other.clone(),
-        "date": date,
-        "regex": regex.clone(),
-        "ts": timestamp,
-        "i": { "a": 300, "b": 12345 },
-        "undefined": Bson::Undefined,
-        "code": code.clone(),
-        "code_w_scope": code_w_scope.clone(),
-        "decimal": decimal.clone(),
-        "symbol": Bson::Symbol("ok".to_string()),
-        "min_key": Bson::MinKey,
-        "max_key": Bson::MaxKey,
-    };
-
-    let v = Foo {
-        x: 1,
-        y: 2,
-        s: "oke".to_string(),
-        array: vec![
-            Bson::Boolean(true),
-            Bson::String("oke".to_string()),
-            Bson::Document(doc! { "12": 24 }),
-        ],
-        bson: Bson::Double(1234.5),
-        oid,
-        null: None,
-        subdoc,
-        b: true,
-        d: 12.5,
-        binary,
-        binary_old,
-        binary_other,
-        date,
-        regex,
-        ts: timestamp,
-        i: Bar { a: 300, b: 12345 },
-        undefined: Bson::Undefined,
-        code,
-        code_w_scope,
-        decimal,
-        symbol: Bson::Symbol("ok".to_string()),
-        min_key: Bson::MinKey,
-        max_key: Bson::MaxKey,
-    };
+    let (v, doc) = AllTypes::fixtures();
 
     run_test(&v, &doc, "all types");
+}
+
+#[test]
+fn all_types_json() {
+    let (mut v, _) = AllTypes::fixtures();
+
+    let code = match v.code {
+        Bson::JavaScriptCode(ref c) => c.clone(),
+        c => panic!("expected code, found {:?}", c),
+    };
+
+    let code_w_scope = JavaScriptCodeWithScope {
+        code: "hello world".to_string(),
+        scope: doc! { "x": 1 },
+    };
+    let scope_json = serde_json::json!({ "x": 1 });
+    v.code_w_scope = code_w_scope.clone();
+
+    let json = serde_json::json!({
+        "x": 1,
+        "y": 2,
+        "s": "oke",
+        "array": vec![
+            serde_json::json!(true),
+            serde_json::json!("oke".to_string()),
+            serde_json::json!({ "12": 24 }),
+        ],
+        "bson": 1234.5,
+        "oid": { "$oid": v.oid.to_hex() },
+        "null": serde_json::Value::Null,
+        "subdoc": { "k": true, "b": { "hello": "world" } },
+        "b": true,
+        "d": 12.5,
+        "binary": v.binary.bytes,
+        "binary_old": { "$binary": { "base64": base64::encode(&v.binary_old.bytes), "subType": "02" } },
+        "binary_other": { "$binary": { "base64": base64::encode(&v.binary_old.bytes), "subType": "81" } },
+        "date": { "$date": { "$numberLong": v.date.timestamp_millis().to_string() } },
+        "regex": { "$regularExpression": { "pattern": v.regex.pattern, "options": v.regex.options } },
+        "ts": { "$timestamp": { "t": 123, "i": 456 } },
+        "i": { "a": v.i.a, "b": v.i.b },
+        "undefined": { "$undefined": true },
+        "code": { "$code": code },
+        "code_w_scope": { "$code": code_w_scope.code, "$scope": scope_json },
+        "decimal": { "$numberDecimalBytes": v.decimal.bytes() },
+        "symbol": { "$symbol": "ok" },
+        "min_key": { "$minKey": 1 },
+        "max_key": { "$maxKey": 1 },
+    });
+
+    assert_eq!(serde_json::to_value(&v).unwrap(), json);
+}
+
+#[test]
+fn all_types_rmp() {
+    let (v, _) = AllTypes::fixtures();
+    let serialized = rmp_serde::to_vec_named(&v).unwrap();
+    let back: AllTypes = rmp_serde::from_slice(&serialized).unwrap();
+
+    assert_eq!(back, v);
+}
+
+#[test]
+fn all_raw_types_rmp() {
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    struct AllRawTypes<'a> {
+        #[serde(borrow)]
+        bson: RawBson<'a>,
+        #[serde(borrow)]
+        document: &'a RawDocument,
+        #[serde(borrow)]
+        array: &'a RawArray,
+        buf: RawDocumentBuf,
+        #[serde(borrow)]
+        binary: RawBinary<'a>,
+        #[serde(borrow)]
+        code_w_scope: RawJavaScriptCodeWithScope<'a>,
+        #[serde(borrow)]
+        regex: RawRegex<'a>,
+    }
+
+    let doc_bytes = bson::to_vec(&doc! {
+        "bson": "some string",
+        "array": [1, 2, 3],
+        "binary": Binary { bytes: vec![1, 2, 3], subtype: BinarySubtype::Generic },
+        "binary_old": Binary { bytes: vec![1, 2, 3], subtype: BinarySubtype::BinaryOld },
+        "code_w_scope": JavaScriptCodeWithScope {
+            code: "ok".to_string(),
+            scope: doc! { "x": 1 },
+        },
+        "regex": Regex {
+            pattern: "pattern".to_string(),
+            options: "opt".to_string()
+        }
+    })
+    .unwrap();
+    let doc_buf = RawDocumentBuf::new(doc_bytes).unwrap();
+    let document = &doc_buf;
+    let array = document.get_array("array").unwrap();
+
+    let v = AllRawTypes {
+        bson: document.get("bson").unwrap().unwrap(),
+        array,
+        document,
+        buf: doc_buf.clone(),
+        binary: document.get_binary("binary").unwrap(),
+        code_w_scope: document
+            .get("code_w_scope")
+            .unwrap()
+            .unwrap()
+            .as_javascript_with_scope()
+            .unwrap(),
+        regex: document.get_regex("regex").unwrap(),
+    };
+    let serialized = rmp_serde::to_vec_named(&v).unwrap();
+    let back: AllRawTypes = rmp_serde::from_slice(&serialized).unwrap();
+
+    assert_eq!(back, v);
 }
 
 #[test]

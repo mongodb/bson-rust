@@ -134,6 +134,8 @@ pub use self::{
     iter::Iter,
 };
 
+pub(crate) use self::bson::RawBsonVisitor;
+
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.
 pub(crate) const RAW_DOCUMENT_NEWTYPE: &str = "$__private__bson_RawDocument";
 

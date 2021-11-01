@@ -447,6 +447,26 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 DeserializerHint::BinarySubtype(BinarySubtype::Uuid),
             ),
             RAW_BSON_NEWTYPE => self.deserialize_next(visitor, DeserializerHint::RawBson),
+            RAW_DOCUMENT_NEWTYPE => {
+                if self.current_type != ElementType::EmbeddedDocument {
+                    return Err(serde::de::Error::custom(format!(
+                        "expected raw document, instead got {:?}",
+                        self.current_type
+                    )));
+                }
+
+                self.deserialize_next(visitor, DeserializerHint::RawBson)
+            }
+            RAW_ARRAY_NEWTYPE => {
+                if self.current_type != ElementType::Array {
+                    return Err(serde::de::Error::custom(format!(
+                        "expected raw array, instead got {:?}",
+                        self.current_type
+                    )));
+                }
+
+                self.deserialize_next(visitor, DeserializerHint::RawBson)
+            }
             _ => visitor.visit_newtype_struct(self),
         }
     }

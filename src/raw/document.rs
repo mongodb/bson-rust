@@ -6,7 +6,8 @@ use std::{
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 
 use crate::{
-    raw::{error::ErrorKind, RAW_DOCUMENT_NEWTYPE},
+    raw::{error::ErrorKind, RawBsonVisitor, RAW_DOCUMENT_NEWTYPE},
+    spec::BinarySubtype,
     DateTime,
     Timestamp,
 };
@@ -493,11 +494,19 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
     where
         D: serde::Deserializer<'de>,
     {
-        match RawBson::deserialize(deserializer)? {
+        match deserializer.deserialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, RawBsonVisitor)? {
             RawBson::Document(d) => Ok(d),
-            b => Err(serde::de::Error::custom(format!(
+
+            // For non-BSON formats, RawDocument gets serialized as bytes, so we need to deserialize
+            // from them here too. For BSON, the deserialzier will return an error if it
+            // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
+            RawBson::Binary(b) if b.subtype == BinarySubtype::Generic => {
+                RawDocument::new(b.bytes).map_err(serde::de::Error::custom)
+            }
+
+            o => Err(serde::de::Error::custom(format!(
                 "expected raw document reference, instead got {:?}",
-                b
+                o
             ))),
         }
     }

@@ -12,7 +12,14 @@ use super::{
     RawRegex,
     Result,
 };
-use crate::{oid::ObjectId, raw::RAW_ARRAY_NEWTYPE, spec::ElementType, Bson, DateTime, Timestamp};
+use crate::{
+    oid::ObjectId,
+    raw::{RawBsonVisitor, RAW_ARRAY_NEWTYPE},
+    spec::{BinarySubtype, ElementType},
+    Bson,
+    DateTime,
+    Timestamp,
+};
 
 /// A slice of a BSON document containing a BSON array value (akin to [`std::str`]). This can be
 /// retrieved from a [`RawDocument`] via [`RawDocument::get`].
@@ -248,8 +255,12 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
     where
         D: serde::Deserializer<'de>,
     {
-        match RawBson::deserialize(deserializer)? {
+        match deserializer.deserialize_newtype_struct(RAW_ARRAY_NEWTYPE, RawBsonVisitor)? {
             RawBson::Array(d) => Ok(d),
+            RawBson::Binary(b) if b.subtype == BinarySubtype::Generic => {
+                let doc = RawDocument::new(b.bytes).map_err(serde::de::Error::custom)?;
+                Ok(RawArray::from_doc(doc))
+            }
             b => Err(serde::de::Error::custom(format!(
                 "expected raw array reference, instead got {:?}",
                 b
