@@ -167,7 +167,7 @@ impl crate::DateTime {
         self.0
     }
 
-    pub(crate) fn to_rfc3339_string(self) -> String {
+    pub fn to_rfc3339_string(self) -> String {
         self.to_chrono()
             .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
     }
