@@ -269,24 +269,13 @@ impl<'de> Deserializer<'de> {
                     BinarySubtype::Generic => {
                         visitor.visit_borrowed_bytes(self.bytes.read_slice(len as usize)?)
                     }
-                    _ if matches!(hint, DeserializerHint::RawBson) => {
+                    _ => {
                         let binary = RawBinary::from_slice_with_len_and_payload(
                             self.bytes.read_slice(len as usize)?,
                             len,
                             subtype,
                         )?;
-                        let mut d = BinaryDeserializer::borrowed(binary);
-                        visitor.visit_map(BinaryAccess {
-                            deserializer: &mut d,
-                        })
-                    }
-                    _ => {
-                        let binary = Binary::from_reader_with_len_and_payload(
-                            &mut self.bytes,
-                            len,
-                            subtype,
-                        )?;
-                        let mut d = BinaryDeserializer::new(binary);
+                        let mut d = BinaryDeserializer::new(binary, hint);
                         visitor.visit_map(BinaryAccess {
                             deserializer: &mut d,
                         })
@@ -1120,32 +1109,17 @@ impl<'de, 'd> serde::de::MapAccess<'de> for BinaryAccess<'d, 'de> {
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        match self.deserializer.stage {
-            BinaryDeserializationStage::TopLevel => seed
-                .deserialize(FieldDeserializer {
-                    field_name: "$binary",
-                })
-                .map(Some),
-            BinaryDeserializationStage::Subtype => seed
-                .deserialize(FieldDeserializer {
-                    field_name: "subType",
-                })
-                .map(Some),
-            BinaryDeserializationStage::Bytes
-                if matches!(self.deserializer.binary, BinaryContent::Borrowed(_)) =>
-            {
-                seed.deserialize(FieldDeserializer {
-                    field_name: "bytes",
-                })
-                .map(Some)
-            }
-            BinaryDeserializationStage::Bytes => seed
-                .deserialize(FieldDeserializer {
-                    field_name: "base64",
-                })
-                .map(Some),
-            BinaryDeserializationStage::Done => Ok(None),
-        }
+        let field_name = match self.deserializer.stage {
+            BinaryDeserializationStage::TopLevel => "$binary",
+            BinaryDeserializationStage::Subtype => "subType",
+            BinaryDeserializationStage::Bytes => match self.deserializer.hint {
+                DeserializerHint::RawBson => "bytes",
+                _ => "base64",
+            },
+            BinaryDeserializationStage::Done => return Ok(None),
+        };
+
+        seed.deserialize(FieldDeserializer { field_name }).map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
@@ -1156,31 +1130,17 @@ impl<'de, 'd> serde::de::MapAccess<'de> for BinaryAccess<'d, 'de> {
     }
 }
 
-/// Storage of possibly borrowed, possibly owned binary data.
-#[derive(Debug)]
-enum BinaryContent<'a> {
-    Borrowed(RawBinary<'a>),
-    Owned(Binary),
-}
-
 struct BinaryDeserializer<'a> {
-    binary: BinaryContent<'a>,
+    binary: RawBinary<'a>,
+    hint: DeserializerHint,
     stage: BinaryDeserializationStage,
 }
 
-impl BinaryDeserializer<'static> {
-    fn new(binary: Binary) -> Self {
-        Self {
-            binary: BinaryContent::Owned(binary),
-            stage: BinaryDeserializationStage::TopLevel,
-        }
-    }
-}
-
 impl<'a> BinaryDeserializer<'a> {
-    fn borrowed(binary: RawBinary<'a>) -> Self {
+    fn new(binary: RawBinary<'a>, hint: DeserializerHint) -> Self {
         Self {
-            binary: BinaryContent::Borrowed(binary),
+            binary,
+            hint,
             stage: BinaryDeserializationStage::TopLevel,
         }
     }
@@ -1202,20 +1162,16 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut BinaryDeserializer<'de> {
             }
             BinaryDeserializationStage::Subtype => {
                 self.stage = BinaryDeserializationStage::Bytes;
-                match self.binary {
-                    BinaryContent::Owned(ref b) => {
-                        visitor.visit_string(hex::encode([u8::from(b.subtype)]))
-                    }
-                    BinaryContent::Borrowed(b) => visitor.visit_u8(b.subtype().into()),
+                match self.hint {
+                    DeserializerHint::RawBson => visitor.visit_u8(self.binary.subtype().into()),
+                    _ => visitor.visit_string(hex::encode([u8::from(self.binary.subtype)])),
                 }
             }
             BinaryDeserializationStage::Bytes => {
                 self.stage = BinaryDeserializationStage::Done;
-                match self.binary {
-                    BinaryContent::Owned(ref b) => {
-                        visitor.visit_string(base64::encode(b.bytes.as_slice()))
-                    }
-                    BinaryContent::Borrowed(b) => visitor.visit_borrowed_bytes(b.as_bytes()),
+                match self.hint {
+                    DeserializerHint::RawBson => visitor.visit_borrowed_bytes(self.binary.bytes),
+                    _ => visitor.visit_string(base64::encode(self.binary.bytes)),
                 }
             }
             BinaryDeserializationStage::Done => {

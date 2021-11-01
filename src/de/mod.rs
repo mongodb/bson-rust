@@ -270,7 +270,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
 
 impl Binary {
     pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
-        let len = read_i32(&mut reader)?;
+        let mut len = read_i32(&mut reader)?;
         if !(0..=MAX_BSON_SIZE).contains(&len) {
             return Err(Error::invalid_length(
                 len as usize,
@@ -278,21 +278,6 @@ impl Binary {
             ));
         }
         let subtype = BinarySubtype::from(read_u8(&mut reader)?);
-        Self::from_reader_with_len_and_payload(reader, len, subtype)
-    }
-
-    // TODO: RUST-976: call through to the RawBinary version of this instead of duplicating code
-    pub(crate) fn from_reader_with_len_and_payload<R: Read>(
-        mut reader: R,
-        mut len: i32,
-        subtype: BinarySubtype,
-    ) -> Result<Self> {
-        if !(0..=MAX_BSON_SIZE).contains(&len) {
-            return Err(Error::invalid_length(
-                len as usize,
-                &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
-            ));
-        }
 
         // Skip length data in old binary.
         if let BinarySubtype::BinaryOld = subtype {
