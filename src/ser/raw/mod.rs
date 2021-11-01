@@ -334,7 +334,6 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        // println!("struct {}", name);
         let value_type = match name {
             "$oid" => Some(ValueType::ObjectId),
             "$date" => Some(ValueType::DateTime),
