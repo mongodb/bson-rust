@@ -12,7 +12,7 @@ use self::value_serializer::{ValueSerializer, ValueType};
 
 use super::{write_binary, write_cstring, write_f64, write_i32, write_i64, write_string};
 use crate::{
-    raw::{RAW_ARRAY_NEWTYPE, RAW_BINARY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     ser::{Error, Result},
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,

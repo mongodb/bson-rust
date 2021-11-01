@@ -1,18 +1,13 @@
 use std::convert::{TryFrom, TryInto};
 
-use serde::{
-    de::{MapAccess, Unexpected, Visitor},
-    ser::SerializeStruct,
-    Deserialize,
-    Serialize,
-};
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Serialize};
 use serde_bytes::{ByteBuf, Bytes};
 
 use super::{Error, RawArray, RawDocument, Result};
 use crate::{
     extjson,
     oid::{self, ObjectId},
-    raw::{RAW_ARRAY_NEWTYPE, RAW_BINARY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     Bson,
     DateTime,

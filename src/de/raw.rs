@@ -13,17 +13,13 @@ use serde::{
 
 use crate::{
     oid::ObjectId,
-    raw::{RawBinary, RawBson, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{RawBinary, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
-    Binary,
     Bson,
     DateTime,
-    DbPointer,
     Decimal128,
-    JavaScriptCodeWithScope,
     RawDocument,
-    Regex,
     Timestamp,
 };
 
@@ -1507,7 +1503,7 @@ impl<'de, 'a> RegexDeserializer<'de, 'a> {
 impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut RegexDeserializer<'de, 'a> {
     type Error = Error;
 
-    fn deserialize_any<V>(mut self, visitor: V) -> Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
     {

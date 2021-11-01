@@ -7,6 +7,7 @@ use serde::{
 
 use crate::{
     oid::ObjectId,
+    raw::RAW_DOCUMENT_NEWTYPE,
     ser::{write_binary, write_cstring, write_i32, write_i64, write_string, Error, Result},
     spec::{BinarySubtype, ElementType},
 };
@@ -30,12 +31,15 @@ enum SerializationStep {
     DateTimeNumberLong,
 
     Binary,
-    BinaryBase64,
-    BinarySubType { base64: String },
-
-    RawBinary,
-    RawBinaryBytes,
-    RawBinarySubType { bytes: Vec<u8> },
+    /// This step can either transition to the raw or base64 steps depending
+    /// on whether a string or bytes are serialized.
+    BinaryBytes,
+    BinarySubType {
+        base64: String,
+    },
+    RawBinarySubType {
+        bytes: Vec<u8>,
+    },
 
     Symbol,
 
@@ -45,7 +49,9 @@ enum SerializationStep {
 
     Timestamp,
     TimestampTime,
-    TimestampIncrement { time: i64 },
+    TimestampIncrement {
+        time: i64,
+    },
 
     DbPointer,
     DbPointerRef,
@@ -54,7 +60,10 @@ enum SerializationStep {
     Code,
 
     CodeWithScopeCode,
-    CodeWithScopeScope { code: String, raw: bool },
+    CodeWithScopeScope {
+        code: String,
+        raw: bool,
+    },
 
     MinKey,
 
@@ -110,7 +119,7 @@ impl<'a> ValueSerializer<'a> {
     pub(super) fn new(rs: &'a mut Serializer, value_type: ValueType) -> Self {
         let state = match value_type {
             ValueType::DateTime => SerializationStep::DateTime,
-            ValueType::Binary => SerializationStep::RawBinary,
+            ValueType::Binary => SerializationStep::Binary,
             ValueType::ObjectId => SerializationStep::Oid,
             ValueType::Symbol => SerializationStep::Symbol,
             ValueType::RegularExpression => SerializationStep::RegEx,
@@ -240,7 +249,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
                 let oid = ObjectId::parse_str(v).map_err(Error::custom)?;
                 self.root_serializer.bytes.write_all(&oid.bytes())?;
             }
-            SerializationStep::BinaryBase64 => {
+            SerializationStep::BinaryBytes => {
                 self.state = SerializationStep::BinarySubType {
                     base64: v.to_string(),
                 };
@@ -292,7 +301,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
                 self.root_serializer.bytes.write_all(v)?;
                 Ok(())
             }
-            SerializationStep::RawBinaryBytes => {
+            SerializationStep::BinaryBytes => {
                 self.state = SerializationStep::RawBinarySubType { bytes: v.to_vec() };
                 Ok(())
             }
@@ -349,7 +358,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         match (&mut self.state, name) {
             (
                 SerializationStep::CodeWithScopeScope {
-                    ref code,
+                    code: _,
                     ref mut raw,
                 },
                 RAW_DOCUMENT_NEWTYPE,
@@ -457,25 +466,17 @@ impl<'a, 'b> SerializeStruct for &'b mut ValueSerializer<'a> {
                 value.serialize(&mut **self)?;
                 self.state = SerializationStep::Done;
             }
-            (SerializationStep::RawBinary, "$binary") => {
-                self.state = SerializationStep::RawBinaryBytes;
+            (SerializationStep::Binary, "$binary") => {
+                self.state = SerializationStep::BinaryBytes;
                 value.serialize(&mut **self)?;
             }
-            (SerializationStep::RawBinaryBytes, "bytes") => {
+            (SerializationStep::BinaryBytes, "base64" | "bytes") => {
                 // state is updated in serialize
                 value.serialize(&mut **self)?;
             }
             (SerializationStep::RawBinarySubType { .. }, "subType") => {
                 value.serialize(&mut **self)?;
                 self.state = SerializationStep::Done;
-            }
-            (SerializationStep::Binary, "$binary") => {
-                self.state = SerializationStep::BinaryBase64;
-                value.serialize(&mut **self)?;
-            }
-            (SerializationStep::BinaryBase64, "base64") => {
-                // state is updated in serialize
-                value.serialize(&mut **self)?;
             }
             (SerializationStep::BinarySubType { .. }, "subType") => {
                 value.serialize(&mut **self)?;

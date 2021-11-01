@@ -11,7 +11,7 @@ use crate::{
     Document,
 };
 use pretty_assertions::assert_eq;
-use serde::{de::DeserializeSeed, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
 
 use super::run_spec_test;
 
@@ -189,7 +189,7 @@ fn run_test(test: TestFile) {
                 };
 
                 // deserialize the field from a Bson into a Bson
-                let mut deserializer_value_value =
+                let deserializer_value_value =
                     crate::Deserializer::new(Bson::Document(documentfromreader_cb.clone()));
                 let bson_field = deserializer_value_value
                     .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<Bson>))

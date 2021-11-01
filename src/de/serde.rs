@@ -18,7 +18,7 @@ use serde::de::{
     VariantAccess,
     Visitor,
 };
-use serde_bytes::{ByteBuf, Bytes};
+use serde_bytes::ByteBuf;
 
 use crate::{
     bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},

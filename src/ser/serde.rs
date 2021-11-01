@@ -17,7 +17,7 @@ use crate::{
     datetime::DateTime,
     extjson,
     oid::ObjectId,
-    raw::{RawBinary, RawDbPointer, RawRegex},
+    raw::{RawDbPointer, RawRegex},
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Binary,

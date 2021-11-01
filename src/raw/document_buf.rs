@@ -4,12 +4,9 @@ use std::{
     ops::Deref,
 };
 
-use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
-use crate::{
-    raw::{RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
-    Document,
-};
+use crate::Document;
 
 use super::{Error, ErrorKind, Iter, RawBson, RawDocument, Result};
 
@@ -160,7 +157,7 @@ impl Serialize for RawDocumentBuf {
     where
         S: serde::Serializer,
     {
-        let doc: &RawDocument = &self;
+        let doc: &RawDocument = self.deref();
         doc.serialize(serializer)
     }
 }
