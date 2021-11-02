@@ -167,12 +167,13 @@ impl crate::DateTime {
         self.0
     }
 
+    /// Convert this [`DateTime`] to an RFC 3339 formatted string.
     pub fn to_rfc3339_string(self) -> String {
         self.to_chrono()
             .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
     }
 
-    /// Convert the given RFC 3339 format string to a [`DateTime`], truncating it to millisecond
+    /// Convert the given RFC 3339 formatted string to a [`DateTime`], truncating it to millisecond
     /// precision.
     pub fn parse_rfc3339_str(s: impl AsRef<str>) -> Result<Self, crate::de::Error> {
         match chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(s.as_ref()) {
