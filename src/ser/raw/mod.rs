@@ -28,12 +28,12 @@ pub(crate) struct Serializer {
     /// but in serde, the serializer learns of the type after serializing the key.
     type_index: usize,
 
-    // /// Whether the binary value about to be serialized is a UUID or not.
-    // /// This is indicated by serializing a newtype with name UUID_NEWTYPE_NAME;
-    // is_uuid: bool,
+    /// Hint provided by the type being serialized.
     hint: SerializerHint,
 }
 
+/// Various bits of information that the serialized type can provide to the serializer to
+/// inform the purpose of the next serialization step.
 #[derive(Debug, Clone, Copy)]
 enum SerializerHint {
     None,
@@ -200,7 +200,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
-        match self.hint {
+        match self.hint.take() {
             SerializerHint::RawDocument => {
                 self.update_element_type(ElementType::EmbeddedDocument)?;
                 self.bytes.write_all(v)?;
@@ -209,10 +209,10 @@ impl<'a> serde::Serializer for &'a mut Serializer {
                 self.update_element_type(ElementType::Array)?;
                 self.bytes.write_all(v)?;
             }
-            _ => {
+            hint => {
                 self.update_element_type(ElementType::Binary)?;
 
-                let subtype = if matches!(self.hint.take(), SerializerHint::Uuid) {
+                let subtype = if matches!(hint, SerializerHint::Uuid) {
                     BinarySubtype::Uuid
                 } else {
                     BinarySubtype::Generic

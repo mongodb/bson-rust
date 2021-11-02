@@ -1208,3 +1208,35 @@ fn u2i() {
     bson::to_document(&v).unwrap_err();
     bson::to_vec(&v).unwrap_err();
 }
+
+#[test]
+fn hint_cleared() {
+    #[derive(Debug, Serialize, Deserialize)]
+    struct Foo<'a> {
+        #[serde(borrow)]
+        doc: &'a RawDocument,
+        #[serde(borrow)]
+        binary: RawBinary<'a>,
+    }
+
+    let binary_value = Binary {
+        bytes: vec![1, 2, 3, 4],
+        subtype: BinarySubtype::Generic,
+    };
+
+    let doc_value = doc! {
+        "binary": binary_value.clone()
+    };
+
+    let bytes = bson::to_vec(&doc_value).unwrap();
+
+    let doc = RawDocument::new(&bytes).unwrap();
+    let binary = doc.get_binary("binary").unwrap();
+
+    let f = Foo { doc, binary };
+
+    let serialized_bytes = bson::to_vec(&f).unwrap();
+    let round_doc: Document = bson::from_slice(&serialized_bytes).unwrap();
+
+    assert_eq!(round_doc, doc! { "doc": doc_value, "binary": binary_value });
+}
