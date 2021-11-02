@@ -470,7 +470,7 @@ impl<'a, 'b> SerializeStruct for &'b mut ValueSerializer<'a> {
                 self.state = SerializationStep::BinaryBytes;
                 value.serialize(&mut **self)?;
             }
-            (SerializationStep::BinaryBytes, "base64" | "bytes") => {
+            (SerializationStep::BinaryBytes, key) if key == "bytes" || key == "base64" => {
                 // state is updated in serialize
                 value.serialize(&mut **self)?;
             }
