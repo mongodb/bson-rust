@@ -287,7 +287,7 @@ pub use self::{
 #[macro_use]
 mod macros;
 mod bson;
-mod datetime;
+pub mod datetime;
 pub mod de;
 pub mod decimal128;
 pub mod document;
