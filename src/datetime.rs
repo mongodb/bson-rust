@@ -1,5 +1,7 @@
 use std::{
+    error,
     fmt::{self, Display},
+    result,
     time::{Duration, SystemTime},
 };
 
@@ -167,9 +169,20 @@ impl crate::DateTime {
         self.0
     }
 
-    pub(crate) fn to_rfc3339(self) -> String {
+    /// Convert this [`DateTime`] to an RFC 3339 formatted string.
+    pub fn to_rfc3339_string(self) -> String {
         self.to_chrono()
             .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
+    }
+
+    /// Convert the given RFC 3339 formatted string to a [`DateTime`], truncating it to millisecond
+    /// precision.
+    pub fn parse_rfc3339_str(s: impl AsRef<str>) -> Result<Self> {
+        let date = chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(s.as_ref())
+            .map_err(|e| Error::InvalidTimestamp {
+                message: e.to_string(),
+            })?;
+        Ok(Self::from_chrono(date))
     }
 }
 
@@ -220,3 +233,27 @@ impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for crate::DateTime {
         Self::from_chrono(x)
     }
 }
+
+/// Errors that can occur during [`DateTime`] construction and generation.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub enum Error {
+    /// Error returned when an invalid datetime format is provided to a conversion method.
+    #[non_exhaustive]
+    InvalidTimestamp { message: String },
+}
+
+/// Alias for `Result<T, DateTime::Error>`
+pub type Result<T> = result::Result<T, Error>;
+
+impl fmt::Display for Error {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::InvalidTimestamp { message } => {
+                write!(fmt, "{}", message)
+            }
+        }
+    }
+}
+
+impl error::Error for Error {}

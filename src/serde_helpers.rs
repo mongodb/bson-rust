@@ -252,7 +252,7 @@ pub mod rfc3339_string_as_bson_datetime {
         D: Deserializer<'de>,
     {
         let date = DateTime::deserialize(deserializer)?;
-        Ok(date.to_rfc3339())
+        Ok(date.to_rfc3339_string())
     }
 
     /// Serializes an ISO string as a DateTime.
@@ -297,7 +297,7 @@ pub mod bson_datetime_as_rfc3339_string {
 
     /// Serializes a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted string.
     pub fn serialize<S: Serializer>(val: &DateTime, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&val.to_rfc3339())
+        serializer.serialize_str(&val.to_rfc3339_string())
     }
 }
 
