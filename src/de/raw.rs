@@ -693,7 +693,7 @@ struct RawDocumentAccess<'d> {
     /// Whether the first key has been deserialized yet or not.
     deserialized_first: bool,
 
-    /// Whether or not this document being deserialized is for anarray or not.
+    /// Whether or not this document being deserialized is for an array or not.
     array: bool,
 }
 
