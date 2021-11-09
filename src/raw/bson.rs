@@ -5,6 +5,7 @@ use serde_bytes::{ByteBuf, Bytes};
 
 use super::{Error, RawArray, RawDocument, Result};
 use crate::{
+    de::convert_unsigned_to_signed_raw,
     extjson,
     oid::{self, ObjectId},
     raw::{RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
@@ -304,28 +305,28 @@ impl<'de> Visitor<'de> for RawBsonVisitor {
     where
         E: serde::de::Error,
     {
-        crate::de::convert_unsigned_to_signed_raw(value.into())
+        convert_unsigned_to_signed_raw(value.into())
     }
 
     fn visit_u16<E>(self, value: u16) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        crate::de::convert_unsigned_to_signed_raw(value.into())
+        convert_unsigned_to_signed_raw(value.into())
     }
 
     fn visit_u32<E>(self, value: u32) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        crate::de::convert_unsigned_to_signed_raw(value.into())
+        convert_unsigned_to_signed_raw(value.into())
     }
 
     fn visit_u64<E>(self, value: u64) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        crate::de::convert_unsigned_to_signed_raw(value)
+        convert_unsigned_to_signed_raw(value)
     }
 
     fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
