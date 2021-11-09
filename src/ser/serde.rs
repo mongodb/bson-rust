@@ -17,7 +17,7 @@ use crate::{
     datetime::DateTime,
     extjson,
     oid::ObjectId,
-    raw::{RawDbPointer, RawRegex},
+    raw::{RawDbPointer, RawRegex, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Binary,
@@ -303,21 +303,40 @@ impl ser::Serializer for Serializer {
     where
         T: Serialize,
     {
-        if name == UUID_NEWTYPE_NAME {
-            match value.serialize(self)? {
-                Bson::String(s) => {
-                    // the serializer reports itself as human readable, so `Uuid` will
-                    // serialize itself as a string.
-                    let uuid = crate::Uuid::parse_str(s).map_err(Error::custom)?;
-                    Ok(Bson::Binary(uuid.into()))
+        match name {
+            UUID_NEWTYPE_NAME => {
+                match value.serialize(self)? {
+                    Bson::String(s) => {
+                        // the serializer reports itself as human readable, so `Uuid` will
+                        // serialize itself as a string.
+                        let uuid = crate::Uuid::parse_str(s).map_err(Error::custom)?;
+                        Ok(Bson::Binary(uuid.into()))
+                    }
+                    b => Err(Error::custom(format!(
+                        "expected UUID to be serialized as a string but got {:?} instead",
+                        b
+                    ))),
+                }
+            }
+            // when in non-human-readable mode, raw document / raw array will serialize as bytes.
+            RAW_DOCUMENT_NEWTYPE | RAW_ARRAY_NEWTYPE if !self.is_human_readable() => match value
+                .serialize(self)?
+            {
+                Bson::Binary(b) => {
+                    let doc = Document::from_reader(b.bytes.as_slice()).map_err(Error::custom)?;
+
+                    if name == RAW_DOCUMENT_NEWTYPE {
+                        Ok(Bson::Document(doc))
+                    } else {
+                        Ok(Bson::Array(doc.into_iter().map(|kvp| kvp.1).collect()))
+                    }
                 }
                 b => Err(Error::custom(format!(
-                    "expected UUID to be serialized as a string but got {:?} instead",
+                    "expected raw document or array to be serialized as bytes but got {:?} instead",
                     b
                 ))),
-            }
-        } else {
-            value.serialize(self)
+            },
+            _ => value.serialize(self),
         }
     }
 

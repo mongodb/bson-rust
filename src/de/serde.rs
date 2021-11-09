@@ -720,6 +720,19 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     }
 
     #[inline]
+    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        match self.value {
+            Some(Bson::ObjectId(oid)) if !self.is_human_readable() => {
+                visitor.visit_bytes(&oid.bytes())
+            }
+            _ => self.deserialize_any(visitor),
+        }
+    }
+
+    #[inline]
     fn deserialize_option<V>(self, visitor: V) -> crate::de::Result<V::Value>
     where
         V: Visitor<'de>,
@@ -833,7 +846,6 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         deserialize_string();
         deserialize_unit();
         deserialize_seq();
-        deserialize_bytes();
         deserialize_map();
         deserialize_unit_struct(name: &'static str);
         deserialize_tuple_struct(name: &'static str, len: usize);

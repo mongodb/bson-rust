@@ -610,20 +610,11 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
 /// A BSON binary value referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawBinary<'a> {
-    pub(crate) subtype: BinarySubtype,
-    pub(crate) bytes: &'a [u8],
-}
+    /// The subtype of the binary value.
+    pub subtype: BinarySubtype,
 
-impl<'a> RawBinary<'a> {
-    /// Gets the subtype of the binary value.
-    pub fn subtype(self) -> BinarySubtype {
-        self.subtype
-    }
-
-    /// Gets the contained bytes of the binary value.
-    pub fn as_bytes(self) -> &'a [u8] {
-        self.bytes
-    }
+    /// The binary bytes.
+    pub bytes: &'a [u8],
 }
 
 impl<'de: 'a, 'a> Deserialize<'de> for RawBinary<'a> {
