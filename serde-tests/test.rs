@@ -1,6 +1,8 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::vec_init_then_push)]
 
+mod options;
+
 use pretty_assertions::assert_eq;
 use serde::{
     self,

@@ -24,7 +24,7 @@ use crate::{
     Decimal128,
 };
 
-use super::{to_bson, Error};
+use super::{to_bson_with_options, Error};
 
 impl Serialize for ObjectId {
     #[inline]
@@ -110,13 +110,58 @@ impl Serialize for Bson {
 
 /// Serde Serializer
 #[non_exhaustive]
-pub struct Serializer;
+pub struct Serializer {
+    options: SerializerOptions,
+}
+
+/// Options used to configure a [`Serializer`].
+#[derive(Debug, Clone, Default)]
+#[non_exhaustive]
+pub struct SerializerOptions {
+    /// Whether the [`Serializer`] should present itself as human readable or not.
+    /// The default value is true.
+    pub human_readable: Option<bool>,
+}
+
+impl SerializerOptions {
+    /// Create a builder used to construct a new [`SerializerOptions`].
+    pub fn builder() -> SerializerOptionsBuilder {
+        SerializerOptionsBuilder {
+            options: Default::default(),
+        }
+    }
+}
+
+/// A builder used to construct new [`SerializerOptions`] structs.
+pub struct SerializerOptionsBuilder {
+    options: SerializerOptions,
+}
+
+impl SerializerOptionsBuilder {
+    /// Set the value for [`SerializerOptions::is_human_readable`].
+    pub fn human_readable(mut self, value: impl Into<Option<bool>>) -> Self {
+        self.options.human_readable = value.into();
+        self
+    }
+
+    /// Consume this builder and produce a [`SerializerOptions`].
+    pub fn build(self) -> SerializerOptions {
+        self.options
+    }
+}
 
 impl Serializer {
     /// Construct a new `Serializer`.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Serializer {
-        Serializer
+        Serializer {
+            options: Default::default(),
+        }
+    }
+
+    /// Construct a new `Serializer` configured with the provided [`SerializerOptions`].
+    pub fn new_with_options(options: SerializerOptions) -> Self {
+        Serializer { options }
     }
 }
 
@@ -288,7 +333,7 @@ impl ser::Serializer for Serializer {
         T: Serialize,
     {
         let mut newtype_variant = Document::new();
-        newtype_variant.insert(variant, to_bson(value)?);
+        newtype_variant.insert(variant, to_bson_with_options(value, self.options)?);
         Ok(newtype_variant.into())
     }
 
@@ -296,6 +341,7 @@ impl ser::Serializer for Serializer {
     fn serialize_seq(self, len: Option<usize>) -> crate::ser::Result<Self::SerializeSeq> {
         Ok(ArraySerializer {
             inner: Array::with_capacity(len.unwrap_or(0)),
+            options: self.options,
         })
     }
 
@@ -303,6 +349,7 @@ impl ser::Serializer for Serializer {
     fn serialize_tuple(self, len: usize) -> crate::ser::Result<Self::SerializeTuple> {
         Ok(TupleSerializer {
             inner: Array::with_capacity(len),
+            options: self.options,
         })
     }
 
@@ -314,6 +361,7 @@ impl ser::Serializer for Serializer {
     ) -> crate::ser::Result<Self::SerializeTupleStruct> {
         Ok(TupleStructSerializer {
             inner: Array::with_capacity(len),
+            options: self.options,
         })
     }
 
@@ -328,6 +376,7 @@ impl ser::Serializer for Serializer {
         Ok(TupleVariantSerializer {
             inner: Array::with_capacity(len),
             name: variant,
+            options: self.options,
         })
     }
 
@@ -336,6 +385,7 @@ impl ser::Serializer for Serializer {
         Ok(MapSerializer {
             inner: Document::new(),
             next_key: None,
+            options: self.options,
         })
     }
 
@@ -347,6 +397,7 @@ impl ser::Serializer for Serializer {
     ) -> crate::ser::Result<Self::SerializeStruct> {
         Ok(StructSerializer {
             inner: Document::new(),
+            options: self.options,
         })
     }
 
@@ -361,13 +412,19 @@ impl ser::Serializer for Serializer {
         Ok(StructVariantSerializer {
             name: variant,
             inner: Document::new(),
+            options: self.options,
         })
+    }
+
+    fn is_human_readable(&self) -> bool {
+        self.options.human_readable.unwrap_or(true)
     }
 }
 
 #[doc(hidden)]
 pub struct ArraySerializer {
     inner: Array,
+    options: SerializerOptions,
 }
 
 impl SerializeSeq for ArraySerializer {
@@ -375,7 +432,8 @@ impl SerializeSeq for ArraySerializer {
     type Error = Error;
 
     fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> crate::ser::Result<()> {
-        self.inner.push(to_bson(value)?);
+        self.inner
+            .push(to_bson_with_options(value, self.options.clone())?);
         Ok(())
     }
 
@@ -387,6 +445,7 @@ impl SerializeSeq for ArraySerializer {
 #[doc(hidden)]
 pub struct TupleSerializer {
     inner: Array,
+    options: SerializerOptions,
 }
 
 impl SerializeTuple for TupleSerializer {
@@ -394,7 +453,8 @@ impl SerializeTuple for TupleSerializer {
     type Error = Error;
 
     fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> crate::ser::Result<()> {
-        self.inner.push(to_bson(value)?);
+        self.inner
+            .push(to_bson_with_options(value, self.options.clone())?);
         Ok(())
     }
 
@@ -406,6 +466,7 @@ impl SerializeTuple for TupleSerializer {
 #[doc(hidden)]
 pub struct TupleStructSerializer {
     inner: Array,
+    options: SerializerOptions,
 }
 
 impl SerializeTupleStruct for TupleStructSerializer {
@@ -413,7 +474,8 @@ impl SerializeTupleStruct for TupleStructSerializer {
     type Error = Error;
 
     fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> crate::ser::Result<()> {
-        self.inner.push(to_bson(value)?);
+        self.inner
+            .push(to_bson_with_options(value, self.options.clone())?);
         Ok(())
     }
 
@@ -426,6 +488,7 @@ impl SerializeTupleStruct for TupleStructSerializer {
 pub struct TupleVariantSerializer {
     inner: Array,
     name: &'static str,
+    options: SerializerOptions,
 }
 
 impl SerializeTupleVariant for TupleVariantSerializer {
@@ -433,7 +496,8 @@ impl SerializeTupleVariant for TupleVariantSerializer {
     type Error = Error;
 
     fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> crate::ser::Result<()> {
-        self.inner.push(to_bson(value)?);
+        self.inner
+            .push(to_bson_with_options(value, self.options.clone())?);
         Ok(())
     }
 
@@ -448,6 +512,7 @@ impl SerializeTupleVariant for TupleVariantSerializer {
 pub struct MapSerializer {
     inner: Document,
     next_key: Option<String>,
+    options: SerializerOptions,
 }
 
 impl SerializeMap for MapSerializer {
@@ -455,7 +520,7 @@ impl SerializeMap for MapSerializer {
     type Error = Error;
 
     fn serialize_key<T: ?Sized + Serialize>(&mut self, key: &T) -> crate::ser::Result<()> {
-        self.next_key = match to_bson(&key)? {
+        self.next_key = match to_bson_with_options(&key, self.options.clone())? {
             Bson::String(s) => Some(s),
             other => return Err(Error::InvalidDocumentKey(other)),
         };
@@ -464,7 +529,8 @@ impl SerializeMap for MapSerializer {
 
     fn serialize_value<T: ?Sized + Serialize>(&mut self, value: &T) -> crate::ser::Result<()> {
         let key = self.next_key.take().unwrap_or_default();
-        self.inner.insert(key, to_bson(&value)?);
+        self.inner
+            .insert(key, to_bson_with_options(&value, self.options.clone())?);
         Ok(())
     }
 
@@ -476,6 +542,7 @@ impl SerializeMap for MapSerializer {
 #[doc(hidden)]
 pub struct StructSerializer {
     inner: Document,
+    options: SerializerOptions,
 }
 
 impl SerializeStruct for StructSerializer {
@@ -487,7 +554,8 @@ impl SerializeStruct for StructSerializer {
         key: &'static str,
         value: &T,
     ) -> crate::ser::Result<()> {
-        self.inner.insert(key, to_bson(value)?);
+        self.inner
+            .insert(key, to_bson_with_options(value, self.options.clone())?);
         Ok(())
     }
 
@@ -500,6 +568,7 @@ impl SerializeStruct for StructSerializer {
 pub struct StructVariantSerializer {
     inner: Document,
     name: &'static str,
+    options: SerializerOptions,
 }
 
 impl SerializeStructVariant for StructVariantSerializer {
@@ -511,7 +580,8 @@ impl SerializeStructVariant for StructVariantSerializer {
         key: &'static str,
         value: &T,
     ) -> crate::ser::Result<()> {
-        self.inner.insert(key, to_bson(value)?);
+        self.inner
+            .insert(key, to_bson_with_options(value, self.options.clone())?);
         Ok(())
     }
 
