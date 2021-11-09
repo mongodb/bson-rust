@@ -498,7 +498,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
             RawBson::Document(d) => Ok(d),
 
             // For non-BSON formats, RawDocument gets serialized as bytes, so we need to deserialize
-            // from them here too. For BSON, the deserialzier will return an error if it
+            // from them here too. For BSON, the deserializier will return an error if it
             // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
             RawBson::Binary(b) if b.subtype == BinarySubtype::Generic => {
                 RawDocument::new(b.bytes).map_err(serde::de::Error::custom)
