@@ -134,6 +134,17 @@ pub use self::{
     iter::Iter,
 };
 
+pub(crate) use self::bson::RawBsonVisitor;
+
+/// Special newtype name indicating that the type being (de)serialized is a raw BSON document.
+pub(crate) const RAW_DOCUMENT_NEWTYPE: &str = "$__private__bson_RawDocument";
+
+/// Special newtype name indicating that the type being (de)serialized is a raw BSON array.
+pub(crate) const RAW_ARRAY_NEWTYPE: &str = "$__private__bson_RawArray";
+
+/// Special newtype name indicating that the type being (de)serialized is a raw BSON value.
+pub(crate) const RAW_BSON_NEWTYPE: &str = "$__private__bson_RawBson";
+
 /// Given a u8 slice, return an i32 calculated from the first four bytes in
 /// little endian order.
 fn f64_from_slice(val: &[u8]) -> Result<f64> {

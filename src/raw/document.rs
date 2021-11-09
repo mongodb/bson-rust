@@ -3,7 +3,14 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use crate::{raw::error::ErrorKind, DateTime, Timestamp};
+use serde::{ser::SerializeMap, Deserialize, Serialize};
+
+use crate::{
+    raw::{error::ErrorKind, RawBsonVisitor, RAW_DOCUMENT_NEWTYPE},
+    spec::BinarySubtype,
+    DateTime,
+    Timestamp,
+};
 
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
@@ -479,6 +486,57 @@ impl RawDocument {
     /// ```
     pub fn as_bytes(&self) -> &[u8] {
         &self.data
+    }
+}
+
+impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match deserializer.deserialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, RawBsonVisitor)? {
+            RawBson::Document(d) => Ok(d),
+
+            // For non-BSON formats, RawDocument gets serialized as bytes, so we need to deserialize
+            // from them here too. For BSON, the deserializier will return an error if it
+            // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
+            RawBson::Binary(b) if b.subtype == BinarySubtype::Generic => {
+                RawDocument::new(b.bytes).map_err(serde::de::Error::custom)
+            }
+
+            o => Err(serde::de::Error::custom(format!(
+                "expected raw document reference, instead got {:?}",
+                o
+            ))),
+        }
+    }
+}
+
+impl<'a> Serialize for &'a RawDocument {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        struct KvpSerializer<'a>(&'a RawDocument);
+
+        impl<'a> Serialize for KvpSerializer<'a> {
+            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                if serializer.is_human_readable() {
+                    let mut map = serializer.serialize_map(None)?;
+                    for kvp in self.0 {
+                        let (k, v) = kvp.map_err(serde::ser::Error::custom)?;
+                        map.serialize_entry(k, &v)?;
+                    }
+                    map.end()
+                } else {
+                    serializer.serialize_bytes(self.0.as_bytes())
+                }
+            }
+        }
+        serializer.serialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, &KvpSerializer(self))
     }
 }
 

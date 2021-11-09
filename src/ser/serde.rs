@@ -17,6 +17,7 @@ use crate::{
     datetime::DateTime,
     extjson,
     oid::ObjectId,
+    raw::{RawDbPointer, RawRegex},
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Binary,
@@ -546,13 +547,11 @@ impl Serialize for Regex {
     where
         S: ser::Serializer,
     {
-        let mut state = serializer.serialize_struct("$regularExpression", 1)?;
-        let body = extjson::models::RegexBody {
-            pattern: self.pattern.clone(),
-            options: self.options.clone(),
+        let raw = RawRegex {
+            pattern: self.pattern.as_str(),
+            options: self.options.as_str(),
         };
-        state.serialize_field("$regularExpression", &body)?;
-        state.end()
+        raw.serialize(serializer)
     }
 }
 
@@ -620,12 +619,10 @@ impl Serialize for DbPointer {
     where
         S: ser::Serializer,
     {
-        let mut state = serializer.serialize_struct("$dbPointer", 1)?;
-        let body = extjson::models::DbPointerBody {
-            ref_ns: self.namespace.clone(),
-            id: self.id.into(),
+        let raw = RawDbPointer {
+            namespace: self.namespace.as_str(),
+            id: self.id,
         };
-        state.serialize_field("$dbPointer", &body)?;
-        state.end()
+        raw.serialize(serializer)
     }
 }

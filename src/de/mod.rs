@@ -35,6 +35,7 @@ use std::io::Read;
 use crate::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     oid::{self, ObjectId},
+    raw::RawBinary,
     ser::write_i32,
     spec::{self, BinarySubtype},
     Decimal128,
@@ -45,7 +46,10 @@ use ::serde::{
     Deserialize,
 };
 
-pub(crate) use self::serde::BsonVisitor;
+pub(crate) use self::serde::{convert_unsigned_to_signed_raw, BsonVisitor};
+
+#[cfg(test)]
+pub(crate) use self::raw::Deserializer as RawDeserializer;
 
 pub(crate) const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
@@ -266,7 +270,7 @@ pub(crate) fn deserialize_bson_kvp<R: Read + ?Sized>(
 
 impl Binary {
     pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
-        let len = read_i32(&mut reader)?;
+        let mut len = read_i32(&mut reader)?;
         if !(0..=MAX_BSON_SIZE).contains(&len) {
             return Err(Error::invalid_length(
                 len as usize,
@@ -274,20 +278,6 @@ impl Binary {
             ));
         }
         let subtype = BinarySubtype::from(read_u8(&mut reader)?);
-        Self::from_reader_with_len_and_payload(reader, len, subtype)
-    }
-
-    pub(crate) fn from_reader_with_len_and_payload<R: Read>(
-        mut reader: R,
-        mut len: i32,
-        subtype: BinarySubtype,
-    ) -> Result<Self> {
-        if !(0..=MAX_BSON_SIZE).contains(&len) {
-            return Err(Error::invalid_length(
-                len as usize,
-                &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
-            ));
-        }
 
         // Skip length data in old binary.
         if let BinarySubtype::BinaryOld = subtype {
@@ -314,6 +304,50 @@ impl Binary {
 
         reader.take(len as u64).read_to_end(&mut bytes)?;
         Ok(Binary { subtype, bytes })
+    }
+}
+
+impl<'a> RawBinary<'a> {
+    pub(crate) fn from_slice_with_len_and_payload(
+        mut bytes: &'a [u8],
+        mut len: i32,
+        subtype: BinarySubtype,
+    ) -> Result<Self> {
+        if !(0..=MAX_BSON_SIZE).contains(&len) {
+            return Err(Error::invalid_length(
+                len as usize,
+                &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
+            ));
+        } else if len as usize > bytes.len() {
+            return Err(Error::invalid_length(
+                len as usize,
+                &format!(
+                    "binary length {} exceeds buffer length {}",
+                    len,
+                    bytes.len()
+                )
+                .as_str(),
+            ));
+        }
+
+        // Skip length data in old binary.
+        if let BinarySubtype::BinaryOld = subtype {
+            let data_len = read_i32(&mut bytes)?;
+
+            if data_len + 4 != len {
+                return Err(Error::invalid_length(
+                    data_len as usize,
+                    &"0x02 length did not match top level binary length",
+                ));
+            }
+
+            len -= 4;
+        }
+
+        Ok(Self {
+            bytes: &bytes[0..len as usize],
+            subtype,
+        })
     }
 }
 

@@ -1,6 +1,8 @@
 mod document_serializer;
 mod value_serializer;
 
+use std::io::Write;
+
 use serde::{
     ser::{Error as SerdeError, SerializeMap, SerializeStruct},
     Serialize,
@@ -10,6 +12,7 @@ use self::value_serializer::{ValueSerializer, ValueType};
 
 use super::{write_binary, write_cstring, write_f64, write_i32, write_i64, write_string};
 use crate::{
+    raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     ser::{Error, Result},
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
@@ -25,9 +28,30 @@ pub(crate) struct Serializer {
     /// but in serde, the serializer learns of the type after serializing the key.
     type_index: usize,
 
-    /// Whether the binary value about to be serialized is a UUID or not.
-    /// This is indicated by serializing a newtype with name UUID_NEWTYPE_NAME;
-    is_uuid: bool,
+    /// Hint provided by the type being serialized.
+    hint: SerializerHint,
+}
+
+/// Various bits of information that the serialized type can provide to the serializer to
+/// inform the purpose of the next serialization step.
+#[derive(Debug, Clone, Copy)]
+enum SerializerHint {
+    None,
+
+    /// The next call to `serialize_bytes` is for the purposes of serializing a UUID.
+    Uuid,
+
+    /// The next call to `serialize_bytes` is for the purposes of serializing a raw document.
+    RawDocument,
+
+    /// The next call to `serialize_bytes` is for the purposes of serializing a raw array.
+    RawArray,
+}
+
+impl SerializerHint {
+    fn take(&mut self) -> SerializerHint {
+        std::mem::replace(self, SerializerHint::None)
+    }
 }
 
 impl Serializer {
@@ -35,7 +59,7 @@ impl Serializer {
         Self {
             bytes: Vec::new(),
             type_index: 0,
-            is_uuid: false,
+            hint: SerializerHint::None,
         }
     }
 
@@ -176,16 +200,27 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Binary)?;
+        match self.hint.take() {
+            SerializerHint::RawDocument => {
+                self.update_element_type(ElementType::EmbeddedDocument)?;
+                self.bytes.write_all(v)?;
+            }
+            SerializerHint::RawArray => {
+                self.update_element_type(ElementType::Array)?;
+                self.bytes.write_all(v)?;
+            }
+            hint => {
+                self.update_element_type(ElementType::Binary)?;
 
-        let subtype = if self.is_uuid {
-            self.is_uuid = false;
-            BinarySubtype::Uuid
-        } else {
-            BinarySubtype::Generic
+                let subtype = if matches!(hint, SerializerHint::Uuid) {
+                    BinarySubtype::Uuid
+                } else {
+                    BinarySubtype::Generic
+                };
+
+                write_binary(&mut self.bytes, v, subtype)?;
+            }
         };
-
-        write_binary(&mut self.bytes, v, subtype)?;
         Ok(())
     }
 
@@ -232,8 +267,11 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     where
         T: serde::Serialize,
     {
-        if name == UUID_NEWTYPE_NAME {
-            self.is_uuid = true;
+        match name {
+            UUID_NEWTYPE_NAME => self.hint = SerializerHint::Uuid,
+            RAW_DOCUMENT_NEWTYPE => self.hint = SerializerHint::RawDocument,
+            RAW_ARRAY_NEWTYPE => self.hint = SerializerHint::RawArray,
+            _ => {}
         }
         value.serialize(self)
     }

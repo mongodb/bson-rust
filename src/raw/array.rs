@@ -1,5 +1,7 @@
 use std::convert::TryFrom;
 
+use serde::{ser::SerializeSeq, Deserialize, Serialize};
+
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     Error,
@@ -10,7 +12,14 @@ use super::{
     RawRegex,
     Result,
 };
-use crate::{oid::ObjectId, spec::ElementType, Bson, DateTime, Timestamp};
+use crate::{
+    oid::ObjectId,
+    raw::{RawBsonVisitor, RAW_ARRAY_NEWTYPE},
+    spec::{BinarySubtype, ElementType},
+    Bson,
+    DateTime,
+    Timestamp,
+};
 
 /// A slice of a BSON document containing a BSON array value (akin to [`std::str`]). This can be
 /// retrieved from a [`RawDocument`] via [`RawDocument::get`].
@@ -238,5 +247,53 @@ impl<'a> Iterator for RawArrayIter<'a> {
             Some(Err(e)) => Some(Err(e)),
             None => None,
         }
+    }
+}
+
+impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match deserializer.deserialize_newtype_struct(RAW_ARRAY_NEWTYPE, RawBsonVisitor)? {
+            RawBson::Array(d) => Ok(d),
+            RawBson::Binary(b) if b.subtype == BinarySubtype::Generic => {
+                let doc = RawDocument::new(b.bytes).map_err(serde::de::Error::custom)?;
+                Ok(RawArray::from_doc(doc))
+            }
+            b => Err(serde::de::Error::custom(format!(
+                "expected raw array reference, instead got {:?}",
+                b
+            ))),
+        }
+    }
+}
+
+impl<'a> Serialize for &'a RawArray {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        struct SeqSerializer<'a>(&'a RawArray);
+
+        impl<'a> Serialize for SeqSerializer<'a> {
+            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                if serializer.is_human_readable() {
+                    let mut seq = serializer.serialize_seq(None)?;
+                    for v in self.0 {
+                        let v = v.map_err(serde::ser::Error::custom)?;
+                        seq.serialize_element(&v)?;
+                    }
+                    seq.end()
+                } else {
+                    serializer.serialize_bytes(self.0.as_bytes())
+                }
+            }
+        }
+
+        serializer.serialize_newtype_struct(RAW_ARRAY_NEWTYPE, &SeqSerializer(self))
     }
 }

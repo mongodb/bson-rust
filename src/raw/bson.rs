@@ -1,10 +1,17 @@
 use std::convert::{TryFrom, TryInto};
 
+use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Serialize};
+use serde_bytes::{ByteBuf, Bytes};
+
 use super::{Error, RawArray, RawDocument, Result};
 use crate::{
+    de::convert_unsigned_to_signed_raw,
+    extjson,
     oid::{self, ObjectId},
+    raw::{RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     Bson,
+    DateTime,
     DbPointer,
     Decimal128,
     Timestamp,
@@ -239,6 +246,307 @@ impl<'a> RawBson<'a> {
     }
 }
 
+/// A visitor used to deserialize types backed by raw BSON.
+pub(crate) struct RawBsonVisitor;
+
+impl<'de> Visitor<'de> for RawBsonVisitor {
+    type Value = RawBson<'de>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(formatter, "a raw BSON reference")
+    }
+
+    fn visit_borrowed_str<E>(self, v: &'de str) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(RawBson::String(v))
+    }
+
+    fn visit_borrowed_bytes<E>(self, bytes: &'de [u8]) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(RawBson::Binary(RawBinary {
+            bytes,
+            subtype: BinarySubtype::Generic,
+        }))
+    }
+
+    fn visit_i8<E>(self, v: i8) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(RawBson::Int32(v.into()))
+    }
+
+    fn visit_i16<E>(self, v: i16) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(RawBson::Int32(v.into()))
+    }
+
+    fn visit_i32<E>(self, v: i32) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(RawBson::Int32(v))
+    }
+
+    fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(RawBson::Int64(v))
+    }
+
+    fn visit_u8<E>(self, value: u8) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        convert_unsigned_to_signed_raw(value.into())
+    }
+
+    fn visit_u16<E>(self, value: u16) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        convert_unsigned_to_signed_raw(value.into())
+    }
+
+    fn visit_u32<E>(self, value: u32) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        convert_unsigned_to_signed_raw(value.into())
+    }
+
+    fn visit_u64<E>(self, value: u64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        convert_unsigned_to_signed_raw(value)
+    }
+
+    fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(RawBson::Boolean(v))
+    }
+
+    fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(RawBson::Double(v))
+    }
+
+    fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(RawBson::Null)
+    }
+
+    fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(RawBson::Null)
+    }
+
+    fn visit_newtype_struct<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(self)
+    }
+
+    fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        let k = map
+            .next_key::<&str>()?
+            .ok_or_else(|| serde::de::Error::custom("expected a key when deserializing RawBson"))?;
+        match k {
+            "$oid" => {
+                let oid: ObjectId = map.next_value()?;
+                Ok(RawBson::ObjectId(oid))
+            }
+            "$symbol" => {
+                let s: &str = map.next_value()?;
+                Ok(RawBson::Symbol(s))
+            }
+            "$numberDecimalBytes" => {
+                let bytes = map.next_value::<ByteBuf>()?;
+                return Ok(RawBson::Decimal128(Decimal128::deserialize_from_slice(
+                    &bytes,
+                )?));
+            }
+            "$regularExpression" => {
+                #[derive(Debug, Deserialize)]
+                struct BorrowedRegexBody<'a> {
+                    pattern: &'a str,
+
+                    options: &'a str,
+                }
+                let body: BorrowedRegexBody = map.next_value()?;
+                Ok(RawBson::RegularExpression(RawRegex {
+                    pattern: body.pattern,
+                    options: body.options,
+                }))
+            }
+            "$undefined" => {
+                let _: bool = map.next_value()?;
+                Ok(RawBson::Undefined)
+            }
+            "$binary" => {
+                #[derive(Debug, Deserialize)]
+                struct BorrowedBinaryBody<'a> {
+                    bytes: &'a [u8],
+
+                    #[serde(rename = "subType")]
+                    subtype: u8,
+                }
+
+                let v = map.next_value::<BorrowedBinaryBody>()?;
+
+                Ok(RawBson::Binary(RawBinary {
+                    bytes: v.bytes,
+                    subtype: v.subtype.into(),
+                }))
+            }
+            "$date" => {
+                let v = map.next_value::<i64>()?;
+                Ok(RawBson::DateTime(DateTime::from_millis(v)))
+            }
+            "$timestamp" => {
+                let v = map.next_value::<extjson::models::TimestampBody>()?;
+                Ok(RawBson::Timestamp(Timestamp {
+                    time: v.t,
+                    increment: v.i,
+                }))
+            }
+            "$minKey" => {
+                let _ = map.next_value::<i32>()?;
+                Ok(RawBson::MinKey)
+            }
+            "$maxKey" => {
+                let _ = map.next_value::<i32>()?;
+                Ok(RawBson::MaxKey)
+            }
+            "$code" => {
+                let code = map.next_value::<&str>()?;
+                if let Some(key) = map.next_key::<&str>()? {
+                    if key == "$scope" {
+                        let scope = map.next_value::<&RawDocument>()?;
+                        Ok(RawBson::JavaScriptCodeWithScope(
+                            RawJavaScriptCodeWithScope { code, scope },
+                        ))
+                    } else {
+                        Err(serde::de::Error::unknown_field(key, &["$scope"]))
+                    }
+                } else {
+                    Ok(RawBson::JavaScriptCode(code))
+                }
+            }
+            "$dbPointer" => {
+                #[derive(Deserialize)]
+                struct BorrowedDbPointerBody<'a> {
+                    #[serde(rename = "$ref")]
+                    ns: &'a str,
+
+                    #[serde(rename = "$id")]
+                    id: ObjectId,
+                }
+
+                let body: BorrowedDbPointerBody = map.next_value()?;
+                Ok(RawBson::DbPointer(RawDbPointer {
+                    namespace: body.ns,
+                    id: body.id,
+                }))
+            }
+            RAW_DOCUMENT_NEWTYPE => {
+                let bson = map.next_value::<&[u8]>()?;
+                let doc = RawDocument::new(bson).map_err(serde::de::Error::custom)?;
+                Ok(RawBson::Document(doc))
+            }
+            RAW_ARRAY_NEWTYPE => {
+                let bson = map.next_value::<&[u8]>()?;
+                let doc = RawDocument::new(bson).map_err(serde::de::Error::custom)?;
+                Ok(RawBson::Array(RawArray::from_doc(doc)))
+            }
+            k => Err(serde::de::Error::custom(format!(
+                "can't deserialize RawBson from map, key={}",
+                k
+            ))),
+        }
+    }
+}
+
+impl<'de: 'a, 'a> Deserialize<'de> for RawBson<'a> {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_newtype_struct(RAW_BSON_NEWTYPE, RawBsonVisitor)
+    }
+}
+
+impl<'a> Serialize for RawBson<'a> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            RawBson::Double(v) => serializer.serialize_f64(*v),
+            RawBson::String(v) => serializer.serialize_str(v),
+            RawBson::Array(v) => v.serialize(serializer),
+            RawBson::Document(v) => v.serialize(serializer),
+            RawBson::Boolean(v) => serializer.serialize_bool(*v),
+            RawBson::Null => serializer.serialize_unit(),
+            RawBson::Int32(v) => serializer.serialize_i32(*v),
+            RawBson::Int64(v) => serializer.serialize_i64(*v),
+            RawBson::ObjectId(oid) => oid.serialize(serializer),
+            RawBson::DateTime(dt) => dt.serialize(serializer),
+            RawBson::Binary(b) => b.serialize(serializer),
+            RawBson::JavaScriptCode(c) => {
+                let mut state = serializer.serialize_struct("$code", 1)?;
+                state.serialize_field("$code", c)?;
+                state.end()
+            }
+            RawBson::JavaScriptCodeWithScope(code_w_scope) => code_w_scope.serialize(serializer),
+            RawBson::DbPointer(dbp) => dbp.serialize(serializer),
+            RawBson::Symbol(s) => {
+                let mut state = serializer.serialize_struct("$symbol", 1)?;
+                state.serialize_field("$symbol", s)?;
+                state.end()
+            }
+            RawBson::RegularExpression(re) => re.serialize(serializer),
+            RawBson::Timestamp(t) => t.serialize(serializer),
+            RawBson::Decimal128(d) => d.serialize(serializer),
+            RawBson::Undefined => {
+                let mut state = serializer.serialize_struct("$undefined", 1)?;
+                state.serialize_field("$undefined", &true)?;
+                state.end()
+            }
+            RawBson::MaxKey => {
+                let mut state = serializer.serialize_struct("$maxKey", 1)?;
+                state.serialize_field("$maxKey", &1)?;
+                state.end()
+            }
+            RawBson::MinKey => {
+                let mut state = serializer.serialize_struct("$minKey", 1)?;
+                state.serialize_field("$minKey", &1)?;
+                state.end()
+            }
+        }
+    }
+}
+
 impl<'a> TryFrom<RawBson<'a>> for Bson {
     type Error = Error;
 
@@ -302,8 +610,8 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
 /// A BSON binary value referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawBinary<'a> {
-    pub(super) subtype: BinarySubtype,
-    pub(super) bytes: &'a [u8],
+    pub(crate) subtype: BinarySubtype,
+    pub(crate) bytes: &'a [u8],
 }
 
 impl<'a> RawBinary<'a> {
@@ -318,11 +626,61 @@ impl<'a> RawBinary<'a> {
     }
 }
 
+impl<'de: 'a, 'a> Deserialize<'de> for RawBinary<'a> {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match RawBson::deserialize(deserializer)? {
+            RawBson::Binary(b) => Ok(b),
+            c => Err(serde::de::Error::custom(format!(
+                "expected binary, but got {:?} instead",
+                c
+            ))),
+        }
+    }
+}
+
+impl<'a> Serialize for RawBinary<'a> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if let BinarySubtype::Generic = self.subtype {
+            serializer.serialize_bytes(self.bytes)
+        } else if !serializer.is_human_readable() {
+            #[derive(Serialize)]
+            struct BorrowedBinary<'a> {
+                bytes: &'a Bytes,
+
+                #[serde(rename = "subType")]
+                subtype: u8,
+            }
+
+            let mut state = serializer.serialize_struct("$binary", 1)?;
+            let body = BorrowedBinary {
+                bytes: Bytes::new(self.bytes),
+                subtype: self.subtype.into(),
+            };
+            state.serialize_field("$binary", &body)?;
+            state.end()
+        } else {
+            let mut state = serializer.serialize_struct("$binary", 1)?;
+            let body = extjson::models::BinaryBody {
+                base64: base64::encode(self.bytes),
+                subtype: hex::encode([self.subtype.into()]),
+            };
+            state.serialize_field("$binary", &body)?;
+            state.end()
+        }
+    }
+}
+
 /// A BSON regex referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawRegex<'a> {
-    pub(super) pattern: &'a str,
-    pub(super) options: &'a str,
+    pub(crate) pattern: &'a str,
+    pub(crate) options: &'a str,
 }
 
 impl<'a> RawRegex<'a> {
@@ -337,10 +695,47 @@ impl<'a> RawRegex<'a> {
     }
 }
 
+impl<'de: 'a, 'a> Deserialize<'de> for RawRegex<'a> {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match RawBson::deserialize(deserializer)? {
+            RawBson::RegularExpression(b) => Ok(b),
+            c => Err(serde::de::Error::custom(format!(
+                "expected Regex, but got {:?} instead",
+                c
+            ))),
+        }
+    }
+}
+
+impl<'a> Serialize for RawRegex<'a> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        #[derive(Serialize)]
+        struct BorrowedRegexBody<'a> {
+            pattern: &'a str,
+            options: &'a str,
+        }
+
+        let mut state = serializer.serialize_struct("$regularExpression", 1)?;
+        let body = BorrowedRegexBody {
+            pattern: self.pattern,
+            options: self.options,
+        };
+        state.serialize_field("$regularExpression", &body)?;
+        state.end()
+    }
+}
+
 /// A BSON "code with scope" value referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawJavaScriptCodeWithScope<'a> {
     pub(crate) code: &'a str,
+
     pub(crate) scope: &'a RawDocument,
 }
 
@@ -356,9 +751,75 @@ impl<'a> RawJavaScriptCodeWithScope<'a> {
     }
 }
 
+impl<'de: 'a, 'a> Deserialize<'de> for RawJavaScriptCodeWithScope<'a> {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match RawBson::deserialize(deserializer)? {
+            RawBson::JavaScriptCodeWithScope(b) => Ok(b),
+            c => Err(serde::de::Error::custom(format!(
+                "expected CodeWithScope, but got {:?} instead",
+                c
+            ))),
+        }
+    }
+}
+
+impl<'a> Serialize for RawJavaScriptCodeWithScope<'a> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("$codeWithScope", 2)?;
+        state.serialize_field("$code", &self.code)?;
+        state.serialize_field("$scope", &self.scope)?;
+        state.end()
+    }
+}
+
 /// A BSON DB pointer value referencing raw bytes stored elesewhere.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RawDbPointer<'a> {
     pub(crate) namespace: &'a str,
     pub(crate) id: ObjectId,
+}
+
+impl<'de: 'a, 'a> Deserialize<'de> for RawDbPointer<'a> {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match RawBson::deserialize(deserializer)? {
+            RawBson::DbPointer(b) => Ok(b),
+            c => Err(serde::de::Error::custom(format!(
+                "expected DbPointer, but got {:?} instead",
+                c
+            ))),
+        }
+    }
+}
+
+impl<'a> Serialize for RawDbPointer<'a> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        #[derive(Serialize)]
+        struct BorrowedDbPointerBody<'a> {
+            #[serde(rename = "$ref")]
+            ref_ns: &'a str,
+
+            #[serde(rename = "$id")]
+            id: ObjectId,
+        }
+
+        let mut state = serializer.serialize_struct("$dbPointer", 1)?;
+        let body = BorrowedDbPointerBody {
+            ref_ns: self.namespace,
+            id: self.id,
+        };
+        state.serialize_field("$dbPointer", &body)?;
+        state.end()
+    }
 }

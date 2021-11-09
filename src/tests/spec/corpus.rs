@@ -1,11 +1,17 @@
 use std::{
     convert::{TryFrom, TryInto},
+    marker::PhantomData,
     str::FromStr,
 };
 
-use crate::{raw::RawDocument, tests::LOCK, Bson, Document};
+use crate::{
+    raw::{RawBson, RawDocument},
+    tests::LOCK,
+    Bson,
+    Document,
+};
 use pretty_assertions::assert_eq;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 use super::run_spec_test;
 
@@ -59,6 +65,34 @@ struct ParseError {
     string: String,
 }
 
+struct FieldVisitor<'a, T>(&'a str, PhantomData<T>);
+
+impl<'de, 'a, T> serde::de::Visitor<'de> for FieldVisitor<'a, T>
+where
+    T: Deserialize<'de>,
+{
+    type Value = T;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(formatter, "expecting RawBson at field {}", self.0)
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        while let Some((k, v)) = map.next_entry::<String, T>()? {
+            if k.as_str() == self.0 {
+                return Ok(v);
+            }
+        }
+        Err(serde::de::Error::custom(format!(
+            "missing field: {}",
+            self.0
+        )))
+    }
+}
+
 fn run_test(test: TestFile) {
     let _guard = LOCK.run_concurrently();
     for valid in test.valid {
@@ -79,10 +113,18 @@ fn run_test(test: TestFile) {
         let todocument_documentfromreader_cb: Document =
             crate::to_document(&documentfromreader_cb).expect(&description);
 
-        let document_from_raw_document: Document = RawDocument::new(canonical_bson.as_slice())
+        let canonical_raw_document =
+            RawDocument::new(canonical_bson.as_slice()).expect(&description);
+        let document_from_raw_document: Document =
+            canonical_raw_document.try_into().expect(&description);
+
+        let canonical_raw_bson_from_slice = crate::from_slice::<RawBson>(canonical_bson.as_slice())
             .expect(&description)
-            .try_into()
+            .as_document()
             .expect(&description);
+
+        let canonical_raw_document_from_slice =
+            crate::from_slice::<&RawDocument>(canonical_bson.as_slice()).expect(&description);
 
         // These cover the ways to serialize those `Documents` back to BSON.
         let mut documenttowriter_documentfromreader_cb = Vec::new();
@@ -112,6 +154,62 @@ fn run_test(test: TestFile) {
         document_from_raw_document
             .to_writer(&mut documenttowriter_document_from_raw_document)
             .expect(&description);
+
+        // Serialize the raw versions "back" to BSON also.
+        let tovec_rawdocument = crate::to_vec(&canonical_raw_document).expect(&description);
+        let tovec_rawdocument_from_slice =
+            crate::to_vec(&canonical_raw_document_from_slice).expect(&description);
+        let tovec_rawbson = crate::to_vec(&canonical_raw_bson_from_slice).expect(&description);
+
+        // test Bson / RawBson field deserialization
+        if let Some(ref test_key) = test.test_key {
+            // skip regex tests that don't have the value at the test key
+            if !description.contains("$regex query operator") {
+                // deserialize the field from raw Bytes into a RawBson
+                let mut deserializer_raw =
+                    crate::de::RawDeserializer::new(canonical_bson.as_slice(), false);
+                let raw_bson_field = deserializer_raw
+                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<RawBson>))
+                    .expect(&description);
+                // convert to an owned Bson and put into a Document
+                let bson: Bson = raw_bson_field.try_into().expect(&description);
+                let from_raw_doc = doc! {
+                    test_key: bson
+                };
+
+                // deserialize the field from raw Bytes into a Bson
+                let mut deserializer_value =
+                    crate::de::RawDeserializer::new(canonical_bson.as_slice(), false);
+                let bson_field = deserializer_value
+                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<Bson>))
+                    .expect(&description);
+                // put into a Document
+                let from_value_doc = doc! {
+                    test_key: bson_field,
+                };
+
+                // deserialize the field from a Bson into a Bson
+                let deserializer_value_value =
+                    crate::Deserializer::new(Bson::Document(documentfromreader_cb.clone()));
+                let bson_field = deserializer_value_value
+                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<Bson>))
+                    .expect(&description);
+                // put into a Document
+                let from_value_value_doc = doc! {
+                    test_key: bson_field,
+                };
+
+                // convert back into raw BSON for comparison with canonical BSON
+                let from_raw_vec = crate::to_vec(&from_raw_doc).expect(&description);
+                let from_value_vec = crate::to_vec(&from_value_doc).expect(&description);
+                let from_value_value_vec =
+                    crate::to_vec(&from_value_value_doc).expect(&description);
+
+                assert_eq!(from_raw_vec, canonical_bson, "{}", description);
+                assert_eq!(from_value_vec, canonical_bson, "{}", description);
+                assert_eq!(from_value_value_vec, canonical_bson, "{}", description);
+            }
+        }
 
         // native_to_bson( bson_to_native(cB) ) = cB
 
@@ -154,6 +252,20 @@ fn run_test(test: TestFile) {
 
         assert_eq!(
             hex::encode(documenttowriter_document_from_raw_document).to_lowercase(),
+            valid.canonical_bson.to_lowercase(),
+            "{}",
+            description,
+        );
+
+        assert_eq!(tovec_rawdocument, tovec_rawbson, "{}", description);
+        assert_eq!(
+            tovec_rawdocument, tovec_rawdocument_from_slice,
+            "{}",
+            description
+        );
+
+        assert_eq!(
+            hex::encode(tovec_rawdocument).to_lowercase(),
             valid.canonical_bson.to_lowercase(),
             "{}",
             description,

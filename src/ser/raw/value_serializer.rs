@@ -7,6 +7,7 @@ use serde::{
 
 use crate::{
     oid::ObjectId,
+    raw::RAW_DOCUMENT_NEWTYPE,
     ser::{write_binary, write_cstring, write_i32, write_i64, write_string, Error, Result},
     spec::{BinarySubtype, ElementType},
 };
@@ -30,8 +31,15 @@ enum SerializationStep {
     DateTimeNumberLong,
 
     Binary,
-    BinaryBase64,
-    BinarySubType { base64: String },
+    /// This step can either transition to the raw or base64 steps depending
+    /// on whether a string or bytes are serialized.
+    BinaryBytes,
+    BinarySubType {
+        base64: String,
+    },
+    RawBinarySubType {
+        bytes: Vec<u8>,
+    },
 
     Symbol,
 
@@ -41,7 +49,9 @@ enum SerializationStep {
 
     Timestamp,
     TimestampTime,
-    TimestampIncrement { time: i64 },
+    TimestampIncrement {
+        time: i64,
+    },
 
     DbPointer,
     DbPointerRef,
@@ -50,7 +60,10 @@ enum SerializationStep {
     Code,
 
     CodeWithScopeCode,
-    CodeWithScopeScope { code: String },
+    CodeWithScopeScope {
+        code: String,
+        raw: bool,
+    },
 
     MinKey,
 
@@ -185,8 +198,15 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
     }
 
     #[inline]
-    fn serialize_u8(self, _v: u8) -> Result<Self::Ok> {
-        Err(self.invalid_step("u8"))
+    fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
+        match self.state {
+            SerializationStep::RawBinarySubType { ref bytes } => {
+                write_binary(&mut self.root_serializer.bytes, bytes.as_slice(), v.into())?;
+                self.state = SerializationStep::Done;
+                Ok(())
+            }
+            _ => Err(self.invalid_step("u8")),
+        }
     }
 
     #[inline]
@@ -229,7 +249,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
                 let oid = ObjectId::parse_str(v).map_err(Error::custom)?;
                 self.root_serializer.bytes.write_all(&oid.bytes())?;
             }
-            SerializationStep::BinaryBase64 => {
+            SerializationStep::BinaryBytes => {
                 self.state = SerializationStep::BinarySubType {
                     base64: v.to_string(),
                 };
@@ -245,8 +265,15 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
             SerializationStep::Symbol | SerializationStep::DbPointerRef => {
                 write_string(&mut self.root_serializer.bytes, v)?;
             }
-            SerializationStep::RegExPattern | SerializationStep::RegExOptions => {
+            SerializationStep::RegExPattern => {
                 write_cstring(&mut self.root_serializer.bytes, v)?;
+            }
+            SerializationStep::RegExOptions => {
+                let mut chars: Vec<_> = v.chars().collect();
+                chars.sort_unstable();
+
+                let sorted = chars.into_iter().collect::<String>();
+                write_cstring(&mut self.root_serializer.bytes, sorted.as_str())?;
             }
             SerializationStep::Code => {
                 write_string(&mut self.root_serializer.bytes, v)?;
@@ -254,6 +281,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
             SerializationStep::CodeWithScopeCode => {
                 self.state = SerializationStep::CodeWithScopeScope {
                     code: v.to_string(),
+                    raw: false,
                 };
             }
             s => {
@@ -271,6 +299,18 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         match self.state {
             SerializationStep::Decimal128Value => {
                 self.root_serializer.bytes.write_all(v)?;
+                Ok(())
+            }
+            SerializationStep::BinaryBytes => {
+                self.state = SerializationStep::RawBinarySubType { bytes: v.to_vec() };
+                Ok(())
+            }
+            SerializationStep::CodeWithScopeScope { ref code, raw } if raw => {
+                let len = 4 + 4 + code.len() as i32 + 1 + v.len() as i32;
+                write_i32(&mut self.root_serializer.bytes, len)?;
+                write_string(&mut self.root_serializer.bytes, code)?;
+                self.root_serializer.bytes.write_all(v)?;
+                self.state = SerializationStep::Done;
                 Ok(())
             }
             _ => Err(self.invalid_step("&[u8]")),
@@ -311,15 +351,23 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(
-        self,
-        _name: &'static str,
-        _value: &T,
-    ) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T: ?Sized>(self, name: &'static str, value: &T) -> Result<Self::Ok>
     where
         T: Serialize,
     {
-        Err(self.invalid_step("newtype_struct"))
+        match (&mut self.state, name) {
+            (
+                SerializationStep::CodeWithScopeScope {
+                    code: _,
+                    ref mut raw,
+                },
+                RAW_DOCUMENT_NEWTYPE,
+            ) => {
+                *raw = true;
+                value.serialize(self)
+            }
+            _ => Err(self.invalid_step("newtype_struct")),
+        }
     }
 
     #[inline]
@@ -338,7 +386,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
 
     #[inline]
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        Err(self.invalid_step("newtype_seq"))
+        Err(self.invalid_step("seq"))
     }
 
     #[inline]
@@ -369,10 +417,10 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         match self.state {
-            SerializationStep::CodeWithScopeScope { ref code } => {
+            SerializationStep::CodeWithScopeScope { ref code, raw } if !raw => {
                 CodeWithScopeSerializer::start(code.as_str(), self.root_serializer)
             }
-            _ => Err(self.invalid_step("tuple_map")),
+            _ => Err(self.invalid_step("map")),
         }
     }
 
@@ -390,6 +438,10 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
         Err(self.invalid_step("struct_variant"))
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
     }
 }
 
@@ -415,12 +467,16 @@ impl<'a, 'b> SerializeStruct for &'b mut ValueSerializer<'a> {
                 self.state = SerializationStep::Done;
             }
             (SerializationStep::Binary, "$binary") => {
-                self.state = SerializationStep::BinaryBase64;
+                self.state = SerializationStep::BinaryBytes;
                 value.serialize(&mut **self)?;
             }
-            (SerializationStep::BinaryBase64, "base64") => {
+            (SerializationStep::BinaryBytes, key) if key == "bytes" || key == "base64" => {
                 // state is updated in serialize
                 value.serialize(&mut **self)?;
+            }
+            (SerializationStep::RawBinarySubType { .. }, "subType") => {
+                value.serialize(&mut **self)?;
+                self.state = SerializationStep::Done;
             }
             (SerializationStep::BinarySubType { .. }, "subType") => {
                 value.serialize(&mut **self)?;

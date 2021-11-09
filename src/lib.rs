@@ -271,16 +271,14 @@ pub use self::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     de::{
-        from_bson,
-        from_document,
-        from_reader,
-        from_reader_utf8_lossy,
-        from_slice,
-        from_slice_utf8_lossy,
-        Deserializer,
+        from_bson, from_document, from_reader, from_reader_utf8_lossy, from_slice,
+        from_slice_utf8_lossy, Deserializer,
     },
     decimal128::Decimal128,
-    raw::{RawDocument, RawDocumentBuf, RawArray},
+    raw::{
+        RawArray, RawBinary, RawBson, RawDbPointer, RawDocument, RawDocumentBuf, RawJavaScriptCodeWithScope,
+        RawRegex,
+    },
     ser::{to_bson, to_document, to_vec, Serializer},
     uuid::{Uuid, UuidRepresentation},
 };

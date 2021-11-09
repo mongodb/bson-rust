@@ -4,6 +4,8 @@ use std::{
     ops::Deref,
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::Document;
 
 use super::{Error, ErrorKind, Iter, RawBson, RawDocument, Result};
@@ -136,6 +138,27 @@ impl RawDocumentBuf {
     /// ```
     pub fn into_vec(self) -> Vec<u8> {
         self.data
+    }
+}
+
+impl<'de> Deserialize<'de> for RawDocumentBuf {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // TODO: RUST-1045 implement visit_map to deserialize from arbitrary maps.
+        let doc: &'de RawDocument = Deserialize::deserialize(deserializer)?;
+        Ok(doc.to_owned())
+    }
+}
+
+impl Serialize for RawDocumentBuf {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let doc: &RawDocument = self.deref();
+        doc.serialize(serializer)
     }
 }
 
