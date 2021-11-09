@@ -191,7 +191,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
 /// [`to_vec`] for types that change their serialization output depending on whether
 /// the format is human readable or not. To serialize to a [`Document`] with a serializer that
 /// presents itself as not human readable, use [`to_bson_with_options`] with
-/// [`SerializerOptions::is_human_readable`] set to false.
+/// [`SerializerOptions::human_readable`] set to false.
 pub fn to_bson<T: ?Sized>(value: &T) -> Result<Bson>
 where
     T: Serialize,
@@ -231,7 +231,7 @@ where
 /// [`to_vec`] for types that change their serialization output depending on whether
 /// the format is human readable or not. To serialize to a [`Document`] with a serializer that
 /// presents itself as not human readable, use [`to_document_with_options`] with
-/// [`SerializerOptions::is_human_readable`] set to false.
+/// [`SerializerOptions::human_readable`] set to false.
 pub fn to_document<T: ?Sized>(value: &T) -> Result<Document>
 where
     T: Serialize,

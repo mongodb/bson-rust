@@ -1064,7 +1064,7 @@ impl Binary {
     pub(crate) fn from_extended_doc(doc: &Document) -> Option<Self> {
         let binary_doc = doc.get_document("$binary").ok()?;
 
-        if let Some(bytes) = binary_doc.get_str("base64").ok() {
+        if let Ok(bytes) = binary_doc.get_str("base64") {
             let bytes = base64::decode(bytes).ok()?;
             let subtype = binary_doc.get_str("subType").ok()?;
             let subtype = hex::decode(subtype).ok()?;

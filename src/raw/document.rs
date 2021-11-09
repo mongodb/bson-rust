@@ -312,7 +312,7 @@ impl RawDocument {
     ///     "bool": true,
     /// })?;
     ///
-    /// assert_eq!(doc.get_binary("binary")?.as_bytes(), &[1, 2, 3][..]);
+    /// assert_eq!(&doc.get_binary("binary")?.bytes, &[1, 2, 3]);
     /// assert!(matches!(doc.get_binary("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
     /// assert!(matches!(doc.get_binary("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
