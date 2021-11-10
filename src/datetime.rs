@@ -5,6 +5,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+#[cfg(all(feature = "serde_with", feature = "chrono-0_4"))]
 use serde::{Deserialize, Deserializer, Serialize};
 #[cfg(all(feature = "serde_with", feature = "chrono-0_4"))]
 use serde_with::{DeserializeAs, SerializeAs};

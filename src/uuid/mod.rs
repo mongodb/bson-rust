@@ -413,6 +413,30 @@ impl From<uuid::Uuid> for Binary {
     }
 }
 
+#[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "uuid-0_8", feature = "serde_with"))))]
+impl<'de> serde_with::DeserializeAs<'de, uuid::Uuid> for crate::Uuid {
+    fn deserialize_as<D>(deserializer: D) -> std::result::Result<uuid::Uuid, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let uuid = Uuid::deserialize(deserializer)?;
+        Ok(uuid.into())
+    }
+}
+
+#[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "uuid-0_8", feature = "sere_with"))))]
+impl serde_with::SerializeAs<uuid::Uuid> for crate::Uuid {
+    fn serialize_as<S>(source: &uuid::Uuid, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let uuid = Uuid::from_external_uuid(*source);
+        uuid.serialize(serializer)
+    }
+}
+
 /// Errors that can occur during [`Uuid`] construction and generation.
 #[derive(Clone, Debug)]
 #[non_exhaustive]

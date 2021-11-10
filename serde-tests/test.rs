@@ -1214,7 +1214,6 @@ fn u2i() {
     bson::to_vec(&v).unwrap_err();
 }
 
-#[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
 #[test]
 fn serde_with_chrono() {
     #[serde_with::serde_as]
@@ -1237,6 +1236,30 @@ fn serde_with_chrono() {
     };
 
     run_test(&foo, &expected, "serde_with - chrono");
+}
+
+#[test]
+fn serde_with_uuid() {
+    #[serde_with::serde_as]
+    #[derive(Deserialize, Serialize, PartialEq, Debug)]
+    struct Foo {
+        #[serde_as(as = "Option<bson::Uuid>")]
+        as_bson: Option<uuid::Uuid>,
+
+        #[serde_as(as = "Option<bson::Uuid>")]
+        none_bson: Option<uuid::Uuid>,
+    }
+
+    let foo = Foo {
+        as_bson: Some(uuid::Uuid::new_v4()),
+        none_bson: None,
+    };
+    let expected = doc! {
+        "as_bson": bson::Uuid::from(foo.as_bson.unwrap()),
+        "none_bson": Bson::Null
+    };
+
+    run_test(&foo, &expected, "serde_with - uuid");
 }
 
 #[test]
