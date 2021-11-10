@@ -1082,7 +1082,7 @@ impl<'de> Deserialize<'de> for Binary {
     where
         D: de::Deserializer<'de>,
     {
-        match deserializer.deserialize_byte_buf(BsonVisitor)? {
+        match Bson::deserialize(deserializer)? {
             Bson::Binary(binary) => Ok(binary),
             d => Err(D::Error::custom(format!(
                 "expecting Binary but got {:?} instead",
