@@ -59,6 +59,40 @@ use chrono::{LocalResult, TimeZone, Utc};
 /// }
 /// # }
 /// ```
+/// ## The `serde_with` feature flag
+///
+/// The `serde_with` feature can be enabled to support more ergonomic serde attributes for
+/// (de)serializing `chrono::DateTime` from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
+/// crate. The main benefit of this compared to the regular `serde_helpers` is that `serde_with` can
+/// handle nested `chrono::DateTime` values (e.g. in `Option`), whereas the former only works on
+/// fields that are exactly `chrono::DateTime`.
+/// ```
+/// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
+/// # {
+/// use serde::{Deserialize, Serialize};
+/// use bson::doc;
+///
+/// #[serde_with::serde_as]
+/// #[derive(Deserialize, Serialize, PartialEq, Debug)]
+/// struct Foo {
+///   /// Serializes as a BSON datetime rather than using `chrono::DateTime`'s serialization
+///   #[serde_as(as = "Option<bson::DateTime>")]
+///   as_bson: Option<chrono::DateTime<chrono::Utc>>,
+/// }
+///
+/// let dt = chrono::Utc::now();
+/// let foo = Foo {
+///   as_bson: Some(dt),
+/// };
+///
+/// let expected = doc! {
+///   "as_bson": bson::DateTime::from_chrono(dt),
+/// };
+///
+/// assert_eq!(bson::to_document(&foo)?, expected);
+/// # }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 pub struct DateTime(i64);
 

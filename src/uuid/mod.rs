@@ -69,6 +69,40 @@
 //! # };
 //! ```
 //!
+//! ## The `serde_with` feature flag
+//!
+//! The `serde_with` feature can be enabled to support more ergonomic serde attributes for
+//! (de)serializing `uuid::Uuid` from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
+//! crate. The main benefit of this compared to the regular `serde_helpers` is that `serde_with` can
+//! handle nested `uuid::Uuid` values (e.g. in `Option`), whereas the former only works on fields
+//! that are exactly `uuid::Uuid`.
+//! ```
+//! # #[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
+//! # {
+//! use serde::{Deserialize, Serialize};
+//! use bson::doc;
+//!
+//! #[serde_with::serde_as]
+//! #[derive(Deserialize, Serialize, PartialEq, Debug)]
+//! struct Foo {
+//!   /// Serializes as a BSON binary rather than using `uuid::Uuid`'s serialization
+//!   #[serde_as(as = "Option<bson::Uuid>")]
+//!   as_bson: Option<uuid::Uuid>,
+//! }
+//!
+//! let foo = Foo {
+//!   as_bson: Some(uuid::Uuid::new_v4()),
+//! };
+//!
+//! let expected = doc! {
+//!   "as_bson": bson::Uuid::from(foo.as_bson.unwrap()),
+//! };
+//!
+//! assert_eq!(bson::to_document(&foo)?, expected);
+//! # }
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
 //! ## Using `crate::Uuid` with non-BSON formats
 //!
 //! [`crate::Uuid`]'s `serde` implementation is the same as `uuid::Uuid`'s
