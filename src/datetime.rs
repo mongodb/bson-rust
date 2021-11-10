@@ -5,6 +5,10 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use serde::{Deserialize, Deserializer, Serialize};
+#[cfg(all(feature = "serde_with", feature = "chrono-0_4"))]
+use serde_with::{DeserializeAs, SerializeAs};
+
 use chrono::{LocalResult, TimeZone, Utc};
 
 /// Struct representing a BSON datetime.
@@ -231,6 +235,33 @@ impl From<crate::DateTime> for chrono::DateTime<Utc> {
 impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for crate::DateTime {
     fn from(x: chrono::DateTime<T>) -> Self {
         Self::from_chrono(x)
+    }
+}
+
+#[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "chrono-0_4", feature = "serde_with"))))]
+impl<'de> DeserializeAs<'de, chrono::DateTime<Utc>> for crate::DateTime {
+    fn deserialize_as<D>(deserializer: D) -> std::result::Result<chrono::DateTime<Utc>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let dt = DateTime::deserialize(deserializer)?;
+        Ok(dt.to_chrono())
+    }
+}
+
+#[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "chrono-0_4", feature = "chrono-0_4"))))]
+impl SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
+    fn serialize_as<S>(
+        source: &chrono::DateTime<Utc>,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let dt = DateTime::from_chrono(*source);
+        dt.serialize(serializer)
     }
 }
 

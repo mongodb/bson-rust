@@ -57,6 +57,11 @@ where
         .expect(description);
 
     let expected_bytes_serde = bson::to_vec(&expected_value).expect(description);
+
+    let e = Document::from_reader(expected_bytes.as_slice()).unwrap();
+    let es = Document::from_reader(expected_bytes_serde.as_slice()).unwrap();
+
+    assert_eq!(e, es, "{}", description);
     assert_eq!(expected_bytes_serde, expected_bytes, "{}", description);
 
     let expected_bytes_from_doc_serde = bson::to_vec(&expected_doc).expect(description);
@@ -1207,6 +1212,31 @@ fn u2i() {
     };
     bson::to_document(&v).unwrap_err();
     bson::to_vec(&v).unwrap_err();
+}
+
+#[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
+#[test]
+fn serde_with_chrono() {
+    #[serde_with::serde_as]
+    #[derive(Deserialize, Serialize, PartialEq, Debug)]
+    struct Foo {
+        #[serde_as(as = "Option<bson::DateTime>")]
+        as_bson: Option<chrono::DateTime<chrono::Utc>>,
+
+        #[serde_as(as = "Option<bson::DateTime>")]
+        none_bson: Option<chrono::DateTime<chrono::Utc>>,
+    }
+
+    let foo = Foo {
+        as_bson: Some(bson::DateTime::now().into()),
+        none_bson: None,
+    };
+    let expected = doc! {
+        "as_bson": Bson::DateTime(foo.as_bson.unwrap().into()),
+        "none_bson": Bson::Null
+    };
+
+    run_test(&foo, &expected, "serde_with - chrono");
 }
 
 #[test]
