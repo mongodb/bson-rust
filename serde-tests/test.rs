@@ -58,10 +58,6 @@ where
 
     let expected_bytes_serde = bson::to_vec(&expected_value).expect(description);
 
-    let e = Document::from_reader(expected_bytes.as_slice()).unwrap();
-    let es = Document::from_reader(expected_bytes_serde.as_slice()).unwrap();
-
-    assert_eq!(e, es, "{}", description);
     assert_eq!(expected_bytes_serde, expected_bytes, "{}", description);
 
     let expected_bytes_from_doc_serde = bson::to_vec(&expected_doc).expect(description);
@@ -1226,16 +1222,16 @@ fn serde_with_chrono() {
         none_bson: Option<chrono::DateTime<chrono::Utc>>,
     }
 
-    let foo = Foo {
+    let f = Foo {
         as_bson: Some(bson::DateTime::now().into()),
         none_bson: None,
     };
     let expected = doc! {
-        "as_bson": Bson::DateTime(foo.as_bson.unwrap().into()),
+        "as_bson": Bson::DateTime(f.as_bson.unwrap().into()),
         "none_bson": Bson::Null
     };
 
-    run_test(&foo, &expected, "serde_with - chrono");
+    run_test(&f, &expected, "serde_with - chrono");
 }
 
 #[test]
@@ -1250,16 +1246,16 @@ fn serde_with_uuid() {
         none_bson: Option<uuid::Uuid>,
     }
 
-    let foo = Foo {
+    let f = Foo {
         as_bson: Some(uuid::Uuid::new_v4()),
         none_bson: None,
     };
     let expected = doc! {
-        "as_bson": bson::Uuid::from(foo.as_bson.unwrap()),
+        "as_bson": bson::Uuid::from(f.as_bson.unwrap()),
         "none_bson": Bson::Null
     };
 
-    run_test(&foo, &expected, "serde_with - uuid");
+    run_test(&f, &expected, "serde_with - uuid");
 }
 
 #[test]
