@@ -1264,7 +1264,7 @@ fn hint_cleared() {
 }
 
 #[test]
-fn raw_to_bson() {
+fn non_human_readable() {
     let bytes = vec![1, 2, 3, 4];
     let binary = RawBinary {
         bytes: &bytes,
@@ -1275,6 +1275,7 @@ fn raw_to_bson() {
     let doc = RawDocument::new(doc_bytes.as_slice()).unwrap();
     let arr = doc.get_array("array").unwrap();
     let oid = ObjectId::new();
+    let uuid = Uuid::new();
 
     #[derive(Debug, Deserialize, Serialize)]
     struct Foo<'a> {
@@ -1285,6 +1286,7 @@ fn raw_to_bson() {
         #[serde(borrow)]
         arr: &'a RawArray,
         oid: ObjectId,
+        uuid: Uuid,
     }
 
     let val = Foo {
@@ -1292,6 +1294,7 @@ fn raw_to_bson() {
         doc,
         arr,
         oid,
+        uuid
     };
 
     let human_readable = bson::to_bson(&val).unwrap();
@@ -1308,7 +1311,8 @@ fn raw_to_bson() {
             "array": [1, 2, 3],
         },
         "arr": [1, 2, 3],
-        "oid": oid
+        "oid": oid,
+        "uuid": uuid
     });
     assert_eq!(human_readable, expected);
     assert_eq!(human_readable, non_human_readable);

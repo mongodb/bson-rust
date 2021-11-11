@@ -305,17 +305,29 @@ impl ser::Serializer for Serializer {
     {
         match name {
             UUID_NEWTYPE_NAME => {
+                let is_human_readable = self.is_human_readable();
                 match value.serialize(self)? {
-                    Bson::String(s) => {
+                    Bson::String(s) if is_human_readable => {
                         // the serializer reports itself as human readable, so `Uuid` will
                         // serialize itself as a string.
                         let uuid = crate::Uuid::parse_str(s).map_err(Error::custom)?;
                         Ok(Bson::Binary(uuid.into()))
                     }
-                    b => Err(Error::custom(format!(
-                        "expected UUID to be serialized as a string but got {:?} instead",
-                        b
-                    ))),
+                    Bson::Binary(b) if !is_human_readable => Ok(Bson::Binary(Binary {
+                        bytes: b.bytes,
+                        subtype: BinarySubtype::Uuid,
+                    })),
+                    b => {
+                        let expectation = if is_human_readable {
+                            "a string"
+                        } else {
+                            "bytes"
+                        };
+                        Err(Error::custom(format!(
+                            "expected UUID to be serialized as {} but got {:?} instead",
+                            expectation, b
+                        )))
+                    }
                 }
             }
             // when in non-human-readable mode, raw document / raw array will serialize as bytes.
