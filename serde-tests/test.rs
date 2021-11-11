@@ -1294,7 +1294,7 @@ fn non_human_readable() {
         doc,
         arr,
         oid,
-        uuid
+        uuid,
     };
 
     let human_readable = bson::to_bson(&val).unwrap();
