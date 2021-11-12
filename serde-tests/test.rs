@@ -1,6 +1,8 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::vec_init_then_push)]
 
+mod options;
+
 use pretty_assertions::assert_eq;
 use serde::{
     self,
@@ -15,6 +17,7 @@ use std::{
 };
 
 use bson::{
+    bson,
     doc,
     oid::ObjectId,
     spec::BinarySubtype,
@@ -23,6 +26,7 @@ use bson::{
     DateTime,
     Decimal128,
     Deserializer,
+    DeserializerOptions,
     Document,
     JavaScriptCodeWithScope,
     RawArray,
@@ -34,6 +38,7 @@ use bson::{
     RawJavaScriptCodeWithScope,
     RawRegex,
     Regex,
+    SerializerOptions,
     Timestamp,
     Uuid,
 };
@@ -71,6 +76,23 @@ where
     assert_eq!(
         expected_value,
         &bson::from_document::<T>(serialized_doc).expect(description),
+        "{}",
+        description
+    );
+
+    let non_human_readable_doc = bson::to_document_with_options(
+        &expected_value,
+        SerializerOptions::builder().human_readable(false).build(),
+    )
+    .expect(description);
+    assert_eq!(&non_human_readable_doc, expected_doc, "{}", description);
+    assert_eq!(
+        expected_value,
+        &bson::from_document_with_options::<T>(
+            non_human_readable_doc,
+            DeserializerOptions::builder().human_readable(false).build()
+        )
+        .expect(description),
         "{}",
         description
     );
@@ -1239,4 +1261,59 @@ fn hint_cleared() {
     let round_doc: Document = bson::from_slice(&serialized_bytes).unwrap();
 
     assert_eq!(round_doc, doc! { "doc": doc_value, "binary": binary_value });
+}
+
+#[test]
+fn non_human_readable() {
+    let bytes = vec![1, 2, 3, 4];
+    let binary = RawBinary {
+        bytes: &bytes,
+        subtype: BinarySubtype::BinaryOld,
+    };
+
+    let doc_bytes = bson::to_vec(&doc! { "a": "b", "array": [1, 2, 3] }).unwrap();
+    let doc = RawDocument::new(doc_bytes.as_slice()).unwrap();
+    let arr = doc.get_array("array").unwrap();
+    let oid = ObjectId::new();
+    let uuid = Uuid::new();
+
+    #[derive(Debug, Deserialize, Serialize)]
+    struct Foo<'a> {
+        #[serde(borrow)]
+        binary: RawBinary<'a>,
+        #[serde(borrow)]
+        doc: &'a RawDocument,
+        #[serde(borrow)]
+        arr: &'a RawArray,
+        oid: ObjectId,
+        uuid: Uuid,
+    }
+
+    let val = Foo {
+        binary,
+        doc,
+        arr,
+        oid,
+        uuid,
+    };
+
+    let human_readable = bson::to_bson(&val).unwrap();
+    let non_human_readable = bson::to_bson_with_options(
+        &val,
+        SerializerOptions::builder().human_readable(false).build(),
+    )
+    .unwrap();
+
+    let expected = bson!({
+        "binary": Binary { bytes: bytes.clone(), subtype: BinarySubtype::BinaryOld },
+        "doc": {
+            "a": "b",
+            "array": [1, 2, 3],
+        },
+        "arr": [1, 2, 3],
+        "oid": oid,
+        "uuid": uuid
+    });
+    assert_eq!(human_readable, expected);
+    assert_eq!(human_readable, non_human_readable);
 }

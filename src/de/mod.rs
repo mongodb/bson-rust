@@ -27,7 +27,7 @@ mod serde;
 
 pub use self::{
     error::{Error, Result},
-    serde::Deserializer,
+    serde::{Deserializer, DeserializerOptions},
 };
 
 use std::io::Read;
@@ -414,7 +414,14 @@ impl JavaScriptCodeWithScope {
     }
 }
 
-/// Decode a BSON `Value` into a `T` Deserializable.
+/// Deserialize a `T` from the provided [`Bson`] value.
+///
+/// The `Deserializer` used by this function presents itself as human readable, whereas the
+/// one used in [`from_slice`] does not. This means that this function may deserialize differently
+/// than [`from_slice`] for types that change their deserialization logic depending on whether
+/// the format is human readable or not. To deserialize from [`Bson`] with a deserializer that
+/// presents itself as not human readable, use [`from_bson_with_options`] with
+/// [`DeserializerOptions::human_readable`] set to false.
 pub fn from_bson<T>(bson: Bson) -> Result<T>
 where
     T: DeserializeOwned,
@@ -423,12 +430,67 @@ where
     Deserialize::deserialize(de)
 }
 
-/// Decode a BSON `Document` into a `T` Deserializable.
+/// Deserialize a `T` from the provided [`Bson`] value, configuring the underlying
+/// deserializer with the provided options.
+/// ```
+/// # use serde::Deserialize;
+/// # use bson::{bson, DeserializerOptions};
+/// #[derive(Debug, Deserialize, PartialEq)]
+/// struct MyData {
+///     a: String,
+/// }
+///
+/// let bson = bson!({ "a": "hello" });
+/// let options = DeserializerOptions::builder().human_readable(false).build();
+/// let data: MyData = bson::from_bson_with_options(bson, options)?;
+/// assert_eq!(data, MyData { a: "hello".to_string() });
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn from_bson_with_options<T>(bson: Bson, options: DeserializerOptions) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    let de = Deserializer::new_with_options(bson, options);
+    Deserialize::deserialize(de)
+}
+
+/// Deserialize a `T` from the provided [`Document`].
+///
+/// The `Deserializer` used by this function presents itself as human readable, whereas the
+/// one used in [`from_slice`] does not. This means that this function may deserialize differently
+/// than [`from_slice`] for types that change their deserialization logic depending on whether
+/// the format is human readable or not. To deserialize from [`Document`] with a deserializer that
+/// presents itself as not human readable, use [`from_document_with_options`] with
+/// [`DeserializerOptions::human_readable`] set to false.
 pub fn from_document<T>(doc: Document) -> Result<T>
 where
     T: DeserializeOwned,
 {
     from_bson(Bson::Document(doc))
+}
+
+/// Deserialize a `T` from the provided [`Document`], configuring the underlying
+/// deserializer with the provided options.
+/// ```
+/// # use serde::Deserialize;
+/// # use bson::{doc, DeserializerOptions};
+/// #[derive(Debug, Deserialize, PartialEq)]
+/// struct MyData {
+///     a: String,
+/// }
+///
+/// let doc = doc! { "a": "hello" };
+/// let options = DeserializerOptions::builder().human_readable(false).build();
+/// let data: MyData = bson::from_document_with_options(doc, options)?;
+/// assert_eq!(data, MyData { a: "hello".to_string() });
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn from_document_with_options<T>(doc: Document, options: DeserializerOptions) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    let de = Deserializer::new_with_options(Bson::Document(doc), options);
+    Deserialize::deserialize(de)
 }
 
 fn reader_to_vec<R: Read>(mut reader: R) -> Result<Vec<u8>> {

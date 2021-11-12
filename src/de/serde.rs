@@ -562,11 +562,58 @@ where
 /// Serde Deserializer
 pub struct Deserializer {
     value: Option<Bson>,
+    options: DeserializerOptions,
+}
+
+/// Options used to configure a [`Deserializer`]. These can also be passed into
+/// [`crate::from_bson_with_options`] and [`crate::from_document_with_options`].
+#[derive(Debug, Clone, Default)]
+#[non_exhaustive]
+pub struct DeserializerOptions {
+    /// Whether the [`Deserializer`] should present itself as human readable or not.
+    /// The default is true.
+    pub human_readable: Option<bool>,
+}
+
+impl DeserializerOptions {
+    /// Create a builder struct used to construct a [`DeserializerOptions`].
+    pub fn builder() -> DeserializerOptionsBuilder {
+        DeserializerOptionsBuilder {
+            options: Default::default(),
+        }
+    }
+}
+
+/// Builder used to construct a [`DeserializerOptions`].
+pub struct DeserializerOptionsBuilder {
+    options: DeserializerOptions,
+}
+
+impl DeserializerOptionsBuilder {
+    /// Set the value for [`DeserializerOptions::human_readable`].
+    pub fn human_readable(mut self, val: impl Into<Option<bool>>) -> Self {
+        self.options.human_readable = val.into();
+        self
+    }
+
+    /// Consume this builder and produce a [`DeserializerOptions`].
+    pub fn build(self) -> DeserializerOptions {
+        self.options
+    }
 }
 
 impl Deserializer {
+    /// Construct a new [`Deserializer`] using the default options.
     pub fn new(value: Bson) -> Deserializer {
-        Deserializer { value: Some(value) }
+        Deserializer::new_with_options(value, Default::default())
+    }
+
+    /// Create a new [`Deserializer`] using the provided options.
+    pub fn new_with_options(value: Bson, options: DeserializerOptions) -> Self {
+        Deserializer {
+            value: Some(value),
+            options,
+        }
     }
 }
 
@@ -610,6 +657,10 @@ macro_rules! forward_to_deserialize {
 impl<'de> de::Deserializer<'de> for Deserializer {
     type Error = crate::de::Error;
 
+    fn is_human_readable(&self) -> bool {
+        self.options.human_readable.unwrap_or(true)
+    }
+
     #[inline]
     fn deserialize_any<V>(mut self, visitor: V) -> crate::de::Result<V::Value>
     where
@@ -627,6 +678,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 let len = v.len();
                 visitor.visit_seq(SeqDeserializer {
                     iter: v.into_iter(),
+                    options: self.options,
                     len,
                 })
             }
@@ -636,6 +688,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                     iter: v.into_iter(),
                     value: None,
                     len,
+                    options: self.options,
                 })
             }
             Bson::Boolean(v) => visitor.visit_bool(v),
@@ -650,6 +703,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 iter: binary.into_extended_document().into_iter(),
                 value: None,
                 len: 2,
+                options: self.options,
             }),
             Bson::Decimal128(d) => visitor.visit_map(Decimal128Access::new(d)),
             _ => {
@@ -659,8 +713,22 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                     iter: doc.into_iter(),
                     value: None,
                     len,
+                    options: self.options,
                 })
             }
+        }
+    }
+
+    #[inline]
+    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        match self.value {
+            Some(Bson::ObjectId(oid)) if !self.is_human_readable() => {
+                visitor.visit_bytes(&oid.bytes())
+            }
+            _ => self.deserialize_any(visitor),
         }
     }
 
@@ -691,7 +759,10 @@ impl<'de> de::Deserializer<'de> for Deserializer {
             Some(Bson::String(variant)) => {
                 return visitor.visit_enum(EnumDeserializer {
                     val: Bson::String(variant),
-                    deserializer: VariantDeserializer { val: None },
+                    deserializer: VariantDeserializer {
+                        val: None,
+                        options: self.options,
+                    },
                 });
             }
             Some(v) => {
@@ -725,7 +796,10 @@ impl<'de> de::Deserializer<'de> for Deserializer {
             )),
             None => visitor.visit_enum(EnumDeserializer {
                 val: Bson::String(variant),
-                deserializer: VariantDeserializer { val: Some(value) },
+                deserializer: VariantDeserializer {
+                    val: Some(value),
+                    options: self.options,
+                },
             }),
         }
     }
@@ -772,7 +846,6 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         deserialize_string();
         deserialize_unit();
         deserialize_seq();
-        deserialize_bytes();
         deserialize_map();
         deserialize_unit_struct(name: &'static str);
         deserialize_tuple_struct(name: &'static str, len: usize);
@@ -796,7 +869,7 @@ impl<'de> EnumAccess<'de> for EnumDeserializer {
     where
         V: DeserializeSeed<'de>,
     {
-        let dec = Deserializer::new(self.val);
+        let dec = Deserializer::new_with_options(self.val, self.deserializer.options.clone());
         let value = seed.deserialize(dec)?;
         Ok((value, self.deserializer))
     }
@@ -804,6 +877,7 @@ impl<'de> EnumAccess<'de> for EnumDeserializer {
 
 struct VariantDeserializer {
     val: Option<Bson>,
+    options: DeserializerOptions,
 }
 
 impl<'de> VariantAccess<'de> for VariantDeserializer {
@@ -812,7 +886,9 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
     fn unit_variant(mut self) -> crate::de::Result<()> {
         match self.val.take() {
             None => Ok(()),
-            Some(val) => Bson::deserialize(Deserializer::new(val)).map(|_| ()),
+            Some(val) => {
+                Bson::deserialize(Deserializer::new_with_options(val, self.options)).map(|_| ())
+            }
         }
     }
 
@@ -820,7 +896,10 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
     where
         T: DeserializeSeed<'de>,
     {
-        let dec = Deserializer::new(self.val.take().ok_or(crate::de::Error::EndOfStream)?);
+        let dec = Deserializer::new_with_options(
+            self.val.take().ok_or(crate::de::Error::EndOfStream)?,
+            self.options,
+        );
         seed.deserialize(dec)
     }
 
@@ -833,6 +912,7 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
                 let de = SeqDeserializer {
                     len: fields.len(),
                     iter: fields.into_iter(),
+                    options: self.options,
                 };
                 de.deserialize_any(visitor)
             }
@@ -857,6 +937,7 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
                     len: fields.len(),
                     iter: fields.into_iter(),
                     value: None,
+                    options: self.options,
                 };
                 de.deserialize_any(visitor)
             }
@@ -871,6 +952,7 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
 struct SeqDeserializer {
     iter: vec::IntoIter<Bson>,
     len: usize,
+    options: DeserializerOptions,
 }
 
 impl<'de> de::Deserializer<'de> for SeqDeserializer {
@@ -931,7 +1013,7 @@ impl<'de> SeqAccess<'de> for SeqDeserializer {
             None => Ok(None),
             Some(value) => {
                 self.len -= 1;
-                let de = Deserializer::new(value);
+                let de = Deserializer::new_with_options(value, self.options.clone());
                 match seed.deserialize(de) {
                     Ok(value) => Ok(Some(value)),
                     Err(err) => Err(err),
@@ -949,6 +1031,7 @@ pub(crate) struct MapDeserializer {
     pub(crate) iter: IntoIter,
     pub(crate) value: Option<Bson>,
     pub(crate) len: usize,
+    pub(crate) options: DeserializerOptions,
 }
 
 impl MapDeserializer {
@@ -958,6 +1041,7 @@ impl MapDeserializer {
             iter: doc.into_iter(),
             len,
             value: None,
+            options: Default::default(),
         }
     }
 }
@@ -974,7 +1058,7 @@ impl<'de> MapAccess<'de> for MapDeserializer {
                 self.len -= 1;
                 self.value = Some(value);
 
-                let de = Deserializer::new(Bson::String(key));
+                let de = Deserializer::new_with_options(Bson::String(key), self.options.clone());
                 match seed.deserialize(de) {
                     Ok(val) => Ok(Some(val)),
                     Err(e) => Err(e),
@@ -989,7 +1073,7 @@ impl<'de> MapAccess<'de> for MapDeserializer {
         V: DeserializeSeed<'de>,
     {
         let value = self.value.take().ok_or(crate::de::Error::EndOfStream)?;
-        let de = Deserializer::new(value);
+        let de = Deserializer::new_with_options(value, self.options.clone());
         seed.deserialize(de)
     }
 

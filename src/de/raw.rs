@@ -1179,7 +1179,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut BinaryDeserializer<'de> {
             BinaryDeserializationStage::Subtype => {
                 self.stage = BinaryDeserializationStage::Bytes;
                 match self.hint {
-                    DeserializerHint::RawBson => visitor.visit_u8(self.binary.subtype().into()),
+                    DeserializerHint::RawBson => visitor.visit_u8(self.binary.subtype.into()),
                     _ => visitor.visit_string(hex::encode([u8::from(self.binary.subtype)])),
                 }
             }
