@@ -44,10 +44,11 @@ Note that if you are using `bson` through the `mongodb` crate, you do not need t
 
 #### Feature Flags
 
-| Feature      | Description                                                                            | Extra dependencies | Default |
-|:-------------|:---------------------------------------------------------------------------------------|:-------------------|:--------|
-| `chrono-0_4` | Enable support for v0.4 of the [`chrono`](docs.rs/chrono/0.4) crate in the public API. | n/a                | no      |
-| `uuid-0_8`   | Enable support for v0.8 of the [`uuid`](docs.rs/uuid/0.8) crate in the public API.     | n/a                | no      |
+| Feature      | Description                                                                                         | Extra dependencies | Default |
+|:-------------|:----------------------------------------------------------------------------------------------------|:-------------------|:--------|
+| `chrono-0_4` | Enable support for v0.4 of the [`chrono`](docs.rs/chrono/0.4) crate in the public API.              | n/a                | no      |
+| `uuid-0_8`   | Enable support for v0.8 of the [`uuid`](docs.rs/uuid/0.8) crate in the public API.                  | n/a                | no      |
+| `serde_with` | Enable [`serde_with`](docs.rs/serde_with/latest) integrations for `bson::DateTime` and `bson::Uuid` | serde_with         | no      |
 
 ## Overview of the BSON Format
 

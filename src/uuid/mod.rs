@@ -69,6 +69,40 @@
 //! # };
 //! ```
 //!
+//! ## The `serde_with` feature flag
+//!
+//! The `serde_with` feature can be enabled to support more ergonomic serde attributes for
+//! (de)serializing `uuid::Uuid` from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
+//! crate. The main benefit of this compared to the regular `serde_helpers` is that `serde_with` can
+//! handle nested `uuid::Uuid` values (e.g. in `Option`), whereas the former only works on fields
+//! that are exactly `uuid::Uuid`.
+//! ```
+//! # #[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
+//! # {
+//! use serde::{Deserialize, Serialize};
+//! use bson::doc;
+//!
+//! #[serde_with::serde_as]
+//! #[derive(Deserialize, Serialize, PartialEq, Debug)]
+//! struct Foo {
+//!   /// Serializes as a BSON binary rather than using `uuid::Uuid`'s serialization
+//!   #[serde_as(as = "Option<bson::Uuid>")]
+//!   as_bson: Option<uuid::Uuid>,
+//! }
+//!
+//! let foo = Foo {
+//!   as_bson: Some(uuid::Uuid::new_v4()),
+//! };
+//!
+//! let expected = doc! {
+//!   "as_bson": bson::Uuid::from(foo.as_bson.unwrap()),
+//! };
+//!
+//! assert_eq!(bson::to_document(&foo)?, expected);
+//! # }
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
 //! ## Using `crate::Uuid` with non-BSON formats
 //!
 //! [`crate::Uuid`]'s `serde` implementation is the same as `uuid::Uuid`'s
@@ -410,6 +444,30 @@ impl From<uuid::Uuid> for Binary {
             subtype: BinarySubtype::Uuid,
             bytes: uuid.as_bytes().to_vec(),
         }
+    }
+}
+
+#[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "uuid-0_8", feature = "serde_with"))))]
+impl<'de> serde_with::DeserializeAs<'de, uuid::Uuid> for crate::Uuid {
+    fn deserialize_as<D>(deserializer: D) -> std::result::Result<uuid::Uuid, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let uuid = Uuid::deserialize(deserializer)?;
+        Ok(uuid.into())
+    }
+}
+
+#[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "uuid-0_8", feature = "sere_with"))))]
+impl serde_with::SerializeAs<uuid::Uuid> for crate::Uuid {
+    fn serialize_as<S>(source: &uuid::Uuid, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let uuid = Uuid::from_external_uuid(*source);
+        uuid.serialize(serializer)
     }
 }
 

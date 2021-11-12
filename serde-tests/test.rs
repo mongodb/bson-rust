@@ -62,6 +62,7 @@ where
         .expect(description);
 
     let expected_bytes_serde = bson::to_vec(&expected_value).expect(description);
+
     assert_eq!(expected_bytes_serde, expected_bytes, "{}", description);
 
     let expected_bytes_from_doc_serde = bson::to_vec(&expected_doc).expect(description);
@@ -1229,6 +1230,54 @@ fn u2i() {
     };
     bson::to_document(&v).unwrap_err();
     bson::to_vec(&v).unwrap_err();
+}
+
+#[test]
+fn serde_with_chrono() {
+    #[serde_with::serde_as]
+    #[derive(Deserialize, Serialize, PartialEq, Debug)]
+    struct Foo {
+        #[serde_as(as = "Option<bson::DateTime>")]
+        as_bson: Option<chrono::DateTime<chrono::Utc>>,
+
+        #[serde_as(as = "Option<bson::DateTime>")]
+        none_bson: Option<chrono::DateTime<chrono::Utc>>,
+    }
+
+    let f = Foo {
+        as_bson: Some(bson::DateTime::now().into()),
+        none_bson: None,
+    };
+    let expected = doc! {
+        "as_bson": Bson::DateTime(f.as_bson.unwrap().into()),
+        "none_bson": Bson::Null
+    };
+
+    run_test(&f, &expected, "serde_with - chrono");
+}
+
+#[test]
+fn serde_with_uuid() {
+    #[serde_with::serde_as]
+    #[derive(Deserialize, Serialize, PartialEq, Debug)]
+    struct Foo {
+        #[serde_as(as = "Option<bson::Uuid>")]
+        as_bson: Option<uuid::Uuid>,
+
+        #[serde_as(as = "Option<bson::Uuid>")]
+        none_bson: Option<uuid::Uuid>,
+    }
+
+    let f = Foo {
+        as_bson: Some(uuid::Uuid::new_v4()),
+        none_bson: None,
+    };
+    let expected = doc! {
+        "as_bson": bson::Uuid::from(f.as_bson.unwrap()),
+        "none_bson": Bson::Null
+    };
+
+    run_test(&f, &expected, "serde_with - uuid");
 }
 
 #[test]

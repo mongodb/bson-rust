@@ -5,6 +5,11 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+#[cfg(all(feature = "serde_with", feature = "chrono-0_4"))]
+use serde::{Deserialize, Deserializer, Serialize};
+#[cfg(all(feature = "serde_with", feature = "chrono-0_4"))]
+use serde_with::{DeserializeAs, SerializeAs};
+
 use chrono::{LocalResult, TimeZone, Utc};
 
 /// Struct representing a BSON datetime.
@@ -53,6 +58,40 @@ use chrono::{LocalResult, TimeZone, Utc};
 ///     chrono_as_bson: chrono::DateTime<chrono::Utc>,
 /// }
 /// # }
+/// ```
+/// ## The `serde_with` feature flag
+///
+/// The `serde_with` feature can be enabled to support more ergonomic serde attributes for
+/// (de)serializing `chrono::DateTime` from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
+/// crate. The main benefit of this compared to the regular `serde_helpers` is that `serde_with` can
+/// handle nested `chrono::DateTime` values (e.g. in `Option`), whereas the former only works on
+/// fields that are exactly `chrono::DateTime`.
+/// ```
+/// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
+/// # {
+/// use serde::{Deserialize, Serialize};
+/// use bson::doc;
+///
+/// #[serde_with::serde_as]
+/// #[derive(Deserialize, Serialize, PartialEq, Debug)]
+/// struct Foo {
+///   /// Serializes as a BSON datetime rather than using `chrono::DateTime`'s serialization
+///   #[serde_as(as = "Option<bson::DateTime>")]
+///   as_bson: Option<chrono::DateTime<chrono::Utc>>,
+/// }
+///
+/// let dt = chrono::Utc::now();
+/// let foo = Foo {
+///   as_bson: Some(dt),
+/// };
+///
+/// let expected = doc! {
+///   "as_bson": bson::DateTime::from_chrono(dt),
+/// };
+///
+/// assert_eq!(bson::to_document(&foo)?, expected);
+/// # }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 pub struct DateTime(i64);
@@ -231,6 +270,33 @@ impl From<crate::DateTime> for chrono::DateTime<Utc> {
 impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for crate::DateTime {
     fn from(x: chrono::DateTime<T>) -> Self {
         Self::from_chrono(x)
+    }
+}
+
+#[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "chrono-0_4", feature = "serde_with"))))]
+impl<'de> DeserializeAs<'de, chrono::DateTime<Utc>> for crate::DateTime {
+    fn deserialize_as<D>(deserializer: D) -> std::result::Result<chrono::DateTime<Utc>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let dt = DateTime::deserialize(deserializer)?;
+        Ok(dt.to_chrono())
+    }
+}
+
+#[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "chrono-0_4", feature = "chrono-0_4"))))]
+impl SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
+    fn serialize_as<S>(
+        source: &chrono::DateTime<Utc>,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let dt = DateTime::from_chrono(*source);
+        dt.serialize(serializer)
     }
 }
 
