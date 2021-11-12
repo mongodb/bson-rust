@@ -33,43 +33,10 @@ use crate::{
 /// Iterating over a [`RawArray`] yields either an error or a value that borrows from the
 /// original document without making any additional allocations.
 ///
-/// ```
-/// use bson::{doc, raw::RawDocument};
-///
-/// let doc = doc! {
-///     "x": [1, true, "two", 5.5]
-/// };
-/// let bytes = bson::to_vec(&doc)?;
-///
-/// let rawdoc = RawDocument::new(bytes.as_slice())?;
-/// let rawarray = rawdoc.get_array("x")?;
-///
-/// for v in rawarray {
-///     println!("{:?}", v?);
-/// }
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-///
 /// Individual elements can be accessed using [`RawArray::get`] or any of
 /// the type-specific getters, such as [`RawArray::get_object_id`] or
 /// [`RawArray::get_str`]. Note that accessing elements is an O(N) operation, as it
 /// requires iterating through the array from the beginning to find the requested index.
-///
-/// ```
-/// # use bson::raw::{ValueAccessError};
-/// use bson::{doc, raw::RawDocument};
-///
-/// let doc = doc! {
-///     "x": [1, true, "two", 5.5]
-/// };
-/// let bytes = bson::to_vec(&doc)?;
-///
-/// let rawdoc = RawDocument::new(bytes.as_slice())?;
-/// let rawarray = rawdoc.get_array("x")?;
-///
-/// assert_eq!(rawarray.get_bool(1)?, true);
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
 #[derive(PartialEq)]
 #[repr(transparent)]
 pub struct RawArray {
