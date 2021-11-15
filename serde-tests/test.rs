@@ -29,14 +29,6 @@ use bson::{
     DeserializerOptions,
     Document,
     JavaScriptCodeWithScope,
-    RawArray,
-    RawBinary,
-    RawBson,
-    RawDbPointer,
-    RawDocument,
-    RawDocumentBuf,
-    RawJavaScriptCodeWithScope,
-    RawRegex,
     Regex,
     SerializerOptions,
     Timestamp,
@@ -143,18 +135,6 @@ where
         "{}",
         description
     );
-}
-
-/// Verifies the following:
-/// - Deserializing a `T` from the provided bytes does not error
-/// - Serializing the `T` back to bytes produces the input.
-fn run_raw_round_trip_test<'de, T>(bytes: &'de [u8], description: &str)
-where
-    T: Deserialize<'de> + Serialize + std::fmt::Debug,
-{
-    let t: T = bson::from_slice(bytes).expect(description);
-    let vec = bson::to_vec(&t).expect(description);
-    assert_eq!(vec.as_slice(), bytes);
 }
 
 #[test]
@@ -727,154 +707,6 @@ fn empty_array() {
     run_deserialize_test(&v, &doc, "empty_array");
 }
 
-#[test]
-fn raw_doc_buf() {
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct Foo {
-        d: RawDocumentBuf,
-    }
-
-    let bytes = bson::to_vec(&doc! {
-        "d": {
-            "a": 12,
-            "b": 5.5,
-            "c": [1, true, "ok"],
-            "d": { "a": "b" },
-            "e": ObjectId::new(),
-        }
-    })
-    .expect("raw_doc_buf");
-
-    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_doc_buf");
-}
-
-#[test]
-fn raw_doc() {
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct Foo<'a> {
-        #[serde(borrow)]
-        d: &'a RawDocument,
-    }
-
-    let bytes = bson::to_vec(&doc! {
-        "d": {
-            "a": 12,
-            "b": 5.5,
-            "c": [1, true, "ok"],
-            "d": { "a": "b" },
-            "e": ObjectId::new(),
-        }
-    })
-    .expect("raw doc");
-
-    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_doc");
-}
-
-#[test]
-fn raw_array() {
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct Foo<'a> {
-        #[serde(borrow)]
-        d: &'a RawArray,
-    }
-
-    let bytes = bson::to_vec(&doc! {
-        "d": [1, true, { "ok": 1 }, [ "sub", "array" ], Uuid::new()]
-    })
-    .expect("raw_array");
-
-    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_array");
-}
-
-#[test]
-fn raw_binary() {
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct Foo<'a> {
-        #[serde(borrow)]
-        generic: RawBinary<'a>,
-
-        #[serde(borrow)]
-        old: RawBinary<'a>,
-
-        #[serde(borrow)]
-        uuid: RawBinary<'a>,
-
-        #[serde(borrow)]
-        other: RawBinary<'a>,
-    }
-
-    let bytes = bson::to_vec(&doc! {
-        "generic": Binary {
-            bytes: vec![1, 2, 3, 4, 5],
-            subtype: BinarySubtype::Generic,
-        },
-        "old": Binary {
-            bytes: vec![1, 2, 3],
-            subtype: BinarySubtype::BinaryOld,
-        },
-        "uuid": Uuid::new(),
-        "other": Binary {
-            bytes: vec![1u8; 100],
-            subtype: BinarySubtype::UserDefined(100),
-        }
-    })
-    .expect("raw_binary");
-
-    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_binary");
-}
-
-#[test]
-fn raw_regex() {
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct Foo<'a> {
-        #[serde(borrow)]
-        r: RawRegex<'a>,
-    }
-
-    let bytes = bson::to_vec(&doc! {
-        "r": Regex {
-            pattern: "a[b-c]d".to_string(),
-            options: "ab".to_string(),
-        },
-    })
-    .expect("raw_regex");
-
-    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_regex");
-}
-
-#[test]
-fn raw_code_w_scope() {
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct Foo<'a> {
-        #[serde(borrow)]
-        r: RawJavaScriptCodeWithScope<'a>,
-    }
-
-    let bytes = bson::to_vec(&doc! {
-        "r": JavaScriptCodeWithScope {
-            code: "console.log(x)".to_string(),
-            scope: doc! { "x": 1 },
-        },
-    })
-    .expect("raw_code_w_scope");
-
-    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_code_w_scope");
-}
-
-#[test]
-fn raw_db_pointer() {
-    #[derive(Serialize, Deserialize, PartialEq, Debug)]
-    struct Foo<'a> {
-        #[serde(borrow)]
-        a: RawDbPointer<'a>,
-    }
-
-    // From the "DBpointer" bson corpus test
-    let bytes = hex::decode("1A0000000C610002000000620056E1FC72E0C917E9C471416100").unwrap();
-
-    run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_db_pointer");
-}
-
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 struct SubDoc {
     a: i32,
@@ -1078,64 +910,6 @@ fn all_types_rmp() {
 }
 
 #[test]
-fn all_raw_types_rmp() {
-    #[derive(Debug, Serialize, Deserialize, PartialEq)]
-    struct AllRawTypes<'a> {
-        #[serde(borrow)]
-        bson: RawBson<'a>,
-        #[serde(borrow)]
-        document: &'a RawDocument,
-        #[serde(borrow)]
-        array: &'a RawArray,
-        buf: RawDocumentBuf,
-        #[serde(borrow)]
-        binary: RawBinary<'a>,
-        #[serde(borrow)]
-        code_w_scope: RawJavaScriptCodeWithScope<'a>,
-        #[serde(borrow)]
-        regex: RawRegex<'a>,
-    }
-
-    let doc_bytes = bson::to_vec(&doc! {
-        "bson": "some string",
-        "array": [1, 2, 3],
-        "binary": Binary { bytes: vec![1, 2, 3], subtype: BinarySubtype::Generic },
-        "binary_old": Binary { bytes: vec![1, 2, 3], subtype: BinarySubtype::BinaryOld },
-        "code_w_scope": JavaScriptCodeWithScope {
-            code: "ok".to_string(),
-            scope: doc! { "x": 1 },
-        },
-        "regex": Regex {
-            pattern: "pattern".to_string(),
-            options: "opt".to_string()
-        }
-    })
-    .unwrap();
-    let doc_buf = RawDocumentBuf::new(doc_bytes).unwrap();
-    let document = &doc_buf;
-    let array = document.get_array("array").unwrap();
-
-    let v = AllRawTypes {
-        bson: document.get("bson").unwrap().unwrap(),
-        array,
-        document,
-        buf: doc_buf.clone(),
-        binary: document.get_binary("binary").unwrap(),
-        code_w_scope: document
-            .get("code_w_scope")
-            .unwrap()
-            .unwrap()
-            .as_javascript_with_scope()
-            .unwrap(),
-        regex: document.get_regex("regex").unwrap(),
-    };
-    let serialized = rmp_serde::to_vec_named(&v).unwrap();
-    let back: AllRawTypes = rmp_serde::from_slice(&serialized).unwrap();
-
-    assert_eq!(back, v);
-}
-
-#[test]
 fn borrowed() {
     #[derive(Debug, Deserialize, PartialEq)]
     struct Foo<'a> {
@@ -1281,70 +1055,17 @@ fn serde_with_uuid() {
 }
 
 #[test]
-fn hint_cleared() {
-    #[derive(Debug, Serialize, Deserialize)]
-    struct Foo<'a> {
-        #[serde(borrow)]
-        doc: &'a RawDocument,
-        #[serde(borrow)]
-        binary: RawBinary<'a>,
-    }
-
-    let binary_value = Binary {
-        bytes: vec![1, 2, 3, 4],
-        subtype: BinarySubtype::Generic,
-    };
-
-    let doc_value = doc! {
-        "binary": binary_value.clone()
-    };
-
-    let bytes = bson::to_vec(&doc_value).unwrap();
-
-    let doc = RawDocument::new(&bytes).unwrap();
-    let binary = doc.get_binary("binary").unwrap();
-
-    let f = Foo { doc, binary };
-
-    let serialized_bytes = bson::to_vec(&f).unwrap();
-    let round_doc: Document = bson::from_slice(&serialized_bytes).unwrap();
-
-    assert_eq!(round_doc, doc! { "doc": doc_value, "binary": binary_value });
-}
-
-#[test]
 fn non_human_readable() {
-    let bytes = vec![1, 2, 3, 4];
-    let binary = RawBinary {
-        bytes: &bytes,
-        subtype: BinarySubtype::BinaryOld,
-    };
-
-    let doc_bytes = bson::to_vec(&doc! { "a": "b", "array": [1, 2, 3] }).unwrap();
-    let doc = RawDocument::new(doc_bytes.as_slice()).unwrap();
-    let arr = doc.get_array("array").unwrap();
     let oid = ObjectId::new();
     let uuid = Uuid::new();
 
     #[derive(Debug, Deserialize, Serialize)]
-    struct Foo<'a> {
-        #[serde(borrow)]
-        binary: RawBinary<'a>,
-        #[serde(borrow)]
-        doc: &'a RawDocument,
-        #[serde(borrow)]
-        arr: &'a RawArray,
+    struct Foo {
         oid: ObjectId,
         uuid: Uuid,
     }
 
-    let val = Foo {
-        binary,
-        doc,
-        arr,
-        oid,
-        uuid,
-    };
+    let val = Foo { oid, uuid };
 
     let human_readable = bson::to_bson(&val).unwrap();
     let non_human_readable = bson::to_bson_with_options(
@@ -1354,12 +1075,6 @@ fn non_human_readable() {
     .unwrap();
 
     let expected = bson!({
-        "binary": Binary { bytes: bytes.clone(), subtype: BinarySubtype::BinaryOld },
-        "doc": {
-            "a": "b",
-            "array": [1, 2, 3],
-        },
-        "arr": [1, 2, 3],
         "oid": oid,
         "uuid": uuid
     });

@@ -16,52 +16,11 @@
 //! implementation) returns a `Result`, since the bytes contained in the document are not fully
 //! validated until trying to access the contained data.
 //!
-//! ```rust
-//! use bson::raw::{
-//!     RawBson,
-//!     RawDocumentBuf,
-//! };
-//!
-//! // See http://bsonspec.org/spec.html for details on the binary encoding of BSON.
-//! let doc = RawDocumentBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-//! let elem = doc.get("hi")?.unwrap();
-//!
-//! assert_eq!(
-//!   elem.as_str(),
-//!   Some("y'all"),
-//! );
-//! # Ok::<(), bson::raw::Error>(())
-//! ```
-//!
 //! ### [`crate::Document`] interop
 //!
 //! A [`RawDocument`] can be created from a [`crate::Document`]. Internally, this
 //! serializes the [`crate::Document`] to a `Vec<u8>`, and then includes those bytes in the
 //! [`RawDocument`].
-//!
-//! ```rust
-//! use bson::{
-//!     raw::RawDocumentBuf,
-//!     doc,
-//! };
-//!
-//! let document = doc! {
-//!    "goodbye": {
-//!        "cruel": "world"
-//!    }
-//! };
-//!
-//! let raw = RawDocumentBuf::from_document(&document)?;
-//! let value = raw
-//!     .get_document("goodbye")?
-//!     .get_str("cruel")?;
-//!
-//! assert_eq!(
-//!     value,
-//!     "world",
-//! );
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
 //!
 //! ### Reference type ([`RawDocument`])
 //!
@@ -72,45 +31,11 @@
 //!
 //! The below example constructs a bson document in a stack-based array,
 //! and extracts a `&str` from it, performing no heap allocation.
-//! ```rust
-//! use bson::raw::RawDocument;
-//!
-//! let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
-//! assert_eq!(RawDocument::new(bytes)?.get_str("hi")?, "y'all");
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
 //!
 //! ### Iteration
 //!
 //! [`RawDocument`] implements [`IntoIterator`](std::iter::IntoIterator), which can also be
 //! accessed via [`RawDocumentBuf::iter`].
-
-//! ```rust
-//! use bson::{
-//!    raw::{
-//!        RawBson,
-//!        RawDocumentBuf,
-//!    },
-//!    doc,
-//! };
-//!
-//! let original_doc = doc! {
-//!     "crate": "bson",
-//!     "year": "2021",
-//! };
-//!
-//! let doc = RawDocumentBuf::from_document(&original_doc)?;
-//! let mut doc_iter = doc.iter();
-//!
-//! let (key, value): (&str, RawBson) = doc_iter.next().unwrap()?;
-//! assert_eq!(key, "crate");
-//! assert_eq!(value.as_str(), Some("bson"));
-//!
-//! let (key, value): (&str, RawBson) = doc_iter.next().unwrap()?;
-//! assert_eq!(key, "year");
-//! assert_eq!(value.as_str(), Some("2021"));
-//! # Ok::<(), bson::raw::Error>(())
-//! ```
 
 mod array;
 mod bson;

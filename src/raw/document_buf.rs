@@ -20,32 +20,11 @@ use super::{Error, ErrorKind, Iter, RawBson, RawDocument, Result};
 /// Iterating over a [`RawDocumentBuf`] yields either an error or a key-value pair that borrows from
 /// the original document without making any additional allocations.
 ///
-/// ```
-/// # use bson::raw::Error;
-/// use bson::raw::RawDocumentBuf;
-///
-/// let doc = RawDocumentBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-/// let mut iter = doc.iter();
-/// let (key, value) = iter.next().unwrap()?;
-/// assert_eq!(key, "hi");
-/// assert_eq!(value.as_str(), Some("y'all"));
-/// assert!(iter.next().is_none());
-/// # Ok::<(), Error>(())
-/// ```
-///
 /// This type implements `Deref` to [`RawDocument`], meaning that all methods on [`RawDocument`] are
 /// available on [`RawDocumentBuf`] values as well. This includes [`RawDocument::get`] or any of the
 /// type-specific getters, such as [`RawDocument::get_object_id`] or [`RawDocument::get_str`]. Note
 /// that accessing elements is an O(N) operation, as it requires iterating through the document from
 /// the beginning to find the requested key.
-///
-/// ```
-/// use bson::raw::RawDocumentBuf;
-///
-/// let doc = RawDocumentBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
-/// assert_eq!(doc.get_str("hi")?, "y'all");
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
 #[derive(Clone, PartialEq)]
 pub struct RawDocumentBuf {
     data: Vec<u8>,
@@ -63,31 +42,12 @@ impl RawDocumentBuf {
     /// BSON elements is _not_ validated at all by this method. If the
     /// bytes do not conform to the BSON spec, then method calls on
     /// the RawDocument will return Errors where appropriate.
-    ///
-    /// ```
-    /// # use bson::raw::{RawDocumentBuf, Error};
-    /// let doc = RawDocumentBuf::new(b"\x05\0\0\0\0".to_vec())?;
-    /// # Ok::<(), Error>(())
-    /// ```
     pub fn new(data: Vec<u8>) -> Result<RawDocumentBuf> {
         let _ = RawDocument::new(data.as_slice())?;
         Ok(Self { data })
     }
 
     /// Create a [`RawDocumentBuf`] from a [`Document`].
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, oid::ObjectId, raw::RawDocumentBuf};
-    ///
-    /// let document = doc! {
-    ///     "_id": ObjectId::new(),
-    ///     "name": "Herman Melville",
-    ///     "title": "Moby-Dick",
-    /// };
-    /// let doc = RawDocumentBuf::from_document(&document)?;
-    /// # Ok::<(), Error>(())
-    /// ```
     pub fn from_document(doc: &Document) -> Result<RawDocumentBuf> {
         let mut data = Vec::new();
         doc.to_writer(&mut data).map_err(|e| Error {
@@ -103,20 +63,6 @@ impl RawDocumentBuf {
     /// Gets an iterator over the elements in the [`RawDocumentBuf`], which yields
     /// `Result<(&str, RawBson<'_>)>`.
     ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocumentBuf};
-    ///
-    /// let doc = RawDocumentBuf::from_document(&doc! { "ferris": true })?;
-    ///
-    /// for element in doc.iter() {
-    ///     let (key, value) = element?;
-    ///     assert_eq!(key, "ferris");
-    ///     assert_eq!(value.as_bool(), Some(true));
-    /// }
-    /// # Ok::<(), Error>(())
-    /// ```
-    ///
     /// # Note:
     ///
     /// There is no owning iterator for [`RawDocumentBuf`]. If you need ownership over
@@ -127,15 +73,6 @@ impl RawDocumentBuf {
     }
 
     /// Return the contained data as a `Vec<u8>`
-    ///
-    /// ```
-    /// # use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocumentBuf};
-    ///
-    /// let doc = RawDocumentBuf::from_document(&doc!{})?;
-    /// assert_eq!(doc.into_vec(), b"\x05\x00\x00\x00\x00".to_vec());
-    /// # Ok::<(), Error>(())
-    /// ```
     pub fn into_vec(self) -> Vec<u8> {
         self.data
     }
