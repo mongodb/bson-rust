@@ -1,12 +1,13 @@
 use std::{
     borrow::{Borrow, Cow},
-    convert::TryFrom,
+    convert::{TryFrom, TryInto},
+    ffi::CString,
     ops::Deref,
 };
 
 use serde::{Deserialize, Serialize};
 
-use crate::Document;
+use crate::{de::MIN_BSON_DOCUMENT_SIZE, spec::ElementType, Document};
 
 use super::{Error, ErrorKind, Iter, RawBson, RawDocument, Result};
 
@@ -52,6 +53,12 @@ pub struct RawDocumentBuf {
 }
 
 impl RawDocumentBuf {
+    pub fn empty() -> RawDocumentBuf {
+        let mut data: Vec<u8> = MIN_BSON_DOCUMENT_SIZE.to_le_bytes().to_vec();
+        data.push(0);
+        Self { data }
+    }
+
     /// Constructs a new [`RawDocumentBuf`], validating _only_ the
     /// following invariants:
     ///   * `data` is at least five bytes long (the minimum for a valid BSON document)
@@ -138,6 +145,42 @@ impl RawDocumentBuf {
     /// ```
     pub fn into_vec(self) -> Vec<u8> {
         self.data
+    }
+
+    pub fn append_document_buf(&mut self, key: impl AsRef<str>, value: RawDocumentBuf) {
+        self.append(key, RawBson::Document(&value))
+    }
+
+    pub fn append<'a>(&mut self, key: impl AsRef<str>, value: RawBson<'a>) {
+        let original_len = self.data.len();
+        let key_bytes = key.as_ref().as_bytes();
+        let key = CString::new(key_bytes).unwrap();
+        self.data.extend(key.to_bytes_with_nul());
+        match value {
+            RawBson::Int32(i) => {
+                self.data.extend(i.to_le_bytes());
+            },
+            RawBson::String(s) => {
+                self.data.extend(((s.as_bytes().len() + 1) as i32).to_le_bytes());
+                self.data.extend(s.as_bytes());
+                self.data.push(0);
+            },
+            RawBson::Document(d) => {
+                self.data.extend(d.as_bytes());
+            }
+            _ => todo!(),
+        }
+        // update element type
+        self.data[original_len - 1] = value.element_type() as u8;
+        // append trailing null byte
+        self.data.push(0);
+        // update length
+        self.data
+            .splice(0..4, (self.data.len() as i32).to_le_bytes());
+    }
+
+    pub fn to_document(&self) -> Result<Document> {
+        self.as_ref().try_into()
     }
 }
 

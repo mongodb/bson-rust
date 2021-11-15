@@ -1,18 +1,7 @@
 mod props;
 
 use super::*;
-use crate::{
-    doc,
-    oid::ObjectId,
-    raw::error::ValueAccessErrorKind,
-    spec::BinarySubtype,
-    Binary,
-    Bson,
-    DateTime,
-    JavaScriptCodeWithScope,
-    Regex,
-    Timestamp,
-};
+use crate::{Binary, Bson, DateTime, Document, JavaScriptCodeWithScope, Regex, Timestamp, doc, oid::ObjectId, raw::error::ValueAccessErrorKind, spec::BinarySubtype};
 use chrono::{TimeZone, Utc};
 
 fn to_bytes(doc: &crate::Document) -> Vec<u8> {
@@ -477,6 +466,16 @@ fn into_bson_conversion() {
         *doc.get("boolean").expect("boolean not found"),
         Bson::Boolean(false)
     );
+}
+
+#[test]
+fn append() {
+    let mut buf = RawDocumentBuf::empty();
+    buf.append("dog", RawBson::Int32(4));
+    buf.append("cat", RawBson::Int32(1));
+
+    let doc = buf.to_document().unwrap();
+    println!("{:#?}", doc);
 }
 
 use props::arbitrary_bson;
