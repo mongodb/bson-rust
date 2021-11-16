@@ -379,10 +379,12 @@ impl Bson {
             }
             Bson::Double(v) => json!(v),
             Bson::String(v) => json!(v),
-            Bson::Array(v) => json!(v),
-            Bson::Document(v) => {
-                Value::Object(v.into_iter().map(|(k, v)| (k, Value::from(v))).collect())
-            }
+            Bson::Array(v) => Value::Array(v.into_iter().map(Bson::into_relaxed_extjson).collect()),
+            Bson::Document(v) => Value::Object(
+                v.into_iter()
+                    .map(|(k, v)| (k, v.into_relaxed_extjson()))
+                    .collect(),
+            ),
             Bson::Boolean(v) => json!(v),
             Bson::Null => Value::Null,
             Bson::RegularExpression(Regex { pattern, options }) => {
