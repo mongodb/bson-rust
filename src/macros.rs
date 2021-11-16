@@ -213,179 +213,179 @@ macro_rules! doc {
     }};
 }
 
-#[macro_export]
-macro_rules! rawbson {
-    //////////////////////////////////////////////////////////////////////////
-    // TT muncher for parsing the inside of an array [...]. Produces a vec![...]
-    // of the elements.
-    //
-    // Must be invoked as: bson!(@array [] $($tt)*)
-    //////////////////////////////////////////////////////////////////////////
+// #[macro_export]
+// macro_rules! rawbson {
+//     //////////////////////////////////////////////////////////////////////////
+//     // TT muncher for parsing the inside of an array [...]. Produces a vec![...]
+//     // of the elements.
+//     //
+//     // Must be invoked as: bson!(@array [] $($tt)*)
+//     //////////////////////////////////////////////////////////////////////////
 
-    // Finished with trailing comma.
-    (@array [$($elems:expr,)*]) => {
-        vec![$($elems,)*]
-    };
+//     // Finished with trailing comma.
+//     (@array [$($elems:expr,)*]) => {
+//         vec![$($elems,)*]
+//     };
 
-    // Finished without trailing comma.
-    (@array [$($elems:expr),*]) => {
-        vec![$($elems),*]
-    };
+//     // Finished without trailing comma.
+//     (@array [$($elems:expr),*]) => {
+//         vec![$($elems),*]
+//     };
 
-    // Next element is `null`.
-    (@array [$($elems:expr,)*] null $($rest:tt)*) => {
-        $crate::rawbson!(@array [$($elems,)* $crate::rawbson!(null)] $($rest)*)
-    };
+//     // Next element is `null`.
+//     (@array [$($elems:expr,)*] null $($rest:tt)*) => {
+//         $crate::rawbson!(@array [$($elems,)* $crate::rawbson!(null)] $($rest)*)
+//     };
 
-    // Next element is an array.
-    (@array [$($elems:expr,)*] [$($array:tt)*] $($rest:tt)*) => {
-        $crate::rawbson!(@array [$($elems,)* $crate::rawbson!([$($array)*])] $($rest)*)
-    };
+//     // Next element is an array.
+//     (@array [$($elems:expr,)*] [$($array:tt)*] $($rest:tt)*) => {
+//         $crate::rawbson!(@array [$($elems,)* $crate::rawbson!([$($array)*])] $($rest)*)
+//     };
 
-    // Next element is a map.
-    (@array [$($elems:expr,)*] {$($map:tt)*} $($rest:tt)*) => {
-        $crate::rawbson!(@array [$($elems,)* $crate::rawbson!({$($map)*})] $($rest)*)
-    };
+//     // Next element is a map.
+//     (@array [$($elems:expr,)*] {$($map:tt)*} $($rest:tt)*) => {
+//         $crate::rawbson!(@array [$($elems,)* $crate::rawbson!({$($map)*})] $($rest)*)
+//     };
 
-    // Next element is an expression followed by comma.
-    (@array [$($elems:expr,)*] $next:expr, $($rest:tt)*) => {
-        $crate::rawbson!(@array [$($elems,)* $crate::rawbson!($next),] $($rest)*)
-    };
+//     // Next element is an expression followed by comma.
+//     (@array [$($elems:expr,)*] $next:expr, $($rest:tt)*) => {
+//         $crate::rawbson!(@array [$($elems,)* $crate::rawbson!($next),] $($rest)*)
+//     };
 
-    // Last element is an expression with no trailing comma.
-    (@array [$($elems:expr,)*] $last:expr) => {
-        $crate::rawbson!(@array [$($elems,)* $crate::rawbson!($last)])
-    };
+//     // Last element is an expression with no trailing comma.
+//     (@array [$($elems:expr,)*] $last:expr) => {
+//         $crate::rawbson!(@array [$($elems,)* $crate::rawbson!($last)])
+//     };
 
-    // Comma after the most recent element.
-    (@array [$($elems:expr),*] , $($rest:tt)*) => {
-        $crate::rawbson!(@array [$($elems,)*] $($rest)*)
-    };
+//     // Comma after the most recent element.
+//     (@array [$($elems:expr),*] , $($rest:tt)*) => {
+//         $crate::rawbson!(@array [$($elems,)*] $($rest)*)
+//     };
 
-    //////////////////////////////////////////////////////////////////////////
-    // TT muncher for parsing the inside of an object {...}. Each entry is
-    // inserted into the given map variable.
-    //
-    // Must be invoked as: bson!(@object $map () ($($tt)*) ($($tt)*))
-    //
-    // We require two copies of the input tokens so that we can match on one
-    // copy and trigger errors on the other copy.
-    //////////////////////////////////////////////////////////////////////////
+//     //////////////////////////////////////////////////////////////////////////
+//     // TT muncher for parsing the inside of an object {...}. Each entry is
+//     // inserted into the given map variable.
+//     //
+//     // Must be invoked as: bson!(@object $map () ($($tt)*) ($($tt)*))
+//     //
+//     // We require two copies of the input tokens so that we can match on one
+//     // copy and trigger errors on the other copy.
+//     //////////////////////////////////////////////////////////////////////////
 
-    // Finished.
-    (@object $object:ident () () ()) => {};
+//     // Finished.
+//     (@object $object:ident () () ()) => {};
 
-    // Insert the current entry followed by trailing comma.
-    (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
-        $object.append(($($key)+), $value);
-        $crate::rawbson!(@object $object () ($($rest)*) ($($rest)*));
-    };
+//     // Insert the current entry followed by trailing comma.
+//     (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
+//         $object.append(($($key)+), $value);
+//         $crate::rawbson!(@object $object () ($($rest)*) ($($rest)*));
+//     };
 
-    // Insert the last entry without trailing comma.
-    (@object $object:ident [$($key:tt)+] ($value:expr)) => {
-        $object.append(($($key)+), $value);
-    };
+//     // Insert the last entry without trailing comma.
+//     (@object $object:ident [$($key:tt)+] ($value:expr)) => {
+//         $object.append(($($key)+), $value);
+//     };
 
-    // // Next value is `null`.
-    // (@object $object:ident ($($key:tt)+) (: null $($rest:tt)*) $copy:tt) => {
-    //     $crate::bson!(@object $object [$($key)+] ($crate::bson!(null)) $($rest)*);
-    // };
+//     // // Next value is `null`.
+//     // (@object $object:ident ($($key:tt)+) (: null $($rest:tt)*) $copy:tt) => {
+//     //     $crate::bson!(@object $object [$($key)+] ($crate::bson!(null)) $($rest)*);
+//     // };
 
-    // Next value is an array.
-    (@object $object:ident ($($key:tt)+) (: [$($array:tt)*] $($rest:tt)*) $copy:tt) => {
-        $crate::bson!(@object $object [$($key)+] ($crate::bson!([$($array)*])) $($rest)*);
-    };
+//     // Next value is an array.
+//     (@object $object:ident ($($key:tt)+) (: [$($array:tt)*] $($rest:tt)*) $copy:tt) => {
+//         $crate::bson!(@object $object [$($key)+] ($crate::bson!([$($array)*])) $($rest)*);
+//     };
 
-    // Next value is a map.
-    (@object $object:ident ($($key:tt)+) (: {$($map:tt)*} $($rest:tt)*) $copy:tt) => {
-        $crate::bson!(@object $object [$($key)+] ($crate::bson!({$($map)*})) $($rest)*);
-    };
+//     // Next value is a map.
+//     (@object $object:ident ($($key:tt)+) (: {$($map:tt)*} $($rest:tt)*) $copy:tt) => {
+//         $crate::bson!(@object $object [$($key)+] ($crate::bson!({$($map)*})) $($rest)*);
+//     };
 
-    // Next value is an expression followed by comma.
-    (@object $object:ident ($($key:tt)+) (: $value:expr , $($rest:tt)*) $copy:tt) => {
-        $crate::bson!(@object $object [$($key)+] ($crate::bson!($value)) , $($rest)*);
-    };
+//     // Next value is an expression followed by comma.
+//     (@object $object:ident ($($key:tt)+) (: $value:expr , $($rest:tt)*) $copy:tt) => {
+//         $crate::bson!(@object $object [$($key)+] ($crate::bson!($value)) , $($rest)*);
+//     };
 
-    // Last value is an expression with no trailing comma.
-    (@object $object:ident ($($key:tt)+) (: $value:expr) $copy:tt) => {
-        $crate::bson!(@object $object [$($key)+] ($crate::bson!($value)));
-    };
+//     // Last value is an expression with no trailing comma.
+//     (@object $object:ident ($($key:tt)+) (: $value:expr) $copy:tt) => {
+//         $crate::bson!(@object $object [$($key)+] ($crate::bson!($value)));
+//     };
 
-    // Missing value for last entry. Trigger a reasonable error message.
-    (@object $object:ident ($($key:tt)+) (:) $copy:tt) => {
-        // "unexpected end of macro invocation"
-        $crate::bson!();
-    };
+//     // Missing value for last entry. Trigger a reasonable error message.
+//     (@object $object:ident ($($key:tt)+) (:) $copy:tt) => {
+//         // "unexpected end of macro invocation"
+//         $crate::bson!();
+//     };
 
-    // Missing key-value separator and value for last entry.
-    // Trigger a reasonable error message.
-    (@object $object:ident ($($key:tt)+) () $copy:tt) => {
-        // "unexpected end of macro invocation"
-        $crate::bson!();
-    };
+//     // Missing key-value separator and value for last entry.
+//     // Trigger a reasonable error message.
+//     (@object $object:ident ($($key:tt)+) () $copy:tt) => {
+//         // "unexpected end of macro invocation"
+//         $crate::bson!();
+//     };
 
-    // Misplaced key-value separator. Trigger a reasonable error message.
-    (@object $object:ident () (: $($rest:tt)*) ($kv_separator:tt $($copy:tt)*)) => {
-        // Takes no arguments so "no rules expected the token `:`".
-        unimplemented!($kv_separator);
-    };
+//     // Misplaced key-value separator. Trigger a reasonable error message.
+//     (@object $object:ident () (: $($rest:tt)*) ($kv_separator:tt $($copy:tt)*)) => {
+//         // Takes no arguments so "no rules expected the token `:`".
+//         unimplemented!($kv_separator);
+//     };
 
-    // Found a comma inside a key. Trigger a reasonable error message.
-    (@object $object:ident ($($key:tt)*) (, $($rest:tt)*) ($comma:tt $($copy:tt)*)) => {
-        // Takes no arguments so "no rules expected the token `,`".
-        unimplemented!($comma);
-    };
+//     // Found a comma inside a key. Trigger a reasonable error message.
+//     (@object $object:ident ($($key:tt)*) (, $($rest:tt)*) ($comma:tt $($copy:tt)*)) => {
+//         // Takes no arguments so "no rules expected the token `,`".
+//         unimplemented!($comma);
+//     };
 
-    // Key is fully parenthesized. This avoids clippy double_parens false
-    // positives because the parenthesization may be necessary here.
-    (@object $object:ident () (($key:expr) : $($rest:tt)*) $copy:tt) => {
-        $crate::bson!(@object $object ($key) (: $($rest)*) (: $($rest)*));
-    };
+//     // Key is fully parenthesized. This avoids clippy double_parens false
+//     // positives because the parenthesization may be necessary here.
+//     (@object $object:ident () (($key:expr) : $($rest:tt)*) $copy:tt) => {
+//         $crate::bson!(@object $object ($key) (: $($rest)*) (: $($rest)*));
+//     };
 
-    // Munch a token into the current key.
-    (@object $object:ident ($($key:tt)*) ($tt:tt $($rest:tt)*) $copy:tt) => {
-        $crate::bson!(@object $object ($($key)* $tt) ($($rest)*) ($($rest)*));
-    };
+//     // Munch a token into the current key.
+//     (@object $object:ident ($($key:tt)*) ($tt:tt $($rest:tt)*) $copy:tt) => {
+//         $crate::bson!(@object $object ($($key)* $tt) ($($rest)*) ($($rest)*));
+//     };
 
-    //////////////////////////////////////////////////////////////////////////
-    // The main implementation.
-    //
-    // Must be invoked as: bson!($($bson)+)
-    //////////////////////////////////////////////////////////////////////////
+//     //////////////////////////////////////////////////////////////////////////
+//     // The main implementation.
+//     //
+//     // Must be invoked as: bson!($($bson)+)
+//     //////////////////////////////////////////////////////////////////////////
 
-    (null) => {
-        $crate::Bson::Null
-    };
+//     (null) => {
+//         $crate::Bson::Null
+//     };
 
-    ([]) => {
-        $crate::Bson::Array(vec![])
-    };
+//     ([]) => {
+//         $crate::Bson::Array(vec![])
+//     };
 
-    ([ $($tt:tt)+ ]) => {
-        $crate::Bson::Array($crate::bson!(@array [] $($tt)+))
-    };
+//     ([ $($tt:tt)+ ]) => {
+//         $crate::Bson::Array($crate::bson!(@array [] $($tt)+))
+//     };
 
-    ({}) => {
-        $crate::RawBson::Document($crate::rawdoc!{})
-    };
+//     ({}) => {
+//         $crate::RawBson::Document($crate::rawdoc!{})
+//     };
 
-    ({$($tt:tt)+}) => {
-        $crate::RawBson::Document($crate::rawdoc!{$($tt)+})
-    };
+//     ({$($tt:tt)+}) => {
+//         $crate::RawBson::Document($crate::rawdoc!{$($tt)+})
+//     };
 
-    // Any Into<Bson> type.
-    // Must be below every other rule.
-    ($other:expr) => {
-        $crate::RawBson::from($other)
-    };
-}
+//     // Any Into<Bson> type.
+//     // Must be below every other rule.
+//     ($other:expr) => {
+//         $crate::RawBson::from($other)
+//     };
+// }
 
-#[macro_export]
-macro_rules! rawdoc {
-    () => {{ $crate::RawDocumentBuf::empty() }};
-    ( $($tt:tt)+ ) => {{
-        let mut object = $crate::RawDocumentBuf::empty();
-        $crate::rawbson!(@object object () ($($tt)+) ($($tt)+));
-        object
-    }};
-}
+// #[macro_export]
+// macro_rules! rawdoc {
+//     () => {{ $crate::RawDocumentBuf::empty() }};
+//     ( $($tt:tt)+ ) => {{
+//         let mut object = $crate::RawDocumentBuf::empty();
+//         $crate::rawbson!(@object object () ($($tt)+) ($($tt)+));
+//         object
+//     }};
+// }

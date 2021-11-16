@@ -113,6 +113,7 @@
 //! ```
 
 mod array;
+mod array_buf;
 mod bson;
 mod document;
 mod document_buf;
@@ -127,6 +128,7 @@ use crate::de::MIN_BSON_STRING_SIZE;
 
 pub use self::{
     array::{RawArray, RawArrayIter},
+    array_buf::RawArrayBuf,
     bson::{RawBinary, RawBson, RawDbPointer, RawJavaScriptCodeWithScope, RawRegex},
     document::RawDocument,
     document_buf::RawDocumentBuf,

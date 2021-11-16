@@ -277,7 +277,7 @@ pub use self::{
     },
     decimal128::Decimal128,
     raw::{
-        RawArray, RawBinary, RawBson, RawDbPointer, RawDocument, RawDocumentBuf, RawJavaScriptCodeWithScope,
+        RawArray, RawArrayBuf, RawBinary, RawBson, RawDbPointer, RawDocument, RawDocumentBuf, RawJavaScriptCodeWithScope,
         RawRegex,
     },
     ser::{

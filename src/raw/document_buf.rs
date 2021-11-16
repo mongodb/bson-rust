@@ -7,7 +7,11 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{de::MIN_BSON_DOCUMENT_SIZE, spec::ElementType, Document};
+use crate::{
+    de::MIN_BSON_DOCUMENT_SIZE,
+    spec::{BinarySubtype, ElementType},
+    Document,
+};
 
 use super::{Error, ErrorKind, Iter, RawBson, RawDocument, Result};
 
@@ -151,24 +155,94 @@ impl RawDocumentBuf {
         self.append(key, RawBson::Document(&value))
     }
 
-    pub fn append<'a>(&mut self, key: impl AsRef<str>, value: RawBson<'a>) {
+    pub fn append<'a>(&mut self, key: impl AsRef<str>, value: impl Into<RawBson<'a>>) {
+        fn append_str(doc: &mut RawDocumentBuf, value: &str) {
+            doc.data
+                .extend(((value.as_bytes().len() + 1) as i32).to_le_bytes());
+            doc.data.extend(value.as_bytes());
+            doc.data.push(0);
+        }
+
+        fn append_cstr(doc: &mut RawDocumentBuf, value: &str) {
+            if value.contains('\0') {
+                panic!("cstr includes interior null byte: {}", value)
+            }
+            doc.data.extend(value.as_bytes());
+            doc.data.push(0);
+        }
+
         let original_len = self.data.len();
-        let key_bytes = key.as_ref().as_bytes();
-        let key = CString::new(key_bytes).unwrap();
-        self.data.extend(key.to_bytes_with_nul());
+
+        // write the key for the next value to the end
+        // the element type will replace the previous null byte terminator of the document
+        append_cstr(self, key.as_ref());
+
+        let value = value.into();
+
         match value {
             RawBson::Int32(i) => {
                 self.data.extend(i.to_le_bytes());
-            },
+            }
             RawBson::String(s) => {
-                self.data.extend(((s.as_bytes().len() + 1) as i32).to_le_bytes());
-                self.data.extend(s.as_bytes());
-                self.data.push(0);
-            },
+                append_str(self, s);
+            }
             RawBson::Document(d) => {
                 self.data.extend(d.as_bytes());
             }
-            _ => todo!(),
+            RawBson::Array(a) => {
+                self.data.extend(a.as_bytes());
+            }
+            RawBson::Binary(b) => {
+                self.data.extend(b.len().to_le_bytes());
+                self.data.push(b.subtype.into());
+                if let BinarySubtype::BinaryOld = b.subtype {
+                    self.data.extend((b.len() - 4).to_le_bytes())
+                }
+                self.data.extend(b.bytes);
+            }
+            RawBson::Boolean(b) => {
+                let byte = if b { 1 } else { 0 };
+                self.data.push(byte);
+            }
+            RawBson::DateTime(dt) => {
+                self.data.extend(dt.timestamp_millis().to_le_bytes());
+            }
+            RawBson::DbPointer(dbp) => {
+                append_str(self, dbp.namespace);
+                self.data.extend(dbp.id.bytes());
+            }
+            RawBson::Decimal128(d) => {
+                self.data.extend(d.bytes());
+            }
+            RawBson::Double(d) => {
+                self.data.extend(d.to_le_bytes());
+            }
+            RawBson::Int64(i) => {
+                self.data.extend(i.to_le_bytes());
+            }
+            RawBson::RegularExpression(re) => {
+                append_cstr(self, re.pattern);
+                append_cstr(self, re.options);
+            }
+            RawBson::JavaScriptCode(js) => {
+                append_str(self, js);
+            }
+            RawBson::JavaScriptCodeWithScope(code_w_scope) => {
+                let len = code_w_scope.len();
+                self.data.extend(len.to_le_bytes());
+                append_str(self, code_w_scope.code);
+                self.data.extend(code_w_scope.scope.as_bytes());
+            }
+            RawBson::Timestamp(ts) => {
+                self.data.extend(ts.to_le_i64().to_le_bytes());
+            }
+            RawBson::ObjectId(oid) => {
+                self.data.extend(oid.bytes());
+            }
+            RawBson::Symbol(s) => {
+                append_str(self, s);
+            }
+            RawBson::Null | RawBson::Undefined | RawBson::MinKey | RawBson::MaxKey => {}
         }
         // update element type
         self.data[original_len - 1] = value.element_type() as u8;

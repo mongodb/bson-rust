@@ -34,6 +34,7 @@ use crate::{
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
     Decimal128,
+    RawBinary,
 };
 
 /// Possible BSON value types.
@@ -335,6 +336,12 @@ impl From<crate::DateTime> for Bson {
 impl From<DbPointer> for Bson {
     fn from(a: DbPointer) -> Bson {
         Bson::DbPointer(a)
+    }
+}
+
+impl From<Decimal128> for Bson {
+    fn from(d: Decimal128) -> Self {
+        Bson::Decimal128(d)
     }
 }
 
@@ -732,10 +739,7 @@ impl Bson {
                 if let Ok(regex) = doc.get_document("$regularExpression") {
                     if let Ok(pattern) = regex.get_str("pattern") {
                         if let Ok(options) = regex.get_str("options") {
-                            return Bson::RegularExpression(Regex::new(
-                                pattern.into(),
-                                options.into(),
-                            ));
+                            return Bson::RegularExpression(Regex::new(pattern, options));
                         }
                     }
                 }
@@ -1014,11 +1018,14 @@ pub struct Regex {
 }
 
 impl Regex {
-    pub(crate) fn new(pattern: String, options: String) -> Self {
-        let mut chars: Vec<_> = options.chars().collect();
+    pub(crate) fn new(pattern: impl AsRef<str>, options: impl AsRef<str>) -> Self {
+        let mut chars: Vec<_> = options.as_ref().chars().collect();
         chars.sort_unstable();
         let options: String = chars.into_iter().collect();
-        Self { pattern, options }
+        Self {
+            pattern: pattern.as_ref().to_string(),
+            options,
+        }
     }
 }
 
@@ -1088,6 +1095,13 @@ impl Binary {
                 bytes: binary.clone(),
                 subtype: u8::try_from(subtype).ok()?.into(),
             })
+        }
+    }
+
+    pub(crate) fn as_raw_binary(&self) -> RawBinary<'_> {
+        RawBinary {
+            bytes: self.bytes.as_slice(),
+            subtype: self.subtype,
         }
     }
 }

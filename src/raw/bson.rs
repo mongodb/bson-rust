@@ -1,4 +1,7 @@
-use std::convert::{TryFrom, TryInto};
+use std::{
+    convert::{TryFrom, TryInto},
+    iter::FromIterator,
+};
 
 use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Serialize};
 use serde_bytes::{ByteBuf, Bytes};
@@ -10,10 +13,14 @@ use crate::{
     oid::{self, ObjectId},
     raw::{RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::{BinarySubtype, ElementType},
+    Binary,
     Bson,
     DateTime,
     DbPointer,
     Decimal128,
+    JavaScriptCodeWithScope,
+    RawArrayBuf,
+    RawDocumentBuf,
     Timestamp,
 };
 
@@ -607,6 +614,84 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
     }
 }
 
+impl<'a> From<i32> for RawBson<'a> {
+    fn from(i: i32) -> Self {
+        RawBson::Int32(i)
+    }
+}
+
+impl<'a> From<i64> for RawBson<'a> {
+    fn from(i: i64) -> Self {
+        RawBson::Int64(i)
+    }
+}
+
+impl<'a> From<&'a str> for RawBson<'a> {
+    fn from(s: &'a str) -> Self {
+        RawBson::String(s)
+    }
+}
+
+impl<'a> From<f64> for RawBson<'a> {
+    fn from(f: f64) -> Self {
+        RawBson::Double(f)
+    }
+}
+
+impl<'a> From<bool> for RawBson<'a> {
+    fn from(b: bool) -> Self {
+        RawBson::Boolean(b)
+    }
+}
+
+impl<'a> From<&'a RawDocumentBuf> for RawBson<'a> {
+    fn from(d: &'a RawDocumentBuf) -> Self {
+        RawBson::Document(d.as_ref())
+    }
+}
+
+impl<'a> From<&'a RawDocument> for RawBson<'a> {
+    fn from(d: &'a RawDocument) -> Self {
+        RawBson::Document(d)
+    }
+}
+
+impl<'a> From<&'a RawArray> for RawBson<'a> {
+    fn from(a: &'a RawArray) -> Self {
+        RawBson::Array(a)
+    }
+}
+
+impl<'a> From<&'a RawArrayBuf> for RawBson<'a> {
+    fn from(a: &'a RawArrayBuf) -> Self {
+        RawBson::Array(a)
+    }
+}
+
+impl<'a> From<crate::DateTime> for RawBson<'a> {
+    fn from(dt: crate::DateTime) -> Self {
+        RawBson::DateTime(dt)
+    }
+}
+
+impl<'a> From<Timestamp> for RawBson<'a> {
+    fn from(ts: Timestamp) -> Self {
+        RawBson::Timestamp(ts)
+    }
+}
+
+impl<'a> From<ObjectId> for RawBson<'a> {
+    fn from(oid: ObjectId) -> Self {
+        RawBson::ObjectId(oid)
+    }
+}
+
+impl<'a> From<Decimal128> for RawBson<'a> {
+    fn from(d: Decimal128) -> Self {
+        RawBson::Decimal128(d)
+    }
+}
+
 /// A BSON binary value referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawBinary<'a> {
@@ -615,6 +700,15 @@ pub struct RawBinary<'a> {
 
     /// The binary bytes.
     pub bytes: &'a [u8],
+}
+
+impl<'a> RawBinary<'a> {
+    pub(crate) fn len(&self) -> i32 {
+        match self.subtype {
+            BinarySubtype::BinaryOld => self.bytes.len() as i32 + 4,
+            _ => self.bytes.len() as i32,
+        }
+    }
 }
 
 impl<'de: 'a, 'a> Deserialize<'de> for RawBinary<'a> {
@@ -664,6 +758,18 @@ impl<'a> Serialize for RawBinary<'a> {
             state.serialize_field("$binary", &body)?;
             state.end()
         }
+    }
+}
+
+impl<'a> From<RawBinary<'a>> for RawBson<'a> {
+    fn from(b: RawBinary<'a>) -> Self {
+        RawBson::Binary(b)
+    }
+}
+
+impl<'a> From<&'a Binary> for RawBson<'a> {
+    fn from(bin: &'a Binary) -> Self {
+        bin.as_raw_binary().into()
     }
 }
 
@@ -722,6 +828,12 @@ impl<'a> Serialize for RawRegex<'a> {
     }
 }
 
+impl<'a> From<RawRegex<'a>> for RawBson<'a> {
+    fn from(re: RawRegex<'a>) -> Self {
+        RawBson::RegularExpression(re)
+    }
+}
+
 /// A BSON "code with scope" value referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawJavaScriptCodeWithScope<'a> {
@@ -739,6 +851,10 @@ impl<'a> RawJavaScriptCodeWithScope<'a> {
     /// Gets the scope in the value.
     pub fn scope(self) -> &'a RawDocument {
         self.scope
+    }
+
+    pub(crate) fn len(self) -> i32 {
+        4 + 4 + self.code.len() as i32 + 1 + self.scope.len() as i32
     }
 }
 
@@ -766,6 +882,12 @@ impl<'a> Serialize for RawJavaScriptCodeWithScope<'a> {
         state.serialize_field("$code", &self.code)?;
         state.serialize_field("$scope", &self.scope)?;
         state.end()
+    }
+}
+
+impl<'a> From<RawJavaScriptCodeWithScope<'a>> for RawBson<'a> {
+    fn from(code_w_scope: RawJavaScriptCodeWithScope<'a>) -> Self {
+        RawBson::JavaScriptCodeWithScope(code_w_scope)
     }
 }
 

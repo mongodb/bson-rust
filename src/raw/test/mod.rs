@@ -1,7 +1,20 @@
+mod append;
 mod props;
 
 use super::*;
-use crate::{Binary, Bson, DateTime, Document, JavaScriptCodeWithScope, Regex, Timestamp, doc, oid::ObjectId, raw::error::ValueAccessErrorKind, spec::BinarySubtype};
+use crate::{
+    doc,
+    oid::ObjectId,
+    raw::error::ValueAccessErrorKind,
+    spec::BinarySubtype,
+    Binary,
+    Bson,
+    DateTime,
+    Document,
+    JavaScriptCodeWithScope,
+    Regex,
+    Timestamp,
+};
 use chrono::{TimeZone, Utc};
 
 fn to_bytes(doc: &crate::Document) -> Vec<u8> {
