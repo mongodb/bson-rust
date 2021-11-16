@@ -1,26 +1,9 @@
 use std::iter::FromIterator;
 
 use crate::{
-    oid::ObjectId,
-    spec::BinarySubtype,
-    tests::LOCK,
-    Binary,
-    Bson,
-    DateTime,
-    DbPointer,
-    Decimal128,
-    Document,
-    JavaScriptCodeWithScope,
-    RawArrayBuf,
-    RawBinary,
-    RawBson,
-    RawDbPointer,
-    RawDocument,
-    RawDocumentBuf,
-    RawJavaScriptCodeWithScope,
-    RawRegex,
-    Regex,
-    Timestamp,
+    oid::ObjectId, spec::BinarySubtype, tests::LOCK, Binary, Bson, DateTime, DbPointer, Decimal128,
+    Document, JavaScriptCodeWithScope, RawArrayBuf, RawBinary, RawBson, RawDbPointer, RawDocument,
+    RawDocumentBuf, RawJavaScriptCodeWithScope, RawRegex, Regex, Timestamp,
 };
 
 use pretty_assertions::assert_eq;
@@ -390,15 +373,35 @@ fn general() {
 
 #[test]
 fn from_iter() {
-    let mut doc = RawDocumentBuf::empty();
-    doc.append("ok", false);
-    doc.append("other", "hello");
-
-    let ab = RawArrayBuf::from_iter(vec![
-        RawBson::Boolean(true),
-        RawBson::Document(&RawDocumentBuf::from_iter(vec![
-            ("ok", RawBson::Boolean(false)),
-            ("other", RawBson::String("hello"))
-        ]))
+    let doc_buf = RawDocumentBuf::from_iter([
+        (
+            "array",
+            RawBson::Array(&RawArrayBuf::from_iter([
+                RawBson::Boolean(true),
+                RawBson::Document(&RawDocumentBuf::from_iter([
+                    ("ok", RawBson::Boolean(false)),
+                    ("other", RawBson::String("hello")),
+                ])),
+            ])),
+        ),
+        ("bool", RawBson::Boolean(true)),
+        ("string", RawBson::String("some string"))
     ]);
+
+    let doc = doc! {
+        "array": [
+            true,
+            {
+                "ok": false,
+                "other": "hello"
+            }
+        ],
+        "bool": true,
+        "string": "some string"
+    };
+
+    let expected = doc! { "expected": doc };
+    append_test(expected, |doc| {
+        doc.append("expected", &doc_buf);
+    });
 }

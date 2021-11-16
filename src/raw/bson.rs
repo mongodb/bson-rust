@@ -692,6 +692,12 @@ impl<'a> From<Decimal128> for RawBson<'a> {
     }
 }
 
+impl<'a, 'b> From<&'a RawBson<'b>> for RawBson<'b> {
+    fn from(b: &'a RawBson<'b>) -> Self {
+        *b
+    }
+}
+
 /// A BSON binary value referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawBinary<'a> {

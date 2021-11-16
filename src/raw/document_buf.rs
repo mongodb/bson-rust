@@ -331,7 +331,7 @@ impl Borrow<RawDocument> for RawDocumentBuf {
     }
 }
 
-impl<'a, 'b, T: Into<RawBson<'a>>> FromIterator<(&'a str, T)> for RawDocumentBuf {
+impl<'a, T: Into<RawBson<'a>>> FromIterator<(&'a str, T)> for RawDocumentBuf {
     fn from_iter<I: IntoIterator<Item = (&'a str, T)>>(iter: I) -> Self {
         let mut buf = RawDocumentBuf::empty();
         for (k, v) in iter {

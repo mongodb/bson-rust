@@ -1,6 +1,12 @@
-use std::{borrow::Borrow, iter::FromIterator};
+use std::{
+    borrow::{Borrow, Cow},
+    fmt::Debug,
+    iter::FromIterator,
+};
 
-use crate::{RawArray, RawBson, RawDocumentBuf};
+use crate::{raw::Result, RawArray, RawBson, RawDocumentBuf};
+
+use super::RawArrayIter;
 
 #[derive(Clone)]
 pub struct RawArrayBuf {
@@ -9,11 +15,19 @@ pub struct RawArrayBuf {
 }
 
 impl RawArrayBuf {
+    /// Construct a new, empty `RawArrayBuf`.
     pub fn new() -> RawArrayBuf {
         Self {
             inner: RawDocumentBuf::empty(),
             len: 0,
         }
+    }
+
+    pub fn from_vec(bytes: Vec<u8>) -> Result<Self> {
+        let doc = RawDocumentBuf::new(bytes)?;
+        let len = doc.iter().count();
+
+        Ok(Self { inner: doc, len })
     }
 
     pub fn append<'a>(&mut self, value: impl Into<RawBson<'a>>) {
@@ -23,6 +37,15 @@ impl RawArrayBuf {
 
     pub fn as_bytes(&self) -> &[u8] {
         self.inner.as_bytes()
+    }
+}
+
+impl Debug for RawArrayBuf {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RawArrayBuf")
+            .field("data", &hex::encode(self.as_bytes()))
+            .field("len", &self.len)
+            .finish()
     }
 }
 
@@ -43,6 +66,27 @@ impl AsRef<RawArray> for RawArrayBuf {
 impl Borrow<RawArray> for RawArrayBuf {
     fn borrow(&self) -> &RawArray {
         self.as_ref()
+    }
+}
+
+impl<'a> IntoIterator for &'a RawArrayBuf {
+    type IntoIter = RawArrayIter<'a>;
+    type Item = super::Result<RawBson<'a>>;
+
+    fn into_iter(self) -> RawArrayIter<'a> {
+        self.deref().into_iter()
+    }
+}
+
+impl<'a> From<RawArrayBuf> for Cow<'a, RawArray> {
+    fn from(rd: RawArrayBuf) -> Self {
+        Cow::Owned(rd)
+    }
+}
+
+impl<'a> From<&'a RawArrayBuf> for Cow<'a, RawArray> {
+    fn from(rd: &'a RawArrayBuf) -> Self {
+        Cow::Borrowed(rd.as_ref())
     }
 }
 

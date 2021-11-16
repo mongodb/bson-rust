@@ -12,14 +12,7 @@ use super::{
     RawRegex,
     Result,
 };
-use crate::{
-    oid::ObjectId,
-    raw::{RawBsonVisitor, RAW_ARRAY_NEWTYPE},
-    spec::{BinarySubtype, ElementType},
-    Bson,
-    DateTime,
-    Timestamp,
-};
+use crate::{Bson, DateTime, RawArrayBuf, Timestamp, oid::ObjectId, raw::{RawBsonVisitor, RAW_ARRAY_NEWTYPE}, spec::{BinarySubtype, ElementType}};
 
 /// A slice of a BSON document containing a BSON array value (akin to [`std::str`]). This can be
 /// retrieved from a [`RawDocument`] via [`RawDocument::get`].
@@ -88,6 +81,10 @@ impl RawArray {
         // the only field in a RawArray is a RawDocument, meaning the structs are represented
         // identically at the byte level.
         unsafe { &*(doc as *const RawDocument as *const RawArray) }
+    }
+
+    pub fn to_raw_array_buf(&self) -> RawArrayBuf {
+        RawArrayBuf::from
     }
 
     /// Gets a reference to the value at the given index.
@@ -219,6 +216,20 @@ impl TryFrom<&RawArray> for Vec<Bson> {
                 Bson::try_from(rawbson)
             })
             .collect()
+    }
+}
+
+impl ToOwned for RawArray {
+    type Owned = RawArrayBuf;
+
+    fn to_owned(&self) -> Self::Owned {
+        self.into_iter().collect()
+    }
+}
+
+impl<'a> From<&'a RawDocument> for Cow<'a, RawDocument> {
+    fn from(rdr: &'a RawDocument) -> Self {
+        Cow::Borrowed(rdr)
     }
 }
 
