@@ -1,12 +1,13 @@
 [package]
 name = "bson"
-version = "2.0.0"
+version = "2.1.0-beta"
 authors = [
     "Y. T. Chung <zonyitoo@gmail.com>",
     "Kevin Yeh <kevinyeah@utexas.edu>",
     "Saghm Rossi <saghmrossi@gmail.com>",
     "Patrick Freed <patrick.freed@mongodb.com>",
     "Isabel Atkinson <isabel.atkinson@mongodb.com>",
+    "Abraham Egnor <abraham.egnor@mongodb.com>",
 ]
 description = "Encoding and decoding support for BSON in Rust"
 license = "MIT"
