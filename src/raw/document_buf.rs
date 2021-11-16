@@ -1,9 +1,4 @@
-use std::{
-    borrow::{Borrow, Cow},
-    convert::{TryFrom, TryInto},
-    ffi::CString,
-    ops::Deref,
-};
+use std::{borrow::{Borrow, Cow}, convert::{TryFrom, TryInto}, ffi::CString, iter::FromIterator, ops::Deref};
 
 use serde::{Deserialize, Serialize};
 
@@ -333,5 +328,15 @@ impl Deref for RawDocumentBuf {
 impl Borrow<RawDocument> for RawDocumentBuf {
     fn borrow(&self) -> &RawDocument {
         &*self
+    }
+}
+
+impl<'a, 'b, T: Into<RawBson<'a>>> FromIterator<(&'a str, T)> for RawDocumentBuf {
+    fn from_iter<I: IntoIterator<Item = (&'a str, T)>>(iter: I) -> Self {
+        let mut buf = RawDocumentBuf::empty();
+        for (k, v) in iter {
+            buf.append(k, v);
+        }
+        buf
     }
 }

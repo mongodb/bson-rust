@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, iter::FromIterator};
 
 use crate::{RawArray, RawBson, RawDocumentBuf};
 
@@ -43,5 +43,15 @@ impl AsRef<RawArray> for RawArrayBuf {
 impl Borrow<RawArray> for RawArrayBuf {
     fn borrow(&self) -> &RawArray {
         self.as_ref()
+    }
+}
+
+impl<'a, T: Into<RawBson<'a>>> FromIterator<T> for RawArrayBuf {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut array_buf = RawArrayBuf::new();
+        for item in iter {
+            array_buf.append(item);
+        }
+        array_buf
     }
 }

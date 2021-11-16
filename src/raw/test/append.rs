@@ -1,3 +1,5 @@
+use std::iter::FromIterator;
+
 use crate::{
     oid::ObjectId,
     spec::BinarySubtype,
@@ -338,4 +340,65 @@ fn decimal128() {
     append_test(expected, |doc| {
         doc.append("decimal", decimal);
     });
+}
+
+#[test]
+fn general() {
+    let dt = DateTime::now();
+    let expected = doc! {
+        "a": true,
+        "second key": 123.4,
+        "third": 15_i64,
+        "32": -100101_i32,
+        "subdoc": {
+            "a": "subkey",
+            "another": { "subdoc": dt }
+        },
+        "array": [1_i64, true, { "doc": 23_i64 }, ["another", "array"]],
+    };
+
+    append_test(expected, |doc| {
+        doc.append("a", true);
+        doc.append("second key", 123.4);
+        doc.append("third", 15_i64);
+        doc.append("32", -100101_i32);
+
+        let mut subdoc = RawDocumentBuf::empty();
+        subdoc.append("a", "subkey");
+
+        let mut subsubdoc = RawDocumentBuf::empty();
+        subsubdoc.append("subdoc", dt);
+        subdoc.append("another", &subsubdoc);
+        doc.append("subdoc", &subdoc);
+
+        let mut array = RawArrayBuf::new();
+        array.append(1_i64);
+        array.append(true);
+
+        let mut array_subdoc = RawDocumentBuf::empty();
+        array_subdoc.append("doc", 23_i64);
+        array.append(&array_subdoc);
+
+        let mut sub_array = RawArrayBuf::new();
+        sub_array.append("another");
+        sub_array.append("array");
+        array.append(&sub_array);
+
+        doc.append("array", &array);
+    });
+}
+
+#[test]
+fn from_iter() {
+    let mut doc = RawDocumentBuf::empty();
+    doc.append("ok", false);
+    doc.append("other", "hello");
+
+    let ab = RawArrayBuf::from_iter(vec![
+        RawBson::Boolean(true),
+        RawBson::Document(&RawDocumentBuf::from_iter(vec![
+            ("ok", RawBson::Boolean(false)),
+            ("other", RawBson::String("hello"))
+        ]))
+    ]);
 }
