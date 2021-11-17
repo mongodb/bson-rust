@@ -83,6 +83,9 @@ impl RawArray {
         unsafe { &*(doc as *const RawDocument as *const RawArray) }
     }
 
+    /// Convert this borrowed [`RawArray`] into an owned [`RawArrayBuf`].
+    ///
+    /// This involves a traversal of the array to count the values.
     pub fn to_raw_array_buf(&self) -> RawArrayBuf {
         RawArrayBuf::from
     }
