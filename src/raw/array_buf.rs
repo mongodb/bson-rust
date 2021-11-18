@@ -6,19 +6,9 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    raw::{
-        serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
-        RAW_ARRAY_NEWTYPE,
-    },
-    spec::BinarySubtype,
-    RawArray,
-    RawBson,
-    RawDocument,
-    RawDocumentBuf,
-};
+use crate::{RawArray, RawBson, RawDocumentBuf};
 
-use super::{owned_bson::OwnedRawBson, RawArrayIter};
+use super::{owned_bson::OwnedRawBson, serde::OwnedOrBorrowedRawArray, RawArrayIter};
 
 /// An owned BSON array value (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON
 /// bytes. This type can be used to construct owned array values, which can be used to append to
@@ -177,28 +167,7 @@ impl<'de> Deserialize<'de> for RawArrayBuf {
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer
-            .deserialize_newtype_struct(RAW_ARRAY_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
-        {
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Array(d)) => Ok(d.to_owned()),
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
-                if b.subtype == BinarySubtype::Generic =>
-            {
-                let doc = RawDocument::new(b.bytes).map_err(serde::de::Error::custom)?;
-                Ok(RawArray::from_doc(doc).to_owned())
-            }
-            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Array(d)) => Ok(d),
-            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b))
-                if b.subtype == BinarySubtype::Generic =>
-            {
-                let doc = RawDocumentBuf::from_bytes(b.bytes).map_err(serde::de::Error::custom)?;
-                Ok(RawArrayBuf::from_raw_document_buf(doc))
-            }
-            b => Err(serde::de::Error::custom(format!(
-                "expected raw BSON array, instead got {:?}",
-                b
-            ))),
-        }
+        Ok(OwnedOrBorrowedRawArray::deserialize(deserializer)?.into_owned())
     }
 }
 

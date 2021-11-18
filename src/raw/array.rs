@@ -4,6 +4,7 @@ use serde::{ser::SerializeSeq, Deserialize, Serialize};
 
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
+    serde::OwnedOrBorrowedRawArray,
     Error,
     Iter,
     RawBinary,
@@ -14,11 +15,8 @@ use super::{
 };
 use crate::{
     oid::ObjectId,
-    raw::{
-        serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
-        RAW_ARRAY_NEWTYPE,
-    },
-    spec::{BinarySubtype, ElementType},
+    raw::RAW_ARRAY_NEWTYPE,
+    spec::ElementType,
     Bson,
     DateTime,
     RawArrayBuf,
@@ -280,19 +278,11 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer
-            .deserialize_newtype_struct(RAW_ARRAY_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
-        {
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Array(d)) => Ok(d),
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
-                if b.subtype == BinarySubtype::Generic =>
-            {
-                let doc = RawDocument::new(b.bytes).map_err(serde::de::Error::custom)?;
-                Ok(RawArray::from_doc(doc))
-            }
-            b => Err(serde::de::Error::custom(format!(
-                "expected raw array reference, instead got {:?}",
-                b
+        match OwnedOrBorrowedRawArray::deserialize(deserializer)? {
+            OwnedOrBorrowedRawArray::Borrowed(b) => Ok(b),
+            o => Err(serde::de::Error::custom(format!(
+                "expected borrowed raw array, instead got owned {:?}",
+                o
             ))),
         }
     }

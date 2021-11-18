@@ -67,9 +67,13 @@ impl<'a> From<OwnedRawBson> for OwnedOrBorrowedRawBson<'a> {
     }
 }
 
+/// Wrapper around a `Cow<str>` to enable borrowed deserialization.
+/// The default `Deserialize` impl for `Cow` always uses the owned version.
 #[derive(Debug, Deserialize)]
 struct CowStr<'a>(#[serde(borrow)] Cow<'a, str>);
 
+/// Wrapper type that can deserialize either an owned or a borrowed raw BSON document.
+#[derive(Debug)]
 pub(crate) enum OwnedOrBorrowedRawDocument<'a> {
     Owned(RawDocumentBuf),
     Borrowed(&'a RawDocument),
@@ -121,8 +125,56 @@ impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawDocument<'a> {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct CowRawDocument<'a>(#[serde(borrow)] Cow<'a, RawDocument>);
+/// Wrapper type that can deserialize either an owned or a borrowed raw BSON array.
+#[derive(Debug)]
+pub(crate) enum OwnedOrBorrowedRawArray<'a> {
+    Owned(RawArrayBuf),
+    Borrowed(&'a RawArray),
+}
+
+impl<'a> OwnedOrBorrowedRawArray<'a> {
+    pub(crate) fn into_owned(self) -> RawArrayBuf {
+        match self {
+            Self::Owned(o) => o,
+            Self::Borrowed(b) => b.to_owned(),
+        }
+    }
+}
+
+impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawArray<'a> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match deserializer
+            .deserialize_newtype_struct(RAW_ARRAY_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
+        {
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Array(d)) => Ok(Self::Borrowed(d)),
+            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Array(d)) => Ok(Self::Owned(d)),
+
+            // For non-BSON formats, RawArray gets serialized as bytes, so we need to deserialize
+            // from them here too. For BSON, the deserializier will return an error if it
+            // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
+                if b.subtype == BinarySubtype::Generic =>
+            {
+                let doc = RawDocument::new(b.bytes).map_err(serde::de::Error::custom)?;
+                Ok(Self::Borrowed(RawArray::from_doc(doc)))
+            }
+            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b))
+                if b.subtype == BinarySubtype::Generic =>
+            {
+                let doc = RawDocumentBuf::from_bytes(b.bytes).map_err(serde::de::Error::custom)?;
+                Ok(Self::Owned(RawArrayBuf::from_raw_document_buf(doc)))
+            }
+
+            o => Err(serde::de::Error::custom(format!(
+                "expected raw array, instead got {:?}",
+                o
+            ))),
+        }
+    }
+}
 
 /// A visitor used to deserialize types backed by raw BSON.
 pub(crate) struct OwnedOrBorrowedRawBsonVisitor;
