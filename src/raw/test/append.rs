@@ -10,7 +10,7 @@ use pretty_assertions::assert_eq;
 
 fn append_test(expected: Document, append: impl FnOnce(&mut RawDocumentBuf)) {
     let bytes = crate::to_vec(&expected).unwrap();
-    let mut buf = RawDocumentBuf::empty();
+    let mut buf = RawDocumentBuf::new();
     append(&mut buf);
     assert_eq!(buf.as_bytes(), bytes);
 }
@@ -109,8 +109,8 @@ fn document() {
         }
     };
     append_test(expected, |doc| {
-        doc.append("empty", &RawDocumentBuf::empty());
-        let mut buf = RawDocumentBuf::empty();
+        doc.append("empty", &RawDocumentBuf::new());
+        let mut buf = RawDocumentBuf::new();
         buf.append("a", 1_i32);
         buf.append("b", true);
         doc.append("subdoc", &buf);
@@ -133,7 +133,7 @@ fn array() {
         let mut buf = RawArrayBuf::new();
         buf.append(true);
         buf.append("string");
-        let mut subdoc = RawDocumentBuf::empty();
+        let mut subdoc = RawDocumentBuf::new();
         subdoc.append("a", "subdoc");
         buf.append(&subdoc);
         buf.append(123_i32);
@@ -265,7 +265,7 @@ fn code() {
     append_test(expected, |doc| {
         doc.append("code", RawBson::JavaScriptCode("some code"));
 
-        let mut scope = RawDocumentBuf::empty();
+        let mut scope = RawDocumentBuf::new();
         scope.append("a", 1_i32);
         scope.append("b", true);
         doc.append(
@@ -346,10 +346,10 @@ fn general() {
         doc.append("third", 15_i64);
         doc.append("32", -100101_i32);
 
-        let mut subdoc = RawDocumentBuf::empty();
+        let mut subdoc = RawDocumentBuf::new();
         subdoc.append("a", "subkey");
 
-        let mut subsubdoc = RawDocumentBuf::empty();
+        let mut subsubdoc = RawDocumentBuf::new();
         subsubdoc.append("subdoc", dt);
         subdoc.append("another", &subsubdoc);
         doc.append("subdoc", &subdoc);
@@ -358,7 +358,7 @@ fn general() {
         array.append(1_i64);
         array.append(true);
 
-        let mut array_subdoc = RawDocumentBuf::empty();
+        let mut array_subdoc = RawDocumentBuf::new();
         array_subdoc.append("doc", 23_i64);
         array.append(&array_subdoc);
 

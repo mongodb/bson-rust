@@ -483,7 +483,7 @@ fn into_bson_conversion() {
 
 #[test]
 fn append() {
-    let mut buf = RawDocumentBuf::empty();
+    let mut buf = RawDocumentBuf::new();
     buf.append("dog", RawBson::Int32(4));
     buf.append("cat", RawBson::Int32(1));
 
@@ -498,14 +498,14 @@ use std::convert::TryInto;
 proptest! {
     #[test]
     fn no_crashes(s: Vec<u8>) {
-        let _ = RawDocumentBuf::new(s);
+        let _ = RawDocumentBuf::from_bytes(s);
     }
 
     #[test]
     fn roundtrip_bson(bson in arbitrary_bson()) {
         let doc = doc!{"bson": bson};
         let raw = to_bytes(&doc);
-        let raw = RawDocumentBuf::new(raw);
+        let raw = RawDocumentBuf::from_bytes(raw);
         prop_assert!(raw.is_ok());
         let raw = raw.unwrap();
         let roundtrip: Result<crate::Document> = raw.try_into();

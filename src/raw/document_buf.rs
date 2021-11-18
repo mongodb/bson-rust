@@ -1,14 +1,16 @@
-use std::{borrow::{Borrow, Cow}, convert::{TryFrom, TryInto}, ffi::CString, iter::FromIterator, ops::Deref};
+use std::{
+    borrow::{Borrow, Cow},
+    convert::{TryFrom, TryInto},
+    ffi::CString,
+    iter::FromIterator,
+    ops::Deref,
+};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    de::MIN_BSON_DOCUMENT_SIZE,
-    spec::{BinarySubtype, ElementType},
-    Document,
-};
+use crate::{Document, RawBinary, RawJavaScriptCodeWithScope, de::MIN_BSON_DOCUMENT_SIZE, raw::{RAW_DOCUMENT_NEWTYPE, serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor}}, spec::{BinarySubtype, ElementType}};
 
-use super::{Error, ErrorKind, Iter, RawBson, RawDocument, Result};
+use super::{owned_bson::OwnedRawBson, Error, ErrorKind, Iter, RawBson, RawDocument, Result};
 
 /// An owned BSON document (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
 /// This can be created from a `Vec<u8>` or a [`crate::Document`].
@@ -52,7 +54,8 @@ pub struct RawDocumentBuf {
 }
 
 impl RawDocumentBuf {
-    pub fn empty() -> RawDocumentBuf {
+    /// Creates a new, empty [`RawDocumentBuf`].
+    pub fn new() -> RawDocumentBuf {
         let mut data: Vec<u8> = MIN_BSON_DOCUMENT_SIZE.to_le_bytes().to_vec();
         data.push(0);
         Self { data }
@@ -72,10 +75,10 @@ impl RawDocumentBuf {
     ///
     /// ```
     /// # use bson::raw::{RawDocumentBuf, Error};
-    /// let doc = RawDocumentBuf::new(b"\x05\0\0\0\0".to_vec())?;
+    /// let doc = RawDocumentBuf::from_bytes(b"\x05\0\0\0\0".to_vec())?;
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn new(data: Vec<u8>) -> Result<RawDocumentBuf> {
+    pub fn from_bytes(data: Vec<u8>) -> Result<RawDocumentBuf> {
         let _ = RawDocument::new(data.as_slice())?;
         Ok(Self { data })
     }
@@ -146,23 +149,48 @@ impl RawDocumentBuf {
         self.data
     }
 
-    pub fn append_document_buf(&mut self, key: impl AsRef<str>, value: RawDocumentBuf) {
-        self.append(key, RawBson::Document(&value))
-    }
-
-    pub fn append<'a>(&mut self, key: impl AsRef<str>, value: impl Into<RawBson<'a>>) {
-        fn append_str(doc: &mut RawDocumentBuf, value: &str) {
+    /// Append a key value pair to the end of the document without checking to see if
+    /// the key already exists.
+    ///
+    /// It is a user error to append the same key more than once to the same document, and it may result
+    /// in errors when communicating with MongoDB.
+    ///
+    /// If the provided key contains an interior null byte, this method will panic.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::raw::RawDocumentBuf;
+    ///
+    /// let mut doc = RawDocumentBuf::new();
+    /// doc.append("a string", "some string");
+    /// doc.append("an integer", 12_i32);
+    ///
+    /// let mut subdoc = RawDocumentBuf::new();
+    /// subdoc.append("a key", true);
+    /// doc.push("a document", subdoc);
+    ///
+    /// let expected = doc! {
+    ///     "a string": "some string",
+    ///     "an integer": 12_i32,
+    ///     "a document": { "a key": true },
+    /// };
+    /// 
+    /// assert_eq!(doc.to_document()?, expected);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn append(&mut self, key: impl Into<String>, value: impl Into<OwnedRawBson>) {
+        fn append_string(doc: &mut RawDocumentBuf, value: String) {
             doc.data
                 .extend(((value.as_bytes().len() + 1) as i32).to_le_bytes());
-            doc.data.extend(value.as_bytes());
+            doc.data.extend(value.into_bytes());
             doc.data.push(0);
         }
 
-        fn append_cstr(doc: &mut RawDocumentBuf, value: &str) {
+        fn append_cstring(doc: &mut RawDocumentBuf, value: String) {
             if value.contains('\0') {
                 panic!("cstr includes interior null byte: {}", value)
             }
-            doc.data.extend(value.as_bytes());
+            doc.data.extend(value.into_bytes());
             doc.data.push(0);
         }
 
@@ -170,77 +198,89 @@ impl RawDocumentBuf {
 
         // write the key for the next value to the end
         // the element type will replace the previous null byte terminator of the document
-        append_cstr(self, key.as_ref());
+        append_cstring(self, key.into());
 
         let value = value.into();
+        let element_type = value.element_type();
 
         match value {
-            RawBson::Int32(i) => {
+            OwnedRawBson::Int32(i) => {
                 self.data.extend(i.to_le_bytes());
             }
-            RawBson::String(s) => {
-                append_str(self, s);
+            OwnedRawBson::String(s) => {
+                append_string(self, s);
             }
-            RawBson::Document(d) => {
-                self.data.extend(d.as_bytes());
+            OwnedRawBson::Document(d) => {
+                self.data.extend(d.into_vec());
             }
-            RawBson::Array(a) => {
+            OwnedRawBson::Array(a) => {
                 self.data.extend(a.as_bytes());
             }
-            RawBson::Binary(b) => {
-                self.data.extend(b.len().to_le_bytes());
+            OwnedRawBson::Binary(b) => {
+                let len = RawBinary {
+                    bytes: b.bytes.as_slice(),
+                    subtype: b.subtype,
+                }
+                .len();
+                self.data.extend(len.to_le_bytes());
                 self.data.push(b.subtype.into());
                 if let BinarySubtype::BinaryOld = b.subtype {
-                    self.data.extend((b.len() - 4).to_le_bytes())
+                    self.data.extend((len - 4).to_le_bytes())
                 }
                 self.data.extend(b.bytes);
             }
-            RawBson::Boolean(b) => {
+            OwnedRawBson::Boolean(b) => {
                 let byte = if b { 1 } else { 0 };
                 self.data.push(byte);
             }
-            RawBson::DateTime(dt) => {
+            OwnedRawBson::DateTime(dt) => {
                 self.data.extend(dt.timestamp_millis().to_le_bytes());
             }
-            RawBson::DbPointer(dbp) => {
-                append_str(self, dbp.namespace);
+            OwnedRawBson::DbPointer(dbp) => {
+                append_string(self, dbp.namespace);
                 self.data.extend(dbp.id.bytes());
             }
-            RawBson::Decimal128(d) => {
+            OwnedRawBson::Decimal128(d) => {
                 self.data.extend(d.bytes());
             }
-            RawBson::Double(d) => {
+            OwnedRawBson::Double(d) => {
                 self.data.extend(d.to_le_bytes());
             }
-            RawBson::Int64(i) => {
+            OwnedRawBson::Int64(i) => {
                 self.data.extend(i.to_le_bytes());
             }
-            RawBson::RegularExpression(re) => {
-                append_cstr(self, re.pattern);
-                append_cstr(self, re.options);
+            OwnedRawBson::RegularExpression(re) => {
+                append_cstring(self, re.pattern);
+                append_cstring(self, re.options);
             }
-            RawBson::JavaScriptCode(js) => {
-                append_str(self, js);
+            OwnedRawBson::JavaScriptCode(js) => {
+                append_string(self, js);
             }
-            RawBson::JavaScriptCodeWithScope(code_w_scope) => {
-                let len = code_w_scope.len();
+            OwnedRawBson::JavaScriptCodeWithScope(code_w_scope) => {
+                let len = RawJavaScriptCodeWithScope {
+                    code: code_w_scope.code.as_str(),
+                    scope: &code_w_scope.scope,
+                }.len();
                 self.data.extend(len.to_le_bytes());
-                append_str(self, code_w_scope.code);
-                self.data.extend(code_w_scope.scope.as_bytes());
+                append_string(self, code_w_scope.code);
+                self.data.extend(code_w_scope.scope.into_vec());
             }
-            RawBson::Timestamp(ts) => {
+            OwnedRawBson::Timestamp(ts) => {
                 self.data.extend(ts.to_le_i64().to_le_bytes());
             }
-            RawBson::ObjectId(oid) => {
+            OwnedRawBson::ObjectId(oid) => {
                 self.data.extend(oid.bytes());
             }
-            RawBson::Symbol(s) => {
-                append_str(self, s);
+            OwnedRawBson::Symbol(s) => {
+                append_string(self, s);
             }
-            RawBson::Null | RawBson::Undefined | RawBson::MinKey | RawBson::MaxKey => {}
+            OwnedRawBson::Null
+            | OwnedRawBson::Undefined
+            | OwnedRawBson::MinKey
+            | OwnedRawBson::MaxKey => {}
         }
         // update element type
-        self.data[original_len - 1] = value.element_type() as u8;
+        self.data[original_len - 1] = element_type as u8;
         // append trailing null byte
         self.data.push(0);
         // update length
@@ -248,8 +288,16 @@ impl RawDocumentBuf {
             .splice(0..4, (self.data.len() as i32).to_le_bytes());
     }
 
+    /// Convert this [`RawDocumentBuf`] to a [`Document`], returning an error
+    /// if invalid BSON is encountered.
     pub fn to_document(&self) -> Result<Document> {
         self.as_ref().try_into()
+    }
+}
+
+impl Default for RawDocumentBuf {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -258,9 +306,25 @@ impl<'de> Deserialize<'de> for RawDocumentBuf {
     where
         D: serde::Deserializer<'de>,
     {
-        // TODO: RUST-1045 implement visit_map to deserialize from arbitrary maps.
-        let doc: &'de RawDocument = Deserialize::deserialize(deserializer)?;
-        Ok(doc.to_owned())
+        match deserializer.deserialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)? {
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Document(d)) => Ok(d.to_owned()),
+            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Document(d)) => Ok(d),
+
+            // For non-BSON formats, RawDocument gets serialized as bytes, so we need to deserialize
+            // from them here too. For BSON, the deserializier will return an error if it
+            // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b)) if b.subtype == BinarySubtype::Generic => {
+                RawDocumentBuf::from_bytes(b.bytes.to_vec()).map_err(serde::de::Error::custom)
+            }
+            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b)) if b.subtype == BinarySubtype::Generic => {
+                RawDocumentBuf::from_bytes(b.bytes).map_err(serde::de::Error::custom)
+            }
+
+            o => Err(serde::de::Error::custom(format!(
+                "expected raw document, instead got {:?}",
+                o
+            ))),
+        }
     }
 }
 
@@ -331,9 +395,9 @@ impl Borrow<RawDocument> for RawDocumentBuf {
     }
 }
 
-impl<'a, T: Into<RawBson<'a>>> FromIterator<(&'a str, T)> for RawDocumentBuf {
-    fn from_iter<I: IntoIterator<Item = (&'a str, T)>>(iter: I) -> Self {
-        let mut buf = RawDocumentBuf::empty();
+impl<S: Into<String>, T: Into<OwnedRawBson>> FromIterator<(S, T)> for RawDocumentBuf {
+    fn from_iter<I: IntoIterator<Item = (S, T)>>(iter: I) -> Self {
+        let mut buf = RawDocumentBuf::new();
         for (k, v) in iter {
             buf.append(k, v);
         }

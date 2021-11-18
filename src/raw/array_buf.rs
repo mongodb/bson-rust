@@ -4,9 +4,9 @@ use std::{
     iter::FromIterator,
 };
 
-use crate::{raw::Result, RawArray, RawBson, RawDocumentBuf};
+use crate::{RawArray, RawBson, RawDocumentBuf};
 
-use super::RawArrayIter;
+use super::{RawArrayIter, owned_bson::OwnedRawBson};
 
 /// An owned BSON array value (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
 /// This type can be used to construct owned array values, which can be used to append to [`RawDocumentBuf`]
@@ -49,7 +49,7 @@ impl RawArrayBuf {
     /// Construct a new, empty `RawArrayBuf`.
     pub fn new() -> RawArrayBuf {
         Self {
-            inner: RawDocumentBuf::empty(),
+            inner: RawDocumentBuf::new(),
             len: 0,
         }
     }
@@ -92,7 +92,7 @@ impl RawArrayBuf {
     /// assert!(iter.next().is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn push<'a>(&mut self, value: impl Into<RawBsonRef<'a>>) {
+    pub fn push(&mut self, value: impl Into<OwnedRawBson>) {
         self.inner.append(self.len.to_string(), value);
         self.len += 1;
     }
@@ -156,7 +156,7 @@ impl<'a> From<&'a RawArrayBuf> for Cow<'a, RawArray> {
     }
 }
 
-impl<'a, T: Into<RawBson<'a>>> FromIterator<T> for RawArrayBuf {
+impl<T: Into<OwnedRawBson>> FromIterator<T> for RawArrayBuf {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut array_buf = RawArrayBuf::new();
         for item in iter {

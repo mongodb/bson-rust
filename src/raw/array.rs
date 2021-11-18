@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{borrow::Cow, convert::TryFrom};
 
 use serde::{ser::SerializeSeq, Deserialize, Serialize};
 
@@ -12,7 +12,7 @@ use super::{
     RawRegex,
     Result,
 };
-use crate::{Bson, DateTime, RawArrayBuf, Timestamp, oid::ObjectId, raw::{RawBsonVisitor, RAW_ARRAY_NEWTYPE}, spec::{BinarySubtype, ElementType}};
+use crate::{Bson, DateTime, RawArrayBuf, Timestamp, oid::ObjectId, raw::{RAW_ARRAY_NEWTYPE, serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor}}, spec::{BinarySubtype, ElementType}};
 
 /// A slice of a BSON document containing a BSON array value (akin to [`std::str`]). This can be
 /// retrieved from a [`RawDocument`] via [`RawDocument::get`].
@@ -87,7 +87,7 @@ impl RawArray {
     ///
     /// This involves a traversal of the array to count the values.
     pub fn to_raw_array_buf(&self) -> RawArrayBuf {
-        RawArrayBuf::from
+        RawArrayBuf::from_raw_document_buf(self.doc.to_raw_document_buf())
     }
 
     /// Gets a reference to the value at the given index.
@@ -226,12 +226,12 @@ impl ToOwned for RawArray {
     type Owned = RawArrayBuf;
 
     fn to_owned(&self) -> Self::Owned {
-        self.into_iter().collect()
+        self.to_raw_array_buf()
     }
 }
 
-impl<'a> From<&'a RawDocument> for Cow<'a, RawDocument> {
-    fn from(rdr: &'a RawDocument) -> Self {
+impl<'a> From<&'a RawArray> for Cow<'a, RawArray> {
+    fn from(rdr: &'a RawArray) -> Self {
         Cow::Borrowed(rdr)
     }
 }
@@ -269,9 +269,9 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer.deserialize_newtype_struct(RAW_ARRAY_NEWTYPE, RawBsonVisitor)? {
-            RawBson::Array(d) => Ok(d),
-            RawBson::Binary(b) if b.subtype == BinarySubtype::Generic => {
+        match deserializer.deserialize_newtype_struct(RAW_ARRAY_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)? {
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Array(d)) => Ok(d),
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b)) if b.subtype == BinarySubtype::Generic => {
                 let doc = RawDocument::new(b.bytes).map_err(serde::de::Error::custom)?;
                 Ok(RawArray::from_doc(doc))
             }
