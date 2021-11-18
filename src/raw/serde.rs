@@ -106,7 +106,7 @@ impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawDocument<'a> {
                 if b.subtype == BinarySubtype::Generic =>
             {
                 Ok(Self::Borrowed(
-                    RawDocument::new(b.bytes).map_err(serde::de::Error::custom)?,
+                    RawDocument::from_bytes(b.bytes).map_err(serde::de::Error::custom)?,
                 ))
             }
             OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b))
@@ -158,7 +158,7 @@ impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawArray<'a> {
             OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
                 if b.subtype == BinarySubtype::Generic =>
             {
-                let doc = RawDocument::new(b.bytes).map_err(serde::de::Error::custom)?;
+                let doc = RawDocument::from_bytes(b.bytes).map_err(serde::de::Error::custom)?;
                 Ok(Self::Borrowed(RawArray::from_doc(doc)))
             }
             OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b))
@@ -513,12 +513,12 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
             }
             RAW_DOCUMENT_NEWTYPE => {
                 let bson = map.next_value::<&[u8]>()?;
-                let doc = RawDocument::new(bson).map_err(serde::de::Error::custom)?;
+                let doc = RawDocument::from_bytes(bson).map_err(serde::de::Error::custom)?;
                 Ok(RawBson::Document(doc).into())
             }
             RAW_ARRAY_NEWTYPE => {
                 let bson = map.next_value::<&[u8]>()?;
-                let doc = RawDocument::new(bson).map_err(serde::de::Error::custom)?;
+                let doc = RawDocument::from_bytes(bson).map_err(serde::de::Error::custom)?;
                 Ok(RawBson::Array(RawArray::from_doc(doc)).into())
             }
             k => build_doc(k, map),

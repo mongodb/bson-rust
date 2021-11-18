@@ -98,7 +98,7 @@ impl RawArrayBuf {
     }
 
     pub(crate) fn into_vec(self) -> Vec<u8> {
-        self.inner.into_vec()
+        self.inner.into_bytes()
     }
 }
 

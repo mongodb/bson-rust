@@ -88,7 +88,7 @@ impl RawDocument {
     /// let doc = RawDocument::new(b"\x05\0\0\0\0")?;
     /// # Ok::<(), bson::raw::Error>(())
     /// ```
-    pub fn new<D: AsRef<[u8]> + ?Sized>(data: &D) -> Result<&RawDocument> {
+    pub fn from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> Result<&RawDocument> {
         let data = data.as_ref();
 
         if data.len() < 5 {

@@ -163,7 +163,7 @@ impl<'de> Deserializer<'de> {
                 let mut len = self.bytes.slice(4)?;
                 let len = read_i32(&mut len)?;
 
-                let doc = RawDocument::new(self.bytes.read_slice(len as usize)?)
+                let doc = RawDocument::from_bytes(self.bytes.read_slice(len as usize)?)
                     .map_err(Error::custom)?;
 
                 let access = if is_array {

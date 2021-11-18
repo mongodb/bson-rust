@@ -29,7 +29,7 @@ fn string_from_document() {
         "that": "second",
         "something": "else",
     });
-    let rawdoc = RawDocument::new(&docbytes).unwrap();
+    let rawdoc = RawDocument::from_bytes(&docbytes).unwrap();
     assert_eq!(
         rawdoc.get("that").unwrap().unwrap().as_str().unwrap(),
         "second",
@@ -44,7 +44,7 @@ fn nested_document() {
             "i64": 6_i64,
         },
     });
-    let rawdoc = RawDocument::new(&docbytes).unwrap();
+    let rawdoc = RawDocument::from_bytes(&docbytes).unwrap();
     let subdoc = rawdoc
         .get("outer")
         .expect("get doc result")
@@ -79,7 +79,7 @@ fn iterate() {
         "peanut butter": "chocolate",
         "easy as": {"do": 1, "re": 2, "mi": 3},
     });
-    let rawdoc = RawDocument::new(&docbytes).expect("malformed bson document");
+    let rawdoc = RawDocument::from_bytes(&docbytes).expect("malformed bson document");
     let mut dociter = rawdoc.into_iter();
     let next = dociter.next().expect("no result").expect("invalid bson");
     assert_eq!(next.0, "apples");
@@ -116,7 +116,7 @@ fn rawdoc_to_doc() {
         "end": "END",
     });
 
-    let rawdoc = RawDocument::new(&docbytes).expect("invalid document");
+    let rawdoc = RawDocument::from_bytes(&docbytes).expect("invalid document");
     let doc: crate::Document = rawdoc.try_into().expect("invalid bson");
     let round_tripped_bytes = crate::to_vec(&doc).expect("serialize should work");
     assert_eq!(round_tripped_bytes, docbytes);
@@ -440,7 +440,7 @@ fn into_bson_conversion() {
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
         "boolean": false,
     });
-    let rawbson = RawBson::Document(RawDocument::new(docbytes.as_slice()).unwrap());
+    let rawbson = RawBson::Document(RawDocument::from_bytes(docbytes.as_slice()).unwrap());
     let b: Bson = rawbson.try_into().expect("invalid bson");
     let doc = b.as_document().expect("not a document");
     assert_eq!(*doc.get("f64").expect("f64 not found"), Bson::Double(2.5));

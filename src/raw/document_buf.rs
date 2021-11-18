@@ -93,7 +93,7 @@ impl RawDocumentBuf {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn from_bytes(data: Vec<u8>) -> Result<RawDocumentBuf> {
-        let _ = RawDocument::new(data.as_slice())?;
+        let _ = RawDocument::from_bytes(data.as_slice())?;
         Ok(Self { data })
     }
 
@@ -159,7 +159,7 @@ impl RawDocumentBuf {
     /// assert_eq!(doc.into_vec(), b"\x05\x00\x00\x00\x00".to_vec());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn into_vec(self) -> Vec<u8> {
+    pub fn into_bytes(self) -> Vec<u8> {
         self.data
     }
 
@@ -225,7 +225,7 @@ impl RawDocumentBuf {
                 append_string(self, s);
             }
             OwnedRawBson::Document(d) => {
-                self.data.extend(d.into_vec());
+                self.data.extend(d.into_bytes());
             }
             OwnedRawBson::Array(a) => {
                 self.data.extend(a.into_vec());
@@ -278,7 +278,7 @@ impl RawDocumentBuf {
                 .len();
                 self.data.extend(len.to_le_bytes());
                 append_string(self, code_w_scope.code);
-                self.data.extend(code_w_scope.scope.into_vec());
+                self.data.extend(code_w_scope.scope.into_bytes());
             }
             OwnedRawBson::Timestamp(ts) => {
                 self.data.extend(ts.to_le_i64().to_le_bytes());

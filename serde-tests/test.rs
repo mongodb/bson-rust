@@ -1308,7 +1308,7 @@ fn hint_cleared() {
 
     let bytes = bson::to_vec(&doc_value).unwrap();
 
-    let doc = RawDocument::new(&bytes).unwrap();
+    let doc = RawDocument::from_bytes(&bytes).unwrap();
     let binary = doc.get_binary("binary").unwrap();
 
     let f = Foo { doc, binary };
@@ -1328,7 +1328,7 @@ fn non_human_readable() {
     };
 
     let doc_bytes = bson::to_vec(&doc! { "a": "b", "array": [1, 2, 3] }).unwrap();
-    let doc = RawDocument::new(doc_bytes.as_slice()).unwrap();
+    let doc = RawDocument::from_bytes(doc_bytes.as_slice()).unwrap();
     let arr = doc.get_array("array").unwrap();
     let oid = ObjectId::new();
     let uuid = Uuid::new();

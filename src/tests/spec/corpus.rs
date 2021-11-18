@@ -117,7 +117,7 @@ fn run_test(test: TestFile) {
             crate::to_document(&documentfromreader_cb).expect(&description);
 
         let canonical_raw_document =
-            RawDocument::new(canonical_bson.as_slice()).expect(&description);
+            RawDocument::from_bytes(canonical_bson.as_slice()).expect(&description);
         let document_from_raw_document: Document =
             canonical_raw_document.try_into().expect(&description);
 
@@ -192,7 +192,7 @@ fn run_test(test: TestFile) {
                     .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<OwnedRawBson>))
                     .expect(&description);
                 let from_slice_owned_vec =
-                    RawDocumentBuf::from_iter([(test_key, owned_raw_bson_field)]).into_vec();
+                    RawDocumentBuf::from_iter([(test_key, owned_raw_bson_field)]).into_bytes();
 
                 // deserialize the field from raw Bytes into a Bson
                 let mut deserializer_value =
@@ -343,7 +343,7 @@ fn run_test(test: TestFile) {
                 description,
             );
 
-            let document_from_raw_document: Document = RawDocument::new(db.as_slice())
+            let document_from_raw_document: Document = RawDocument::from_bytes(db.as_slice())
                 .expect(&description)
                 .try_into()
                 .expect(&description);
@@ -533,7 +533,7 @@ fn run_test(test: TestFile) {
         );
         let bson = hex::decode(&decode_error.bson).expect("should decode from hex");
 
-        if let Ok(doc) = RawDocument::new(bson.as_slice()) {
+        if let Ok(doc) = RawDocument::from_bytes(bson.as_slice()) {
             Document::try_from(doc).expect_err(description.as_str());
         }
 

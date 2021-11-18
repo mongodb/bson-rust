@@ -91,7 +91,7 @@ impl<'a> Iter<'a> {
                 },
             });
         }
-        RawDocument::new(&self.doc.as_bytes()[starting_at..end])
+        RawDocument::from_bytes(&self.doc.as_bytes()[starting_at..end])
     }
 }
 
@@ -263,7 +263,7 @@ impl<'a> Iterator for Iter<'a> {
                     let slice = &&self.doc.as_bytes()[valueoffset..(valueoffset + length)];
                     let code = read_lenencoded(&slice[4..])?;
                     let scope_start = 4 + 4 + code.len() + 1;
-                    let scope = RawDocument::new(&slice[scope_start..])?;
+                    let scope = RawDocument::from_bytes(&slice[scope_start..])?;
                     (
                         RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
                             code,
