@@ -4,7 +4,19 @@ use std::{
     iter::FromIterator,
 };
 
-use crate::{RawArray, RawBson, RawDocumentBuf};
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    raw::{
+        serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
+        RAW_ARRAY_NEWTYPE,
+    },
+    spec::BinarySubtype,
+    RawArray,
+    RawBson,
+    RawDocument,
+    RawDocumentBuf,
+};
 
 use super::{owned_bson::OwnedRawBson, RawArrayIter};
 
@@ -74,7 +86,7 @@ impl RawArrayBuf {
     ///
     /// let mut doc = RawDocumentBuf::new();
     /// doc.append("a key", "a value");
-    /// array.push(&doc);
+    /// array.push(doc);
     ///
     /// assert_eq!(array.len(), 3);
     ///
@@ -103,6 +115,10 @@ impl RawArrayBuf {
     /// `.as_bytes().len()`.
     pub fn len(&self) -> usize {
         self.len
+    }
+
+    pub(crate) fn into_vec(self) -> Vec<u8> {
+        self.inner.into_vec()
     }
 }
 
@@ -163,5 +179,44 @@ impl<T: Into<OwnedRawBson>> FromIterator<T> for RawArrayBuf {
             array_buf.push(item);
         }
         array_buf
+    }
+}
+
+impl<'de> Deserialize<'de> for RawArrayBuf {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match deserializer
+            .deserialize_newtype_struct(RAW_ARRAY_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
+        {
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Array(d)) => Ok(d.to_owned()),
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
+                if b.subtype == BinarySubtype::Generic =>
+            {
+                let doc = RawDocument::new(b.bytes).map_err(serde::de::Error::custom)?;
+                Ok(RawArray::from_doc(doc).to_owned())
+            }
+            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Array(d)) => Ok(d),
+            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b))
+                if b.subtype == BinarySubtype::Generic =>
+            {
+                let doc = RawDocumentBuf::from_bytes(b.bytes).map_err(serde::de::Error::custom)?;
+                Ok(RawArrayBuf::from_raw_document_buf(doc))
+            }
+            b => Err(serde::de::Error::custom(format!(
+                "expected raw BSON array, instead got {:?}",
+                b
+            ))),
+        }
+    }
+}
+
+impl Serialize for RawArrayBuf {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_ref().serialize(serializer)
     }
 }

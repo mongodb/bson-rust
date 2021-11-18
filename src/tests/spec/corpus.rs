@@ -126,6 +126,9 @@ fn run_test(test: TestFile) {
             .as_document()
             .expect(&description);
 
+        let canonical_owned_raw_bson_from_slice =
+            crate::from_slice::<OwnedRawBson>(canonical_bson.as_slice()).expect(&description);
+
         let canonical_raw_document_from_slice =
             crate::from_slice::<&RawDocument>(canonical_bson.as_slice()).expect(&description);
 
@@ -163,6 +166,8 @@ fn run_test(test: TestFile) {
         let tovec_rawdocument_from_slice =
             crate::to_vec(&canonical_raw_document_from_slice).expect(&description);
         let tovec_rawbson = crate::to_vec(&canonical_raw_bson_from_slice).expect(&description);
+        let tovec_ownedrawbson =
+            crate::to_vec(&canonical_owned_raw_bson_from_slice).expect(&description);
 
         // test Bson / RawBson field deserialization
         if let Some(ref test_key) = test.test_key {
@@ -281,6 +286,7 @@ fn run_test(test: TestFile) {
             "{}",
             description
         );
+        assert_eq!(tovec_rawdocument, tovec_ownedrawbson, "{}", description);
 
         assert_eq!(
             hex::encode(tovec_rawdocument).to_lowercase(),

@@ -1,0 +1,132 @@
+use pretty_assertions::assert_eq;
+use serde_json::json;
+
+use super::AllTypes;
+
+use bson::{doc, Bson, JavaScriptCodeWithScope, OwnedRawBson, RawArrayBuf, RawDocumentBuf};
+
+use serde::{Deserialize, Serialize};
+
+#[test]
+fn all_types_json() {
+    let (mut v, _) = AllTypes::fixtures();
+
+    let code = match v.code {
+        Bson::JavaScriptCode(ref c) => c.clone(),
+        c => panic!("expected code, found {:?}", c),
+    };
+
+    let code_w_scope = JavaScriptCodeWithScope {
+        code: "hello world".to_string(),
+        scope: doc! { "x": 1 },
+    };
+    let scope_json = serde_json::json!({ "x": 1 });
+    v.code_w_scope = code_w_scope.clone();
+
+    let json = serde_json::json!({
+        "x": 1,
+        "y": 2,
+        "s": "oke",
+        "array": vec![
+            serde_json::json!(true),
+            serde_json::json!("oke".to_string()),
+            serde_json::json!({ "12": 24 }),
+        ],
+        "bson": 1234.5,
+        "oid": { "$oid": v.oid.to_hex() },
+        "null": serde_json::Value::Null,
+        "subdoc": { "k": true, "b": { "hello": "world" } },
+        "b": true,
+        "d": 12.5,
+        "binary": v.binary.bytes,
+        "binary_old": { "$binary": { "base64": base64::encode(&v.binary_old.bytes), "subType": "02" } },
+        "binary_other": { "$binary": { "base64": base64::encode(&v.binary_old.bytes), "subType": "81" } },
+        "date": { "$date": { "$numberLong": v.date.timestamp_millis().to_string() } },
+        "regex": { "$regularExpression": { "pattern": v.regex.pattern, "options": v.regex.options } },
+        "ts": { "$timestamp": { "t": 123, "i": 456 } },
+        "i": { "a": v.i.a, "b": v.i.b },
+        "undefined": { "$undefined": true },
+        "code": { "$code": code },
+        "code_w_scope": { "$code": code_w_scope.code, "$scope": scope_json },
+        "decimal": { "$numberDecimalBytes": v.decimal.bytes() },
+        "symbol": { "$symbol": "ok" },
+        "min_key": { "$minKey": 1 },
+        "max_key": { "$maxKey": 1 },
+    });
+
+    assert_eq!(serde_json::to_value(&v).unwrap(), json);
+}
+
+#[test]
+fn owned_raw_bson() {
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    struct Foo {
+        doc_buf: RawDocumentBuf,
+        array_buf: RawArrayBuf,
+        bson_array: OwnedRawBson,
+        bson_doc: OwnedRawBson,
+        bson_integer: OwnedRawBson,
+        bson_string: OwnedRawBson,
+        bson_bool: OwnedRawBson,
+        bson_null: OwnedRawBson,
+        bson_float: OwnedRawBson,
+    }
+
+    let json = json!({
+        "doc_buf": {
+            "a": "key",
+            "number": 12,
+            "bool": false,
+            "nu": null
+        },
+        "array_buf": [
+            json!(1),
+            json!("string"),
+        ],
+        "bson_array": [
+            json!(1),
+            json!("string"),
+        ],
+        "bson_doc": {
+            "first": true,
+            "second": "string",
+        },
+        "bson_integer": 12,
+        "bson_string": "String",
+        "bson_bool": true,
+        "bson_null": null,
+        "bson_float": 123.4
+    });
+
+    let mut doc_buf = RawDocumentBuf::new();
+    doc_buf.append("a", "key");
+    doc_buf.append("number", 12);
+    doc_buf.append("bool", false);
+    doc_buf.append("nu", OwnedRawBson::Null);
+
+    let mut array_buf = RawArrayBuf::new();
+    array_buf.push(1);
+    array_buf.push("string");
+
+    let mut bson_doc = RawDocumentBuf::new();
+    bson_doc.append("first", true);
+    bson_doc.append("second", "string");
+
+    let expected = Foo {
+        doc_buf,
+        array_buf: array_buf.clone(),
+        bson_array: OwnedRawBson::Array(array_buf),
+        bson_doc: OwnedRawBson::Document(bson_doc),
+        bson_integer: OwnedRawBson::Int32(12),
+        bson_string: OwnedRawBson::String("String".to_string()),
+        bson_bool: OwnedRawBson::Boolean(true),
+        bson_null: OwnedRawBson::Null,
+        bson_float: OwnedRawBson::Double(123.4),
+    };
+
+    let f: Foo = serde_json::from_value(json.clone()).unwrap();
+    assert_eq!(f, expected);
+
+    let round_trip = serde_json::to_value(&f).unwrap();
+    assert_eq!(round_trip, json);
+}

@@ -1,6 +1,7 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::vec_init_then_push)]
 
+mod json;
 mod options;
 
 use pretty_assertions::assert_eq;
@@ -14,6 +15,7 @@ use serde::{
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashSet},
+    iter::FromIterator,
 };
 
 use bson::{
@@ -29,7 +31,9 @@ use bson::{
     DeserializerOptions,
     Document,
     JavaScriptCodeWithScope,
+    OwnedRawBson,
     RawArray,
+    RawArrayBuf,
     RawBinary,
     RawBson,
     RawDbPointer,
@@ -1019,56 +1023,6 @@ fn all_types() {
 }
 
 #[test]
-fn all_types_json() {
-    let (mut v, _) = AllTypes::fixtures();
-
-    let code = match v.code {
-        Bson::JavaScriptCode(ref c) => c.clone(),
-        c => panic!("expected code, found {:?}", c),
-    };
-
-    let code_w_scope = JavaScriptCodeWithScope {
-        code: "hello world".to_string(),
-        scope: doc! { "x": 1 },
-    };
-    let scope_json = serde_json::json!({ "x": 1 });
-    v.code_w_scope = code_w_scope.clone();
-
-    let json = serde_json::json!({
-        "x": 1,
-        "y": 2,
-        "s": "oke",
-        "array": vec![
-            serde_json::json!(true),
-            serde_json::json!("oke".to_string()),
-            serde_json::json!({ "12": 24 }),
-        ],
-        "bson": 1234.5,
-        "oid": { "$oid": v.oid.to_hex() },
-        "null": serde_json::Value::Null,
-        "subdoc": { "k": true, "b": { "hello": "world" } },
-        "b": true,
-        "d": 12.5,
-        "binary": v.binary.bytes,
-        "binary_old": { "$binary": { "base64": base64::encode(&v.binary_old.bytes), "subType": "02" } },
-        "binary_other": { "$binary": { "base64": base64::encode(&v.binary_old.bytes), "subType": "81" } },
-        "date": { "$date": { "$numberLong": v.date.timestamp_millis().to_string() } },
-        "regex": { "$regularExpression": { "pattern": v.regex.pattern, "options": v.regex.options } },
-        "ts": { "$timestamp": { "t": 123, "i": 456 } },
-        "i": { "a": v.i.a, "b": v.i.b },
-        "undefined": { "$undefined": true },
-        "code": { "$code": code },
-        "code_w_scope": { "$code": code_w_scope.code, "$scope": scope_json },
-        "decimal": { "$numberDecimalBytes": v.decimal.bytes() },
-        "symbol": { "$symbol": "ok" },
-        "min_key": { "$minKey": 1 },
-        "max_key": { "$maxKey": 1 },
-    });
-
-    assert_eq!(serde_json::to_value(&v).unwrap(), json);
-}
-
-#[test]
 fn all_types_rmp() {
     let (v, _) = AllTypes::fixtures();
     let serialized = rmp_serde::to_vec_named(&v).unwrap();
@@ -1111,7 +1065,7 @@ fn all_raw_types_rmp() {
         }
     })
     .unwrap();
-    let doc_buf = RawDocumentBuf::new(doc_bytes).unwrap();
+    let doc_buf = RawDocumentBuf::from_bytes(doc_bytes).unwrap();
     let document = &doc_buf;
     let array = document.get_array("array").unwrap();
 
@@ -1278,6 +1232,59 @@ fn serde_with_uuid() {
     };
 
     run_test(&f, &expected, "serde_with - uuid");
+}
+
+#[test]
+fn owned_raw_types() {
+    #[derive(Debug, Deserialize, Serialize, PartialEq)]
+    struct Foo {
+        subdoc: RawDocumentBuf,
+        array: RawArrayBuf,
+    }
+
+    let oid = ObjectId::new();
+    let dt = DateTime::now();
+
+    let f = Foo {
+        subdoc: RawDocumentBuf::from_iter([
+            ("a key", OwnedRawBson::String("a value".to_string())),
+            ("an objectid", OwnedRawBson::ObjectId(oid)),
+            ("a date", OwnedRawBson::DateTime(dt)),
+        ]),
+        array: RawArrayBuf::from_iter([
+            OwnedRawBson::String("a string".to_string()),
+            OwnedRawBson::ObjectId(oid),
+            OwnedRawBson::DateTime(dt),
+        ]),
+    };
+
+    let expected = doc! {
+        "subdoc": {
+            "a key": "a value",
+            "an objectid": oid,
+            "a date": dt,
+        },
+        "array": [
+            "a string",
+            oid,
+            dt
+        ]
+    };
+
+    // TODO: RUST-1111
+    // can't use run_test here because deserializing RawDocumentBuf and RawArrayBuf
+    // from Bson or Document currently don't work.
+
+    let bytes = bson::to_vec(&expected).unwrap();
+
+    let deserialized: Foo = bson::from_slice(bytes.as_slice()).unwrap();
+    assert_eq!(deserialized, f);
+
+    let serialized = bson::to_document(&deserialized).unwrap();
+    assert_eq!(serialized, expected);
+
+    let serialized_bytes = bson::to_vec(&deserialized).unwrap();
+    assert_eq!(serialized_bytes, bytes);
 }
 
 #[test]
