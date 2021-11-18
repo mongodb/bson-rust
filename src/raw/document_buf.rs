@@ -224,7 +224,7 @@ impl RawDocumentBuf {
                 self.data.extend(d.into_vec());
             }
             OwnedRawBson::Array(a) => {
-                self.data.extend(a.as_bytes());
+                self.data.extend(a.into_vec());
             }
             OwnedRawBson::Binary(b) => {
                 let len = RawBinary {

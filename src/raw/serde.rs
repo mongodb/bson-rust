@@ -86,6 +86,13 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
         Ok(RawBson::String(v).into())
     }
 
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(OwnedRawBson::String(v.to_string()).into())
+    }
+
     fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
@@ -232,7 +239,7 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
             let v: OwnedRawBson = map.next_value()?;
             doc.append(first_key, v);
 
-            while let Some((k, v)) = map.next_entry::<&str, OwnedRawBson>()? {
+            while let Some((k, v)) = map.next_entry::<String, OwnedRawBson>()? {
                 doc.append(k, v);
             }
 
