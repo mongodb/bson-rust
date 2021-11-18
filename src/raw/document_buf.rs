@@ -8,7 +8,17 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Document, RawBinary, RawJavaScriptCodeWithScope, de::MIN_BSON_DOCUMENT_SIZE, raw::{RAW_DOCUMENT_NEWTYPE, serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor}}, spec::{BinarySubtype, ElementType}};
+use crate::{
+    de::MIN_BSON_DOCUMENT_SIZE,
+    raw::{
+        serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
+        RAW_DOCUMENT_NEWTYPE,
+    },
+    spec::{BinarySubtype, ElementType},
+    Document,
+    RawBinary,
+    RawJavaScriptCodeWithScope,
+};
 
 use super::{owned_bson::OwnedRawBson, Error, ErrorKind, Iter, RawBson, RawDocument, Result};
 
@@ -152,8 +162,8 @@ impl RawDocumentBuf {
     /// Append a key value pair to the end of the document without checking to see if
     /// the key already exists.
     ///
-    /// It is a user error to append the same key more than once to the same document, and it may result
-    /// in errors when communicating with MongoDB.
+    /// It is a user error to append the same key more than once to the same document, and it may
+    /// result in errors when communicating with MongoDB.
     ///
     /// If the provided key contains an interior null byte, this method will panic.
     ///
@@ -174,7 +184,7 @@ impl RawDocumentBuf {
     ///     "an integer": 12_i32,
     ///     "a document": { "a key": true },
     /// };
-    /// 
+    ///
     /// assert_eq!(doc.to_document()?, expected);
     /// # Ok::<(), Error>(())
     /// ```
@@ -260,7 +270,8 @@ impl RawDocumentBuf {
                 let len = RawJavaScriptCodeWithScope {
                     code: code_w_scope.code.as_str(),
                     scope: &code_w_scope.scope,
-                }.len();
+                }
+                .len();
                 self.data.extend(len.to_le_bytes());
                 append_string(self, code_w_scope.code);
                 self.data.extend(code_w_scope.scope.into_vec());
@@ -306,17 +317,23 @@ impl<'de> Deserialize<'de> for RawDocumentBuf {
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer.deserialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)? {
+        match deserializer
+            .deserialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
+        {
             OwnedOrBorrowedRawBson::Borrowed(RawBson::Document(d)) => Ok(d.to_owned()),
             OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Document(d)) => Ok(d),
 
             // For non-BSON formats, RawDocument gets serialized as bytes, so we need to deserialize
             // from them here too. For BSON, the deserializier will return an error if it
             // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b)) if b.subtype == BinarySubtype::Generic => {
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
+                if b.subtype == BinarySubtype::Generic =>
+            {
                 RawDocumentBuf::from_bytes(b.bytes.to_vec()).map_err(serde::de::Error::custom)
             }
-            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b)) if b.subtype == BinarySubtype::Generic => {
+            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b))
+                if b.subtype == BinarySubtype::Generic =>
+            {
                 RawDocumentBuf::from_bytes(b.bytes).map_err(serde::de::Error::custom)
             }
 

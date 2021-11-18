@@ -12,7 +12,18 @@ use super::{
     RawRegex,
     Result,
 };
-use crate::{Bson, DateTime, RawArrayBuf, Timestamp, oid::ObjectId, raw::{RAW_ARRAY_NEWTYPE, serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor}}, spec::{BinarySubtype, ElementType}};
+use crate::{
+    oid::ObjectId,
+    raw::{
+        serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
+        RAW_ARRAY_NEWTYPE,
+    },
+    spec::{BinarySubtype, ElementType},
+    Bson,
+    DateTime,
+    RawArrayBuf,
+    Timestamp,
+};
 
 /// A slice of a BSON document containing a BSON array value (akin to [`std::str`]). This can be
 /// retrieved from a [`RawDocument`] via [`RawDocument::get`].
@@ -269,9 +280,13 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer.deserialize_newtype_struct(RAW_ARRAY_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)? {
+        match deserializer
+            .deserialize_newtype_struct(RAW_ARRAY_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
+        {
             OwnedOrBorrowedRawBson::Borrowed(RawBson::Array(d)) => Ok(d),
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b)) if b.subtype == BinarySubtype::Generic => {
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
+                if b.subtype == BinarySubtype::Generic =>
+            {
                 let doc = RawDocument::new(b.bytes).map_err(serde::de::Error::custom)?;
                 Ok(RawArray::from_doc(doc))
             }

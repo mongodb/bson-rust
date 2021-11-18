@@ -119,10 +119,10 @@ mod document;
 mod document_buf;
 mod error;
 mod iter;
-#[cfg(test)]
-mod test;
 mod owned_bson;
 mod serde;
+#[cfg(test)]
+mod test;
 
 use std::convert::{TryFrom, TryInto};
 
@@ -136,7 +136,7 @@ pub use self::{
     document_buf::RawDocumentBuf,
     error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     iter::Iter,
-    owned_bson::{OwnedRawJavaScriptCodeWithScope, OwnedRawBson},
+    owned_bson::{OwnedRawBson, OwnedRawJavaScriptCodeWithScope},
 };
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.

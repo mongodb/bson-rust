@@ -9,18 +9,32 @@ use serde_bytes::{ByteBuf, Bytes};
 use super::{
     owned_bson::OwnedRawBson,
     serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
-    Error, RawArray, RawDocument, Result,
+    Error,
+    RawArray,
+    RawDocument,
+    Result,
 };
 use crate::{
     de::convert_unsigned_to_signed_raw,
     extjson,
     oid::{self, ObjectId},
     raw::{
-        OwnedRawJavaScriptCodeWithScope, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE,
+        OwnedRawJavaScriptCodeWithScope,
+        RAW_ARRAY_NEWTYPE,
+        RAW_BSON_NEWTYPE,
+        RAW_DOCUMENT_NEWTYPE,
     },
     spec::{BinarySubtype, ElementType},
-    Binary, Bson, DateTime, DbPointer, Decimal128, JavaScriptCodeWithScope, RawArrayBuf,
-    RawDocumentBuf, Regex, Timestamp,
+    Binary,
+    Bson,
+    DateTime,
+    DbPointer,
+    Decimal128,
+    JavaScriptCodeWithScope,
+    RawArrayBuf,
+    RawDocumentBuf,
+    Regex,
+    Timestamp,
 };
 
 /// A BSON value referencing raw bytes stored elsewhere.
@@ -275,7 +289,7 @@ impl<'a> RawBson<'a> {
             RawBson::Timestamp(t) => OwnedRawBson::Timestamp(t),
             RawBson::Binary(b) => OwnedRawBson::Binary(Binary {
                 bytes: b.bytes.to_vec(),
-                subtype: b.subtype
+                subtype: b.subtype,
             }),
             RawBson::ObjectId(o) => OwnedRawBson::ObjectId(o),
             RawBson::DateTime(dt) => OwnedRawBson::DateTime(dt),
@@ -286,7 +300,7 @@ impl<'a> RawBson<'a> {
             RawBson::MinKey => OwnedRawBson::MinKey,
             RawBson::DbPointer(d) => OwnedRawBson::DbPointer(DbPointer {
                 namespace: d.namespace.to_string(),
-                id: d.id
+                id: d.id,
             }),
         }
     }
@@ -301,9 +315,10 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawBson<'a> {
             .deserialize_newtype_struct(RAW_BSON_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
         {
             OwnedOrBorrowedRawBson::Borrowed(b) => Ok(b),
-            _ => Err(serde::de::Error::custom(
-                "RawBson must be deserialized from borrowed content",
-            )),
+            o => Err(serde::de::Error::custom(format!(
+                "RawBson must be deserialized from borrowed content, instead got {:?}",
+                o
+            ))),
         }
     }
 }

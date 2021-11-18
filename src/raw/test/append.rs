@@ -1,9 +1,28 @@
 use std::iter::FromIterator;
 
 use crate::{
-    oid::ObjectId, spec::BinarySubtype, tests::LOCK, Binary, Bson, DateTime, DbPointer, Decimal128,
-    Document, JavaScriptCodeWithScope, RawArrayBuf, RawBinary, RawBson, RawDbPointer, RawDocument,
-    RawDocumentBuf, RawJavaScriptCodeWithScope, RawRegex, Regex, Timestamp,
+    oid::ObjectId,
+    raw::OwnedRawJavaScriptCodeWithScope,
+    spec::BinarySubtype,
+    tests::LOCK,
+    Binary,
+    Bson,
+    DateTime,
+    DbPointer,
+    Decimal128,
+    Document,
+    JavaScriptCodeWithScope,
+    OwnedRawBson,
+    RawArrayBuf,
+    RawBinary,
+    RawBson,
+    RawDbPointer,
+    RawDocument,
+    RawDocumentBuf,
+    RawJavaScriptCodeWithScope,
+    RawRegex,
+    Regex,
+    Timestamp,
 };
 
 use pretty_assertions::assert_eq;
@@ -95,7 +114,7 @@ fn null() {
         "null": null,
     };
     append_test(expected, |doc| {
-        doc.append("null", RawBson::Null);
+        doc.append("null", OwnedRawBson::Null);
     });
 }
 
@@ -109,11 +128,11 @@ fn document() {
         }
     };
     append_test(expected, |doc| {
-        doc.append("empty", &RawDocumentBuf::new());
+        doc.append("empty", RawDocumentBuf::new());
         let mut buf = RawDocumentBuf::new();
         buf.append("a", 1_i32);
         buf.append("b", true);
-        doc.append("subdoc", &buf);
+        doc.append("subdoc", buf);
     });
 }
 
@@ -129,15 +148,15 @@ fn array() {
         ]
     };
     append_test(expected, |doc| {
-        doc.append("empty", &RawArrayBuf::new());
+        doc.append("empty", RawArrayBuf::new());
         let mut buf = RawArrayBuf::new();
-        buf.append(true);
-        buf.append("string");
+        buf.push(true);
+        buf.push("string");
         let mut subdoc = RawDocumentBuf::new();
         subdoc.append("a", "subdoc");
-        buf.append(&subdoc);
-        buf.append(123_i32);
-        doc.append("array", &buf);
+        buf.push(subdoc);
+        buf.push(123_i32);
+        doc.append("array", buf);
     });
 }
 
@@ -204,8 +223,8 @@ fn binary() {
     };
 
     append_test(expected, |doc| {
-        doc.append("generic", &bin);
-        doc.append("binary_old", &old);
+        doc.append("generic", bin);
+        doc.append("binary_old", old);
     });
 }
 
@@ -217,8 +236,8 @@ fn min_max_key() {
     };
 
     append_test(expected, |doc| {
-        doc.append("min", RawBson::MinKey);
-        doc.append("max", RawBson::MaxKey);
+        doc.append("min", OwnedRawBson::MinKey);
+        doc.append("max", OwnedRawBson::MaxKey);
     });
 }
 
@@ -229,7 +248,7 @@ fn undefined() {
     };
 
     append_test(expected, |doc| {
-        doc.append("undefined", RawBson::Undefined);
+        doc.append("undefined", OwnedRawBson::Undefined);
     });
 }
 
@@ -240,13 +259,7 @@ fn regex() {
     };
 
     append_test(expected, |doc| {
-        doc.append(
-            "regex",
-            RawRegex {
-                pattern: "some pattern",
-                options: "abc",
-            },
-        )
+        doc.append("regex", Regex::new("some pattern", "abc"));
     });
 }
 
@@ -263,16 +276,19 @@ fn code() {
     };
 
     append_test(expected, |doc| {
-        doc.append("code", RawBson::JavaScriptCode("some code"));
+        doc.append(
+            "code",
+            OwnedRawBson::JavaScriptCode("some code".to_string()),
+        );
 
         let mut scope = RawDocumentBuf::new();
         scope.append("a", 1_i32);
         scope.append("b", true);
         doc.append(
             "code_w_scope",
-            RawJavaScriptCodeWithScope {
-                code: "some code",
-                scope: &scope,
+            OwnedRawJavaScriptCodeWithScope {
+                code: "some code".to_string(),
+                scope,
             },
         );
     });
@@ -285,7 +301,7 @@ fn symbol() {
     };
 
     append_test(expected, |doc| {
-        doc.append("symbol", RawBson::Symbol("symbol"));
+        doc.append("symbol", OwnedRawBson::Symbol("symbol".to_string()));
     });
 }
 
@@ -305,8 +321,8 @@ fn dbpointer() {
     append_test(expected, |doc| {
         doc.append(
             "symbol",
-            RawBson::DbPointer(RawDbPointer {
-                namespace: "ns",
+            OwnedRawBson::DbPointer(DbPointer {
+                namespace: "ns".to_string(),
                 id,
             }),
         );
@@ -351,23 +367,23 @@ fn general() {
 
         let mut subsubdoc = RawDocumentBuf::new();
         subsubdoc.append("subdoc", dt);
-        subdoc.append("another", &subsubdoc);
-        doc.append("subdoc", &subdoc);
+        subdoc.append("another", subsubdoc);
+        doc.append("subdoc", subdoc);
 
         let mut array = RawArrayBuf::new();
-        array.append(1_i64);
-        array.append(true);
+        array.push(1_i64);
+        array.push(true);
 
         let mut array_subdoc = RawDocumentBuf::new();
         array_subdoc.append("doc", 23_i64);
-        array.append(&array_subdoc);
+        array.push(array_subdoc);
 
         let mut sub_array = RawArrayBuf::new();
-        sub_array.append("another");
-        sub_array.append("array");
-        array.append(&sub_array);
+        sub_array.push("another");
+        sub_array.push("array");
+        array.push(sub_array);
 
-        doc.append("array", &array);
+        doc.append("array", array);
     });
 }
 
@@ -376,16 +392,16 @@ fn from_iter() {
     let doc_buf = RawDocumentBuf::from_iter([
         (
             "array",
-            RawBson::Array(&RawArrayBuf::from_iter([
-                RawBson::Boolean(true),
-                RawBson::Document(&RawDocumentBuf::from_iter([
-                    ("ok", RawBson::Boolean(false)),
-                    ("other", RawBson::String("hello")),
+            OwnedRawBson::Array(RawArrayBuf::from_iter([
+                OwnedRawBson::Boolean(true),
+                OwnedRawBson::Document(RawDocumentBuf::from_iter([
+                    ("ok", OwnedRawBson::Boolean(false)),
+                    ("other", OwnedRawBson::String("hello".to_string())),
                 ])),
             ])),
         ),
-        ("bool", RawBson::Boolean(true)),
-        ("string", RawBson::String("some string"))
+        ("bool", OwnedRawBson::Boolean(true)),
+        ("string", OwnedRawBson::String("some string".to_string())),
     ]);
 
     let doc = doc! {
@@ -402,6 +418,6 @@ fn from_iter() {
 
     let expected = doc! { "expected": doc };
     append_test(expected, |doc| {
-        doc.append("expected", &doc_buf);
+        doc.append("expected", doc_buf);
     });
 }

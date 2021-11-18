@@ -1,5 +1,6 @@
 use std::{
     convert::{TryFrom, TryInto},
+    iter::FromIterator,
     marker::PhantomData,
     str::FromStr,
 };
@@ -9,6 +10,8 @@ use crate::{
     tests::LOCK,
     Bson,
     Document,
+    OwnedRawBson,
+    RawDocumentBuf,
 };
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Deserializer};
@@ -177,6 +180,18 @@ fn run_test(test: TestFile) {
                     test_key: bson
                 };
 
+                // deserialize the field from raw Bytes into an OwnedRawBson
+                let mut deserializer_raw =
+                    crate::de::RawDeserializer::new(canonical_bson.as_slice(), false);
+                let owned_raw_bson_field = deserializer_raw
+                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<OwnedRawBson>))
+                    .expect(&description);
+                // convert to an owned Bson and put into a Document
+                let bson: Bson = owned_raw_bson_field.try_into().expect(&description);
+                let from_raw_owned_raw_doc = doc! {
+                    test_key: bson
+                };
+
                 // deserialize the field from raw Bytes into a Bson
                 let mut deserializer_value =
                     crate::de::RawDeserializer::new(canonical_bson.as_slice(), false);
@@ -184,7 +199,7 @@ fn run_test(test: TestFile) {
                     .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<Bson>))
                     .expect(&description);
                 // put into a Document
-                let from_value_doc = doc! {
+                let from_slice_value_doc = doc! {
                     test_key: bson_field,
                 };
 
@@ -201,13 +216,16 @@ fn run_test(test: TestFile) {
 
                 // convert back into raw BSON for comparison with canonical BSON
                 let from_raw_vec = crate::to_vec(&from_raw_doc).expect(&description);
-                let from_value_vec = crate::to_vec(&from_value_doc).expect(&description);
-                let from_value_value_vec =
-                    crate::to_vec(&from_value_value_doc).expect(&description);
+                let from_slice_value_vec =
+                    crate::to_vec(&from_slice_value_doc).expect(&description);
+                let from_bson_value_vec = crate::to_vec(&from_value_value_doc).expect(&description);
+                let from_slice_owned_vec =
+                    crate::to_vec(&from_raw_owned_raw_doc).expect(&description);
 
                 assert_eq!(from_raw_vec, canonical_bson, "{}", description);
-                assert_eq!(from_value_vec, canonical_bson, "{}", description);
-                assert_eq!(from_value_value_vec, canonical_bson, "{}", description);
+                assert_eq!(from_slice_value_vec, canonical_bson, "{}", description);
+                assert_eq!(from_bson_value_vec, canonical_bson, "{}", description);
+                assert_eq!(from_slice_owned_vec, canonical_bson, "{}", description);
             }
         }
 

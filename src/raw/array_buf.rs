@@ -6,11 +6,11 @@ use std::{
 
 use crate::{RawArray, RawBson, RawDocumentBuf};
 
-use super::{RawArrayIter, owned_bson::OwnedRawBson};
+use super::{owned_bson::OwnedRawBson, RawArrayIter};
 
-/// An owned BSON array value (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
-/// This type can be used to construct owned array values, which can be used to append to [`RawDocumentBuf`]
-/// or as a field in a `Deserialize` struct.
+/// An owned BSON array value (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON
+/// bytes. This type can be used to construct owned array values, which can be used to append to
+/// [`RawDocumentBuf`] or as a field in a `Deserialize` struct.
 ///
 /// Iterating over a [`RawArrayBuf`] yields either an error or a key-value pair that borrows from
 /// the original document without making any additional allocations.
@@ -29,7 +29,7 @@ use super::{RawArrayIter, owned_bson::OwnedRawBson};
 ///
 /// let value = iter.next().unwrap()?;
 /// assert_eq!(value.as_i32(), Some(12));
-/// 
+///
 /// assert!(iter.next().is_none());
 /// # Ok::<(), Error>(())
 /// ```
@@ -85,7 +85,7 @@ impl RawArrayBuf {
     ///
     /// let value = iter.next().unwrap()?;
     /// assert_eq!(value.as_i32(), Some(12));
-    /// 
+    ///
     /// let value = iter.next().unwrap()?;
     /// assert_eq!(value.as_document(), Some(&doc));
     ///

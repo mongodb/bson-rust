@@ -650,7 +650,7 @@ impl<'d, 'de> serde::de::Deserializer<'de> for DocumentKeyDeserializer<'d, 'de> 
 
     fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
     where
-        V: serde::de::Visitor<'de>
+        V: serde::de::Visitor<'de>,
     {
         visitor.visit_newtype_struct(self)
     }
@@ -683,7 +683,7 @@ impl<'de> serde::de::Deserializer<'de> for FieldDeserializer {
 
     fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
     where
-        V: serde::de::Visitor<'de>
+        V: serde::de::Visitor<'de>,
     {
         visitor.visit_newtype_struct(self)
     }
@@ -1110,13 +1110,20 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut DateTimeDeserializer {
         }
     }
 
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
+        bytes byte_buf map struct option unit
         ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
@@ -1343,13 +1350,20 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut CodeWithScopeDeserial
         }
     }
 
+    fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
+        bytes byte_buf map struct option unit
         ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
@@ -1452,13 +1466,20 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut DbPointerDeserializer
         }
     }
 
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
+        bytes byte_buf map struct option unit
         ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
@@ -1660,13 +1681,20 @@ impl<'de, 'a> serde::de::Deserializer<'de> for RawBsonDeserializer<'de> {
         }
     }
 
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
+        bytes byte_buf map struct option unit
         ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }

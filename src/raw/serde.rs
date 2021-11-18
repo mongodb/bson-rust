@@ -9,15 +9,37 @@ use crate::{
     oid::ObjectId,
     raw::{OwnedRawJavaScriptCodeWithScope, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::BinarySubtype,
-    Binary, DateTime, DbPointer, Decimal128, RawArray, RawBinary, RawBson, RawDbPointer,
-    RawDocument, RawDocumentBuf, RawJavaScriptCodeWithScope, RawRegex, Regex, Timestamp,
+    Binary,
+    DateTime,
+    DbPointer,
+    Decimal128,
+    RawArray,
+    RawArrayBuf,
+    RawBinary,
+    RawBson,
+    RawDbPointer,
+    RawDocument,
+    RawDocumentBuf,
+    RawJavaScriptCodeWithScope,
+    RawRegex,
+    Regex,
+    Timestamp,
 };
 
-use super::owned_bson::OwnedRawBson;
+use super::{owned_bson::OwnedRawBson, RAW_BSON_NEWTYPE};
 
 pub(crate) enum OwnedOrBorrowedRawBson<'a> {
     Owned(OwnedRawBson),
     Borrowed(RawBson<'a>),
+}
+
+impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawBson<'a> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_newtype_struct(RAW_BSON_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)
+    }
 }
 
 impl<'a> Debug for OwnedOrBorrowedRawBson<'a> {
@@ -173,6 +195,28 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
         deserializer.deserialize_any(self)
     }
 
+    fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(OwnedRawBson::Binary(Binary {
+            bytes: v,
+            subtype: BinarySubtype::Generic,
+        })
+        .into())
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let mut array = RawArrayBuf::new();
+        while let Some(v) = seq.next_element::<OwnedRawBson>()? {
+            array.push(v);
+        }
+        Ok(OwnedRawBson::Array(array).into())
+    }
+
     fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
     where
         A: serde::de::MapAccess<'de>,
@@ -303,23 +347,29 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
                 let code = map.next_value::<CowStr>()?;
                 if let Some(key) = map.next_key::<CowStr>()? {
                     if key.0.as_ref() == "$scope" {
-                        let scope = map.next_value::<CowRawDocument>()?;
-
-                        match (code.0, scope.0) {
-                            (Cow::Borrowed(code), Cow::Borrowed(scope)) => Ok(
+                        let scope = map.next_value::<OwnedOrBorrowedRawBson>()?;
+                        match (code.0, scope) {
+                            (
+                                Cow::Borrowed(code),
+                                OwnedOrBorrowedRawBson::Borrowed(RawBson::Document(scope)),
+                            ) => Ok(
                                 RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
                                     code,
                                     scope,
                                 })
                                 .into(),
                             ),
-                            (code, scope) => Ok(OwnedRawBson::JavaScriptCodeWithScope(
-                                OwnedRawJavaScriptCodeWithScope {
-                                    code: code.into_owned(),
-                                    scope: scope.into_owned(),
-                                },
+                            (
+                                Cow::Owned(code),
+                                OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Document(scope)),
+                            ) => Ok(OwnedRawBson::JavaScriptCodeWithScope(
+                                OwnedRawJavaScriptCodeWithScope { code, scope },
                             )
                             .into()),
+                            (code, scope) => Err(serde::de::Error::custom(format!(
+                                "invalid code_w_scope: code: {:?}, scope: {:?}",
+                                code, scope
+                            ))),
                         }
                     } else {
                         Err(serde::de::Error::unknown_field(&key.0, &["$scope"]))

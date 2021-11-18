@@ -5,7 +5,16 @@ use std::{
 
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 
-use crate::{DateTime, Timestamp, raw::{RAW_DOCUMENT_NEWTYPE, error::ErrorKind, serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor}}, spec::BinarySubtype};
+use crate::{
+    raw::{
+        error::ErrorKind,
+        serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
+        RAW_DOCUMENT_NEWTYPE,
+    },
+    spec::BinarySubtype,
+    DateTime,
+    Timestamp,
+};
 
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
@@ -494,13 +503,17 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer.deserialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)? {
+        match deserializer
+            .deserialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
+        {
             OwnedOrBorrowedRawBson::Borrowed(RawBson::Document(d)) => Ok(d),
 
             // For non-BSON formats, RawDocument gets serialized as bytes, so we need to deserialize
             // from them here too. For BSON, the deserializier will return an error if it
             // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b)) if b.subtype == BinarySubtype::Generic => {
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
+                if b.subtype == BinarySubtype::Generic =>
+            {
                 RawDocument::new(b.bytes).map_err(serde::de::Error::custom)
             }
 

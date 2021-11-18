@@ -2,9 +2,33 @@ use std::convert::{TryFrom, TryInto};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Binary, Bson, DbPointer, Decimal128, JavaScriptCodeWithScope, RawArray, RawArrayBuf, RawBinary, RawBson, RawDbPointer, RawDocument, RawDocumentBuf, RawJavaScriptCodeWithScope, RawRegex, Regex, Timestamp, oid::{self, ObjectId}, raw::RAW_BSON_NEWTYPE, spec::ElementType};
+use crate::{
+    oid::{self, ObjectId},
+    raw::RAW_BSON_NEWTYPE,
+    spec::ElementType,
+    Binary,
+    Bson,
+    DbPointer,
+    Decimal128,
+    JavaScriptCodeWithScope,
+    RawArray,
+    RawArrayBuf,
+    RawBinary,
+    RawBson,
+    RawDbPointer,
+    RawDocument,
+    RawDocumentBuf,
+    RawJavaScriptCodeWithScope,
+    RawRegex,
+    Regex,
+    Timestamp,
+};
 
-use super::{Result, Error, serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor}};
+use super::{
+    serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
+    Error,
+    Result,
+};
 
 /// A BSON value backed by owned raw BSON bytes.
 #[derive(Debug, Clone, PartialEq)]
@@ -90,8 +114,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets a reference to the `String` that's wrapped or returns `None` if the wrapped value isn't a BSON
-    /// String.
+    /// Gets a reference to the `String` that's wrapped or returns `None` if the wrapped value isn't
+    /// a BSON String.
     pub fn as_str(&self) -> Option<&'_ str> {
         match self {
             OwnedRawBson::String(s) => Some(s),
@@ -99,8 +123,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets a reference to the [`RawArrayBuf`] that's wrapped or returns `None` if the wrapped value isn't a BSON
-    /// array.
+    /// Gets a reference to the [`RawArrayBuf`] that's wrapped or returns `None` if the wrapped
+    /// value isn't a BSON array.
     pub fn as_array(&self) -> Option<&'_ RawArray> {
         match self {
             OwnedRawBson::Array(v) => Some(v),
@@ -108,8 +132,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets a reference to the [`RawDocumentBuf`] that's wrapped or returns `None` if the wrapped value isn't a BSON
-    /// document.
+    /// Gets a reference to the [`RawDocumentBuf`] that's wrapped or returns `None` if the wrapped
+    /// value isn't a BSON document.
     pub fn as_document(&self) -> Option<&'_ RawDocument> {
         match self {
             OwnedRawBson::Document(v) => Some(v),
@@ -144,8 +168,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets the wrapped [`crate::oid::ObjectId`] value or returns `None` if the wrapped value isn't a BSON
-    /// ObjectID.
+    /// Gets the wrapped [`crate::oid::ObjectId`] value or returns `None` if the wrapped value isn't
+    /// a BSON ObjectID.
     pub fn as_object_id(&self) -> Option<oid::ObjectId> {
         match self {
             OwnedRawBson::ObjectId(v) => Some(*v),
@@ -153,8 +177,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets a reference to the [`Binary`] that's wrapped or returns `None` if the wrapped value isn't a BSON
-    /// binary.
+    /// Gets a reference to the [`Binary`] that's wrapped or returns `None` if the wrapped value
+    /// isn't a BSON binary.
     pub fn as_binary(&self) -> Option<RawBinary<'_>> {
         match self {
             OwnedRawBson::Binary(v) => Some(RawBinary {
@@ -165,8 +189,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets a reference to the [`Regex`] that's wrapped or returns `None` if the wrapped value isn't a BSON
-    /// regular expression.
+    /// Gets a reference to the [`Regex`] that's wrapped or returns `None` if the wrapped value
+    /// isn't a BSON regular expression.
     pub fn as_regex(&self) -> Option<RawRegex<'_>> {
         match self {
             OwnedRawBson::RegularExpression(v) => Some(RawRegex {
@@ -177,8 +201,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets the wrapped [`crate::DateTime`] value or returns `None` if the wrapped value isn't a BSON
-    /// datetime.
+    /// Gets the wrapped [`crate::DateTime`] value or returns `None` if the wrapped value isn't a
+    /// BSON datetime.
     pub fn as_datetime(&self) -> Option<crate::DateTime> {
         match self {
             OwnedRawBson::DateTime(v) => Some(*v),
@@ -186,8 +210,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets a reference to the symbol that's wrapped or returns `None` if the wrapped value isn't a BSON
-    /// Symbol.
+    /// Gets a reference to the symbol that's wrapped or returns `None` if the wrapped value isn't a
+    /// BSON Symbol.
     pub fn as_symbol(&self) -> Option<&'_ str> {
         match self {
             OwnedRawBson::Symbol(v) => Some(v),
@@ -195,8 +219,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets the wrapped [`crate::Timestamp`] value or returns `None` if the wrapped value isn't a BSON
-    /// datetime.
+    /// Gets the wrapped [`crate::Timestamp`] value or returns `None` if the wrapped value isn't a
+    /// BSON datetime.
     pub fn as_timestamp(&self) -> Option<Timestamp> {
         match self {
             OwnedRawBson::Timestamp(timestamp) => Some(*timestamp),
@@ -212,8 +236,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets a reference to the [`crate::DbPointer`] that's wrapped or returns `None` if the wrapped value isn't a BSON
-    /// DbPointer.
+    /// Gets a reference to the [`crate::DbPointer`] that's wrapped or returns `None` if the wrapped
+    /// value isn't a BSON DbPointer.
     pub fn as_db_pointer(&self) -> Option<RawDbPointer<'_>> {
         match self {
             OwnedRawBson::DbPointer(d) => Some(RawDbPointer {
@@ -224,8 +248,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets a reference to the code that's wrapped or returns `None` if the wrapped value isn't a BSON
-    /// JavaScript code.
+    /// Gets a reference to the code that's wrapped or returns `None` if the wrapped value isn't a
+    /// BSON JavaScript code.
     pub fn as_javascript(&self) -> Option<&'_ str> {
         match self {
             OwnedRawBson::JavaScriptCode(s) => Some(s),
@@ -233,8 +257,8 @@ impl OwnedRawBson {
         }
     }
 
-    /// Gets a reference to the [`OwnedRawJavaScriptCodeWithScope`] that's wrapped or returns `None` if
-    /// the wrapped value isn't a BSON JavaScript code with scope value.
+    /// Gets a reference to the [`OwnedRawJavaScriptCodeWithScope`] that's wrapped or returns `None`
+    /// if the wrapped value isn't a BSON JavaScript code with scope value.
     pub fn as_javascript_with_scope(&self) -> Option<RawJavaScriptCodeWithScope<'_>> {
         match self {
             OwnedRawBson::JavaScriptCodeWithScope(s) => Some(RawJavaScriptCodeWithScope {
@@ -305,6 +329,12 @@ impl From<String> for OwnedRawBson {
     }
 }
 
+impl From<&str> for OwnedRawBson {
+    fn from(s: &str) -> Self {
+        OwnedRawBson::String(s.to_owned())
+    }
+}
+
 impl From<f64> for OwnedRawBson {
     fn from(f: f64) -> Self {
         OwnedRawBson::Double(f)
@@ -371,6 +401,12 @@ impl From<Regex> for OwnedRawBson {
     }
 }
 
+impl From<DbPointer> for OwnedRawBson {
+    fn from(d: DbPointer) -> Self {
+        OwnedRawBson::DbPointer(d)
+    }
+}
+
 impl<'de> Deserialize<'de> for OwnedRawBson {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
@@ -401,9 +437,7 @@ impl<'a> TryFrom<OwnedRawBson> for Bson {
         Ok(match rawbson {
             OwnedRawBson::Double(d) => Bson::Double(d),
             OwnedRawBson::String(s) => Bson::String(s),
-            OwnedRawBson::Document(rawdoc) => {
-                Bson::Document(rawdoc.as_ref().try_into()?)
-            }
+            OwnedRawBson::Document(rawdoc) => Bson::Document(rawdoc.as_ref().try_into()?),
             OwnedRawBson::Array(rawarray) => {
                 let mut items = Vec::new();
                 for v in rawarray.into_iter() {
@@ -412,17 +446,14 @@ impl<'a> TryFrom<OwnedRawBson> for Bson {
                 }
                 Bson::Array(items)
             }
-            OwnedRawBson::Binary(rawbson) => {
-                Bson::Binary(rawbson)
-            }
+            OwnedRawBson::Binary(rawbson) => Bson::Binary(rawbson),
             OwnedRawBson::ObjectId(rawbson) => Bson::ObjectId(rawbson),
             OwnedRawBson::Boolean(rawbson) => Bson::Boolean(rawbson),
             OwnedRawBson::DateTime(rawbson) => Bson::DateTime(rawbson),
             OwnedRawBson::Null => Bson::Null,
-            OwnedRawBson::RegularExpression(rawregex) => Bson::RegularExpression(crate::Regex::new(
-                rawregex.pattern,
-                rawregex.options,
-            )),
+            OwnedRawBson::RegularExpression(rawregex) => {
+                Bson::RegularExpression(crate::Regex::new(rawregex.pattern, rawregex.options))
+            }
             OwnedRawBson::JavaScriptCode(rawbson) => Bson::JavaScriptCode(rawbson),
             OwnedRawBson::Int32(rawbson) => Bson::Int32(rawbson),
             OwnedRawBson::Timestamp(rawbson) => Bson::Timestamp(rawbson),
@@ -474,11 +505,11 @@ impl<'de> Deserialize<'de> for OwnedRawJavaScriptCodeWithScope {
 impl Serialize for OwnedRawJavaScriptCodeWithScope {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
-        S: serde::Serializer
+        S: serde::Serializer,
     {
         let raw = RawJavaScriptCodeWithScope {
             code: self.code.as_str(),
-            scope: self.scope.as_ref()
+            scope: self.scope.as_ref(),
         };
 
         raw.serialize(serializer)

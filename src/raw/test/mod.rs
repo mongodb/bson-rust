@@ -481,16 +481,6 @@ fn into_bson_conversion() {
     );
 }
 
-#[test]
-fn append() {
-    let mut buf = RawDocumentBuf::new();
-    buf.append("dog", RawBson::Int32(4));
-    buf.append("cat", RawBson::Int32(1));
-
-    let doc = buf.to_document().unwrap();
-    println!("{:#?}", doc);
-}
-
 use props::arbitrary_bson;
 use proptest::prelude::*;
 use std::convert::TryInto;
