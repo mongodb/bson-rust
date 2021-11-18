@@ -43,7 +43,7 @@ use crate::{
 /// };
 /// let bytes = bson::to_vec(&doc)?;
 ///
-/// let rawdoc = RawDocument::new(bytes.as_slice())?;
+/// let rawdoc = RawDocument::from_bytes(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
 ///
 /// for v in rawarray {
@@ -66,7 +66,7 @@ use crate::{
 /// };
 /// let bytes = bson::to_vec(&doc)?;
 ///
-/// let rawdoc = RawDocument::new(bytes.as_slice())?;
+/// let rawdoc = RawDocument::from_bytes(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
 ///
 /// assert_eq!(rawarray.get_bool(1)?, true);

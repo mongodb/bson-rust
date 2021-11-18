@@ -156,7 +156,7 @@ impl RawDocumentBuf {
     /// use bson::{doc, raw::RawDocumentBuf};
     ///
     /// let doc = RawDocumentBuf::from_document(&doc!{})?;
-    /// assert_eq!(doc.into_vec(), b"\x05\x00\x00\x00\x00".to_vec());
+    /// assert_eq!(doc.into_bytes(), b"\x05\x00\x00\x00\x00".to_vec());
     /// # Ok::<(), Error>(())
     /// ```
     pub fn into_bytes(self) -> Vec<u8> {
@@ -195,7 +195,7 @@ impl RawDocumentBuf {
     pub fn append(&mut self, key: impl Into<String>, value: impl Into<OwnedRawBson>) {
         fn append_string(doc: &mut RawDocumentBuf, value: String) {
             doc.data
-                .extend(((value.as_bytes().len() + 1) as i32).to_le_bytes());
+                .extend(&((value.as_bytes().len() + 1) as i32).to_le_bytes());
             doc.data.extend(value.into_bytes());
             doc.data.push(0);
         }
@@ -219,7 +219,7 @@ impl RawDocumentBuf {
 
         match value {
             OwnedRawBson::Int32(i) => {
-                self.data.extend(i.to_le_bytes());
+                self.data.extend(&i.to_le_bytes());
             }
             OwnedRawBson::String(s) => {
                 append_string(self, s);
@@ -236,10 +236,10 @@ impl RawDocumentBuf {
                     subtype: b.subtype,
                 }
                 .len();
-                self.data.extend(len.to_le_bytes());
+                self.data.extend(&len.to_le_bytes());
                 self.data.push(b.subtype.into());
                 if let BinarySubtype::BinaryOld = b.subtype {
-                    self.data.extend((len - 4).to_le_bytes())
+                    self.data.extend(&(len - 4).to_le_bytes())
                 }
                 self.data.extend(b.bytes);
             }
@@ -248,20 +248,20 @@ impl RawDocumentBuf {
                 self.data.push(byte);
             }
             OwnedRawBson::DateTime(dt) => {
-                self.data.extend(dt.timestamp_millis().to_le_bytes());
+                self.data.extend(&dt.timestamp_millis().to_le_bytes());
             }
             OwnedRawBson::DbPointer(dbp) => {
                 append_string(self, dbp.namespace);
-                self.data.extend(dbp.id.bytes());
+                self.data.extend(&dbp.id.bytes());
             }
             OwnedRawBson::Decimal128(d) => {
-                self.data.extend(d.bytes());
+                self.data.extend(&d.bytes());
             }
             OwnedRawBson::Double(d) => {
-                self.data.extend(d.to_le_bytes());
+                self.data.extend(&d.to_le_bytes());
             }
             OwnedRawBson::Int64(i) => {
-                self.data.extend(i.to_le_bytes());
+                self.data.extend(&i.to_le_bytes());
             }
             OwnedRawBson::RegularExpression(re) => {
                 append_cstring(self, re.pattern);
@@ -276,15 +276,15 @@ impl RawDocumentBuf {
                     scope: &code_w_scope.scope,
                 }
                 .len();
-                self.data.extend(len.to_le_bytes());
+                self.data.extend(&len.to_le_bytes());
                 append_string(self, code_w_scope.code);
                 self.data.extend(code_w_scope.scope.into_bytes());
             }
             OwnedRawBson::Timestamp(ts) => {
-                self.data.extend(ts.to_le_i64().to_le_bytes());
+                self.data.extend(&ts.to_le_i64().to_le_bytes());
             }
             OwnedRawBson::ObjectId(oid) => {
-                self.data.extend(oid.bytes());
+                self.data.extend(&oid.bytes());
             }
             OwnedRawBson::Symbol(s) => {
                 append_string(self, s);
@@ -300,7 +300,7 @@ impl RawDocumentBuf {
         self.data.push(0);
         // update length
         self.data
-            .splice(0..4, (self.data.len() as i32).to_le_bytes());
+            .splice(0..4, (self.data.len() as i32).to_le_bytes().iter().cloned());
     }
 
     /// Convert this [`RawDocumentBuf`] to a [`Document`], returning an error

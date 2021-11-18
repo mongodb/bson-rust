@@ -76,7 +76,7 @@
 //! use bson::raw::RawDocument;
 //!
 //! let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
-//! assert_eq!(RawDocument::new(bytes)?.get_str("hi")?, "y'all");
+//! assert_eq!(RawDocument::from_bytes(bytes)?.get_str("hi")?, "y'all");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
