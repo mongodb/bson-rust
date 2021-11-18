@@ -35,7 +35,7 @@ use super::{owned_bson::OwnedRawBson, Error, ErrorKind, Iter, RawBson, RawDocume
 /// # use bson::raw::Error;
 /// use bson::raw::RawDocumentBuf;
 ///
-/// let doc = RawDocumentBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 /// let mut iter = doc.iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
@@ -53,7 +53,7 @@ use super::{owned_bson::OwnedRawBson, Error, ErrorKind, Iter, RawBson, RawDocume
 /// ```
 /// use bson::raw::RawDocumentBuf;
 ///
-/// let doc = RawDocumentBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -168,7 +168,7 @@ impl RawDocumentBuf {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::raw::RawDocumentBuf;
+    /// use bson::{doc, raw::RawDocumentBuf};
     ///
     /// let mut doc = RawDocumentBuf::new();
     /// doc.append("a string", "some string");
@@ -176,7 +176,7 @@ impl RawDocumentBuf {
     ///
     /// let mut subdoc = RawDocumentBuf::new();
     /// subdoc.append("a key", true);
-    /// doc.push("a document", subdoc);
+    /// doc.append("a document", subdoc);
     ///
     /// let expected = doc! {
     ///     "a string": "some string",

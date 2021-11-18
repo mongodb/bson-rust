@@ -28,13 +28,13 @@ use super::{owned_bson::OwnedRawBson, RawArrayIter};
 /// the original document without making any additional allocations.
 /// ```
 /// # use bson::raw::Error;
-/// use bson::raw::RawDocumentBuf;
+/// use bson::raw::RawArrayBuf;
 ///
 /// let mut array = RawArrayBuf::new();
-/// array.append("a string");
-/// array.append(12_i32);
+/// array.push("a string");
+/// array.push(12_i32);
 ///
-/// let mut iter = array.iter();
+/// let mut iter = array.into_iter();
 ///
 /// let value = iter.next().unwrap()?;
 /// assert_eq!(value.as_str(), Some("a string"));
@@ -86,9 +86,9 @@ impl RawArrayBuf {
     ///
     /// let mut doc = RawDocumentBuf::new();
     /// doc.append("a key", "a value");
-    /// array.push(doc);
+    /// array.push(doc.clone());
     ///
-    /// let mut iter = array.iter();
+    /// let mut iter = array.into_iter();
     ///
     /// let value = iter.next().unwrap()?;
     /// assert_eq!(value.as_str(), Some("a string"));
@@ -97,7 +97,7 @@ impl RawArrayBuf {
     /// assert_eq!(value.as_i32(), Some(12));
     ///
     /// let value = iter.next().unwrap()?;
-    /// assert_eq!(value.as_document(), Some(&doc));
+    /// assert_eq!(value.as_document(), Some(doc.as_ref()));
     ///
     /// assert!(iter.next().is_none());
     /// # Ok::<(), Error>(())

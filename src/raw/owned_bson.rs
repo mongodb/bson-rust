@@ -437,31 +437,19 @@ impl<'a> TryFrom<OwnedRawBson> for Bson {
             OwnedRawBson::Double(d) => Bson::Double(d),
             OwnedRawBson::String(s) => Bson::String(s),
             OwnedRawBson::Document(rawdoc) => Bson::Document(rawdoc.as_ref().try_into()?),
-            OwnedRawBson::Array(rawarray) => {
-                let mut items = Vec::new();
-                for v in rawarray.into_iter() {
-                    let bson: Bson = v?.try_into()?;
-                    items.push(bson);
-                }
-                Bson::Array(items)
-            }
+            OwnedRawBson::Array(rawarray) => Bson::Array(rawarray.as_ref().try_into()?),
             OwnedRawBson::Binary(rawbson) => Bson::Binary(rawbson),
             OwnedRawBson::ObjectId(rawbson) => Bson::ObjectId(rawbson),
             OwnedRawBson::Boolean(rawbson) => Bson::Boolean(rawbson),
             OwnedRawBson::DateTime(rawbson) => Bson::DateTime(rawbson),
             OwnedRawBson::Null => Bson::Null,
-            OwnedRawBson::RegularExpression(rawregex) => {
-                Bson::RegularExpression(crate::Regex::new(rawregex.pattern, rawregex.options))
-            }
+            OwnedRawBson::RegularExpression(rawregex) => Bson::RegularExpression(rawregex),
             OwnedRawBson::JavaScriptCode(rawbson) => Bson::JavaScriptCode(rawbson),
             OwnedRawBson::Int32(rawbson) => Bson::Int32(rawbson),
             OwnedRawBson::Timestamp(rawbson) => Bson::Timestamp(rawbson),
             OwnedRawBson::Int64(rawbson) => Bson::Int64(rawbson),
             OwnedRawBson::Undefined => Bson::Undefined,
-            OwnedRawBson::DbPointer(rawbson) => Bson::DbPointer(DbPointer {
-                namespace: rawbson.namespace,
-                id: rawbson.id,
-            }),
+            OwnedRawBson::DbPointer(rawbson) => Bson::DbPointer(rawbson),
             OwnedRawBson::Symbol(rawbson) => Bson::Symbol(rawbson),
             OwnedRawBson::JavaScriptCodeWithScope(rawbson) => {
                 Bson::JavaScriptCodeWithScope(crate::JavaScriptCodeWithScope {

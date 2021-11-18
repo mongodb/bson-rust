@@ -47,7 +47,7 @@ fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn write_cstring<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
+fn write_cstring<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
     if s.contains('\0') {
         return Err(Error::InvalidCString(s.into()));
     }

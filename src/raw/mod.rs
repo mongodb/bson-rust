@@ -23,7 +23,7 @@
 //! };
 //!
 //! // See http://bsonspec.org/spec.html for details on the binary encoding of BSON.
-//! let doc = RawDocumentBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+//! let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 //! let elem = doc.get("hi")?.unwrap();
 //!
 //! assert_eq!(

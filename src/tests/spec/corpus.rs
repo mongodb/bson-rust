@@ -1,5 +1,6 @@
 use std::{
     convert::{TryFrom, TryInto},
+    iter::FromIterator,
     marker::PhantomData,
     str::FromStr,
 };
@@ -10,6 +11,7 @@ use crate::{
     Bson,
     Document,
     OwnedRawBson,
+    RawDocumentBuf,
 };
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Deserializer};
@@ -189,11 +191,8 @@ fn run_test(test: TestFile) {
                 let owned_raw_bson_field = deserializer_raw
                     .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<OwnedRawBson>))
                     .expect(&description);
-                // convert to an owned Bson and put into a Document
-                let bson: Bson = owned_raw_bson_field.try_into().expect(&description);
-                let from_raw_owned_raw_doc = doc! {
-                    test_key: bson
-                };
+                let from_slice_owned_vec =
+                    RawDocumentBuf::from_iter([(test_key, owned_raw_bson_field)]).into_vec();
 
                 // deserialize the field from raw Bytes into a Bson
                 let mut deserializer_value =
@@ -222,8 +221,6 @@ fn run_test(test: TestFile) {
                 let from_slice_value_vec =
                     crate::to_vec(&from_slice_value_doc).expect(&description);
                 let from_bson_value_vec = crate::to_vec(&from_value_value_doc).expect(&description);
-                let from_slice_owned_vec =
-                    crate::to_vec(&from_raw_owned_raw_doc).expect(&description);
 
                 assert_eq!(from_raw_vec, canonical_bson, "{}", description);
                 assert_eq!(from_slice_value_vec, canonical_bson, "{}", description);

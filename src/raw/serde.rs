@@ -28,6 +28,10 @@ use crate::{
 
 use super::{owned_bson::OwnedRawBson, RAW_BSON_NEWTYPE};
 
+/// A raw BSON value that may either be borrowed or owned.
+///
+/// This is used to consolidate the `Serialize` and `Deserialize` implementations for
+/// `RawBson` and `OwnedRawBson`.
 pub(crate) enum OwnedOrBorrowedRawBson<'a> {
     Owned(OwnedRawBson),
     Borrowed(RawBson<'a>),
@@ -228,6 +232,9 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
     where
         A: serde::de::MapAccess<'de>,
     {
+        /// Helper function used to build up the rest of a document once we determine that
+        /// the map being visited isn't the serde data model version of a BSON type and is
+        /// in fact a regular map.
         fn build_doc<'de, A>(
             first_key: &str,
             mut map: A,
@@ -246,16 +253,9 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
             Ok(OwnedRawBson::Document(doc).into())
         }
 
-        println!("deserializing cow");
         let k = match map.next_key::<CowStr>()? {
             Some(k) => k,
             None => return Ok(OwnedRawBson::Document(RawDocumentBuf::new()).into()),
-        };
-        println!("deserialized {}", k.0);
-
-        match k.0 {
-            Cow::Borrowed(_) => println!("borrowed"),
-            _ => println!("not borrowed"),
         };
 
         match k.0.as_ref() {
