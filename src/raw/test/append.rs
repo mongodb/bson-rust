@@ -14,13 +14,7 @@ use crate::{
     JavaScriptCodeWithScope,
     OwnedRawBson,
     RawArrayBuf,
-    RawBinary,
-    RawBson,
-    RawDbPointer,
-    RawDocument,
     RawDocumentBuf,
-    RawJavaScriptCodeWithScope,
-    RawRegex,
     Regex,
     Timestamp,
 };
@@ -213,7 +207,7 @@ fn binary() {
     };
 
     let old = Binary {
-        bytes: bytes.clone(),
+        bytes,
         subtype: BinarySubtype::BinaryOld,
     };
 

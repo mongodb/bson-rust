@@ -88,8 +88,6 @@ impl RawArrayBuf {
     /// doc.append("a key", "a value");
     /// array.push(doc);
     ///
-    /// assert_eq!(array.len(), 3);
-    ///
     /// let mut iter = array.iter();
     ///
     /// let value = iter.next().unwrap()?;
@@ -107,14 +105,6 @@ impl RawArrayBuf {
     pub fn push(&mut self, value: impl Into<OwnedRawBson>) {
         self.inner.append(self.len.to_string(), value);
         self.len += 1;
-    }
-
-    /// Returns the number of elements in the [`RawArrayBuf`].
-    ///
-    /// To retrieve the number of BSON bytes in the backing buffer, use
-    /// `.as_bytes().len()`.
-    pub fn len(&self) -> usize {
-        self.len
     }
 
     pub(crate) fn into_vec(self) -> Vec<u8> {
@@ -218,5 +208,11 @@ impl Serialize for RawArrayBuf {
         S: serde::Serializer,
     {
         self.as_ref().serialize(serializer)
+    }
+}
+
+impl Default for RawArrayBuf {
+    fn default() -> Self {
+        Self::new()
     }
 }

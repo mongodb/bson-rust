@@ -37,7 +37,6 @@ use crate::{
     de::MAX_BSON_SIZE,
     spec::BinarySubtype,
     Binary,
-    RawJavaScriptCodeWithScope,
 };
 use ::serde::{ser::Error as SerdeError, Serialize};
 

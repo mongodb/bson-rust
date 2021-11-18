@@ -491,11 +491,6 @@ impl RawDocument {
     pub fn as_bytes(&self) -> &[u8] {
         &self.data
     }
-
-    /// The number of bytes in this document.
-    pub fn len(&self) -> usize {
-        self.data.len()
-    }
 }
 
 impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {

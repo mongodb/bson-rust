@@ -1,7 +1,4 @@
-use std::{
-    borrow::Borrow,
-    convert::{TryFrom, TryInto},
-};
+use std::convert::{TryFrom, TryInto};
 
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +10,6 @@ use crate::{
     Bson,
     DbPointer,
     Decimal128,
-    JavaScriptCodeWithScope,
     RawArray,
     RawArrayBuf,
     RawBinary,
@@ -277,8 +273,8 @@ impl OwnedRawBson {
         match self {
             OwnedRawBson::Double(d) => RawBson::Double(*d),
             OwnedRawBson::String(s) => RawBson::String(s.as_str()),
-            OwnedRawBson::Array(a) => RawBson::Array(&a),
-            OwnedRawBson::Document(d) => RawBson::Document(&d),
+            OwnedRawBson::Array(a) => RawBson::Array(a),
+            OwnedRawBson::Document(d) => RawBson::Document(d),
             OwnedRawBson::Boolean(b) => RawBson::Boolean(*b),
             OwnedRawBson::Null => RawBson::Null,
             OwnedRawBson::RegularExpression(re) => RawBson::RegularExpression(RawRegex {

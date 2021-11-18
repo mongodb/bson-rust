@@ -381,12 +381,10 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
                     } else {
                         Err(serde::de::Error::unknown_field(&key.0, &["$scope"]))
                     }
+                } else if let Cow::Borrowed(code) = code.0 {
+                    Ok(RawBson::JavaScriptCode(code).into())
                 } else {
-                    if let Cow::Borrowed(code) = code.0 {
-                        Ok(RawBson::JavaScriptCode(code).into())
-                    } else {
-                        Ok(OwnedRawBson::JavaScriptCode(code.0.into_owned()).into())
-                    }
+                    Ok(OwnedRawBson::JavaScriptCode(code.0.into_owned()).into())
                 }
             }
             "$dbPointer" => {

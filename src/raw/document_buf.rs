@@ -1,7 +1,6 @@
 use std::{
     borrow::{Borrow, Cow},
     convert::{TryFrom, TryInto},
-    ffi::CString,
     iter::FromIterator,
     ops::Deref,
 };
@@ -14,7 +13,7 @@ use crate::{
         serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
         RAW_DOCUMENT_NEWTYPE,
     },
-    spec::{BinarySubtype, ElementType},
+    spec::BinarySubtype,
     Document,
     RawBinary,
     RawJavaScriptCodeWithScope,

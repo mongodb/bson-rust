@@ -10,7 +10,6 @@ use crate::{
     Binary,
     Bson,
     DateTime,
-    Document,
     JavaScriptCodeWithScope,
     Regex,
     Timestamp,

@@ -1,10 +1,7 @@
-use std::{
-    convert::{TryFrom, TryInto},
-    iter::FromIterator,
-};
+use std::convert::{TryFrom, TryInto};
 
-use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Serialize};
-use serde_bytes::{ByteBuf, Bytes};
+use serde::{ser::SerializeStruct, Deserialize, Serialize};
+use serde_bytes::Bytes;
 
 use super::{
     owned_bson::OwnedRawBson,
@@ -15,22 +12,14 @@ use super::{
     Result,
 };
 use crate::{
-    de::convert_unsigned_to_signed_raw,
     extjson,
     oid::{self, ObjectId},
-    raw::{
-        OwnedRawJavaScriptCodeWithScope,
-        RAW_ARRAY_NEWTYPE,
-        RAW_BSON_NEWTYPE,
-        RAW_DOCUMENT_NEWTYPE,
-    },
+    raw::{OwnedRawJavaScriptCodeWithScope, RAW_BSON_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     Binary,
     Bson,
-    DateTime,
     DbPointer,
     Decimal128,
-    JavaScriptCodeWithScope,
     RawArrayBuf,
     RawDocumentBuf,
     Regex,
@@ -622,7 +611,7 @@ impl<'a> RawJavaScriptCodeWithScope<'a> {
     }
 
     pub(crate) fn len(self) -> i32 {
-        4 + 4 + self.code.len() as i32 + 1 + self.scope.len() as i32
+        4 + 4 + self.code.len() as i32 + 1 + self.scope.as_bytes().len() as i32
     }
 }
 

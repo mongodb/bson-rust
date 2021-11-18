@@ -1,6 +1,5 @@
 use std::{
     convert::{TryFrom, TryInto},
-    iter::FromIterator,
     marker::PhantomData,
     str::FromStr,
 };
@@ -11,7 +10,6 @@ use crate::{
     Bson,
     Document,
     OwnedRawBson,
-    RawDocumentBuf,
 };
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Deserializer};
