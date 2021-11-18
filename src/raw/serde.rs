@@ -70,6 +70,57 @@ impl<'a> From<OwnedRawBson> for OwnedOrBorrowedRawBson<'a> {
 #[derive(Debug, Deserialize)]
 struct CowStr<'a>(#[serde(borrow)] Cow<'a, str>);
 
+pub(crate) enum OwnedOrBorrowedRawDocument<'a> {
+    Owned(RawDocumentBuf),
+    Borrowed(&'a RawDocument),
+}
+
+impl<'a> OwnedOrBorrowedRawDocument<'a> {
+    pub(crate) fn into_owned(self) -> RawDocumentBuf {
+        match self {
+            Self::Owned(o) => o,
+            Self::Borrowed(b) => b.to_owned(),
+        }
+    }
+}
+
+impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawDocument<'a> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match deserializer
+            .deserialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
+        {
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Document(d)) => Ok(Self::Borrowed(d)),
+            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Document(d)) => Ok(Self::Owned(d)),
+
+            // For non-BSON formats, RawDocument gets serialized as bytes, so we need to deserialize
+            // from them here too. For BSON, the deserializier will return an error if it
+            // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
+            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
+                if b.subtype == BinarySubtype::Generic =>
+            {
+                Ok(Self::Borrowed(
+                    RawDocument::new(b.bytes).map_err(serde::de::Error::custom)?,
+                ))
+            }
+            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b))
+                if b.subtype == BinarySubtype::Generic =>
+            {
+                Ok(Self::Owned(
+                    RawDocumentBuf::from_bytes(b.bytes).map_err(serde::de::Error::custom)?,
+                ))
+            }
+
+            o => Err(serde::de::Error::custom(format!(
+                "expected raw document, instead got {:?}",
+                o
+            ))),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct CowRawDocument<'a>(#[serde(borrow)] Cow<'a, RawDocument>);
 
@@ -354,29 +405,24 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
                 let code = map.next_value::<CowStr>()?;
                 if let Some(key) = map.next_key::<CowStr>()? {
                     if key.0.as_ref() == "$scope" {
-                        let scope = map.next_value::<OwnedOrBorrowedRawBson>()?;
+                        let scope = map.next_value::<OwnedOrBorrowedRawDocument>()?;
                         match (code.0, scope) {
-                            (
-                                Cow::Borrowed(code),
-                                OwnedOrBorrowedRawBson::Borrowed(RawBson::Document(scope)),
-                            ) => Ok(
-                                RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
-                                    code,
-                                    scope,
-                                })
-                                .into(),
-                            ),
-                            (
-                                Cow::Owned(code),
-                                OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Document(scope)),
-                            ) => Ok(OwnedRawBson::JavaScriptCodeWithScope(
-                                OwnedRawJavaScriptCodeWithScope { code, scope },
+                            (Cow::Borrowed(code), OwnedOrBorrowedRawDocument::Borrowed(scope)) => {
+                                Ok(
+                                    RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
+                                        code,
+                                        scope,
+                                    })
+                                    .into(),
+                                )
+                            }
+                            (code, scope) => Ok(OwnedRawBson::JavaScriptCodeWithScope(
+                                OwnedRawJavaScriptCodeWithScope {
+                                    code: code.into_owned(),
+                                    scope: scope.into_owned(),
+                                },
                             )
                             .into()),
-                            (code, scope) => Err(serde::de::Error::custom(format!(
-                                "invalid code_w_scope: code: {:?}, scope: {:?}",
-                                code, scope
-                            ))),
                         }
                     } else {
                         Err(serde::de::Error::unknown_field(&key.0, &["$scope"]))

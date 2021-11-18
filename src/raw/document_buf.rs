@@ -9,17 +9,22 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     de::MIN_BSON_DOCUMENT_SIZE,
-    raw::{
-        serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
-        RAW_DOCUMENT_NEWTYPE,
-    },
     spec::BinarySubtype,
     Document,
     RawBinary,
     RawJavaScriptCodeWithScope,
 };
 
-use super::{owned_bson::OwnedRawBson, Error, ErrorKind, Iter, RawBson, RawDocument, Result};
+use super::{
+    owned_bson::OwnedRawBson,
+    serde::OwnedOrBorrowedRawDocument,
+    Error,
+    ErrorKind,
+    Iter,
+    RawBson,
+    RawDocument,
+    Result,
+};
 
 /// An owned BSON document (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
 /// This can be created from a `Vec<u8>` or a [`crate::Document`].
@@ -316,31 +321,7 @@ impl<'de> Deserialize<'de> for RawDocumentBuf {
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer
-            .deserialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
-        {
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Document(d)) => Ok(d.to_owned()),
-            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Document(d)) => Ok(d),
-
-            // For non-BSON formats, RawDocument gets serialized as bytes, so we need to deserialize
-            // from them here too. For BSON, the deserializier will return an error if it
-            // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
-                if b.subtype == BinarySubtype::Generic =>
-            {
-                RawDocumentBuf::from_bytes(b.bytes.to_vec()).map_err(serde::de::Error::custom)
-            }
-            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b))
-                if b.subtype == BinarySubtype::Generic =>
-            {
-                RawDocumentBuf::from_bytes(b.bytes).map_err(serde::de::Error::custom)
-            }
-
-            o => Err(serde::de::Error::custom(format!(
-                "expected raw document, instead got {:?}",
-                o
-            ))),
-        }
+        Ok(OwnedOrBorrowedRawDocument::deserialize(deserializer)?.into_owned())
     }
 }
 
