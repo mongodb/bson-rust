@@ -131,11 +131,29 @@ impl OwnedRawBson {
         }
     }
 
+    /// Gets a mutable reference to the [`RawArrayBuf`] that's wrapped or returns `None` if the
+    /// wrapped value isn't a BSON array.
+    pub fn as_array_mut(&mut self) -> Option<&mut RawArrayBuf> {
+        match self {
+            OwnedRawBson::Array(ref mut v) => Some(v),
+            _ => None,
+        }
+    }
+
     /// Gets a reference to the [`RawDocumentBuf`] that's wrapped or returns `None` if the wrapped
     /// value isn't a BSON document.
     pub fn as_document(&self) -> Option<&'_ RawDocument> {
         match self {
             OwnedRawBson::Document(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Gets a mutable reference to the [`RawDocumentBuf`] that's wrapped or returns `None` if the
+    /// wrapped value isn't a BSON document.
+    pub fn as_document_mut(&mut self) -> Option<&mut RawDocumentBuf> {
+        match self {
+            OwnedRawBson::Document(ref mut v) => Some(v),
             _ => None,
         }
     }
