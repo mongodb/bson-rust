@@ -14,7 +14,7 @@ use super::{owned_bson::OwnedRawBson, serde::OwnedOrBorrowedRawArray, RawArrayIt
 /// bytes. This type can be used to construct owned array values, which can be used to append to
 /// [`RawDocumentBuf`] or as a field in a `Deserialize` struct.
 ///
-/// Iterating over a [`RawArrayBuf`] yields either an error or a key-value pair that borrows from
+/// Iterating over a [`RawArrayBuf`] yields either an error or a [`RawBson`] value that borrows from
 /// the original document without making any additional allocations.
 /// ```
 /// # use bson::raw::Error;
