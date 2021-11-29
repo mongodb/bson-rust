@@ -283,6 +283,18 @@ where
     Ok(serializer.into_vec())
 }
 
+/// Serialize the given `T` as a BSON byte vector into the provided `Vec`.
+#[inline]
+pub fn into_vec<T>(value: &T, vec: Vec<u8>) -> Result<Vec<u8>>
+where
+    T: Serialize,
+{
+    let mut serializer = raw::Serializer::with_vec(vec);
+    value.serialize(&mut serializer)?;
+    Ok(serializer.into_vec())
+}
+
+
 /// Serialize the given `T` as a [`RawDocumentBuf`].
 ///
 /// ```rust
