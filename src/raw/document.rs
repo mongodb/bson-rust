@@ -6,8 +6,7 @@ use std::{
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 
 use crate::{
-    raw::{error::ErrorKind, RawBsonVisitor, RAW_DOCUMENT_NEWTYPE},
-    spec::BinarySubtype,
+    raw::{error::ErrorKind, serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
     DateTime,
     Timestamp,
 };
@@ -18,10 +17,10 @@ use super::{
     Error,
     Iter,
     RawArray,
-    RawBinary,
-    RawBson,
+    RawBinaryRef,
+    RawBsonRef,
     RawDocumentBuf,
-    RawRegex,
+    RawRegexRef,
     Result,
 };
 use crate::{oid::ObjectId, spec::ElementType, Document};
@@ -43,7 +42,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// # use bson::raw::{Error};
 /// use bson::raw::RawDocument;
 ///
-/// let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
+/// let doc = RawDocument::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// let mut iter = doc.into_iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
@@ -60,7 +59,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// ```
 /// use bson::raw::RawDocument;
 ///
-/// let doc = RawDocument::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
+/// let doc = RawDocument::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -86,10 +85,10 @@ impl RawDocument {
     /// ```
     /// use bson::raw::RawDocument;
     ///
-    /// let doc = RawDocument::new(b"\x05\0\0\0\0")?;
+    /// let doc = RawDocument::from_bytes(b"\x05\0\0\0\0")?;
     /// # Ok::<(), bson::raw::Error>(())
     /// ```
-    pub fn new<D: AsRef<[u8]> + ?Sized>(data: &D) -> Result<&RawDocument> {
+    pub fn from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> Result<&RawDocument> {
         let data = data.as_ref();
 
         if data.len() < 5 {
@@ -144,12 +143,12 @@ impl RawDocument {
     /// use bson::raw::{RawDocument, RawDocumentBuf, Error};
     ///
     /// let data = b"\x05\0\0\0\0";
-    /// let doc_ref = RawDocument::new(data)?;
+    /// let doc_ref = RawDocument::from_bytes(data)?;
     /// let doc: RawDocumentBuf = doc_ref.to_raw_document_buf();
     /// # Ok::<(), Error>(())
     pub fn to_raw_document_buf(&self) -> RawDocumentBuf {
         // unwrap is ok here because we already verified the bytes in `RawDocumentRef::new`
-        RawDocumentBuf::new(self.data.to_owned()).unwrap()
+        RawDocumentBuf::from_bytes(self.data.to_owned()).unwrap()
     }
 
     /// Gets a reference to the value corresponding to the given key by iterating until the key is
@@ -169,7 +168,7 @@ impl RawDocument {
     /// assert!(doc.get("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get(&self, key: impl AsRef<str>) -> Result<Option<RawBson<'_>>> {
+    pub fn get(&self, key: impl AsRef<str>) -> Result<Option<RawBsonRef<'_>>> {
         for result in self.into_iter() {
             let (k, v) = result?;
             if key.as_ref() == k {
@@ -183,7 +182,7 @@ impl RawDocument {
         &'a self,
         key: impl AsRef<str>,
         expected_type: ElementType,
-        f: impl FnOnce(RawBson<'a>) -> Option<T>,
+        f: impl FnOnce(RawBsonRef<'a>) -> Option<T>,
     ) -> ValueAccessResult<T> {
         let key = key.as_ref();
 
@@ -228,7 +227,7 @@ impl RawDocument {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_f64(&self, key: impl AsRef<str>) -> ValueAccessResult<f64> {
-        self.get_with(key, ElementType::Double, RawBson::as_f64)
+        self.get_with(key, ElementType::Double, RawBsonRef::as_f64)
     }
 
     /// Gets a reference to the string value corresponding to a given key or returns an error if the
@@ -248,7 +247,7 @@ impl RawDocument {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_str(&self, key: impl AsRef<str>) -> ValueAccessResult<&'_ str> {
-        self.get_with(key, ElementType::String, RawBson::as_str)
+        self.get_with(key, ElementType::String, RawBsonRef::as_str)
     }
 
     /// Gets a reference to the document value corresponding to a given key or returns an error if
@@ -269,7 +268,7 @@ impl RawDocument {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_document(&self, key: impl AsRef<str>) -> ValueAccessResult<&'_ RawDocument> {
-        self.get_with(key, ElementType::EmbeddedDocument, RawBson::as_document)
+        self.get_with(key, ElementType::EmbeddedDocument, RawBsonRef::as_document)
     }
 
     /// Gets a reference to the array value corresponding to a given key or returns an error if
@@ -293,7 +292,7 @@ impl RawDocument {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_array(&self, key: impl AsRef<str>) -> ValueAccessResult<&'_ RawArray> {
-        self.get_with(key, ElementType::Array, RawBson::as_array)
+        self.get_with(key, ElementType::Array, RawBsonRef::as_array)
     }
 
     /// Gets a reference to the BSON binary value corresponding to a given key or returns an error
@@ -302,7 +301,7 @@ impl RawDocument {
     /// ```
     /// use bson::{
     ///     doc,
-    ///     raw::{ValueAccessErrorKind, RawDocumentBuf, RawBinary},
+    ///     raw::{ValueAccessErrorKind, RawDocumentBuf, RawBinaryRef},
     ///     spec::BinarySubtype,
     ///     Binary,
     /// };
@@ -317,8 +316,8 @@ impl RawDocument {
     /// assert!(matches!(doc.get_binary("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn get_binary(&self, key: impl AsRef<str>) -> ValueAccessResult<RawBinary<'_>> {
-        self.get_with(key, ElementType::Binary, RawBson::as_binary)
+    pub fn get_binary(&self, key: impl AsRef<str>) -> ValueAccessResult<RawBinaryRef<'_>> {
+        self.get_with(key, ElementType::Binary, RawBsonRef::as_binary)
     }
 
     /// Gets a reference to the ObjectId value corresponding to a given key or returns an error if
@@ -339,7 +338,7 @@ impl RawDocument {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_object_id(&self, key: impl AsRef<str>) -> ValueAccessResult<ObjectId> {
-        self.get_with(key, ElementType::ObjectId, RawBson::as_object_id)
+        self.get_with(key, ElementType::ObjectId, RawBsonRef::as_object_id)
     }
 
     /// Gets a reference to the boolean value corresponding to a given key or returns an error if
@@ -360,7 +359,7 @@ impl RawDocument {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_bool(&self, key: impl AsRef<str>) -> ValueAccessResult<bool> {
-        self.get_with(key, ElementType::Boolean, RawBson::as_bool)
+        self.get_with(key, ElementType::Boolean, RawBsonRef::as_bool)
     }
 
     /// Gets a reference to the BSON DateTime value corresponding to a given key or returns an
@@ -382,7 +381,7 @@ impl RawDocument {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_datetime(&self, key: impl AsRef<str>) -> ValueAccessResult<DateTime> {
-        self.get_with(key, ElementType::DateTime, RawBson::as_datetime)
+        self.get_with(key, ElementType::DateTime, RawBsonRef::as_datetime)
     }
 
     /// Gets a reference to the BSON regex value corresponding to a given key or returns an error if
@@ -405,8 +404,8 @@ impl RawDocument {
     /// assert!(matches!(doc.get_regex("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn get_regex(&self, key: impl AsRef<str>) -> ValueAccessResult<RawRegex<'_>> {
-        self.get_with(key, ElementType::RegularExpression, RawBson::as_regex)
+    pub fn get_regex(&self, key: impl AsRef<str>) -> ValueAccessResult<RawRegexRef<'_>> {
+        self.get_with(key, ElementType::RegularExpression, RawBsonRef::as_regex)
     }
 
     /// Gets a reference to the BSON timestamp value corresponding to a given key or returns an
@@ -430,7 +429,7 @@ impl RawDocument {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_timestamp(&self, key: impl AsRef<str>) -> ValueAccessResult<Timestamp> {
-        self.get_with(key, ElementType::Timestamp, RawBson::as_timestamp)
+        self.get_with(key, ElementType::Timestamp, RawBsonRef::as_timestamp)
     }
 
     /// Gets a reference to the BSON int32 value corresponding to a given key or returns an error if
@@ -451,7 +450,7 @@ impl RawDocument {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_i32(&self, key: impl AsRef<str>) -> ValueAccessResult<i32> {
-        self.get_with(key, ElementType::Int32, RawBson::as_i32)
+        self.get_with(key, ElementType::Int32, RawBsonRef::as_i32)
     }
 
     /// Gets a reference to the BSON int64 value corresponding to a given key or returns an error if
@@ -472,7 +471,7 @@ impl RawDocument {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_i64(&self, key: impl AsRef<str>) -> ValueAccessResult<i64> {
-        self.get_with(key, ElementType::Int64, RawBson::as_i64)
+        self.get_with(key, ElementType::Int64, RawBsonRef::as_i64)
     }
 
     /// Return a reference to the contained data as a `&[u8]`
@@ -494,19 +493,11 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer.deserialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, RawBsonVisitor)? {
-            RawBson::Document(d) => Ok(d),
-
-            // For non-BSON formats, RawDocument gets serialized as bytes, so we need to deserialize
-            // from them here too. For BSON, the deserializier will return an error if it
-            // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
-            RawBson::Binary(b) if b.subtype == BinarySubtype::Generic => {
-                RawDocument::new(b.bytes).map_err(serde::de::Error::custom)
-            }
-
-            o => Err(serde::de::Error::custom(format!(
-                "expected raw document reference, instead got {:?}",
-                o
+        match OwnedOrBorrowedRawDocument::deserialize(deserializer)? {
+            OwnedOrBorrowedRawDocument::Borrowed(b) => Ok(b),
+            OwnedOrBorrowedRawDocument::Owned(d) => Err(serde::de::Error::custom(format!(
+                "expected borrowed raw document, instead got owned {:?}",
+                d
             ))),
         }
     }
@@ -581,7 +572,7 @@ impl TryFrom<&RawDocument> for crate::Document {
 
 impl<'a> IntoIterator for &'a RawDocument {
     type IntoIter = Iter<'a>;
-    type Item = Result<(&'a str, RawBson<'a>)>;
+    type Item = Result<(&'a str, RawBsonRef<'a>)>;
 
     fn into_iter(self) -> Iter<'a> {
         Iter::new(self)

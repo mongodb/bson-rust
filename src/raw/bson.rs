@@ -1,43 +1,55 @@
 use std::convert::{TryFrom, TryInto};
 
-use serde::{de::Visitor, ser::SerializeStruct, Deserialize, Serialize};
-use serde_bytes::{ByteBuf, Bytes};
+use serde::{Deserialize, Serialize};
 
-use super::{Error, RawArray, RawDocument, Result};
 use crate::{
-    de::convert_unsigned_to_signed_raw,
-    extjson,
     oid::{self, ObjectId},
-    raw::{RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
-    spec::{BinarySubtype, ElementType},
+    raw::RAW_BSON_NEWTYPE,
+    spec::ElementType,
+    Binary,
     Bson,
-    DateTime,
     DbPointer,
     Decimal128,
+    RawArray,
+    RawArrayBuf,
+    RawBinaryRef,
+    RawBsonRef,
+    RawDbPointerRef,
+    RawDocument,
+    RawDocumentBuf,
+    RawJavaScriptCodeWithScopeRef,
+    RawRegexRef,
+    Regex,
     Timestamp,
 };
 
-/// A BSON value referencing raw bytes stored elsewhere.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum RawBson<'a> {
+use super::{
+    serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
+    Error,
+    Result,
+};
+
+/// A BSON value backed by owned raw BSON bytes.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RawBson {
     /// 64-bit binary floating point
     Double(f64),
     /// UTF-8 string
-    String(&'a str),
+    String(String),
     /// Array
-    Array(&'a RawArray),
+    Array(RawArrayBuf),
     /// Embedded document
-    Document(&'a RawDocument),
+    Document(RawDocumentBuf),
     /// Boolean value
     Boolean(bool),
     /// Null value
     Null,
     /// Regular expression
-    RegularExpression(RawRegex<'a>),
+    RegularExpression(Regex),
     /// JavaScript code
-    JavaScriptCode(&'a str),
+    JavaScriptCode(String),
     /// JavaScript code w/ scope
-    JavaScriptCodeWithScope(RawJavaScriptCodeWithScope<'a>),
+    JavaScriptCodeWithScope(RawJavaScriptCodeWithScope),
     /// 32-bit signed integer
     Int32(i32),
     /// 64-bit signed integer
@@ -45,13 +57,13 @@ pub enum RawBson<'a> {
     /// Timestamp
     Timestamp(Timestamp),
     /// Binary data
-    Binary(RawBinary<'a>),
+    Binary(Binary),
     /// [ObjectId](http://dochub.mongodb.org/core/objectids)
     ObjectId(oid::ObjectId),
     /// UTC datetime
     DateTime(crate::DateTime),
     /// Symbol (Deprecated)
-    Symbol(&'a str),
+    Symbol(String),
     /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
     Decimal128(Decimal128),
     /// Undefined value (Deprecated)
@@ -61,10 +73,10 @@ pub enum RawBson<'a> {
     /// Min key
     MinKey,
     /// DBPointer (Deprecated)
-    DbPointer(RawDbPointer<'a>),
+    DbPointer(DbPointer),
 }
 
-impl<'a> RawBson<'a> {
+impl RawBson {
     /// Get the [`ElementType`] of this value.
     pub fn element_type(&self) -> ElementType {
         match *self {
@@ -92,511 +104,374 @@ impl<'a> RawBson<'a> {
         }
     }
 
-    /// Gets the `f64` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets the wrapped `f64` value or returns `None` if the value isn't a BSON
     /// double.
-    pub fn as_f64(self) -> Option<f64> {
+    pub fn as_f64(&self) -> Option<f64> {
         match self {
-            RawBson::Double(d) => Some(d),
+            RawBson::Double(d) => Some(*d),
             _ => None,
         }
     }
 
-    /// Gets the `&str` that's referenced or returns `None` if the referenced value isn't a BSON
-    /// String.
-    pub fn as_str(self) -> Option<&'a str> {
+    /// Gets a reference to the `String` that's wrapped or returns `None` if the wrapped value isn't
+    /// a BSON String.
+    pub fn as_str(&self) -> Option<&'_ str> {
         match self {
             RawBson::String(s) => Some(s),
             _ => None,
         }
     }
 
-    /// Gets the [`RawArray`] that's referenced or returns `None` if the referenced value
-    /// isn't a BSON array.
-    pub fn as_array(self) -> Option<&'a RawArray> {
+    /// Gets a reference to the [`RawArrayBuf`] that's wrapped or returns `None` if the wrapped
+    /// value isn't a BSON array.
+    pub fn as_array(&self) -> Option<&'_ RawArray> {
         match self {
             RawBson::Array(v) => Some(v),
             _ => None,
         }
     }
 
-    /// Gets the [`RawDocument`] that's referenced or returns `None` if the referenced value
-    /// isn't a BSON document.
-    pub fn as_document(self) -> Option<&'a RawDocument> {
+    /// Gets a mutable reference to the [`RawArrayBuf`] that's wrapped or returns `None` if the
+    /// wrapped value isn't a BSON array.
+    pub fn as_array_mut(&mut self) -> Option<&mut RawArrayBuf> {
+        match self {
+            RawBson::Array(ref mut v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Gets a reference to the [`RawDocumentBuf`] that's wrapped or returns `None` if the wrapped
+    /// value isn't a BSON document.
+    pub fn as_document(&self) -> Option<&'_ RawDocument> {
         match self {
             RawBson::Document(v) => Some(v),
             _ => None,
         }
     }
 
-    /// Gets the `bool` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets a mutable reference to the [`RawDocumentBuf`] that's wrapped or returns `None` if the
+    /// wrapped value isn't a BSON document.
+    pub fn as_document_mut(&mut self) -> Option<&mut RawDocumentBuf> {
+        match self {
+            RawBson::Document(ref mut v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Gets the wrapped `bool` value or returns `None` if the wrapped value isn't a BSON
     /// boolean.
-    pub fn as_bool(self) -> Option<bool> {
+    pub fn as_bool(&self) -> Option<bool> {
         match self {
-            RawBson::Boolean(v) => Some(v),
+            RawBson::Boolean(v) => Some(*v),
             _ => None,
         }
     }
 
-    /// Gets the `i32` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets the wrapped `i32` value or returns `None` if the wrapped value isn't a BSON
     /// Int32.
-    pub fn as_i32(self) -> Option<i32> {
+    pub fn as_i32(&self) -> Option<i32> {
         match self {
-            RawBson::Int32(v) => Some(v),
+            RawBson::Int32(v) => Some(*v),
             _ => None,
         }
     }
 
-    /// Gets the `i64` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets the wrapped `i64` value or returns `None` if the wrapped value isn't a BSON
     /// Int64.
-    pub fn as_i64(self) -> Option<i64> {
+    pub fn as_i64(&self) -> Option<i64> {
         match self {
-            RawBson::Int64(v) => Some(v),
+            RawBson::Int64(v) => Some(*v),
             _ => None,
         }
     }
 
-    /// Gets the [`crate::oid::ObjectId`] that's referenced or returns `None` if the referenced
-    /// value isn't a BSON ObjectID.
-    pub fn as_object_id(self) -> Option<oid::ObjectId> {
+    /// Gets the wrapped [`crate::oid::ObjectId`] value or returns `None` if the wrapped value isn't
+    /// a BSON ObjectID.
+    pub fn as_object_id(&self) -> Option<oid::ObjectId> {
         match self {
-            RawBson::ObjectId(v) => Some(v),
+            RawBson::ObjectId(v) => Some(*v),
             _ => None,
         }
     }
 
-    /// Gets the [`RawBinary`] that's referenced or returns `None` if the referenced value isn't a
-    /// BSON binary.
-    pub fn as_binary(self) -> Option<RawBinary<'a>> {
+    /// Gets a reference to the [`Binary`] that's wrapped or returns `None` if the wrapped value
+    /// isn't a BSON binary.
+    pub fn as_binary(&self) -> Option<RawBinaryRef<'_>> {
         match self {
-            RawBson::Binary(v) => Some(v),
+            RawBson::Binary(v) => Some(RawBinaryRef {
+                bytes: v.bytes.as_slice(),
+                subtype: v.subtype,
+            }),
             _ => None,
         }
     }
 
-    /// Gets the [`RawRegex`] that's referenced or returns `None` if the referenced value isn't a
-    /// BSON regular expression.
-    pub fn as_regex(self) -> Option<RawRegex<'a>> {
+    /// Gets a reference to the [`Regex`] that's wrapped or returns `None` if the wrapped value
+    /// isn't a BSON regular expression.
+    pub fn as_regex(&self) -> Option<RawRegexRef<'_>> {
         match self {
-            RawBson::RegularExpression(v) => Some(v),
+            RawBson::RegularExpression(v) => Some(RawRegexRef {
+                pattern: v.pattern.as_str(),
+                options: v.options.as_str(),
+            }),
             _ => None,
         }
     }
 
-    /// Gets the [`crate::DateTime`] that's referenced or returns `None` if the referenced value
-    /// isn't a BSON datetime.
-    pub fn as_datetime(self) -> Option<crate::DateTime> {
+    /// Gets the wrapped [`crate::DateTime`] value or returns `None` if the wrapped value isn't a
+    /// BSON datetime.
+    pub fn as_datetime(&self) -> Option<crate::DateTime> {
         match self {
-            RawBson::DateTime(v) => Some(v),
+            RawBson::DateTime(v) => Some(*v),
             _ => None,
         }
     }
 
-    /// Gets the symbol that's referenced or returns `None` if the referenced value isn't a BSON
-    /// symbol.
-    pub fn as_symbol(self) -> Option<&'a str> {
+    /// Gets a reference to the symbol that's wrapped or returns `None` if the wrapped value isn't a
+    /// BSON Symbol.
+    pub fn as_symbol(&self) -> Option<&'_ str> {
         match self {
             RawBson::Symbol(v) => Some(v),
             _ => None,
         }
     }
 
-    /// Gets the [`crate::Timestamp`] that's referenced or returns `None` if the referenced value
-    /// isn't a BSON timestamp.
-    pub fn as_timestamp(self) -> Option<Timestamp> {
+    /// Gets the wrapped [`crate::Timestamp`] value or returns `None` if the wrapped value isn't a
+    /// BSON datetime.
+    pub fn as_timestamp(&self) -> Option<Timestamp> {
         match self {
-            RawBson::Timestamp(timestamp) => Some(timestamp),
+            RawBson::Timestamp(timestamp) => Some(*timestamp),
             _ => None,
         }
     }
 
-    /// Gets the null value that's referenced or returns `None` if the referenced value isn't a BSON
-    /// null.
-    pub fn as_null(self) -> Option<()> {
+    /// Returns `Some(())` if this value is null, otherwise returns `None`.
+    pub fn as_null(&self) -> Option<()> {
         match self {
             RawBson::Null => Some(()),
             _ => None,
         }
     }
 
-    /// Gets the [`RawDbPointer`] that's referenced or returns `None` if the referenced value isn't
-    /// a BSON DB pointer.
-    pub fn as_db_pointer(self) -> Option<RawDbPointer<'a>> {
+    /// Gets a reference to the [`crate::DbPointer`] that's wrapped or returns `None` if the wrapped
+    /// value isn't a BSON DbPointer.
+    pub fn as_db_pointer(&self) -> Option<RawDbPointerRef<'_>> {
         match self {
-            RawBson::DbPointer(d) => Some(d),
+            RawBson::DbPointer(d) => Some(RawDbPointerRef {
+                namespace: d.namespace.as_str(),
+                id: d.id,
+            }),
             _ => None,
         }
     }
 
-    /// Gets the code that's referenced or returns `None` if the referenced value isn't a BSON
-    /// JavaScript.
-    pub fn as_javascript(self) -> Option<&'a str> {
+    /// Gets a reference to the code that's wrapped or returns `None` if the wrapped value isn't a
+    /// BSON JavaScript code.
+    pub fn as_javascript(&self) -> Option<&'_ str> {
         match self {
             RawBson::JavaScriptCode(s) => Some(s),
             _ => None,
         }
     }
 
-    /// Gets the [`RawJavaScriptCodeWithScope`] that's referenced or returns `None` if the
-    /// referenced value isn't a BSON JavaScript with scope.
-    pub fn as_javascript_with_scope(self) -> Option<RawJavaScriptCodeWithScope<'a>> {
+    /// Gets a reference to the [`RawJavaScriptCodeWithScope`] that's wrapped or returns `None`
+    /// if the wrapped value isn't a BSON JavaScript code with scope value.
+    pub fn as_javascript_with_scope(&self) -> Option<RawJavaScriptCodeWithScopeRef<'_>> {
         match self {
-            RawBson::JavaScriptCodeWithScope(s) => Some(s),
+            RawBson::JavaScriptCodeWithScope(s) => Some(RawJavaScriptCodeWithScopeRef {
+                code: s.code.as_str(),
+                scope: &s.scope,
+            }),
             _ => None,
         }
     }
-}
 
-/// A visitor used to deserialize types backed by raw BSON.
-pub(crate) struct RawBsonVisitor;
-
-impl<'de> Visitor<'de> for RawBsonVisitor {
-    type Value = RawBson<'de>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(formatter, "a raw BSON reference")
-    }
-
-    fn visit_borrowed_str<E>(self, v: &'de str) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(RawBson::String(v))
-    }
-
-    fn visit_borrowed_bytes<E>(self, bytes: &'de [u8]) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(RawBson::Binary(RawBinary {
-            bytes,
-            subtype: BinarySubtype::Generic,
-        }))
-    }
-
-    fn visit_i8<E>(self, v: i8) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(RawBson::Int32(v.into()))
-    }
-
-    fn visit_i16<E>(self, v: i16) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(RawBson::Int32(v.into()))
-    }
-
-    fn visit_i32<E>(self, v: i32) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(RawBson::Int32(v))
-    }
-
-    fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(RawBson::Int64(v))
-    }
-
-    fn visit_u8<E>(self, value: u8) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        convert_unsigned_to_signed_raw(value.into())
-    }
-
-    fn visit_u16<E>(self, value: u16) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        convert_unsigned_to_signed_raw(value.into())
-    }
-
-    fn visit_u32<E>(self, value: u32) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        convert_unsigned_to_signed_raw(value.into())
-    }
-
-    fn visit_u64<E>(self, value: u64) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        convert_unsigned_to_signed_raw(value)
-    }
-
-    fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(RawBson::Boolean(v))
-    }
-
-    fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(RawBson::Double(v))
-    }
-
-    fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(RawBson::Null)
-    }
-
-    fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(RawBson::Null)
-    }
-
-    fn visit_newtype_struct<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_any(self)
-    }
-
-    fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
-    where
-        A: serde::de::MapAccess<'de>,
-    {
-        let k = map
-            .next_key::<&str>()?
-            .ok_or_else(|| serde::de::Error::custom("expected a key when deserializing RawBson"))?;
-        match k {
-            "$oid" => {
-                let oid: ObjectId = map.next_value()?;
-                Ok(RawBson::ObjectId(oid))
+    /// Gets a [`RawBsonRef`] value referencing this owned raw BSON value.
+    pub fn as_raw_bson_ref(&self) -> RawBsonRef<'_> {
+        match self {
+            RawBson::Double(d) => RawBsonRef::Double(*d),
+            RawBson::String(s) => RawBsonRef::String(s.as_str()),
+            RawBson::Array(a) => RawBsonRef::Array(a),
+            RawBson::Document(d) => RawBsonRef::Document(d),
+            RawBson::Boolean(b) => RawBsonRef::Boolean(*b),
+            RawBson::Null => RawBsonRef::Null,
+            RawBson::RegularExpression(re) => RawBsonRef::RegularExpression(RawRegexRef {
+                options: re.options.as_str(),
+                pattern: re.pattern.as_str(),
+            }),
+            RawBson::JavaScriptCode(c) => RawBsonRef::JavaScriptCode(c.as_str()),
+            RawBson::JavaScriptCodeWithScope(code_w_scope) => {
+                RawBsonRef::JavaScriptCodeWithScope(RawJavaScriptCodeWithScopeRef {
+                    code: code_w_scope.code.as_str(),
+                    scope: code_w_scope.scope.as_ref(),
+                })
             }
-            "$symbol" => {
-                let s: &str = map.next_value()?;
-                Ok(RawBson::Symbol(s))
-            }
-            "$numberDecimalBytes" => {
-                let bytes = map.next_value::<ByteBuf>()?;
-                return Ok(RawBson::Decimal128(Decimal128::deserialize_from_slice(
-                    &bytes,
-                )?));
-            }
-            "$regularExpression" => {
-                #[derive(Debug, Deserialize)]
-                struct BorrowedRegexBody<'a> {
-                    pattern: &'a str,
-
-                    options: &'a str,
-                }
-                let body: BorrowedRegexBody = map.next_value()?;
-                Ok(RawBson::RegularExpression(RawRegex {
-                    pattern: body.pattern,
-                    options: body.options,
-                }))
-            }
-            "$undefined" => {
-                let _: bool = map.next_value()?;
-                Ok(RawBson::Undefined)
-            }
-            "$binary" => {
-                #[derive(Debug, Deserialize)]
-                struct BorrowedBinaryBody<'a> {
-                    bytes: &'a [u8],
-
-                    #[serde(rename = "subType")]
-                    subtype: u8,
-                }
-
-                let v = map.next_value::<BorrowedBinaryBody>()?;
-
-                Ok(RawBson::Binary(RawBinary {
-                    bytes: v.bytes,
-                    subtype: v.subtype.into(),
-                }))
-            }
-            "$date" => {
-                let v = map.next_value::<i64>()?;
-                Ok(RawBson::DateTime(DateTime::from_millis(v)))
-            }
-            "$timestamp" => {
-                let v = map.next_value::<extjson::models::TimestampBody>()?;
-                Ok(RawBson::Timestamp(Timestamp {
-                    time: v.t,
-                    increment: v.i,
-                }))
-            }
-            "$minKey" => {
-                let _ = map.next_value::<i32>()?;
-                Ok(RawBson::MinKey)
-            }
-            "$maxKey" => {
-                let _ = map.next_value::<i32>()?;
-                Ok(RawBson::MaxKey)
-            }
-            "$code" => {
-                let code = map.next_value::<&str>()?;
-                if let Some(key) = map.next_key::<&str>()? {
-                    if key == "$scope" {
-                        let scope = map.next_value::<&RawDocument>()?;
-                        Ok(RawBson::JavaScriptCodeWithScope(
-                            RawJavaScriptCodeWithScope { code, scope },
-                        ))
-                    } else {
-                        Err(serde::de::Error::unknown_field(key, &["$scope"]))
-                    }
-                } else {
-                    Ok(RawBson::JavaScriptCode(code))
-                }
-            }
-            "$dbPointer" => {
-                #[derive(Deserialize)]
-                struct BorrowedDbPointerBody<'a> {
-                    #[serde(rename = "$ref")]
-                    ns: &'a str,
-
-                    #[serde(rename = "$id")]
-                    id: ObjectId,
-                }
-
-                let body: BorrowedDbPointerBody = map.next_value()?;
-                Ok(RawBson::DbPointer(RawDbPointer {
-                    namespace: body.ns,
-                    id: body.id,
-                }))
-            }
-            RAW_DOCUMENT_NEWTYPE => {
-                let bson = map.next_value::<&[u8]>()?;
-                let doc = RawDocument::new(bson).map_err(serde::de::Error::custom)?;
-                Ok(RawBson::Document(doc))
-            }
-            RAW_ARRAY_NEWTYPE => {
-                let bson = map.next_value::<&[u8]>()?;
-                let doc = RawDocument::new(bson).map_err(serde::de::Error::custom)?;
-                Ok(RawBson::Array(RawArray::from_doc(doc)))
-            }
-            k => Err(serde::de::Error::custom(format!(
-                "can't deserialize RawBson from map, key={}",
-                k
-            ))),
+            RawBson::Int32(i) => RawBsonRef::Int32(*i),
+            RawBson::Int64(i) => RawBsonRef::Int64(*i),
+            RawBson::Timestamp(ts) => RawBsonRef::Timestamp(*ts),
+            RawBson::Binary(b) => RawBsonRef::Binary(RawBinaryRef {
+                bytes: b.bytes.as_slice(),
+                subtype: b.subtype,
+            }),
+            RawBson::ObjectId(oid) => RawBsonRef::ObjectId(*oid),
+            RawBson::DateTime(dt) => RawBsonRef::DateTime(*dt),
+            RawBson::Symbol(s) => RawBsonRef::Symbol(s.as_str()),
+            RawBson::Decimal128(d) => RawBsonRef::Decimal128(*d),
+            RawBson::Undefined => RawBsonRef::Undefined,
+            RawBson::MaxKey => RawBsonRef::MaxKey,
+            RawBson::MinKey => RawBsonRef::MinKey,
+            RawBson::DbPointer(dbp) => RawBsonRef::DbPointer(RawDbPointerRef {
+                namespace: dbp.namespace.as_str(),
+                id: dbp.id,
+            }),
         }
     }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for RawBson<'a> {
+impl From<i32> for RawBson {
+    fn from(i: i32) -> Self {
+        RawBson::Int32(i)
+    }
+}
+
+impl From<i64> for RawBson {
+    fn from(i: i64) -> Self {
+        RawBson::Int64(i)
+    }
+}
+
+impl From<String> for RawBson {
+    fn from(s: String) -> Self {
+        RawBson::String(s)
+    }
+}
+
+impl From<&str> for RawBson {
+    fn from(s: &str) -> Self {
+        RawBson::String(s.to_owned())
+    }
+}
+
+impl From<f64> for RawBson {
+    fn from(f: f64) -> Self {
+        RawBson::Double(f)
+    }
+}
+
+impl From<bool> for RawBson {
+    fn from(b: bool) -> Self {
+        RawBson::Boolean(b)
+    }
+}
+
+impl From<RawDocumentBuf> for RawBson {
+    fn from(d: RawDocumentBuf) -> Self {
+        RawBson::Document(d)
+    }
+}
+
+impl From<RawArrayBuf> for RawBson {
+    fn from(a: RawArrayBuf) -> Self {
+        RawBson::Array(a)
+    }
+}
+
+impl From<crate::DateTime> for RawBson {
+    fn from(dt: crate::DateTime) -> Self {
+        RawBson::DateTime(dt)
+    }
+}
+
+impl From<Timestamp> for RawBson {
+    fn from(ts: Timestamp) -> Self {
+        RawBson::Timestamp(ts)
+    }
+}
+
+impl From<ObjectId> for RawBson {
+    fn from(oid: ObjectId) -> Self {
+        RawBson::ObjectId(oid)
+    }
+}
+
+impl From<Decimal128> for RawBson {
+    fn from(d: Decimal128) -> Self {
+        RawBson::Decimal128(d)
+    }
+}
+
+impl From<RawJavaScriptCodeWithScope> for RawBson {
+    fn from(code_w_scope: RawJavaScriptCodeWithScope) -> Self {
+        RawBson::JavaScriptCodeWithScope(code_w_scope)
+    }
+}
+
+impl From<Binary> for RawBson {
+    fn from(b: Binary) -> Self {
+        RawBson::Binary(b)
+    }
+}
+
+impl From<Regex> for RawBson {
+    fn from(re: Regex) -> Self {
+        RawBson::RegularExpression(re)
+    }
+}
+
+impl From<DbPointer> for RawBson {
+    fn from(d: DbPointer) -> Self {
+        RawBson::DbPointer(d)
+    }
+}
+
+impl<'de> Deserialize<'de> for RawBson {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_newtype_struct(RAW_BSON_NEWTYPE, RawBsonVisitor)
-    }
-}
-
-impl<'a> Serialize for RawBson<'a> {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            RawBson::Double(v) => serializer.serialize_f64(*v),
-            RawBson::String(v) => serializer.serialize_str(v),
-            RawBson::Array(v) => v.serialize(serializer),
-            RawBson::Document(v) => v.serialize(serializer),
-            RawBson::Boolean(v) => serializer.serialize_bool(*v),
-            RawBson::Null => serializer.serialize_unit(),
-            RawBson::Int32(v) => serializer.serialize_i32(*v),
-            RawBson::Int64(v) => serializer.serialize_i64(*v),
-            RawBson::ObjectId(oid) => oid.serialize(serializer),
-            RawBson::DateTime(dt) => dt.serialize(serializer),
-            RawBson::Binary(b) => b.serialize(serializer),
-            RawBson::JavaScriptCode(c) => {
-                let mut state = serializer.serialize_struct("$code", 1)?;
-                state.serialize_field("$code", c)?;
-                state.end()
-            }
-            RawBson::JavaScriptCodeWithScope(code_w_scope) => code_w_scope.serialize(serializer),
-            RawBson::DbPointer(dbp) => dbp.serialize(serializer),
-            RawBson::Symbol(s) => {
-                let mut state = serializer.serialize_struct("$symbol", 1)?;
-                state.serialize_field("$symbol", s)?;
-                state.end()
-            }
-            RawBson::RegularExpression(re) => re.serialize(serializer),
-            RawBson::Timestamp(t) => t.serialize(serializer),
-            RawBson::Decimal128(d) => d.serialize(serializer),
-            RawBson::Undefined => {
-                let mut state = serializer.serialize_struct("$undefined", 1)?;
-                state.serialize_field("$undefined", &true)?;
-                state.end()
-            }
-            RawBson::MaxKey => {
-                let mut state = serializer.serialize_struct("$maxKey", 1)?;
-                state.serialize_field("$maxKey", &1)?;
-                state.end()
-            }
-            RawBson::MinKey => {
-                let mut state = serializer.serialize_struct("$minKey", 1)?;
-                state.serialize_field("$minKey", &1)?;
-                state.end()
-            }
+        match deserializer
+            .deserialize_newtype_struct(RAW_BSON_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
+        {
+            OwnedOrBorrowedRawBson::Owned(o) => Ok(o),
+            OwnedOrBorrowedRawBson::Borrowed(b) => Ok(b.to_raw_bson()),
         }
     }
 }
 
-impl<'a> TryFrom<RawBson<'a>> for Bson {
+impl Serialize for RawBson {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_raw_bson_ref().serialize(serializer)
+    }
+}
+
+impl<'a> TryFrom<RawBson> for Bson {
     type Error = Error;
 
-    fn try_from(rawbson: RawBson<'a>) -> Result<Bson> {
+    fn try_from(rawbson: RawBson) -> Result<Bson> {
         Ok(match rawbson {
             RawBson::Double(d) => Bson::Double(d),
-            RawBson::String(s) => Bson::String(s.to_string()),
-            RawBson::Document(rawdoc) => {
-                let doc = rawdoc.try_into()?;
-                Bson::Document(doc)
-            }
-            RawBson::Array(rawarray) => {
-                let mut items = Vec::new();
-                for v in rawarray {
-                    let bson: Bson = v?.try_into()?;
-                    items.push(bson);
-                }
-                Bson::Array(items)
-            }
-            RawBson::Binary(rawbson) => {
-                let RawBinary {
-                    subtype,
-                    bytes: data,
-                } = rawbson;
-                Bson::Binary(crate::Binary {
-                    subtype,
-                    bytes: data.to_vec(),
-                })
-            }
+            RawBson::String(s) => Bson::String(s),
+            RawBson::Document(rawdoc) => Bson::Document(rawdoc.as_ref().try_into()?),
+            RawBson::Array(rawarray) => Bson::Array(rawarray.as_ref().try_into()?),
+            RawBson::Binary(rawbson) => Bson::Binary(rawbson),
             RawBson::ObjectId(rawbson) => Bson::ObjectId(rawbson),
             RawBson::Boolean(rawbson) => Bson::Boolean(rawbson),
             RawBson::DateTime(rawbson) => Bson::DateTime(rawbson),
             RawBson::Null => Bson::Null,
-            RawBson::RegularExpression(rawregex) => Bson::RegularExpression(crate::Regex::new(
-                rawregex.pattern.to_string(),
-                rawregex.options.to_string(),
-            )),
-            RawBson::JavaScriptCode(rawbson) => Bson::JavaScriptCode(rawbson.to_string()),
+            RawBson::RegularExpression(rawregex) => Bson::RegularExpression(rawregex),
+            RawBson::JavaScriptCode(rawbson) => Bson::JavaScriptCode(rawbson),
             RawBson::Int32(rawbson) => Bson::Int32(rawbson),
             RawBson::Timestamp(rawbson) => Bson::Timestamp(rawbson),
             RawBson::Int64(rawbson) => Bson::Int64(rawbson),
             RawBson::Undefined => Bson::Undefined,
-            RawBson::DbPointer(rawbson) => Bson::DbPointer(DbPointer {
-                namespace: rawbson.namespace.to_string(),
-                id: rawbson.id,
-            }),
-            RawBson::Symbol(rawbson) => Bson::Symbol(rawbson.to_string()),
+            RawBson::DbPointer(rawbson) => Bson::DbPointer(rawbson),
+            RawBson::Symbol(rawbson) => Bson::Symbol(rawbson),
             RawBson::JavaScriptCodeWithScope(rawbson) => {
                 Bson::JavaScriptCodeWithScope(crate::JavaScriptCodeWithScope {
-                    code: rawbson.code.to_string(),
+                    code: rawbson.code,
                     scope: rawbson.scope.try_into()?,
                 })
             }
@@ -607,142 +482,17 @@ impl<'a> TryFrom<RawBson<'a>> for Bson {
     }
 }
 
-/// A BSON binary value referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct RawBinary<'a> {
-    /// The subtype of the binary value.
-    pub subtype: BinarySubtype,
+/// A BSON "code with scope" value backed by owned raw BSON.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RawJavaScriptCodeWithScope {
+    /// The code value.
+    pub code: String,
 
-    /// The binary bytes.
-    pub bytes: &'a [u8],
+    /// The scope document.
+    pub scope: RawDocumentBuf,
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for RawBinary<'a> {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        match RawBson::deserialize(deserializer)? {
-            RawBson::Binary(b) => Ok(b),
-            c => Err(serde::de::Error::custom(format!(
-                "expected binary, but got {:?} instead",
-                c
-            ))),
-        }
-    }
-}
-
-impl<'a> Serialize for RawBinary<'a> {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        if let BinarySubtype::Generic = self.subtype {
-            serializer.serialize_bytes(self.bytes)
-        } else if !serializer.is_human_readable() {
-            #[derive(Serialize)]
-            struct BorrowedBinary<'a> {
-                bytes: &'a Bytes,
-
-                #[serde(rename = "subType")]
-                subtype: u8,
-            }
-
-            let mut state = serializer.serialize_struct("$binary", 1)?;
-            let body = BorrowedBinary {
-                bytes: Bytes::new(self.bytes),
-                subtype: self.subtype.into(),
-            };
-            state.serialize_field("$binary", &body)?;
-            state.end()
-        } else {
-            let mut state = serializer.serialize_struct("$binary", 1)?;
-            let body = extjson::models::BinaryBody {
-                base64: base64::encode(self.bytes),
-                subtype: hex::encode([self.subtype.into()]),
-            };
-            state.serialize_field("$binary", &body)?;
-            state.end()
-        }
-    }
-}
-
-/// A BSON regex referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct RawRegex<'a> {
-    pub(crate) pattern: &'a str,
-    pub(crate) options: &'a str,
-}
-
-impl<'a> RawRegex<'a> {
-    /// Gets the pattern portion of the regex.
-    pub fn pattern(self) -> &'a str {
-        self.pattern
-    }
-
-    /// Gets the options portion of the regex.
-    pub fn options(self) -> &'a str {
-        self.options
-    }
-}
-
-impl<'de: 'a, 'a> Deserialize<'de> for RawRegex<'a> {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        match RawBson::deserialize(deserializer)? {
-            RawBson::RegularExpression(b) => Ok(b),
-            c => Err(serde::de::Error::custom(format!(
-                "expected Regex, but got {:?} instead",
-                c
-            ))),
-        }
-    }
-}
-
-impl<'a> Serialize for RawRegex<'a> {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        #[derive(Serialize)]
-        struct BorrowedRegexBody<'a> {
-            pattern: &'a str,
-            options: &'a str,
-        }
-
-        let mut state = serializer.serialize_struct("$regularExpression", 1)?;
-        let body = BorrowedRegexBody {
-            pattern: self.pattern,
-            options: self.options,
-        };
-        state.serialize_field("$regularExpression", &body)?;
-        state.end()
-    }
-}
-
-/// A BSON "code with scope" value referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct RawJavaScriptCodeWithScope<'a> {
-    pub(crate) code: &'a str,
-
-    pub(crate) scope: &'a RawDocument,
-}
-
-impl<'a> RawJavaScriptCodeWithScope<'a> {
-    /// Gets the code in the value.
-    pub fn code(self) -> &'a str {
-        self.code
-    }
-
-    /// Gets the scope in the value.
-    pub fn scope(self) -> &'a RawDocument {
-        self.scope
-    }
-}
-
-impl<'de: 'a, 'a> Deserialize<'de> for RawJavaScriptCodeWithScope<'a> {
+impl<'de> Deserialize<'de> for RawJavaScriptCodeWithScope {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -757,60 +507,16 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawJavaScriptCodeWithScope<'a> {
     }
 }
 
-impl<'a> Serialize for RawJavaScriptCodeWithScope<'a> {
+impl Serialize for RawJavaScriptCodeWithScope {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("$codeWithScope", 2)?;
-        state.serialize_field("$code", &self.code)?;
-        state.serialize_field("$scope", &self.scope)?;
-        state.end()
-    }
-}
-
-/// A BSON DB pointer value referencing raw bytes stored elesewhere.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct RawDbPointer<'a> {
-    pub(crate) namespace: &'a str,
-    pub(crate) id: ObjectId,
-}
-
-impl<'de: 'a, 'a> Deserialize<'de> for RawDbPointer<'a> {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        match RawBson::deserialize(deserializer)? {
-            RawBson::DbPointer(b) => Ok(b),
-            c => Err(serde::de::Error::custom(format!(
-                "expected DbPointer, but got {:?} instead",
-                c
-            ))),
-        }
-    }
-}
-
-impl<'a> Serialize for RawDbPointer<'a> {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        #[derive(Serialize)]
-        struct BorrowedDbPointerBody<'a> {
-            #[serde(rename = "$ref")]
-            ref_ns: &'a str,
-
-            #[serde(rename = "$id")]
-            id: ObjectId,
-        }
-
-        let mut state = serializer.serialize_struct("$dbPointer", 1)?;
-        let body = BorrowedDbPointerBody {
-            ref_ns: self.namespace,
-            id: self.id,
+        let raw = RawJavaScriptCodeWithScopeRef {
+            code: self.code.as_str(),
+            scope: self.scope.as_ref(),
         };
-        state.serialize_field("$dbPointer", &body)?;
-        state.end()
+
+        raw.serialize(serializer)
     }
 }

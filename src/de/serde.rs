@@ -25,7 +25,7 @@ use crate::{
     datetime::DateTime,
     document::{Document, IntoIter},
     oid::ObjectId,
-    raw::RawBson,
+    raw::RawBsonRef,
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Decimal128,
@@ -548,14 +548,14 @@ where
     }
 }
 
-pub(crate) fn convert_unsigned_to_signed_raw<'a, E>(value: u64) -> Result<RawBson<'a>, E>
+pub(crate) fn convert_unsigned_to_signed_raw<'a, E>(value: u64) -> Result<RawBsonRef<'a>, E>
 where
     E: Error,
 {
     let bi = _convert_unsigned(value)?;
     match bi {
-        BsonInteger::Int32(i) => Ok(RawBson::Int32(i)),
-        BsonInteger::Int64(i) => Ok(RawBson::Int64(i)),
+        BsonInteger::Int32(i) => Ok(RawBsonRef::Int32(i)),
+        BsonInteger::Int64(i) => Ok(RawBsonRef::Int64(i)),
     }
 }
 

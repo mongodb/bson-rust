@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    bson::RawDbPointer,
+    bson_ref::RawDbPointerRef,
     checked_add,
     error::try_with_key,
     f64_from_slice,
@@ -20,11 +20,11 @@ use super::{
     read_lenencoded,
     read_nullterminated,
     RawArray,
-    RawBinary,
-    RawBson,
+    RawBinaryRef,
+    RawBsonRef,
     RawDocument,
-    RawJavaScriptCodeWithScope,
-    RawRegex,
+    RawJavaScriptCodeWithScopeRef,
+    RawRegexRef,
 };
 
 /// An iterator over the document's entries.
@@ -91,14 +91,14 @@ impl<'a> Iter<'a> {
                 },
             });
         }
-        RawDocument::new(&self.doc.as_bytes()[starting_at..end])
+        RawDocument::from_bytes(&self.doc.as_bytes()[starting_at..end])
     }
 }
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = Result<(&'a str, RawBson<'a>)>;
+    type Item = Result<(&'a str, RawBsonRef<'a>)>;
 
-    fn next(&mut self) -> Option<Result<(&'a str, RawBson<'a>)>> {
+    fn next(&mut self) -> Option<Result<(&'a str, RawBsonRef<'a>)>> {
         if !self.valid {
             return None;
         } else if self.offset == self.doc.as_bytes().len() - 1 {
@@ -147,28 +147,28 @@ impl<'a> Iterator for Iter<'a> {
             let (element, element_size) = match element_type {
                 ElementType::Int32 => {
                     let i = i32_from_slice(&self.doc.as_bytes()[valueoffset..])?;
-                    (RawBson::Int32(i), 4)
+                    (RawBsonRef::Int32(i), 4)
                 }
                 ElementType::Int64 => {
                     let i = i64_from_slice(&self.doc.as_bytes()[valueoffset..])?;
-                    (RawBson::Int64(i), 8)
+                    (RawBsonRef::Int64(i), 8)
                 }
                 ElementType::Double => {
                     let f = f64_from_slice(&self.doc.as_bytes()[valueoffset..])?;
-                    (RawBson::Double(f), 8)
+                    (RawBsonRef::Double(f), 8)
                 }
                 ElementType::String => {
                     let s = read_lenencoded(&self.doc.as_bytes()[valueoffset..])?;
-                    (RawBson::String(s), 4 + s.len() + 1)
+                    (RawBsonRef::String(s), 4 + s.len() + 1)
                 }
                 ElementType::EmbeddedDocument => {
                     let doc = self.next_document(valueoffset)?;
-                    (RawBson::Document(doc), doc.as_bytes().len())
+                    (RawBsonRef::Document(doc), doc.as_bytes().len())
                 }
                 ElementType::Array => {
                     let doc = self.next_document(valueoffset)?;
                     (
-                        RawBson::Array(RawArray::from_doc(doc)),
+                        RawBsonRef::Array(RawArray::from_doc(doc)),
                         doc.as_bytes().len(),
                     )
                 }
@@ -198,7 +198,7 @@ impl<'a> Iterator for Iter<'a> {
                         _ => &self.doc.as_bytes()[data_start..(data_start + len)],
                     };
                     (
-                        RawBson::Binary(RawBinary {
+                        RawBsonRef::Binary(RawBinaryRef {
                             subtype,
                             bytes: data,
                         }),
@@ -207,7 +207,7 @@ impl<'a> Iterator for Iter<'a> {
                 }
                 ElementType::ObjectId => {
                     let oid = self.next_oid(valueoffset)?;
-                    (RawBson::ObjectId(oid), 12)
+                    (RawBsonRef::ObjectId(oid), 12)
                 }
                 ElementType::Boolean => {
                     let b = read_bool(&self.doc.as_bytes()[valueoffset..]).map_err(|e| {
@@ -218,11 +218,11 @@ impl<'a> Iterator for Iter<'a> {
                             },
                         )
                     })?;
-                    (RawBson::Boolean(b), 1)
+                    (RawBsonRef::Boolean(b), 1)
                 }
                 ElementType::DateTime => {
                     let ms = i64_from_slice(&self.doc.as_bytes()[valueoffset..])?;
-                    (RawBson::DateTime(DateTime::from_millis(ms)), 8)
+                    (RawBsonRef::DateTime(DateTime::from_millis(ms)), 8)
                 }
                 ElementType::RegularExpression => {
                     let pattern = read_nullterminated(&self.doc.as_bytes()[valueoffset..])?;
@@ -230,12 +230,12 @@ impl<'a> Iterator for Iter<'a> {
                         &self.doc.as_bytes()[(valueoffset + pattern.len() + 1)..],
                     )?;
                     (
-                        RawBson::RegularExpression(RawRegex { pattern, options }),
+                        RawBsonRef::RegularExpression(RawRegexRef { pattern, options }),
                         pattern.len() + 1 + options.len() + 1,
                     )
                 }
-                ElementType::Null => (RawBson::Null, 0),
-                ElementType::Undefined => (RawBson::Undefined, 0),
+                ElementType::Null => (RawBsonRef::Null, 0),
+                ElementType::Undefined => (RawBsonRef::Undefined, 0),
                 ElementType::Timestamp => {
                     let ts = Timestamp::from_reader(&self.doc.as_bytes()[valueoffset..]).map_err(
                         |e| {
@@ -244,11 +244,11 @@ impl<'a> Iterator for Iter<'a> {
                             })
                         },
                     )?;
-                    (RawBson::Timestamp(ts), 8)
+                    (RawBsonRef::Timestamp(ts), 8)
                 }
                 ElementType::JavaScriptCode => {
                     let code = read_lenencoded(&self.doc.as_bytes()[valueoffset..])?;
-                    (RawBson::JavaScriptCode(code), 4 + code.len() + 1)
+                    (RawBsonRef::JavaScriptCode(code), 4 + code.len() + 1)
                 }
                 ElementType::JavaScriptCodeWithScope => {
                     let length = i32_from_slice(&self.doc.as_bytes()[valueoffset..])? as usize;
@@ -263,9 +263,9 @@ impl<'a> Iterator for Iter<'a> {
                     let slice = &&self.doc.as_bytes()[valueoffset..(valueoffset + length)];
                     let code = read_lenencoded(&slice[4..])?;
                     let scope_start = 4 + 4 + code.len() + 1;
-                    let scope = RawDocument::new(&slice[scope_start..])?;
+                    let scope = RawDocument::from_bytes(&slice[scope_start..])?;
                     (
-                        RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
+                        RawBsonRef::JavaScriptCodeWithScope(RawJavaScriptCodeWithScopeRef {
                             code,
                             scope,
                         }),
@@ -276,18 +276,18 @@ impl<'a> Iterator for Iter<'a> {
                     let namespace = read_lenencoded(&self.doc.as_bytes()[valueoffset..])?;
                     let id = self.next_oid(valueoffset + 4 + namespace.len() + 1)?;
                     (
-                        RawBson::DbPointer(RawDbPointer { namespace, id }),
+                        RawBsonRef::DbPointer(RawDbPointerRef { namespace, id }),
                         4 + namespace.len() + 1 + 12,
                     )
                 }
                 ElementType::Symbol => {
                     let s = read_lenencoded(&self.doc.as_bytes()[valueoffset..])?;
-                    (RawBson::Symbol(s), 4 + s.len() + 1)
+                    (RawBsonRef::Symbol(s), 4 + s.len() + 1)
                 }
                 ElementType::Decimal128 => {
                     self.verify_enough_bytes(valueoffset, 16)?;
                     (
-                        RawBson::Decimal128(Decimal128::from_bytes(
+                        RawBsonRef::Decimal128(Decimal128::from_bytes(
                             self.doc.as_bytes()[valueoffset..(valueoffset + 16)]
                                 .try_into()
                                 .unwrap(),
@@ -295,8 +295,8 @@ impl<'a> Iterator for Iter<'a> {
                         16,
                     )
                 }
-                ElementType::MinKey => (RawBson::MinKey, 0),
-                ElementType::MaxKey => (RawBson::MaxKey, 0),
+                ElementType::MinKey => (RawBsonRef::MinKey, 0),
+                ElementType::MaxKey => (RawBsonRef::MaxKey, 0),
             };
 
             self.offset = valueoffset + element_size;

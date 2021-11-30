@@ -10,6 +10,8 @@ use crate::{
     raw::RAW_DOCUMENT_NEWTYPE,
     ser::{write_binary, write_cstring, write_i32, write_i64, write_string, Error, Result},
     spec::{BinarySubtype, ElementType},
+    RawDocument,
+    RawJavaScriptCodeWithScopeRef,
 };
 
 use super::{document_serializer::DocumentSerializer, Serializer};
@@ -306,8 +308,11 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
                 Ok(())
             }
             SerializationStep::CodeWithScopeScope { ref code, raw } if raw => {
-                let len = 4 + 4 + code.len() as i32 + 1 + v.len() as i32;
-                write_i32(&mut self.root_serializer.bytes, len)?;
+                let raw = RawJavaScriptCodeWithScopeRef {
+                    code,
+                    scope: RawDocument::from_bytes(v).map_err(Error::custom)?,
+                };
+                write_i32(&mut self.root_serializer.bytes, raw.len())?;
                 write_string(&mut self.root_serializer.bytes, code)?;
                 self.root_serializer.bytes.write_all(v)?;
                 self.state = SerializationStep::Done;

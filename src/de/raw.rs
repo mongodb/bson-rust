@@ -13,7 +13,7 @@ use serde::{
 
 use crate::{
     oid::ObjectId,
-    raw::{RawBinary, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{RawBinaryRef, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
     Bson,
@@ -163,7 +163,7 @@ impl<'de> Deserializer<'de> {
                 let mut len = self.bytes.slice(4)?;
                 let len = read_i32(&mut len)?;
 
-                let doc = RawDocument::new(self.bytes.read_slice(len as usize)?)
+                let doc = RawDocument::from_bytes(self.bytes.read_slice(len as usize)?)
                     .map_err(Error::custom)?;
 
                 let access = if is_array {
@@ -266,7 +266,7 @@ impl<'de> Deserializer<'de> {
                         visitor.visit_borrowed_bytes(self.bytes.read_slice(len as usize)?)
                     }
                     _ => {
-                        let binary = RawBinary::from_slice_with_len_and_payload(
+                        let binary = RawBinaryRef::from_slice_with_len_and_payload(
                             self.bytes.read_slice(len as usize)?,
                             len,
                             subtype,
@@ -648,13 +648,20 @@ impl<'d, 'de> serde::de::Deserializer<'de> for DocumentKeyDeserializer<'d, 'de> 
         }
     }
 
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     forward_to_deserialize_any! {
         bool char str bytes byte_buf option unit unit_struct string
-        identifier newtype_struct seq tuple tuple_struct struct map enum
+        identifier seq tuple tuple_struct struct map enum
         ignored_any i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
     }
 }
@@ -674,13 +681,20 @@ impl<'de> serde::de::Deserializer<'de> for FieldDeserializer {
         visitor.visit_borrowed_str(self.field_name)
     }
 
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
+        bytes byte_buf map struct option unit
         ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
@@ -1096,13 +1110,20 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut DateTimeDeserializer {
         }
     }
 
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
+        bytes byte_buf map struct option unit
         ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
@@ -1147,13 +1168,13 @@ impl<'de, 'd> serde::de::MapAccess<'de> for BinaryAccess<'d, 'de> {
 }
 
 struct BinaryDeserializer<'a> {
-    binary: RawBinary<'a>,
+    binary: RawBinaryRef<'a>,
     hint: DeserializerHint,
     stage: BinaryDeserializationStage,
 }
 
 impl<'a> BinaryDeserializer<'a> {
-    fn new(binary: RawBinary<'a>, hint: DeserializerHint) -> Self {
+    fn new(binary: RawBinaryRef<'a>, hint: DeserializerHint) -> Self {
         Self {
             binary,
             hint,
@@ -1329,13 +1350,20 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut CodeWithScopeDeserial
         }
     }
 
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
+        bytes byte_buf map struct option unit
         ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
@@ -1438,13 +1466,20 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut DbPointerDeserializer
         }
     }
 
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
+        bytes byte_buf map struct option unit
         ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
@@ -1646,13 +1681,20 @@ impl<'de, 'a> serde::de::Deserializer<'de> for RawBsonDeserializer<'de> {
         }
     }
 
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     fn is_human_readable(&self) -> bool {
         false
     }
 
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
+        bytes byte_buf map struct option unit
         ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }

@@ -23,7 +23,7 @@
 //! };
 //!
 //! // See http://bsonspec.org/spec.html for details on the binary encoding of BSON.
-//! let doc = RawDocumentBuf::new(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+//! let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 //! let elem = doc.get("hi")?.unwrap();
 //!
 //! assert_eq!(
@@ -76,7 +76,7 @@
 //! use bson::raw::RawDocument;
 //!
 //! let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
-//! assert_eq!(RawDocument::new(bytes)?.get_str("hi")?, "y'all");
+//! assert_eq!(RawDocument::from_bytes(bytes)?.get_str("hi")?, "y'all");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -88,7 +88,7 @@
 //! ```rust
 //! use bson::{
 //!    raw::{
-//!        RawBson,
+//!        RawBsonRef,
 //!        RawDocumentBuf,
 //!    },
 //!    doc,
@@ -102,22 +102,25 @@
 //! let doc = RawDocumentBuf::from_document(&original_doc)?;
 //! let mut doc_iter = doc.iter();
 //!
-//! let (key, value): (&str, RawBson) = doc_iter.next().unwrap()?;
+//! let (key, value): (&str, RawBsonRef) = doc_iter.next().unwrap()?;
 //! assert_eq!(key, "crate");
 //! assert_eq!(value.as_str(), Some("bson"));
 //!
-//! let (key, value): (&str, RawBson) = doc_iter.next().unwrap()?;
+//! let (key, value): (&str, RawBsonRef) = doc_iter.next().unwrap()?;
 //! assert_eq!(key, "year");
 //! assert_eq!(value.as_str(), Some("2021"));
 //! # Ok::<(), bson::raw::Error>(())
 //! ```
 
 mod array;
+mod array_buf;
 mod bson;
+mod bson_ref;
 mod document;
 mod document_buf;
 mod error;
 mod iter;
+mod serde;
 #[cfg(test)]
 mod test;
 
@@ -127,14 +130,20 @@ use crate::de::MIN_BSON_STRING_SIZE;
 
 pub use self::{
     array::{RawArray, RawArrayIter},
-    bson::{RawBinary, RawBson, RawDbPointer, RawJavaScriptCodeWithScope, RawRegex},
+    array_buf::RawArrayBuf,
+    bson::{RawBson, RawJavaScriptCodeWithScope},
+    bson_ref::{
+        RawBinaryRef,
+        RawBsonRef,
+        RawDbPointerRef,
+        RawJavaScriptCodeWithScopeRef,
+        RawRegexRef,
+    },
     document::RawDocument,
     document_buf::RawDocumentBuf,
     error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     iter::Iter,
 };
-
-pub(crate) use self::bson::RawBsonVisitor;
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.
 pub(crate) const RAW_DOCUMENT_NEWTYPE: &str = "$__private__bson_RawDocument";
