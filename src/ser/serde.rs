@@ -17,7 +17,7 @@ use crate::{
     datetime::DateTime,
     extjson,
     oid::ObjectId,
-    raw::{RawDbPointer, RawRegex, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{RawDbPointerRef, RawRegexRef, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Binary,
@@ -648,7 +648,7 @@ impl Serialize for Regex {
     where
         S: ser::Serializer,
     {
-        let raw = RawRegex {
+        let raw = RawRegexRef {
             pattern: self.pattern.as_str(),
             options: self.options.as_str(),
         };
@@ -720,7 +720,7 @@ impl Serialize for DbPointer {
     where
         S: ser::Serializer,
     {
-        let raw = RawDbPointer {
+        let raw = RawDbPointerRef {
             namespace: self.namespace.as_str(),
             id: self.id,
         };

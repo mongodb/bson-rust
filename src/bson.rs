@@ -34,7 +34,7 @@ use crate::{
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
     Decimal128,
-    RawBinary,
+    RawBinaryRef,
 };
 
 /// Possible BSON value types.
@@ -1098,8 +1098,8 @@ impl Binary {
         }
     }
 
-    pub(crate) fn as_raw_binary(&self) -> RawBinary<'_> {
-        RawBinary {
+    pub(crate) fn as_raw_binary(&self) -> RawBinaryRef<'_> {
+        RawBinaryRef {
             bytes: self.bytes.as_slice(),
             subtype: self.subtype,
         }

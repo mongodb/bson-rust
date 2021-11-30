@@ -35,7 +35,7 @@ use std::io::Read;
 use crate::{
     bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     oid::{self, ObjectId},
-    raw::RawBinary,
+    raw::RawBinaryRef,
     ser::write_i32,
     spec::{self, BinarySubtype},
     Decimal128,
@@ -307,7 +307,7 @@ impl Binary {
     }
 }
 
-impl<'a> RawBinary<'a> {
+impl<'a> RawBinaryRef<'a> {
     pub(crate) fn from_slice_with_len_and_payload(
         mut bytes: &'a [u8],
         mut len: i32,

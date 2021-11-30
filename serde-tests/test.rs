@@ -31,16 +31,16 @@ use bson::{
     DeserializerOptions,
     Document,
     JavaScriptCodeWithScope,
-    OwnedRawBson,
     RawArray,
     RawArrayBuf,
-    RawBinary,
+    RawBinaryRef,
     RawBson,
-    RawDbPointer,
+    RawBsonRef,
+    RawDbPointerRef,
     RawDocument,
     RawDocumentBuf,
-    RawJavaScriptCodeWithScope,
-    RawRegex,
+    RawJavaScriptCodeWithScopeRef,
+    RawRegexRef,
     Regex,
     SerializerOptions,
     Timestamp,
@@ -795,16 +795,16 @@ fn raw_binary() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo<'a> {
         #[serde(borrow)]
-        generic: RawBinary<'a>,
+        generic: RawBinaryRef<'a>,
 
         #[serde(borrow)]
-        old: RawBinary<'a>,
+        old: RawBinaryRef<'a>,
 
         #[serde(borrow)]
-        uuid: RawBinary<'a>,
+        uuid: RawBinaryRef<'a>,
 
         #[serde(borrow)]
-        other: RawBinary<'a>,
+        other: RawBinaryRef<'a>,
     }
 
     let bytes = bson::to_vec(&doc! {
@@ -832,7 +832,7 @@ fn raw_regex() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo<'a> {
         #[serde(borrow)]
-        r: RawRegex<'a>,
+        r: RawRegexRef<'a>,
     }
 
     let bytes = bson::to_vec(&doc! {
@@ -851,7 +851,7 @@ fn raw_code_w_scope() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo<'a> {
         #[serde(borrow)]
-        r: RawJavaScriptCodeWithScope<'a>,
+        r: RawJavaScriptCodeWithScopeRef<'a>,
     }
 
     let bytes = bson::to_vec(&doc! {
@@ -870,7 +870,7 @@ fn raw_db_pointer() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo<'a> {
         #[serde(borrow)]
-        a: RawDbPointer<'a>,
+        a: RawDbPointerRef<'a>,
     }
 
     // From the "DBpointer" bson corpus test
@@ -1036,18 +1036,18 @@ fn all_raw_types_rmp() {
     #[derive(Debug, Serialize, Deserialize, PartialEq)]
     struct AllRawTypes<'a> {
         #[serde(borrow)]
-        bson: RawBson<'a>,
+        bson: RawBsonRef<'a>,
         #[serde(borrow)]
         document: &'a RawDocument,
         #[serde(borrow)]
         array: &'a RawArray,
         buf: RawDocumentBuf,
         #[serde(borrow)]
-        binary: RawBinary<'a>,
+        binary: RawBinaryRef<'a>,
         #[serde(borrow)]
-        code_w_scope: RawJavaScriptCodeWithScope<'a>,
+        code_w_scope: RawJavaScriptCodeWithScopeRef<'a>,
         #[serde(borrow)]
-        regex: RawRegex<'a>,
+        regex: RawRegexRef<'a>,
     }
 
     let doc_bytes = bson::to_vec(&doc! {
@@ -1247,14 +1247,14 @@ fn owned_raw_types() {
 
     let f = Foo {
         subdoc: RawDocumentBuf::from_iter([
-            ("a key", OwnedRawBson::String("a value".to_string())),
-            ("an objectid", OwnedRawBson::ObjectId(oid)),
-            ("a date", OwnedRawBson::DateTime(dt)),
+            ("a key", RawBson::String("a value".to_string())),
+            ("an objectid", RawBson::ObjectId(oid)),
+            ("a date", RawBson::DateTime(dt)),
         ]),
         array: RawArrayBuf::from_iter([
-            OwnedRawBson::String("a string".to_string()),
-            OwnedRawBson::ObjectId(oid),
-            OwnedRawBson::DateTime(dt),
+            RawBson::String("a string".to_string()),
+            RawBson::ObjectId(oid),
+            RawBson::DateTime(dt),
         ]),
     };
 
@@ -1294,7 +1294,7 @@ fn hint_cleared() {
         #[serde(borrow)]
         doc: &'a RawDocument,
         #[serde(borrow)]
-        binary: RawBinary<'a>,
+        binary: RawBinaryRef<'a>,
     }
 
     let binary_value = Binary {
@@ -1322,7 +1322,7 @@ fn hint_cleared() {
 #[test]
 fn non_human_readable() {
     let bytes = vec![1, 2, 3, 4];
-    let binary = RawBinary {
+    let binary = RawBinaryRef {
         bytes: &bytes,
         subtype: BinarySubtype::BinaryOld,
     };
@@ -1336,7 +1336,7 @@ fn non_human_readable() {
     #[derive(Debug, Deserialize, Serialize)]
     struct Foo<'a> {
         #[serde(borrow)]
-        binary: RawBinary<'a>,
+        binary: RawBinaryRef<'a>,
         #[serde(borrow)]
         doc: &'a RawDocument,
         #[serde(borrow)]

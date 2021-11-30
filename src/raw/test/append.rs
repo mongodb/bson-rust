@@ -2,7 +2,7 @@ use std::iter::FromIterator;
 
 use crate::{
     oid::ObjectId,
-    raw::OwnedRawJavaScriptCodeWithScope,
+    raw::RawJavaScriptCodeWithScope,
     spec::BinarySubtype,
     tests::LOCK,
     Binary,
@@ -12,8 +12,8 @@ use crate::{
     Decimal128,
     Document,
     JavaScriptCodeWithScope,
-    OwnedRawBson,
     RawArrayBuf,
+    RawBson,
     RawDocumentBuf,
     Regex,
     Timestamp,
@@ -108,7 +108,7 @@ fn null() {
         "null": null,
     };
     append_test(expected, |doc| {
-        doc.append("null", OwnedRawBson::Null);
+        doc.append("null", RawBson::Null);
     });
 }
 
@@ -230,8 +230,8 @@ fn min_max_key() {
     };
 
     append_test(expected, |doc| {
-        doc.append("min", OwnedRawBson::MinKey);
-        doc.append("max", OwnedRawBson::MaxKey);
+        doc.append("min", RawBson::MinKey);
+        doc.append("max", RawBson::MaxKey);
     });
 }
 
@@ -242,7 +242,7 @@ fn undefined() {
     };
 
     append_test(expected, |doc| {
-        doc.append("undefined", OwnedRawBson::Undefined);
+        doc.append("undefined", RawBson::Undefined);
     });
 }
 
@@ -270,17 +270,14 @@ fn code() {
     };
 
     append_test(expected, |doc| {
-        doc.append(
-            "code",
-            OwnedRawBson::JavaScriptCode("some code".to_string()),
-        );
+        doc.append("code", RawBson::JavaScriptCode("some code".to_string()));
 
         let mut scope = RawDocumentBuf::new();
         scope.append("a", 1_i32);
         scope.append("b", true);
         doc.append(
             "code_w_scope",
-            OwnedRawJavaScriptCodeWithScope {
+            RawJavaScriptCodeWithScope {
                 code: "some code".to_string(),
                 scope,
             },
@@ -295,7 +292,7 @@ fn symbol() {
     };
 
     append_test(expected, |doc| {
-        doc.append("symbol", OwnedRawBson::Symbol("symbol".to_string()));
+        doc.append("symbol", RawBson::Symbol("symbol".to_string()));
     });
 }
 
@@ -315,7 +312,7 @@ fn dbpointer() {
     append_test(expected, |doc| {
         doc.append(
             "symbol",
-            OwnedRawBson::DbPointer(DbPointer {
+            RawBson::DbPointer(DbPointer {
                 namespace: "ns".to_string(),
                 id,
             }),
@@ -386,16 +383,16 @@ fn from_iter() {
     let doc_buf = RawDocumentBuf::from_iter([
         (
             "array",
-            OwnedRawBson::Array(RawArrayBuf::from_iter([
-                OwnedRawBson::Boolean(true),
-                OwnedRawBson::Document(RawDocumentBuf::from_iter([
-                    ("ok", OwnedRawBson::Boolean(false)),
-                    ("other", OwnedRawBson::String("hello".to_string())),
+            RawBson::Array(RawArrayBuf::from_iter([
+                RawBson::Boolean(true),
+                RawBson::Document(RawDocumentBuf::from_iter([
+                    ("ok", RawBson::Boolean(false)),
+                    ("other", RawBson::String("hello".to_string())),
                 ])),
             ])),
         ),
-        ("bool", OwnedRawBson::Boolean(true)),
-        ("string", OwnedRawBson::String("some string".to_string())),
+        ("bool", RawBson::Boolean(true)),
+        ("string", RawBson::String("some string".to_string())),
     ]);
 
     let doc = doc! {

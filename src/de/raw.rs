@@ -13,7 +13,7 @@ use serde::{
 
 use crate::{
     oid::ObjectId,
-    raw::{RawBinary, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{RawBinaryRef, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
     Bson,
@@ -266,7 +266,7 @@ impl<'de> Deserializer<'de> {
                         visitor.visit_borrowed_bytes(self.bytes.read_slice(len as usize)?)
                     }
                     _ => {
-                        let binary = RawBinary::from_slice_with_len_and_payload(
+                        let binary = RawBinaryRef::from_slice_with_len_and_payload(
                             self.bytes.read_slice(len as usize)?,
                             len,
                             subtype,
@@ -1168,13 +1168,13 @@ impl<'de, 'd> serde::de::MapAccess<'de> for BinaryAccess<'d, 'de> {
 }
 
 struct BinaryDeserializer<'a> {
-    binary: RawBinary<'a>,
+    binary: RawBinaryRef<'a>,
     hint: DeserializerHint,
     stage: BinaryDeserializationStage,
 }
 
 impl<'a> BinaryDeserializer<'a> {
-    fn new(binary: RawBinary<'a>, hint: DeserializerHint) -> Self {
+    fn new(binary: RawBinaryRef<'a>, hint: DeserializerHint) -> Self {
         Self {
             binary,
             hint,

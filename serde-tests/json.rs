@@ -3,7 +3,7 @@ use serde_json::json;
 
 use super::AllTypes;
 
-use bson::{doc, Bson, JavaScriptCodeWithScope, OwnedRawBson, RawArrayBuf, RawDocumentBuf};
+use bson::{doc, Bson, JavaScriptCodeWithScope, RawArrayBuf, RawBson, RawDocumentBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -63,13 +63,13 @@ fn owned_raw_bson() {
     struct Foo {
         doc_buf: RawDocumentBuf,
         array_buf: RawArrayBuf,
-        bson_array: OwnedRawBson,
-        bson_doc: OwnedRawBson,
-        bson_integer: OwnedRawBson,
-        bson_string: OwnedRawBson,
-        bson_bool: OwnedRawBson,
-        bson_null: OwnedRawBson,
-        bson_float: OwnedRawBson,
+        bson_array: RawBson,
+        bson_doc: RawBson,
+        bson_integer: RawBson,
+        bson_string: RawBson,
+        bson_bool: RawBson,
+        bson_null: RawBson,
+        bson_float: RawBson,
     }
 
     let json = json!({
@@ -102,7 +102,7 @@ fn owned_raw_bson() {
     doc_buf.append("a", "key");
     doc_buf.append("number", 12);
     doc_buf.append("bool", false);
-    doc_buf.append("nu", OwnedRawBson::Null);
+    doc_buf.append("nu", RawBson::Null);
 
     let mut array_buf = RawArrayBuf::new();
     array_buf.push(1);
@@ -115,13 +115,13 @@ fn owned_raw_bson() {
     let expected = Foo {
         doc_buf,
         array_buf: array_buf.clone(),
-        bson_array: OwnedRawBson::Array(array_buf),
-        bson_doc: OwnedRawBson::Document(bson_doc),
-        bson_integer: OwnedRawBson::Int32(12),
-        bson_string: OwnedRawBson::String("String".to_string()),
-        bson_bool: OwnedRawBson::Boolean(true),
-        bson_null: OwnedRawBson::Null,
-        bson_float: OwnedRawBson::Double(123.4),
+        bson_array: RawBson::Array(array_buf),
+        bson_doc: RawBson::Document(bson_doc),
+        bson_integer: RawBson::Int32(12),
+        bson_string: RawBson::String("String".to_string()),
+        bson_bool: RawBson::Boolean(true),
+        bson_null: RawBson::Null,
+        bson_float: RawBson::Double(123.4),
     };
 
     let f: Foo = serde_json::from_value(json.clone()).unwrap();

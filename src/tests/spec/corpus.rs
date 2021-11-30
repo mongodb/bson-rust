@@ -6,11 +6,11 @@ use std::{
 };
 
 use crate::{
-    raw::{RawBson, RawDocument},
+    raw::{RawBsonRef, RawDocument},
     tests::LOCK,
     Bson,
     Document,
-    OwnedRawBson,
+    RawBson,
     RawDocumentBuf,
 };
 use pretty_assertions::assert_eq;
@@ -121,13 +121,14 @@ fn run_test(test: TestFile) {
         let document_from_raw_document: Document =
             canonical_raw_document.try_into().expect(&description);
 
-        let canonical_raw_bson_from_slice = crate::from_slice::<RawBson>(canonical_bson.as_slice())
-            .expect(&description)
-            .as_document()
-            .expect(&description);
+        let canonical_raw_bson_from_slice =
+            crate::from_slice::<RawBsonRef>(canonical_bson.as_slice())
+                .expect(&description)
+                .as_document()
+                .expect(&description);
 
         let canonical_owned_raw_bson_from_slice =
-            crate::from_slice::<OwnedRawBson>(canonical_bson.as_slice()).expect(&description);
+            crate::from_slice::<RawBson>(canonical_bson.as_slice()).expect(&description);
 
         let canonical_raw_document_from_slice =
             crate::from_slice::<&RawDocument>(canonical_bson.as_slice()).expect(&description);
@@ -177,7 +178,7 @@ fn run_test(test: TestFile) {
                 let mut deserializer_raw =
                     crate::de::RawDeserializer::new(canonical_bson.as_slice(), false);
                 let raw_bson_field = deserializer_raw
-                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<RawBson>))
+                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<RawBsonRef>))
                     .expect(&description);
                 // convert to an owned Bson and put into a Document
                 let bson: Bson = raw_bson_field.try_into().expect(&description);
@@ -189,7 +190,7 @@ fn run_test(test: TestFile) {
                 let mut deserializer_raw =
                     crate::de::RawDeserializer::new(canonical_bson.as_slice(), false);
                 let owned_raw_bson_field = deserializer_raw
-                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<OwnedRawBson>))
+                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<RawBson>))
                     .expect(&description);
                 let from_slice_owned_vec =
                     RawDocumentBuf::from_iter([(test_key, owned_raw_bson_field)]).into_bytes();

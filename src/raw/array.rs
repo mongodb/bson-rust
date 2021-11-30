@@ -7,10 +7,10 @@ use super::{
     serde::OwnedOrBorrowedRawArray,
     Error,
     Iter,
-    RawBinary,
-    RawBson,
+    RawBinaryRef,
+    RawBsonRef,
     RawDocument,
-    RawRegex,
+    RawRegexRef,
     Result,
 };
 use crate::{
@@ -100,7 +100,7 @@ impl RawArray {
     }
 
     /// Gets a reference to the value at the given index.
-    pub fn get(&self, index: usize) -> Result<Option<RawBson<'_>>> {
+    pub fn get(&self, index: usize) -> Result<Option<RawBsonRef<'_>>> {
         self.into_iter().nth(index).transpose()
     }
 
@@ -108,7 +108,7 @@ impl RawArray {
         &'a self,
         index: usize,
         expected_type: ElementType,
-        f: impl FnOnce(RawBson<'a>) -> Option<T>,
+        f: impl FnOnce(RawBsonRef<'a>) -> Option<T>,
     ) -> ValueAccessResult<T> {
         let bson = self
             .get(index)
@@ -135,73 +135,77 @@ impl RawArray {
     /// Gets the BSON double at the given index or returns an error if the value at that index isn't
     /// a double.
     pub fn get_f64(&self, index: usize) -> ValueAccessResult<f64> {
-        self.get_with(index, ElementType::Double, RawBson::as_f64)
+        self.get_with(index, ElementType::Double, RawBsonRef::as_f64)
     }
 
     /// Gets a reference to the string at the given index or returns an error if the
     /// value at that index isn't a string.
     pub fn get_str(&self, index: usize) -> ValueAccessResult<&str> {
-        self.get_with(index, ElementType::String, RawBson::as_str)
+        self.get_with(index, ElementType::String, RawBsonRef::as_str)
     }
 
     /// Gets a reference to the document at the given index or returns an error if the
     /// value at that index isn't a document.
     pub fn get_document(&self, index: usize) -> ValueAccessResult<&RawDocument> {
-        self.get_with(index, ElementType::EmbeddedDocument, RawBson::as_document)
+        self.get_with(
+            index,
+            ElementType::EmbeddedDocument,
+            RawBsonRef::as_document,
+        )
     }
 
     /// Gets a reference to the array at the given index or returns an error if the
     /// value at that index isn't a array.
     pub fn get_array(&self, index: usize) -> ValueAccessResult<&RawArray> {
-        self.get_with(index, ElementType::Array, RawBson::as_array)
+        self.get_with(index, ElementType::Array, RawBsonRef::as_array)
     }
 
     /// Gets a reference to the BSON binary value at the given index or returns an error if the
     /// value at that index isn't a binary.
-    pub fn get_binary(&self, index: usize) -> ValueAccessResult<RawBinary<'_>> {
-        self.get_with(index, ElementType::Binary, RawBson::as_binary)
+    pub fn get_binary(&self, index: usize) -> ValueAccessResult<RawBinaryRef<'_>> {
+        self.get_with(index, ElementType::Binary, RawBsonRef::as_binary)
     }
 
     /// Gets the ObjectId at the given index or returns an error if the value at that index isn't an
     /// ObjectId.
     pub fn get_object_id(&self, index: usize) -> ValueAccessResult<ObjectId> {
-        self.get_with(index, ElementType::ObjectId, RawBson::as_object_id)
+        self.get_with(index, ElementType::ObjectId, RawBsonRef::as_object_id)
     }
 
     /// Gets the boolean at the given index or returns an error if the value at that index isn't a
     /// boolean.
     pub fn get_bool(&self, index: usize) -> ValueAccessResult<bool> {
-        self.get_with(index, ElementType::Boolean, RawBson::as_bool)
+        self.get_with(index, ElementType::Boolean, RawBsonRef::as_bool)
     }
 
     /// Gets the DateTime at the given index or returns an error if the value at that index isn't a
     /// DateTime.
     pub fn get_datetime(&self, index: usize) -> ValueAccessResult<DateTime> {
-        self.get_with(index, ElementType::DateTime, RawBson::as_datetime)
+        self.get_with(index, ElementType::DateTime, RawBsonRef::as_datetime)
     }
 
     /// Gets a reference to the BSON regex at the given index or returns an error if the
     /// value at that index isn't a regex.
-    pub fn get_regex(&self, index: usize) -> ValueAccessResult<RawRegex<'_>> {
-        self.get_with(index, ElementType::RegularExpression, RawBson::as_regex)
+    pub fn get_regex(&self, index: usize) -> ValueAccessResult<RawRegexRef<'_>> {
+        self.get_with(index, ElementType::RegularExpression, RawBsonRef::as_regex)
     }
 
     /// Gets a reference to the BSON timestamp at the given index or returns an error if the
     /// value at that index isn't a timestamp.
     pub fn get_timestamp(&self, index: usize) -> ValueAccessResult<Timestamp> {
-        self.get_with(index, ElementType::Timestamp, RawBson::as_timestamp)
+        self.get_with(index, ElementType::Timestamp, RawBsonRef::as_timestamp)
     }
 
     /// Gets the BSON int32 at the given index or returns an error if the value at that index isn't
     /// a 32-bit integer.
     pub fn get_i32(&self, index: usize) -> ValueAccessResult<i32> {
-        self.get_with(index, ElementType::Int32, RawBson::as_i32)
+        self.get_with(index, ElementType::Int32, RawBsonRef::as_i32)
     }
 
     /// Gets BSON int64 at the given index or returns an error if the value at that index isn't a
     /// 64-bit integer.
     pub fn get_i64(&self, index: usize) -> ValueAccessResult<i64> {
-        self.get_with(index, ElementType::Int64, RawBson::as_i64)
+        self.get_with(index, ElementType::Int64, RawBsonRef::as_i64)
     }
 
     /// Gets a reference to the raw bytes of the [`RawArray`].
@@ -247,7 +251,7 @@ impl<'a> From<&'a RawArray> for Cow<'a, RawArray> {
 
 impl<'a> IntoIterator for &'a RawArray {
     type IntoIter = RawArrayIter<'a>;
-    type Item = Result<RawBson<'a>>;
+    type Item = Result<RawBsonRef<'a>>;
 
     fn into_iter(self) -> RawArrayIter<'a> {
         RawArrayIter {
@@ -262,9 +266,9 @@ pub struct RawArrayIter<'a> {
 }
 
 impl<'a> Iterator for RawArrayIter<'a> {
-    type Item = Result<RawBson<'a>>;
+    type Item = Result<RawBsonRef<'a>>;
 
-    fn next(&mut self) -> Option<Result<RawBson<'a>>> {
+    fn next(&mut self) -> Option<Result<RawBsonRef<'a>>> {
         match self.inner.next() {
             Some(Ok((_, v))) => Some(Ok(v)),
             Some(Err(e)) => Some(Err(e)),

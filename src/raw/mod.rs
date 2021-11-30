@@ -88,7 +88,7 @@
 //! ```rust
 //! use bson::{
 //!    raw::{
-//!        RawBson,
+//!        RawBsonRef,
 //!        RawDocumentBuf,
 //!    },
 //!    doc,
@@ -102,11 +102,11 @@
 //! let doc = RawDocumentBuf::from_document(&original_doc)?;
 //! let mut doc_iter = doc.iter();
 //!
-//! let (key, value): (&str, RawBson) = doc_iter.next().unwrap()?;
+//! let (key, value): (&str, RawBsonRef) = doc_iter.next().unwrap()?;
 //! assert_eq!(key, "crate");
 //! assert_eq!(value.as_str(), Some("bson"));
 //!
-//! let (key, value): (&str, RawBson) = doc_iter.next().unwrap()?;
+//! let (key, value): (&str, RawBsonRef) = doc_iter.next().unwrap()?;
 //! assert_eq!(key, "year");
 //! assert_eq!(value.as_str(), Some("2021"));
 //! # Ok::<(), bson::raw::Error>(())
@@ -115,11 +115,11 @@
 mod array;
 mod array_buf;
 mod bson;
+mod bson_ref;
 mod document;
 mod document_buf;
 mod error;
 mod iter;
-mod owned_bson;
 mod serde;
 #[cfg(test)]
 mod test;
@@ -131,12 +131,18 @@ use crate::de::MIN_BSON_STRING_SIZE;
 pub use self::{
     array::{RawArray, RawArrayIter},
     array_buf::RawArrayBuf,
-    bson::{RawBinary, RawBson, RawDbPointer, RawJavaScriptCodeWithScope, RawRegex},
+    bson::{RawBson, RawJavaScriptCodeWithScope},
+    bson_ref::{
+        RawBinaryRef,
+        RawBsonRef,
+        RawDbPointerRef,
+        RawJavaScriptCodeWithScopeRef,
+        RawRegexRef,
+    },
     document::RawDocument,
     document_buf::RawDocumentBuf,
     error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     iter::Iter,
-    owned_bson::{OwnedRawBson, OwnedRawJavaScriptCodeWithScope},
 };
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.

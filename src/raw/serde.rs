@@ -7,7 +7,7 @@ use crate::{
     de::convert_unsigned_to_signed_raw,
     extjson,
     oid::ObjectId,
-    raw::{OwnedRawJavaScriptCodeWithScope, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{RawJavaScriptCodeWithScope, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::BinarySubtype,
     Binary,
     DateTime,
@@ -15,26 +15,26 @@ use crate::{
     Decimal128,
     RawArray,
     RawArrayBuf,
-    RawBinary,
-    RawBson,
-    RawDbPointer,
+    RawBinaryRef,
+    RawBsonRef,
+    RawDbPointerRef,
     RawDocument,
     RawDocumentBuf,
-    RawJavaScriptCodeWithScope,
-    RawRegex,
+    RawJavaScriptCodeWithScopeRef,
+    RawRegexRef,
     Regex,
     Timestamp,
 };
 
-use super::{owned_bson::OwnedRawBson, RAW_BSON_NEWTYPE};
+use super::{bson::RawBson, RAW_BSON_NEWTYPE};
 
 /// A raw BSON value that may either be borrowed or owned.
 ///
 /// This is used to consolidate the `Serialize` and `Deserialize` implementations for
 /// `RawBson` and `OwnedRawBson`.
 pub(crate) enum OwnedOrBorrowedRawBson<'a> {
-    Owned(OwnedRawBson),
-    Borrowed(RawBson<'a>),
+    Owned(RawBson),
+    Borrowed(RawBsonRef<'a>),
 }
 
 impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawBson<'a> {
@@ -55,14 +55,14 @@ impl<'a> Debug for OwnedOrBorrowedRawBson<'a> {
     }
 }
 
-impl<'a> From<RawBson<'a>> for OwnedOrBorrowedRawBson<'a> {
-    fn from(b: RawBson<'a>) -> Self {
+impl<'a> From<RawBsonRef<'a>> for OwnedOrBorrowedRawBson<'a> {
+    fn from(b: RawBsonRef<'a>) -> Self {
         OwnedOrBorrowedRawBson::Borrowed(b)
     }
 }
 
-impl<'a> From<OwnedRawBson> for OwnedOrBorrowedRawBson<'a> {
-    fn from(b: OwnedRawBson) -> Self {
+impl<'a> From<RawBson> for OwnedOrBorrowedRawBson<'a> {
+    fn from(b: RawBson) -> Self {
         OwnedOrBorrowedRawBson::Owned(b)
     }
 }
@@ -96,20 +96,20 @@ impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawDocument<'a> {
         match deserializer
             .deserialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
         {
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Document(d)) => Ok(Self::Borrowed(d)),
-            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Document(d)) => Ok(Self::Owned(d)),
+            OwnedOrBorrowedRawBson::Borrowed(RawBsonRef::Document(d)) => Ok(Self::Borrowed(d)),
+            OwnedOrBorrowedRawBson::Owned(RawBson::Document(d)) => Ok(Self::Owned(d)),
 
             // For non-BSON formats, RawDocument gets serialized as bytes, so we need to deserialize
             // from them here too. For BSON, the deserializier will return an error if it
             // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
+            OwnedOrBorrowedRawBson::Borrowed(RawBsonRef::Binary(b))
                 if b.subtype == BinarySubtype::Generic =>
             {
                 Ok(Self::Borrowed(
                     RawDocument::from_bytes(b.bytes).map_err(serde::de::Error::custom)?,
                 ))
             }
-            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b))
+            OwnedOrBorrowedRawBson::Owned(RawBson::Binary(b))
                 if b.subtype == BinarySubtype::Generic =>
             {
                 Ok(Self::Owned(
@@ -149,19 +149,19 @@ impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawArray<'a> {
         match deserializer
             .deserialize_newtype_struct(RAW_ARRAY_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
         {
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Array(d)) => Ok(Self::Borrowed(d)),
-            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Array(d)) => Ok(Self::Owned(d)),
+            OwnedOrBorrowedRawBson::Borrowed(RawBsonRef::Array(d)) => Ok(Self::Borrowed(d)),
+            OwnedOrBorrowedRawBson::Owned(RawBson::Array(d)) => Ok(Self::Owned(d)),
 
             // For non-BSON formats, RawArray gets serialized as bytes, so we need to deserialize
             // from them here too. For BSON, the deserializier will return an error if it
             // sees the RAW_DOCUMENT_NEWTYPE but the next type isn't a document.
-            OwnedOrBorrowedRawBson::Borrowed(RawBson::Binary(b))
+            OwnedOrBorrowedRawBson::Borrowed(RawBsonRef::Binary(b))
                 if b.subtype == BinarySubtype::Generic =>
             {
                 let doc = RawDocument::from_bytes(b.bytes).map_err(serde::de::Error::custom)?;
                 Ok(Self::Borrowed(RawArray::from_doc(doc)))
             }
-            OwnedOrBorrowedRawBson::Owned(OwnedRawBson::Binary(b))
+            OwnedOrBorrowedRawBson::Owned(RawBson::Binary(b))
                 if b.subtype == BinarySubtype::Generic =>
             {
                 let doc = RawDocumentBuf::from_bytes(b.bytes).map_err(serde::de::Error::custom)?;
@@ -190,28 +190,28 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(RawBson::String(v).into())
+        Ok(RawBsonRef::String(v).into())
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(OwnedRawBson::String(v.to_string()).into())
+        Ok(RawBson::String(v.to_string()).into())
     }
 
     fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(OwnedRawBson::String(v).into())
+        Ok(RawBson::String(v).into())
     }
 
     fn visit_borrowed_bytes<E>(self, bytes: &'de [u8]) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(RawBson::Binary(RawBinary {
+        Ok(RawBsonRef::Binary(RawBinaryRef {
             bytes,
             subtype: BinarySubtype::Generic,
         })
@@ -222,28 +222,28 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(RawBson::Int32(v.into()).into())
+        Ok(RawBsonRef::Int32(v.into()).into())
     }
 
     fn visit_i16<E>(self, v: i16) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(RawBson::Int32(v.into()).into())
+        Ok(RawBsonRef::Int32(v.into()).into())
     }
 
     fn visit_i32<E>(self, v: i32) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(RawBson::Int32(v).into())
+        Ok(RawBsonRef::Int32(v).into())
     }
 
     fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(RawBson::Int64(v).into())
+        Ok(RawBsonRef::Int64(v).into())
     }
 
     fn visit_u8<E>(self, value: u8) -> std::result::Result<Self::Value, E>
@@ -278,28 +278,28 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(RawBson::Boolean(v).into())
+        Ok(RawBsonRef::Boolean(v).into())
     }
 
     fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(RawBson::Double(v).into())
+        Ok(RawBsonRef::Double(v).into())
     }
 
     fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(RawBson::Null.into())
+        Ok(RawBsonRef::Null.into())
     }
 
     fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(RawBson::Null.into())
+        Ok(RawBsonRef::Null.into())
     }
 
     fn visit_newtype_struct<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
@@ -313,7 +313,7 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(OwnedRawBson::Binary(Binary {
+        Ok(RawBson::Binary(Binary {
             bytes: v,
             subtype: BinarySubtype::Generic,
         })
@@ -325,10 +325,10 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
         A: serde::de::SeqAccess<'de>,
     {
         let mut array = RawArrayBuf::new();
-        while let Some(v) = seq.next_element::<OwnedRawBson>()? {
+        while let Some(v) = seq.next_element::<RawBson>()? {
             array.push(v);
         }
-        Ok(OwnedRawBson::Array(array).into())
+        Ok(RawBson::Array(array).into())
     }
 
     fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
@@ -346,36 +346,38 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
             A: serde::de::MapAccess<'de>,
         {
             let mut doc = RawDocumentBuf::new();
-            let v: OwnedRawBson = map.next_value()?;
+            let v: RawBson = map.next_value()?;
             doc.append(first_key, v);
 
-            while let Some((k, v)) = map.next_entry::<String, OwnedRawBson>()? {
+            while let Some((k, v)) = map.next_entry::<String, RawBson>()? {
                 doc.append(k, v);
             }
 
-            Ok(OwnedRawBson::Document(doc).into())
+            Ok(RawBson::Document(doc).into())
         }
 
         let k = match map.next_key::<CowStr>()? {
             Some(k) => k,
-            None => return Ok(OwnedRawBson::Document(RawDocumentBuf::new()).into()),
+            None => return Ok(RawBson::Document(RawDocumentBuf::new()).into()),
         };
 
         match k.0.as_ref() {
             "$oid" => {
                 let oid: ObjectId = map.next_value()?;
-                Ok(RawBson::ObjectId(oid).into())
+                Ok(RawBsonRef::ObjectId(oid).into())
             }
             "$symbol" => {
                 let s: CowStr = map.next_value()?;
                 match s.0 {
-                    Cow::Borrowed(s) => Ok(RawBson::Symbol(s).into()),
-                    Cow::Owned(s) => Ok(OwnedRawBson::Symbol(s).into()),
+                    Cow::Borrowed(s) => Ok(RawBsonRef::Symbol(s).into()),
+                    Cow::Owned(s) => Ok(RawBson::Symbol(s).into()),
                 }
             }
             "$numberDecimalBytes" => {
                 let bytes = map.next_value::<ByteBuf>()?;
-                return Ok(RawBson::Decimal128(Decimal128::deserialize_from_slice(&bytes)?).into());
+                return Ok(
+                    RawBsonRef::Decimal128(Decimal128::deserialize_from_slice(&bytes)?).into(),
+                );
             }
             "$regularExpression" => {
                 #[derive(Debug, Deserialize)]
@@ -390,13 +392,13 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
 
                 match (body.pattern, body.options) {
                     (Cow::Borrowed(p), Cow::Borrowed(o)) => {
-                        Ok(RawBson::RegularExpression(RawRegex {
+                        Ok(RawBsonRef::RegularExpression(RawRegexRef {
                             pattern: p,
                             options: o,
                         })
                         .into())
                     }
-                    (p, o) => Ok(OwnedRawBson::RegularExpression(Regex {
+                    (p, o) => Ok(RawBson::RegularExpression(Regex {
                         pattern: p.into_owned(),
                         options: o.into_owned(),
                     })
@@ -405,7 +407,7 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
             }
             "$undefined" => {
                 let _: bool = map.next_value()?;
-                Ok(RawBson::Undefined.into())
+                Ok(RawBsonRef::Undefined.into())
             }
             "$binary" => {
                 #[derive(Debug, Deserialize)]
@@ -420,13 +422,13 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
                 let v = map.next_value::<BorrowedBinaryBody>()?;
 
                 if let Cow::Borrowed(bytes) = v.bytes {
-                    Ok(RawBson::Binary(RawBinary {
+                    Ok(RawBsonRef::Binary(RawBinaryRef {
                         bytes,
                         subtype: v.subtype.into(),
                     })
                     .into())
                 } else {
-                    Ok(OwnedRawBson::Binary(Binary {
+                    Ok(RawBson::Binary(Binary {
                         bytes: v.bytes.into_owned(),
                         subtype: v.subtype.into(),
                     })
@@ -435,11 +437,11 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
             }
             "$date" => {
                 let v = map.next_value::<i64>()?;
-                Ok(RawBson::DateTime(DateTime::from_millis(v)).into())
+                Ok(RawBsonRef::DateTime(DateTime::from_millis(v)).into())
             }
             "$timestamp" => {
                 let v = map.next_value::<extjson::models::TimestampBody>()?;
-                Ok(RawBson::Timestamp(Timestamp {
+                Ok(RawBsonRef::Timestamp(Timestamp {
                     time: v.t,
                     increment: v.i,
                 })
@@ -447,11 +449,11 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
             }
             "$minKey" => {
                 let _ = map.next_value::<i32>()?;
-                Ok(RawBson::MinKey.into())
+                Ok(RawBsonRef::MinKey.into())
             }
             "$maxKey" => {
                 let _ = map.next_value::<i32>()?;
-                Ok(RawBson::MaxKey.into())
+                Ok(RawBsonRef::MaxKey.into())
             }
             "$code" => {
                 let code = map.next_value::<CowStr>()?;
@@ -460,16 +462,13 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
                         let scope = map.next_value::<OwnedOrBorrowedRawDocument>()?;
                         match (code.0, scope) {
                             (Cow::Borrowed(code), OwnedOrBorrowedRawDocument::Borrowed(scope)) => {
-                                Ok(
-                                    RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
-                                        code,
-                                        scope,
-                                    })
-                                    .into(),
+                                Ok(RawBsonRef::JavaScriptCodeWithScope(
+                                    RawJavaScriptCodeWithScopeRef { code, scope },
                                 )
+                                .into())
                             }
-                            (code, scope) => Ok(OwnedRawBson::JavaScriptCodeWithScope(
-                                OwnedRawJavaScriptCodeWithScope {
+                            (code, scope) => Ok(RawBson::JavaScriptCodeWithScope(
+                                RawJavaScriptCodeWithScope {
                                     code: code.into_owned(),
                                     scope: scope.into_owned(),
                                 },
@@ -480,9 +479,9 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
                         Err(serde::de::Error::unknown_field(&key.0, &["$scope"]))
                     }
                 } else if let Cow::Borrowed(code) = code.0 {
-                    Ok(RawBson::JavaScriptCode(code).into())
+                    Ok(RawBsonRef::JavaScriptCode(code).into())
                 } else {
-                    Ok(OwnedRawBson::JavaScriptCode(code.0.into_owned()).into())
+                    Ok(RawBson::JavaScriptCode(code.0.into_owned()).into())
                 }
             }
             "$dbPointer" => {
@@ -498,13 +497,13 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
 
                 let body: BorrowedDbPointerBody = map.next_value()?;
                 if let Cow::Borrowed(ns) = body.ns.0 {
-                    Ok(RawBson::DbPointer(RawDbPointer {
+                    Ok(RawBsonRef::DbPointer(RawDbPointerRef {
                         namespace: ns,
                         id: body.id,
                     })
                     .into())
                 } else {
-                    Ok(OwnedRawBson::DbPointer(DbPointer {
+                    Ok(RawBson::DbPointer(DbPointer {
                         namespace: body.ns.0.into_owned(),
                         id: body.id,
                     })
@@ -514,12 +513,12 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
             RAW_DOCUMENT_NEWTYPE => {
                 let bson = map.next_value::<&[u8]>()?;
                 let doc = RawDocument::from_bytes(bson).map_err(serde::de::Error::custom)?;
-                Ok(RawBson::Document(doc).into())
+                Ok(RawBsonRef::Document(doc).into())
             }
             RAW_ARRAY_NEWTYPE => {
                 let bson = map.next_value::<&[u8]>()?;
                 let doc = RawDocument::from_bytes(bson).map_err(serde::de::Error::custom)?;
-                Ok(RawBson::Array(RawArray::from_doc(doc)).into())
+                Ok(RawBsonRef::Array(RawArray::from_doc(doc)).into())
             }
             k => build_doc(k, map),
         }

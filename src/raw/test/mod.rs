@@ -198,7 +198,7 @@ fn binary() {
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] }
     })
     .unwrap();
-    let binary: bson::RawBinary<'_> = rawdoc
+    let binary: bson_ref::RawBinaryRef<'_> = rawdoc
         .get("binary")
         .expect("error finding key binary")
         .expect("no key binary")
@@ -440,7 +440,7 @@ fn into_bson_conversion() {
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
         "boolean": false,
     });
-    let rawbson = RawBson::Document(RawDocument::from_bytes(docbytes.as_slice()).unwrap());
+    let rawbson = RawBsonRef::Document(RawDocument::from_bytes(docbytes.as_slice()).unwrap());
     let b: Bson = rawbson.try_into().expect("invalid bson");
     let doc = b.as_document().expect("not a document");
     assert_eq!(*doc.get("f64").expect("f64 not found"), Bson::Double(2.5));
