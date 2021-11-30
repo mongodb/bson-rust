@@ -286,8 +286,8 @@ impl RawBson {
         }
     }
 
-    /// Gets a [`RawBson`] value referencing this owned raw BSON value.
-    pub fn as_raw_bson(&self) -> RawBsonRef<'_> {
+    /// Gets a [`RawBsonRef`] value referencing this owned raw BSON value.
+    pub fn as_raw_bson_ref(&self) -> RawBsonRef<'_> {
         match self {
             RawBson::Double(d) => RawBsonRef::Double(*d),
             RawBson::String(s) => RawBsonRef::String(s.as_str()),
@@ -443,7 +443,7 @@ impl Serialize for RawBson {
     where
         S: serde::Serializer,
     {
-        self.as_raw_bson().serialize(serializer)
+        self.as_raw_bson_ref().serialize(serializer)
     }
 }
 
