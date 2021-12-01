@@ -137,7 +137,7 @@ impl RawDocument {
         unsafe { &*(data.as_ref() as *const [u8] as *const RawDocument) }
     }
 
-    /// Creates a new [`RawDocument`] with an owned copy of the BSON bytes.
+    /// Creates a new [`RawDocumentBuf`] with an owned copy of the BSON bytes.
     ///
     /// ```
     /// use bson::raw::{RawDocument, RawDocumentBuf, Error};
@@ -156,12 +156,12 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, oid::ObjectId, raw::{RawDocumentBuf, RawBson}};
+    /// use bson::{rawdoc, oid::ObjectId};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "_id": ObjectId::new(),
     ///     "f64": 2.5,
-    /// })?;
+    /// };
     ///
     /// let element = doc.get("f64")?.expect("finding key f64");
     /// assert_eq!(element.as_f64(), Some(2.5));
@@ -213,13 +213,13 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::raw::{ValueAccessErrorKind, RawDocumentBuf};
-    /// use bson::doc;
+    /// use bson::raw::ValueAccessErrorKind;
+    /// use bson::rawdoc;
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "bool": true,
     ///     "f64": 2.5,
-    /// })?;
+    /// };
     ///
     /// assert_eq!(doc.get_f64("f64")?, 2.5);
     /// assert!(matches!(doc.get_f64("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
@@ -234,12 +234,12 @@ impl RawDocument {
     /// key corresponds to a value which isn't a string.
     ///
     /// ```
-    /// use bson::{doc, raw::{RawDocumentBuf, ValueAccessErrorKind}};
+    /// use bson::{rawdoc, raw::ValueAccessErrorKind};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "string": "hello",
     ///     "bool": true,
-    /// })?;
+    /// };
     ///
     /// assert_eq!(doc.get_str("string")?, "hello");
     /// assert!(matches!(doc.get_str("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
@@ -255,12 +255,12 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{ValueAccessErrorKind, RawDocumentBuf}};
+    /// use bson::{rawdoc, raw::ValueAccessErrorKind};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "doc": { "key": "value"},
     ///     "bool": true,
-    /// })?;
+    /// };
     ///
     /// assert_eq!(doc.get_document("doc")?.get_str("key")?, "value");
     /// assert!(matches!(doc.get_document("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
@@ -275,12 +275,12 @@ impl RawDocument {
     /// the key corresponds to a value which isn't an array.
     ///
     /// ```
-    /// use bson::{doc, raw::{RawDocumentBuf, ValueAccessErrorKind}};
+    /// use bson::{rawdoc, raw::ValueAccessErrorKind};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "array": [true, 3],
     ///     "bool": true,
-    /// })?;
+    /// };
     ///
     /// let mut arr_iter = doc.get_array("array")?.into_iter();
     /// let _: bool = arr_iter.next().unwrap()?.as_bool().unwrap();
@@ -300,16 +300,16 @@ impl RawDocument {
     ///
     /// ```
     /// use bson::{
-    ///     doc,
-    ///     raw::{ValueAccessErrorKind, RawDocumentBuf, RawBinaryRef},
+    ///     rawdoc,
+    ///     raw::ValueAccessErrorKind,
     ///     spec::BinarySubtype,
     ///     Binary,
     /// };
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1, 2, 3] },
     ///     "bool": true,
-    /// })?;
+    /// };
     ///
     /// assert_eq!(&doc.get_binary("binary")?.bytes, &[1, 2, 3]);
     /// assert!(matches!(doc.get_binary("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
@@ -325,12 +325,12 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, oid::ObjectId, raw::{ValueAccessErrorKind, RawDocumentBuf}};
+    /// use bson::{rawdoc, oid::ObjectId, raw::ValueAccessErrorKind};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "_id": ObjectId::new(),
     ///     "bool": true,
-    /// })?;
+    /// };
     ///
     /// let oid = doc.get_object_id("_id")?;
     /// assert!(matches!(doc.get_object_id("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
@@ -346,12 +346,12 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, oid::ObjectId, raw::{RawDocumentBuf, ValueAccessErrorKind}};
+    /// use bson::{rawdoc, oid::ObjectId, raw::ValueAccessErrorKind};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "_id": ObjectId::new(),
     ///     "bool": true,
-    /// })?;
+    /// };
     ///
     /// assert!(doc.get_bool("bool")?);
     /// assert!(matches!(doc.get_bool("_id").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
@@ -367,13 +367,13 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{ValueAccessErrorKind, RawDocumentBuf}, DateTime};
+    /// use bson::{rawdoc, raw::ValueAccessErrorKind, DateTime};
     ///
     /// let dt = DateTime::now();
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "created_at": dt,
     ///     "bool": true,
-    /// })?;
+    /// };
     ///
     /// assert_eq!(doc.get_datetime("created_at")?, dt);
     /// assert!(matches!(doc.get_datetime("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
@@ -388,15 +388,15 @@ impl RawDocument {
     /// the key corresponds to a value which isn't a regex.
     ///
     /// ```
-    /// use bson::{doc, Regex, raw::{RawDocumentBuf, ValueAccessErrorKind}};
+    /// use bson::{rawdoc, Regex, raw::ValueAccessErrorKind};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "regex": Regex {
     ///         pattern: r"end\s*$".into(),
     ///         options: "i".into(),
     ///     },
     ///     "bool": true,
-    /// })?;
+    /// };
     ///
     /// assert_eq!(doc.get_regex("regex")?.pattern(), r"end\s*$");
     /// assert_eq!(doc.get_regex("regex")?.options(), "i");
@@ -413,12 +413,12 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, Timestamp, raw::{RawDocumentBuf, ValueAccessErrorKind}};
+    /// use bson::{rawdoc, Timestamp, raw::ValueAccessErrorKind};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "bool": true,
     ///     "ts": Timestamp { time: 649876543, increment: 9 },
-    /// })?;
+    /// };
     ///
     /// let timestamp = doc.get_timestamp("ts")?;
     ///
@@ -437,12 +437,12 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{RawDocumentBuf, ValueAccessErrorKind}};
+    /// use bson::{rawdoc, raw::ValueAccessErrorKind};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "bool": true,
     ///     "i32": 1_000_000,
-    /// })?;
+    /// };
     ///
     /// assert_eq!(doc.get_i32("i32")?, 1_000_000);
     /// assert!(matches!(doc.get_i32("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { ..}));
@@ -458,12 +458,12 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::{ValueAccessErrorKind, RawDocumentBuf}};
+    /// use bson::{rawdoc, raw::ValueAccessErrorKind};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! {
+    /// let doc = rawdoc! {
     ///     "bool": true,
     ///     "i64": 9223372036854775807_i64,
-    /// })?;
+    /// };
     ///
     /// assert_eq!(doc.get_i64("i64")?, 9223372036854775807);
     /// assert!(matches!(doc.get_i64("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
@@ -478,8 +478,8 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocumentBuf};
-    /// let docbuf = RawDocumentBuf::from_document(&doc!{})?;
+    /// use bson::rawdoc;
+    /// let docbuf = rawdoc! {};
     /// assert_eq!(docbuf.as_bytes(), b"\x05\x00\x00\x00\x00");
     /// # Ok::<(), Error>(())
     /// ```

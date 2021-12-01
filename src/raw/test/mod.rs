@@ -10,26 +10,18 @@ use crate::{
     Binary,
     Bson,
     DateTime,
-    JavaScriptCodeWithScope,
     Regex,
     Timestamp,
 };
 use chrono::{TimeZone, Utc};
 
-fn to_bytes(doc: &crate::Document) -> Vec<u8> {
-    let mut docbytes = Vec::new();
-    doc.to_writer(&mut docbytes).unwrap();
-    docbytes
-}
-
 #[test]
 fn string_from_document() {
-    let docbytes = to_bytes(&doc! {
+    let rawdoc = rawdoc! {
         "this": "first",
         "that": "second",
         "something": "else",
-    });
-    let rawdoc = RawDocument::from_bytes(&docbytes).unwrap();
+    };
     assert_eq!(
         rawdoc.get("that").unwrap().unwrap().as_str().unwrap(),
         "second",
@@ -38,13 +30,12 @@ fn string_from_document() {
 
 #[test]
 fn nested_document() {
-    let docbytes = to_bytes(&doc! {
+    let rawdoc = rawdoc! {
         "outer": {
             "inner": "surprise",
-            "i64": 6_i64,
-        },
-    });
-    let rawdoc = RawDocument::from_bytes(&docbytes).unwrap();
+            "i64": 6_i64
+        }
+    };
     let subdoc = rawdoc
         .get("outer")
         .expect("get doc result")
@@ -74,12 +65,11 @@ fn nested_document() {
 
 #[test]
 fn iterate() {
-    let docbytes = to_bytes(&doc! {
+    let rawdoc = rawdoc! {
         "apples": "oranges",
         "peanut butter": "chocolate",
         "easy as": {"do": 1, "re": 2, "mi": 3},
-    });
-    let rawdoc = RawDocument::from_bytes(&docbytes).expect("malformed bson document");
+    };
     let mut dociter = rawdoc.into_iter();
     let next = dociter.next().expect("no result").expect("invalid bson");
     assert_eq!(next.0, "apples");
@@ -96,7 +86,7 @@ fn iterate() {
 
 #[test]
 fn rawdoc_to_doc() {
-    let docbytes = to_bytes(&doc! {
+    let rawdoc = rawdoc! {
         "f64": 2.5,
         "string": "hello",
         "document": {},
@@ -105,33 +95,35 @@ fn rawdoc_to_doc() {
         "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
         "boolean": true,
         "datetime": DateTime::now(),
-        "null": Bson::Null,
-        "regex": Bson::RegularExpression(Regex { pattern: String::from(r"end\s*$"), options: String::from("i")}),
-        "javascript": Bson::JavaScriptCode(String::from("console.log(console);")),
-        "symbol": Bson::Symbol(String::from("artist-formerly-known-as")),
-        "javascript_with_scope": Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope{ code: String::from("console.log(msg);"), scope: doc!{"ok": true}}),
+        "null": RawBson::Null,
+        "regex": Regex { pattern: String::from(r"end\s*$"), options: String::from("i")},
+        "javascript": RawBson::JavaScriptCode(String::from("console.log(console);")),
+        "symbol": RawBson::Symbol(String::from("artist-formerly-known-as")),
+        "javascript_with_scope": RawJavaScriptCodeWithScope {
+            code: String::from("console.log(msg);"),
+            scope: rawdoc! { "ok": true }
+        },
         "int32": 23i32,
-        "timestamp": Bson::Timestamp(Timestamp { time: 3542578, increment: 0 }),
+        "timestamp": Timestamp { time: 3542578, increment: 0 },
         "int64": 46i64,
         "end": "END",
-    });
+    };
 
-    let rawdoc = RawDocument::from_bytes(&docbytes).expect("invalid document");
-    let doc: crate::Document = rawdoc.try_into().expect("invalid bson");
+    let doc: crate::Document = rawdoc.clone().try_into().expect("invalid bson");
     let round_tripped_bytes = crate::to_vec(&doc).expect("serialize should work");
-    assert_eq!(round_tripped_bytes, docbytes);
+    assert_eq!(round_tripped_bytes.as_slice(), rawdoc.as_bytes());
 
     let mut vec_writer_bytes = vec![];
     doc.to_writer(&mut vec_writer_bytes)
         .expect("to writer should work");
-    assert_eq!(vec_writer_bytes, docbytes);
+    assert_eq!(vec_writer_bytes, rawdoc.into_bytes());
 }
 
 #[test]
 fn f64() {
     #![allow(clippy::float_cmp)]
 
-    let rawdoc = RawDocumentBuf::from_document(&doc! { "f64": 2.5 }).unwrap();
+    let rawdoc = rawdoc! { "f64": 2.5 };
     assert_eq!(
         rawdoc
             .get("f64")
@@ -145,7 +137,7 @@ fn f64() {
 
 #[test]
 fn string() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {"string": "hello"}).unwrap();
+    let rawdoc = rawdoc! { "string": "hello" };
 
     assert_eq!(
         rawdoc
@@ -160,7 +152,7 @@ fn string() {
 
 #[test]
 fn document() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {"document": {}}).unwrap();
+    let rawdoc = rawdoc! {"document": {}};
 
     let doc = rawdoc
         .get("document")
@@ -173,11 +165,7 @@ fn document() {
 
 #[test]
 fn array() {
-    let rawdoc = RawDocumentBuf::from_document(
-        &doc! { "array": ["binary", "serialized", "object", "notation"]},
-    )
-    .unwrap();
-
+    let rawdoc = rawdoc! { "array": ["binary", "serialized", "object", "notation"] };
     let array = rawdoc
         .get("array")
         .expect("error finding key array")
@@ -194,10 +182,9 @@ fn array() {
 
 #[test]
 fn binary() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
+    let rawdoc = rawdoc! {
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] }
-    })
-    .unwrap();
+    };
     let binary: bson_ref::RawBinaryRef<'_> = rawdoc
         .get("binary")
         .expect("error finding key binary")
@@ -210,10 +197,9 @@ fn binary() {
 
 #[test]
 fn object_id() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
+    let rawdoc = rawdoc! {
         "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
-    })
-    .unwrap();
+    };
     let oid = rawdoc
         .get("object_id")
         .expect("error finding key object_id")
@@ -225,10 +211,9 @@ fn object_id() {
 
 #[test]
 fn boolean() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
+    let rawdoc = rawdoc! {
         "boolean": true,
-    })
-    .unwrap();
+    };
 
     let boolean = rawdoc
         .get("boolean")
@@ -242,11 +227,10 @@ fn boolean() {
 
 #[test]
 fn datetime() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
+    let rawdoc = rawdoc! {
         "boolean": true,
         "datetime": DateTime::from_chrono(Utc.ymd(2000,10,31).and_hms(12, 30, 45)),
-    })
-    .unwrap();
+    };
     let datetime = rawdoc
         .get("datetime")
         .expect("error finding key datetime")
@@ -258,10 +242,9 @@ fn datetime() {
 
 #[test]
 fn null() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
+    let rawdoc = rawdoc! {
         "null": null,
-    })
-    .unwrap();
+    };
     let () = rawdoc
         .get("null")
         .expect("error finding key null")
@@ -272,9 +255,9 @@ fn null() {
 
 #[test]
 fn regex() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
-        "regex": Bson::RegularExpression(Regex { pattern: String::from(r"end\s*$"), options: String::from("i")}),
-    }).unwrap();
+    let rawdoc = rawdoc! {
+        "regex": Regex { pattern: String::from(r"end\s*$"), options: String::from("i")},
+    };
     let regex = rawdoc
         .get("regex")
         .expect("error finding key regex")
@@ -286,10 +269,9 @@ fn regex() {
 }
 #[test]
 fn javascript() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
-        "javascript": Bson::JavaScriptCode(String::from("console.log(console);")),
-    })
-    .unwrap();
+    let rawdoc = rawdoc! {
+        "javascript": RawBson::JavaScriptCode(String::from("console.log(console);")),
+    };
     let js = rawdoc
         .get("javascript")
         .expect("error finding key javascript")
@@ -301,10 +283,9 @@ fn javascript() {
 
 #[test]
 fn symbol() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
-        "symbol": Bson::Symbol(String::from("artist-formerly-known-as")),
-    })
-    .unwrap();
+    let rawdoc = rawdoc! {
+        "symbol": RawBson::Symbol(String::from("artist-formerly-known-as")),
+    };
 
     let symbol = rawdoc
         .get("symbol")
@@ -317,13 +298,12 @@ fn symbol() {
 
 #[test]
 fn javascript_with_scope() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
-        "javascript_with_scope": Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+    let rawdoc = rawdoc! {
+        "javascript_with_scope": RawJavaScriptCodeWithScope {
             code: String::from("console.log(msg);"),
-            scope: doc! { "ok": true }
-        }),
-    })
-    .unwrap();
+            scope: rawdoc! { "ok": true }
+        },
+    };
     let js_with_scope = rawdoc
         .get("javascript_with_scope")
         .expect("error finding key javascript_with_scope")
@@ -344,10 +324,9 @@ fn javascript_with_scope() {
 
 #[test]
 fn int32() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
+    let rawdoc = rawdoc! {
         "int32": 23i32,
-    })
-    .unwrap();
+    };
     let int32 = rawdoc
         .get("int32")
         .expect("error finding key int32")
@@ -359,10 +338,9 @@ fn int32() {
 
 #[test]
 fn timestamp() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
-        "timestamp": Bson::Timestamp(Timestamp { time: 3542578, increment: 7 }),
-    })
-    .unwrap();
+    let rawdoc = rawdoc! {
+        "timestamp": Timestamp { time: 3542578, increment: 7 },
+    };
     let ts = rawdoc
         .get("timestamp")
         .expect("error finding key timestamp")
@@ -376,10 +354,9 @@ fn timestamp() {
 
 #[test]
 fn int64() {
-    let rawdoc = RawDocumentBuf::from_document(&doc! {
+    let rawdoc = rawdoc! {
         "int64": 46i64,
-    })
-    .unwrap();
+    };
     let int64 = rawdoc
         .get("int64")
         .expect("error finding key int64")
@@ -390,7 +367,7 @@ fn int64() {
 }
 #[test]
 fn document_iteration() {
-    let doc = doc! {
+    let rawdoc = rawdoc! {
         "f64": 2.5,
         "string": "hello",
         "document": {},
@@ -399,21 +376,22 @@ fn document_iteration() {
         "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
         "boolean": true,
         "datetime": DateTime::now(),
-        "null": Bson::Null,
-        "regex": Bson::RegularExpression(Regex { pattern: String::from(r"end\s*$"), options: String::from("i")}),
-        "javascript": Bson::JavaScriptCode(String::from("console.log(console);")),
-        "symbol": Bson::Symbol(String::from("artist-formerly-known-as")),
-        "javascript_with_scope": Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope{ code: String::from("console.log(msg);"), scope: doc!{"ok": true}}),
+        "null": RawBson::Null,
+        "regex": Regex { pattern: String::from(r"end\s*$"), options: String::from("i") },
+        "javascript": RawBson::JavaScriptCode(String::from("console.log(console);")),
+        "symbol": RawBson::Symbol(String::from("artist-formerly-known-as")),
+        "javascript_with_scope": RawJavaScriptCodeWithScope {
+            code: String::from("console.log(msg);"),
+            scope: rawdoc! { "ok": true }
+        },
         "int32": 23i32,
-        "timestamp": Bson::Timestamp(Timestamp { time: 3542578, increment: 0 }),
+        "timestamp": Timestamp { time: 3542578, increment: 0 },
         "int64": 46i64,
         "end": "END",
     };
-    let rawdoc = RawDocumentBuf::from_document(&doc).unwrap();
-    let rawdocref = rawdoc.as_ref();
 
     assert_eq!(
-        rawdocref
+        rawdoc
             .into_iter()
             .collect::<Result<Vec<(&str, _)>>>()
             .expect("collecting iterated doc")
@@ -431,7 +409,7 @@ fn document_iteration() {
 
 #[test]
 fn into_bson_conversion() {
-    let docbytes = to_bytes(&doc! {
+    let rawdoc = rawdoc! {
         "f64": 2.5,
         "string": "hello",
         "document": {},
@@ -439,8 +417,8 @@ fn into_bson_conversion() {
         "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
         "boolean": false,
-    });
-    let rawbson = RawBsonRef::Document(RawDocument::from_bytes(docbytes.as_slice()).unwrap());
+    };
+    let rawbson = RawBsonRef::Document(RawDocument::from_bytes(rawdoc.as_bytes()).unwrap());
     let b: Bson = rawbson.try_into().expect("invalid bson");
     let doc = b.as_document().expect("not a document");
     assert_eq!(*doc.get("f64").expect("f64 not found"), Bson::Double(2.5));
@@ -492,9 +470,10 @@ proptest! {
 
     #[test]
     fn roundtrip_bson(bson in arbitrary_bson()) {
-        let doc = doc!{"bson": bson};
-        let raw = to_bytes(&doc);
-        let raw = RawDocumentBuf::from_bytes(raw);
+        let doc = doc! { "bson": bson };
+        let raw = crate::to_vec(&doc);
+        prop_assert!(raw.is_ok());
+        let raw = RawDocumentBuf::from_bytes(raw.unwrap());
         prop_assert!(raw.is_ok());
         let raw = raw.unwrap();
         let roundtrip: Result<crate::Document> = raw.try_into();
