@@ -25,13 +25,13 @@ use crate::{
     datetime::DateTime,
     document::{Document, IntoIter},
     oid::ObjectId,
-    raw::RawBsonRef,
+    raw::{RawBsonRef, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Decimal128,
 };
 
-use super::raw::Decimal128Access;
+use super::{raw::Decimal128Access, DeserializerHint};
 
 pub(crate) struct BsonVisitor;
 
@@ -615,6 +615,60 @@ impl Deserializer {
             options,
         }
     }
+
+    fn deserialize_next<'de, V>(
+        mut self,
+        visitor: V,
+        hint: DeserializerHint,
+    ) -> Result<V::Value, crate::de::Error>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        let value = match self.value.take() {
+            Some(value) => value,
+            None => return Err(crate::de::Error::EndOfStream),
+        };
+
+        let is_rawbson = matches!(hint, DeserializerHint::RawBson);
+
+        if let DeserializerHint::BinarySubtype(expected_st) = hint {
+            match value {
+                Bson::Binary(ref b) if b.subtype == expected_st => {}
+                ref b => {
+                    return Err(Error::custom(format!(
+                        "expected Binary with subtype {:?}, instead got {:?}",
+                        expected_st, b
+                    )));
+                }
+            }
+        };
+
+        match value {
+            Bson::Double(v) => visitor.visit_f64(v),
+            Bson::String(v) => visitor.visit_string(v),
+            Bson::Array(v) => {
+                let len = v.len();
+                visitor.visit_seq(SeqDeserializer {
+                    iter: v.into_iter(),
+                    options: self.options,
+                    len,
+                })
+            }
+            Bson::Document(v) => visitor.visit_map(MapDeserializer::new(v, self.options)),
+            Bson::Boolean(v) => visitor.visit_bool(v),
+            Bson::Null => visitor.visit_unit(),
+            Bson::Int32(v) => visitor.visit_i32(v),
+            Bson::Int64(v) => visitor.visit_i64(v),
+            Bson::Binary(b) if b.subtype == BinarySubtype::Generic => {
+                visitor.visit_byte_buf(b.bytes)
+            }
+            Bson::Decimal128(d) => visitor.visit_map(Decimal128Access::new(d)),
+            _ => {
+                let doc = value.into_extended_document(is_rawbson);
+                visitor.visit_map(MapDeserializer::new(doc, self.options))
+            }
+        }
+    }
 }
 
 macro_rules! forward_to_deserialize {
@@ -662,61 +716,11 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     }
 
     #[inline]
-    fn deserialize_any<V>(mut self, visitor: V) -> crate::de::Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> crate::de::Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        let value = match self.value.take() {
-            Some(value) => value,
-            None => return Err(crate::de::Error::EndOfStream),
-        };
-
-        match value {
-            Bson::Double(v) => visitor.visit_f64(v),
-            Bson::String(v) => visitor.visit_string(v),
-            Bson::Array(v) => {
-                let len = v.len();
-                visitor.visit_seq(SeqDeserializer {
-                    iter: v.into_iter(),
-                    options: self.options,
-                    len,
-                })
-            }
-            Bson::Document(v) => {
-                let len = v.len();
-                visitor.visit_map(MapDeserializer {
-                    iter: v.into_iter(),
-                    value: None,
-                    len,
-                    options: self.options,
-                })
-            }
-            Bson::Boolean(v) => visitor.visit_bool(v),
-            Bson::Null => visitor.visit_unit(),
-            Bson::Int32(v) => visitor.visit_i32(v),
-            Bson::Int64(v) => visitor.visit_i64(v),
-            Bson::Binary(Binary {
-                subtype: BinarySubtype::Generic,
-                bytes,
-            }) => visitor.visit_byte_buf(bytes),
-            binary @ Bson::Binary(..) => visitor.visit_map(MapDeserializer {
-                iter: binary.into_extended_document().into_iter(),
-                value: None,
-                len: 2,
-                options: self.options,
-            }),
-            Bson::Decimal128(d) => visitor.visit_map(Decimal128Access::new(d)),
-            _ => {
-                let doc = value.into_extended_document();
-                let len = doc.len();
-                visitor.visit_map(MapDeserializer {
-                    iter: doc.into_iter(),
-                    value: None,
-                    len,
-                    options: self.options,
-                })
-            }
-        }
+        self.deserialize_next(visitor, DeserializerHint::None)
     }
 
     #[inline]
@@ -813,19 +817,33 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: Visitor<'de>,
     {
-        // if this is a UUID, ensure that value is a subtype 4 binary
-        if name == UUID_NEWTYPE_NAME {
-            match self.value {
-                Some(Bson::Binary(ref b)) if b.subtype == BinarySubtype::Uuid => {
-                    self.deserialize_any(visitor)
+        match name {
+            UUID_NEWTYPE_NAME => self.deserialize_next(
+                visitor,
+                DeserializerHint::BinarySubtype(BinarySubtype::Uuid),
+            ),
+            RAW_BSON_NEWTYPE => self.deserialize_next(visitor, DeserializerHint::RawBson),
+            RAW_DOCUMENT_NEWTYPE => {
+                if !matches!(self.value, Some(Bson::Document(_))) {
+                    return Err(serde::de::Error::custom(format!(
+                        "expected raw document, instead got {:?}",
+                        self.value
+                    )));
                 }
-                b => Err(Error::custom(format!(
-                    "expected Binary with subtype 4, instead got {:?}",
-                    b
-                ))),
+
+                self.deserialize_next(visitor, DeserializerHint::RawBson)
             }
-        } else {
-            visitor.visit_newtype_struct(self)
+            RAW_ARRAY_NEWTYPE => {
+                if !matches!(self.value, Some(Bson::Array(_))) {
+                    return Err(serde::de::Error::custom(format!(
+                        "expected raw array, instead got {:?}",
+                        self.value
+                    )));
+                }
+
+                self.deserialize_next(visitor, DeserializerHint::RawBson)
+            }
+            _ => visitor.visit_newtype_struct(self),
         }
     }
 
@@ -1035,13 +1053,13 @@ pub(crate) struct MapDeserializer {
 }
 
 impl MapDeserializer {
-    pub(crate) fn new(doc: Document) -> Self {
+    pub(crate) fn new(doc: Document, options: impl Into<Option<DeserializerOptions>>) -> Self {
         let len = doc.len();
         MapDeserializer {
             iter: doc.into_iter(),
             len,
             value: None,
-            options: Default::default(),
+            options: options.into().unwrap_or_default(),
         }
     }
 }
