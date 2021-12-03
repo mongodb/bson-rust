@@ -53,7 +53,7 @@ use bson::{
 ///     - serializing the `expected_value` to a `Document` matches the `expected_doc`
 ///     - deserializing from the serialized document produces `expected_value`
 ///   - round trip through raw BSON:
-///     - serializering `expected_value` to BSON bytes matches the raw BSON bytes of `expected_doc`
+///     - serializing `expected_value` to BSON bytes matches the raw BSON bytes of `expected_doc`
 ///     - deserializing a `T` from the serialized bytes produces `expected_value`
 ///     - deserializing a `Document` from the serialized bytes produces `expected_doc`
 ///   - `bson::to_writer` and `Document::to_writer` produce the same result given the same input
