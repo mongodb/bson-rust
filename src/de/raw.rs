@@ -988,9 +988,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut TimestampDeserializer {
         match self.stage {
             TimestampDeserializationStage::TopLevel => {
                 self.stage = TimestampDeserializationStage::Time;
-                visitor.visit_map(TimestampAccess {
-                    deserializer: &mut self,
-                })
+                visitor.visit_map(TimestampAccess { deserializer: self })
             }
             TimestampDeserializationStage::Time => {
                 self.stage = TimestampDeserializationStage::Increment;
@@ -1095,9 +1093,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut DateTimeDeserializer {
                 }
                 _ => {
                     self.stage = DateTimeDeserializationStage::NumberLong;
-                    visitor.visit_map(DateTimeAccess {
-                        deserializer: &mut self,
-                    })
+                    visitor.visit_map(DateTimeAccess { deserializer: self })
                 }
             },
             DateTimeDeserializationStage::NumberLong => {
@@ -1193,9 +1189,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut BinaryDeserializer<'de> {
         match self.stage {
             BinaryDeserializationStage::TopLevel => {
                 self.stage = BinaryDeserializationStage::Subtype;
-                visitor.visit_map(BinaryAccess {
-                    deserializer: &mut self,
-                })
+                visitor.visit_map(BinaryAccess { deserializer: self })
             }
             BinaryDeserializationStage::Subtype => {
                 self.stage = BinaryDeserializationStage::Bytes;
