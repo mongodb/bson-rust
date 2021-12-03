@@ -37,6 +37,7 @@ use crate::{
     de::MAX_BSON_SIZE,
     spec::BinarySubtype,
     Binary,
+    RawDocumentBuf,
 };
 use ::serde::{ser::Error as SerdeError, Serialize};
 
@@ -282,4 +283,29 @@ where
     let mut serializer = raw::Serializer::new();
     value.serialize(&mut serializer)?;
     Ok(serializer.into_vec())
+}
+
+/// Serialize the given `T` as a [`RawDocumentBuf`].
+///
+/// ```rust
+/// use serde::Serialize;
+/// use bson::rawdoc;
+///
+/// #[derive(Serialize)]
+/// struct Cat {
+///     name: String,
+///     age: i32
+/// }
+///
+/// let cat = Cat { name: "Garfield".to_string(), age: 43 };
+/// let doc = bson::to_raw_document_buf(&cat)?;
+/// assert_eq!(doc, rawdoc! { "name": "Garfield", "age": 43 });
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[inline]
+pub fn to_raw_document_buf<T>(value: &T) -> Result<RawDocumentBuf>
+where
+    T: Serialize,
+{
+    RawDocumentBuf::from_bytes(to_vec(value)?).map_err(Error::custom)
 }

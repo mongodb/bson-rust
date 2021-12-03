@@ -278,12 +278,12 @@ pub use self::{
     },
     decimal128::Decimal128,
     raw::{
-        RawBson, RawArray, RawArrayBuf, RawBinaryRef, RawBsonRef, RawDbPointerRef, RawDocument,
+        RawArray, RawArrayBuf, RawBinaryRef, RawBson, RawBsonRef, RawDbPointerRef, RawDocument,
         RawDocumentBuf, RawJavaScriptCodeWithScopeRef, RawRegexRef,
     },
     ser::{
-        to_bson, to_bson_with_options, to_document, to_document_with_options, to_vec, Serializer,
-        SerializerOptions,
+        to_bson, to_bson_with_options, to_document, to_document_with_options, to_raw_document_buf,
+        to_vec, Serializer, SerializerOptions,
     },
     uuid::{Uuid, UuidRepresentation},
 };
