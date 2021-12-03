@@ -412,3 +412,26 @@ fn from_iter() {
         doc.append("expected", doc_buf);
     });
 }
+
+#[test]
+fn array_buf() {
+    let mut arr_buf = RawArrayBuf::new();
+    arr_buf.push(true);
+
+    let mut doc_buf = RawDocumentBuf::new();
+    doc_buf.append("x", 3_i32);
+    doc_buf.append("string", "string");
+    arr_buf.push(doc_buf);
+
+    let mut sub_arr = RawArrayBuf::new();
+    sub_arr.push("a string");
+    arr_buf.push(sub_arr);
+
+    let arr = rawbson!([
+        true,
+        { "x": 3_i32, "string": "string" },
+        [ "a string" ]
+    ]);
+
+    assert_eq!(arr_buf.as_ref(), arr.as_array().unwrap());
+}
