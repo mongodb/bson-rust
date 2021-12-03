@@ -529,7 +529,7 @@ impl Bson {
     /// This function mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
     // TODO RUST-426: Investigate either removing this from the serde implementation or unifying
     // with the extended JSON implementation.
-    pub(crate) fn into_extended_document(self) -> Document {
+    pub(crate) fn into_extended_document(self, rawbson: bool) -> Document {
         match self {
             Bson::RegularExpression(Regex {
                 ref pattern,
@@ -566,12 +566,21 @@ impl Bson {
                     }
                 }
             }
-            Bson::Binary(Binary { subtype, ref bytes }) => {
+            Bson::Binary(Binary { subtype, bytes }) => {
                 let tval: u8 = From::from(subtype);
-                doc! {
-                    "$binary": {
-                        "base64": base64::encode(bytes),
-                        "subType": hex::encode([tval]),
+                if rawbson {
+                    doc! {
+                        "$binary": {
+                            "bytes": Binary { subtype: BinarySubtype::Generic, bytes },
+                            "subType": Bson::Int32(tval.into())
+                        }
+                    }
+                } else {
+                    doc! {
+                        "$binary": {
+                            "base64": base64::encode(bytes),
+                            "subType": hex::encode([tval]),
+                        }
                     }
                 }
             }
@@ -580,6 +589,9 @@ impl Bson {
                     "$oid": v.to_string(),
                 }
             }
+            Bson::DateTime(v) if rawbson => doc! {
+                "$date": v.timestamp_millis(),
+            },
             Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_chrono().year() <= 9999 => {
                 doc! {
                     "$date": v.to_rfc3339_string(),

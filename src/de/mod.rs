@@ -56,6 +56,22 @@ pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one
 pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
 pub(crate) const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
+/// Hint provided to the deserializer via `deserialize_newtype_struct` as to the type of thing
+/// being deserialized.
+#[derive(Debug, Clone, Copy)]
+enum DeserializerHint {
+    /// No hint provided, deserialize normally.
+    None,
+
+    /// The type being deserialized expects the BSON to contain a binary value with the provided
+    /// subtype. This is currently used to deserialize `bson::Uuid` values.
+    BinarySubtype(BinarySubtype),
+
+    /// The type being deserialized is raw BSON, meaning no allocations should occur as part of
+    /// deserializing and everything should be visited via borrowing or `Copy` if possible.
+    RawBson,
+}
+
 /// Run the provided closure, ensuring that over the course of its execution, exactly `length` bytes
 /// were read from the reader.
 pub(crate) fn ensure_read_exactly<F, R>(

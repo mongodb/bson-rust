@@ -19,6 +19,7 @@ use crate::{
     Bson,
     DateTime,
     Decimal128,
+    DeserializerOptions,
     RawDocument,
     Timestamp,
 };
@@ -31,28 +32,13 @@ use super::{
     read_i64,
     read_string,
     read_u8,
+    DeserializerHint,
     Error,
     Result,
     MAX_BSON_SIZE,
     MIN_CODE_WITH_SCOPE_SIZE,
 };
 use crate::de::serde::MapDeserializer;
-
-/// Hint provided to the deserializer via `deserialize_newtype_struct` as to the type of thing
-/// being deserialized.
-#[derive(Debug, Clone, Copy)]
-enum DeserializerHint {
-    /// No hint provided, deserialize normally.
-    None,
-
-    /// The type being deserialized expects the BSON to contain a binary value with the provided
-    /// subtype. This is currently used to deserialize `bson::Uuid` values.
-    BinarySubtype(BinarySubtype),
-
-    /// The type being deserialized is raw BSON, meaning no allocations should occur as part of
-    /// deserializing and everything should be visited via borrowing or `Copy`.
-    RawBson,
-}
 
 /// Deserializer used to parse and deserialize raw BSON bytes.
 pub(crate) struct Deserializer<'de> {
@@ -307,8 +293,11 @@ impl<'de> Deserializer<'de> {
                     )),
                     _ => {
                         let code = read_string(&mut self.bytes, utf8_lossy)?;
-                        let doc = Bson::JavaScriptCode(code).into_extended_document();
-                        visitor.visit_map(MapDeserializer::new(doc))
+                        let doc = Bson::JavaScriptCode(code).into_extended_document(false);
+                        visitor.visit_map(MapDeserializer::new(
+                            doc,
+                            DeserializerOptions::builder().human_readable(false).build(),
+                        ))
                     }
                 }
             }
@@ -361,8 +350,11 @@ impl<'de> Deserializer<'de> {
                     )),
                     _ => {
                         let symbol = read_string(&mut self.bytes, utf8_lossy)?;
-                        let doc = Bson::Symbol(symbol).into_extended_document();
-                        visitor.visit_map(MapDeserializer::new(doc))
+                        let doc = Bson::Symbol(symbol).into_extended_document(false);
+                        visitor.visit_map(MapDeserializer::new(
+                            doc,
+                            DeserializerOptions::builder().human_readable(false).build(),
+                        ))
                     }
                 }
             }

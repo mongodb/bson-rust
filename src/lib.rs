@@ -279,7 +279,7 @@ pub use self::{
     decimal128::Decimal128,
     raw::{
         RawArray, RawArrayBuf, RawBinaryRef, RawBson, RawBsonRef, RawDbPointerRef, RawDocument,
-        RawDocumentBuf, RawJavaScriptCodeWithScopeRef, RawRegexRef,
+        RawDocumentBuf, RawJavaScriptCodeWithScope, RawJavaScriptCodeWithScopeRef, RawRegexRef,
     },
     ser::{
         to_bson, to_bson_with_options, to_document, to_document_with_options, to_raw_document_buf,

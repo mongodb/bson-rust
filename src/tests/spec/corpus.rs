@@ -217,16 +217,28 @@ fn run_test(test: TestFile) {
                     test_key: bson_field,
                 };
 
+                // deserialize the field from a Bson into a RawBson
+                let deserializer_value_raw =
+                    crate::Deserializer::new(Bson::Document(documentfromreader_cb.clone()));
+                let raw_bson_field = deserializer_value_raw
+                    .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<RawBson>))
+                    .expect(&description);
+                let from_value_raw_doc = doc! {
+                    test_key: Bson::try_from(raw_bson_field).expect(&description),
+                };
+
                 // convert back into raw BSON for comparison with canonical BSON
                 let from_raw_vec = crate::to_vec(&from_raw_doc).expect(&description);
                 let from_slice_value_vec =
                     crate::to_vec(&from_slice_value_doc).expect(&description);
                 let from_bson_value_vec = crate::to_vec(&from_value_value_doc).expect(&description);
+                let from_value_raw_vec = crate::to_vec(&from_value_raw_doc).expect(&description);
 
                 assert_eq!(from_raw_vec, canonical_bson, "{}", description);
                 assert_eq!(from_slice_value_vec, canonical_bson, "{}", description);
                 assert_eq!(from_bson_value_vec, canonical_bson, "{}", description);
                 assert_eq!(from_slice_owned_vec, canonical_bson, "{}", description);
+                assert_eq!(from_value_raw_vec, canonical_bson, "{}", description);
             }
         }
 

@@ -39,6 +39,7 @@ use bson::{
     RawDbPointerRef,
     RawDocument,
     RawDocumentBuf,
+    RawJavaScriptCodeWithScope,
     RawJavaScriptCodeWithScopeRef,
     RawRegexRef,
     Regex,
@@ -52,9 +53,9 @@ use bson::{
 ///     - serializing the `expected_value` to a `Document` matches the `expected_doc`
 ///     - deserializing from the serialized document produces `expected_value`
 ///   - round trip through raw BSON:
-///     - deserializing a `T` from the raw BSON version of `expected_doc` produces `expected_value`
-///     - deserializing a `Document` from the raw BSON version of `expected_doc` produces
-///       `expected_doc`
+///     - serializing `expected_value` to BSON bytes matches the raw BSON bytes of `expected_doc`
+///     - deserializing a `T` from the serialized bytes produces `expected_value`
+///     - deserializing a `Document` from the serialized bytes produces `expected_doc`
 ///   - `bson::to_writer` and `Document::to_writer` produce the same result given the same input
 fn run_test<T>(expected_value: &T, expected_doc: &Document, description: &str)
 where
@@ -1244,17 +1245,34 @@ fn owned_raw_types() {
 
     let oid = ObjectId::new();
     let dt = DateTime::now();
+    let d128 = Decimal128::from_bytes([1; 16]);
+
+    let raw_code_w_scope = RawJavaScriptCodeWithScope {
+        code: "code".to_string(),
+        scope: RawDocumentBuf::new(),
+    };
+    let code_w_scope = JavaScriptCodeWithScope {
+        code: "code".to_string(),
+        scope: doc! {},
+    };
 
     let f = Foo {
         subdoc: RawDocumentBuf::from_iter([
             ("a key", RawBson::String("a value".to_string())),
             ("an objectid", RawBson::ObjectId(oid)),
             ("a date", RawBson::DateTime(dt)),
+            (
+                "code_w_scope",
+                RawBson::JavaScriptCodeWithScope(raw_code_w_scope.clone()),
+            ),
+            ("decimal128", RawBson::Decimal128(d128)),
         ]),
         array: RawArrayBuf::from_iter([
             RawBson::String("a string".to_string()),
             RawBson::ObjectId(oid),
             RawBson::DateTime(dt),
+            RawBson::JavaScriptCodeWithScope(raw_code_w_scope),
+            RawBson::Decimal128(d128),
         ]),
     };
 
@@ -1263,28 +1281,19 @@ fn owned_raw_types() {
             "a key": "a value",
             "an objectid": oid,
             "a date": dt,
+            "code_w_scope": code_w_scope.clone(),
+            "decimal128": d128,
         },
         "array": [
             "a string",
             oid,
-            dt
+            dt,
+            code_w_scope,
+            d128,
         ]
     };
 
-    // TODO: RUST-1111
-    // can't use run_test here because deserializing RawDocumentBuf and RawArrayBuf
-    // from Bson or Document currently don't work.
-
-    let bytes = bson::to_vec(&expected).unwrap();
-
-    let deserialized: Foo = bson::from_slice(bytes.as_slice()).unwrap();
-    assert_eq!(deserialized, f);
-
-    let serialized = bson::to_document(&deserialized).unwrap();
-    assert_eq!(serialized, expected);
-
-    let serialized_bytes = bson::to_vec(&deserialized).unwrap();
-    assert_eq!(serialized_bytes, bytes);
+    run_test(&f, &expected, "owned_raw_types");
 }
 
 #[test]
