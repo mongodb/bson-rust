@@ -349,8 +349,8 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
             let v: RawBson = map.next_value()?;
             doc.append(first_key, v);
 
-            while let Some((k, v)) = map.next_entry::<String, RawBson>()? {
-                doc.append(k, v);
+            while let Some((k, v)) = map.next_entry::<CowStr, RawBson>()? {
+                doc.append(k.0, v);
             }
 
             Ok(RawBson::Document(doc).into())

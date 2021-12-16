@@ -70,7 +70,8 @@ pub struct RawDocumentBuf {
 impl RawDocumentBuf {
     /// Creates a new, empty [`RawDocumentBuf`].
     pub fn new() -> RawDocumentBuf {
-        let mut data: Vec<u8> = MIN_BSON_DOCUMENT_SIZE.to_le_bytes().to_vec();
+        let mut data = Vec::new();
+        data.extend(&MIN_BSON_DOCUMENT_SIZE.to_le_bytes());
         data.push(0);
         Self { data }
     }
@@ -192,19 +193,19 @@ impl RawDocumentBuf {
     /// assert_eq!(doc.to_document()?, expected);
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn append(&mut self, key: impl Into<String>, value: impl Into<RawBson>) {
-        fn append_string(doc: &mut RawDocumentBuf, value: String) {
+    pub fn append(&mut self, key: impl AsRef<str>, value: impl Into<RawBson>) {
+        fn append_string(doc: &mut RawDocumentBuf, value: &str) {
             doc.data
                 .extend(&((value.as_bytes().len() + 1) as i32).to_le_bytes());
-            doc.data.extend(value.into_bytes());
+            doc.data.extend(value.as_bytes());
             doc.data.push(0);
         }
 
-        fn append_cstring(doc: &mut RawDocumentBuf, value: String) {
+        fn append_cstring(doc: &mut RawDocumentBuf, value: &str) {
             if value.contains('\0') {
                 panic!("cstr includes interior null byte: {}", value)
             }
-            doc.data.extend(value.into_bytes());
+            doc.data.extend(value.as_bytes());
             doc.data.push(0);
         }
 
@@ -212,7 +213,7 @@ impl RawDocumentBuf {
 
         // write the key for the next value to the end
         // the element type will replace the previous null byte terminator of the document
-        append_cstring(self, key.into());
+        append_cstring(self, key.as_ref());
 
         let value = value.into();
         let element_type = value.element_type();
@@ -222,7 +223,7 @@ impl RawDocumentBuf {
                 self.data.extend(&i.to_le_bytes());
             }
             RawBson::String(s) => {
-                append_string(self, s);
+                append_string(self, s.as_str());
             }
             RawBson::Document(d) => {
                 self.data.extend(d.into_bytes());
@@ -251,7 +252,7 @@ impl RawDocumentBuf {
                 self.data.extend(&dt.timestamp_millis().to_le_bytes());
             }
             RawBson::DbPointer(dbp) => {
-                append_string(self, dbp.namespace);
+                append_string(self, dbp.namespace.as_str());
                 self.data.extend(&dbp.id.bytes());
             }
             RawBson::Decimal128(d) => {
@@ -264,11 +265,11 @@ impl RawDocumentBuf {
                 self.data.extend(&i.to_le_bytes());
             }
             RawBson::RegularExpression(re) => {
-                append_cstring(self, re.pattern);
-                append_cstring(self, re.options);
+                append_cstring(self, re.pattern.as_str());
+                append_cstring(self, re.options.as_str());
             }
             RawBson::JavaScriptCode(js) => {
-                append_string(self, js);
+                append_string(self, js.as_str());
             }
             RawBson::JavaScriptCodeWithScope(code_w_scope) => {
                 let len = RawJavaScriptCodeWithScopeRef {
@@ -277,7 +278,7 @@ impl RawDocumentBuf {
                 }
                 .len();
                 self.data.extend(&len.to_le_bytes());
-                append_string(self, code_w_scope.code);
+                append_string(self, code_w_scope.code.as_str());
                 self.data.extend(code_w_scope.scope.into_bytes());
             }
             RawBson::Timestamp(ts) => {
@@ -287,7 +288,7 @@ impl RawDocumentBuf {
                 self.data.extend(&oid.bytes());
             }
             RawBson::Symbol(s) => {
-                append_string(self, s);
+                append_string(self, s.as_str());
             }
             RawBson::Null | RawBson::Undefined | RawBson::MinKey | RawBson::MaxKey => {}
         }
@@ -296,8 +297,8 @@ impl RawDocumentBuf {
         // append trailing null byte
         self.data.push(0);
         // update length
-        self.data
-            .splice(0..4, (self.data.len() as i32).to_le_bytes().iter().cloned());
+        let new_len = (self.data.len() as i32).to_le_bytes();
+        self.data[0..4].copy_from_slice(&new_len);
     }
 
     /// Convert this [`RawDocumentBuf`] to a [`Document`], returning an error
@@ -389,7 +390,7 @@ impl Borrow<RawDocument> for RawDocumentBuf {
     }
 }
 
-impl<S: Into<String>, T: Into<RawBson>> FromIterator<(S, T)> for RawDocumentBuf {
+impl<S: AsRef<str>, T: Into<RawBson>> FromIterator<(S, T)> for RawDocumentBuf {
     fn from_iter<I: IntoIterator<Item = (S, T)>>(iter: I) -> Self {
         let mut buf = RawDocumentBuf::new();
         for (k, v) in iter {

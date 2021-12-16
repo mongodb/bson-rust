@@ -398,8 +398,8 @@ impl RawDocument {
     ///     "bool": true,
     /// };
     ///
-    /// assert_eq!(doc.get_regex("regex")?.pattern(), r"end\s*$");
-    /// assert_eq!(doc.get_regex("regex")?.options(), "i");
+    /// assert_eq!(doc.get_regex("regex")?.pattern, r"end\s*$");
+    /// assert_eq!(doc.get_regex("regex")?.options, "i");
     /// assert!(matches!(doc.get_regex("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
     /// assert!(matches!(doc.get_regex("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
