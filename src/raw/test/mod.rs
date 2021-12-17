@@ -310,9 +310,9 @@ fn javascript_with_scope() {
         .expect("no key javascript_with_scope")
         .as_javascript_with_scope()
         .expect("was not javascript with scope");
-    assert_eq!(js_with_scope.code(), "console.log(msg);");
+    assert_eq!(js_with_scope.code, "console.log(msg);");
     let (scope_key, scope_value_bson) = js_with_scope
-        .scope()
+        .scope
         .into_iter()
         .next()
         .expect("no next value in scope")

@@ -533,20 +533,17 @@ impl<'a> From<&'a Binary> for RawBsonRef<'a> {
 /// A BSON regex referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawRegexRef<'a> {
-    pub(crate) pattern: &'a str,
-    pub(crate) options: &'a str,
-}
+    /// The regex pattern to match.
+    pub pattern: &'a str,
 
-impl<'a> RawRegexRef<'a> {
-    /// Gets the pattern portion of the regex.
-    pub fn pattern(self) -> &'a str {
-        self.pattern
-    }
-
-    /// Gets the options portion of the regex.
-    pub fn options(self) -> &'a str {
-        self.options
-    }
+    /// The options for the regex.
+    ///
+    /// Options are identified by characters, which must be stored in
+    /// alphabetical order. Valid options are 'i' for case insensitive matching, 'm' for
+    /// multiline matching, 'x' for verbose mode, 'l' to make \w, \W, etc. locale dependent,
+    /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
+    /// unicode.
+    pub options: &'a str,
 }
 
 impl<'de: 'a, 'a> Deserialize<'de> for RawRegexRef<'a> {
@@ -594,22 +591,14 @@ impl<'a> From<RawRegexRef<'a>> for RawBsonRef<'a> {
 /// A BSON "code with scope" value referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawJavaScriptCodeWithScopeRef<'a> {
-    pub(crate) code: &'a str,
+    /// The JavaScript code.
+    pub code: &'a str,
 
-    pub(crate) scope: &'a RawDocument,
+    /// The scope document containing variable bindings.
+    pub scope: &'a RawDocument,
 }
 
 impl<'a> RawJavaScriptCodeWithScopeRef<'a> {
-    /// Gets the code in the value.
-    pub fn code(self) -> &'a str {
-        self.code
-    }
-
-    /// Gets the scope in the value.
-    pub fn scope(self) -> &'a RawDocument {
-        self.scope
-    }
-
     pub(crate) fn len(self) -> i32 {
         4 + 4 + self.code.len() as i32 + 1 + self.scope.as_bytes().len() as i32
     }
