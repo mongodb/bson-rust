@@ -6,6 +6,7 @@ use std::{
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 
 use crate::{
+    de::MIN_BSON_DOCUMENT_SIZE,
     raw::{error::ErrorKind, serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
     DateTime,
     Timestamp,
@@ -398,8 +399,8 @@ impl RawDocument {
     ///     "bool": true,
     /// };
     ///
-    /// assert_eq!(doc.get_regex("regex")?.pattern(), r"end\s*$");
-    /// assert_eq!(doc.get_regex("regex")?.options(), "i");
+    /// assert_eq!(doc.get_regex("regex")?.pattern, r"end\s*$");
+    /// assert_eq!(doc.get_regex("regex")?.options, "i");
     /// assert!(matches!(doc.get_regex("bool").unwrap_err().kind, ValueAccessErrorKind::UnexpectedType { .. }));
     /// assert!(matches!(doc.get_regex("unknown").unwrap_err().kind, ValueAccessErrorKind::NotPresent));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -485,6 +486,11 @@ impl RawDocument {
     /// ```
     pub fn as_bytes(&self) -> &[u8] {
         &self.data
+    }
+
+    /// Returns whether this document contains any elements or not.
+    pub fn is_empty(&self) -> bool {
+        self.as_bytes().len() == MIN_BSON_DOCUMENT_SIZE as usize
     }
 }
 

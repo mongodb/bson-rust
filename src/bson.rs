@@ -1050,7 +1050,10 @@ impl Display for Regex {
 /// Represents a BSON code with scope value.
 #[derive(Debug, Clone, PartialEq)]
 pub struct JavaScriptCodeWithScope {
+    /// The JavaScript code.
     pub code: String,
+
+    /// The scope document containing variable bindings.
     pub scope: Document,
 }
 

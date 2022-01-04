@@ -212,6 +212,11 @@ impl RawArray {
     pub fn as_bytes(&self) -> &[u8] {
         self.doc.as_bytes()
     }
+
+    /// Whether this array contains any elements or not.
+    pub fn is_empty(&self) -> bool {
+        self.doc.is_empty()
+    }
 }
 
 impl std::fmt::Debug for RawArray {

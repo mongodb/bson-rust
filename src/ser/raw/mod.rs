@@ -97,8 +97,8 @@ impl Serializer {
     /// Replace an i32 value at the given index with the given value.
     #[inline]
     fn replace_i32(&mut self, at: usize, with: i32) {
-        self.bytes
-            .splice(at..at + 4, with.to_le_bytes().iter().cloned());
+        let portion = &mut self.bytes[at..at + 4];
+        portion.copy_from_slice(&with.to_le_bytes());
     }
 }
 
