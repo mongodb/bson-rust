@@ -11,16 +11,20 @@ cargo-fuzz = true
 [dependencies.bson]
 path = ".."
 [dependencies.libfuzzer-sys]
-git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
+version = "0.4.0"
 
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]
 
 [[bin]]
-name = "fuzz_target_1"
-path = "fuzz_targets/fuzz_target_1.rs"
-
-[[bin]]
 name = "deserialize"
 path = "fuzz_targets/deserialize.rs"
+
+[[bin]]
+name = "iterate"
+path = "fuzz_targets/iterate.rs"
+
+[[bin]]
+name = "raw_deserialize"
+path = "fuzz_targets/raw_deserialize.rs"

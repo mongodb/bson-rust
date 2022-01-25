@@ -175,7 +175,14 @@ impl<'a> Iterator for Iter<'a> {
                 ElementType::Binary => {
                     let len = i32_from_slice(&self.doc.as_bytes()[valueoffset..])? as usize;
                     let data_start = valueoffset + 4 + 1;
-                    self.verify_enough_bytes(valueoffset, len)?;
+
+                    if len >= i32::MAX as usize {
+                        return Err(Error::new_without_key(ErrorKind::MalformedValue {
+                            message: format!("binary length exceeds maximum: {}", len),
+                        }));
+                    }
+
+                    self.verify_enough_bytes(valueoffset + 4, len + 1)?;
                     let subtype = BinarySubtype::from(self.doc.as_bytes()[valueoffset + 4]);
                     let data = match subtype {
                         BinarySubtype::BinaryOld => {
