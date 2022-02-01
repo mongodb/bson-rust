@@ -171,7 +171,7 @@ fn f64_from_slice(val: &[u8]) -> Result<f64> {
 /// Given a u8 slice, return an i32 calculated from the first four bytes in
 /// little endian order.
 fn i32_from_slice(val: &[u8]) -> Result<i32> {
-    let arr = val
+    let arr: [u8; 4] = val
         .get(0..4)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
@@ -213,6 +213,15 @@ fn read_nullterminated(buf: &[u8]) -> Result<&str> {
 }
 
 fn read_lenencoded(buf: &[u8]) -> Result<&str> {
+    if buf.len() < 4 {
+        return Err(Error::new_without_key(ErrorKind::MalformedValue {
+            message: format!(
+                "expected buffer with string to contain at least 4 bytes, but it only has {}",
+                buf.len()
+            ),
+        }));
+    }
+
     let length = i32_from_slice(&buf[..4])?;
     let end = checked_add(usize_try_from_i32(length)?, 4)?;
 

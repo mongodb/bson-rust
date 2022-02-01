@@ -112,6 +112,17 @@ functions:
           ${PREPARE_SHELL}
           .evergreen/check-clippy.sh
 
+  "run fuzzer":
+    - command: shell.exec
+      type: test
+      params:
+        shell: bash
+        working_dir: "src"
+        script: |
+          ${PREPARE_SHELL}
+          .evergreen/install-fuzzer.sh
+          .evergreen/run-fuzzer.sh
+
   "check rustdoc":
     - command: shell.exec
       type: test
@@ -162,6 +173,10 @@ tasks:
     commands:
       - func: "check rustdoc"
 
+  - name: "run-fuzzer"
+    commands:
+      - func: "run fuzzer"
+
 axes:
   - id: "extra-rust-versions"
     values:
@@ -200,3 +215,11 @@ buildvariants:
     - name: "check-clippy"
     - name: "check-rustfmt"
     - name: "check-rustdoc"
+
+-
+  name: "fuzz"
+  display_name: "Raw BSON Fuzzer"
+  run_on:
+    - ubuntu1804-test
+  tasks:
+    - name: "run-fuzzer"
