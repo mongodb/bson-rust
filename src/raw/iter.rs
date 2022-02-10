@@ -5,26 +5,13 @@ use crate::{
     oid::ObjectId,
     raw::{Error, ErrorKind, Result},
     spec::{BinarySubtype, ElementType},
-    DateTime,
-    Decimal128,
-    Timestamp,
+    DateTime, Decimal128, RawBson, RawDocumentBuf, Timestamp,
 };
 
 use super::{
-    bson_ref::RawDbPointerRef,
-    checked_add,
-    error::try_with_key,
-    f64_from_slice,
-    i32_from_slice,
-    i64_from_slice,
-    read_lenencoded,
-    read_nullterminated,
-    RawArray,
-    RawBinaryRef,
-    RawBsonRef,
-    RawDocument,
-    RawJavaScriptCodeWithScopeRef,
-    RawRegexRef,
+    bson_ref::RawDbPointerRef, checked_add, error::try_with_key, f64_from_slice, i32_from_slice,
+    i64_from_slice, read_lenencoded, read_nullterminated, RawArray, RawBinaryRef, RawBsonRef,
+    RawDocument, RawJavaScriptCodeWithScopeRef, RawRegexRef,
 };
 
 /// An iterator over the document's entries.
@@ -50,7 +37,7 @@ impl<'a> Iter<'a> {
         Self {
             doc,
             offset: index,
-            valid: true
+            valid: true,
         }
     }
 
@@ -329,5 +316,43 @@ impl<'a> Iterator for Iter<'a> {
         }
 
         Some(kvp_result)
+    }
+}
+
+pub struct IntoIter {
+    document: RawDocumentBuf,
+    offset: usize,
+}
+
+impl IntoIter {
+    pub(crate) fn new(document: RawDocumentBuf) -> Self {
+        Self {
+            document,
+            offset: 4,
+        }
+    }
+
+    pub fn advance(&mut self) {
+        let mut iter = self.document.iter_at(self.offset);
+        iter.next();
+        self.offset = iter.offset;
+    }
+
+    pub fn current(&self) -> Option<Result<(&str, RawBsonRef)>> {
+        let mut iter = self.document.iter_at(self.offset);
+        iter.next()
+    }
+}
+
+impl Iterator for IntoIter {
+    type Item = Result<(String, RawBson)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut iter = self.document.iter_at(self.offset);
+        let out = iter
+            .next()
+            .map(|r| r.map(|(k, v)| (k.to_string(), v.to_raw_bson())));
+        self.offset = iter.offset();
+        out
     }
 }

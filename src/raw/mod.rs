@@ -130,7 +130,7 @@ use crate::de::MIN_BSON_STRING_SIZE;
 
 pub use self::{
     array::{RawArray, RawArrayIter},
-    array_buf::RawArrayBuf,
+    array_buf::{RawArrayBuf, RawArrayBufIntoIter},
     bson::{RawBson, RawJavaScriptCodeWithScope},
     bson_ref::{
         RawBinaryRef,
@@ -142,7 +142,7 @@ pub use self::{
     document::RawDocument,
     document_buf::RawDocumentBuf,
     error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
-    iter::Iter,
+    iter::{Iter, IntoIter},
 };
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.

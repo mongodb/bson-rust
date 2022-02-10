@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{RawArray, RawBsonRef, RawDocumentBuf};
 
-use super::{bson::RawBson, serde::OwnedOrBorrowedRawArray, RawArrayIter};
+use super::{bson::RawBson, serde::OwnedOrBorrowedRawArray, RawArrayIter, Result};
 
 /// An owned BSON array value (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON
 /// bytes. This type can be used to construct owned array values, which can be used to append to
@@ -135,6 +135,15 @@ impl Borrow<RawArray> for RawArrayBuf {
     }
 }
 
+impl IntoIterator for RawArrayBuf {
+    type IntoIter = RawArrayBufIntoIter;
+    type Item = super::Result<RawBson>;
+
+    fn into_iter(self) -> RawArrayBufIntoIter {
+        RawArrayBufIntoIter::new(self)
+    }
+}
+
 impl<'a> IntoIterator for &'a RawArrayBuf {
     type IntoIter = RawArrayIter<'a>;
     type Item = super::Result<RawBsonRef<'a>>;
@@ -176,7 +185,7 @@ impl<'de> Deserialize<'de> for RawArrayBuf {
 }
 
 impl Serialize for RawArrayBuf {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -187,5 +196,39 @@ impl Serialize for RawArrayBuf {
 impl Default for RawArrayBuf {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RawArrayBufIntoIter {
+    array: RawArrayBuf,
+    offset: usize,
+}
+
+impl RawArrayBufIntoIter {
+    fn new(array: RawArrayBuf) -> Self {
+        Self { array, offset: 4 }
+    }
+
+    pub fn advance(&mut self) {
+        let mut iter = self.array.iter_at(self.offset);
+        iter.next();
+        self.offset = iter.offset();
+    }
+
+    pub fn current(&self) -> Option<Result<RawBsonRef>> {
+        let mut iter = self.array.iter_at(self.offset);
+        iter.next()
+    }
+}
+
+impl Iterator for RawArrayBufIntoIter {
+    type Item = Result<RawBson>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut iter = self.array.iter_at(self.offset);
+        let out = iter.next().map(|r| r.map(|v| v.to_raw_bson()));
+        self.offset = iter.offset();
+        out
     }
 }
