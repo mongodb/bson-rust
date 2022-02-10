@@ -97,7 +97,32 @@ impl RawArrayBuf {
         self.len += 1;
     }
 
-    pub fn iter_at(&self, starting_at: usize) -> RawArrayIter<'_> {
+    /// Gets an iterator over the elements in the [`RawArrayBuf`], which yields
+    /// `Result<(RawBsonRef<'_>)>`.
+    ///
+    /// ```
+    /// # use bson::raw::Error;
+    /// use bson::{doc, raw::RawDocumentBuf};
+    ///
+    /// let doc = RawDocumentBuf::from_document(&doc! { "ferris": true })?;
+    ///
+    /// for element in doc.iter() {
+    ///     let (key, value) = element?;
+    ///     assert_eq!(key, "ferris");
+    ///     assert_eq!(value.as_bool(), Some(true));
+    /// }
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn iter(&self) -> RawArrayIter {
+        self.into_iter()
+    }
+
+    #[doc(hidden)]
+    pub fn into_copying_iter(self) -> RawArrayBufIntoIter {
+        RawArrayBufIntoIter::new(self)
+    }
+
+    pub(crate) fn iter_at(&self, starting_at: usize) -> RawArrayIter<'_> {
         RawArrayIter::new_at(self.as_ref(), starting_at)
     }
 
@@ -132,15 +157,6 @@ impl AsRef<RawArray> for RawArrayBuf {
 impl Borrow<RawArray> for RawArrayBuf {
     fn borrow(&self) -> &RawArray {
         self.as_ref()
-    }
-}
-
-impl IntoIterator for RawArrayBuf {
-    type IntoIter = RawArrayBufIntoIter;
-    type Item = super::Result<RawBson>;
-
-    fn into_iter(self) -> RawArrayBufIntoIter {
-        RawArrayBufIntoIter::new(self)
     }
 }
 
@@ -199,7 +215,9 @@ impl Default for RawArrayBuf {
     }
 }
 
+/// Owned `Iterator` type used to iterate over [`RawArrayBuf`].
 #[derive(Debug, Clone)]
+#[doc(hidden)]
 pub struct RawArrayBufIntoIter {
     array: RawArrayBuf,
     offset: usize,
@@ -210,12 +228,14 @@ impl RawArrayBufIntoIter {
         Self { array, offset: 4 }
     }
 
+    /// Move the iterator to the next element in the array without copying the previous element out.
     pub fn advance(&mut self) {
         let mut iter = self.array.iter_at(self.offset);
         iter.next();
         self.offset = iter.offset();
     }
 
+    /// Get a reference to the current element without moving the iterator forward.
     pub fn current(&self) -> Option<Result<RawBsonRef>> {
         let mut iter = self.array.iter_at(self.offset);
         iter.next()

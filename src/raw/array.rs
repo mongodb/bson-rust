@@ -5,10 +5,21 @@ use serde::{ser::SerializeSeq, Deserialize, Serialize};
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     serde::OwnedOrBorrowedRawArray,
-    Error, Iter, RawBinaryRef, RawBsonRef, RawDocument, RawRegexRef, Result,
+    Error,
+    Iter,
+    RawBinaryRef,
+    RawBsonRef,
+    RawDocument,
+    RawRegexRef,
+    Result,
 };
 use crate::{
-    oid::ObjectId, raw::RAW_ARRAY_NEWTYPE, spec::ElementType, Bson, DateTime, RawArrayBuf,
+    oid::ObjectId,
+    raw::RAW_ARRAY_NEWTYPE,
+    spec::ElementType,
+    Bson,
+    DateTime,
+    RawArrayBuf,
     Timestamp,
 };
 
@@ -266,7 +277,7 @@ impl<'a> RawArrayIter<'a> {
         }
     }
 
-    pub fn offset(&self) -> usize {
+    pub(crate) fn offset(&self) -> usize {
         self.inner.offset()
     }
 }

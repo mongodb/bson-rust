@@ -8,23 +8,13 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    de::MIN_BSON_DOCUMENT_SIZE,
-    spec::BinarySubtype,
-    Document,
-    RawBinaryRef,
+    de::MIN_BSON_DOCUMENT_SIZE, spec::BinarySubtype, Document, RawBinaryRef,
     RawJavaScriptCodeWithScopeRef,
 };
 
 use super::{
-    bson::RawBson,
-    serde::OwnedOrBorrowedRawDocument,
-    Error,
-    ErrorKind,
-    Iter,
-    IntoIter,
-    RawBsonRef,
-    RawDocument,
-    Result,
+    bson::RawBson, serde::OwnedOrBorrowedRawDocument, Error, ErrorKind, Iter, RawBsonRef,
+    RawDocument, Result,
 };
 
 /// An owned BSON document (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
@@ -149,10 +139,6 @@ impl RawDocumentBuf {
     /// them to owned types yourself.
     pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
-    }
-
-    pub(crate) fn iter_at(&self, starting_at: usize) -> Iter<'_> {
-       Iter::new_at(self.as_ref(), starting_at)
     }
 
     /// Return the contained data as a `Vec<u8>`
@@ -363,15 +349,6 @@ impl TryFrom<RawDocumentBuf> for Document {
 
     fn try_from(raw: RawDocumentBuf) -> Result<Document> {
         Document::try_from(raw.as_ref())
-    }
-}
-
-impl IntoIterator for RawDocumentBuf {
-    type IntoIter = IntoIter;
-    type Item = Result<(String, RawBson)>;
-
-    fn into_iter(self) -> IntoIter {
-        IntoIter::new(self)
     }
 }
 

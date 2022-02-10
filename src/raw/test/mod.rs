@@ -3,15 +3,8 @@ mod props;
 
 use super::*;
 use crate::{
-    doc,
-    oid::ObjectId,
-    raw::error::ValueAccessErrorKind,
-    spec::BinarySubtype,
-    Binary,
-    Bson,
-    DateTime,
-    Regex,
-    Timestamp,
+    doc, oid::ObjectId, raw::error::ValueAccessErrorKind, spec::BinarySubtype, Binary, Bson,
+    DateTime, Regex, Timestamp,
 };
 use chrono::{TimeZone, Utc};
 
@@ -392,7 +385,7 @@ fn document_iteration() {
 
     assert_eq!(
         rawdoc
-            .into_iter()
+            .iter()
             .collect::<Result<Vec<(&str, _)>>>()
             .expect("collecting iterated doc")
             .len(),
@@ -405,7 +398,43 @@ fn document_iteration() {
         .as_str()
         .expect("was not str");
     assert_eq!(end, "END");
+
+    // assert_eq!(
+    //     rawdoc
+    //         .clone()
+    //         .into_iter()
+    //         .collect::<Result<Vec<(String, _)>>>()
+    //         .expect("collecting iterated doc")
+    //         .len(),
+    //     17
+    // );
+
+    // let items = rawdoc.iter().collect::<Result<Vec<(&str, _)>>>();
+    // let items = items
+    //     .unwrap()
+    //     .into_iter()
+    //     .map(|(k, v)| (k.to_string(), v.to_raw_bson()))
+    //     .collect::<Vec<(String, RawBson)>>();
+
+    // let mut manual_items = Vec::new(); 
+    // let mut iter = rawdoc.into_iter();
+    // while let Some(kvp) = iter.current() {
+    //     let (k, v) = kvp.unwrap();
+    //     manual_items.push((k.to_string(), v.to_raw_bson()));
+    //     iter.advance();
+    // }
+    // assert_eq!(manual_items, items);
 }
+
+// #[test]
+// fn into_iter_advance() {
+//     let doc = rawdoc! {
+//         "x": 1
+//     };
+
+//     let mut iter = doc.into_iter();
+
+// }
 
 #[test]
 fn into_bson_conversion() {
