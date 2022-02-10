@@ -97,6 +97,10 @@ impl RawArrayBuf {
         self.len += 1;
     }
 
+    pub fn iter_at(&self, starting_at: usize) -> RawArrayIter<'_> {
+        RawArrayIter::new_at(self.as_ref(), starting_at)
+    }
+
     pub(crate) fn into_vec(self) -> Vec<u8> {
         self.inner.into_bytes()
     }

@@ -46,6 +46,18 @@ impl<'a> Iter<'a> {
         }
     }
 
+    pub(crate) fn new_at(doc: &'a RawDocument, index: usize) -> Self {
+        Self {
+            doc,
+            offset: index,
+            valid: true
+        }
+    }
+
+    pub(crate) fn offset(&self) -> usize {
+        self.offset
+    }
+
     fn verify_enough_bytes(&self, start: usize, num_bytes: usize) -> Result<()> {
         let end = checked_add(start, num_bytes)?;
         if self.doc.as_bytes().get(start..end).is_none() {
