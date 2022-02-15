@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{RawArray, RawBsonRef, RawDocumentBuf};
 
-use super::{bson::RawBson, serde::OwnedOrBorrowedRawArray, RawArrayIter, Result};
+use super::{bson::RawBson, serde::OwnedOrBorrowedRawArray, RawArrayIter};
 
 /// An owned BSON array value (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON
 /// bytes. This type can be used to construct owned array values, which can be used to append to
@@ -118,10 +118,12 @@ impl RawArrayBuf {
     }
 
     #[doc(hidden)]
-    pub fn into_copying_iter(self) -> RawArrayBufIntoIter {
-        RawArrayBufIntoIter::new(self)
+    #[cfg(feature = "unstable")]
+    pub fn into_copying_iter(self) -> RawArrayBufCopyingIter {
+        RawArrayBufCopyingIter::new(self)
     }
 
+    #[cfg(feature = "unstable")]
     pub(crate) fn iter_at(&self, starting_at: usize) -> RawArrayIter<'_> {
         RawArrayIter::new_at(self.as_ref(), starting_at)
     }
@@ -216,14 +218,21 @@ impl Default for RawArrayBuf {
 }
 
 /// Owned `Iterator` type used to iterate over [`RawArrayBuf`].
+///
+/// Warning: This type is not stable.
 #[derive(Debug, Clone)]
 #[doc(hidden)]
-pub struct RawArrayBufIntoIter {
+#[cfg(feature = "unstable")]
+pub struct RawArrayBufCopyingIter {
     array: RawArrayBuf,
     offset: usize,
 }
 
-impl RawArrayBufIntoIter {
+#[cfg(feature = "unstable")]
+use crate::raw::Result;
+
+#[cfg(feature = "unstable")]
+impl RawArrayBufCopyingIter {
     fn new(array: RawArrayBuf) -> Self {
         Self { array, offset: 4 }
     }
@@ -242,7 +251,8 @@ impl RawArrayBufIntoIter {
     }
 }
 
-impl Iterator for RawArrayBufIntoIter {
+#[cfg(feature = "unstable")]
+impl Iterator for RawArrayBufCopyingIter {
     type Item = Result<RawBson>;
 
     fn next(&mut self) -> Option<Self::Item> {

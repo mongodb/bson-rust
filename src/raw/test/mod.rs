@@ -3,8 +3,15 @@ mod props;
 
 use super::*;
 use crate::{
-    doc, oid::ObjectId, raw::error::ValueAccessErrorKind, spec::BinarySubtype, Binary, Bson,
-    DateTime, Regex, Timestamp,
+    doc,
+    oid::ObjectId,
+    raw::error::ValueAccessErrorKind,
+    spec::BinarySubtype,
+    Binary,
+    Bson,
+    DateTime,
+    Regex,
+    Timestamp,
 };
 use chrono::{TimeZone, Utc};
 
@@ -398,43 +405,36 @@ fn document_iteration() {
         .as_str()
         .expect("was not str");
     assert_eq!(end, "END");
-
-    // assert_eq!(
-    //     rawdoc
-    //         .clone()
-    //         .into_iter()
-    //         .collect::<Result<Vec<(String, _)>>>()
-    //         .expect("collecting iterated doc")
-    //         .len(),
-    //     17
-    // );
-
-    // let items = rawdoc.iter().collect::<Result<Vec<(&str, _)>>>();
-    // let items = items
-    //     .unwrap()
-    //     .into_iter()
-    //     .map(|(k, v)| (k.to_string(), v.to_raw_bson()))
-    //     .collect::<Vec<(String, RawBson)>>();
-
-    // let mut manual_items = Vec::new(); 
-    // let mut iter = rawdoc.into_iter();
-    // while let Some(kvp) = iter.current() {
-    //     let (k, v) = kvp.unwrap();
-    //     manual_items.push((k.to_string(), v.to_raw_bson()));
-    //     iter.advance();
-    // }
-    // assert_eq!(manual_items, items);
 }
 
-// #[test]
-// fn into_iter_advance() {
-//     let doc = rawdoc! {
-//         "x": 1
-//     };
+#[test]
+#[cfg(feature = "unstable")]
+fn into_copying_iter() {
+    let doc = rawdoc! {
+        "array": [
+            true,
+            1_i32,
+            "a string",
+            { "a": "document" },
+            [ "an", "array", true ]
+        ]
+    };
+    let array = doc.get_array("array").unwrap().to_owned();
 
-//     let mut iter = doc.into_iter();
+    let mut iter = array.into_copying_iter();
 
-// }
+    assert_eq!(iter.next(), Some(Ok(rawbson!(true))));
+    assert_eq!(iter.next(), Some(Ok(rawbson!(1_i32))));
+    assert_eq!(iter.next(), Some(Ok(rawbson!("a string"))));
+    assert_eq!(iter.next(), Some(Ok(rawbson!({ "a": "document" }))));
+    assert_eq!(iter.next(), Some(Ok(rawbson!(["an", "array", true]))));
+    assert_eq!(iter.next(), None);
+
+    // check for panics
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+}
 
 #[test]
 fn into_bson_conversion() {

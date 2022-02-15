@@ -288,6 +288,10 @@ pub use self::{
     uuid::{Uuid, UuidRepresentation},
 };
 
+#[cfg(feature = "unstable")]
+#[doc(hidden)]
+pub use self::raw::RawArrayBufCopyingIter;
+
 #[macro_use]
 mod macros;
 mod bson;

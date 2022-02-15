@@ -8,13 +8,22 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    de::MIN_BSON_DOCUMENT_SIZE, spec::BinarySubtype, Document, RawBinaryRef,
+    de::MIN_BSON_DOCUMENT_SIZE,
+    spec::BinarySubtype,
+    Document,
+    RawBinaryRef,
     RawJavaScriptCodeWithScopeRef,
 };
 
 use super::{
-    bson::RawBson, serde::OwnedOrBorrowedRawDocument, Error, ErrorKind, Iter, RawBsonRef,
-    RawDocument, Result,
+    bson::RawBson,
+    serde::OwnedOrBorrowedRawDocument,
+    Error,
+    ErrorKind,
+    Iter,
+    RawBsonRef,
+    RawDocument,
+    Result,
 };
 
 /// An owned BSON document (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.

@@ -42,9 +42,11 @@ uuid-0_8 = []
 # all optional dependencies.
 # serde_with
 
-# # private feature flag containing unstable functionality for special use in the
-# # mongodb crate. This feature flag should not be enabled by other users.
-# __private = []
+# feature flag containing unstable functionality for special use in the
+# mongodb crate. Any API exposed by using this feature flag is subject
+# to change at any time and should not be relied upon in stable
+# applications.
+unstable = []
 
 [lib]
 name = "bson"

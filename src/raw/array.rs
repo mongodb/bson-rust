@@ -270,6 +270,7 @@ pub struct RawArrayIter<'a> {
     inner: Iter<'a>,
 }
 
+#[cfg(feature = "unstable")]
 impl<'a> RawArrayIter<'a> {
     pub(crate) fn new_at(array: &'a RawArray, index: usize) -> Self {
         Self {

@@ -130,7 +130,7 @@ use crate::de::MIN_BSON_STRING_SIZE;
 
 pub use self::{
     array::{RawArray, RawArrayIter},
-    array_buf::{RawArrayBuf, RawArrayBufIntoIter},
+    array_buf::RawArrayBuf,
     bson::{RawBson, RawJavaScriptCodeWithScope},
     bson_ref::{
         RawBinaryRef,
@@ -144,6 +144,9 @@ pub use self::{
     error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     iter::Iter,
 };
+
+#[cfg(feature = "unstable")]
+pub use self::array_buf::RawArrayBufCopyingIter;
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.
 pub(crate) const RAW_DOCUMENT_NEWTYPE: &str = "$__private__bson_RawDocument";
