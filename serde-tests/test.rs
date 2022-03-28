@@ -410,7 +410,7 @@ fn hashmap_enum_key() {
     };
     let doc = doc! {
         "map": {
-            "Baz": "2",  
+            "Baz": "2",
         },
     };
     run_test(&obj, &doc, "hashmap_enum_key");
