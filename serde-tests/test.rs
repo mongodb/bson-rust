@@ -14,7 +14,7 @@ use serde::{
 
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     iter::FromIterator,
 };
 
@@ -391,6 +391,29 @@ fn hashmap() {
         "set": ["a"]
     };
     run_test(&v, &doc, "hashmap");
+}
+
+#[test]
+fn hashmap_enum_key() {
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    struct Foo {
+        map: HashMap<Bar, String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+    enum Bar {
+        Baz,
+    }
+
+    let obj = Foo {
+        map: HashMap::from_iter([(Bar::Baz, "1".to_owned()), (Bar::Baz, "2".to_owned())]),
+    };
+    let doc = doc! {
+        "map": {
+            "Baz": "2",  
+        },
+    };
+    run_test(&obj, &doc, "hashmap_enum_key");
 }
 
 #[test]
