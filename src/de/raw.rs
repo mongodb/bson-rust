@@ -651,7 +651,11 @@ impl<'d, 'de> serde::de::Deserializer<'de> for DocumentKeyDeserializer<'d, 'de> 
     where
         V: serde::de::Visitor<'de>,
     {
-        visitor.visit_enum(self.root_deserializer.deserialize_cstr()?.into_deserializer())
+        visitor.visit_enum(
+            self.root_deserializer
+                .deserialize_cstr()?
+                .into_deserializer(),
+        )
     }
 
     fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
