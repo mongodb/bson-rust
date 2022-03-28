@@ -642,6 +642,22 @@ impl<'d, 'de> serde::de::Deserializer<'de> for DocumentKeyDeserializer<'d, 'de> 
         }
     }
 
+    fn deserialize_enum<V>(
+        self,
+        _name: &str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_enum(
+            self.root_deserializer
+                .deserialize_cstr()?
+                .into_deserializer(),
+        )
+    }
+
     fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
@@ -655,7 +671,7 @@ impl<'d, 'de> serde::de::Deserializer<'de> for DocumentKeyDeserializer<'d, 'de> 
 
     forward_to_deserialize_any! {
         bool char str bytes byte_buf option unit unit_struct string
-        identifier seq tuple tuple_struct struct map enum
+        identifier seq tuple tuple_struct struct map
         ignored_any i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
     }
 }

@@ -394,6 +394,29 @@ fn hashmap() {
 }
 
 #[test]
+fn hashmap_enum_key() {
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    struct Foo {
+        map: BTreeMap<Bar, String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, PartialOrd, Ord)]
+    enum Bar {
+        Baz,
+    }
+
+    let obj = Foo {
+        map: BTreeMap::from_iter([(Bar::Baz, "2".to_owned())]),
+    };
+    let doc = doc! {
+        "map": {
+            "Baz": "2",
+        },
+    };
+    run_test(&obj, &doc, "hashmap_enum_key");
+}
+
+#[test]
 fn tuple_struct() {
     #[derive(Serialize, Deserialize, PartialEq, Debug)]
     struct Foo(i32, String, f64);
