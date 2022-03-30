@@ -1405,3 +1405,8 @@ fn non_human_readable() {
     assert_eq!(human_readable, expected);
     assert_eq!(human_readable, non_human_readable);
 }
+
+#[test]
+fn fuzz_regression() {
+    assert!(bson::from_slice::<Document>(&[4, 0, 0, 128, 0, 87]).is_err());
+}
