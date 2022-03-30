@@ -171,9 +171,11 @@ impl<'de> Deserializer<'de> {
     where
         F: FnOnce(DocumentAccess<'_, 'de>) -> Result<O>,
     {
-        let mut length_remaining = read_i32(&mut self.bytes)?
-            .checked_sub(4)
-            .ok_or_else(|| Error::custom("invalid length, less than min document size"))?;
+        let mut length_remaining = read_i32(&mut self.bytes)?;
+        if length_remaining < 4 {
+            return Err(Error::custom("invalid length, less than min document size"));
+        }
+        length_remaining -= 4;
         let out = f(DocumentAccess {
             root_deserializer: self,
             length_remaining: &mut length_remaining,
