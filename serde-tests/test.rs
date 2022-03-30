@@ -1407,6 +1407,7 @@ fn non_human_readable() {
 }
 
 #[test]
-fn fuzz_regression() {
+fn invalid_length() {
+    // This is a regression test for fuzzer-generated input (RUST-1240).
     assert!(bson::from_slice::<Document>(&[4, 0, 0, 128, 0, 87]).is_err());
 }
