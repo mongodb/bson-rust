@@ -280,4 +280,4 @@ bash .evergreen/check-clippy.sh && bash .evergreen/check-rustfmt.sh
 ```
 
 ## Continuous Integration
-Commits to master are run automatically on [evergreen](https://evergreen.mongodb.com/waterfall/rust-bson).
+Commits to main are run automatically on [evergreen](https://evergreen.mongodb.com/waterfall/rust-bson).
