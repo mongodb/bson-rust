@@ -264,7 +264,7 @@
 //! it will only happen in a minor or major version release.
 
 #![allow(clippy::cognitive_complexity)]
-#![doc(html_root_url = "https://docs.rs/bson/2.2.0-beta")]
+#![doc(html_root_url = "https://docs.rs/bson/2.2.0-beta.1")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[doc(inline)]
