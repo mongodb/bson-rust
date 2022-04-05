@@ -2,14 +2,16 @@ use std::{
     error,
     fmt::{self, Display},
     result,
-    time::{Duration, SystemTime},
+    time::{Duration, SystemTime}, convert::TryInto,
 };
+
+use time::format_description::well_known::Rfc3339;
 
 #[cfg(all(feature = "serde_with", feature = "chrono-0_4"))]
 use serde::{Deserialize, Deserializer, Serialize};
 #[cfg(all(feature = "serde_with", feature = "chrono-0_4"))]
 use serde_with::{DeserializeAs, SerializeAs};
-
+#[cfg(feature = "chrono-0_4")]
 use chrono::{LocalResult, TimeZone, Utc};
 
 /// Struct representing a BSON datetime.
@@ -114,36 +116,12 @@ impl crate::DateTime {
         Self::from_system_time(SystemTime::now())
     }
 
-    #[cfg(not(feature = "chrono-0_4"))]
-    pub(crate) fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
-        Self::from_millis(dt.timestamp_millis())
-    }
-
     /// Convert the given `chrono::DateTime` into a `bson::DateTime`, truncating it to millisecond
     /// precision.
     #[cfg(feature = "chrono-0_4")]
     #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
         Self::from_millis(dt.timestamp_millis())
-    }
-
-    fn to_chrono_private(self) -> chrono::DateTime<Utc> {
-        match Utc.timestamp_millis_opt(self.0) {
-            LocalResult::Single(dt) => dt,
-            _ => {
-                if self.0 < 0 {
-                    chrono::MIN_DATETIME
-                } else {
-                    chrono::MAX_DATETIME
-                }
-            }
-        }
-    }
-
-    #[cfg(not(feature = "chrono-0_4"))]
-    #[allow(unused)]
-    pub(crate) fn to_chrono(self) -> chrono::DateTime<Utc> {
-        self.to_chrono_private()
     }
 
     /// Convert this [`DateTime`] to a [`chrono::DateTime<Utc>`].
@@ -163,7 +141,88 @@ impl crate::DateTime {
     #[cfg(feature = "chrono-0_4")]
     #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn to_chrono(self) -> chrono::DateTime<Utc> {
-        self.to_chrono_private()
+        match Utc.timestamp_millis_opt(self.0) {
+            LocalResult::Single(dt) => dt,
+            _ => {
+                if self.0 < 0 {
+                    chrono::MIN_DATETIME
+                } else {
+                    chrono::MAX_DATETIME
+                }
+            }
+        }
+    }
+
+    fn from_time_private(dt: time::OffsetDateTime) -> Self {
+        let millis = dt.unix_timestamp_nanos() / 1_000_000;
+        match millis.try_into() {
+            Ok(ts) => Self::from_millis(ts),
+            _ => if millis > 0 {
+                Self::MAX
+            } else {
+                Self::MIN
+            }
+        }
+    }
+
+    #[cfg(not(feature = "time-0_3"))]
+    #[allow(unused)]
+    pub(crate) fn from_time(dt: time::OffsetDateTime) -> Self {
+        Self::from_time_private(dt)
+    }
+
+    /// Convert the given `time::OffsetDateTime` into a `bson::DateTime`, truncating it to millisecond
+    /// precision.
+    ///
+    /// If the provided time is too far in the future or too far in the past to be represented
+    /// by a BSON datetime, either [`DateTime::MAX`] or [`DateTime::MIN`] will be
+    /// returned, whichever is closer.
+    #[cfg(feature = "time-0_3")]
+    pub fn from_time(dt: time::OffsetDateTime) -> Self {
+        Self::from_time_private(dt)
+    }
+
+    fn to_time_private(self) -> time::OffsetDateTime {
+        match self.to_time_opt() {
+            Some(dt) => dt,
+            None => {
+                if self.0 < 0 {
+                    time::PrimitiveDateTime::MIN
+                } else {
+                    time::PrimitiveDateTime::MAX
+                }.assume_utc()
+            }
+        }
+    }
+
+    fn to_time_opt(self) -> Option<time::OffsetDateTime> {
+        time::OffsetDateTime::UNIX_EPOCH.checked_add(time::Duration::milliseconds(self.0))
+    }
+
+    #[cfg(not(feature = "time-0_3"))]
+    #[allow(unused)]
+    pub(crate) fn to_time(self) -> time::OffsetDateTime {
+        self.to_time_private()
+    }
+
+    /// Convert this [`DateTime`] to a [`time::OffsetDateTime`].
+    ///
+    /// Note: Not every BSON datetime can be represented as a [`time::OffsetDateTime`]. For such dates,
+    /// [`time::PrimitiveDateTime::MIN`] or [`time::PrimitiveDateTime::MAX`] will be returned, whichever is closer.
+    ///
+    /// ```
+    /// let bson_dt = bson::DateTime::now();
+    /// let time_dt = bson_dt.to_time();
+    /// assert_eq!(bson_dt.timestamp_millis() / 1000, time_dt.timestamp());
+    ///
+    /// let big = bson::DateTime::from_millis(i64::MAX);
+    /// let time_big = big.to_time();
+    /// assert_eq!(time_big, time::PrimitiveDateTime::MAX.assume_utc())
+    /// ```
+    #[cfg(feature = "time-0_3")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
+    pub fn to_time(self) -> time::OffsetDateTime {
+        self.to_time_private()
     }
 
     /// Convert the given [`std::time::SystemTime`] to a [`DateTime`].
@@ -210,26 +269,29 @@ impl crate::DateTime {
 
     /// Convert this [`DateTime`] to an RFC 3339 formatted string.
     pub fn to_rfc3339_string(self) -> String {
-        self.to_chrono()
-            .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
+        use std::result::Result;
+        match self.to_time().format(&Rfc3339) {
+            Result::Ok(s) => s,
+            Result::Err(e) => e.to_string(),
+        }
     }
 
     /// Convert the given RFC 3339 formatted string to a [`DateTime`], truncating it to millisecond
     /// precision.
     pub fn parse_rfc3339_str(s: impl AsRef<str>) -> Result<Self> {
-        let date = chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(s.as_ref())
+        let odt = time::OffsetDateTime::parse(s.as_ref(), &Rfc3339)
             .map_err(|e| Error::InvalidTimestamp {
                 message: e.to_string(),
             })?;
-        Ok(Self::from_chrono(date))
+        Ok(Self::from_time(odt))
     }
 }
 
 impl fmt::Debug for crate::DateTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut tup = f.debug_tuple("DateTime");
-        match Utc.timestamp_millis_opt(self.0) {
-            LocalResult::Single(ref dt) => tup.field(dt),
+        match self.to_time_opt() {
+            Some(dt) => tup.field(&dt),
             _ => tup.field(&self.0),
         };
         tup.finish()
@@ -238,8 +300,8 @@ impl fmt::Debug for crate::DateTime {
 
 impl Display for crate::DateTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match Utc.timestamp_millis_opt(self.0) {
-            LocalResult::Single(ref dt) => Display::fmt(dt, f),
+        match self.to_time_opt() {
+            Some(dt) => Display::fmt(&dt, f),
             _ => Display::fmt(&self.0, f),
         }
     }

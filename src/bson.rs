@@ -26,7 +26,6 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
 };
 
-use chrono::Datelike;
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
@@ -430,7 +429,7 @@ impl Bson {
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
-            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_chrono().year() <= 99999 => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_time().year() <= 99999 => {
                 json!({
                     "$date": v.to_rfc3339_string(),
                 })
@@ -592,7 +591,7 @@ impl Bson {
             Bson::DateTime(v) if rawbson => doc! {
                 "$date": v.timestamp_millis(),
             },
-            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_chrono().year() <= 9999 => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_time().year() <= 9999 => {
                 doc! {
                     "$date": v.to_rfc3339_string(),
                 }
@@ -776,8 +775,8 @@ impl Bson {
                 }
 
                 if let Ok(date) = doc.get_str("$date") {
-                    if let Ok(date) = chrono::DateTime::parse_from_rfc3339(date) {
-                        return Bson::DateTime(crate::DateTime::from_chrono(date));
+                    if let Ok(dt) = crate::DateTime::parse_rfc3339_str(date) {
+                        return Bson::DateTime(dt);
                     }
                 }
             }
