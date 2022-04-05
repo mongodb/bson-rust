@@ -216,6 +216,7 @@ fn run_test(test: TestFile) {
                 let from_value_value_doc = doc! {
                     test_key: bson_field,
                 };
+                dbg!(&from_value_value_doc);
 
                 // deserialize the field from a Bson into a RawBson
                 let deserializer_value_raw =

@@ -21,7 +21,6 @@ use crate::{
     Regex,
     Timestamp,
 };
-use chrono::{offset::TimeZone, Utc};
 use serde_json::json;
 
 #[test]
@@ -313,8 +312,10 @@ fn test_serialize_deserialize_object_id() {
 #[test]
 fn test_serialize_utc_date_time() {
     let _guard = LOCK.run_concurrently();
-    #[cfg(not(feature = "chrono-0_4"))]
-    let src = crate::DateTime::from_chrono(Utc.timestamp(1_286_705_410, 0));
+    #[cfg(not(any(feature = "chrono-0_4", feature = "time-0_3")))]
+    let src = crate::DateTime::from_time(time::OffsetDateTime::from_unix_timestamp(1_286_705_410).unwrap());
+    #[cfg(feature = "time-0_3")]
+    let src = time::OffsetDateTime::from_unix_timestamp(1_286_705_410).unwrap();
     #[cfg(feature = "chrono-0_4")]
     let src = Utc.timestamp(1_286_705_410, 0);
     let dst = vec![
@@ -368,7 +369,7 @@ fn test_deserialize_utc_date_time_overflows() {
     let deserialized = Document::from_reader(&mut Cursor::new(raw)).unwrap();
 
     let expected =
-        doc! { "A": crate::DateTime::from_chrono(Utc.timestamp(1_530_492_218, 999 * 1_000_000))};
+        doc! { "A": crate::DateTime::from_time(time::OffsetDateTime::from_unix_timestamp(1_530_492_218).unwrap() + time::Duration::nanoseconds(999 * 1_000_000))};
     assert_eq!(deserialized, expected);
 }
 

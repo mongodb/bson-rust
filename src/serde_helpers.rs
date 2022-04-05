@@ -17,6 +17,12 @@ pub use chrono_datetime_as_bson_datetime::{
     deserialize as deserialize_chrono_datetime_from_bson_datetime,
     serialize as serialize_chrono_datetime_as_bson_datetime,
 };
+#[cfg(feature = "time-0_3")]
+#[doc(inline)]
+pub use time_offsetdatetime_as_bson_datetime::{
+    deserialize as deserialize_time_offsetdatetime_from_bson_datetime,
+    serialize as serialize_time_offsetdatetime_as_bson_datetime,
+};
 #[doc(inline)]
 pub use hex_string_as_object_id::{
     deserialize as deserialize_hex_string_from_object_id,
@@ -185,6 +191,49 @@ pub mod u64_as_f64 {
     }
 }
 
+/// Contains functions to serialize a [`time::OffsetDateTime`] as a [`crate::DateTime`] and deserialize
+/// a [`time::OffsetDateTime`] from a [`crate::DateTime`].
+///
+/// ```rust
+/// # #[cfg(feature = "chrono-0_4")]
+/// # {
+/// # use serde::{Serialize, Deserialize};
+/// # use bson::serde_helpers::time_offsetdatetime_as_bson_datetime;
+/// #[derive(Serialize, Deserialize)]
+/// struct Event {
+///     #[serde(with = "time_offsetdatetime_as_bson_datetime")]
+///     pub date: time::OffsetDateTime,
+/// }
+/// # }
+/// ```
+#[cfg(feature = "time-0_3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
+pub mod time_offsetdatetime_as_bson_datetime {
+    use crate::DateTime;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::result::Result;
+
+    /// Deserializes a [`time::OffsetDateTime`] from a [`crate::DateTime`].
+    #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<time::OffsetDateTime, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let datetime = DateTime::deserialize(deserializer)?;
+        Ok(datetime.to_time())
+    }
+
+    /// Serializes a [`time::OffsetDateTime`] as a [`crate::DateTime`].
+    #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
+    pub fn serialize<S: Serializer>(
+        val: &time::OffsetDateTime,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let datetime = DateTime::from_time(val.to_owned());
+        datetime.serialize(serializer)
+    }
+}
+
 /// Contains functions to serialize a [`chrono::DateTime`] as a [`crate::DateTime`] and deserialize
 /// a [`chrono::DateTime`] from a [`crate::DateTime`].
 ///
@@ -257,11 +306,10 @@ pub mod rfc3339_string_as_bson_datetime {
 
     /// Serializes an ISO string as a DateTime.
     pub fn serialize<S: Serializer>(val: &str, serializer: S) -> Result<S::Ok, S::Error> {
-        let date =
-            chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(val).map_err(|_| {
-                ser::Error::custom(format!("cannot convert {} to chrono::DateTime", val))
+        let date = crate::DateTime::parse_rfc3339_str(val).map_err(|_| {
+                ser::Error::custom(format!("cannot convert {} to DateTime", val))
             })?;
-        Bson::DateTime(crate::DateTime::from_chrono(date)).serialize(serializer)
+        Bson::DateTime(date).serialize(serializer)
     }
 }
 
@@ -289,10 +337,10 @@ pub mod bson_datetime_as_rfc3339_string {
     {
         let iso = String::deserialize(deserializer)?;
         let date =
-            chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(&iso).map_err(|_| {
+            crate::DateTime::parse_rfc3339_str(&iso).map_err(|_| {
                 de::Error::custom(format!("cannot parse RFC 3339 datetime from \"{}\"", iso))
             })?;
-        Ok(DateTime::from_chrono(date))
+        Ok(date)
     }
 
     /// Serializes a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted string.

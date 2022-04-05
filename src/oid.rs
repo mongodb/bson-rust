@@ -283,7 +283,7 @@ fn test_counter_overflow_usize_max() {
 
 #[cfg(test)]
 mod test {
-    use chrono::{offset::TimeZone, Utc};
+    use time::macros::datetime;
 
     #[test]
     fn test_display() {
@@ -311,29 +311,29 @@ mod test {
         let id = super::ObjectId::parse_str("000000000000000000000000").unwrap();
         // "Jan 1st, 1970 00:00:00 UTC"
         assert_eq!(
-            Utc.ymd(1970, 1, 1).and_hms(0, 0, 0),
-            id.timestamp().to_chrono()
+            datetime!(1970-01-01 0:00 UTC),
+            id.timestamp().to_time()
         );
 
         let id = super::ObjectId::parse_str("7FFFFFFF0000000000000000").unwrap();
         // "Jan 19th, 2038 03:14:07 UTC"
         assert_eq!(
-            Utc.ymd(2038, 1, 19).and_hms(3, 14, 7),
-            id.timestamp().to_chrono()
+            datetime!(2038-01-19 3:14:07 UTC),
+            id.timestamp().to_time()
         );
 
         let id = super::ObjectId::parse_str("800000000000000000000000").unwrap();
         // "Jan 19th, 2038 03:14:08 UTC"
         assert_eq!(
-            Utc.ymd(2038, 1, 19).and_hms(3, 14, 8),
-            id.timestamp().to_chrono()
+            datetime!(2038-01-19 3:14:08 UTC),
+            id.timestamp().to_time()
         );
 
         let id = super::ObjectId::parse_str("FFFFFFFF0000000000000000").unwrap();
         // "Feb 7th, 2106 06:28:15 UTC"
         assert_eq!(
-            Utc.ymd(2106, 2, 7).and_hms(6, 28, 15),
-            id.timestamp().to_chrono()
+            datetime!(2106-02-07 6:28:15 UTC),
+            id.timestamp().to_time()
         );
     }
 }

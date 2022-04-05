@@ -7,9 +7,9 @@ use std::{
 
 use time::format_description::well_known::Rfc3339;
 
-#[cfg(all(feature = "serde_with", feature = "chrono-0_4"))]
+#[cfg(all(feature = "serde_with", any(feature = "chrono-0_4", feature = "time-0_3")))]
 use serde::{Deserialize, Deserializer, Serialize};
-#[cfg(all(feature = "serde_with", feature = "chrono-0_4"))]
+#[cfg(all(feature = "serde_with", any(feature = "chrono-0_4", feature = "time-0_3")))]
 use serde_with::{DeserializeAs, SerializeAs};
 #[cfg(feature = "chrono-0_4")]
 use chrono::{LocalResult, TimeZone, Utc};
@@ -358,6 +358,49 @@ impl SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
         S: serde::Serializer,
     {
         let dt = DateTime::from_chrono(*source);
+        dt.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "time-0_3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
+impl From<crate::DateTime> for time::OffsetDateTime {
+    fn from(bson_dt: DateTime) -> Self {
+        bson_dt.to_time()
+    }
+}
+
+#[cfg(feature = "time-0_3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
+impl From<time::OffsetDateTime> for crate::DateTime {
+    fn from(x: time::OffsetDateTime) -> Self {
+        Self::from_time(x)
+    }
+}
+
+#[cfg(all(feature = "time-0_3", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "time-0_3", feature = "serde_with"))))]
+impl<'de> DeserializeAs<'de, time::OffsetDateTime> for crate::DateTime {
+    fn deserialize_as<D>(deserializer: D) -> std::result::Result<time::OffsetDateTime, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let dt = DateTime::deserialize(deserializer)?;
+        Ok(dt.to_time())
+    }
+}
+
+#[cfg(all(feature = "time-0_3", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "time-0_3", feature = "chrono-0_4"))))]
+impl SerializeAs<time::OffsetDateTime> for crate::DateTime {
+    fn serialize_as<S>(
+        source: &time::OffsetDateTime,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let dt = DateTime::from_time(*source);
         dt.serialize(serializer)
     }
 }

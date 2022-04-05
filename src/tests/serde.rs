@@ -34,7 +34,6 @@ use serde_json::json;
 use std::{
     collections::BTreeMap,
     convert::{TryFrom, TryInto},
-    str::FromStr,
 };
 
 #[test]
@@ -727,6 +726,8 @@ fn test_unsigned_helpers() {
 
 #[test]
 fn test_datetime_helpers() {
+    use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
     let _guard = LOCK.run_concurrently();
 
     #[derive(Deserialize, Serialize)]
@@ -736,14 +737,42 @@ fn test_datetime_helpers() {
     }
 
     let iso = "1996-12-20T00:39:57Z";
-    let date = chrono::DateTime::<chrono::Utc>::from_str(iso).unwrap();
+    let date = OffsetDateTime::parse(iso, &Rfc3339).unwrap();
     let a = A {
-        date: crate::DateTime::from_chrono(date),
+        date: crate::DateTime::from_time(date),
     };
     let doc = to_document(&a).unwrap();
     assert_eq!(doc.get_str("date").unwrap(), iso);
     let a: A = from_document(doc).unwrap();
-    assert_eq!(a.date.to_chrono(), date);
+    assert_eq!(a.date.to_time(), date);
+
+    #[cfg(feature = "time-0_3")]
+    {
+        use time::macros::datetime;
+
+        #[derive(Deserialize, Serialize)]
+        struct B {
+            #[serde(with = "serde_helpers::time_offsetdatetime_as_bson_datetime")]
+            pub date: time::OffsetDateTime,
+        }
+
+        let date = r#"
+    {
+        "date": {
+                "$date": {
+                    "$numberLong": "1591700287095"
+                }
+        }
+    }"#;
+        let json: serde_json::Value = serde_json::from_str(date).unwrap();
+        let b: B = serde_json::from_value(json).unwrap();
+        let expected = datetime!(2020-06-09 10:58:07.095 UTC);
+        assert_eq!(b.date, expected);
+        let doc = to_document(&b).unwrap();
+        assert_eq!(doc.get_datetime("date").unwrap().to_time(), expected);
+        let b: B = from_document(doc).unwrap();
+        assert_eq!(b.date, expected);
+    }
 
     #[cfg(feature = "chrono-0_4")]
     {
