@@ -81,7 +81,7 @@ fn standard_format() {
         base64::encode("thingies"),
         base64::encode("secret"),
         hex::encode(id_string),
-        format!("{}", date_trunc),
+        date_trunc,
     );
 
     assert_eq!(expected, format!("{}", doc));

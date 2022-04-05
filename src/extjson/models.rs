@@ -261,8 +261,7 @@ impl DateTime {
                             Unexpected::Str(date.as_str()),
                             &"rfc3339 formatted utc datetime",
                         )
-                    })?
-                    .into();
+                    })?;
                 Ok(datetime)
             }
         }

@@ -319,6 +319,7 @@ fn test_serialize_utc_date_time() {
         time::OffsetDateTime::from_unix_timestamp(1_286_705_410).unwrap(),
     );
     #[cfg(feature = "time-0_3")]
+    #[allow(unused)]
     let src = time::OffsetDateTime::from_unix_timestamp(1_286_705_410).unwrap();
     #[cfg(feature = "chrono-0_4")]
     let src = chrono::Utc.timestamp(1_286_705_410, 0);
