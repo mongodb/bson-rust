@@ -776,6 +776,7 @@ fn test_datetime_helpers() {
 
     #[cfg(feature = "chrono-0_4")]
     {
+        use std::str::FromStr;
         #[derive(Deserialize, Serialize)]
         struct B {
             #[serde(with = "serde_helpers::chrono_datetime_as_bson_datetime")]

@@ -311,13 +311,15 @@ fn test_serialize_deserialize_object_id() {
 
 #[test]
 fn test_serialize_utc_date_time() {
+    #[cfg(feature = "chrono-0_4")]
+    use chrono::offset::TimeZone;
     let _guard = LOCK.run_concurrently();
     #[cfg(not(any(feature = "chrono-0_4", feature = "time-0_3")))]
     let src = crate::DateTime::from_time(time::OffsetDateTime::from_unix_timestamp(1_286_705_410).unwrap());
     #[cfg(feature = "time-0_3")]
     let src = time::OffsetDateTime::from_unix_timestamp(1_286_705_410).unwrap();
     #[cfg(feature = "chrono-0_4")]
-    let src = Utc.timestamp(1_286_705_410, 0);
+    let src = chrono::Utc.timestamp(1_286_705_410, 0);
     let dst = vec![
         18, 0, 0, 0, 9, 107, 101, 121, 0, 208, 111, 158, 149, 43, 1, 0, 0, 0,
     ];

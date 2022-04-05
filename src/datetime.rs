@@ -213,7 +213,7 @@ impl crate::DateTime {
     /// ```
     /// let bson_dt = bson::DateTime::now();
     /// let time_dt = bson_dt.to_time();
-    /// assert_eq!(bson_dt.timestamp_millis() / 1000, time_dt.timestamp());
+    /// assert_eq!(bson_dt.timestamp_millis() / 1000, time_dt.unix_timestamp());
     ///
     /// let big = bson::DateTime::from_millis(i64::MAX);
     /// let time_big = big.to_time();
