@@ -371,6 +371,9 @@ impl From<Bson> for Value {
     }
 }
 
+// 9999-12-31 23:59:59.999
+const MAX_RFC3339_TIMESTAMP: i64 = 253402300799999;
+
 impl Bson {
     /// Converts the Bson value into its [relaxed extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
     ///
@@ -437,7 +440,9 @@ impl Bson {
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
-            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_time().year() <= 99999 => {
+            Bson::DateTime(v)
+                if v.timestamp_millis() >= 0 && v.timestamp_millis() <= MAX_RFC3339_TIMESTAMP =>
+            {
                 json!({
                     "$date": v.to_rfc3339_string(),
                 })
@@ -600,7 +605,7 @@ impl Bson {
                 "$date": v.timestamp_millis(),
             },
             Bson::DateTime(v)
-                if v.timestamp_millis() >= 0 && v.timestamp_millis() <= 253402300799999 =>
+                if v.timestamp_millis() >= 0 && v.timestamp_millis() <= MAX_RFC3339_TIMESTAMP =>
             {
                 doc! {
                     "$date": v.to_rfc3339_string(),
