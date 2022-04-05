@@ -68,7 +68,9 @@ fn standard_format() {
         "date": crate::DateTime::from_time(date),
     };
 
-    let date_trunc = date.replace_microsecond(date.microsecond() - (date.microsecond() % 1000)).unwrap();
+    let date_trunc = date
+        .replace_microsecond(date.microsecond() - (date.microsecond() % 1000))
+        .unwrap();
     let expected = format!(
         "{{ \"float\": 2.4, \"string\": \"hello\", \"array\": [\"testing\", 1, true, [1, 2]], \
          \"doc\": {{ \"fish\": \"in\", \"a\": \"barrel\", \"!\": 1 }}, \"bool\": true, \"null\": \

@@ -278,7 +278,8 @@ fn from_external_datetime() {
     }
     #[cfg(feature = "chrono-0_4")]
     {
-        let no_subsec_millis: chrono::DateTime<chrono::Utc> = "2014-11-28T12:00:09Z".parse().unwrap();
+        let no_subsec_millis: chrono::DateTime<chrono::Utc> =
+            "2014-11-28T12:00:09Z".parse().unwrap();
         let dt = DateTime::from(no_subsec_millis);
         assert_millisecond_precision(dt);
         assert_subsec_millis(dt, 0);
@@ -293,7 +294,8 @@ fn from_external_datetime() {
         "2014-11-28T12:00:09.123456Z",
         "2014-11-28T12:00:09.123456789Z",
     ] {
-        let time_dt = time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339).unwrap();
+        let time_dt =
+            time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339).unwrap();
         let dt = DateTime::from_time(time_dt);
         assert_millisecond_precision(dt);
         assert_subsec_millis(dt, 123);
@@ -322,8 +324,11 @@ fn from_external_datetime() {
         let max = time::PrimitiveDateTime::MAX.assume_utc();
         let bdt = DateTime::from(max);
         assert_eq!(
-            bdt.to_time().unix_timestamp_nanos() / 1_000_000,  // truncate to millis
-            time::PrimitiveDateTime::MAX.assume_utc().unix_timestamp_nanos() / 1_000_000
+            bdt.to_time().unix_timestamp_nanos() / 1_000_000, // truncate to millis
+            time::PrimitiveDateTime::MAX
+                .assume_utc()
+                .unix_timestamp_nanos()
+                / 1_000_000
         );
 
         let min = time::PrimitiveDateTime::MIN.assume_utc();

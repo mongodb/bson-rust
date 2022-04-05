@@ -1,18 +1,25 @@
 use std::{
+    convert::TryInto,
     error,
     fmt::{self, Display},
     result,
-    time::{Duration, SystemTime}, convert::TryInto,
+    time::{Duration, SystemTime},
 };
 
 use time::format_description::well_known::Rfc3339;
 
-#[cfg(all(feature = "serde_with", any(feature = "chrono-0_4", feature = "time-0_3")))]
-use serde::{Deserialize, Deserializer, Serialize};
-#[cfg(all(feature = "serde_with", any(feature = "chrono-0_4", feature = "time-0_3")))]
-use serde_with::{DeserializeAs, SerializeAs};
 #[cfg(feature = "chrono-0_4")]
 use chrono::{LocalResult, TimeZone, Utc};
+#[cfg(all(
+    feature = "serde_with",
+    any(feature = "chrono-0_4", feature = "time-0_3")
+))]
+use serde::{Deserialize, Deserializer, Serialize};
+#[cfg(all(
+    feature = "serde_with",
+    any(feature = "chrono-0_4", feature = "time-0_3")
+))]
+use serde_with::{DeserializeAs, SerializeAs};
 
 /// Struct representing a BSON datetime.
 /// Note: BSON datetimes have millisecond precision.
@@ -157,10 +164,12 @@ impl crate::DateTime {
         let millis = dt.unix_timestamp_nanos() / 1_000_000;
         match millis.try_into() {
             Ok(ts) => Self::from_millis(ts),
-            _ => if millis > 0 {
-                Self::MAX
-            } else {
-                Self::MIN
+            _ => {
+                if millis > 0 {
+                    Self::MAX
+                } else {
+                    Self::MIN
+                }
             }
         }
     }
@@ -171,8 +180,8 @@ impl crate::DateTime {
         Self::from_time_private(dt)
     }
 
-    /// Convert the given `time::OffsetDateTime` into a `bson::DateTime`, truncating it to millisecond
-    /// precision.
+    /// Convert the given `time::OffsetDateTime` into a `bson::DateTime`, truncating it to
+    /// millisecond precision.
     ///
     /// If the provided time is too far in the future or too far in the past to be represented
     /// by a BSON datetime, either [`DateTime::MAX`] or [`DateTime::MIN`] will be
@@ -185,13 +194,12 @@ impl crate::DateTime {
     fn to_time_private(self) -> time::OffsetDateTime {
         match self.to_time_opt() {
             Some(dt) => dt,
-            None => {
-                if self.0 < 0 {
-                    time::PrimitiveDateTime::MIN
-                } else {
-                    time::PrimitiveDateTime::MAX
-                }.assume_utc()
+            None => if self.0 < 0 {
+                time::PrimitiveDateTime::MIN
+            } else {
+                time::PrimitiveDateTime::MAX
             }
+            .assume_utc(),
         }
     }
 
@@ -207,8 +215,9 @@ impl crate::DateTime {
 
     /// Convert this [`DateTime`] to a [`time::OffsetDateTime`].
     ///
-    /// Note: Not every BSON datetime can be represented as a [`time::OffsetDateTime`]. For such dates,
-    /// [`time::PrimitiveDateTime::MIN`] or [`time::PrimitiveDateTime::MAX`] will be returned, whichever is closer.
+    /// Note: Not every BSON datetime can be represented as a [`time::OffsetDateTime`]. For such
+    /// dates, [`time::PrimitiveDateTime::MIN`] or [`time::PrimitiveDateTime::MAX`] will be
+    /// returned, whichever is closer.
     ///
     /// ```
     /// let bson_dt = bson::DateTime::now();
@@ -279,10 +288,11 @@ impl crate::DateTime {
     /// Convert the given RFC 3339 formatted string to a [`DateTime`], truncating it to millisecond
     /// precision.
     pub fn parse_rfc3339_str(s: impl AsRef<str>) -> Result<Self> {
-        let odt = time::OffsetDateTime::parse(s.as_ref(), &Rfc3339)
-            .map_err(|e| Error::InvalidTimestamp {
+        let odt = time::OffsetDateTime::parse(s.as_ref(), &Rfc3339).map_err(|e| {
+            Error::InvalidTimestamp {
                 message: e.to_string(),
-            })?;
+            }
+        })?;
         Ok(Self::from_time(odt))
     }
 }

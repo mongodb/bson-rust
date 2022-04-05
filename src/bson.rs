@@ -599,7 +599,9 @@ impl Bson {
             Bson::DateTime(v) if rawbson => doc! {
                 "$date": v.timestamp_millis(),
             },
-            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.timestamp_millis() <= 253402300799999 => {
+            Bson::DateTime(v)
+                if v.timestamp_millis() >= 0 && v.timestamp_millis() <= 253402300799999 =>
+            {
                 doc! {
                     "$date": v.to_rfc3339_string(),
                 }

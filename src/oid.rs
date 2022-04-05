@@ -310,30 +310,18 @@ mod test {
     fn test_timestamp() {
         let id = super::ObjectId::parse_str("000000000000000000000000").unwrap();
         // "Jan 1st, 1970 00:00:00 UTC"
-        assert_eq!(
-            datetime!(1970-01-01 0:00 UTC),
-            id.timestamp().to_time()
-        );
+        assert_eq!(datetime!(1970-01-01 0:00 UTC), id.timestamp().to_time());
 
         let id = super::ObjectId::parse_str("7FFFFFFF0000000000000000").unwrap();
         // "Jan 19th, 2038 03:14:07 UTC"
-        assert_eq!(
-            datetime!(2038-01-19 3:14:07 UTC),
-            id.timestamp().to_time()
-        );
+        assert_eq!(datetime!(2038-01-19 3:14:07 UTC), id.timestamp().to_time());
 
         let id = super::ObjectId::parse_str("800000000000000000000000").unwrap();
         // "Jan 19th, 2038 03:14:08 UTC"
-        assert_eq!(
-            datetime!(2038-01-19 3:14:08 UTC),
-            id.timestamp().to_time()
-        );
+        assert_eq!(datetime!(2038-01-19 3:14:08 UTC), id.timestamp().to_time());
 
         let id = super::ObjectId::parse_str("FFFFFFFF0000000000000000").unwrap();
         // "Feb 7th, 2106 06:28:15 UTC"
-        assert_eq!(
-            datetime!(2106-02-07 6:28:15 UTC),
-            id.timestamp().to_time()
-        );
+        assert_eq!(datetime!(2106-02-07 6:28:15 UTC), id.timestamp().to_time());
     }
 }

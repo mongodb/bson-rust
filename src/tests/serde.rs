@@ -726,7 +726,7 @@ fn test_unsigned_helpers() {
 
 #[test]
 fn test_datetime_helpers() {
-    use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+    use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
     let _guard = LOCK.run_concurrently();
 
