@@ -255,13 +255,12 @@ impl DateTime {
                 Ok(crate::DateTime::from_millis(date))
             }
             DateTimeBody::Relaxed(date) => {
-                let datetime = crate::DateTime::parse_rfc3339_str(date.as_str())
-                    .map_err(|_| {
-                        extjson::de::Error::invalid_value(
-                            Unexpected::Str(date.as_str()),
-                            &"rfc3339 formatted utc datetime",
-                        )
-                    })?;
+                let datetime = crate::DateTime::parse_rfc3339_str(date.as_str()).map_err(|_| {
+                    extjson::de::Error::invalid_value(
+                        Unexpected::Str(date.as_str()),
+                        &"rfc3339 formatted utc datetime",
+                    )
+                })?;
                 Ok(datetime)
             }
         }
