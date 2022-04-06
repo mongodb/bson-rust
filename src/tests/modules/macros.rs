@@ -68,9 +68,9 @@ fn standard_format() {
         "date": crate::DateTime::from_time(date),
     };
 
-    let date_trunc = date
-        .replace_microsecond(date.microsecond() - (date.microsecond() % 1000))
-        .unwrap();
+    let ts_nanos = date.unix_timestamp_nanos();
+    let ts_millis = ts_nanos - (ts_nanos % 1_000_000);
+    let date_trunc = time::OffsetDateTime::from_unix_timestamp_nanos(ts_millis).unwrap();
     let expected = format!(
         "{{ \"float\": 2.4, \"string\": \"hello\", \"array\": [\"testing\", 1, true, [1, 2]], \
          \"doc\": {{ \"fish\": \"in\", \"a\": \"barrel\", \"!\": 1 }}, \"bool\": true, \"null\": \

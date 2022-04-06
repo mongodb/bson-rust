@@ -194,10 +194,12 @@ impl crate::DateTime {
     fn to_time_private(self) -> time::OffsetDateTime {
         match self.to_time_opt() {
             Some(dt) => dt,
+            // TODO RUST-1256 use time::PrimitiveDateTime::{MIN, MAX} here.
             None => if self.0 < 0 {
-                time::PrimitiveDateTime::MIN
+                time::PrimitiveDateTime::new(time::Date::MIN, time::Time::MIDNIGHT)
             } else {
-                time::PrimitiveDateTime::MAX
+                // unwrap safety: the constants here are within the representable range of `time::Time`.
+                time::PrimitiveDateTime::new(time::Date::MAX, time::Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap())
             }
             .assume_utc(),
         }
@@ -216,7 +218,7 @@ impl crate::DateTime {
     /// Convert this [`DateTime`] to a [`time::OffsetDateTime`].
     ///
     /// Note: Not every BSON datetime can be represented as a [`time::OffsetDateTime`]. For such
-    /// dates, [`time::PrimitiveDateTime::MIN`] or [`time::PrimitiveDateTime::MAX`] will be
+    /// dates, the minimum or maximum representable `time::OffsetDateTime` will be
     /// returned, whichever is closer.
     ///
     /// ```
@@ -224,9 +226,9 @@ impl crate::DateTime {
     /// let time_dt = bson_dt.to_time();
     /// assert_eq!(bson_dt.timestamp_millis() / 1000, time_dt.unix_timestamp());
     ///
-    /// let big = bson::DateTime::from_millis(i64::MAX);
+    /// let big = bson::DateTime::from_millis(i64::MIN);
     /// let time_big = big.to_time();
-    /// assert_eq!(time_big, time::PrimitiveDateTime::MAX.assume_utc())
+    /// assert_eq!(time_big, time::PrimitiveDateTime::new(time::Date::MIN, time::Time::MIDNIGHT).assume_utc())
     /// ```
     #[cfg(feature = "time-0_3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
