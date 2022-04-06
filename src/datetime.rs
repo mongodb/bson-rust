@@ -198,8 +198,12 @@ impl crate::DateTime {
             None => if self.0 < 0 {
                 time::PrimitiveDateTime::new(time::Date::MIN, time::Time::MIDNIGHT)
             } else {
-                // unwrap safety: the constants here are within the representable range of `time::Time`.
-                time::PrimitiveDateTime::new(time::Date::MAX, time::Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap())
+                // unwrap safety: the constants here are within the representable range of
+                // `time::Time`.
+                time::PrimitiveDateTime::new(
+                    time::Date::MAX,
+                    time::Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap(),
+                )
             }
             .assume_utc(),
         }

@@ -32,8 +32,9 @@ pub use crate::document::Document;
 use crate::{
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
+    DateTime,
     Decimal128,
-    RawBinaryRef, DateTime,
+    RawBinaryRef,
 };
 
 /// Possible BSON value types.
@@ -437,8 +438,7 @@ impl Bson {
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
-            Bson::DateTime(v) if dt_use_rfc3339(&v) =>
-            {
+            Bson::DateTime(v) if dt_use_rfc3339(&v) => {
                 json!({
                     "$date": v.to_rfc3339_string(),
                 })
@@ -600,8 +600,7 @@ impl Bson {
             Bson::DateTime(v) if rawbson => doc! {
                 "$date": v.timestamp_millis(),
             },
-            Bson::DateTime(v) if dt_use_rfc3339(&v) =>
-            {
+            Bson::DateTime(v) if dt_use_rfc3339(&v) => {
                 doc! {
                     "$date": v.to_rfc3339_string(),
                 }

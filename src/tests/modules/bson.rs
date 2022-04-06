@@ -322,13 +322,15 @@ fn from_external_datetime() {
     #[cfg(feature = "time-0_3")]
     {
         // TODO RUST-1256 use time::PrimitiveDateTime::{MIN, MAX} here.
-        let max = time::PrimitiveDateTime::new(time::Date::MAX, time::Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap()).assume_utc();
+        let max = time::PrimitiveDateTime::new(
+            time::Date::MAX,
+            time::Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap(),
+        )
+        .assume_utc();
         let bdt = DateTime::from(max);
         assert_eq!(
             bdt.to_time().unix_timestamp_nanos() / 1_000_000, // truncate to millis
-            max
-                .unix_timestamp_nanos()
-                / 1_000_000
+            max.unix_timestamp_nanos() / 1_000_000
         );
 
         let min = time::PrimitiveDateTime::new(time::Date::MIN, time::Time::MIDNIGHT).assume_utc();
