@@ -4,7 +4,7 @@ set -o errexit
 
 . ~/.cargo/env
 RUST_BACKTRACE=1 cargo test
-RUST_BACKTRACE=1 cargo test --features chrono-0_4,uuid-0_8,time-0_3,serde_with
+RUST_BACKTRACE=1 cargo test --all-features
 
 cd serde-tests
 RUST_BACKTRACE=1 cargo test

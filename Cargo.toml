@@ -60,9 +60,7 @@ lazy_static = "1.4.0"
 uuid = { version = "0.8.1", features = ["serde", "v4"] }
 serde_bytes = "0.11.5"
 serde_with = { version = "1", optional = true }
-# TODO RUST-1256 Update time to latest and remove time-macros.
-time = { version = "=0.3.5", features = ["formatting", "parsing", "macros", "large-dates"] }
-time-macros = "=0.2.3"
+time = { version = "0.3.9", features = ["formatting", "parsing", "macros", "large-dates"] }
 
 [dev-dependencies]
 assert_matches = "1.2"
