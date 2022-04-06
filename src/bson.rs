@@ -32,7 +32,6 @@ pub use crate::document::Document;
 use crate::{
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
-    DateTime,
     Decimal128,
     RawBinaryRef,
 };
@@ -438,7 +437,7 @@ impl Bson {
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
-            Bson::DateTime(v) if dt_use_rfc3339(&v) => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_time().year() <= 99999 => {
                 json!({
                     "$date": v.to_rfc3339_string(),
                 })
@@ -600,7 +599,7 @@ impl Bson {
             Bson::DateTime(v) if rawbson => doc! {
                 "$date": v.timestamp_millis(),
             },
-            Bson::DateTime(v) if dt_use_rfc3339(&v) => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_time().year() <= 9999 => {
                 doc! {
                     "$date": v.to_rfc3339_string(),
                 }
@@ -1134,8 +1133,4 @@ impl Binary {
 pub struct DbPointer {
     pub(crate) namespace: String,
     pub(crate) id: oid::ObjectId,
-}
-
-fn dt_use_rfc3339(v: &DateTime) -> bool {
-    v.timestamp_millis() >= 0 && v.to_time_opt().map_or(false, |t| t.year() <= 9999)
 }
