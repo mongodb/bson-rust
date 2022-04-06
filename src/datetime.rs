@@ -203,7 +203,7 @@ impl crate::DateTime {
         }
     }
 
-    fn to_time_opt(self) -> Option<time::OffsetDateTime> {
+    pub(crate) fn to_time_opt(self) -> Option<time::OffsetDateTime> {
         time::OffsetDateTime::UNIX_EPOCH.checked_add(time::Duration::milliseconds(self.0))
     }
 

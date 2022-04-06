@@ -33,7 +33,7 @@ use crate::{
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
     Decimal128,
-    RawBinaryRef,
+    RawBinaryRef, DateTime,
 };
 
 /// Possible BSON value types.
@@ -371,9 +371,6 @@ impl From<Bson> for Value {
     }
 }
 
-// 9999-12-31 23:59:59.999
-const MAX_RFC3339_TIMESTAMP: i64 = 253402300799999;
-
 impl Bson {
     /// Converts the Bson value into its [relaxed extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
     ///
@@ -440,8 +437,7 @@ impl Bson {
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
-            Bson::DateTime(v)
-                if v.timestamp_millis() >= 0 && v.timestamp_millis() <= MAX_RFC3339_TIMESTAMP =>
+            Bson::DateTime(v) if dt_use_rfc3339(&v) =>
             {
                 json!({
                     "$date": v.to_rfc3339_string(),
@@ -604,8 +600,7 @@ impl Bson {
             Bson::DateTime(v) if rawbson => doc! {
                 "$date": v.timestamp_millis(),
             },
-            Bson::DateTime(v)
-                if v.timestamp_millis() >= 0 && v.timestamp_millis() <= MAX_RFC3339_TIMESTAMP =>
+            Bson::DateTime(v) if dt_use_rfc3339(&v) =>
             {
                 doc! {
                     "$date": v.to_rfc3339_string(),
@@ -1140,4 +1135,8 @@ impl Binary {
 pub struct DbPointer {
     pub(crate) namespace: String,
     pub(crate) id: oid::ObjectId,
+}
+
+fn dt_use_rfc3339(v: &DateTime) -> bool {
+    v.timestamp_millis() >= 0 && v.to_time_opt().map_or(false, |t| t.year() <= 9999)
 }
