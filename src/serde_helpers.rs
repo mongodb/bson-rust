@@ -29,9 +29,9 @@ pub use rfc3339_string_as_bson_datetime::{
 };
 #[cfg(feature = "time-0_3")]
 #[doc(inline)]
-pub use time_offsetdatetime_as_bson_datetime::{
-    deserialize as deserialize_time_offsetdatetime_from_bson_datetime,
-    serialize as serialize_time_offsetdatetime_as_bson_datetime,
+pub use time_0_3_offsetdatetime_as_bson_datetime::{
+    deserialize as deserialize_time_0_3_offsetdatetime_from_bson_datetime,
+    serialize as serialize_time_0_3_offsetdatetime_as_bson_datetime,
 };
 #[doc(inline)]
 pub use timestamp_as_u32::{
@@ -195,20 +195,20 @@ pub mod u64_as_f64 {
 /// deserialize a [`time::OffsetDateTime`] from a [`crate::DateTime`].
 ///
 /// ```rust
-/// # #[cfg(feature = "chrono-0_4")]
+/// # #[cfg(feature = "time-0_3")]
 /// # {
 /// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::time_offsetdatetime_as_bson_datetime;
+/// # use bson::serde_helpers::time_0_3_offsetdatetime_as_bson_datetime;
 /// #[derive(Serialize, Deserialize)]
 /// struct Event {
-///     #[serde(with = "time_offsetdatetime_as_bson_datetime")]
+///     #[serde(with = "time_0_3_offsetdatetime_as_bson_datetime")]
 ///     pub date: time::OffsetDateTime,
 /// }
 /// # }
 /// ```
 #[cfg(feature = "time-0_3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
-pub mod time_offsetdatetime_as_bson_datetime {
+pub mod time_0_3_offsetdatetime_as_bson_datetime {
     use crate::DateTime;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;

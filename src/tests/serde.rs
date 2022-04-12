@@ -752,7 +752,7 @@ fn test_datetime_helpers() {
 
         #[derive(Deserialize, Serialize)]
         struct B {
-            #[serde(with = "serde_helpers::time_offsetdatetime_as_bson_datetime")]
+            #[serde(with = "serde_helpers::time_0_3_offsetdatetime_as_bson_datetime")]
             pub date: time::OffsetDateTime,
         }
 
