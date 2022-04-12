@@ -276,13 +276,20 @@ impl crate::DateTime {
         self.0
     }
 
-    /// Convert this [`DateTime`] to an RFC 3339 formatted string.
+    #[deprecated(since = "2.3.0", note = "Use try_to_rfc3339_string instead.")]
+    /// Convert this [`DateTime`] to an RFC 3339 formatted string.  Panics if it could not be
+    /// represented in that format.
     pub fn to_rfc3339_string(self) -> String {
-        use std::result::Result;
-        match self.to_time().format(&Rfc3339) {
-            Result::Ok(s) => s,
-            Result::Err(e) => e.to_string(),
-        }
+        self.try_to_rfc3339_string().unwrap()
+    }
+
+    /// Convert this [`DateTime`] to an RFC 3339 formatted string.
+    pub fn try_to_rfc3339_string(self) -> Result<String> {
+        self.to_time()
+            .format(&Rfc3339)
+            .map_err(|e| Error::CannotFormat {
+                message: e.to_string(),
+            })
     }
 
     /// Convert the given RFC 3339 formatted string to a [`DateTime`], truncating it to millisecond
@@ -422,6 +429,9 @@ pub enum Error {
     /// Error returned when an invalid datetime format is provided to a conversion method.
     #[non_exhaustive]
     InvalidTimestamp { message: String },
+    /// Error returned when a `DateTime` cannot be represented in a particular format.
+    #[non_exhaustive]
+    CannotFormat { message: String },
 }
 
 /// Alias for `Result<T, DateTime::Error>`
@@ -430,7 +440,7 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::InvalidTimestamp { message } => {
+            Error::InvalidTimestamp { message } | Error::CannotFormat { message } => {
                 write!(fmt, "{}", message)
             }
         }

@@ -238,7 +238,10 @@ fn datetime() {
         .expect("no key datetime")
         .as_datetime()
         .expect("result was not datetime");
-    assert_eq!(datetime.to_rfc3339_string(), "2000-10-31T12:30:45Z");
+    assert_eq!(
+        datetime.try_to_rfc3339_string().unwrap(),
+        "2000-10-31T12:30:45Z"
+    );
 }
 
 #[test]
