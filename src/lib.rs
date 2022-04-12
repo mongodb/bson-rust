@@ -51,7 +51,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! bson = "2.2.0-beta"
+//! bson = "2.2.0"
 //! ```
 //!
 //! Note that if you are using `bson` through the `mongodb` crate, you do not need to specify it in
@@ -264,7 +264,7 @@
 //! it will only happen in a minor or major version release.
 
 #![allow(clippy::cognitive_complexity)]
-#![doc(html_root_url = "https://docs.rs/bson/2.2.0-beta.1")]
+#![doc(html_root_url = "https://docs.rs/bson/2.2.0")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[doc(inline)]
