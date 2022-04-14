@@ -176,7 +176,7 @@ impl crate::DateTime {
 
     #[cfg(not(feature = "time-0_3"))]
     #[allow(unused)]
-    pub(crate) fn from_time(dt: time::OffsetDateTime) -> Self {
+    pub(crate) fn from_time_0_3(dt: time::OffsetDateTime) -> Self {
         Self::from_time_private(dt)
     }
 
@@ -187,7 +187,7 @@ impl crate::DateTime {
     /// by a BSON datetime, either [`DateTime::MAX`] or [`DateTime::MIN`] will be
     /// returned, whichever is closer.
     #[cfg(feature = "time-0_3")]
-    pub fn from_time(dt: time::OffsetDateTime) -> Self {
+    pub fn from_time_0_3(dt: time::OffsetDateTime) -> Self {
         Self::from_time_private(dt)
     }
 
@@ -209,7 +209,7 @@ impl crate::DateTime {
 
     #[cfg(not(feature = "time-0_3"))]
     #[allow(unused)]
-    pub(crate) fn to_time(self) -> time::OffsetDateTime {
+    pub(crate) fn to_time_0_3(self) -> time::OffsetDateTime {
         self.to_time_private()
     }
 
@@ -221,16 +221,16 @@ impl crate::DateTime {
     ///
     /// ```
     /// let bson_dt = bson::DateTime::now();
-    /// let time_dt = bson_dt.to_time();
+    /// let time_dt = bson_dt.to_time_0_3();
     /// assert_eq!(bson_dt.timestamp_millis() / 1000, time_dt.unix_timestamp());
     ///
     /// let big = bson::DateTime::from_millis(i64::MIN);
-    /// let time_big = big.to_time();
+    /// let time_big = big.to_time_0_3();
     /// assert_eq!(time_big, time::PrimitiveDateTime::MIN.assume_utc())
     /// ```
     #[cfg(feature = "time-0_3")]
     #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
-    pub fn to_time(self) -> time::OffsetDateTime {
+    pub fn to_time_0_3(self) -> time::OffsetDateTime {
         self.to_time_private()
     }
 
@@ -285,7 +285,7 @@ impl crate::DateTime {
 
     /// Convert this [`DateTime`] to an RFC 3339 formatted string.
     pub fn try_to_rfc3339_string(self) -> Result<String> {
-        self.to_time()
+        self.to_time_0_3()
             .format(&Rfc3339)
             .map_err(|e| Error::CannotFormat {
                 message: e.to_string(),
@@ -300,7 +300,7 @@ impl crate::DateTime {
                 message: e.to_string(),
             }
         })?;
-        Ok(Self::from_time(odt))
+        Ok(Self::from_time_0_3(odt))
     }
 }
 
@@ -383,7 +383,7 @@ impl SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
 #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
 impl From<crate::DateTime> for time::OffsetDateTime {
     fn from(bson_dt: DateTime) -> Self {
-        bson_dt.to_time()
+        bson_dt.to_time_0_3()
     }
 }
 
@@ -391,7 +391,7 @@ impl From<crate::DateTime> for time::OffsetDateTime {
 #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
 impl From<time::OffsetDateTime> for crate::DateTime {
     fn from(x: time::OffsetDateTime) -> Self {
-        Self::from_time(x)
+        Self::from_time_0_3(x)
     }
 }
 
@@ -403,7 +403,7 @@ impl<'de> DeserializeAs<'de, time::OffsetDateTime> for crate::DateTime {
         D: Deserializer<'de>,
     {
         let dt = DateTime::deserialize(deserializer)?;
-        Ok(dt.to_time())
+        Ok(dt.to_time_0_3())
     }
 }
 
@@ -417,7 +417,7 @@ impl SerializeAs<time::OffsetDateTime> for crate::DateTime {
     where
         S: serde::Serializer,
     {
-        let dt = DateTime::from_time(*source);
+        let dt = DateTime::from_time_0_3(*source);
         dt.serialize(serializer)
     }
 }

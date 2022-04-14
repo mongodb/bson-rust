@@ -437,7 +437,7 @@ impl Bson {
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
-            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_time().year() <= 9999 => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_time_0_3().year() <= 9999 => {
                 json!({
                     // Unwrap safety: timestamps in the guarded range can always be formatted.
                     "$date": v.try_to_rfc3339_string().unwrap(),
@@ -600,7 +600,7 @@ impl Bson {
             Bson::DateTime(v) if rawbson => doc! {
                 "$date": v.timestamp_millis(),
             },
-            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_time().year() <= 9999 => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_time_0_3().year() <= 9999 => {
                 doc! {
                     // Unwrap safety: timestamps in the guarded range can always be formatted.
                     "$date": v.try_to_rfc3339_string().unwrap(),

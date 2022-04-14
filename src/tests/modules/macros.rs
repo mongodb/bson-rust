@@ -42,7 +42,7 @@ fn standard_format() {
         "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "encrypted": Binary { subtype: BinarySubtype::Encrypted, bytes: "secret".to_owned().into_bytes() },
         "_id": id,
-        "date": Bson::DateTime(crate::DateTime::from_time(date)),
+        "date": Bson::DateTime(crate::DateTime::from_time_0_3(date)),
     };
 
     let rawdoc = rawdoc! {
@@ -65,7 +65,7 @@ fn standard_format() {
         "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "encrypted": Binary { subtype: BinarySubtype::Encrypted, bytes: "secret".to_owned().into_bytes() },
         "_id": id,
-        "date": crate::DateTime::from_time(date),
+        "date": crate::DateTime::from_time_0_3(date),
     };
 
     let ts_nanos = date.unix_timestamp_nanos();

@@ -220,7 +220,7 @@ pub mod time_0_3_offsetdatetime_as_bson_datetime {
         D: Deserializer<'de>,
     {
         let datetime = DateTime::deserialize(deserializer)?;
-        Ok(datetime.to_time())
+        Ok(datetime.to_time_0_3())
     }
 
     /// Serializes a [`time::OffsetDateTime`] as a [`crate::DateTime`].
@@ -229,7 +229,7 @@ pub mod time_0_3_offsetdatetime_as_bson_datetime {
         val: &time::OffsetDateTime,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let datetime = DateTime::from_time(val.to_owned());
+        let datetime = DateTime::from_time_0_3(val.to_owned());
         datetime.serialize(serializer)
     }
 }

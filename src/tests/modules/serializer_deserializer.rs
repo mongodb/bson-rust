@@ -315,7 +315,7 @@ fn test_serialize_utc_date_time() {
     use chrono::offset::TimeZone;
     let _guard = LOCK.run_concurrently();
     #[cfg(not(any(feature = "chrono-0_4", feature = "time-0_3")))]
-    let src = crate::DateTime::from_time(
+    let src = crate::DateTime::from_time_0_3(
         time::OffsetDateTime::from_unix_timestamp(1_286_705_410).unwrap(),
     );
     #[cfg(feature = "time-0_3")]
@@ -373,7 +373,7 @@ fn test_deserialize_utc_date_time_overflows() {
 
     let deserialized = Document::from_reader(&mut Cursor::new(raw)).unwrap();
 
-    let expected = doc! { "A": crate::DateTime::from_time(time::OffsetDateTime::from_unix_timestamp(1_530_492_218).unwrap() + time::Duration::nanoseconds(999 * 1_000_000))};
+    let expected = doc! { "A": crate::DateTime::from_time_0_3(time::OffsetDateTime::from_unix_timestamp(1_530_492_218).unwrap() + time::Duration::nanoseconds(999 * 1_000_000))};
     assert_eq!(deserialized, expected);
 }
 

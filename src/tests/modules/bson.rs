@@ -237,14 +237,14 @@ fn from_external_datetime() {
     let _guard = LOCK.run_concurrently();
 
     fn assert_millisecond_precision(dt: DateTime) {
-        assert!(dt.to_time().microsecond() % 1000 == 0);
+        assert!(dt.to_time_0_3().microsecond() % 1000 == 0);
     }
     fn assert_subsec_millis(dt: DateTime, millis: u32) {
-        assert_eq!(dt.to_time().millisecond() as u32, millis)
+        assert_eq!(dt.to_time_0_3().millisecond() as u32, millis)
     }
 
     let now = time::OffsetDateTime::now_utc();
-    let dt = DateTime::from_time(now);
+    let dt = DateTime::from_time_0_3(now);
     assert_millisecond_precision(dt);
 
     #[cfg(feature = "time-0_3")]
@@ -266,7 +266,7 @@ fn from_external_datetime() {
     }
 
     let no_subsec_millis = datetime!(2014-11-28 12:00:09 UTC);
-    let dt = DateTime::from_time(no_subsec_millis);
+    let dt = DateTime::from_time_0_3(no_subsec_millis);
     assert_millisecond_precision(dt);
     assert_subsec_millis(dt, 0);
 
@@ -296,7 +296,7 @@ fn from_external_datetime() {
     ] {
         let time_dt =
             time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339).unwrap();
-        let dt = DateTime::from_time(time_dt);
+        let dt = DateTime::from_time_0_3(time_dt);
         assert_millisecond_precision(dt);
         assert_subsec_millis(dt, 123);
 
@@ -324,22 +324,22 @@ fn from_external_datetime() {
         let max = time::PrimitiveDateTime::MAX.assume_utc();
         let bdt = DateTime::from(max);
         assert_eq!(
-            bdt.to_time().unix_timestamp_nanos() / 1_000_000, // truncate to millis
+            bdt.to_time_0_3().unix_timestamp_nanos() / 1_000_000, // truncate to millis
             max.unix_timestamp_nanos() / 1_000_000
         );
 
         let min = time::PrimitiveDateTime::MIN.assume_utc();
         let bdt = DateTime::from(min);
         assert_eq!(
-            bdt.to_time().unix_timestamp_nanos() / 1_000_000,
+            bdt.to_time_0_3().unix_timestamp_nanos() / 1_000_000,
             min.unix_timestamp_nanos() / 1_000_000
         );
 
         let bdt = DateTime::MAX;
-        assert_eq!(bdt.to_time(), max);
+        assert_eq!(bdt.to_time_0_3(), max);
 
         let bdt = DateTime::MIN;
-        assert_eq!(bdt.to_time(), min);
+        assert_eq!(bdt.to_time_0_3(), min);
     }
     #[cfg(feature = "chrono-0_4")]
     {

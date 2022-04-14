@@ -739,12 +739,12 @@ fn test_datetime_helpers() {
     let iso = "1996-12-20T00:39:57Z";
     let date = OffsetDateTime::parse(iso, &Rfc3339).unwrap();
     let a = A {
-        date: crate::DateTime::from_time(date),
+        date: crate::DateTime::from_time_0_3(date),
     };
     let doc = to_document(&a).unwrap();
     assert_eq!(doc.get_str("date").unwrap(), iso);
     let a: A = from_document(doc).unwrap();
-    assert_eq!(a.date.to_time(), date);
+    assert_eq!(a.date.to_time_0_3(), date);
 
     #[cfg(feature = "time-0_3")]
     {
@@ -769,7 +769,7 @@ fn test_datetime_helpers() {
         let expected = datetime!(2020-06-09 10:58:07.095 UTC);
         assert_eq!(b.date, expected);
         let doc = to_document(&b).unwrap();
-        assert_eq!(doc.get_datetime("date").unwrap().to_time(), expected);
+        assert_eq!(doc.get_datetime("date").unwrap().to_time_0_3(), expected);
         let b: B = from_document(doc).unwrap();
         assert_eq!(b.date, expected);
     }

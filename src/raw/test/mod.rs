@@ -230,7 +230,7 @@ fn datetime() {
 
     let rawdoc = rawdoc! {
         "boolean": true,
-        "datetime": DateTime::from_time(datetime!(2000-10-31 12:30:45 UTC)),
+        "datetime": DateTime::from_time_0_3(datetime!(2000-10-31 12:30:45 UTC)),
     };
     let datetime = rawdoc
         .get("datetime")
