@@ -9,7 +9,7 @@ use crate::{
     Document,
     Timestamp,
 };
-use chrono::Utc;
+use time::OffsetDateTime;
 
 #[test]
 fn ordered_insert() {
@@ -50,8 +50,8 @@ fn ordered_insert_shorthand() {
 #[test]
 fn test_getters() {
     let _guard = LOCK.run_concurrently();
-    let datetime = Utc::now();
-    let cloned_dt = crate::DateTime::from_chrono(datetime);
+    let datetime = OffsetDateTime::now_utc();
+    let cloned_dt = crate::DateTime::from_time_0_3(datetime);
     let binary = vec![0, 1, 2, 3, 4];
     let mut doc = doc! {
         "floating_point": 10.0,
@@ -125,7 +125,7 @@ fn test_getters() {
         doc.get_timestamp("timestamp")
     );
 
-    let dt = crate::DateTime::from_chrono(datetime);
+    let dt = crate::DateTime::from_time_0_3(datetime);
     assert_eq!(Some(&Bson::DateTime(dt)), doc.get("datetime"));
     assert_eq!(Ok(&dt), doc.get_datetime("datetime"));
 

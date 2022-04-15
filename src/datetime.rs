@@ -1,16 +1,25 @@
 use std::{
+    convert::TryInto,
     error,
     fmt::{self, Display},
     result,
     time::{Duration, SystemTime},
 };
 
-#[cfg(all(feature = "serde_with", feature = "chrono-0_4"))]
-use serde::{Deserialize, Deserializer, Serialize};
-#[cfg(all(feature = "serde_with", feature = "chrono-0_4"))]
-use serde_with::{DeserializeAs, SerializeAs};
+use time::format_description::well_known::Rfc3339;
 
+#[cfg(feature = "chrono-0_4")]
 use chrono::{LocalResult, TimeZone, Utc};
+#[cfg(all(
+    feature = "serde_with",
+    any(feature = "chrono-0_4", feature = "time-0_3")
+))]
+use serde::{Deserialize, Deserializer, Serialize};
+#[cfg(all(
+    feature = "serde_with",
+    any(feature = "chrono-0_4", feature = "time-0_3")
+))]
+use serde_with::{DeserializeAs, SerializeAs};
 
 /// Struct representing a BSON datetime.
 /// Note: BSON datetimes have millisecond precision.
@@ -114,36 +123,12 @@ impl crate::DateTime {
         Self::from_system_time(SystemTime::now())
     }
 
-    #[cfg(not(feature = "chrono-0_4"))]
-    pub(crate) fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
-        Self::from_millis(dt.timestamp_millis())
-    }
-
     /// Convert the given `chrono::DateTime` into a `bson::DateTime`, truncating it to millisecond
     /// precision.
     #[cfg(feature = "chrono-0_4")]
     #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
         Self::from_millis(dt.timestamp_millis())
-    }
-
-    fn to_chrono_private(self) -> chrono::DateTime<Utc> {
-        match Utc.timestamp_millis_opt(self.0) {
-            LocalResult::Single(dt) => dt,
-            _ => {
-                if self.0 < 0 {
-                    chrono::MIN_DATETIME
-                } else {
-                    chrono::MAX_DATETIME
-                }
-            }
-        }
-    }
-
-    #[cfg(not(feature = "chrono-0_4"))]
-    #[allow(unused)]
-    pub(crate) fn to_chrono(self) -> chrono::DateTime<Utc> {
-        self.to_chrono_private()
     }
 
     /// Convert this [`DateTime`] to a [`chrono::DateTime<Utc>`].
@@ -163,7 +148,90 @@ impl crate::DateTime {
     #[cfg(feature = "chrono-0_4")]
     #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn to_chrono(self) -> chrono::DateTime<Utc> {
-        self.to_chrono_private()
+        match Utc.timestamp_millis_opt(self.0) {
+            LocalResult::Single(dt) => dt,
+            _ => {
+                if self.0 < 0 {
+                    chrono::MIN_DATETIME
+                } else {
+                    chrono::MAX_DATETIME
+                }
+            }
+        }
+    }
+
+    fn from_time_private(dt: time::OffsetDateTime) -> Self {
+        let millis = dt.unix_timestamp_nanos() / 1_000_000;
+        match millis.try_into() {
+            Ok(ts) => Self::from_millis(ts),
+            _ => {
+                if millis > 0 {
+                    Self::MAX
+                } else {
+                    Self::MIN
+                }
+            }
+        }
+    }
+
+    #[cfg(not(feature = "time-0_3"))]
+    #[allow(unused)]
+    pub(crate) fn from_time_0_3(dt: time::OffsetDateTime) -> Self {
+        Self::from_time_private(dt)
+    }
+
+    /// Convert the given `time::OffsetDateTime` into a `bson::DateTime`, truncating it to
+    /// millisecond precision.
+    ///
+    /// If the provided time is too far in the future or too far in the past to be represented
+    /// by a BSON datetime, either [`DateTime::MAX`] or [`DateTime::MIN`] will be
+    /// returned, whichever is closer.
+    #[cfg(feature = "time-0_3")]
+    pub fn from_time_0_3(dt: time::OffsetDateTime) -> Self {
+        Self::from_time_private(dt)
+    }
+
+    fn to_time_private(self) -> time::OffsetDateTime {
+        match self.to_time_opt() {
+            Some(dt) => dt,
+            None => if self.0 < 0 {
+                time::PrimitiveDateTime::MIN
+            } else {
+                time::PrimitiveDateTime::MAX
+            }
+            .assume_utc(),
+        }
+    }
+
+    pub(crate) fn to_time_opt(self) -> Option<time::OffsetDateTime> {
+        time::OffsetDateTime::UNIX_EPOCH.checked_add(time::Duration::milliseconds(self.0))
+    }
+
+    #[cfg(not(feature = "time-0_3"))]
+    #[allow(unused)]
+    pub(crate) fn to_time_0_3(self) -> time::OffsetDateTime {
+        self.to_time_private()
+    }
+
+    /// Convert this [`DateTime`] to a [`time::OffsetDateTime`].
+    ///
+    /// Note: Not every BSON datetime can be represented as a [`time::OffsetDateTime`]. For such
+    /// dates, [`time::PrimitiveDateTime::MIN`] or [`time::PrimitiveDateTime::MAX`] will be
+    /// returned, whichever is closer.
+    ///
+    /// ```
+    /// let bson_dt = bson::DateTime::now();
+    /// let time_dt = bson_dt.to_time_0_3();
+    /// assert_eq!(bson_dt.timestamp_millis() / 1000, time_dt.unix_timestamp());
+    ///
+    /// let big = bson::DateTime::from_millis(i64::MIN);
+    /// let time_big = big.to_time_0_3();
+    /// assert_eq!(time_big, time::PrimitiveDateTime::MIN.assume_utc())
+    /// ```
+    #[cfg(feature = "time-0_3")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
+    pub fn to_time_0_3(self) -> time::OffsetDateTime {
+        self.to_time_private()
     }
 
     /// Convert the given [`std::time::SystemTime`] to a [`DateTime`].
@@ -208,28 +276,39 @@ impl crate::DateTime {
         self.0
     }
 
-    /// Convert this [`DateTime`] to an RFC 3339 formatted string.
+    #[deprecated(since = "2.3.0", note = "Use try_to_rfc3339_string instead.")]
+    /// Convert this [`DateTime`] to an RFC 3339 formatted string.  Panics if it could not be
+    /// represented in that format.
     pub fn to_rfc3339_string(self) -> String {
-        self.to_chrono()
-            .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true)
+        self.try_to_rfc3339_string().unwrap()
+    }
+
+    /// Convert this [`DateTime`] to an RFC 3339 formatted string.
+    pub fn try_to_rfc3339_string(self) -> Result<String> {
+        self.to_time_0_3()
+            .format(&Rfc3339)
+            .map_err(|e| Error::CannotFormat {
+                message: e.to_string(),
+            })
     }
 
     /// Convert the given RFC 3339 formatted string to a [`DateTime`], truncating it to millisecond
     /// precision.
     pub fn parse_rfc3339_str(s: impl AsRef<str>) -> Result<Self> {
-        let date = chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(s.as_ref())
-            .map_err(|e| Error::InvalidTimestamp {
+        let odt = time::OffsetDateTime::parse(s.as_ref(), &Rfc3339).map_err(|e| {
+            Error::InvalidTimestamp {
                 message: e.to_string(),
-            })?;
-        Ok(Self::from_chrono(date))
+            }
+        })?;
+        Ok(Self::from_time_0_3(odt))
     }
 }
 
 impl fmt::Debug for crate::DateTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut tup = f.debug_tuple("DateTime");
-        match Utc.timestamp_millis_opt(self.0) {
-            LocalResult::Single(ref dt) => tup.field(dt),
+        match self.to_time_opt() {
+            Some(dt) => tup.field(&dt),
             _ => tup.field(&self.0),
         };
         tup.finish()
@@ -238,8 +317,8 @@ impl fmt::Debug for crate::DateTime {
 
 impl Display for crate::DateTime {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match Utc.timestamp_millis_opt(self.0) {
-            LocalResult::Single(ref dt) => Display::fmt(dt, f),
+        match self.to_time_opt() {
+            Some(dt) => Display::fmt(&dt, f),
             _ => Display::fmt(&self.0, f),
         }
     }
@@ -300,6 +379,49 @@ impl SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
     }
 }
 
+#[cfg(feature = "time-0_3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
+impl From<crate::DateTime> for time::OffsetDateTime {
+    fn from(bson_dt: DateTime) -> Self {
+        bson_dt.to_time_0_3()
+    }
+}
+
+#[cfg(feature = "time-0_3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
+impl From<time::OffsetDateTime> for crate::DateTime {
+    fn from(x: time::OffsetDateTime) -> Self {
+        Self::from_time_0_3(x)
+    }
+}
+
+#[cfg(all(feature = "time-0_3", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "time-0_3", feature = "serde_with"))))]
+impl<'de> DeserializeAs<'de, time::OffsetDateTime> for crate::DateTime {
+    fn deserialize_as<D>(deserializer: D) -> std::result::Result<time::OffsetDateTime, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let dt = DateTime::deserialize(deserializer)?;
+        Ok(dt.to_time_0_3())
+    }
+}
+
+#[cfg(all(feature = "time-0_3", feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "time-0_3", feature = "chrono-0_4"))))]
+impl SerializeAs<time::OffsetDateTime> for crate::DateTime {
+    fn serialize_as<S>(
+        source: &time::OffsetDateTime,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let dt = DateTime::from_time_0_3(*source);
+        dt.serialize(serializer)
+    }
+}
+
 /// Errors that can occur during [`DateTime`] construction and generation.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
@@ -307,6 +429,9 @@ pub enum Error {
     /// Error returned when an invalid datetime format is provided to a conversion method.
     #[non_exhaustive]
     InvalidTimestamp { message: String },
+    /// Error returned when a `DateTime` cannot be represented in a particular format.
+    #[non_exhaustive]
+    CannotFormat { message: String },
 }
 
 /// Alias for `Result<T, DateTime::Error>`
@@ -315,7 +440,7 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::InvalidTimestamp { message } => {
+            Error::InvalidTimestamp { message } | Error::CannotFormat { message } => {
                 write!(fmt, "{}", message)
             }
         }

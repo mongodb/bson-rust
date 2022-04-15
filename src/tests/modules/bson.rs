@@ -231,22 +231,33 @@ fn timestamp_ordering() {
 }
 
 #[test]
-fn from_chrono_datetime() {
+fn from_external_datetime() {
+    use time::macros::datetime;
+
     let _guard = LOCK.run_concurrently();
 
     fn assert_millisecond_precision(dt: DateTime) {
-        assert!(dt.to_chrono().timestamp_subsec_micros() % 1000 == 0);
+        assert!(dt.to_time_0_3().microsecond() % 1000 == 0);
     }
     fn assert_subsec_millis(dt: DateTime, millis: u32) {
-        assert_eq!(dt.to_chrono().timestamp_subsec_millis(), millis)
+        assert_eq!(dt.to_time_0_3().millisecond() as u32, millis)
     }
 
-    let now = chrono::Utc::now();
-    let dt = DateTime::from_chrono(now);
+    let now = time::OffsetDateTime::now_utc();
+    let dt = DateTime::from_time_0_3(now);
     assert_millisecond_precision(dt);
 
+    #[cfg(feature = "time-0_3")]
+    {
+        let bson = Bson::from(now);
+        assert_millisecond_precision(bson.as_datetime().unwrap().to_owned());
+
+        let from_time = DateTime::from(now);
+        assert_millisecond_precision(from_time);
+    }
     #[cfg(feature = "chrono-0_4")]
     {
+        let now = chrono::Utc::now();
         let bson = Bson::from(now);
         assert_millisecond_precision(bson.as_datetime().unwrap().to_owned());
 
@@ -254,13 +265,21 @@ fn from_chrono_datetime() {
         assert_millisecond_precision(from_chrono);
     }
 
-    let no_subsec_millis: chrono::DateTime<chrono::Utc> = "2014-11-28T12:00:09Z".parse().unwrap();
-    let dt = DateTime::from_chrono(no_subsec_millis);
+    let no_subsec_millis = datetime!(2014-11-28 12:00:09 UTC);
+    let dt = DateTime::from_time_0_3(no_subsec_millis);
     assert_millisecond_precision(dt);
     assert_subsec_millis(dt, 0);
 
+    #[cfg(feature = "time-0_3")]
+    {
+        let bson = Bson::from(dt);
+        assert_millisecond_precision(bson.as_datetime().unwrap().to_owned());
+        assert_subsec_millis(bson.as_datetime().unwrap().to_owned(), 0);
+    }
     #[cfg(feature = "chrono-0_4")]
     {
+        let no_subsec_millis: chrono::DateTime<chrono::Utc> =
+            "2014-11-28T12:00:09Z".parse().unwrap();
         let dt = DateTime::from(no_subsec_millis);
         assert_millisecond_precision(dt);
         assert_subsec_millis(dt, 0);
@@ -275,13 +294,21 @@ fn from_chrono_datetime() {
         "2014-11-28T12:00:09.123456Z",
         "2014-11-28T12:00:09.123456789Z",
     ] {
-        let chrono_dt: chrono::DateTime<chrono::Utc> = s.parse().unwrap();
-        let dt = DateTime::from_chrono(chrono_dt);
+        let time_dt =
+            time::OffsetDateTime::parse(s, &time::format_description::well_known::Rfc3339).unwrap();
+        let dt = DateTime::from_time_0_3(time_dt);
         assert_millisecond_precision(dt);
         assert_subsec_millis(dt, 123);
 
+        #[cfg(feature = "time-0_3")]
+        {
+            let bson = Bson::from(time_dt);
+            assert_millisecond_precision(bson.as_datetime().unwrap().to_owned());
+            assert_subsec_millis(bson.as_datetime().unwrap().to_owned(), 123);
+        }
         #[cfg(feature = "chrono-0_4")]
         {
+            let chrono_dt: chrono::DateTime<chrono::Utc> = s.parse().unwrap();
             let dt = DateTime::from(chrono_dt);
             assert_millisecond_precision(dt);
             assert_subsec_millis(dt, 123);
@@ -292,6 +319,28 @@ fn from_chrono_datetime() {
         }
     }
 
+    #[cfg(feature = "time-0_3")]
+    {
+        let max = time::PrimitiveDateTime::MAX.assume_utc();
+        let bdt = DateTime::from(max);
+        assert_eq!(
+            bdt.to_time_0_3().unix_timestamp_nanos() / 1_000_000, // truncate to millis
+            max.unix_timestamp_nanos() / 1_000_000
+        );
+
+        let min = time::PrimitiveDateTime::MIN.assume_utc();
+        let bdt = DateTime::from(min);
+        assert_eq!(
+            bdt.to_time_0_3().unix_timestamp_nanos() / 1_000_000,
+            min.unix_timestamp_nanos() / 1_000_000
+        );
+
+        let bdt = DateTime::MAX;
+        assert_eq!(bdt.to_time_0_3(), max);
+
+        let bdt = DateTime::MIN;
+        assert_eq!(bdt.to_time_0_3(), min);
+    }
     #[cfg(feature = "chrono-0_4")]
     {
         let bdt = DateTime::from(chrono::MAX_DATETIME);

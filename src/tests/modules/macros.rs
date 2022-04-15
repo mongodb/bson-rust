@@ -9,7 +9,6 @@ use crate::{
     Regex,
     Timestamp,
 };
-use chrono::offset::Utc;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -21,7 +20,7 @@ fn standard_format() {
     bytes[..12].clone_from_slice(&string_bytes[..12]);
 
     let id = ObjectId::from_bytes(bytes);
-    let date = Utc::now();
+    let date = time::OffsetDateTime::now_utc();
 
     let doc = doc! {
         "float": 2.4,
@@ -43,7 +42,7 @@ fn standard_format() {
         "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "encrypted": Binary { subtype: BinarySubtype::Encrypted, bytes: "secret".to_owned().into_bytes() },
         "_id": id,
-        "date": Bson::DateTime(crate::DateTime::from_chrono(date)),
+        "date": Bson::DateTime(crate::DateTime::from_time_0_3(date)),
     };
 
     let rawdoc = rawdoc! {
@@ -66,9 +65,12 @@ fn standard_format() {
         "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
         "encrypted": Binary { subtype: BinarySubtype::Encrypted, bytes: "secret".to_owned().into_bytes() },
         "_id": id,
-        "date": crate::DateTime::from_chrono(date),
+        "date": crate::DateTime::from_time_0_3(date),
     };
 
+    let ts_nanos = date.unix_timestamp_nanos();
+    let ts_millis = ts_nanos - (ts_nanos % 1_000_000);
+    let date_trunc = time::OffsetDateTime::from_unix_timestamp_nanos(ts_millis).unwrap();
     let expected = format!(
         "{{ \"float\": 2.4, \"string\": \"hello\", \"array\": [\"testing\", 1, true, [1, 2]], \
          \"doc\": {{ \"fish\": \"in\", \"a\": \"barrel\", \"!\": 1 }}, \"bool\": true, \"null\": \
@@ -79,7 +81,7 @@ fn standard_format() {
         base64::encode("thingies"),
         base64::encode("secret"),
         hex::encode(id_string),
-        date.format("%Y-%m-%d %H:%M:%S%.3f %Z")
+        date_trunc,
     );
 
     assert_eq!(expected, format!("{}", doc));

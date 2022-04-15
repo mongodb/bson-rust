@@ -26,7 +26,6 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
 };
 
-use chrono::Datelike;
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
@@ -311,6 +310,14 @@ impl From<oid::ObjectId> for Bson {
     }
 }
 
+#[cfg(feature = "time-0_3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
+impl From<time::OffsetDateTime> for Bson {
+    fn from(a: time::OffsetDateTime) -> Bson {
+        Bson::DateTime(crate::DateTime::from(a))
+    }
+}
+
 #[cfg(feature = "chrono-0_4")]
 #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
 impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for Bson {
@@ -430,9 +437,10 @@ impl Bson {
                 })
             }
             Bson::ObjectId(v) => json!({"$oid": v.to_hex()}),
-            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_chrono().year() <= 99999 => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_time_0_3().year() <= 9999 => {
                 json!({
-                    "$date": v.to_rfc3339_string(),
+                    // Unwrap safety: timestamps in the guarded range can always be formatted.
+                    "$date": v.try_to_rfc3339_string().unwrap(),
                 })
             }
             Bson::DateTime(v) => json!({
@@ -592,9 +600,10 @@ impl Bson {
             Bson::DateTime(v) if rawbson => doc! {
                 "$date": v.timestamp_millis(),
             },
-            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_chrono().year() <= 9999 => {
+            Bson::DateTime(v) if v.timestamp_millis() >= 0 && v.to_time_0_3().year() <= 9999 => {
                 doc! {
-                    "$date": v.to_rfc3339_string(),
+                    // Unwrap safety: timestamps in the guarded range can always be formatted.
+                    "$date": v.try_to_rfc3339_string().unwrap(),
                 }
             }
             Bson::DateTime(v) => doc! {
@@ -776,8 +785,8 @@ impl Bson {
                 }
 
                 if let Ok(date) = doc.get_str("$date") {
-                    if let Ok(date) = chrono::DateTime::parse_from_rfc3339(date) {
-                        return Bson::DateTime(crate::DateTime::from_chrono(date));
+                    if let Ok(dt) = crate::DateTime::parse_rfc3339_str(date) {
+                        return Bson::DateTime(dt);
                     }
                 }
             }

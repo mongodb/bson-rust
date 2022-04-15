@@ -43,7 +43,7 @@
 //!
 //! ## Installation
 //! ### Requirements
-//! - Rust 1.48+
+//! - Rust 1.53+
 //!
 //! ### Importing
 //! This crate is available on [crates.io](https://crates.io/crates/bson). To use it in your application,
@@ -260,7 +260,7 @@
 //!
 //! ## Minimum supported Rust version (MSRV)
 //!
-//! The MSRV for this crate is currently 1.48.0. This will be rarely be increased, and if it ever is,
+//! The MSRV for this crate is currently 1.53.0. This will be rarely be increased, and if it ever is,
 //! it will only happen in a minor or major version release.
 
 #![allow(clippy::cognitive_complexity)]

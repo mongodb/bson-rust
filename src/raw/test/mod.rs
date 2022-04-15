@@ -13,7 +13,6 @@ use crate::{
     Regex,
     Timestamp,
 };
-use chrono::{TimeZone, Utc};
 
 #[test]
 fn string_from_document() {
@@ -227,9 +226,11 @@ fn boolean() {
 
 #[test]
 fn datetime() {
+    use time::macros::datetime;
+
     let rawdoc = rawdoc! {
         "boolean": true,
-        "datetime": DateTime::from_chrono(Utc.ymd(2000,10,31).and_hms(12, 30, 45)),
+        "datetime": DateTime::from_time_0_3(datetime!(2000-10-31 12:30:45 UTC)),
     };
     let datetime = rawdoc
         .get("datetime")
@@ -237,7 +238,10 @@ fn datetime() {
         .expect("no key datetime")
         .as_datetime()
         .expect("result was not datetime");
-    assert_eq!(datetime.to_rfc3339_string(), "2000-10-31T12:30:45Z");
+    assert_eq!(
+        datetime.try_to_rfc3339_string().unwrap(),
+        "2000-10-31T12:30:45Z"
+    );
 }
 
 #[test]
