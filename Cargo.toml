@@ -27,7 +27,7 @@ exclude = [
     "rustfmt.toml",
     ".travis.yml",
     ".evergreen/**",
-    ".gitignore"
+    ".gitignore",
 ]
 
 [features]
@@ -43,13 +43,16 @@ time-0_3 = []
 # it's commented out here because Cargo implicitly adds a feature flag for
 # all optional dependencies.
 # serde_with
+js = ["uuid/js"]
 
 [lib]
 name = "bson"
 
 [dependencies]
 ahash = "0.7.2"
-chrono = { version = "0.4.15", features = ["std"], default-features = false, optional = true }
+chrono = { version = "0.4.15", features = [
+    "std",
+], default-features = false, optional = true }
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
@@ -60,7 +63,12 @@ lazy_static = "1.4.0"
 uuid = { version = "1.1.1", features = ["serde", "v4"] }
 serde_bytes = "0.11.5"
 serde_with = { version = "1", optional = true }
-time = { version = "0.3.9", features = ["formatting", "parsing", "macros", "large-dates"] }
+time = { version = "0.3.9", features = [
+    "formatting",
+    "parsing",
+    "macros",
+    "large-dates",
+] }
 
 [dev-dependencies]
 assert_matches = "1.2"
@@ -68,7 +76,11 @@ criterion = "0.3.0"
 pretty_assertions = "0.6.1"
 proptest = "1.0.0"
 serde_bytes = "0.11"
-chrono = { version = "0.4", features = ["serde", "clock", "std"], default-features = false }
+chrono = { version = "0.4", features = [
+    "serde",
+    "clock",
+    "std",
+], default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true
