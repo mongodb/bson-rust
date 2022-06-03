@@ -267,7 +267,7 @@ impl crate::DateTime {
         } else {
             // need to convert to i128 before calculating absolute value since i64::MIN.abs()
             // overflows and panics.
-            SystemTime::UNIX_EPOCH - Duration::from_millis((self.0 as i128).abs() as u64)
+            SystemTime::UNIX_EPOCH - Duration::from_millis((self.0 as i128).unsigned_abs() as u64)
         }
     }
 

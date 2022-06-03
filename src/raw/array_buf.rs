@@ -41,7 +41,7 @@ use super::{bson::RawBson, serde::OwnedOrBorrowedRawArray, RawArrayIter};
 /// type-specific getters, such as [`RawArray::get_object_id`] or [`RawArray::get_str`]. Note
 /// that accessing elements is an O(N) operation, as it requires iterating through the document from
 /// the beginning to find the requested key.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct RawArrayBuf {
     inner: RawDocumentBuf,
     len: usize,

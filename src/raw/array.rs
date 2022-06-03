@@ -72,7 +72,7 @@ use crate::{
 /// assert_eq!(rawarray.get_bool(1)?, true);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 #[repr(transparent)]
 pub struct RawArray {
     pub(crate) doc: RawDocument,

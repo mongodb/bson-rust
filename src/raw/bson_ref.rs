@@ -450,7 +450,7 @@ impl<'a> From<Decimal128> for RawBsonRef<'a> {
 }
 
 /// A BSON binary value referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RawBinaryRef<'a> {
     /// The subtype of the binary value.
     pub subtype: BinarySubtype,
@@ -531,7 +531,7 @@ impl<'a> From<&'a Binary> for RawBsonRef<'a> {
 }
 
 /// A BSON regex referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RawRegexRef<'a> {
     /// The regex pattern to match.
     pub pattern: &'a str,
@@ -589,7 +589,7 @@ impl<'a> From<RawRegexRef<'a>> for RawBsonRef<'a> {
 }
 
 /// A BSON "code with scope" value referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RawJavaScriptCodeWithScopeRef<'a> {
     /// The JavaScript code.
     pub code: &'a str,
@@ -638,7 +638,7 @@ impl<'a> From<RawJavaScriptCodeWithScopeRef<'a>> for RawBsonRef<'a> {
 }
 
 /// A BSON DB pointer value referencing raw bytes stored elesewhere.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RawDbPointerRef<'a> {
     pub(crate) namespace: &'a str,
     pub(crate) id: ObjectId,

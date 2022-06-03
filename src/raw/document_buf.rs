@@ -62,7 +62,7 @@ use super::{
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct RawDocumentBuf {
     data: Vec<u8>,
 }

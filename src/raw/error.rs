@@ -3,7 +3,7 @@ use std::str::Utf8Error;
 use crate::spec::ElementType;
 
 /// An error that occurs when attempting to parse raw BSON bytes.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[non_exhaustive]
 pub struct Error {
     /// The type of error that was encountered.
@@ -37,7 +37,7 @@ impl Error {
 }
 
 /// The different categories of errors that can be returned when reading from raw BSON.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ErrorKind {
     /// A BSON value did not fit the proper format.
@@ -80,7 +80,7 @@ pub type ValueAccessResult<T> = std::result::Result<T, ValueAccessError>;
 
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters (e.g. [`crate::RawDocument::get_str`]).
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[non_exhaustive]
 pub struct ValueAccessError {
     /// The type of error that was encountered.
@@ -98,7 +98,7 @@ impl ValueAccessError {
 }
 
 /// The type of error encountered when using a direct getter (e.g. [`crate::RawDocument::get_str`]).
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[non_exhaustive]
 pub enum ValueAccessErrorKind {
     /// Cannot find the expected field with the specified key

@@ -1023,7 +1023,7 @@ impl Timestamp {
 }
 
 /// Represents a BSON regular expression value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Regex {
     /// The regex pattern to match.
     pub pattern: String,
@@ -1073,7 +1073,7 @@ impl Display for JavaScriptCodeWithScope {
 }
 
 /// Represents a BSON binary value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Binary {
     /// The subtype of the bytes.
     pub subtype: BinarySubtype,
@@ -1131,7 +1131,7 @@ impl Binary {
 }
 
 /// Represents a DBPointer. (Deprecated)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DbPointer {
     pub(crate) namespace: String,
     pub(crate) id: oid::ObjectId,

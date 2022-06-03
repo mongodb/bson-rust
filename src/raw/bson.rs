@@ -447,7 +447,7 @@ impl Serialize for RawBson {
     }
 }
 
-impl<'a> TryFrom<RawBson> for Bson {
+impl TryFrom<RawBson> for Bson {
     type Error = Error;
 
     fn try_from(rawbson: RawBson) -> Result<Bson> {
@@ -483,7 +483,7 @@ impl<'a> TryFrom<RawBson> for Bson {
 }
 
 /// A BSON "code with scope" value backed by owned raw BSON.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawJavaScriptCodeWithScope {
     /// The code value.
     pub code: String,

@@ -23,7 +23,7 @@ use crate::{
 
 /// Error to indicate that either a value was empty or it contained an unexpected
 /// type, for use with the direct getters.
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 #[non_exhaustive]
 pub enum ValueAccessError {
     /// Cannot find the expected field with the specified key
@@ -165,7 +165,7 @@ impl FromIterator<(String, Bson)> for Document {
     }
 }
 
-impl<'a> Iterator for IntoIter {
+impl Iterator for IntoIter {
     type Item = (String, Bson);
 
     fn next(&mut self) -> Option<(String, Bson)> {

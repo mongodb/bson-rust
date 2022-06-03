@@ -327,7 +327,7 @@ impl From<Uuid> for uuid::Uuid {
 /// # Ok::<(), Box::<dyn std::error::Error>>(())
 /// ```
 #[non_exhaustive]
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum UuidRepresentation {
     /// The canonical representation of UUIDs in BSON (binary with subtype 0x04)
     Standard,

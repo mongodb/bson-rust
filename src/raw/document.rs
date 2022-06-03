@@ -64,7 +64,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 #[repr(transparent)]
 pub struct RawDocument {
     data: [u8],
