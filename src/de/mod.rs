@@ -33,7 +33,8 @@ pub use self::{
 use std::io::Read;
 
 use crate::{
-    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
+    binary::Binary,
+    bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     oid::{self, ObjectId},
     raw::RawBinaryRef,
     ser::write_i32,

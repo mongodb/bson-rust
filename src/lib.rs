@@ -269,8 +269,9 @@
 
 #[doc(inline)]
 pub use self::{
-    bson::{Array, Binary, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
+    bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
+    binary::Binary,
     de::{
         from_bson, from_bson_with_options, from_document, from_document_with_options, from_reader,
         from_reader_utf8_lossy, from_slice, from_slice_utf8_lossy, Deserializer,
@@ -291,6 +292,7 @@ pub use self::{
 #[macro_use]
 mod macros;
 mod bson;
+pub mod binary;
 pub mod datetime;
 pub mod de;
 pub mod decimal128;

@@ -13,7 +13,8 @@ use indexmap::IndexMap;
 use serde::de::Error;
 
 use crate::{
-    bson::{Array, Binary, Bson, Timestamp},
+    binary::Binary,
+    bson::{Array, Bson, Timestamp},
     de::{deserialize_bson_kvp, ensure_read_exactly, read_i32, MIN_BSON_DOCUMENT_SIZE},
     oid::ObjectId,
     ser::{serialize_bson, write_i32},

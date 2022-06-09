@@ -21,7 +21,8 @@ use serde::de::{
 use serde_bytes::ByteBuf;
 
 use crate::{
-    bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
+    binary::Binary,
+    bson::{Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     document::{Document, IntoIter},
     oid::ObjectId,
