@@ -100,7 +100,7 @@ impl From<[u8; 12]> for ObjectId {
 
 impl ObjectId {
     /// Generates a new [`ObjectId`], represented in bytes.
-    /// See the [docs](http://docs.mongodb.org/manual/reference/object-id/)
+    /// See the [docs](http://www.mongodb.com/docs/manual/reference/object-id/)
     /// for more information.
     pub fn new() -> ObjectId {
         let timestamp = ObjectId::gen_timestamp();

@@ -1,4 +1,4 @@
-//! Deserializing [MongoDB Extended JSON v2](https://docs.mongodb.com/manual/reference/mongodb-extended-json/)
+//! Deserializing [MongoDB Extended JSON v2](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/)
 //!
 //! ## Usage
 //!
@@ -29,7 +29,7 @@ use crate::{extjson::models, oid, Bson, Document};
 
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-/// Error cases that can occur during deserialization from [extended JSON](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+/// Error cases that can occur during deserialization from [extended JSON](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
 pub enum Error {
     /// Errors that can occur during OID construction and generation from the input data.
     InvalidObjectId(oid::Error),
@@ -77,7 +77,7 @@ impl From<oid::Error> for Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// This converts from the input JSON object as if it were [MongoDB Extended JSON v2](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+/// This converts from the input JSON object as if it were [MongoDB Extended JSON v2](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
 impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
     type Error = Error;
 
@@ -172,7 +172,7 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
     }
 }
 
-/// This converts from the input JSON as if it were [MongoDB Extended JSON v2](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+/// This converts from the input JSON as if it were [MongoDB Extended JSON v2](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
 impl TryFrom<serde_json::Value> for Bson {
     type Error = Error;
 
@@ -207,7 +207,7 @@ impl TryFrom<serde_json::Value> for Bson {
     }
 }
 
-/// This converts from the input JSON as if it were [MongoDB Extended JSON v2](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+/// This converts from the input JSON as if it were [MongoDB Extended JSON v2](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
 impl TryFrom<serde_json::Map<String, serde_json::Value>> for Document {
     type Error = Error;
 
