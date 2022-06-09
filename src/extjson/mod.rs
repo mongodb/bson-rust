@@ -1,4 +1,4 @@
-//! Deserialization and serialization of [MongoDB Extended JSON v2](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/)
+//! Deserialization and serialization of [MongoDB Extended JSON v2](https://docs.mongodb.com/manual/reference/mongodb-extended-json/)
 //!
 //! ## Overview of Extended JSON
 //!
@@ -15,7 +15,7 @@
 //!    }
 //! }
 //! ```
-//! For more information on extJSON and the complete list of translations, see the [official MongoDB documentation](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
+//! For more information on extJSON and the complete list of translations, see the [official MongoDB documentation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
 //!
 //! All MongoDB drivers and BSON libraries interpret and produce extJSON, so it can serve as a
 //! useful tool for communicating between applications where raw BSON bytes cannot be used (e.g. via
