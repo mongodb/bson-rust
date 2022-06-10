@@ -131,6 +131,26 @@ impl crate::DateTime {
         Self::from_millis(dt.timestamp_millis())
     }
 
+    /// Convert the given specific time into a `bson::DateTime`, truncating it to millisecond
+    /// precision.
+    #[cfg(feature = "chrono-0_4")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
+    pub fn from_specific_datetime(year: i32, month: u32, day: u32, hr: u32, min: u32, sec: u32, millis: u32) -> Result<Self> {
+        match Utc.ymd_opt(year, month, day) {
+            Some(d) => {
+                match d.and_hms_milli_opt(hr, min, sec, millis) {
+                    Some(dt) => {
+                        Ok (
+                            Self::from_millis(dt.timestamp_millis)
+                        )
+                    },
+                    None => Err("invalid time input"),
+                }
+            },
+            None => Err("invalid datetime input"),
+        }
+    }
+
     /// Convert this [`DateTime`] to a [`chrono::DateTime<Utc>`].
     ///
     /// Note: Not every BSON datetime can be represented as a [`chrono::DateTime`]. For such dates,
