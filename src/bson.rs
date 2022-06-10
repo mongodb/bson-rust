@@ -364,7 +364,7 @@ where
     }
 }
 
-/// This will create the [relaxed Extended JSON v2](https://docs.mongodb.com/manual/reference/mongodb-extended-json/) representation of the provided [`Bson`](../enum.Bson.html).
+/// This will create the [relaxed Extended JSON v2](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/) representation of the provided [`Bson`](../enum.Bson.html).
 impl From<Bson> for Value {
     fn from(bson: Bson) -> Self {
         bson.into_relaxed_extjson()
@@ -372,7 +372,7 @@ impl From<Bson> for Value {
 }
 
 impl Bson {
-    /// Converts the Bson value into its [relaxed extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    /// Converts the Bson value into its [relaxed extended JSON representation](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
     ///
     /// Note: If this method is called on a case which contains a `Decimal128` value, it will panic.
     pub fn into_relaxed_extjson(self) -> Value {
@@ -465,7 +465,7 @@ impl Bson {
         }
     }
 
-    /// Converts the Bson value into its [canonical extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    /// Converts the Bson value into its [canonical extended JSON representation](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
     ///
     /// Note: extended json encoding for `Decimal128` values is not supported. If this method is
     /// called on a case which contains a `Decimal128` value, it will panic.
@@ -534,7 +534,7 @@ impl Bson {
     }
 
     /// Converts to extended format.
-    /// This function mainly used for [extended JSON format](https://docs.mongodb.com/manual/reference/mongodb-extended-json/).
+    /// This function mainly used for [extended JSON format](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
     // TODO RUST-426: Investigate either removing this from the serde implementation or unifying
     // with the extended JSON implementation.
     pub(crate) fn into_extended_document(self, rawbson: bool) -> Document {
