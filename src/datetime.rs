@@ -44,7 +44,7 @@ use serde_with::{DeserializeAs, SerializeAs};
 /// This type differs from [`chrono::DateTime`] in that it serializes to and deserializes from a
 /// BSON datetime rather than an RFC 3339 formatted string. Additionally, in non-BSON formats, it
 /// will serialize to and deserialize from that format's equivalent of the
-/// [extended JSON representation](https://docs.mongodb.com/manual/reference/mongodb-extended-json/) of a datetime.
+/// [extended JSON representation](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/) of a datetime.
 /// To serialize a [`chrono::DateTime`] as a BSON datetime, you can use
 /// [`crate::serde_helpers::chrono_datetime_as_bson_datetime`].
 ///
