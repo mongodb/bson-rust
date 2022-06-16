@@ -265,6 +265,23 @@ fn from_external_datetime() {
         assert_millisecond_precision(from_chrono);
     }
 
+    {
+        let dt = DateTime::from_specific_datetime(2022, 6, 15, 17, 8, 0, 0).unwrap();
+        assert_millisecond_precision(dt);
+        let time_dt = datetime!(2022 - 06 - 15 5:08:00.000 pm);
+        assert_eq!(dt, DateTime::from_time_0_3(time_dt.assume_utc()));
+    }
+
+    {
+        let dt = DateTime::from_specific_datetime(2022, 18, 15, 17, 8, 0, 0);
+        assert!(dt.is_err());
+    }
+
+    {
+        let dt = DateTime::from_specific_datetime(2022, 1, 15, 17, 81, 0, 0);
+        assert!(dt.is_err());
+    }
+
     let no_subsec_millis = datetime!(2014-11-28 12:00:09 UTC);
     let dt = DateTime::from_time_0_3(no_subsec_millis);
     assert_millisecond_precision(dt);

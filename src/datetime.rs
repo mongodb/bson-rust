@@ -1,12 +1,12 @@
 use std::{
-    convert::TryInto,
+    convert::{TryFrom, TryInto},
     error,
     fmt::{self, Display},
     result,
     time::{Duration, SystemTime},
 };
 
-use time::format_description::well_known::Rfc3339;
+use time::{format_description::well_known::Rfc3339, Date, Month};
 
 #[cfg(feature = "chrono-0_4")]
 use chrono::{LocalResult, TimeZone, Utc};
@@ -133,24 +133,24 @@ impl crate::DateTime {
 
     /// Convert the given year, month, date, hour, minute, second and millisecond into a
     /// `bson::DateTime`, truncating it to millisecond precision.
-    #[cfg(feature = "chrono-0_4")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn from_specific_datetime(
         year: i32,
-        month: u32,
-        day: u32,
-        hr: u32,
-        min: u32,
-        sec: u32,
-        millis: u32,
+        month: u8,
+        day: u8,
+        hour: u8,
+        min: u8,
+        sec: u8,
+        millis: u16,
     ) -> Result<Self> {
-        match Utc.ymd_opt(year, month, day) {
-            Some(d) => match d.and_hms_milli_opt(hr, min, sec, millis) {
-                Some(dt) => Ok(Self::from_millis(dt.timestamp_millis)),
-                None => Err("invalid time input"),
-            },
-            None => Err("invalid datetime input"),
-        }
+        let err = |e: time::error::ComponentRange| Error::InvalidTimestamp {
+            message: e.to_string(),
+        };
+        let month = Month::try_from(month).map_err(err)?;
+        let dt = Date::from_calendar_date(year, month, day)
+            .map_err(err)?
+            .with_hms_milli(hour, min, sec, millis)
+            .map_err(err)?;
+        Ok(Self::from_time_private(dt.assume_utc()))
     }
 
     /// Convert this [`DateTime`] to a [`chrono::DateTime<Utc>`].
