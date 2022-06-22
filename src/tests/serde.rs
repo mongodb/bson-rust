@@ -556,7 +556,10 @@ fn test_de_db_pointer() {
 #[cfg(feature = "uuid-0_8")]
 #[test]
 fn test_serde_legacy_uuid() {
+    #[cfg(feature = "uuid-0_8")]
     use uuid_0_8::Uuid;
+    #[cfg(feature = "uuid-1")]
+    use uuid_current::Uuid;
 
     let _guard = LOCK.run_concurrently();
 
@@ -842,7 +845,10 @@ fn test_oid_helpers() {
 #[cfg(feature = "uuid-0_8")]
 fn test_uuid_helpers() {
     use serde_helpers::uuid_as_binary;
+    #[cfg(feature = "uuid-0_8")]
     use uuid_0_8::Uuid;
+    #[cfg(feature = "uuid-1")]
+    use uuid_current::Uuid;
 
     let _guard = LOCK.run_concurrently();
 

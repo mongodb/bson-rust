@@ -407,7 +407,10 @@ pub mod hex_string_as_object_id {
 pub mod uuid_as_binary {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
+    #[cfg(feature = "uuid-0_8")]
     use uuid_0_8::Uuid;
+    #[cfg(feature = "uuid-1")]
+    use uuid_current::Uuid;
 
     /// Serializes a Uuid as a Binary.
     #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
@@ -449,7 +452,10 @@ pub mod uuid_as_java_legacy_binary {
     use crate::{uuid::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
+    #[cfg(feature = "uuid-0_8")]
     use uuid_0_8::Uuid;
+    #[cfg(feature = "uuid-1")]
+    use uuid_current::Uuid;
 
     /// Serializes a Uuid as a Binary in a Java Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
@@ -498,7 +504,10 @@ pub mod uuid_as_python_legacy_binary {
     use crate::{uuid::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
+    #[cfg(feature = "uuid-0_8")]
     use uuid_0_8::Uuid;
+    #[cfg(feature = "uuid-1")]
+    use uuid_current::Uuid;
 
     /// Serializes a Uuid as a Binary in a Python Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
@@ -547,7 +556,10 @@ pub mod uuid_as_c_sharp_legacy_binary {
     use crate::{uuid::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
+    #[cfg(feature = "uuid-0_8")]
     use uuid_0_8::Uuid;
+    #[cfg(feature = "uuid-1")]
+    use uuid_current::Uuid;
 
     /// Serializes a Uuid as a Binary in a C# Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
