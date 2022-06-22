@@ -105,6 +105,78 @@ use serde_with::{DeserializeAs, SerializeAs};
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 pub struct DateTime(i64);
 
+/// Struct providing a builder to construct a `bson::DateTime` object from a given year, month, and date, and
+/// optionally the hour, minute, second and millisecond, which default to 0 if not explicitly set.
+/// 
+/// ```
+/// use bson::{DateTime, datetime::DateTimeBuilder};
+/// 
+/// let dt = DateTimeBuilder::new(1998, 2, 12).minute(1).millisecond(23).builder();
+/// let expected = DateTime::parse_rfc3339_str("1998-02-12T00:01:00.023Z").unwrap();
+/// assert_eq!(dt.unwrap(), expected);
+/// ```
+pub struct DateTimeBuilder {
+    year: i32,
+    month: u8,
+    day: u8,
+    hour: Option<u8>,
+    minute: Option<u8>,
+    second: Option<u8>,
+    millisecond: Option<u16>,
+}
+
+impl DateTimeBuilder {
+    pub fn new(year: i32, month: u8, day: u8) -> Self {
+        Self {
+            year,
+            month,
+            day,
+            hour: None,
+            minute: None,
+            second: None,
+            millisecond: None,
+        }
+    }
+
+    pub fn hour(&mut self, hour: u8) -> &mut Self {
+        self.hour = Some(hour);
+        self
+    }
+
+    pub fn minute(&mut self, minute: u8) -> &mut Self {
+        self.minute = Some(minute);
+        self
+    }
+
+    pub fn second(&mut self, second: u8) -> &mut Self {
+        self.second = Some(second);
+        self
+    }
+
+    pub fn millisecond(&mut self, millisecond: u16) -> &mut Self {
+        self.millisecond = Some(millisecond);
+        self
+    }
+
+    pub fn builder(&mut self) -> Result<DateTime> {
+        let err = |e: time::error::ComponentRange| Error::InvalidTimestamp {
+            message: e.to_string(),
+        };
+        let month = Month::try_from(self.month).map_err(err)?;
+        let dt = Date::from_calendar_date(self.year, month, self.day)
+            .map_err(err)?
+            .with_hms_milli(
+                self.hour.unwrap_or(0),
+                self.minute.unwrap_or(0),
+                self.second.unwrap_or(0),
+                self.millisecond.unwrap_or(0),
+            )
+            .map_err(err)?;
+        Ok(DateTime::from_time_private(dt.assume_utc()))
+    }
+}
+
+
 impl crate::DateTime {
     /// The latest possible date that can be represented in BSON.
     pub const MAX: Self = Self::from_millis(i64::MAX);
@@ -129,28 +201,6 @@ impl crate::DateTime {
     #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
         Self::from_millis(dt.timestamp_millis())
-    }
-
-    /// Convert the given year, month, date, hour, minute, second and millisecond into a
-    /// `bson::DateTime`, truncating it to millisecond precision.
-    pub fn from_specific_datetime(
-        year: i32,
-        month: u8,
-        day: u8,
-        hour: u8,
-        min: u8,
-        sec: u8,
-        millis: u16,
-    ) -> Result<Self> {
-        let err = |e: time::error::ComponentRange| Error::InvalidTimestamp {
-            message: e.to_string(),
-        };
-        let month = Month::try_from(month).map_err(err)?;
-        let dt = Date::from_calendar_date(year, month, day)
-            .map_err(err)?
-            .with_hms_milli(hour, min, sec, millis)
-            .map_err(err)?;
-        Ok(Self::from_time_private(dt.assume_utc()))
     }
 
     /// Convert this [`DateTime`] to a [`chrono::DateTime<Utc>`].

@@ -11,11 +11,13 @@ use crate::{
     Binary,
     Bson,
     DateTime,
+    datetime::DateTimeBuilder,
     Document,
     JavaScriptCodeWithScope,
     Regex,
     Timestamp,
 };
+
 use serde_json::{json, Value};
 
 #[test]
@@ -266,19 +268,18 @@ fn from_external_datetime() {
     }
 
     {
-        let dt = DateTime::from_specific_datetime(2022, 6, 15, 17, 8, 0, 0).unwrap();
-        assert_millisecond_precision(dt);
-        let time_dt = datetime!(2022 - 06 - 15 5:08:00.000 pm);
-        assert_eq!(dt, DateTime::from_time_0_3(time_dt.assume_utc()));
+        let dt = DateTimeBuilder::new(2022, 9, 15).minute(2).millisecond(1).builder();
+        assert!(dt.is_ok());
+        assert_eq!(DateTime::from_time_0_3(datetime!(2022 - 09 - 15 00:02:00.001 UTC)), dt.unwrap());
     }
 
     {
-        let dt = DateTime::from_specific_datetime(2022, 18, 15, 17, 8, 0, 0);
+        let dt =  DateTimeBuilder::new(2022, 18, 15).minute(2).millisecond(1).builder();
         assert!(dt.is_err());
     }
 
     {
-        let dt = DateTime::from_specific_datetime(2022, 1, 15, 17, 81, 0, 0);
+        let dt =  DateTimeBuilder::new(2022, 18, 15).minute(83).millisecond(1).builder();
         assert!(dt.is_err());
     }
 
