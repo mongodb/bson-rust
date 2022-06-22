@@ -3,6 +3,12 @@
 set -o errexit
 
 . ~/.cargo/env
-cargo clippy --all-targets --all-features -p bson -- -D warnings
+. .evergreen/feature-sets.sh
 
-cd serde-tests && cargo clippy --all-targets --all-features -p serde-tests -- -D warnings
+for f in ${FEATURE_SETS[@]}; do
+    echo Testing with features $f
+    cargo clippy --all-targets --features $f -p bson -- -D warnings
+done
+
+cd serde-tests
+cargo clippy --all-targets --all-features -p serde-tests -- -D warnings

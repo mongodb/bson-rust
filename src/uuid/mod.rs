@@ -71,8 +71,10 @@
 //! # };
 //! ```
 //!
-//! For backwards compatibility, a `uuid-0_8` feature flag can be enabled, which provides the same API for interoperation with version 0.8 of the `uuid` crate.  Note that at most one of `uuid-1` and `uuid-0_8` can be enabled.
-//! 
+//! For backwards compatibility, a `uuid-0_8` feature flag can be enabled, which provides the same
+//! API for interoperation with version 0.8 of the `uuid` crate.  Note that at most one of `uuid-1`
+//! and `uuid-0_8` can be enabled.
+//!
 //! ## The `serde_with` feature flag
 //!
 //! The `serde_with` feature can be enabled to support more ergonomic serde attributes for
@@ -147,7 +149,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(all(feature = "uuid-0_8", feature = "uuid-1"))]
 compile_error!("Features \"uuid-0_8\" and \"uuid-1\" cannot be enabled together.");
 
- #[cfg(feature = "uuid-0_8")]
+#[cfg(feature = "uuid-0_8")]
 use uuid_0_8 as uuid;
 #[cfg(feature = "uuid-1")]
 use uuid_current as uuid;
@@ -199,8 +201,10 @@ impl Uuid {
 
     /// Creates a [`Uuid`] from the provided hex string.
     pub fn parse_str(input: impl AsRef<str>) -> Result<Self> {
-        let uuid = uuid_current::Uuid::parse_str(input.as_ref()).map_err(|e| Error::InvalidUuidString {
-            message: e.to_string(),
+        let uuid = uuid_current::Uuid::parse_str(input.as_ref()).map_err(|e| {
+            Error::InvalidUuidString {
+                message: e.to_string(),
+            }
         })?;
         Ok(Self::from_external_uuid(uuid))
     }
@@ -274,8 +278,8 @@ impl<'de> Deserialize<'de> for Uuid {
             Bson::Binary(b)
                 if matches!(b.subtype, BinarySubtype::Uuid | BinarySubtype::Generic) =>
             {
-                let uuid =
-                    uuid_current::Uuid::from_slice(b.bytes.as_slice()).map_err(serde::de::Error::custom)?;
+                let uuid = uuid_current::Uuid::from_slice(b.bytes.as_slice())
+                    .map_err(serde::de::Error::custom)?;
                 Ok(Self::from_external_uuid(uuid))
             }
             Bson::Binary(b) if b.subtype == BinarySubtype::UuidOld => {
@@ -284,7 +288,8 @@ impl<'de> Deserialize<'de> for Uuid {
                 ))
             }
             Bson::String(s) => {
-                let uuid = uuid_current::Uuid::from_str(s.as_str()).map_err(serde::de::Error::custom)?;
+                let uuid =
+                    uuid_current::Uuid::from_str(s.as_str()).map_err(serde::de::Error::custom)?;
                 Ok(Self::from_external_uuid(uuid))
             }
             b => Err(serde::de::Error::invalid_type(b.as_unexpected(), &"a UUID")),
@@ -323,9 +328,13 @@ impl From<Uuid> for Bson {
 impl From<uuid::Uuid> for Uuid {
     fn from(u: uuid::Uuid) -> Self {
         #[cfg(feature = "uuid-0_8")]
-        { Self::from_uuid_0_8(u) }
+        {
+            Self::from_uuid_0_8(u)
+        }
         #[cfg(feature = "uuid-1")]
-        { Self::from_uuid_1(u) }
+        {
+            Self::from_uuid_1(u)
+        }
     }
 }
 
@@ -333,9 +342,13 @@ impl From<uuid::Uuid> for Uuid {
 impl From<Uuid> for uuid::Uuid {
     fn from(s: Uuid) -> Self {
         #[cfg(feature = "uuid-0_8")]
-        { s.to_uuid_0_8() }
+        {
+            s.to_uuid_0_8()
+        }
         #[cfg(feature = "uuid-1")]
-        { s.to_uuid_1() }
+        {
+            s.to_uuid_1()
+        }
     }
 }
 
@@ -484,7 +497,10 @@ impl From<uuid::Uuid> for Binary {
 }
 
 #[cfg(all(any(feature = "uuid-0_8", feature = "uuid-1"), feature = "serde_with"))]
-#[cfg_attr(docsrs, doc(cfg(all(any(feature = "uuid-0_8", feature = "uuid-1"), feature = "serde_with"))))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(all(any(feature = "uuid-0_8", feature = "uuid-1"), feature = "serde_with")))
+)]
 impl<'de> serde_with::DeserializeAs<'de, uuid::Uuid> for crate::Uuid {
     fn deserialize_as<D>(deserializer: D) -> std::result::Result<uuid::Uuid, D::Error>
     where
@@ -496,7 +512,10 @@ impl<'de> serde_with::DeserializeAs<'de, uuid::Uuid> for crate::Uuid {
 }
 
 #[cfg(all(any(feature = "uuid-0_8", feature = "uuid-1"), feature = "serde_with"))]
-#[cfg_attr(docsrs, doc(cfg(all(any(feature = "uuid-0_8", feature = "uuid-1"), feature = "serde_with"))))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(all(any(feature = "uuid-0_8", feature = "uuid-1"), feature = "serde_with")))
+)]
 impl serde_with::SerializeAs<uuid::Uuid> for crate::Uuid {
     fn serialize_as<S>(source: &uuid::Uuid, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
