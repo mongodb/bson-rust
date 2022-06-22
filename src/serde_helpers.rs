@@ -48,25 +48,25 @@ pub use u32_as_timestamp::{
 #[doc(inline)]
 pub use u64_as_f64::{deserialize as deserialize_u64_from_f64, serialize as serialize_u64_as_f64};
 
-#[cfg(feature = "uuid-0_8")]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[doc(inline)]
 pub use uuid_as_binary::{
     deserialize as deserialize_uuid_from_binary,
     serialize as serialize_uuid_as_binary,
 };
-#[cfg(feature = "uuid-0_8")]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[doc(inline)]
 pub use uuid_as_c_sharp_legacy_binary::{
     deserialize as deserialize_uuid_from_c_sharp_legacy_binary,
     serialize as serialize_uuid_as_c_sharp_legacy_binary,
 };
-#[cfg(feature = "uuid-0_8")]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[doc(inline)]
 pub use uuid_as_java_legacy_binary::{
     deserialize as deserialize_uuid_from_java_legacy_binary,
     serialize as serialize_uuid_as_java_legacy_binary,
 };
-#[cfg(feature = "uuid-0_8")]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[doc(inline)]
 pub use uuid_as_python_legacy_binary::{
     deserialize as deserialize_uuid_from_python_legacy_binary,
@@ -393,6 +393,10 @@ pub mod hex_string_as_object_id {
 ///
 /// ```rust
 /// use serde::{Serialize, Deserialize};
+/// # #[cfg(feature = "uuid-0_8")]
+/// # use uuid_0_8 as uuid;
+/// # #[cfg(feature = "uuid-1")]
+/// # use uuid_current as uuid;
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_binary;
 ///
@@ -402,8 +406,8 @@ pub mod hex_string_as_object_id {
 ///     pub id: Uuid,
 /// }
 /// ```
-#[cfg(feature = "uuid-0_8")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
 pub mod uuid_as_binary {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
@@ -413,13 +417,13 @@ pub mod uuid_as_binary {
     use uuid_current::Uuid;
 
     /// Serializes a Uuid as a Binary.
-    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-        crate::uuid::Uuid::from_uuid_0_8(*val).serialize(serializer)
+        crate::uuid::Uuid::from(*val).serialize(serializer)
     }
 
     /// Deserializes a Uuid from a Binary.
-    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,
@@ -437,6 +441,10 @@ pub mod uuid_as_binary {
 ///
 /// ```rust
 /// use serde::{Serialize, Deserialize};
+/// # #[cfg(feature = "uuid-0_8")]
+/// # use uuid_0_8 as uuid;
+/// # #[cfg(feature = "uuid-1")]
+/// # use uuid_current as uuid;
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_java_legacy_binary;
 ///
@@ -446,8 +454,8 @@ pub mod uuid_as_binary {
 ///     pub id: Uuid,
 /// }
 /// ```
-#[cfg(feature = "uuid-0_8")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
 pub mod uuid_as_java_legacy_binary {
     use crate::{uuid::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -458,17 +466,17 @@ pub mod uuid_as_java_legacy_binary {
     use uuid_current::Uuid;
 
     /// Serializes a Uuid as a Binary in a Java Legacy UUID format.
-    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
         let binary = Binary::from_uuid_with_representation(
-            crate::uuid::Uuid::from_uuid_0_8(*val),
+            crate::uuid::Uuid::from(*val),
             UuidRepresentation::JavaLegacy,
         );
         binary.serialize(serializer)
     }
 
     /// Deserializes a Uuid from a Binary in a Java Legacy UUID format.
-    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,
@@ -477,7 +485,7 @@ pub mod uuid_as_java_legacy_binary {
         let uuid = binary
             .to_uuid_with_representation(UuidRepresentation::JavaLegacy)
             .map_err(de::Error::custom)?;
-        Ok(uuid.to_uuid_0_8())
+        Ok(uuid.into())
     }
 }
 
@@ -489,6 +497,10 @@ pub mod uuid_as_java_legacy_binary {
 ///
 /// ```rust
 /// use serde::{Serialize, Deserialize};
+/// # #[cfg(feature = "uuid-0_8")]
+/// # use uuid_0_8 as uuid;
+/// # #[cfg(feature = "uuid-1")]
+/// # use uuid_current as uuid;
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_python_legacy_binary;
 ///
@@ -498,8 +510,8 @@ pub mod uuid_as_java_legacy_binary {
 ///     pub id: Uuid,
 /// }
 /// ```
-#[cfg(feature = "uuid-0_8")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
 pub mod uuid_as_python_legacy_binary {
     use crate::{uuid::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -510,17 +522,17 @@ pub mod uuid_as_python_legacy_binary {
     use uuid_current::Uuid;
 
     /// Serializes a Uuid as a Binary in a Python Legacy UUID format.
-    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
         let binary = Binary::from_uuid_with_representation(
-            crate::uuid::Uuid::from_uuid_0_8(*val),
+            crate::uuid::Uuid::from(*val),
             UuidRepresentation::PythonLegacy,
         );
         binary.serialize(serializer)
     }
 
     /// Deserializes a Uuid from a Binary in a Python Legacy UUID format.
-    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,
@@ -541,6 +553,10 @@ pub mod uuid_as_python_legacy_binary {
 ///
 /// ```rust
 /// use serde::{Serialize, Deserialize};
+/// # #[cfg(feature = "uuid-0_8")]
+/// # use uuid_0_8 as uuid;
+/// # #[cfg(feature = "uuid-1")]
+/// # use uuid_current as uuid;
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_c_sharp_legacy_binary;
 ///
@@ -550,8 +566,8 @@ pub mod uuid_as_python_legacy_binary {
 ///     pub id: Uuid,
 /// }
 /// ```
-#[cfg(feature = "uuid-0_8")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
 pub mod uuid_as_c_sharp_legacy_binary {
     use crate::{uuid::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -562,17 +578,17 @@ pub mod uuid_as_c_sharp_legacy_binary {
     use uuid_current::Uuid;
 
     /// Serializes a Uuid as a Binary in a C# Legacy UUID format.
-    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
     pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
         let binary = Binary::from_uuid_with_representation(
-            crate::uuid::Uuid::from_uuid_0_8(*val),
+            crate::uuid::Uuid::from(*val),
             UuidRepresentation::CSharpLegacy,
         );
         binary.serialize(serializer)
     }
 
     /// Deserializes a Uuid from a Binary in a C# Legacy UUID format.
-    #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
     where
         D: Deserializer<'de>,

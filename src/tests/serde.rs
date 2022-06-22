@@ -553,7 +553,7 @@ fn test_de_db_pointer() {
     assert_eq!(foo.db_pointer, db_pointer.clone());
 }
 
-#[cfg(feature = "uuid-0_8")]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[test]
 fn test_serde_legacy_uuid() {
     #[cfg(feature = "uuid-0_8")]
@@ -842,7 +842,7 @@ fn test_oid_helpers() {
 }
 
 #[test]
-#[cfg(feature = "uuid-0_8")]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 fn test_uuid_helpers() {
     use serde_helpers::uuid_as_binary;
     #[cfg(feature = "uuid-0_8")]

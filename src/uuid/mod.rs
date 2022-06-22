@@ -19,8 +19,9 @@
 //! e.g.
 //!
 //! ``` rust
-//! # #[cfg(feature = "uuid-0_8")]
+//! # #[cfg(feature = "uuid-1")]
 //! # {
+//! # use uuid_current as uuid;
 //! use serde::{Serialize, Deserialize};
 //! use bson::doc;
 //!
@@ -41,17 +42,18 @@
 //! # };
 //! ```
 //!
-//! ## The `uuid-0_8` feature flag
+//! ## The `uuid-1` feature flag
 //!
 //! To facilitate the conversion between [`crate::Uuid`] values and the `uuid` crate's `Uuid`
-//! values, the `uuid-0_8` feature flag can be enabled. This flag exposes a number of convenient
-//! conversions, including the [`crate::Uuid::to_uuid_0_8`] method and the `From<uuid::Uuid>`
+//! values, the `uuid-1` feature flag can be enabled. This flag exposes a number of convenient
+//! conversions, including the [`crate::Uuid::to_uuid_1`] method and the `From<uuid::Uuid>`
 //! implementation for `Bson`, which allows the `uuid` crate's `Uuid` values to be used in the
 //! `doc!` and `bson!` macros.
 //!
 //! ```
-//! # #[cfg(feature = "uuid-0_8")]
+//! # #[cfg(feature = "uuid-1")]
 //! # {
+//! # use uuid_current as uuid;
 //! use bson::doc;
 //!
 //! // this automatic conversion does not require any feature flags
@@ -59,16 +61,18 @@
 //!     "uuid": bson::Uuid::new(),
 //! };
 //!
-//! // but this automatic conversion requires the "uuid-0_8" feature flag
+//! // but this automatic conversion requires the "uuid-1" feature flag
 //! let query = doc! {
 //!     "uuid": uuid::Uuid::new_v4(),
 //! };
 //!
-//! // this also requires the "uuid-0_8" feature flag.
-//! let uuid = bson::Uuid::new().to_uuid_0_8();
+//! // this also requires the "uuid-1" feature flag.
+//! let uuid = bson::Uuid::new().to_uuid_1();
 //! # };
 //! ```
 //!
+//! For backwards compatibility, a `uuid-0_8` feature flag can be enabled, which provides the same API for interoperation with version 0.8 of the `uuid` crate.  Note that at most one of `uuid-1` and `uuid-0_8` can be enabled.
+//! 
 //! ## The `serde_with` feature flag
 //!
 //! The `serde_with` feature can be enabled to support more ergonomic serde attributes for
@@ -77,8 +81,9 @@
 //! handle nested `uuid::Uuid` values (e.g. in `Option`), whereas the former only works on fields
 //! that are exactly `uuid::Uuid`.
 //! ```
-//! # #[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
+//! # #[cfg(all(feature = "uuid-1", feature = "serde_with"))]
 //! # {
+//! # use uuid_current as uuid;
 //! use serde::{Deserialize, Serialize};
 //! use bson::doc;
 //!
@@ -109,8 +114,9 @@
 //! for non-BSON formats such as JSON:
 //!
 //! ``` rust
-//! # #[cfg(feature = "uuid-0_8")]
+//! # #[cfg(feature = "uuid-1")]
 //! # {
+//! # use uuid_current as uuid;
 //! # use serde::{Serialize, Deserialize};
 //! # #[derive(Serialize, Deserialize)]
 //! # struct Foo {
@@ -141,7 +147,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(all(feature = "uuid-0_8", feature = "uuid-1"))]
 compile_error!("Features \"uuid-0_8\" and \"uuid-1\" cannot be enabled together.");
 
-#[cfg(feature = "uuid-0_8")]
+ #[cfg(feature = "uuid-0_8")]
 use uuid_0_8 as uuid;
 #[cfg(feature = "uuid-1")]
 use uuid_current as uuid;
@@ -231,6 +237,22 @@ impl Uuid {
     }
 }
 
+#[cfg(feature = "uuid-1")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
+impl Uuid {
+    /// Create a [`Uuid`] from a [`uuid::Uuid`](https://docs.rs/uuid/0.8/uuid/struct.Uuid.html) from
+    /// the [`uuid`](https://docs.rs/uuid/0.8) crate.
+    pub fn from_uuid_1(uuid: uuid::Uuid) -> Self {
+        Self::from_external_uuid(uuid)
+    }
+
+    /// Convert this [`Uuid`] to a [`uuid::Uuid`](https://docs.rs/uuid/0.8/uuid/struct.Uuid.html) from
+    /// the [`uuid`](https://docs.rs/uuid/0.8) crate.
+    pub fn to_uuid_1(self) -> uuid::Uuid {
+        self.uuid
+    }
+}
+
 impl Serialize for Uuid {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
@@ -297,17 +319,23 @@ impl From<Uuid> for Bson {
     }
 }
 
-#[cfg(feature = "uuid-0_8")]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 impl From<uuid::Uuid> for Uuid {
     fn from(u: uuid::Uuid) -> Self {
-        Self::from_uuid_0_8(u)
+        #[cfg(feature = "uuid-0_8")]
+        { Self::from_uuid_0_8(u) }
+        #[cfg(feature = "uuid-1")]
+        { Self::from_uuid_1(u) }
     }
 }
 
-#[cfg(feature = "uuid-0_8")]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 impl From<Uuid> for uuid::Uuid {
     fn from(s: Uuid) -> Self {
-        s.to_uuid_0_8()
+        #[cfg(feature = "uuid-0_8")]
+        { s.to_uuid_0_8() }
+        #[cfg(feature = "uuid-1")]
+        { s.to_uuid_1() }
     }
 }
 
@@ -444,8 +472,8 @@ impl Binary {
     }
 }
 
-#[cfg(feature = "uuid-0_8")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
 impl From<uuid::Uuid> for Binary {
     fn from(uuid: uuid::Uuid) -> Self {
         Binary {
@@ -455,8 +483,8 @@ impl From<uuid::Uuid> for Binary {
     }
 }
 
-#[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "uuid-0_8", feature = "serde_with"))))]
+#[cfg(all(any(feature = "uuid-0_8", feature = "uuid-1"), feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(any(feature = "uuid-0_8", feature = "uuid-1"), feature = "serde_with"))))]
 impl<'de> serde_with::DeserializeAs<'de, uuid::Uuid> for crate::Uuid {
     fn deserialize_as<D>(deserializer: D) -> std::result::Result<uuid::Uuid, D::Error>
     where
@@ -467,14 +495,17 @@ impl<'de> serde_with::DeserializeAs<'de, uuid::Uuid> for crate::Uuid {
     }
 }
 
-#[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "uuid-0_8", feature = "serde_with"))))]
+#[cfg(all(any(feature = "uuid-0_8", feature = "uuid-1"), feature = "serde_with"))]
+#[cfg_attr(docsrs, doc(cfg(all(any(feature = "uuid-0_8", feature = "uuid-1"), feature = "serde_with"))))]
 impl serde_with::SerializeAs<uuid::Uuid> for crate::Uuid {
     fn serialize_as<S>(source: &uuid::Uuid, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
+        #[cfg(feature = "uuid-0_8")]
         let uuid = Uuid::from_uuid_0_8(*source);
+        #[cfg(feature = "uuid-1")]
+        let uuid = Uuid::from_uuid_1(*source);
         uuid.serialize(serializer)
     }
 }

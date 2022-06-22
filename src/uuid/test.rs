@@ -238,11 +238,14 @@ fn test_binary_to_uuid_python_legacy_rep() {
     );
 }
 
-#[cfg(feature = "uuid-0_8")]
+#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[test]
 fn interop() {
     let uuid = crate::Uuid::new();
+    #[cfg(feature = "uuid-0_8")]
     let uuid_uuid = uuid.to_uuid_0_8();
+    #[cfg(feature = "uuid-1")]
+    let uuid_uuid = uuid.to_uuid_1();
     assert_eq!(uuid.to_string(), uuid_uuid.to_string());
     assert_eq!(&uuid.bytes(), uuid_uuid.as_bytes());
 
