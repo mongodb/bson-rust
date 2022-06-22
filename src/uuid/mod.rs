@@ -35,7 +35,7 @@
 //!     bson_uuid: bson::Uuid,
 //!
 //!     /// serializes as a BSON binary with subtype 4 when either is used.
-//!     /// this requires the "uuid-0_8" feature flag
+//!     /// this requires the "uuid-1" or "uuid-0_8" feature flag
 //!     #[serde(with = "bson::serde_helpers::uuid_as_binary")]
 //!     uuid_as_bson: uuid::Uuid,
 //! }

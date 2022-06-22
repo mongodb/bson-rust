@@ -392,11 +392,10 @@ pub mod hex_string_as_object_id {
 /// [`uuid::Uuid`] from a [`crate::Binary`]. This only works with version 0.8 of the [`uuid`] crate.
 ///
 /// ```rust
-/// use serde::{Serialize, Deserialize};
-/// # #[cfg(feature = "uuid-0_8")]
-/// # use uuid_0_8 as uuid;
 /// # #[cfg(feature = "uuid-1")]
+/// # {
 /// # use uuid_current as uuid;
+/// use serde::{Serialize, Deserialize};
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_binary;
 ///
@@ -405,6 +404,7 @@ pub mod hex_string_as_object_id {
 ///     #[serde(with = "uuid_as_binary")]
 ///     pub id: Uuid,
 /// }
+/// # }
 /// ```
 #[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
@@ -437,14 +437,13 @@ pub mod uuid_as_binary {
 /// Java driver UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy
 /// Java driver format.
 ///
-/// Note: the `"uuid-0_8"` feature must be enabled to use this helper.
+/// Note: the `"uuid-1"` or `"uuid-0_8"` features must be enabled to use this helper.
 ///
 /// ```rust
-/// use serde::{Serialize, Deserialize};
-/// # #[cfg(feature = "uuid-0_8")]
-/// # use uuid_0_8 as uuid;
-/// # #[cfg(feature = "uuid-1")]
+/// #[cfg(feature = "uuid-1")]
+/// # {
 /// # use uuid_current as uuid;
+/// use serde::{Serialize, Deserialize};
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_java_legacy_binary;
 ///
@@ -453,6 +452,7 @@ pub mod uuid_as_binary {
 ///     #[serde(with = "uuid_as_java_legacy_binary")]
 ///     pub id: Uuid,
 /// }
+/// # }
 /// ```
 #[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
@@ -493,14 +493,13 @@ pub mod uuid_as_java_legacy_binary {
 /// driver UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy Python
 /// driver format.
 ///
-/// Note: the `"uuid-0_8"` feature must be enabled to use this helper.
+/// Note: the `"uuid-1"` or `"uuid-0_8"` features must be enabled to use this helper.
 ///
 /// ```rust
-/// use serde::{Serialize, Deserialize};
-/// # #[cfg(feature = "uuid-0_8")]
-/// # use uuid_0_8 as uuid;
 /// # #[cfg(feature = "uuid-1")]
+/// # {
 /// # use uuid_current as uuid;
+/// use serde::{Serialize, Deserialize};
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_python_legacy_binary;
 ///
@@ -509,6 +508,7 @@ pub mod uuid_as_java_legacy_binary {
 ///     #[serde(with = "uuid_as_python_legacy_binary")]
 ///     pub id: Uuid,
 /// }
+/// # }
 /// ```
 #[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
@@ -549,14 +549,13 @@ pub mod uuid_as_python_legacy_binary {
 /// UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy C# driver
 /// format.
 ///
-/// Note: the `"uuid-0_8"` feature must be enabled to use this helper.
+/// Note: the `"uuid-1"` or `"uuid-0_8"` feature must be enabled to use this helper.
 ///
 /// ```rust
-/// use serde::{Serialize, Deserialize};
-/// # #[cfg(feature = "uuid-0_8")]
-/// # use uuid_0_8 as uuid;
 /// # #[cfg(feature = "uuid-1")]
+/// # {
 /// # use uuid_current as uuid;
+/// use serde::{Serialize, Deserialize};
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_c_sharp_legacy_binary;
 ///
@@ -565,6 +564,7 @@ pub mod uuid_as_python_legacy_binary {
 ///     #[serde(with = "uuid_as_c_sharp_legacy_binary")]
 ///     pub id: Uuid,
 /// }
+/// # }
 /// ```
 #[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
