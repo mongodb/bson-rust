@@ -212,14 +212,14 @@ impl Default for Uuid {
 impl Uuid {
     /// Create a [`Uuid`] from a [`uuid::Uuid`](https://docs.rs/uuid/0.8/uuid/struct.Uuid.html) from
     /// the [`uuid`](https://docs.rs/uuid/0.8) crate.
-    pub fn from_uuid_0_8(uuid: uuid::Uuid) -> Self {
-        Self::from_external_uuid(uuid)
+    pub fn from_uuid_0_8(uuid: uuid_0_8::Uuid) -> Self {
+        Self::from_external_uuid(uuid::Uuid::from_u128(uuid.as_u128()))
     }
 
     /// Convert this [`Uuid`] to a [`uuid::Uuid`](https://docs.rs/uuid/0.8/uuid/struct.Uuid.html) from
     /// the [`uuid`](https://docs.rs/uuid/0.8) crate.
-    pub fn to_uuid_0_8(self) -> uuid::Uuid {
-        self.uuid
+    pub fn to_uuid_0_8(self) -> uuid_0_8::Uuid {
+        uuid_0_8::Uuid::from_bytes(self.uuid.into_bytes())
     }
 }
 
@@ -290,14 +290,14 @@ impl From<Uuid> for Bson {
 }
 
 #[cfg(feature = "uuid-0_8")]
-impl From<uuid::Uuid> for Uuid {
-    fn from(u: uuid::Uuid) -> Self {
-        Self::from_external_uuid(u)
+impl From<uuid_0_8::Uuid> for Uuid {
+    fn from(u: uuid_0_8::Uuid) -> Self {
+        Self::from_uuid_0_8(u)
     }
 }
 
 #[cfg(feature = "uuid-0_8")]
-impl From<Uuid> for uuid::Uuid {
+impl From<Uuid> for uuid_0_8::Uuid {
     fn from(s: Uuid) -> Self {
         s.to_uuid_0_8()
     }
@@ -438,8 +438,8 @@ impl Binary {
 
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
-impl From<uuid::Uuid> for Binary {
-    fn from(uuid: uuid::Uuid) -> Self {
+impl From<uuid_0_8::Uuid> for Binary {
+    fn from(uuid: uuid_0_8::Uuid) -> Self {
         Binary {
             subtype: BinarySubtype::Uuid,
             bytes: uuid.as_bytes().to_vec(),
@@ -449,8 +449,8 @@ impl From<uuid::Uuid> for Binary {
 
 #[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "uuid-0_8", feature = "serde_with"))))]
-impl<'de> serde_with::DeserializeAs<'de, uuid::Uuid> for crate::Uuid {
-    fn deserialize_as<D>(deserializer: D) -> std::result::Result<uuid::Uuid, D::Error>
+impl<'de> serde_with::DeserializeAs<'de, uuid_0_8::Uuid> for crate::Uuid {
+    fn deserialize_as<D>(deserializer: D) -> std::result::Result<uuid_0_8::Uuid, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -460,13 +460,13 @@ impl<'de> serde_with::DeserializeAs<'de, uuid::Uuid> for crate::Uuid {
 }
 
 #[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "uuid-0_8", feature = "sere_with"))))]
-impl serde_with::SerializeAs<uuid::Uuid> for crate::Uuid {
-    fn serialize_as<S>(source: &uuid::Uuid, serializer: S) -> std::result::Result<S::Ok, S::Error>
+#[cfg_attr(docsrs, doc(cfg(all(feature = "uuid-0_8", feature = "serde_with"))))]
+impl serde_with::SerializeAs<uuid_0_8::Uuid> for crate::Uuid {
+    fn serialize_as<S>(source: &uuid_0_8::Uuid, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        let uuid = Uuid::from_external_uuid(*source);
+        let uuid = Uuid::from_uuid_0_8(*source);
         uuid.serialize(serializer)
     }
 }
