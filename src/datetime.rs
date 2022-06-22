@@ -105,12 +105,13 @@ use serde_with::{DeserializeAs, SerializeAs};
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 pub struct DateTime(i64);
 
-/// Struct providing a builder to construct a `bson::DateTime` object from a given year, month, and date, and
-/// optionally the hour, minute, second and millisecond, which default to 0 if not explicitly set.
-/// 
+/// Struct providing a builder to construct a `bson::DateTime` object from a given year, month, and
+/// date, and optionally the hour, minute, second and millisecond, which default to 0 if not
+/// explicitly set.
+///
 /// ```
 /// use bson::{DateTime, datetime::DateTimeBuilder};
-/// 
+///
 /// let dt = DateTimeBuilder::new(1998, 2, 12).minute(1).millisecond(23).builder();
 /// let expected = DateTime::parse_rfc3339_str("1998-02-12T00:01:00.023Z").unwrap();
 /// assert_eq!(dt.unwrap(), expected);
@@ -175,7 +176,6 @@ impl DateTimeBuilder {
         Ok(DateTime::from_time_private(dt.assume_utc()))
     }
 }
-
 
 impl crate::DateTime {
     /// The latest possible date that can be represented in BSON.

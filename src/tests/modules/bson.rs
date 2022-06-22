@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+    datetime::DateTimeBuilder,
     doc,
     oid::ObjectId,
     spec::BinarySubtype,
@@ -11,7 +12,6 @@ use crate::{
     Binary,
     Bson,
     DateTime,
-    datetime::DateTimeBuilder,
     Document,
     JavaScriptCodeWithScope,
     Regex,
@@ -268,18 +268,30 @@ fn from_external_datetime() {
     }
 
     {
-        let dt = DateTimeBuilder::new(2022, 9, 15).minute(2).millisecond(1).builder();
+        let dt = DateTimeBuilder::new(2022, 9, 15)
+            .minute(2)
+            .millisecond(1)
+            .builder();
         assert!(dt.is_ok());
-        assert_eq!(DateTime::from_time_0_3(datetime!(2022 - 09 - 15 00:02:00.001 UTC)), dt.unwrap());
+        assert_eq!(
+            DateTime::from_time_0_3(datetime!(2022 - 09 - 15 00:02:00.001 UTC)),
+            dt.unwrap()
+        );
     }
 
     {
-        let dt =  DateTimeBuilder::new(2022, 18, 15).minute(2).millisecond(1).builder();
+        let dt = DateTimeBuilder::new(2022, 18, 15)
+            .minute(2)
+            .millisecond(1)
+            .builder();
         assert!(dt.is_err());
     }
 
     {
-        let dt =  DateTimeBuilder::new(2022, 18, 15).minute(83).millisecond(1).builder();
+        let dt = DateTimeBuilder::new(2022, 18, 15)
+            .minute(83)
+            .millisecond(1)
+            .builder();
         assert!(dt.is_err());
     }
 
