@@ -375,7 +375,7 @@ fn from_datetime_builder() {
             .build();
         assert!(dt.is_ok());
         assert_eq!(
-            DateTime::from_time_0_3(datetime!(2022 - 09 - 15 00:02:00.001 UTC)),
+            DateTime::from_time_0_3(time::macros::datetime!(2022 - 09 - 15 00:02:00.001 UTC)),
             dt.unwrap()
         );
     }
@@ -389,7 +389,7 @@ fn from_datetime_builder() {
     }
 
     {
-        let dt = DateTimeBuilder::new(2022, 18, 15)
+        let dt = DateTimeBuilder::new(2022, 1, 15)
             .minute(83)
             .millisecond(1)
             .build();
