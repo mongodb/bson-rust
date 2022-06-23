@@ -112,7 +112,7 @@ pub struct DateTime(i64);
 /// ```
 /// use bson::{DateTime, datetime::DateTimeBuilder};
 ///
-/// let dt = DateTimeBuilder::new(1998, 2, 12).minute(1).millisecond(23).builder();
+/// let dt = DateTimeBuilder::new(1998, 2, 12).minute(1).millisecond(23).build();
 /// let expected = DateTime::parse_rfc3339_str("1998-02-12T00:01:00.023Z").unwrap();
 /// assert_eq!(dt.unwrap(), expected);
 /// ```
@@ -159,7 +159,7 @@ impl DateTimeBuilder {
         self
     }
 
-    pub fn builder(&mut self) -> Result<DateTime> {
+    pub fn build(&mut self) -> Result<DateTime> {
         let err = |e: time::error::ComponentRange| Error::InvalidTimestamp {
             message: e.to_string(),
         };

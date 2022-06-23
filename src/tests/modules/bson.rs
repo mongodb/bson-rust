@@ -267,34 +267,6 @@ fn from_external_datetime() {
         assert_millisecond_precision(from_chrono);
     }
 
-    {
-        let dt = DateTimeBuilder::new(2022, 9, 15)
-            .minute(2)
-            .millisecond(1)
-            .builder();
-        assert!(dt.is_ok());
-        assert_eq!(
-            DateTime::from_time_0_3(datetime!(2022 - 09 - 15 00:02:00.001 UTC)),
-            dt.unwrap()
-        );
-    }
-
-    {
-        let dt = DateTimeBuilder::new(2022, 18, 15)
-            .minute(2)
-            .millisecond(1)
-            .builder();
-        assert!(dt.is_err());
-    }
-
-    {
-        let dt = DateTimeBuilder::new(2022, 18, 15)
-            .minute(83)
-            .millisecond(1)
-            .builder();
-        assert!(dt.is_err());
-    }
-
     let no_subsec_millis = datetime!(2014-11-28 12:00:09 UTC);
     let dt = DateTime::from_time_0_3(no_subsec_millis);
     assert_millisecond_precision(dt);
@@ -390,6 +362,38 @@ fn from_external_datetime() {
 
         let bdt = DateTime::MIN;
         assert_eq!(bdt.to_chrono(), chrono::MIN_DATETIME);
+    }
+}
+
+#[test]
+fn from_datetime_builder() {
+    #[cfg(feature = "time-0_3")]
+    {
+        let dt = DateTimeBuilder::new(2022, 9, 15)
+            .minute(2)
+            .millisecond(1)
+            .build();
+        assert!(dt.is_ok());
+        assert_eq!(
+            DateTime::from_time_0_3(datetime!(2022 - 09 - 15 00:02:00.001 UTC)),
+            dt.unwrap()
+        );
+    }
+
+    {
+        let dt = DateTimeBuilder::new(2022, 18, 15)
+            .minute(2)
+            .millisecond(1)
+            .build();
+        assert!(dt.is_err());
+    }
+
+    {
+        let dt = DateTimeBuilder::new(2022, 18, 15)
+            .minute(83)
+            .millisecond(1)
+            .build();
+        assert!(dt.is_err());
     }
 }
 
