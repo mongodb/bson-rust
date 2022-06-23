@@ -4,6 +4,11 @@ use std::{convert::TryFrom, result::Result};
 
 use serde::{ser, Serialize, Serializer};
 
+#[cfg(feature = "uuid-0_8")]
+use uuid_0_8 as uuid;
+#[cfg(feature = "uuid-1")]
+use uuid_1_lib as uuid;
+
 use crate::oid::ObjectId;
 
 #[doc(inline)]
@@ -409,12 +414,9 @@ pub mod hex_string_as_object_id {
 #[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
 pub mod uuid_as_binary {
+    use super::uuid::Uuid;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
-    #[cfg(feature = "uuid-0_8")]
-    use uuid_0_8::Uuid;
-    #[cfg(feature = "uuid-1")]
-    use uuid_1_lib::Uuid;
 
     /// Serializes a Uuid as a Binary.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
@@ -457,13 +459,10 @@ pub mod uuid_as_binary {
 #[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
 pub mod uuid_as_java_legacy_binary {
+    use super::uuid::Uuid;
     use crate::{uuid::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
-    #[cfg(feature = "uuid-0_8")]
-    use uuid_0_8::Uuid;
-    #[cfg(feature = "uuid-1")]
-    use uuid_1_lib::Uuid;
 
     /// Serializes a Uuid as a Binary in a Java Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
@@ -513,13 +512,10 @@ pub mod uuid_as_java_legacy_binary {
 #[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
 pub mod uuid_as_python_legacy_binary {
+    use super::uuid::Uuid;
     use crate::{uuid::UuidRepresentation, Binary};
     use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
-    #[cfg(feature = "uuid-0_8")]
-    use uuid_0_8::Uuid;
-    #[cfg(feature = "uuid-1")]
-    use uuid_1_lib::Uuid;
 
     /// Serializes a Uuid as a Binary in a Python Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]

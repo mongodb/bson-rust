@@ -46,7 +46,7 @@
 //!
 //! To facilitate the conversion between [`crate::Uuid`] values and the `uuid` crate's `Uuid`
 //! values, the `uuid-1` feature flag can be enabled. This flag exposes a number of convenient
-//! conversions, including the [`crate::Uuid::to_uuid_1`] method and the `From<uuid::Uuid>`
+//! conversions, including the `crate::Uuid::to_uuid_1` method and the `From<uuid::Uuid>`
 //! implementation for `Bson`, which allows the `uuid` crate's `Uuid` values to be used in the
 //! `doc!` and `bson!` macros.
 //!
