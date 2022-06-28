@@ -4,7 +4,6 @@ use std::{
 };
 
 use crate::{
-    datetime::RawDateTime,
     doc,
     oid::ObjectId,
     spec::BinarySubtype,
@@ -369,14 +368,13 @@ fn from_external_datetime() {
 fn from_datetime_builder() {
     #[cfg(feature = "time-0_3")]
     {
-        let dt = RawDateTime::builder()
+        let dt = DateTime::builder()
             .year(2022)
             .month(9)
             .day(15)
             .minute(2)
             .millisecond(1)
-            .build()
-            .to_bson();
+            .build();
         assert!(dt.is_ok());
         assert_eq!(
             DateTime::from_time_0_3(time::macros::datetime!(2022 - 09 - 15 00:02:00.001 UTC)),
@@ -385,26 +383,24 @@ fn from_datetime_builder() {
     }
 
     {
-        let dt = RawDateTime::builder()
+        let dt = DateTime::builder()
             .year(2022)
             .month(18)
             .day(15)
             .minute(2)
             .millisecond(1)
-            .build()
-            .to_bson();
+            .build();
         assert!(dt.is_err());
     }
 
     {
-        let dt = RawDateTime::builder()
+        let dt = DateTime::builder()
             .year(2022)
-            .month(18)
             .day(15)
+            .month(18)
             .minute(83)
             .millisecond(1)
-            .build()
-            .to_bson();
+            .build();
         assert!(dt.is_err());
     }
 }
