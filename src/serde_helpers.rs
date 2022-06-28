@@ -48,23 +48,11 @@ pub use u32_as_timestamp::{
 #[doc(inline)]
 pub use u64_as_f64::{deserialize as deserialize_u64_from_f64, serialize as serialize_u64_as_f64};
 
-#[cfg(feature = "uuid-0_8")]
-#[doc(inline)]
-pub use uuid_as_binary::{
-    deserialize as deserialize_uuid_from_binary,
-    serialize as serialize_uuid_as_binary,
-};
 #[cfg(feature = "uuid-1")]
 #[doc(inline)]
 pub use uuid_1_as_binary::{
     deserialize as deserialize_uuid_1_from_binary,
     serialize as serialize_uuid_1_as_binary,
-};
-#[cfg(feature = "uuid-0_8")]
-#[doc(inline)]
-pub use uuid_as_c_sharp_legacy_binary::{
-    deserialize as deserialize_uuid_from_c_sharp_legacy_binary,
-    serialize as serialize_uuid_as_c_sharp_legacy_binary,
 };
 #[cfg(feature = "uuid-1")]
 #[doc(inline)]
@@ -72,29 +60,41 @@ pub use uuid_1_as_c_sharp_legacy_binary::{
     deserialize as deserialize_uuid_1_from_c_sharp_legacy_binary,
     serialize as serialize_uuid_1_as_c_sharp_legacy_binary,
 };
-#[cfg(feature = "uuid-0_8")]
-#[doc(inline)]
-pub use uuid_as_java_legacy_binary::{
-    deserialize as deserialize_uuid_from_java_legacy_binary,
-    serialize as serialize_uuid_as_java_legacy_binary,
-};
 #[cfg(feature = "uuid-1")]
 #[doc(inline)]
 pub use uuid_1_as_java_legacy_binary::{
     deserialize as deserialize_uuid_1_from_java_legacy_binary,
     serialize as serialize_uuid_1_as_java_legacy_binary,
 };
-#[cfg(feature = "uuid-0_8")]
-#[doc(inline)]
-pub use uuid_as_python_legacy_binary::{
-    deserialize as deserialize_uuid_from_python_legacy_binary,
-    serialize as serialize_uuid_as_python_legacy_binary,
-};
 #[cfg(feature = "uuid-1")]
 #[doc(inline)]
 pub use uuid_1_as_python_legacy_binary::{
     deserialize as deserialize_uuid_1_from_python_legacy_binary,
     serialize as serialize_uuid_1_as_python_legacy_binary,
+};
+#[cfg(feature = "uuid-0_8")]
+#[doc(inline)]
+pub use uuid_as_binary::{
+    deserialize as deserialize_uuid_from_binary,
+    serialize as serialize_uuid_as_binary,
+};
+#[cfg(feature = "uuid-0_8")]
+#[doc(inline)]
+pub use uuid_as_c_sharp_legacy_binary::{
+    deserialize as deserialize_uuid_from_c_sharp_legacy_binary,
+    serialize as serialize_uuid_as_c_sharp_legacy_binary,
+};
+#[cfg(feature = "uuid-0_8")]
+#[doc(inline)]
+pub use uuid_as_java_legacy_binary::{
+    deserialize as deserialize_uuid_from_java_legacy_binary,
+    serialize as serialize_uuid_as_java_legacy_binary,
+};
+#[cfg(feature = "uuid-0_8")]
+#[doc(inline)]
+pub use uuid_as_python_legacy_binary::{
+    deserialize as deserialize_uuid_from_python_legacy_binary,
+    serialize as serialize_uuid_as_python_legacy_binary,
 };
 
 /// Attempts to serialize a u32 as an i32. Errors if an exact conversion is not possible.
@@ -412,11 +412,12 @@ pub mod hex_string_as_object_id {
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! as_binary_mod {
     ($feat:meta, $uu:path) => {
-        use $uu;
         use serde::{Deserialize, Deserializer, Serialize, Serializer};
         use std::result::Result;
+        use $uu;
 
         /// Serializes a Uuid as a Binary.
         #[cfg_attr(docsrs, doc($feat))]
@@ -482,23 +483,21 @@ pub mod uuid_1_as_binary {
     as_binary_mod!(cfg(feature = "uuid-1"), uuid::Uuid);
 }
 
+#[allow(unused_macros)]
 macro_rules! as_legacy_binary_mod {
     ($feat:meta, $uu:path, $rep:path) => {
-        use $uu;
         use crate::{uuid::UuidRepresentation, Binary};
         use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
         use std::result::Result;
-    
+        use $uu;
+
         /// Serializes a Uuid as a Binary in the legacy UUID format.
         #[cfg_attr(docsrs, doc($feat))]
         pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-            let binary = Binary::from_uuid_with_representation(
-                crate::uuid::Uuid::from(*val),
-                $rep,
-            );
+            let binary = Binary::from_uuid_with_representation(crate::uuid::Uuid::from(*val), $rep);
             binary.serialize(serializer)
         }
-    
+
         /// Deserializes a Uuid from a Binary in the legacy UUID format.
         #[cfg_attr(docsrs, doc($feat))]
         pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
@@ -510,13 +509,13 @@ macro_rules! as_legacy_binary_mod {
                 .to_uuid_with_representation($rep)
                 .map_err(de::Error::custom)?;
             Ok(uuid.into())
-        }    
-    }
+        }
+    };
 }
 
 /// Contains functions to serialize a [`uuid_0_8::Uuid`] to a [`crate::Binary`] in the legacy
-/// Java driver UUID format and deserialize [`uuid_0_8::Uuid`] from a [`crate::Binary`] in the legacy
-/// Java driver format.
+/// Java driver UUID format and deserialize [`uuid_0_8::Uuid`] from a [`crate::Binary`] in the
+/// legacy Java driver format.
 ///
 /// ```rust
 /// #[cfg(feature = "uuid-0_8")]
@@ -535,7 +534,11 @@ macro_rules! as_legacy_binary_mod {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_java_legacy_binary {
-    as_legacy_binary_mod!(cfg(feature = "uuid-0_8"), uuid_0_8::Uuid, UuidRepresentation::JavaLegacy);
+    as_legacy_binary_mod!(
+        cfg(feature = "uuid-0_8"),
+        uuid_0_8::Uuid,
+        UuidRepresentation::JavaLegacy
+    );
 }
 
 /// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy
@@ -559,12 +562,16 @@ pub mod uuid_as_java_legacy_binary {
 #[cfg(feature = "uuid-1")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
 pub mod uuid_1_as_java_legacy_binary {
-    as_legacy_binary_mod!(cfg(feature = "uuid-1"), uuid::Uuid, UuidRepresentation::JavaLegacy);
+    as_legacy_binary_mod!(
+        cfg(feature = "uuid-1"),
+        uuid::Uuid,
+        UuidRepresentation::JavaLegacy
+    );
 }
 
 /// Contains functions to serialize a [`uuid_0_8::Uuid`] to a [`crate::Binary`] in the legacy Python
-/// driver UUID format and deserialize [`uuid_0_8::Uuid`] from a [`crate::Binary`] in the legacy Python
-/// driver format.
+/// driver UUID format and deserialize [`uuid_0_8::Uuid`] from a [`crate::Binary`] in the legacy
+/// Python driver format.
 ///
 /// ```rust
 /// # #[cfg(feature = "uuid-0_8")]
@@ -583,7 +590,11 @@ pub mod uuid_1_as_java_legacy_binary {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_python_legacy_binary {
-    as_legacy_binary_mod!(cfg(feature = "uuid-0_8"), uuid_0_8::Uuid, UuidRepresentation::PythonLegacy);
+    as_legacy_binary_mod!(
+        cfg(feature = "uuid-0_8"),
+        uuid_0_8::Uuid,
+        UuidRepresentation::PythonLegacy
+    );
 }
 
 /// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy Python
@@ -607,12 +618,16 @@ pub mod uuid_as_python_legacy_binary {
 #[cfg(feature = "uuid-1")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
 pub mod uuid_1_as_python_legacy_binary {
-    as_legacy_binary_mod!(cfg(feature = "uuid-1"), uuid::Uuid, UuidRepresentation::PythonLegacy);
+    as_legacy_binary_mod!(
+        cfg(feature = "uuid-1"),
+        uuid::Uuid,
+        UuidRepresentation::PythonLegacy
+    );
 }
 
-/// Contains functions to serialize a [`uuid_0_8::Uuid`] to a [`crate::Binary`] in the legacy C# driver
-/// UUID format and deserialize [`uuid_0_8::Uuid`] from a [`crate::Binary`] in the legacy C# driver
-/// format.
+/// Contains functions to serialize a [`uuid_0_8::Uuid`] to a [`crate::Binary`] in the legacy C#
+/// driver UUID format and deserialize [`uuid_0_8::Uuid`] from a [`crate::Binary`] in the legacy C#
+/// driver format.
 ///
 /// ```rust
 /// # #[cfg(feature = "uuid-0_8")]
@@ -631,7 +646,11 @@ pub mod uuid_1_as_python_legacy_binary {
 #[cfg(feature = "uuid-0_8")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_c_sharp_legacy_binary {
-    as_legacy_binary_mod!(cfg(feature = "uuid-0_8"), uuid_0_8::Uuid, UuidRepresentation::CSharpLegacy);
+    as_legacy_binary_mod!(
+        cfg(feature = "uuid-0_8"),
+        uuid_0_8::Uuid,
+        UuidRepresentation::CSharpLegacy
+    );
 }
 
 /// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy C# driver
@@ -655,7 +674,11 @@ pub mod uuid_as_c_sharp_legacy_binary {
 #[cfg(feature = "uuid-1")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
 pub mod uuid_1_as_c_sharp_legacy_binary {
-    as_legacy_binary_mod!(cfg(feature = "uuid-1"), uuid::Uuid, UuidRepresentation::CSharpLegacy);
+    as_legacy_binary_mod!(
+        cfg(feature = "uuid-1"),
+        uuid::Uuid,
+        UuidRepresentation::CSharpLegacy
+    );
 }
 
 /// Contains functions to serialize a u32 as a bson::Timestamp and deserialize a u32 from a

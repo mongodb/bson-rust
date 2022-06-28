@@ -193,10 +193,9 @@ impl Uuid {
 
     /// Creates a [`Uuid`] from the provided hex string.
     pub fn parse_str(input: impl AsRef<str>) -> Result<Self> {
-        let uuid =
-            uuid::Uuid::parse_str(input.as_ref()).map_err(|e| Error::InvalidUuidString {
-                message: e.to_string(),
-            })?;
+        let uuid = uuid::Uuid::parse_str(input.as_ref()).map_err(|e| Error::InvalidUuidString {
+            message: e.to_string(),
+        })?;
         Ok(Self::from_external_uuid(uuid))
     }
 
@@ -269,8 +268,8 @@ impl<'de> Deserialize<'de> for Uuid {
             Bson::Binary(b)
                 if matches!(b.subtype, BinarySubtype::Uuid | BinarySubtype::Generic) =>
             {
-                let uuid = uuid::Uuid::from_slice(b.bytes.as_slice())
-                    .map_err(serde::de::Error::custom)?;
+                let uuid =
+                    uuid::Uuid::from_slice(b.bytes.as_slice()).map_err(serde::de::Error::custom)?;
                 Ok(Self::from_external_uuid(uuid))
             }
             Bson::Binary(b) if b.subtype == BinarySubtype::UuidOld => {
@@ -279,8 +278,7 @@ impl<'de> Deserialize<'de> for Uuid {
                 ))
             }
             Bson::String(s) => {
-                let uuid =
-                    uuid::Uuid::from_str(s.as_str()).map_err(serde::de::Error::custom)?;
+                let uuid = uuid::Uuid::from_str(s.as_str()).map_err(serde::de::Error::custom)?;
                 Ok(Self::from_external_uuid(uuid))
             }
             b => Err(serde::de::Error::invalid_type(b.as_unexpected(), &"a UUID")),
@@ -318,7 +316,7 @@ impl From<Uuid> for Bson {
 #[cfg(feature = "uuid-0_8")]
 impl From<uuid_0_8::Uuid> for Uuid {
     fn from(u: uuid_0_8::Uuid) -> Self {
-            Self::from_uuid_0_8(u)
+        Self::from_uuid_0_8(u)
     }
 }
 
@@ -332,7 +330,7 @@ impl From<Uuid> for uuid_0_8::Uuid {
 #[cfg(feature = "uuid-1")]
 impl From<uuid::Uuid> for Uuid {
     fn from(u: uuid::Uuid) -> Self {
-            Self::from_uuid_1(u)
+        Self::from_uuid_1(u)
     }
 }
 
