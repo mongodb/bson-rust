@@ -175,10 +175,10 @@ use serde_with::{DeserializeAs, SerializeAs};
 /// # Ok(())
 /// # }
 /// ```
-/// 
+///
 /// You may also construct this type from a given year, month, day, and optionally,
 /// an hour, minute, second and millisecond, which default to 0 if not explicitly set.
-/// 
+///
 /// ```
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let dt = bson::DateTime::builder().year(1998).month(2).day(12).minute(1).millisecond(23).build()?;
