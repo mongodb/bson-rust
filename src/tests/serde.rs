@@ -559,7 +559,7 @@ fn test_serde_legacy_uuid() {
     #[cfg(feature = "uuid-0_8")]
     use uuid_0_8::Uuid;
     #[cfg(feature = "uuid-1")]
-    use uuid_1_lib::Uuid;
+    use uuid::Uuid;
 
     let _guard = LOCK.run_concurrently();
 
@@ -848,7 +848,7 @@ fn test_uuid_helpers() {
     #[cfg(feature = "uuid-0_8")]
     use uuid_0_8::Uuid;
     #[cfg(feature = "uuid-1")]
-    use uuid_1_lib::Uuid;
+    use uuid::Uuid;
 
     let _guard = LOCK.run_concurrently();
 

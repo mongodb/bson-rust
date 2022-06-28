@@ -31,7 +31,7 @@ use serde_json::{json, Value};
 #[cfg(feature = "uuid-0_8")]
 use uuid_0_8 as uuid;
 #[cfg(feature = "uuid-1")]
-use uuid_1_lib as uuid;
+use uuid as uuid;
 
 pub use crate::document::Document;
 use crate::{

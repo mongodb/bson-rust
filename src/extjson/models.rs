@@ -174,7 +174,7 @@ pub(crate) struct Uuid {
 
 impl Uuid {
     pub(crate) fn parse(self) -> extjson::de::Result<crate::Binary> {
-        let uuid = uuid_1_lib::Uuid::parse_str(&self.value).map_err(|_| {
+        let uuid = uuid::Uuid::parse_str(&self.value).map_err(|_| {
             extjson::de::Error::invalid_value(
                 Unexpected::Str(&self.value),
                 &"$uuid value does not follow RFC 4122 format regarding length and hyphens",

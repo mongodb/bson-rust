@@ -4,11 +4,6 @@ use std::{convert::TryFrom, result::Result};
 
 use serde::{ser, Serialize, Serializer};
 
-#[cfg(feature = "uuid-0_8")]
-use uuid_0_8 as uuid;
-#[cfg(feature = "uuid-1")]
-use uuid_1_lib as uuid;
-
 use crate::oid::ObjectId;
 
 #[doc(inline)]
@@ -399,7 +394,7 @@ pub mod hex_string_as_object_id {
 /// ```rust
 /// # #[cfg(feature = "uuid-1")]
 /// # {
-/// # use uuid_1_lib as uuid;
+/// # use uuid as uuid;
 /// use serde::{Serialize, Deserialize};
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_binary;
@@ -444,7 +439,7 @@ pub mod uuid_as_binary {
 /// ```rust
 /// #[cfg(feature = "uuid-1")]
 /// # {
-/// # use uuid_1_lib as uuid;
+/// # use uuid as uuid;
 /// use serde::{Serialize, Deserialize};
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_java_legacy_binary;
@@ -497,7 +492,7 @@ pub mod uuid_as_java_legacy_binary {
 /// ```rust
 /// # #[cfg(feature = "uuid-1")]
 /// # {
-/// # use uuid_1_lib as uuid;
+/// # use uuid as uuid;
 /// use serde::{Serialize, Deserialize};
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_python_legacy_binary;
@@ -550,7 +545,7 @@ pub mod uuid_as_python_legacy_binary {
 /// ```rust
 /// # #[cfg(feature = "uuid-1")]
 /// # {
-/// # use uuid_1_lib as uuid;
+/// # use uuid as uuid;
 /// use serde::{Serialize, Deserialize};
 /// use uuid::Uuid;
 /// use bson::serde_helpers::uuid_as_c_sharp_legacy_binary;
@@ -571,7 +566,7 @@ pub mod uuid_as_c_sharp_legacy_binary {
     #[cfg(feature = "uuid-0_8")]
     use uuid_0_8::Uuid;
     #[cfg(feature = "uuid-1")]
-    use uuid_1_lib::Uuid;
+    use uuid::Uuid;
 
     /// Serializes a Uuid as a Binary in a C# Legacy UUID format.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
