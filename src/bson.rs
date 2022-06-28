@@ -28,11 +28,6 @@ use std::{
 
 use serde_json::{json, Value};
 
-#[cfg(feature = "uuid-0_8")]
-use uuid_0_8 as uuid;
-#[cfg(feature = "uuid-1")]
-use uuid as uuid;
-
 pub use crate::document::Document;
 use crate::{
     oid::{self, ObjectId},
@@ -331,8 +326,16 @@ impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for Bson {
     }
 }
 
-#[cfg(any(feature = "uuid-0_8", feature = "uuid-1"))]
-#[cfg_attr(docsrs, doc(cfg(any(feature = "uuid-0_8", feature = "uuid-1"))))]
+#[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
+impl From<uuid_0_8::Uuid> for Bson {
+    fn from(uuid: uuid_0_8::Uuid) -> Self {
+        Bson::Binary(uuid.into())
+    }
+}
+
+#[cfg(feature = "uuid-1")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
 impl From<uuid::Uuid> for Bson {
     fn from(uuid: uuid::Uuid) -> Self {
         Bson::Binary(uuid.into())

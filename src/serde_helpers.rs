@@ -442,9 +442,8 @@ macro_rules! as_binary_mod {
 /// ```rust
 /// # #[cfg(feature = "uuid-0_8")]
 /// # {
-/// # use uuid_0_8 as uuid;
 /// use serde::{Serialize, Deserialize};
-/// use uuid::Uuid;
+/// use uuid_0_8::Uuid;
 /// use bson::serde_helpers::uuid_as_binary;
 ///
 /// #[derive(Serialize, Deserialize)]
@@ -522,9 +521,8 @@ macro_rules! as_legacy_binary_mod {
 /// ```rust
 /// #[cfg(feature = "uuid-0_8")]
 /// # {
-/// # use uuid_0_8 as uuid;
 /// use serde::{Serialize, Deserialize};
-/// use uuid::Uuid;
+/// use uuid_0_8::Uuid;
 /// use bson::serde_helpers::uuid_as_java_legacy_binary;
 ///
 /// #[derive(Serialize, Deserialize)]
@@ -571,9 +569,8 @@ pub mod uuid_1_as_java_legacy_binary {
 /// ```rust
 /// # #[cfg(feature = "uuid-0_8")]
 /// # {
-/// # use uuid_0_8 as uuid;
 /// use serde::{Serialize, Deserialize};
-/// use uuid::Uuid;
+/// use uuid_0_8::Uuid;
 /// use bson::serde_helpers::uuid_as_python_legacy_binary;
 ///
 /// #[derive(Serialize, Deserialize)]
@@ -598,7 +595,7 @@ pub mod uuid_as_python_legacy_binary {
 /// # {
 /// use serde::{Serialize, Deserialize};
 /// use uuid::Uuid;
-/// use bson::serde_helpers::uuid_as_python_legacy_binary;
+/// use bson::serde_helpers::uuid_1_as_python_legacy_binary;
 ///
 /// #[derive(Serialize, Deserialize)]
 /// struct Item {
@@ -620,9 +617,8 @@ pub mod uuid_1_as_python_legacy_binary {
 /// ```rust
 /// # #[cfg(feature = "uuid-0_8")]
 /// # {
-/// # use uuid_0_8 as uuid;
 /// use serde::{Serialize, Deserialize};
-/// use uuid::Uuid;
+/// use uuid_0_8::Uuid;
 /// use bson::serde_helpers::uuid_as_c_sharp_legacy_binary;
 ///
 /// #[derive(Serialize, Deserialize)]
@@ -632,10 +628,10 @@ pub mod uuid_1_as_python_legacy_binary {
 /// }
 /// # }
 /// ```
-#[cfg(feature = "uuid-1")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
+#[cfg(feature = "uuid-0_8")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
 pub mod uuid_as_c_sharp_legacy_binary {
-    as_legacy_binary_mod!(cfg(feature = "uuid-1"), uuid::Uuid, UuidRepresentation::CSharpLegacy);
+    as_legacy_binary_mod!(cfg(feature = "uuid-0_8"), uuid_0_8::Uuid, UuidRepresentation::CSharpLegacy);
 }
 
 /// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy C# driver
@@ -647,7 +643,7 @@ pub mod uuid_as_c_sharp_legacy_binary {
 /// # {
 /// use serde::{Serialize, Deserialize};
 /// use uuid::Uuid;
-/// use bson::serde_helpers::uuid_as_c_sharp_legacy_binary;
+/// use bson::serde_helpers::uuid_1_as_c_sharp_legacy_binary;
 ///
 /// #[derive(Serialize, Deserialize)]
 /// struct Item {
