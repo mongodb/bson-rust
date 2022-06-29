@@ -476,8 +476,8 @@ impl Binary {
 
 macro_rules! trait_impls {
     ($feat:meta, $u:ty) => {
-        #[$feat]
-        #[cfg_attr(docsrs, doc($feat))]
+        #[cfg($feat)]
+        #[cfg_attr(docsrs, doc(cfg($feat)))]
         impl From<$u> for Binary {
             fn from(uuid: $u) -> Self {
                 Binary {
@@ -487,8 +487,8 @@ macro_rules! trait_impls {
             }
         }
 
-        #[$feat]
-        #[cfg_attr(docsrs, doc($feat))]
+        #[cfg(all($feat, feature = "serde_with"))]
+        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with"))))]
         impl<'de> serde_with::DeserializeAs<'de, $u> for crate::Uuid {
             fn deserialize_as<D>(deserializer: D) -> std::result::Result<$u, D::Error>
             where
@@ -499,8 +499,8 @@ macro_rules! trait_impls {
             }
         }
 
-        #[$feat]
-        #[cfg_attr(docsrs, doc($feat))]
+        #[cfg(all($feat, feature = "serde_with"))]
+        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with"))))]
         impl serde_with::SerializeAs<$u> for crate::Uuid {
             fn serialize_as<S>(source: &$u, serializer: S) -> std::result::Result<S::Ok, S::Error>
             where
@@ -512,8 +512,8 @@ macro_rules! trait_impls {
         }
     };
 }
-trait_impls!(cfg(feature = "uuid-0_8"), uuid_0_8::Uuid);
-trait_impls!(cfg(feature = "uuid-1"), uuid::Uuid);
+trait_impls!(feature = "uuid-0_8", uuid_0_8::Uuid);
+trait_impls!(feature = "uuid-1", uuid::Uuid);
 
 /// Errors that can occur during [`Uuid`] construction and generation.
 #[derive(Clone, Debug)]
