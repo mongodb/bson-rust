@@ -35,7 +35,7 @@ default = []
 # if enabled, include API for interfacing with chrono 0.4
 chrono-0_4 = ["chrono"]
 # if enabled, include API for interfacing with uuid 0.8
-# This is commented out because Caro implicitly adds this feature since
+# This is commented out because Cargo implicitly adds this feature since
 # uuid-0_8 is also an optional dependency.
 # uuid-0_8 = []
 # if enabled, include API for interfacing with uuid 1.x
