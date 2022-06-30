@@ -366,7 +366,6 @@ fn from_external_datetime() {
 
 #[test]
 fn from_datetime_builder() {
-    #[cfg(feature = "time-0_3")]
     {
         let dt = DateTime::builder()
             .year(2022)

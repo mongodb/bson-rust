@@ -1,147 +1,16 @@
+//! BSON DateTime
+
 use std::{
-    convert::{TryFrom, TryInto},
+    convert::TryInto,
     error,
     fmt::{self, Display},
     result,
     time::{Duration, SystemTime},
 };
 
-use builder::*;
-use time::{format_description::well_known::Rfc3339, Date};
-
-mod builder {
-    use super::*;
-
-    pub struct DateTimeBuilder<Y, M, D> {
-        pub(crate) year: Y,
-        pub(crate) month: M,
-        pub(crate) day: D,
-
-        pub(crate) hour: Option<u8>,
-        pub(crate) minute: Option<u8>,
-        pub(crate) second: Option<u8>,
-        pub(crate) millisecond: Option<u16>,
-    }
-
-    pub struct Year(i32);
-    pub struct NoYear;
-
-    pub struct Month(u8);
-    pub struct NoMonth;
-
-    pub struct Day(u8);
-    pub struct NoDay;
-
-    impl<M, D> DateTimeBuilder<NoYear, M, D> {
-        pub fn year(self, y: i32) -> DateTimeBuilder<Year, M, D> {
-            let Self {
-                year: _,
-                month,
-                day,
-                hour,
-                minute,
-                second,
-                millisecond,
-            } = self;
-            DateTimeBuilder {
-                year: Year(y),
-                month,
-                day,
-                hour,
-                minute,
-                second,
-                millisecond,
-            }
-        }
-    }
-
-    impl<Y, D> DateTimeBuilder<Y, NoMonth, D> {
-        pub fn month(self, m: u8) -> DateTimeBuilder<Y, Month, D> {
-            let Self {
-                year,
-                month: _,
-                day,
-                hour,
-                minute,
-                second,
-                millisecond,
-            } = self;
-            DateTimeBuilder {
-                year,
-                month: Month(m),
-                day,
-                hour,
-                minute,
-                second,
-                millisecond,
-            }
-        }
-    }
-
-    impl<Y, M> DateTimeBuilder<Y, M, NoDay> {
-        pub fn day(self, d: u8) -> DateTimeBuilder<Y, M, Day> {
-            let Self {
-                year,
-                month,
-                day: _,
-                hour,
-                minute,
-                second,
-                millisecond,
-            } = self;
-            DateTimeBuilder {
-                year,
-                month,
-                day: Day(d),
-                hour,
-                minute,
-                second,
-                millisecond,
-            }
-        }
-    }
-
-    impl<Y, M, D> DateTimeBuilder<Y, M, D> {
-        pub fn hour(mut self, hour: u8) -> DateTimeBuilder<Y, M, D> {
-            self.hour = Some(hour);
-            self
-        }
-
-        pub fn minute(mut self, minute: u8) -> DateTimeBuilder<Y, M, D> {
-            self.minute = Some(minute);
-            self
-        }
-
-        pub fn second(mut self, second: u8) -> DateTimeBuilder<Y, M, D> {
-            self.second = Some(second);
-            self
-        }
-
-        pub fn millisecond(mut self, millisecond: u16) -> DateTimeBuilder<Y, M, D> {
-            self.millisecond = Some(millisecond);
-            self
-        }
-    }
-
-    impl DateTimeBuilder<Year, Month, Day> {
-        pub fn build(self) -> Result<DateTime> {
-            let err = |e: time::error::ComponentRange| Error::InvalidTimestamp {
-                message: e.to_string(),
-            };
-            let month = time::Month::try_from(self.month.0).map_err(err)?;
-            let dt = Date::from_calendar_date(self.year.0, month, self.day.0)
-                .map_err(err)?
-                .with_hms_milli(
-                    self.hour.unwrap_or(0),
-                    self.minute.unwrap_or(0),
-                    self.second.unwrap_or(0),
-                    self.millisecond.unwrap_or(0),
-                )
-                .map_err(err)?;
-            Ok(DateTime::from_time_private(dt.assume_utc()))
-        }
-    }
-}
+pub(crate) mod builder;
+pub use crate::datetime::builder::DateTimeBuilder;
+use time::format_description::well_known::Rfc3339;
 
 #[cfg(feature = "chrono-0_4")]
 use chrono::{LocalResult, TimeZone, Utc};
@@ -176,15 +45,15 @@ use serde_with::{DeserializeAs, SerializeAs};
 /// # }
 /// ```
 ///
-/// You may also construct this type from a given year, month, day, and optionally,
-/// an hour, minute, second and millisecond, which default to 0 if not explicitly set.
+/// You may also construct this type from a given `year`, `month`, `day`, and optionally,
+/// an `hour`, `minute`, `second` and `millisecond`, which default to 0 if not explicitly set.
 ///
 /// ```
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let dt = bson::DateTime::builder().year(1998).month(2).day(12).minute(1).millisecond(23).build()?;
-///     let expected = bson::DateTime::parse_rfc3339_str("1998-02-12T00:01:00.023Z")?;
-///     assert_eq!(dt, expected);
-/// #    Ok(())
+/// let dt = bson::DateTime::builder().year(1998).month(2).day(12).minute(1).millisecond(23).build()?;
+/// let expected = bson::DateTime::parse_rfc3339_str("1998-02-12T00:01:00.023Z")?;
+/// assert_eq!(dt, expected);
+/// # Ok(())
 /// # }
 /// ```
 ///
@@ -278,17 +147,13 @@ impl crate::DateTime {
         Self::from_millis(dt.timestamp_millis())
     }
 
-    pub fn builder() -> DateTimeBuilder<NoYear, NoMonth, NoDay> {
-        DateTimeBuilder {
-            year: NoYear,
-            month: NoMonth,
-            day: NoDay,
-
-            hour: None,
-            minute: None,
-            second: None,
-            millisecond: None,
-        }
+    /// Returns a builder used to construct a [`DateTime`] from a given year, month,
+    /// day, and optionally, an hour, minute, second and millisecond, which default to
+    /// 0 if not explicitly set.
+    ///
+    /// Note: You cannot call `build()` before setting at least the year, month and day.
+    pub fn builder() -> DateTimeBuilder {
+        DateTimeBuilder::default()
     }
 
     /// Convert this [`DateTime`] to a [`chrono::DateTime<Utc>`].
