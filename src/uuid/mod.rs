@@ -19,8 +19,9 @@
 //! e.g.
 //!
 //! ``` rust
-//! # #[cfg(feature = "uuid-0_8")]
+//! # #[cfg(feature = "uuid-1")]
 //! # {
+//! # use uuid as uuid;
 //! use serde::{Serialize, Deserialize};
 //! use bson::doc;
 //!
@@ -34,24 +35,25 @@
 //!     bson_uuid: bson::Uuid,
 //!
 //!     /// serializes as a BSON binary with subtype 4 when either is used.
-//!     /// this requires the "uuid-0_8" feature flag
-//!     #[serde(with = "bson::serde_helpers::uuid_as_binary")]
+//!     /// this requires the "uuid-1" feature flag
+//!     #[serde(with = "bson::serde_helpers::uuid_1_as_binary")]
 //!     uuid_as_bson: uuid::Uuid,
 //! }
 //! # };
 //! ```
 //!
-//! ## The `uuid-0_8` feature flag
+//! ## The `uuid-1` feature flag
 //!
 //! To facilitate the conversion between [`crate::Uuid`] values and the `uuid` crate's `Uuid`
-//! values, the `uuid-0_8` feature flag can be enabled. This flag exposes a number of convenient
-//! conversions, including the [`crate::Uuid::to_uuid_0_8`] method and the `From<uuid::Uuid>`
+//! values, the `uuid-1` feature flag can be enabled. This flag exposes a number of convenient
+//! conversions, including the `crate::Uuid::to_uuid_1` method and the `From<uuid::Uuid>`
 //! implementation for `Bson`, which allows the `uuid` crate's `Uuid` values to be used in the
 //! `doc!` and `bson!` macros.
 //!
 //! ```
-//! # #[cfg(feature = "uuid-0_8")]
+//! # #[cfg(feature = "uuid-1")]
 //! # {
+//! # use uuid as uuid;
 //! use bson::doc;
 //!
 //! // this automatic conversion does not require any feature flags
@@ -59,15 +61,18 @@
 //!     "uuid": bson::Uuid::new(),
 //! };
 //!
-//! // but this automatic conversion requires the "uuid-0_8" feature flag
+//! // but this automatic conversion requires the "uuid-1" feature flag
 //! let query = doc! {
 //!     "uuid": uuid::Uuid::new_v4(),
 //! };
 //!
-//! // this also requires the "uuid-0_8" feature flag.
-//! let uuid = bson::Uuid::new().to_uuid_0_8();
+//! // this also requires the "uuid-1" feature flag.
+//! let uuid = bson::Uuid::new().to_uuid_1();
 //! # };
 //! ```
+//!
+//! For backwards compatibility, a `uuid-0_8` feature flag can be enabled, which provides the same
+//! API for interoperation with version 0.8 of the `uuid` crate.
 //!
 //! ## The `serde_with` feature flag
 //!
@@ -77,8 +82,9 @@
 //! handle nested `uuid::Uuid` values (e.g. in `Option`), whereas the former only works on fields
 //! that are exactly `uuid::Uuid`.
 //! ```
-//! # #[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
+//! # #[cfg(all(feature = "uuid-1", feature = "serde_with"))]
 //! # {
+//! # use uuid as uuid;
 //! use serde::{Deserialize, Serialize};
 //! use bson::doc;
 //!
@@ -109,8 +115,9 @@
 //! for non-BSON formats such as JSON:
 //!
 //! ``` rust
-//! # #[cfg(feature = "uuid-0_8")]
+//! # #[cfg(feature = "uuid-1")]
 //! # {
+//! # use uuid as uuid;
 //! # use serde::{Serialize, Deserialize};
 //! # #[derive(Serialize, Deserialize)]
 //! # struct Foo {
@@ -212,13 +219,29 @@ impl Default for Uuid {
 impl Uuid {
     /// Create a [`Uuid`] from a [`uuid::Uuid`](https://docs.rs/uuid/0.8/uuid/struct.Uuid.html) from
     /// the [`uuid`](https://docs.rs/uuid/0.8) crate.
-    pub fn from_uuid_0_8(uuid: uuid::Uuid) -> Self {
+    pub fn from_uuid_0_8(uuid: uuid_0_8::Uuid) -> Self {
+        Self::from_external_uuid(uuid::Uuid::from_u128(uuid.as_u128()))
+    }
+
+    /// Convert this [`Uuid`] to a [`uuid::Uuid`](https://docs.rs/uuid/0.8/uuid/struct.Uuid.html) from
+    /// the [`uuid`](https://docs.rs/uuid/0.8) crate.
+    pub fn to_uuid_0_8(self) -> uuid_0_8::Uuid {
+        uuid_0_8::Uuid::from_bytes(self.uuid.into_bytes())
+    }
+}
+
+#[cfg(feature = "uuid-1")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
+impl Uuid {
+    /// Create a [`Uuid`] from a [`uuid::Uuid`](https://docs.rs/uuid/0.8/uuid/struct.Uuid.html) from
+    /// the [`uuid`](https://docs.rs/uuid/0.8) crate.
+    pub fn from_uuid_1(uuid: uuid::Uuid) -> Self {
         Self::from_external_uuid(uuid)
     }
 
     /// Convert this [`Uuid`] to a [`uuid::Uuid`](https://docs.rs/uuid/0.8/uuid/struct.Uuid.html) from
     /// the [`uuid`](https://docs.rs/uuid/0.8) crate.
-    pub fn to_uuid_0_8(self) -> uuid::Uuid {
+    pub fn to_uuid_1(self) -> uuid::Uuid {
         self.uuid
     }
 }
@@ -290,16 +313,30 @@ impl From<Uuid> for Bson {
 }
 
 #[cfg(feature = "uuid-0_8")]
-impl From<uuid::Uuid> for Uuid {
-    fn from(u: uuid::Uuid) -> Self {
-        Self::from_external_uuid(u)
+impl From<uuid_0_8::Uuid> for Uuid {
+    fn from(u: uuid_0_8::Uuid) -> Self {
+        Self::from_uuid_0_8(u)
     }
 }
 
 #[cfg(feature = "uuid-0_8")]
-impl From<Uuid> for uuid::Uuid {
+impl From<Uuid> for uuid_0_8::Uuid {
     fn from(s: Uuid) -> Self {
         s.to_uuid_0_8()
+    }
+}
+
+#[cfg(feature = "uuid-1")]
+impl From<uuid::Uuid> for Uuid {
+    fn from(u: uuid::Uuid) -> Self {
+        Self::from_uuid_1(u)
+    }
+}
+
+#[cfg(feature = "uuid-1")]
+impl From<Uuid> for uuid::Uuid {
+    fn from(s: Uuid) -> Self {
+        s.to_uuid_1()
     }
 }
 
@@ -436,40 +473,46 @@ impl Binary {
     }
 }
 
-#[cfg(feature = "uuid-0_8")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
-impl From<uuid::Uuid> for Binary {
-    fn from(uuid: uuid::Uuid) -> Self {
-        Binary {
-            subtype: BinarySubtype::Uuid,
-            bytes: uuid.as_bytes().to_vec(),
+macro_rules! trait_impls {
+    ($feat:meta, $u:ty) => {
+        #[cfg($feat)]
+        #[cfg_attr(docsrs, doc(cfg($feat)))]
+        impl From<$u> for Binary {
+            fn from(uuid: $u) -> Self {
+                Binary {
+                    subtype: BinarySubtype::Uuid,
+                    bytes: uuid.as_bytes().to_vec(),
+                }
+            }
         }
-    }
-}
 
-#[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "uuid-0_8", feature = "serde_with"))))]
-impl<'de> serde_with::DeserializeAs<'de, uuid::Uuid> for crate::Uuid {
-    fn deserialize_as<D>(deserializer: D) -> std::result::Result<uuid::Uuid, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let uuid = Uuid::deserialize(deserializer)?;
-        Ok(uuid.into())
-    }
-}
+        #[cfg(all($feat, feature = "serde_with"))]
+        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with"))))]
+        impl<'de> serde_with::DeserializeAs<'de, $u> for crate::Uuid {
+            fn deserialize_as<D>(deserializer: D) -> std::result::Result<$u, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                let uuid = Uuid::deserialize(deserializer)?;
+                Ok(uuid.into())
+            }
+        }
 
-#[cfg(all(feature = "uuid-0_8", feature = "serde_with"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "uuid-0_8", feature = "sere_with"))))]
-impl serde_with::SerializeAs<uuid::Uuid> for crate::Uuid {
-    fn serialize_as<S>(source: &uuid::Uuid, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let uuid = Uuid::from_external_uuid(*source);
-        uuid.serialize(serializer)
-    }
+        #[cfg(all($feat, feature = "serde_with"))]
+        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with"))))]
+        impl serde_with::SerializeAs<$u> for crate::Uuid {
+            fn serialize_as<S>(source: &$u, serializer: S) -> std::result::Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                let uuid = Uuid::from(*source);
+                uuid.serialize(serializer)
+            }
+        }
+    };
 }
+trait_impls!(feature = "uuid-0_8", uuid_0_8::Uuid);
+trait_impls!(feature = "uuid-1", uuid::Uuid);
 
 /// Errors that can occur during [`Uuid`] construction and generation.
 #[derive(Clone, Debug)]

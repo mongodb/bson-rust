@@ -555,8 +555,8 @@ fn test_de_db_pointer() {
 
 #[cfg(feature = "uuid-0_8")]
 #[test]
-fn test_serde_legacy_uuid() {
-    use uuid::Uuid;
+fn test_serde_legacy_uuid_0_8() {
+    use uuid_0_8::Uuid;
 
     let _guard = LOCK.run_concurrently();
 
@@ -567,6 +567,54 @@ fn test_serde_legacy_uuid() {
         #[serde(with = "serde_helpers::uuid_as_python_legacy_binary")]
         python_legacy: Uuid,
         #[serde(with = "serde_helpers::uuid_as_c_sharp_legacy_binary")]
+        csharp_legacy: Uuid,
+    }
+    let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+    let foo = Foo {
+        java_legacy: uuid,
+        python_legacy: uuid,
+        csharp_legacy: uuid,
+    };
+
+    let x = to_bson(&foo).unwrap();
+    assert_eq!(
+        x.as_document().unwrap(),
+        &doc! {
+            "java_legacy": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("7766554433221100FFEEDDCCBBAA9988").unwrap(),
+            }),
+            "python_legacy": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("00112233445566778899AABBCCDDEEFF").unwrap(),
+            }),
+            "csharp_legacy": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("33221100554477668899AABBCCDDEEFF").unwrap(),
+            })
+        }
+    );
+
+    let foo: Foo = from_bson(x).unwrap();
+    assert_eq!(foo.java_legacy, uuid);
+    assert_eq!(foo.python_legacy, uuid);
+    assert_eq!(foo.csharp_legacy, uuid);
+}
+
+#[cfg(feature = "uuid-1")]
+#[test]
+fn test_serde_legacy_uuid_1() {
+    use uuid::Uuid;
+
+    let _guard = LOCK.run_concurrently();
+
+    #[derive(Serialize, Deserialize)]
+    struct Foo {
+        #[serde(with = "serde_helpers::uuid_1_as_java_legacy_binary")]
+        java_legacy: Uuid,
+        #[serde(with = "serde_helpers::uuid_1_as_python_legacy_binary")]
+        python_legacy: Uuid,
+        #[serde(with = "serde_helpers::uuid_1_as_c_sharp_legacy_binary")]
         csharp_legacy: Uuid,
     }
     let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
@@ -840,15 +888,43 @@ fn test_oid_helpers() {
 
 #[test]
 #[cfg(feature = "uuid-0_8")]
-fn test_uuid_helpers() {
+fn test_uuid_0_8_helpers() {
     use serde_helpers::uuid_as_binary;
-    use uuid::Uuid;
+    use uuid_0_8::Uuid;
 
     let _guard = LOCK.run_concurrently();
 
     #[derive(Serialize, Deserialize)]
     struct A {
         #[serde(with = "uuid_as_binary")]
+        uuid: Uuid,
+    }
+
+    let uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
+    let a = A { uuid };
+    let doc = to_document(&a).unwrap();
+    match doc.get("uuid").unwrap() {
+        Bson::Binary(bin) => {
+            assert_eq!(bin.subtype, BinarySubtype::Uuid);
+            assert_eq!(bin.bytes, uuid.as_bytes());
+        }
+        _ => panic!("expected Bson::Binary"),
+    }
+    let a: A = from_document(doc).unwrap();
+    assert_eq!(a.uuid, uuid);
+}
+
+#[test]
+#[cfg(feature = "uuid-1")]
+fn test_uuid_1_helpers() {
+    use serde_helpers::uuid_1_as_binary;
+    use uuid::Uuid;
+
+    let _guard = LOCK.run_concurrently();
+
+    #[derive(Serialize, Deserialize)]
+    struct A {
+        #[serde(with = "uuid_1_as_binary")]
         uuid: Uuid,
     }
 
