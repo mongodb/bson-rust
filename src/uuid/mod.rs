@@ -72,8 +72,7 @@
 //! ```
 //!
 //! For backwards compatibility, a `uuid-0_8` feature flag can be enabled, which provides the same
-//! API for interoperation with version 0.8 of the `uuid` crate.  Note that at most one of `uuid-1`
-//! and `uuid-0_8` can be enabled.
+//! API for interoperation with version 0.8 of the `uuid` crate.
 //!
 //! ## The `serde_with` feature flag
 //!
