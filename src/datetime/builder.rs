@@ -38,7 +38,12 @@ pub struct Day(u8);
 pub struct NoDay;
 
 impl<M, D> DateTimeBuilder<NoYear, M, D> {
-    /// Sets the year for the builder instance.
+    /// Sets the year for the builder instance. Years between ±9999 inclusive are valid.
+    /// If the specified value is out of range, calling the `build()` method will return
+    /// an error.
+    ///
+    /// Note: This is a required method. You will not be able to call `build()` before calling
+    /// this method.
     pub fn year(self, y: i32) -> DateTimeBuilder<Year, M, D> {
         let Self {
             year: _,
@@ -62,7 +67,12 @@ impl<M, D> DateTimeBuilder<NoYear, M, D> {
 }
 
 impl<Y, D> DateTimeBuilder<Y, NoMonth, D> {
-    /// Sets the month for the builder instance.
+    /// Sets the month for the builder instance. Maps months as 1-January to 12-December.
+    /// If the specified value is out of range, calling the `build()` method will return
+    /// an error.
+    ///
+    /// Note: This is a required method. You will not be able to call `build()` before calling
+    /// this method.
     pub fn month(self, m: u8) -> DateTimeBuilder<Y, Month, D> {
         let Self {
             year,
@@ -86,7 +96,12 @@ impl<Y, D> DateTimeBuilder<Y, NoMonth, D> {
 }
 
 impl<Y, M> DateTimeBuilder<Y, M, NoDay> {
-    /// Sets the day for the builder instance.
+    /// Sets the day for the builder instance. Values in the range `1..=31` are valid.
+    /// If the specified value does not exist for the provided month/year or is out of range,
+    /// calling the `build()` method will return an error.
+    ///
+    /// Note: This is a required method. You will not be able to call `build()` before calling
+    /// this method.
     pub fn day(self, d: u8) -> DateTimeBuilder<Y, M, Day> {
         let Self {
             year,
@@ -110,25 +125,38 @@ impl<Y, M> DateTimeBuilder<Y, M, NoDay> {
 }
 
 impl<Y, M, D> DateTimeBuilder<Y, M, D> {
-    /// Sets the hour (24-hour format) for the builder instance.
+    /// Sets the hour (24-hour format) for the builder instance. Values must be in the range
+    /// `0..=23`. If the specified value is out of range, calling the `build()` method will
+    /// return an error.
+    ///
+    /// Note: This is an optional method. The hour will default to 0 if not explicitly set.
     pub fn hour(mut self, hour: u8) -> DateTimeBuilder<Y, M, D> {
         self.hour = Some(hour);
         self
     }
 
-    /// Sets the minute for the builder instance.
+    /// Sets the minute for the builder instance. Values must be in the range `0..=59`.
+    /// If the specified value is out of range, calling the `build()` method will return an error.
+    ///
+    /// Note: This is an optional method. The minute will default to 0 if not explicitly set.
     pub fn minute(mut self, minute: u8) -> DateTimeBuilder<Y, M, D> {
         self.minute = Some(minute);
         self
     }
 
-    /// Sets the second for the builder instance.
+    /// Sets the second for the builder instance. Values must be in range `0..=59`.
+    /// If the specified value is out of range, calling the `build()` method will return an error.
+    ///
+    /// Note: This is an optional method. The second will default to 0 if not explicitly set.
     pub fn second(mut self, second: u8) -> DateTimeBuilder<Y, M, D> {
         self.second = Some(second);
         self
     }
 
-    /// Sets the millisecond for the builder instance.
+    /// Sets the millisecond for the builder instance. Values must be in the range `0..=999`.
+    /// If the specified value is out of range, calling the `build()` method will return an error.
+    ///
+    /// Note: This is an optional method. The millisecond will default to 0 if not explicitly set.
     pub fn millisecond(mut self, millisecond: u16) -> DateTimeBuilder<Y, M, D> {
         self.millisecond = Some(millisecond);
         self
@@ -136,8 +164,8 @@ impl<Y, M, D> DateTimeBuilder<Y, M, D> {
 }
 
 impl DateTimeBuilder<Year, Month, Day> {
-    /// Convert from a specified year, month, day, and optionally, an hour, minute, second and
-    /// millisecond to a [`DateTime`].
+    /// Convert a builder with a specified year, month, day, and optionally, an hour, minute, second
+    /// and millisecond to a [`DateTime`].
     ///
     /// Note: You cannot call `build()` before setting at least the year, month and day.
     pub fn build(self) -> Result<DateTime> {
