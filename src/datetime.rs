@@ -1,3 +1,5 @@
+//! BSON DateTime
+
 use std::{
     convert::TryInto,
     error,
@@ -6,6 +8,8 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+pub(crate) mod builder;
+pub use crate::datetime::builder::DateTimeBuilder;
 use time::format_description::well_known::Rfc3339;
 
 #[cfg(feature = "chrono-0_4")]
@@ -37,6 +41,18 @@ use serde_with::{DeserializeAs, SerializeAs};
 /// let back_to_chrono: chrono::DateTime<Utc> = bson_dt.into();
 /// let back_to_chrono = bson_dt.to_chrono();
 /// # }
+/// # Ok(())
+/// # }
+/// ```
+///
+/// You may also construct this type from a given `year`, `month`, `day`, and optionally,
+/// an `hour`, `minute`, `second` and `millisecond`, which default to 0 if not explicitly set.
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let dt = bson::DateTime::builder().year(1998).month(2).day(12).minute(1).millisecond(23).build()?;
+/// let expected = bson::DateTime::parse_rfc3339_str("1998-02-12T00:01:00.023Z")?;
+/// assert_eq!(dt, expected);
 /// # Ok(())
 /// # }
 /// ```
@@ -129,6 +145,15 @@ impl crate::DateTime {
     #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
         Self::from_millis(dt.timestamp_millis())
+    }
+
+    /// Returns a builder used to construct a [`DateTime`] from a given year, month,
+    /// day, and optionally, an hour, minute, second and millisecond, which default to
+    /// 0 if not explicitly set.
+    ///
+    /// Note: You cannot call `build()` before setting at least the year, month and day.
+    pub fn builder() -> DateTimeBuilder {
+        DateTimeBuilder::default()
     }
 
     /// Convert this [`DateTime`] to a [`chrono::DateTime<Utc>`].

@@ -16,6 +16,7 @@ use crate::{
     Regex,
     Timestamp,
 };
+
 use serde_json::{json, Value};
 
 #[test]
@@ -360,6 +361,46 @@ fn from_external_datetime() {
 
         let bdt = DateTime::MIN;
         assert_eq!(bdt.to_chrono(), chrono::MIN_DATETIME);
+    }
+}
+
+#[test]
+fn from_datetime_builder() {
+    {
+        let dt = DateTime::builder()
+            .year(2022)
+            .month(9)
+            .day(15)
+            .minute(2)
+            .millisecond(1)
+            .build();
+        assert!(dt.is_ok());
+        assert_eq!(
+            DateTime::from_time_0_3(time::macros::datetime!(2022 - 09 - 15 00:02:00.001 UTC)),
+            dt.unwrap()
+        );
+    }
+
+    {
+        let dt = DateTime::builder()
+            .year(2022)
+            .month(18)
+            .day(15)
+            .minute(2)
+            .millisecond(1)
+            .build();
+        assert!(dt.is_err());
+    }
+
+    {
+        let dt = DateTime::builder()
+            .year(2022)
+            .day(15)
+            .month(18)
+            .minute(83)
+            .millisecond(1)
+            .build();
+        assert!(dt.is_err());
     }
 }
 
