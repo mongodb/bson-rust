@@ -165,7 +165,7 @@ impl FromIterator<(String, Bson)> for Document {
     }
 }
 
-impl<'a> Iterator for IntoIter {
+impl Iterator for IntoIter {
     type Item = (String, Bson);
 
     fn next(&mut self) -> Option<(String, Bson)> {

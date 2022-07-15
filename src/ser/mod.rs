@@ -36,8 +36,7 @@ use crate::{
     bson::{Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex},
     de::MAX_BSON_SIZE,
     spec::BinarySubtype,
-    Binary,
-    RawDocumentBuf,
+    Binary, RawDocumentBuf,
 };
 use ::serde::{ser::Error as SerdeError, Serialize};
 

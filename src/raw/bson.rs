@@ -447,7 +447,7 @@ impl Serialize for RawBson {
     }
 }
 
-impl<'a> TryFrom<RawBson> for Bson {
+impl TryFrom<RawBson> for Bson {
     type Error = Error;
 
     fn try_from(rawbson: RawBson) -> Result<Bson> {

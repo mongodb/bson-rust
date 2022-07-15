@@ -4,7 +4,12 @@ set -o errexit
 
 . ~/.cargo/env
 
-cargo clippy --all-targets --all-features -p bson -- -D warnings
+# Pin clippy to the latest version. This should be updated when new versions of Rust are released.
+CLIPPY_VERSION=1.62.0
+
+rustup install $CLIPPY_VERSION
+
+cargo +$CLIPPY_VERSION clippy --all-targets --all-features -p bson -- -D warnings
 
 cd serde-tests
-cargo clippy --all-targets --all-features -p serde-tests -- -D warnings
+cargo +$CLIPPY_VERSION clippy --all-targets --all-features -p serde-tests -- -D warnings
