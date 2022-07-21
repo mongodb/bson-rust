@@ -249,7 +249,7 @@ fn null() {
     let rawdoc = rawdoc! {
         "null": null,
     };
-    let () = rawdoc
+    rawdoc
         .get("null")
         .expect("error finding key null")
         .expect("no key null")

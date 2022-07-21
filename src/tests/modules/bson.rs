@@ -433,7 +433,7 @@ fn system_time() {
     );
     assert_eq!(
         crate::DateTime::MIN.to_system_time(),
-        SystemTime::UNIX_EPOCH - Duration::from_millis((i64::MIN as i128).abs() as u64)
+        SystemTime::UNIX_EPOCH - Duration::from_millis((i64::MIN as i128).unsigned_abs() as u64)
     );
 
     assert_eq!(

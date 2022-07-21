@@ -1673,7 +1673,7 @@ struct RawBsonDeserializer<'a> {
     value: BsonContent<'a>,
 }
 
-impl<'de, 'a> serde::de::Deserializer<'de> for RawBsonDeserializer<'de> {
+impl<'de> serde::de::Deserializer<'de> for RawBsonDeserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
