@@ -460,6 +460,14 @@ pub struct RawBinaryRef<'a> {
 }
 
 impl<'a> RawBinaryRef<'a> {
+    /// Copy the contents into a `Binary`.
+    pub fn to_binary(&self) -> Binary {
+        Binary {
+            subtype: self.subtype,
+            bytes: self.bytes.to_owned(),
+        }
+    }
+
     pub(crate) fn len(&self) -> i32 {
         match self.subtype {
             BinarySubtype::BinaryOld => self.bytes.len() as i32 + 4,
