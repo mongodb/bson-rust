@@ -386,7 +386,7 @@ impl Deref for RawDocumentBuf {
 
 impl Borrow<RawDocument> for RawDocumentBuf {
     fn borrow(&self) -> &RawDocument {
-        &*self
+        &**self
     }
 }
 
