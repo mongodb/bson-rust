@@ -1130,7 +1130,8 @@ impl Binary {
         }
     }
 
-    pub(crate) fn as_raw_binary(&self) -> RawBinaryRef<'_> {
+    /// Borrow the contents as a `RawBinaryRef`.
+    pub fn as_raw_binary(&self) -> RawBinaryRef<'_> {
         RawBinaryRef {
             bytes: self.bytes.as_slice(),
             subtype: self.subtype,
