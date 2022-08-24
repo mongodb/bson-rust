@@ -159,7 +159,8 @@ impl crate::DateTime {
     /// Convert this [`DateTime`] to a [`chrono::DateTime<Utc>`].
     ///
     /// Note: Not every BSON datetime can be represented as a [`chrono::DateTime`]. For such dates,
-    /// [`chrono::DateTime::MIN_UTC`] or [`chrono::DateTime::MAX_UTC`] will be returned, whichever is closer.
+    /// [`chrono::DateTime::MIN_UTC`] or [`chrono::DateTime::MAX_UTC`] will be returned, whichever
+    /// is closer.
     ///
     /// ```
     /// let bson_dt = bson::DateTime::now();
