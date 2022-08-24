@@ -169,7 +169,7 @@ impl crate::DateTime {
     ///
     /// let big = bson::DateTime::from_millis(i64::MAX);
     /// let chrono_big = big.to_chrono();
-    /// assert_eq!(chrono_big, chrono::DateTime::<Utc>::MAX_UTC)
+    /// assert_eq!(chrono_big, chrono::DateTime::<chrono::Utc>::MAX_UTC)
     /// ```
     #[cfg(feature = "chrono-0_4")]
     #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]

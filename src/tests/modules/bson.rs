@@ -17,7 +17,6 @@ use crate::{
     Timestamp,
 };
 
-use chrono::Utc;
 use serde_json::{json, Value};
 
 #[test]
@@ -345,6 +344,8 @@ fn from_external_datetime() {
     }
     #[cfg(feature = "chrono-0_4")]
     {
+        use chrono::Utc;
+
         let bdt = DateTime::from(chrono::DateTime::<Utc>::MAX_UTC);
         assert_eq!(
             bdt.to_chrono().timestamp_millis(),
