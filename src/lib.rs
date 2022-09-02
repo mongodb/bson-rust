@@ -263,7 +263,7 @@
 //! The MSRV for this crate is currently 1.53.0. This will be rarely be increased, and if it ever is,
 //! it will only happen in a minor or major version release.
 
-#![allow(clippy::cognitive_complexity)]
+#![allow(clippy::cognitive_complexity, clippy::derive_partial_eq_without_eq)]
 #![doc(html_root_url = "https://docs.rs/bson/2.3.0")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

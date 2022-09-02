@@ -159,7 +159,8 @@ impl crate::DateTime {
     /// Convert this [`DateTime`] to a [`chrono::DateTime<Utc>`].
     ///
     /// Note: Not every BSON datetime can be represented as a [`chrono::DateTime`]. For such dates,
-    /// [`chrono::MIN_DATETIME`] or [`chrono::MAX_DATETIME`] will be returned, whichever is closer.
+    /// [`chrono::DateTime::MIN_UTC`] or [`chrono::DateTime::MAX_UTC`] will be returned, whichever
+    /// is closer.
     ///
     /// ```
     /// let bson_dt = bson::DateTime::now();
@@ -168,7 +169,7 @@ impl crate::DateTime {
     ///
     /// let big = bson::DateTime::from_millis(i64::MAX);
     /// let chrono_big = big.to_chrono();
-    /// assert_eq!(chrono_big, chrono::MAX_DATETIME)
+    /// assert_eq!(chrono_big, chrono::DateTime::<chrono::Utc>::MAX_UTC)
     /// ```
     #[cfg(feature = "chrono-0_4")]
     #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
@@ -177,9 +178,9 @@ impl crate::DateTime {
             LocalResult::Single(dt) => dt,
             _ => {
                 if self.0 < 0 {
-                    chrono::MIN_DATETIME
+                    chrono::DateTime::<Utc>::MIN_UTC
                 } else {
-                    chrono::MAX_DATETIME
+                    chrono::DateTime::<Utc>::MAX_UTC
                 }
             }
         }
