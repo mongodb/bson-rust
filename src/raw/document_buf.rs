@@ -361,6 +361,14 @@ impl TryFrom<RawDocumentBuf> for Document {
     }
 }
 
+impl TryFrom<&Document> for RawDocumentBuf {
+    type Error = Error;
+
+    fn try_from(doc: &Document) -> Result<RawDocumentBuf> {
+        RawDocumentBuf::from_document(doc)
+    }
+}
+
 impl<'a> IntoIterator for &'a RawDocumentBuf {
     type IntoIter = Iter<'a>;
     type Item = Result<(&'a str, RawBsonRef<'a>)>;
