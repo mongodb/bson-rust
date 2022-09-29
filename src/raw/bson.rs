@@ -482,6 +482,45 @@ impl TryFrom<RawBson> for Bson {
     }
 }
 
+impl TryFrom<Bson> for RawBson {
+    type Error = Error;
+
+    fn try_from(bson: Bson) -> Result<RawBson> {
+        Ok(match bson {
+            Bson::Double(d) => RawBson::Double(d),
+            Bson::String(s) => RawBson::String(s),
+            Bson::Document(doc) => RawBson::Document((&doc).try_into()?),
+            Bson::Array(arr) => RawBson::Array(
+                arr.into_iter()
+                    .map(|b| -> Result<RawBson> { b.try_into() })
+                    .collect::<Result<RawArrayBuf>>()?,
+            ),
+            Bson::Binary(bin) => RawBson::Binary(bin),
+            Bson::ObjectId(id) => RawBson::ObjectId(id),
+            Bson::Boolean(b) => RawBson::Boolean(b),
+            Bson::DateTime(dt) => RawBson::DateTime(dt),
+            Bson::Null => RawBson::Null,
+            Bson::RegularExpression(regex) => RawBson::RegularExpression(regex),
+            Bson::JavaScriptCode(s) => RawBson::JavaScriptCode(s),
+            Bson::Int32(i) => RawBson::Int32(i),
+            Bson::Timestamp(ts) => RawBson::Timestamp(ts),
+            Bson::Int64(i) => RawBson::Int64(i),
+            Bson::Undefined => RawBson::Undefined,
+            Bson::DbPointer(p) => RawBson::DbPointer(p),
+            Bson::Symbol(s) => RawBson::Symbol(s),
+            Bson::JavaScriptCodeWithScope(jcws) => {
+                RawBson::JavaScriptCodeWithScope(crate::RawJavaScriptCodeWithScope {
+                    code: jcws.code,
+                    scope: (&jcws.scope).try_into()?,
+                })
+            }
+            Bson::Decimal128(d) => RawBson::Decimal128(d),
+            Bson::MaxKey => RawBson::MaxKey,
+            Bson::MinKey => RawBson::MinKey,
+        })
+    }
+}
+
 /// A BSON "code with scope" value backed by owned raw BSON.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RawJavaScriptCodeWithScope {
