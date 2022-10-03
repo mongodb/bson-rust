@@ -12,7 +12,7 @@ Encoding and decoding support for BSON in Rust
     - [Importing](#importing)
         - [Feature flags](#feature-flags)
 - [Useful links](#useful-links)
-- [Overview of BSON Format](#overview-of-bson-format)
+- [Overview of BSON Format](#overview-of-the-bson-format)
 - [Usage](#usage)
     - [BSON Values](#bson-values)
     - [BSON Documents](#bson-documents)
