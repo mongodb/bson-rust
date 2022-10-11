@@ -1,7 +1,7 @@
 //! ObjectId
 
 use std::{
-    convert::TryInto,
+    convert::{TryFrom, TryInto},
     error,
     fmt,
     result,
@@ -222,6 +222,20 @@ impl fmt::Debug for ObjectId {
     }
 }
 
+impl TryFrom<&str> for ObjectId {
+    type Error = Error;
+    fn try_from(value: &str) -> result::Result<Self, Self::Error> {
+        ObjectId::parse_str(value)
+    }
+}
+
+impl TryFrom<String> for ObjectId {
+    type Error = Error;
+    fn try_from(value: String) -> result::Result<Self, Self::Error> {
+        ObjectId::parse_str(value.as_str())
+    }
+}
+
 #[cfg(test)]
 use crate::tests::LOCK;
 
@@ -283,6 +297,10 @@ fn test_counter_overflow_usize_max() {
 
 #[cfg(test)]
 mod test {
+    use crate::oid::ObjectId;
+    use std::{
+        convert::{TryFrom, TryInto},
+    };
     use time::macros::datetime;
 
     #[test]
@@ -332,5 +350,16 @@ mod test {
             datetime!(2106-02-07 6:28:15 UTC),
             id.timestamp().to_time_0_3()
         );
+    }
+
+    #[test]
+    fn test_string_conversions() {
+        let str1 = "000000000000000000000000";
+        let str2 = String::from("000000000000000000000000");
+        let id1 = ObjectId::try_from(str1).expect("Unable to convert from string");
+        let id2 = ObjectId::try_from(str2).expect("Unable to convert from string");
+        let id3: ObjectId = str1.try_into().unwrap();
+        assert_eq!(id1, id3);
+        assert_eq!(id2, id3);
     }
 }
