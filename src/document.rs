@@ -117,6 +117,11 @@ pub struct Values<'a> {
     inner: indexmap::map::Values<'a, String, Bson>,
 }
 
+/// An iterator over a Document's keys and mutable values.
+pub struct IterMut<'a> {
+    inner: indexmap::map::IterMut<'a, String, Bson>,
+}
+
 impl<'a> Iterator for Keys<'a> {
     type Item = &'a String;
 
@@ -181,6 +186,14 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
+impl<'a> Iterator for IterMut<'a> {
+    type Item = (&'a String, &'a mut Bson);
+
+    fn next(&mut self) -> Option<(&'a String, &'a mut Bson)> {
+        self.inner.next()
+    }
+}
+
 impl Document {
     /// Creates a new empty Document.
     pub fn new() -> Document {
@@ -192,6 +205,13 @@ impl Document {
     /// Gets an iterator over the entries of the map.
     pub fn iter(&self) -> Iter {
         self.into_iter()
+    }
+
+    /// Gets an iterator over pairs of keys and mutable values.
+    pub fn iter_mut(&mut self) -> IterMut {
+        IterMut {
+            inner: self.inner.iter_mut(),
+        }
     }
 
     /// Clears the document, removing all values.
