@@ -117,7 +117,7 @@ pub struct Values<'a> {
     inner: indexmap::map::Values<'a, String, Bson>,
 }
 
-/// An iterator over a Document's keys and mutable values.
+/// An iterator over a `Document`'s keys and mutable values.
 pub struct IterMut<'a> {
     inner: indexmap::map::IterMut<'a, String, Bson>,
 }
