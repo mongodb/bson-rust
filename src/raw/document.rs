@@ -28,7 +28,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 
 /// A slice of a BSON document (akin to [`std::str`]). This can be created from a
 /// [`RawDocumentBuf`] or any type that contains valid BSON data, including static binary literals,
-/// [Vec<u8>](std::vec::Vec), or arrays.
+/// [`Vec<u8>`](std::vec::Vec), or arrays.
 ///
 /// This is an _unsized_ type, meaning that it must always be used behind a pointer like `&`. For an
 /// owned version of this type, see [`RawDocumentBuf`].
