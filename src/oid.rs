@@ -298,9 +298,7 @@ fn test_counter_overflow_usize_max() {
 #[cfg(test)]
 mod test {
     use crate::oid::ObjectId;
-    use std::{
-        convert::{TryFrom, TryInto},
-    };
+     use std::convert::{TryFrom, TryInto};
     use time::macros::datetime;
 
     #[test]
