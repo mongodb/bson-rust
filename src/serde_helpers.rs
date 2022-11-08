@@ -431,7 +431,6 @@ pub mod hex_string_as_object_id {
 ///     pub created_at: i64,
 /// }
 /// ```
-
 pub mod i64_as_datetime {
     use crate::DateTime;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
