@@ -23,6 +23,11 @@ pub use hex_string_as_object_id::{
     serialize as serialize_hex_string_as_object_id,
 };
 #[doc(inline)]
+pub use i64_as_datetime::{
+    deserialize as deserialize_i64_from_datetime,
+    serialize as serialize_i64_as_datetime,
+};
+#[doc(inline)]
 pub use rfc3339_string_as_bson_datetime::{
     deserialize as deserialize_rfc3339_string_from_bson_datetime,
     serialize as serialize_rfc3339_string_as_bson_datetime,
@@ -409,6 +414,41 @@ pub mod hex_string_as_object_id {
                 val
             ))),
         }
+    }
+}
+
+/// Contains functions to `serialize` a `i64` integer as `DateTime` and `deserialize`
+/// a `i64` integer from `DateTime`
+///
+/// ### The i64 should represent seconds `(DateTime::timestamp_millis(..))`.
+///
+/// ```rust
+/// # use serde::{Serialize, Deserialize};
+/// # use bson::serde_helpers::i64_as_datetime;
+/// #[derive(Serialize, Deserialize)]
+/// struct Item {
+///     #[serde(with = "i64_as_datetime")]
+///     pub created_at: i64,
+/// }
+/// ```
+
+pub mod i64_as_datetime {
+    use crate::DateTime;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    /// Deserializes a hex string from an ObjectId.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<i64, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let date: DateTime = DateTime::deserialize(deserializer)?;
+        Ok(date.timestamp_millis())
+    }
+
+    /// Serializes a hex string as an ObjectId.
+    pub fn serialize<S: Serializer>(val: &i64, serializer: S) -> Result<S::Ok, S::Error> {
+        let date_time = DateTime::from_millis(*val);
+        date_time.serialize(serializer)
     }
 }
 
