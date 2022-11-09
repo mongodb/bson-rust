@@ -435,7 +435,7 @@ pub mod i64_as_datetime {
     use crate::DateTime;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-    /// Deserializes a hex string from an ObjectId.
+    /// Deserializes a i64 integer from an DateTime.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<i64, D::Error>
     where
         D: Deserializer<'de>,
@@ -444,7 +444,7 @@ pub mod i64_as_datetime {
         Ok(date.timestamp_millis())
     }
 
-    /// Serializes a hex string as an ObjectId.
+    /// Serializes a i64 integer as a DateTime.
     pub fn serialize<S: Serializer>(val: &i64, serializer: S) -> Result<S::Ok, S::Error> {
         let date_time = DateTime::from_millis(*val);
         date_time.serialize(serializer)
