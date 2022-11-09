@@ -428,14 +428,14 @@ pub mod hex_string_as_object_id {
 /// #[derive(Serialize, Deserialize)]
 /// struct Item {
 ///     #[serde(with = "i64_as_datetime")]
-///     pub created_at: i64,
+///     pub now: i64,
 /// }
 /// ```
 pub mod i64_as_datetime {
     use crate::DateTime;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-    /// Deserializes a i64 integer from an DateTime.
+    /// Deserializes a i64 integer from a DateTime.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<i64, D::Error>
     where
         D: Deserializer<'de>,
