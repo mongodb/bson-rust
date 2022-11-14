@@ -10,6 +10,7 @@ use crate::{
     serde_helpers::{
         bson_datetime_as_rfc3339_string,
         hex_string_as_object_id,
+        i64_as_datetime,
         rfc3339_string_as_bson_datetime,
         serialize_object_id_as_hex_string,
         timestamp_as_u32,
@@ -884,6 +885,26 @@ fn test_oid_helpers() {
     assert_eq!(doc.get_object_id("oid").unwrap(), oid);
     let a: A = from_document(doc).unwrap();
     assert_eq!(a.oid, oid.to_string());
+}
+
+#[test]
+fn test_i64_as_datetime() {
+    let _guard = LOCK.run_concurrently();
+
+    #[derive(Serialize, Deserialize)]
+    struct A {
+        #[serde(with = "i64_as_datetime")]
+        now: i64,
+    }
+
+    let now = DateTime::now();
+    let a = A {
+        now: now.timestamp_millis(),
+    };
+    let doc = to_document(&a).unwrap();
+    assert_eq!(doc.get_datetime("now").unwrap(), &now);
+    let a: A = from_document(doc).unwrap();
+    assert_eq!(a.now, now.timestamp_millis());
 }
 
 #[test]
