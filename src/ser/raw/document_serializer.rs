@@ -30,17 +30,29 @@ impl<'a> DocumentSerializer<'a> {
         })
     }
 
+    /// Serialize a document key using the provided closure.
+    fn serialize_doc_key_custom<F: FnOnce(&mut Serializer) -> Result<()>>(
+        &mut self,
+        f: F,
+    ) -> Result<()> {
+        // push a dummy element type for now, will update this once we serialize the value
+        self.root_serializer.reserve_element_type();
+        f(self.root_serializer)?;
+        self.num_keys_serialized += 1;
+        Ok(())
+    }
+
+    /// Serialize a document key to string using `KeySerializer`.
     fn serialize_doc_key<T>(&mut self, key: &T) -> Result<()>
     where
         T: serde::Serialize + ?Sized,
     {
-        // push a dummy element type for now, will update this once we serialize the value
-        self.root_serializer.reserve_element_type();
-        key.serialize(KeySerializer {
-            root_serializer: &mut *self.root_serializer,
+        self.serialize_doc_key_custom(|rs| {
+            key.serialize(KeySerializer {
+                root_serializer: rs,
+            })?;
+            Ok(())
         })?;
-
-        self.num_keys_serialized += 1;
         Ok(())
     }
 
@@ -64,7 +76,12 @@ impl<'a> serde::ser::SerializeSeq for DocumentSerializer<'a> {
         T: serde::Serialize,
     {
         let index = self.num_keys_serialized;
-        self.serialize_doc_key(&index)?;
+        self.serialize_doc_key_custom(|rs| {
+            use std::io::Write;
+            write!(&mut rs.bytes, "{}", index)?;
+            rs.bytes.push(0);
+            Ok(())
+        })?;
         value.serialize(&mut *self.root_serializer)
     }
 
@@ -161,6 +178,7 @@ impl<'a> serde::ser::SerializeTupleStruct for DocumentSerializer<'a> {
 }
 
 /// Serializer used specifically for serializing document keys.
+/// Only keys that serialize to strings will be accepted.
 struct KeySerializer<'a> {
     root_serializer: &'a mut Serializer,
 }
@@ -226,10 +244,7 @@ impl<'a> serde::Serializer for KeySerializer<'a> {
 
     #[inline]
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
-        use std::io::Write;
-        write!(&mut self.root_serializer.bytes, "{}", v)?;
-        self.root_serializer.bytes.push(0);
-        Ok(())
+        Err(Self::invalid_key(v))
     }
 
     #[inline]
