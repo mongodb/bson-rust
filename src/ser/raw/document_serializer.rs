@@ -63,7 +63,8 @@ impl<'a> serde::ser::SerializeSeq for DocumentSerializer<'a> {
     where
         T: serde::Serialize,
     {
-        self.serialize_doc_key(&self.num_keys_serialized.to_string())?;
+        let index = self.num_keys_serialized;
+        self.serialize_doc_key(&index)?;
         value.serialize(&mut *self.root_serializer)
     }
 
@@ -224,14 +225,9 @@ impl<'a> serde::Serializer for KeySerializer<'a> {
     }
 
     #[inline]
-    fn serialize_u64(self, mut v: u64) -> Result<Self::Ok> {
-        loop {
-            self.root_serializer.bytes.push((v % 10) as u8 + b'0');
-            if v < 10 {
-                break;
-            }
-            v /= 10;
-        }
+    fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
+        use std::io::Write;
+        write!(&mut self.root_serializer.bytes, "{}", v)?;
         self.root_serializer.bytes.push(0);
         Ok(())
     }
