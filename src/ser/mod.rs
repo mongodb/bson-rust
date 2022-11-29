@@ -134,9 +134,7 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
         Bson::String(ref v) => write_string(writer, v),
         Bson::Array(ref v) => serialize_array(writer, v),
         Bson::Document(ref v) => v.to_writer(writer),
-        Bson::Boolean(v) => writer
-            .write_all(&[if v { 0x01 } else { 0x00 }])
-            .map_err(From::from),
+        Bson::Boolean(v) => writer.write_all(&[v as u8]).map_err(From::from),
         Bson::RegularExpression(Regex {
             ref pattern,
             ref options,

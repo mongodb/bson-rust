@@ -121,7 +121,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     #[inline]
     fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
         self.update_element_type(ElementType::Boolean)?;
-        self.bytes.push(if v { 1 } else { 0 });
+        self.bytes.push(v as u8);
         Ok(())
     }
 
