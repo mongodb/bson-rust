@@ -33,12 +33,12 @@ pub use self::{
 use std::io::Read;
 
 use crate::{
-    binary::Binary,
     bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     oid::{self, ObjectId},
     raw::RawBinaryRef,
     ser::write_i32,
     spec::{self, BinarySubtype},
+    Binary,
     Decimal128,
 };
 

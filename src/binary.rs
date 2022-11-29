@@ -38,6 +38,7 @@ impl Binary {
     /// let binary = Binary::from_base64(input, None)?;
     /// println!("{:?}", binary);
     /// // binary: Binary { subtype: Generic, bytes: [104, 101, 108, 108, 111] }
+    /// # Ok(())
     /// # }
     /// ```
     pub fn from_base64(

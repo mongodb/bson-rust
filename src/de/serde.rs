@@ -21,7 +21,6 @@ use serde::de::{
 use serde_bytes::ByteBuf;
 
 use crate::{
-    binary::Binary,
     bson::{Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     document::{Document, IntoIter},
@@ -29,6 +28,7 @@ use crate::{
     raw::{RawBsonRef, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
+    Binary,
     Decimal128,
 };
 

@@ -30,9 +30,9 @@ use serde_json::{json, Value};
 
 pub use crate::document::Document;
 use crate::{
-    binary::Binary,
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
+    Binary,
     Decimal128,
 };
 
