@@ -360,7 +360,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                         "Infinity" => Bson::Double(std::f64::INFINITY),
                         "-Infinity" => Bson::Double(std::f64::NEG_INFINITY),
                         "NaN" => Bson::Double(std::f64::NAN),
-                        _ => Bson::Int64(string.parse().map_err(|_| {
+                        _ => Bson::Double(string.parse().map_err(|_| {
                             V::Error::invalid_value(
                                 Unexpected::Str(&string),
                                 &"64-bit signed integer as a string",
