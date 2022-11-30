@@ -21,13 +21,14 @@ use serde::de::{
 use serde_bytes::ByteBuf;
 
 use crate::{
-    bson::{Binary, Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
+    bson::{Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     document::{Document, IntoIter},
     oid::ObjectId,
     raw::{RawBsonRef, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
+    Binary,
     Decimal128,
 };
 

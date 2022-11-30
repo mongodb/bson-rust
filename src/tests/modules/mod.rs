@@ -1,3 +1,4 @@
+mod binary;
 mod bson;
 mod document;
 mod lock;
