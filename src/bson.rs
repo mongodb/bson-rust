@@ -841,7 +841,8 @@ impl Bson {
 
 /// Value helpers
 impl Bson {
-    /// If `self` is [`Double`](Bson::Double), return its value as an `f64`. Returns [`None`] otherwise.
+    /// If `self` is [`Double`](Bson::Double), return its value as an `f64`. Returns [`None`]
+    /// otherwise.
     pub fn as_f64(&self) -> Option<f64> {
         match *self {
             Bson::Double(v) => Some(v),
@@ -849,7 +850,8 @@ impl Bson {
         }
     }
 
-    /// If `self` is [`String`](Bson::String), return its value as a `&str`. Returns [`None`] otherwise.
+    /// If `self` is [`String`](Bson::String), return its value as a `&str`. Returns [`None`]
+    /// otherwise.
     pub fn as_str(&self) -> Option<&str> {
         match *self {
             Bson::String(ref s) => Some(s),
@@ -857,8 +859,8 @@ impl Bson {
         }
     }
 
-    /// If `self` is [`String`](Bson::String), return a mutable reference to its value as a [`str`]. Returns [`None`]
-    /// otherwise.
+    /// If `self` is [`String`](Bson::String), return a mutable reference to its value as a [`str`].
+    /// Returns [`None`] otherwise.
     pub fn as_str_mut(&mut self) -> Option<&mut str> {
         match *self {
             Bson::String(ref mut s) => Some(s),
@@ -874,7 +876,8 @@ impl Bson {
         }
     }
 
-    /// If `self` is [`Array`](Bson::Array), return a mutable reference to its value. Returns [`None`] otherwise.
+    /// If `self` is [`Array`](Bson::Array), return a mutable reference to its value. Returns
+    /// [`None`] otherwise.
     pub fn as_array_mut(&mut self) -> Option<&mut Array> {
         match *self {
             Bson::Array(ref mut v) => Some(v),
@@ -890,7 +893,8 @@ impl Bson {
         }
     }
 
-    /// If `self` is [`Document`](Bson::Document), return a mutable reference to its value. Returns [`None`] otherwise.
+    /// If `self` is [`Document`](Bson::Document), return a mutable reference to its value. Returns
+    /// [`None`] otherwise.
     pub fn as_document_mut(&mut self) -> Option<&mut Document> {
         match *self {
             Bson::Document(ref mut v) => Some(v),
@@ -930,7 +934,8 @@ impl Bson {
         }
     }
 
-    /// If `self` is [`ObjectId`](Bson::ObjectId), return a mutable reference to its value. Returns [`None`] otherwise.
+    /// If `self` is [`ObjectId`](Bson::ObjectId), return a mutable reference to its value. Returns
+    /// [`None`] otherwise.
     pub fn as_object_id_mut(&mut self) -> Option<&mut oid::ObjectId> {
         match *self {
             Bson::ObjectId(ref mut v) => Some(v),
@@ -946,8 +951,8 @@ impl Bson {
         }
     }
 
-    /// If `self` is [`DateTime`](Bson::DateTime), return a mutable reference to its value. Returns [`None`]
-    /// otherwise.
+    /// If `self` is [`DateTime`](Bson::DateTime), return a mutable reference to its value. Returns
+    /// [`None`] otherwise.
     pub fn as_datetime_mut(&mut self) -> Option<&mut crate::DateTime> {
         match *self {
             Bson::DateTime(ref mut v) => Some(v),
@@ -963,7 +968,8 @@ impl Bson {
         }
     }
 
-    /// If `self` is [`Symbol`](Bson::Symbol), return a mutable reference to its value. Returns [`None`] otherwise.
+    /// If `self` is [`Symbol`](Bson::Symbol), return a mutable reference to its value. Returns
+    /// [`None`] otherwise.
     pub fn as_symbol_mut(&mut self) -> Option<&mut str> {
         match *self {
             Bson::Symbol(ref mut v) => Some(v),

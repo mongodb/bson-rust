@@ -417,8 +417,8 @@ pub mod hex_string_as_object_id {
     }
 }
 
-/// Contains functions to `serialize` a `i64` integer as [`DateTime`](crate::DateTime) and `deserialize`
-/// a `i64` integer from [`DateTime`](crate::DateTime).
+/// Contains functions to `serialize` a `i64` integer as [`DateTime`](crate::DateTime) and
+/// `deserialize` a `i64` integer from [`DateTime`](crate::DateTime).
 ///
 /// ### The i64 should represent seconds `(DateTime::timestamp_millis(..))`.
 ///

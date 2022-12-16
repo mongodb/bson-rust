@@ -13,8 +13,8 @@
 //! binary values. Instead, when serialized with `bson::to_bson`, it produces as a string, and when
 //! serialized with `bson::to_vec`, it produces a binary value with subtype _0_ rather than 4.
 //! Because of this, it is highly recommended to use the [`crate::Uuid`] type when working with BSON
-//! instead of the `uuid` crate's [`Uuid`], since [`crate::Uuid`] correctly produces subtype 4 binary
-//! values via either serialization function.
+//! instead of the `uuid` crate's [`Uuid`], since [`crate::Uuid`] correctly produces subtype 4
+//! binary values via either serialization function.
 //!
 //! e.g.
 //!
@@ -79,8 +79,8 @@
 //! The `serde_with` feature can be enabled to support more ergonomic serde attributes for
 //! (de)serializing [`uuid::Uuid`] from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
 //! crate. The main benefit of this compared to the regular `serde_helpers` is that `serde_with` can
-//! handle nested [`uuid::Uuid`] values (e.g. in [`Option`]), whereas the former only works on fields
-//! that are exactly [`uuid::Uuid`].
+//! handle nested [`uuid::Uuid`] values (e.g. in [`Option`]), whereas the former only works on
+//! fields that are exactly [`uuid::Uuid`].
 //! ```
 //! # #[cfg(all(feature = "uuid-1", feature = "serde_with"))]
 //! # {

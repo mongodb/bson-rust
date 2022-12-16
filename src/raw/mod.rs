@@ -12,9 +12,9 @@
 //! A [`RawDocumentBuf`] can be created from a `Vec<u8>` containing raw BSON data. A
 //! [`RawDocument`] can be created from anything that can be borrowed as a `&[u8]`. Both types
 //! can access elements via methods similar to those available on the [`crate::Document`] type.
-//! Note that [`RawDocument::get`] (which [`RawDocument`] calls through to via its [`Deref`](std::ops::Deref)
-//! implementation) returns a [`Result`], since the bytes contained in the document are not fully
-//! validated until trying to access the contained data.
+//! Note that [`RawDocument::get`] (which [`RawDocument`] calls through to via its
+//! [`Deref`](std::ops::Deref) implementation) returns a [`Result`], since the bytes contained in
+//! the document are not fully validated until trying to access the contained data.
 //!
 //! ```rust
 //! use bson::raw::{

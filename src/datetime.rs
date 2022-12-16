@@ -139,8 +139,8 @@ impl crate::DateTime {
         Self::from_system_time(SystemTime::now())
     }
 
-    /// Convert the given [`chrono::DateTime`] into a [`bson::DateTime`](DateTime), truncating it to millisecond
-    /// precision.
+    /// Convert the given [`chrono::DateTime`] into a [`bson::DateTime`](DateTime), truncating it to
+    /// millisecond precision.
     #[cfg(feature = "chrono-0_4")]
     #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
@@ -206,8 +206,8 @@ impl crate::DateTime {
         Self::from_time_private(dt)
     }
 
-    /// Convert the given [`time::OffsetDateTime`] into a [`bson::DateTime`](DateTime), truncating it to
-    /// millisecond precision.
+    /// Convert the given [`time::OffsetDateTime`] into a [`bson::DateTime`](DateTime), truncating
+    /// it to millisecond precision.
     ///
     /// If the provided time is too far in the future or too far in the past to be represented
     /// by a BSON datetime, either [`DateTime::MAX`] or [`DateTime::MIN`] will be

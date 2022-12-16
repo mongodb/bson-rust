@@ -113,8 +113,8 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the [`String`] that's wrapped or returns [`None`] if the wrapped value isn't
-    /// a BSON String.
+    /// Gets a reference to the [`String`] that's wrapped or returns [`None`] if the wrapped value
+    /// isn't a BSON String.
     pub fn as_str(&self) -> Option<&'_ str> {
         match self {
             RawBson::String(s) => Some(s),
@@ -185,8 +185,8 @@ impl RawBson {
         }
     }
 
-    /// Gets the wrapped [`crate::oid::ObjectId`] value or returns [`None`] if the wrapped value isn't
-    /// a BSON ObjectID.
+    /// Gets the wrapped [`crate::oid::ObjectId`] value or returns [`None`] if the wrapped value
+    /// isn't a BSON ObjectID.
     pub fn as_object_id(&self) -> Option<oid::ObjectId> {
         match self {
             RawBson::ObjectId(v) => Some(*v),
@@ -227,8 +227,8 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the symbol that's wrapped or returns [`None`] if the wrapped value isn't a
-    /// BSON Symbol.
+    /// Gets a reference to the symbol that's wrapped or returns [`None`] if the wrapped value isn't
+    /// a BSON Symbol.
     pub fn as_symbol(&self) -> Option<&'_ str> {
         match self {
             RawBson::Symbol(v) => Some(v),
@@ -253,8 +253,8 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the [`crate::DbPointer`] that's wrapped or returns [`None`] if the wrapped
-    /// value isn't a BSON DbPointer.
+    /// Gets a reference to the [`crate::DbPointer`] that's wrapped or returns [`None`] if the
+    /// wrapped value isn't a BSON DbPointer.
     pub fn as_db_pointer(&self) -> Option<RawDbPointerRef<'_>> {
         match self {
             RawBson::DbPointer(d) => Some(RawDbPointerRef {

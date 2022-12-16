@@ -36,11 +36,11 @@ use super::{bson::RawBson, serde::OwnedOrBorrowedRawArray, RawArrayIter};
 /// # Ok::<(), Error>(())
 /// ```
 ///
-/// This type implements [`Deref`](std::ops::Deref) to [`RawArray`], meaning that all methods on [`RawArray`] are
-/// available on [`RawArrayBuf`] values as well. This includes [`RawArray::get`] or any of the
-/// type-specific getters, such as [`RawArray::get_object_id`] or [`RawArray::get_str`]. Note
-/// that accessing elements is an O(N) operation, as it requires iterating through the document from
-/// the beginning to find the requested key.
+/// This type implements [`Deref`](std::ops::Deref) to [`RawArray`], meaning that all methods on
+/// [`RawArray`] are available on [`RawArrayBuf`] values as well. This includes [`RawArray::get`] or
+/// any of the type-specific getters, such as [`RawArray::get_object_id`] or [`RawArray::get_str`].
+/// Note that accessing elements is an O(N) operation, as it requires iterating through the document
+/// from the beginning to find the requested key.
 #[derive(Clone, PartialEq)]
 pub struct RawArrayBuf {
     inner: RawDocumentBuf,

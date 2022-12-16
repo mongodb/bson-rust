@@ -173,8 +173,8 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the [`RawBinaryRef`] that's referenced or returns [`None`] if the referenced value isn't
-    /// a BSON binary.
+    /// Gets the [`RawBinaryRef`] that's referenced or returns [`None`] if the referenced value
+    /// isn't a BSON binary.
     pub fn as_binary(self) -> Option<RawBinaryRef<'a>> {
         match self {
             RawBsonRef::Binary(v) => Some(v),
@@ -182,8 +182,8 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the [`RawRegexRef`] that's referenced or returns [`None`] if the referenced value isn't a
-    /// BSON regular expression.
+    /// Gets the [`RawRegexRef`] that's referenced or returns [`None`] if the referenced value isn't
+    /// a BSON regular expression.
     pub fn as_regex(self) -> Option<RawRegexRef<'a>> {
         match self {
             RawBsonRef::RegularExpression(v) => Some(v),
@@ -218,8 +218,8 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the null value that's referenced or returns [`None`] if the referenced value isn't a BSON
-    /// null.
+    /// Gets the null value that's referenced or returns [`None`] if the referenced value isn't a
+    /// BSON null.
     pub fn as_null(self) -> Option<()> {
         match self {
             RawBsonRef::Null => Some(()),

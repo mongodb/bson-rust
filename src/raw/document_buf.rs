@@ -49,11 +49,11 @@ use super::{
 /// # Ok::<(), Error>(())
 /// ```
 ///
-/// This type implements [`Deref`] to [`RawDocument`], meaning that all methods on [`RawDocument`] are
-/// available on [`RawDocumentBuf`] values as well. This includes [`RawDocument::get`] or any of the
-/// type-specific getters, such as [`RawDocument::get_object_id`] or [`RawDocument::get_str`]. Note
-/// that accessing elements is an O(N) operation, as it requires iterating through the document from
-/// the beginning to find the requested key.
+/// This type implements [`Deref`] to [`RawDocument`], meaning that all methods on [`RawDocument`]
+/// are available on [`RawDocumentBuf`] values as well. This includes [`RawDocument::get`] or any of
+/// the type-specific getters, such as [`RawDocument::get_object_id`] or [`RawDocument::get_str`].
+/// Note that accessing elements is an O(N) operation, as it requires iterating through the document
+/// from the beginning to find the requested key.
 ///
 /// ```
 /// use bson::raw::RawDocumentBuf;
