@@ -124,7 +124,7 @@ impl RawDocument {
         Ok(RawDocument::new_unchecked(data))
     }
 
-    /// Creates a new `RawDocument` referencing the provided data slice.
+    /// Creates a new [`RawDocument`] referencing the provided data slice.
     pub(crate) fn new_unchecked<D: AsRef<[u8]> + ?Sized>(data: &D) -> &RawDocument {
         // SAFETY:
         //

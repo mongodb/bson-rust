@@ -30,8 +30,8 @@ use super::{bson::RawBson, RAW_BSON_NEWTYPE};
 
 /// A raw BSON value that may either be borrowed or owned.
 ///
-/// This is used to consolidate the `Serialize` and `Deserialize` implementations for
-/// `RawBson` and `OwnedRawBson`.
+/// This is used to consolidate the [`Serialize`] and [`Deserialize`] implementations for
+/// [`RawBson`] and [`OwnedRawBson`].
 pub(crate) enum OwnedOrBorrowedRawBson<'a> {
     Owned(RawBson),
     Borrowed(RawBsonRef<'a>),
@@ -68,7 +68,7 @@ impl<'a> From<RawBson> for OwnedOrBorrowedRawBson<'a> {
 }
 
 /// Wrapper around a `Cow<str>` to enable borrowed deserialization.
-/// The default `Deserialize` impl for `Cow` always uses the owned version.
+/// The default [`Deserialize`] impl for [`Cow`] always uses the owned version.
 #[derive(Debug, Deserialize)]
 struct CowStr<'a>(#[serde(borrow)] Cow<'a, str>);
 

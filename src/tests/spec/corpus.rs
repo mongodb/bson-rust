@@ -103,7 +103,7 @@ fn run_test(test: TestFile) {
 
         let canonical_bson = hex::decode(&valid.canonical_bson).expect(&description);
 
-        // these four cover the four ways to create a `Document` from the provided BSON.
+        // these four cover the four ways to create a [`Document`] from the provided BSON.
         let documentfromreader_cb =
             Document::from_reader(canonical_bson.as_slice()).expect(&description);
 
@@ -133,7 +133,7 @@ fn run_test(test: TestFile) {
         let canonical_raw_document_from_slice =
             crate::from_slice::<&RawDocument>(canonical_bson.as_slice()).expect(&description);
 
-        // These cover the ways to serialize those `Documents` back to BSON.
+        // These cover the ways to serialize those [`Documents`] back to BSON.
         let mut documenttowriter_documentfromreader_cb = Vec::new();
         documentfromreader_cb
             .to_writer(&mut documenttowriter_documentfromreader_cb)

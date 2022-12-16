@@ -101,7 +101,7 @@ impl<'de> Deserialize<'de> for ObjectId {
 }
 
 impl<'de> Deserialize<'de> for Document {
-    /// Deserialize this value given this `Deserializer`.
+    /// Deserialize this value given this [`Deserializer`].
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,

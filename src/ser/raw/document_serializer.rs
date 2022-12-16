@@ -42,7 +42,7 @@ impl<'a> DocumentSerializer<'a> {
         Ok(())
     }
 
-    /// Serialize a document key to string using `KeySerializer`.
+    /// Serialize a document key to string using [`KeySerializer`].
     fn serialize_doc_key<T>(&mut self, key: &T) -> Result<()>
     where
         T: serde::Serialize + ?Sized,

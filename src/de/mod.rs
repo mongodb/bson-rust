@@ -65,11 +65,11 @@ enum DeserializerHint {
     None,
 
     /// The type being deserialized expects the BSON to contain a binary value with the provided
-    /// subtype. This is currently used to deserialize `bson::Uuid` values.
+    /// subtype. This is currently used to deserialize [`bson::Uuid`] values.
     BinarySubtype(BinarySubtype),
 
     /// The type being deserialized is raw BSON, meaning no allocations should occur as part of
-    /// deserializing and everything should be visited via borrowing or `Copy` if possible.
+    /// deserializing and everything should be visited via borrowing or [`Copy`] if possible.
     RawBson,
 }
 
@@ -433,7 +433,7 @@ impl JavaScriptCodeWithScope {
 
 /// Deserialize a `T` from the provided [`Bson`] value.
 ///
-/// The `Deserializer` used by this function presents itself as human readable, whereas the
+/// The [`Deserializer`] used by this function presents itself as human readable, whereas the
 /// one used in [`from_slice`] does not. This means that this function may deserialize differently
 /// than [`from_slice`] for types that change their deserialization logic depending on whether
 /// the format is human readable or not. To deserialize from [`Bson`] with a deserializer that
@@ -473,7 +473,7 @@ where
 
 /// Deserialize a `T` from the provided [`Document`].
 ///
-/// The `Deserializer` used by this function presents itself as human readable, whereas the
+/// The [`Deserializer`] used by this function presents itself as human readable, whereas the
 /// one used in [`from_slice`] does not. This means that this function may deserialize differently
 /// than [`from_slice`] for types that change their deserialization logic depending on whether
 /// the format is human readable or not. To deserialize from [`Document`] with a deserializer that

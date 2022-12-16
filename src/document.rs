@@ -118,7 +118,7 @@ pub struct Values<'a> {
     inner: indexmap::map::Values<'a, String, Bson>,
 }
 
-/// An iterator over a `Document`'s keys and mutable values.
+/// An iterator over a [`Document`]'s keys and mutable values.
 pub struct IterMut<'a> {
     inner: indexmap::map::IterMut<'a, String, Bson>,
 }
@@ -526,10 +526,10 @@ impl Document {
         }
     }
 
-    /// Attempts to serialize the `Document` into a byte stream.
+    /// Attempts to serialize the [`Document`] into a byte stream.
     ///
     /// While the method signature indicates an owned writer must be passed in, a mutable reference
-    /// may also be passed in due to blanket implementations of `Write` provided in the standard
+    /// may also be passed in due to blanket implementations of [`Write`] provided in the standard
     /// library.
     ///
     /// ```
@@ -592,10 +592,10 @@ impl Document {
         Ok(doc)
     }
 
-    /// Attempts to deserialize a `Document` from a byte stream.
+    /// Attempts to deserialize a [`Document`] from a byte stream.
     ///
     /// While the method signature indicates an owned reader must be passed in, a mutable reference
-    /// may also be passed in due to blanket implementations of `Read` provided in the standard
+    /// may also be passed in due to blanket implementations of [`Read`] provided in the standard
     /// library.
     ///
     /// ```
@@ -624,7 +624,7 @@ impl Document {
         Self::decode(&mut reader, false)
     }
 
-    /// Attempt to deserialize a `Document` that may contain invalid UTF-8 strings from a byte
+    /// Attempt to deserialize a [`Document`] that may contain invalid UTF-8 strings from a byte
     /// stream.
     ///
     /// This is mainly useful when reading raw BSON returned from a MongoDB server, which

@@ -15,7 +15,7 @@ pub enum Error {
     /// while decoding a UTF-8 String from the input data.
     InvalidUtf8String(string::FromUtf8Error),
 
-    /// While decoding a `Document` from bytes, an unexpected or unsupported element type was
+    /// While decoding a [`Document`](crate::Document) from bytes, an unexpected or unsupported element type was
     /// encountered.
     #[non_exhaustive]
     UnrecognizedDocumentElementType {
@@ -91,7 +91,7 @@ impl de::Error for Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl Bson {
-    /// Method for converting a given `Bson` value to a `serde::de::Unexpected` for error reporting.
+    /// Method for converting a given [`Bson`] value to a [`serde::de::Unexpected`] for error reporting.
     pub(crate) fn as_unexpected(&self) -> Unexpected {
         match self {
             Bson::Array(_) => Unexpected::Seq,

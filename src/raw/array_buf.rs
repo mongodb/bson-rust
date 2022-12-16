@@ -12,7 +12,7 @@ use super::{bson::RawBson, serde::OwnedOrBorrowedRawArray, RawArrayIter};
 
 /// An owned BSON array value (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON
 /// bytes. This type can be used to construct owned array values, which can be used to append to
-/// [`RawDocumentBuf`] or as a field in a `Deserialize` struct.
+/// [`RawDocumentBuf`] or as a field in a [`Deserialize`] struct.
 ///
 /// Iterating over a [`RawArrayBuf`] yields either an error or a [`RawBson`] value that borrows from
 /// the original document without making any additional allocations.
@@ -36,7 +36,7 @@ use super::{bson::RawBson, serde::OwnedOrBorrowedRawArray, RawArrayIter};
 /// # Ok::<(), Error>(())
 /// ```
 ///
-/// This type implements `Deref` to [`RawArray`], meaning that all methods on [`RawArray`] are
+/// This type implements [`Deref`](std::ops::Deref) to [`RawArray`], meaning that all methods on [`RawArray`] are
 /// available on [`RawArrayBuf`] values as well. This includes [`RawArray::get`] or any of the
 /// type-specific getters, such as [`RawArray::get_object_id`] or [`RawArray::get_str`]. Note
 /// that accessing elements is an O(N) operation, as it requires iterating through the document from
@@ -48,7 +48,7 @@ pub struct RawArrayBuf {
 }
 
 impl RawArrayBuf {
-    /// Construct a new, empty `RawArrayBuf`.
+    /// Construct a new, empty [`RawArrayBuf`].
     pub fn new() -> RawArrayBuf {
         Self {
             inner: RawDocumentBuf::new(),
@@ -56,7 +56,7 @@ impl RawArrayBuf {
         }
     }
 
-    /// Construct a new `RawArrayBuf` from the provided `Vec` of bytes.
+    /// Construct a new [`RawArrayBuf`] from the provided [`Vec`] of bytes.
     ///
     /// This involves a traversal of the array to count the values.
     pub(crate) fn from_raw_document_buf(doc: RawDocumentBuf) -> Self {

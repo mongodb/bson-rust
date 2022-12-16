@@ -129,7 +129,7 @@ impl<'de> Deserializer<'de> {
     ///
     /// If hinted to use raw BSON, the bytes themselves will be visited using a special newtype
     /// name. Otherwise, the key-value pairs will be accessed in order, either as part of a
-    /// `MapAccess` for documents or a `SeqAccess` for arrays.
+    /// [`MapAccess`] for documents or a [`SeqAccess`] for arrays.
     fn deserialize_document<V>(
         &mut self,
         visitor: V,
@@ -165,7 +165,7 @@ impl<'de> Deserializer<'de> {
         }
     }
 
-    /// Construct a `DocumentAccess` and pass it into the provided closure, returning the
+    /// Construct a [`DocumentAccess`] and pass it into the provided closure, returning the
     /// result of the closure if no other errors are encountered.
     fn access_document<F, O>(&mut self, f: F) -> Result<O>
     where
@@ -188,7 +188,7 @@ impl<'de> Deserializer<'de> {
     }
 
     /// Deserialize the next element type and update `current_type` accordingly.
-    /// Returns `None` if a null byte is read.
+    /// Returns [`None`] if a null byte is read.
     fn deserialize_next_type(&mut self) -> Result<Option<ElementType>> {
         let tag = read_u8(&mut self.bytes)?;
         if tag == 0 {
@@ -505,7 +505,7 @@ impl<'d, 'de> DocumentAccess<'d, 'de> {
     /// Executes a closure that reads from the BSON bytes and returns an error if the number of
     /// bytes read exceeds length_remaining.
     ///
-    /// A mutable reference to this `DocumentAccess` is passed into the closure.
+    /// A mutable reference to this [`DocumentAccess`] is passed into the closure.
     fn read<F, O>(&mut self, f: F) -> Result<O>
     where
         F: FnOnce(&mut Self) -> Result<O>,
@@ -711,7 +711,7 @@ impl<'de> serde::de::Deserializer<'de> for FieldDeserializer {
     }
 }
 
-/// A `MapAccess` used to deserialize entire documents as chunks of bytes without deserializing
+/// A [`MapAccess`] used to deserialize entire documents as chunks of bytes without deserializing
 /// the individual key/value pairs.
 struct RawDocumentAccess<'d> {
     deserializer: RawDocumentDeserializer<'d>,
@@ -751,7 +751,7 @@ impl<'de> serde::de::MapAccess<'de> for RawDocumentAccess<'de> {
         if !self.deserialized_first {
             self.deserialized_first = true;
 
-            // the newtype name will indicate to the `RawBson` enum that the incoming
+            // the newtype name will indicate to the [`RawBson`] enum that the incoming
             // bytes are meant to be treated as a document or array instead of a binary value.
             seed.deserialize(FieldDeserializer {
                 field_name: if self.array {
@@ -1027,7 +1027,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut TimestampDeserializer {
     }
 }
 
-/// A `MapAccess` providing access to a BSON datetime being deserialized.
+/// A [`MapAccess`] providing access to a BSON datetime being deserialized.
 ///
 /// If hinted to be raw BSON, this deserializes the serde data model equivalent
 /// of { "$date": <i64 ms from epoch> }.
@@ -1136,7 +1136,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut DateTimeDeserializer {
     }
 }
 
-/// A `MapAccess` providing access to a BSON binary being deserialized.
+/// A [`MapAccess`] providing access to a BSON binary being deserialized.
 ///
 /// If hinted to be raw BSON, this deserializes the serde data model equivalent
 /// of { "$binary": { "subType": <u8>, "bytes": <borrowed bytes> } }.
@@ -1241,7 +1241,7 @@ enum BinaryDeserializationStage {
     Done,
 }
 
-/// A `MapAccess` providing access to a BSON code with scope being deserialized.
+/// A [`MapAccess`] providing access to a BSON code with scope being deserialized.
 ///
 /// If hinted to be raw BSON, this deserializes the serde data model equivalent
 /// of { "$code": <borrowed str>, "$scope": <&RawDocument> } }.
@@ -1308,7 +1308,7 @@ impl<'de, 'a> CodeWithScopeDeserializer<'de, 'a> {
     /// Executes a closure that reads from the BSON bytes and returns an error if the number of
     /// bytes read exceeds length_remaining.
     ///
-    /// A mutable reference to this `CodeWithScopeDeserializer` is passed into the closure.
+    /// A mutable reference to this [`CodeWithScopeDeserializer`] is passed into the closure.
     fn read<F, O>(&mut self, f: F) -> Result<O>
     where
         F: FnOnce(&mut Self) -> Result<O>,
@@ -1381,7 +1381,7 @@ enum CodeWithScopeDeserializationStage {
     Done,
 }
 
-/// A `MapAccess` providing access to a BSON DB pointer being deserialized.
+/// A [`MapAccess`] providing access to a BSON DB pointer being deserialized.
 ///
 /// Regardless of the hint, this deserializes the serde data model equivalent
 /// of { "$dbPointer": { "$ref": <borrowed str>, "$id": <bytes> } }.
@@ -1498,7 +1498,7 @@ enum DbPointerDeserializationStage {
     Done,
 }
 
-/// A `MapAccess` providing access to a BSON regular expression being deserialized.
+/// A [`MapAccess`] providing access to a BSON regular expression being deserialized.
 ///
 /// Regardless of the hint, this deserializes the serde data model equivalent
 /// of { "$regularExpression": { "pattern": <borrowed str>, "options": <borrowed str> } }.
@@ -1773,7 +1773,7 @@ impl<'a> BsonBuf<'a> {
     /// Attempts to read a null-terminated UTF-8 cstring from the data.
     ///
     /// If utf8_lossy and invalid UTF-8 is encountered, the unicode replacement character will be
-    /// inserted in place of the offending data, resulting in an owned `String`. Otherwise, the
+    /// inserted in place of the offending data, resulting in an owned [`String`]. Otherwise, the
     /// data will be borrowed as-is.
     fn read_cstr(&mut self) -> Result<Cow<'a, str>> {
         let start = self.index;
@@ -1807,7 +1807,7 @@ impl<'a> BsonBuf<'a> {
     /// Attempts to read a null-terminated UTF-8 string from the data.
     ///
     /// If invalid UTF-8 is encountered, the unicode replacement character will be inserted in place
-    /// of the offending data, resulting in an owned `String`. Otherwise, the data will be
+    /// of the offending data, resulting in an owned [`String`]. Otherwise, the data will be
     /// borrowed as-is.
     fn read_str(&mut self) -> Result<Cow<'a, str>> {
         let start = self._advance_to_len_encoded_str()?;
