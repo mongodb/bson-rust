@@ -183,9 +183,9 @@ pub(crate) fn serialize_bson<W: Write + ?Sized>(
     }
 }
 
-/// Encode a `T` Serializable into a BSON `Value`.
+/// Encode a `T` Serializable into a [`Bson`] value.
 ///
-/// The `Serializer` used by this function presents itself as human readable, whereas the
+/// The [`Serializer`] used by this function presents itself as human readable, whereas the
 /// one used in [`to_vec`] does not. This means that this function will produce different BSON than
 /// [`to_vec`] for types that change their serialization output depending on whether
 /// the format is human readable or not. To serialize to a [`Document`] with a serializer that
@@ -199,7 +199,7 @@ where
     value.serialize(ser)
 }
 
-/// Encode a `T` into a `Bson` value, configuring the underlying serializer with the provided
+/// Encode a `T` into a [`Bson`] value, configuring the underlying serializer with the provided
 /// options.
 /// ```
 /// # use serde::Serialize;
@@ -223,9 +223,9 @@ where
     value.serialize(ser)
 }
 
-/// Encode a `T` Serializable into a BSON `Document`.
+/// Encode a `T` Serializable into a BSON [`Document`].
 ///
-/// The `Serializer` used by this function presents itself as human readable, whereas the
+/// The [`Serializer`] used by this function presents itself as human readable, whereas the
 /// one used in [`to_vec`] does not. This means that this function will produce different BSON than
 /// [`to_vec`] for types that change their serialization output depending on whether
 /// the format is human readable or not. To serialize to a [`Document`] with a serializer that

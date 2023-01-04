@@ -104,7 +104,7 @@ impl RawBson {
         }
     }
 
-    /// Gets the wrapped `f64` value or returns `None` if the value isn't a BSON
+    /// Gets the wrapped `f64` value or returns [`None`] if the value isn't a BSON
     /// double.
     pub fn as_f64(&self) -> Option<f64> {
         match self {
@@ -113,8 +113,8 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the `String` that's wrapped or returns `None` if the wrapped value isn't
-    /// a BSON String.
+    /// Gets a reference to the [`String`] that's wrapped or returns [`None`] if the wrapped value
+    /// isn't a BSON String.
     pub fn as_str(&self) -> Option<&'_ str> {
         match self {
             RawBson::String(s) => Some(s),
@@ -122,7 +122,7 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the [`RawArrayBuf`] that's wrapped or returns `None` if the wrapped
+    /// Gets a reference to the [`RawArrayBuf`] that's wrapped or returns [`None`] if the wrapped
     /// value isn't a BSON array.
     pub fn as_array(&self) -> Option<&'_ RawArray> {
         match self {
@@ -131,7 +131,7 @@ impl RawBson {
         }
     }
 
-    /// Gets a mutable reference to the [`RawArrayBuf`] that's wrapped or returns `None` if the
+    /// Gets a mutable reference to the [`RawArrayBuf`] that's wrapped or returns [`None`] if the
     /// wrapped value isn't a BSON array.
     pub fn as_array_mut(&mut self) -> Option<&mut RawArrayBuf> {
         match self {
@@ -140,7 +140,7 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the [`RawDocumentBuf`] that's wrapped or returns `None` if the wrapped
+    /// Gets a reference to the [`RawDocumentBuf`] that's wrapped or returns [`None`] if the wrapped
     /// value isn't a BSON document.
     pub fn as_document(&self) -> Option<&'_ RawDocument> {
         match self {
@@ -149,7 +149,7 @@ impl RawBson {
         }
     }
 
-    /// Gets a mutable reference to the [`RawDocumentBuf`] that's wrapped or returns `None` if the
+    /// Gets a mutable reference to the [`RawDocumentBuf`] that's wrapped or returns [`None`] if the
     /// wrapped value isn't a BSON document.
     pub fn as_document_mut(&mut self) -> Option<&mut RawDocumentBuf> {
         match self {
@@ -158,7 +158,7 @@ impl RawBson {
         }
     }
 
-    /// Gets the wrapped `bool` value or returns `None` if the wrapped value isn't a BSON
+    /// Gets the wrapped `bool` value or returns [`None`] if the wrapped value isn't a BSON
     /// boolean.
     pub fn as_bool(&self) -> Option<bool> {
         match self {
@@ -167,7 +167,7 @@ impl RawBson {
         }
     }
 
-    /// Gets the wrapped `i32` value or returns `None` if the wrapped value isn't a BSON
+    /// Gets the wrapped `i32` value or returns [`None`] if the wrapped value isn't a BSON
     /// Int32.
     pub fn as_i32(&self) -> Option<i32> {
         match self {
@@ -176,7 +176,7 @@ impl RawBson {
         }
     }
 
-    /// Gets the wrapped `i64` value or returns `None` if the wrapped value isn't a BSON
+    /// Gets the wrapped `i64` value or returns [`None`] if the wrapped value isn't a BSON
     /// Int64.
     pub fn as_i64(&self) -> Option<i64> {
         match self {
@@ -185,8 +185,8 @@ impl RawBson {
         }
     }
 
-    /// Gets the wrapped [`crate::oid::ObjectId`] value or returns `None` if the wrapped value isn't
-    /// a BSON ObjectID.
+    /// Gets the wrapped [`crate::oid::ObjectId`] value or returns [`None`] if the wrapped value
+    /// isn't a BSON ObjectID.
     pub fn as_object_id(&self) -> Option<oid::ObjectId> {
         match self {
             RawBson::ObjectId(v) => Some(*v),
@@ -194,7 +194,7 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the [`Binary`] that's wrapped or returns `None` if the wrapped value
+    /// Gets a reference to the [`Binary`] that's wrapped or returns [`None`] if the wrapped value
     /// isn't a BSON binary.
     pub fn as_binary(&self) -> Option<RawBinaryRef<'_>> {
         match self {
@@ -206,7 +206,7 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the [`Regex`] that's wrapped or returns `None` if the wrapped value
+    /// Gets a reference to the [`Regex`] that's wrapped or returns [`None`] if the wrapped value
     /// isn't a BSON regular expression.
     pub fn as_regex(&self) -> Option<RawRegexRef<'_>> {
         match self {
@@ -218,7 +218,7 @@ impl RawBson {
         }
     }
 
-    /// Gets the wrapped [`crate::DateTime`] value or returns `None` if the wrapped value isn't a
+    /// Gets the wrapped [`crate::DateTime`] value or returns [`None`] if the wrapped value isn't a
     /// BSON datetime.
     pub fn as_datetime(&self) -> Option<crate::DateTime> {
         match self {
@@ -227,8 +227,8 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the symbol that's wrapped or returns `None` if the wrapped value isn't a
-    /// BSON Symbol.
+    /// Gets a reference to the symbol that's wrapped or returns [`None`] if the wrapped value isn't
+    /// a BSON Symbol.
     pub fn as_symbol(&self) -> Option<&'_ str> {
         match self {
             RawBson::Symbol(v) => Some(v),
@@ -236,7 +236,7 @@ impl RawBson {
         }
     }
 
-    /// Gets the wrapped [`crate::Timestamp`] value or returns `None` if the wrapped value isn't a
+    /// Gets the wrapped [`crate::Timestamp`] value or returns [`None`] if the wrapped value isn't a
     /// BSON datetime.
     pub fn as_timestamp(&self) -> Option<Timestamp> {
         match self {
@@ -245,7 +245,7 @@ impl RawBson {
         }
     }
 
-    /// Returns `Some(())` if this value is null, otherwise returns `None`.
+    /// Returns `Some(())` if this value is null, otherwise returns [`None`].
     pub fn as_null(&self) -> Option<()> {
         match self {
             RawBson::Null => Some(()),
@@ -253,8 +253,8 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the [`crate::DbPointer`] that's wrapped or returns `None` if the wrapped
-    /// value isn't a BSON DbPointer.
+    /// Gets a reference to the [`crate::DbPointer`] that's wrapped or returns [`None`] if the
+    /// wrapped value isn't a BSON DbPointer.
     pub fn as_db_pointer(&self) -> Option<RawDbPointerRef<'_>> {
         match self {
             RawBson::DbPointer(d) => Some(RawDbPointerRef {
@@ -265,7 +265,7 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the code that's wrapped or returns `None` if the wrapped value isn't a
+    /// Gets a reference to the code that's wrapped or returns [`None`] if the wrapped value isn't a
     /// BSON JavaScript code.
     pub fn as_javascript(&self) -> Option<&'_ str> {
         match self {
@@ -274,7 +274,7 @@ impl RawBson {
         }
     }
 
-    /// Gets a reference to the [`RawJavaScriptCodeWithScope`] that's wrapped or returns `None`
+    /// Gets a reference to the [`RawJavaScriptCodeWithScope`] that's wrapped or returns [`None`]
     /// if the wrapped value isn't a BSON JavaScript code with scope value.
     pub fn as_javascript_with_scope(&self) -> Option<RawJavaScriptCodeWithScopeRef<'_>> {
         match self {

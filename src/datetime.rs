@@ -87,10 +87,10 @@ use serde_with::{DeserializeAs, SerializeAs};
 /// ## The `serde_with` feature flag
 ///
 /// The `serde_with` feature can be enabled to support more ergonomic serde attributes for
-/// (de)serializing `chrono::DateTime` from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
+/// (de)serializing [`chrono::DateTime`] from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
 /// crate. The main benefit of this compared to the regular `serde_helpers` is that `serde_with` can
-/// handle nested `chrono::DateTime` values (e.g. in `Option`), whereas the former only works on
-/// fields that are exactly `chrono::DateTime`.
+/// handle nested [`chrono::DateTime`] values (e.g. in [`Option`]), whereas the former only works on
+/// fields that are exactly [`chrono::DateTime`].
 /// ```
 /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
 /// # {
@@ -100,7 +100,7 @@ use serde_with::{DeserializeAs, SerializeAs};
 /// #[serde_with::serde_as]
 /// #[derive(Deserialize, Serialize, PartialEq, Debug)]
 /// struct Foo {
-///   /// Serializes as a BSON datetime rather than using `chrono::DateTime`'s serialization
+///   /// Serializes as a BSON datetime rather than using [`chrono::DateTime`]'s serialization
 ///   #[serde_as(as = "Option<bson::DateTime>")]
 ///   as_bson: Option<chrono::DateTime<chrono::Utc>>,
 /// }
@@ -139,8 +139,8 @@ impl crate::DateTime {
         Self::from_system_time(SystemTime::now())
     }
 
-    /// Convert the given `chrono::DateTime` into a `bson::DateTime`, truncating it to millisecond
-    /// precision.
+    /// Convert the given [`chrono::DateTime`] into a [`bson::DateTime`](DateTime), truncating it to
+    /// millisecond precision.
     #[cfg(feature = "chrono-0_4")]
     #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
@@ -206,8 +206,8 @@ impl crate::DateTime {
         Self::from_time_private(dt)
     }
 
-    /// Convert the given `time::OffsetDateTime` into a `bson::DateTime`, truncating it to
-    /// millisecond precision.
+    /// Convert the given [`time::OffsetDateTime`] into a [`bson::DateTime`](DateTime), truncating
+    /// it to millisecond precision.
     ///
     /// If the provided time is too far in the future or too far in the past to be represented
     /// by a BSON datetime, either [`DateTime::MAX`] or [`DateTime::MIN`] will be
@@ -455,7 +455,7 @@ pub enum Error {
     /// Error returned when an invalid datetime format is provided to a conversion method.
     #[non_exhaustive]
     InvalidTimestamp { message: String },
-    /// Error returned when a `DateTime` cannot be represented in a particular format.
+    /// Error returned when a [`DateTime`] cannot be represented in a particular format.
     #[non_exhaustive]
     CannotFormat { message: String },
 }

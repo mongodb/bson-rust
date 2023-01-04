@@ -17,7 +17,7 @@ use crate::{
 use super::{document_serializer::DocumentSerializer, Serializer};
 
 /// A serializer used specifically for serializing the serde-data-model form of a BSON type (e.g.
-/// `Binary`) to raw bytes.
+/// [`Binary`]) to raw bytes.
 pub(crate) struct ValueSerializer<'a> {
     root_serializer: &'a mut Serializer,
     state: SerializationStep,

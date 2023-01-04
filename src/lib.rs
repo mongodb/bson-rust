@@ -183,7 +183,7 @@
 //!     phones: Vec<String>,
 //! }
 //!
-//! // Some BSON input data as a `Bson`.
+//! // Some BSON input data as a [`Bson`].
 //! let bson_data: Bson = bson!({
 //!     "name": "John Doe",
 //!     "age": 43,
@@ -202,11 +202,11 @@
 //! println!("Redacting {}'s record.", person.name);
 //! person.name = "REDACTED".to_string();
 //!
-//! // Get a serialized version of the input data as a `Bson`.
+//! // Get a serialized version of the input data as a [`Bson`].
 //! let redacted_bson = bson::to_bson(&person).unwrap();
 //! ```
 //!
-//! Any types that implement `Serialize` and `Deserialize` can be used in this way. Doing so helps
+//! Any types that implement [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize) can be used in this way. Doing so helps
 //! separate the "business logic" that operates over the data from the (de)serialization logic that
 //! translates the data to/from its serialized form. This can lead to more clear and concise code
 //! that is also less error prone.
@@ -215,15 +215,15 @@
 //!
 //! The BSON format includes a datetime type, which is modeled in this crate by the
 //! [`DateTime`] struct, and the
-//! `Serialize` and `Deserialize` implementations for this struct produce and parse BSON datetimes
+//! [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize) implementations for this struct produce and parse BSON datetimes
 //! when serializing to or deserializing from BSON. The popular crate [`chrono`](docs.rs/chrono)
-//! also provides a `DateTime` type, but its `Serialize` and `Deserialize` implementations operate
+//! also provides a [`DateTime`] type, but its [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize) implementations operate
 //! on strings instead, so when using it with BSON, the BSON datetime type is not used. To work
 //! around this, the `chrono-0_4` feature flag can be enabled. This flag exposes a number of
-//! convenient conversions between `bson::DateTime` and `chrono::DateTime`, including the
+//! convenient conversions between [`bson::DateTime`](crate::DateTime) and [`chrono::DateTime`], including the
 //! [`serde_helpers::chrono_datetime_as_bson_datetime`]
-//! serde helper, which can be used to (de)serialize `chrono::DateTime`s to/from BSON datetimes, and
-//! the `From<chrono::DateTime>` implementation for [`Bson`], which allows `chrono::DateTime` values
+//! serde helper, which can be used to (de)serialize [`chrono::DateTime`]s to/from BSON datetimes, and
+//! the `From<chrono::DateTime>` implementation for [`Bson`], which allows [`chrono::DateTime`] values
 //! to be used in the `doc!` and `bson!` macros.
 //!
 //! e.g.

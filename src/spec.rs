@@ -58,7 +58,7 @@ const BINARY_SUBTYPE_USER_DEFINED: u8 = 0x80;
 
 /// All available BSON element types.
 ///
-/// Not all element types are representable by the `Bson` type.
+/// Not all element types are representable by the [`Bson`](crate::Bson) type.
 #[repr(u8)]
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum ElementType {

@@ -28,7 +28,7 @@ impl Display for Binary {
 
 impl Binary {
     /// Creates a [`Binary`] from a base64 string and optional [`BinarySubtype`]. If the
-    /// `subtype` argument is `None`, the [`Binary`] constructed will default to
+    /// `subtype` argument is [`None`], the [`Binary`] constructed will default to
     /// [`BinarySubtype::Generic`].
     ///
     /// ```rust
@@ -83,7 +83,7 @@ impl Binary {
         }
     }
 
-    /// Borrow the contents as a `RawBinaryRef`.
+    /// Borrow the contents as a [`RawBinaryRef`].
     pub fn as_raw_binary(&self) -> RawBinaryRef<'_> {
         RawBinaryRef {
             bytes: self.bytes.as_slice(),

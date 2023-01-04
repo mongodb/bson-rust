@@ -101,7 +101,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the `f64` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets the `f64` that's referenced or returns [`None`] if the referenced value isn't a BSON
     /// double.
     pub fn as_f64(self) -> Option<f64> {
         match self {
@@ -110,7 +110,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the `&str` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets the `&str` that's referenced or returns [`None`] if the referenced value isn't a BSON
     /// String.
     pub fn as_str(self) -> Option<&'a str> {
         match self {
@@ -119,7 +119,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the [`RawArray`] that's referenced or returns `None` if the referenced value
+    /// Gets the [`RawArray`] that's referenced or returns [`None`] if the referenced value
     /// isn't a BSON array.
     pub fn as_array(self) -> Option<&'a RawArray> {
         match self {
@@ -128,7 +128,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the [`RawDocument`] that's referenced or returns `None` if the referenced value
+    /// Gets the [`RawDocument`] that's referenced or returns [`None`] if the referenced value
     /// isn't a BSON document.
     pub fn as_document(self) -> Option<&'a RawDocument> {
         match self {
@@ -137,7 +137,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the `bool` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets the `bool` that's referenced or returns [`None`] if the referenced value isn't a BSON
     /// boolean.
     pub fn as_bool(self) -> Option<bool> {
         match self {
@@ -146,7 +146,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the `i32` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets the `i32` that's referenced or returns [`None`] if the referenced value isn't a BSON
     /// Int32.
     pub fn as_i32(self) -> Option<i32> {
         match self {
@@ -155,7 +155,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the `i64` that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets the `i64` that's referenced or returns [`None`] if the referenced value isn't a BSON
     /// Int64.
     pub fn as_i64(self) -> Option<i64> {
         match self {
@@ -164,7 +164,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the [`crate::oid::ObjectId`] that's referenced or returns `None` if the referenced
+    /// Gets the [`crate::oid::ObjectId`] that's referenced or returns [`None`] if the referenced
     /// value isn't a BSON ObjectID.
     pub fn as_object_id(self) -> Option<oid::ObjectId> {
         match self {
@@ -173,8 +173,8 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the [`RawBinaryRef`] that's referenced or returns `None` if the referenced value isn't
-    /// a BSON binary.
+    /// Gets the [`RawBinaryRef`] that's referenced or returns [`None`] if the referenced value
+    /// isn't a BSON binary.
     pub fn as_binary(self) -> Option<RawBinaryRef<'a>> {
         match self {
             RawBsonRef::Binary(v) => Some(v),
@@ -182,8 +182,8 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the [`RawRegexRef`] that's referenced or returns `None` if the referenced value isn't a
-    /// BSON regular expression.
+    /// Gets the [`RawRegexRef`] that's referenced or returns [`None`] if the referenced value isn't
+    /// a BSON regular expression.
     pub fn as_regex(self) -> Option<RawRegexRef<'a>> {
         match self {
             RawBsonRef::RegularExpression(v) => Some(v),
@@ -191,7 +191,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the [`crate::DateTime`] that's referenced or returns `None` if the referenced value
+    /// Gets the [`crate::DateTime`] that's referenced or returns [`None`] if the referenced value
     /// isn't a BSON datetime.
     pub fn as_datetime(self) -> Option<crate::DateTime> {
         match self {
@@ -200,7 +200,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the symbol that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets the symbol that's referenced or returns [`None`] if the referenced value isn't a BSON
     /// symbol.
     pub fn as_symbol(self) -> Option<&'a str> {
         match self {
@@ -209,7 +209,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the [`crate::Timestamp`] that's referenced or returns `None` if the referenced value
+    /// Gets the [`crate::Timestamp`] that's referenced or returns [`None`] if the referenced value
     /// isn't a BSON timestamp.
     pub fn as_timestamp(self) -> Option<Timestamp> {
         match self {
@@ -218,8 +218,8 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the null value that's referenced or returns `None` if the referenced value isn't a BSON
-    /// null.
+    /// Gets the null value that's referenced or returns [`None`] if the referenced value isn't a
+    /// BSON null.
     pub fn as_null(self) -> Option<()> {
         match self {
             RawBsonRef::Null => Some(()),
@@ -227,7 +227,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the [`RawDbPointerRef`] that's referenced or returns `None` if the referenced value
+    /// Gets the [`RawDbPointerRef`] that's referenced or returns [`None`] if the referenced value
     /// isn't a BSON DB pointer.
     pub fn as_db_pointer(self) -> Option<RawDbPointerRef<'a>> {
         match self {
@@ -236,7 +236,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the code that's referenced or returns `None` if the referenced value isn't a BSON
+    /// Gets the code that's referenced or returns [`None`] if the referenced value isn't a BSON
     /// JavaScript.
     pub fn as_javascript(self) -> Option<&'a str> {
         match self {
@@ -245,7 +245,7 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Gets the [`RawJavaScriptCodeWithScope`] that's referenced or returns `None` if the
+    /// Gets the [`RawJavaScriptCodeWithScope`] that's referenced or returns [`None`] if the
     /// referenced value isn't a BSON JavaScript with scope.
     pub fn as_javascript_with_scope(self) -> Option<RawJavaScriptCodeWithScopeRef<'a>> {
         match self {
@@ -460,7 +460,7 @@ pub struct RawBinaryRef<'a> {
 }
 
 impl<'a> RawBinaryRef<'a> {
-    /// Copy the contents into a `Binary`.
+    /// Copy the contents into a [`Binary`].
     pub fn to_binary(&self) -> Binary {
         Binary {
             subtype: self.subtype,

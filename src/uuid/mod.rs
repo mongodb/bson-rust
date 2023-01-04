@@ -13,8 +13,8 @@
 //! binary values. Instead, when serialized with `bson::to_bson`, it produces as a string, and when
 //! serialized with `bson::to_vec`, it produces a binary value with subtype _0_ rather than 4.
 //! Because of this, it is highly recommended to use the [`crate::Uuid`] type when working with BSON
-//! instead of the `uuid` crate's `Uuid`, since [`crate::Uuid`] correctly produces subtype 4 binary
-//! values via either serialization function.
+//! instead of the `uuid` crate's [`Uuid`], since [`crate::Uuid`] correctly produces subtype 4
+//! binary values via either serialization function.
 //!
 //! e.g.
 //!
@@ -44,10 +44,10 @@
 //!
 //! ## The `uuid-1` feature flag
 //!
-//! To facilitate the conversion between [`crate::Uuid`] values and the `uuid` crate's `Uuid`
+//! To facilitate the conversion between [`crate::Uuid`] values and the `uuid` crate's [`Uuid`]
 //! values, the `uuid-1` feature flag can be enabled. This flag exposes a number of convenient
 //! conversions, including the `crate::Uuid::to_uuid_1` method and the `From<uuid::Uuid>`
-//! implementation for `Bson`, which allows the `uuid` crate's `Uuid` values to be used in the
+//! implementation for [`Bson`], which allows the `uuid` crate's [`Uuid`] values to be used in the
 //! `doc!` and `bson!` macros.
 //!
 //! ```
@@ -77,10 +77,10 @@
 //! ## The `serde_with` feature flag
 //!
 //! The `serde_with` feature can be enabled to support more ergonomic serde attributes for
-//! (de)serializing `uuid::Uuid` from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
+//! (de)serializing [`uuid::Uuid`] from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
 //! crate. The main benefit of this compared to the regular `serde_helpers` is that `serde_with` can
-//! handle nested `uuid::Uuid` values (e.g. in `Option`), whereas the former only works on fields
-//! that are exactly `uuid::Uuid`.
+//! handle nested [`uuid::Uuid`] values (e.g. in [`Option`]), whereas the former only works on
+//! fields that are exactly [`uuid::Uuid`].
 //! ```
 //! # #[cfg(all(feature = "uuid-1", feature = "serde_with"))]
 //! # {
@@ -91,7 +91,7 @@
 //! #[serde_with::serde_as]
 //! #[derive(Deserialize, Serialize, PartialEq, Debug)]
 //! struct Foo {
-//!   /// Serializes as a BSON binary rather than using `uuid::Uuid`'s serialization
+//!   /// Serializes as a BSON binary rather than using [`uuid::Uuid`]'s serialization
 //!   #[serde_as(as = "Option<bson::Uuid>")]
 //!   as_bson: Option<uuid::Uuid>,
 //! }
@@ -109,9 +109,9 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
-//! ## Using `crate::Uuid` with non-BSON formats
+//! ## Using [`crate::Uuid`] with non-BSON formats
 //!
-//! [`crate::Uuid`]'s `serde` implementation is the same as `uuid::Uuid`'s
+//! [`crate::Uuid`]'s `serde` implementation is the same as [`uuid::Uuid`]'s
 //! for non-BSON formats such as JSON:
 //!
 //! ``` rust
@@ -147,9 +147,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{de::BsonVisitor, spec::BinarySubtype, Binary, Bson};
 
-/// Special type name used in the `Uuid` serialization implementation to indicate a BSON
+/// Special type name used in the [`Uuid`] serialization implementation to indicate a BSON
 /// UUID is being serialized or deserialized. The BSON serializers/deserializers will handle this
-/// name specially, but other serializers/deserializers will just ignore it and use `uuid::Uuid`'s
+/// name specially, but other serializers/deserializers will just ignore it and use [`uuid::Uuid`]'s
 /// serde integration.
 pub(crate) const UUID_NEWTYPE_NAME: &str = "$__bson_private_uuid";
 
@@ -160,7 +160,7 @@ pub(crate) const UUID_NEWTYPE_NAME: &str = "$__bson_private_uuid";
 /// [`uuid::Uuid`](https://docs.rs/uuid/latest/uuid/struct.Uuid.html)'s `serde` implementation doesn't
 /// produce or parse BSON UUIDs.
 ///
-/// To enable interop with the `Uuid` type from the `uuid` crate, enable the `uuid-0_8` feature
+/// To enable interop with the [`Uuid`] type from the `uuid` crate, enable the `uuid-0_8` feature
 /// flag.
 ///
 /// For more information on the usage of this type, see the [`uuid`] module-level documentation.

@@ -151,7 +151,7 @@ impl SerializerOptionsBuilder {
 }
 
 impl Serializer {
-    /// Construct a new `Serializer`.
+    /// Construct a new [`Serializer`].
     #[allow(clippy::new_without_default)]
     pub fn new() -> Serializer {
         Serializer {
@@ -159,7 +159,7 @@ impl Serializer {
         }
     }
 
-    /// Construct a new `Serializer` configured with the provided [`SerializerOptions`].
+    /// Construct a new [`Serializer`] configured with the provided [`SerializerOptions`].
     pub fn new_with_options(options: SerializerOptions) -> Self {
         Serializer { options }
     }
@@ -308,7 +308,7 @@ impl ser::Serializer for Serializer {
                 let is_human_readable = self.is_human_readable();
                 match value.serialize(self)? {
                     Bson::String(s) if is_human_readable => {
-                        // the serializer reports itself as human readable, so `Uuid` will
+                        // the serializer reports itself as human readable, so [`Uuid`] will
                         // serialize itself as a string.
                         let uuid = crate::Uuid::parse_str(s).map_err(Error::custom)?;
                         Ok(Bson::Binary(uuid.into()))
