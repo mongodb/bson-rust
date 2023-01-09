@@ -10,7 +10,7 @@ use crate::{
     serde_helpers::{
         bson_datetime_as_rfc3339_string,
         hex_string_as_object_id,
-        i64_as_datetime,
+        i64_as_bson_datetime,
         rfc3339_string_as_bson_datetime,
         serialize_object_id_as_hex_string,
         timestamp_as_u32,
@@ -888,12 +888,12 @@ fn test_oid_helpers() {
 }
 
 #[test]
-fn test_i64_as_datetime() {
+fn test_i64_as_bson_datetime() {
     let _guard = LOCK.run_concurrently();
 
     #[derive(Serialize, Deserialize)]
     struct A {
-        #[serde(with = "i64_as_datetime")]
+        #[serde(with = "i64_as_bson_datetime")]
         now: i64,
     }
 

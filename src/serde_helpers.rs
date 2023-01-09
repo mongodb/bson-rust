@@ -23,9 +23,9 @@ pub use hex_string_as_object_id::{
     serialize as serialize_hex_string_as_object_id,
 };
 #[doc(inline)]
-pub use i64_as_datetime::{
-    deserialize as deserialize_i64_from_datetime,
-    serialize as serialize_i64_as_datetime,
+pub use i64_as_bson_datetime::{
+    deserialize as deserialize_i64_from_bson_datetime,
+    serialize as serialize_i64_as_bson_datetime,
 };
 #[doc(inline)]
 pub use rfc3339_string_as_bson_datetime::{
@@ -424,14 +424,14 @@ pub mod hex_string_as_object_id {
 ///
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::i64_as_datetime;
+/// # use bson::serde_helpers::i64_as_bson_datetime;
 /// #[derive(Serialize, Deserialize)]
 /// struct Item {
-///     #[serde(with = "i64_as_datetime")]
+///     #[serde(with = "i64_as_bson_datetime")]
 ///     pub now: i64,
 /// }
 /// ```
-pub mod i64_as_datetime {
+pub mod i64_as_bson_datetime {
     use crate::DateTime;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
