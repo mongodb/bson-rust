@@ -511,14 +511,16 @@ impl<'d, 'de> DocumentAccess<'d, 'de> {
         F: FnOnce(&mut Self) -> Result<O>,
     {
         let start_bytes = self.root_deserializer.bytes.bytes_read();
-        let out = f(self);
+        let out = f(self)?;
         let bytes_read = self.root_deserializer.bytes.bytes_read() - start_bytes;
-        *self.length_remaining -= bytes_read as i32;
-
-        if *self.length_remaining < 0 {
+        let bytes_read: i32 = bytes_read
+            .try_into()
+            .map_err(|_| Error::custom("overflow in read size"))?;
+        if bytes_read > *self.length_remaining {
             return Err(Error::custom("length of document too short"));
         }
-        out
+        *self.length_remaining -= bytes_read as i32;
+        Ok(out)
     }
 
     /// Read the next value from the document.

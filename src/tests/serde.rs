@@ -1042,3 +1042,9 @@ fn oid_as_hex_string() {
     let doc = to_document(&foo).unwrap();
     assert_eq!(doc.get_str("oid").unwrap(), oid.to_hex());
 }
+
+#[test]
+fn fuzz_regression_00() {
+    let buf: &[u8] = &[227, 0, 35, 4, 2, 0, 255, 255, 255, 127, 255, 255, 255, 47];
+    let _ = crate::from_slice::<Document>(buf);
+}
