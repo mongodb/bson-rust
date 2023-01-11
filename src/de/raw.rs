@@ -519,7 +519,7 @@ impl<'d, 'de> DocumentAccess<'d, 'de> {
         if bytes_read > *self.length_remaining {
             return Err(Error::custom("length of document too short"));
         }
-        *self.length_remaining -= bytes_read as i32;
+        *self.length_remaining -= bytes_read;
         Ok(out)
     }
 
