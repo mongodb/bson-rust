@@ -1,4 +1,5 @@
-//! BSON DateTime
+//! Module containing functionality related to BSON DateTimes.
+//! For more information, see the documentation for the [`DateTime`] type.
 
 use std::{
     convert::TryInto,
@@ -57,12 +58,68 @@ use serde_with::{DeserializeAs, SerializeAs};
 /// # }
 /// ```
 ///
+/// ## Serde integration
+///
 /// This type differs from [`chrono::DateTime`] in that it serializes to and deserializes from a
-/// BSON datetime rather than an RFC 3339 formatted string. Additionally, in non-BSON formats, it
-/// will serialize to and deserialize from that format's equivalent of the
-/// [extended JSON representation](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/) of a datetime.
-/// To serialize a [`chrono::DateTime`] as a BSON datetime, you can use
-/// [`crate::serde_helpers::chrono_datetime_as_bson_datetime`].
+/// BSON datetime rather than an RFC 3339 formatted string.
+///
+/// e.g.
+/// ```rust
+/// use serde::{Serialize, Deserialize};
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Foo {
+///     // serializes as a BSON datetime.
+///     date_time: bson::DateTime,
+///
+///     // serializes as an RFC 3339 / ISO-8601 string.
+///     chrono_datetime: chrono::DateTime<chrono::Utc>,
+/// }
+///
+/// # fn main() -> bson::ser::Result<()> {
+/// let f = Foo { date_time: bson::DateTime::now(), chrono_datetime: chrono::Utc::now() };
+/// println!("{:?}", bson::to_document(&f)?);
+/// # Ok(())
+/// # }
+/// ```
+/// Produces the following output:
+/// ```js
+/// { "date_time": DateTime("2023-01-23 20:11:47.316 +00:00:00"), "chrono_datetime": "2023-01-23T20:11:47.316114543Z" }
+/// ```
+///
+/// Additionally, in non-BSON formats, it will serialize to and deserialize from that format's
+/// equivalent of the [extended JSON representation](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/) of a datetime.
+///
+/// e.g.
+/// ```rust
+/// # use serde::Serialize;
+/// # #[derive(Serialize)]
+/// # struct Foo {
+/// #    // serializes as a BSON datetime.
+/// #    date_time: bson::DateTime,
+/// #
+/// #   // serializes as an RFC 3339 / ISO-8601 string.
+/// #   chrono_datetime: chrono::DateTime<chrono::Utc>,
+/// # }
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let f = Foo { date_time: bson::DateTime::now(), chrono_datetime: chrono::Utc::now() };
+/// println!("{}", serde_json::to_string(&f)?);
+/// # Ok(())
+/// # }
+/// ```
+/// Produces the following output:
+/// ```js
+/// {"date_time":{"$date":{"$numberLong":"1674504029491"}},"chrono_datetime":"2023-01-23T20:00:29.491791120Z"}
+/// ```
+///
+/// ### `serde_helpers`
+/// The `bson` crate provides a number of useful helpers for serializing and deserializing
+/// various datetime types to and from different formats. For example, to serialize a
+/// [`chrono::DateTime`] as a BSON datetime, you can use
+/// [`crate::serde_helpers::chrono_datetime_as_bson_datetime`]. Similarly, to serialize a BSON
+/// [`DateTime`] to a string, you can use [`crate::serde_helpers::bson_datetime_as_rfc3339_string`].
+/// Check out the [`crate::serde_helpers`] module documentation for a list of all of the helpers
+/// offered by the crate.
 ///
 /// ```rust
 /// # #[cfg(feature = "chrono-0_4")]
@@ -81,10 +138,14 @@ use serde_with::{DeserializeAs, SerializeAs};
 ///     // this requires the "chrono-0_4" feature flag
 ///     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
 ///     chrono_as_bson: chrono::DateTime<chrono::Utc>,
+///
+///     // serializes as an RFC 3339 / ISO-8601 string.
+///     #[serde(with = "bson::serde_helpers::bson_datetime_as_rfc3339_string")]
+///     bson_as_string: bson::DateTime,
 /// }
 /// # }
 /// ```
-/// ## The `serde_with` feature flag
+/// ### The `serde_with` feature flag
 ///
 /// The `serde_with` feature can be enabled to support more ergonomic serde attributes for
 /// (de)serializing [`chrono::DateTime`] from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
