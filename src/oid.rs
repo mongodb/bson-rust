@@ -98,6 +98,21 @@ impl From<[u8; 12]> for ObjectId {
     }
 }
 
+impl From<SystemTime> for ObjectId {
+    fn from(datetime: SystemTime) -> Self {
+        let mut object_id = ObjectId::new();
+        let timestamp: u32 = datetime
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("system clock is before 1970")
+            .as_secs()
+            .try_into()
+            .unwrap(); // will succeed until 2106 since timestamp is unsigned
+        object_id.id[..TIMESTAMP_SIZE].copy_from_slice(&timestamp.to_be_bytes()[..TIMESTAMP_SIZE]);
+
+        object_id
+    }
+}
+
 impl ObjectId {
     /// Generates a new [`ObjectId`], represented in bytes.
     /// See the [docs](http://www.mongodb.com/docs/manual/reference/object-id/)
@@ -283,6 +298,7 @@ fn test_counter_overflow_usize_max() {
 
 #[cfg(test)]
 mod test {
+    use crate::oid::ObjectId;
     use time::macros::datetime;
 
     #[test]
@@ -332,5 +348,18 @@ mod test {
             datetime!(2106-02-07 6:28:15 UTC),
             id.timestamp().to_time_0_3()
         );
+    }
+
+    #[test]
+    fn test_from_datetime() {
+        let date_time = std::time::SystemTime::now();
+        let id = ObjectId::from(date_time);
+
+        let id_system_time = id.timestamp().to_system_time();
+        let diff_in_sec = date_time.duration_since(id_system_time).unwrap().as_secs();
+
+        // Difference only in nanoseconds which not exists in ObjectId,
+        // that's why diff in seconds use to compare
+        assert_eq!(diff_in_sec, 0);
     }
 }
