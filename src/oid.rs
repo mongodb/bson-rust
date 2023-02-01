@@ -1,4 +1,5 @@
-//! ObjectId
+//! Module containing functionality related to BSON ObjectIds.
+//! For more information, see the documentation for the [`ObjectId`] type.
 
 use std::{
     convert::TryInto,
@@ -72,7 +73,71 @@ impl fmt::Display for Error {
 
 impl error::Error for Error {}
 
-/// A wrapper around raw 12-byte ObjectId representations.
+/// A wrapper around a raw 12-byte ObjectId.
+///
+/// ## `serde` integration
+/// When serialized to BSON via `serde`, this type produces a BSON ObjectId. In non-BSON formats, it
+/// will serialize to and deserialize from that format's equivalent of the [extended JSON representation](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/) of a BSON ObjectId.
+///
+/// [`ObjectId`]s can be deserialized from hex strings in all formats.
+///
+/// e.g.
+/// ```rust
+/// use serde::{Serialize, Deserialize};
+/// use bson::oid::ObjectId;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Foo {
+///     oid: ObjectId,
+/// }
+///
+/// # fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+/// let f = Foo { oid: ObjectId::new() };
+/// println!("bson: {}", bson::to_document(&f)?);
+/// println!("json: {}", serde_json::to_string(&f)?);
+/// # Ok(())
+/// # }
+/// ```
+/// Produces the following output:
+/// ```text
+/// bson: { "oid": ObjectId("63ceed18f71dda7d8cf21e8e") }
+/// json: {"oid":{"$oid":"63ceed18f71dda7d8cf21e8e"}}
+/// ```
+///
+/// ### `serde_helpers`
+/// The `bson` crate provides a number of useful helpers for serializing and deserializing
+/// various types to and from different formats. For example, to serialize an
+/// [`ObjectId`] as a hex string, you can use
+/// [`crate::serde_helpers::serialize_object_id_as_hex_string`].
+/// Check out the [`crate::serde_helpers`] module documentation for a list of all of the helpers
+/// offered by the crate.
+///
+/// e.g.
+/// ```rust
+/// use serde::{Serialize, Deserialize};
+/// use bson::oid::ObjectId;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Foo {
+///     // Serializes as a BSON ObjectId or extJSON in non-BSON formats
+///     oid: ObjectId,
+///
+///     // Serializes as a hex string in all formats
+///     #[serde(serialize_with = "bson::serde_helpers::serialize_object_id_as_hex_string")]
+///     oid_as_hex: ObjectId,
+/// }
+/// # fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+/// let f = Foo { oid: ObjectId::new(), oid_as_hex: ObjectId::new() };
+/// println!("bson: {}", bson::to_document(&f)?);
+/// println!("json: {}", serde_json::to_string(&f)?);
+/// # Ok(())
+/// # }
+/// ```
+/// Produces the following output:
+/// ```text
+/// bson: { "oid": ObjectId("63ceeffd37518221cdc6cda2"), "oid_as_hex": "63ceeffd37518221cdc6cda3" }
+/// json: {"oid":{"$oid":"63ceeffd37518221cdc6cda2"},"oid_as_hex":"63ceeffd37518221cdc6cda3"}
+/// ```
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct ObjectId {
     id: [u8; 12],
