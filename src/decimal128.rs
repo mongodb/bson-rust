@@ -45,13 +45,13 @@ impl fmt::Display for Decimal128 {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct ParsedDecimal128 {
     sign: bool,
     kind: Decimal128Kind,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum Decimal128Kind {
     NaN { signalling: bool },
     Infinity,
@@ -64,16 +64,16 @@ enum Decimal128Kind {
 impl ParsedDecimal128 {
     fn new(source: &Decimal128) -> Self {
         let bits = source.bytes.view_bits::<Msb0>();
+
         let sign = bits[0];
-        let combination = &bits[1..5];
+        let combination = &bits[1..6];
+        let exp_continuation = &bits[6..18];
+        let sig_continuation = &bits[18..];
+
         let kind = if combination[0..4].all() {
             // Special value
             if combination[4] {
-                if bits[5] {
-                    Decimal128Kind::NaN { signalling: true }
-                } else {
-                    Decimal128Kind::NaN { signalling: false }
-                }
+                Decimal128Kind::NaN { signalling: exp_continuation[0] }
             } else {
                 Decimal128Kind::Infinity
             }
@@ -91,12 +91,56 @@ impl ParsedDecimal128 {
                 significand.push(false);
                 significand.extend(&combination[2..5]);
             }
-            // Exponent continuation
-            exponent.extend(&bits[5..17]);
-            // Coefficient continuation
-            significand.extend(&bits[17..]);
+            exponent.extend(exp_continuation);
+            significand.extend(sig_continuation);
             Decimal128Kind::Finite { exponent, significand }
         };
         ParsedDecimal128 { sign, kind }
+    }
+}
+
+impl fmt::Display for ParsedDecimal128 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.sign {
+            write!(f, "-")?;
+        }
+        match &self.kind {
+            Decimal128Kind::NaN { signalling } => {
+                if *signalling {
+                    write!(f, "s")?;
+                }
+                write!(f, "NaN")?;
+            }
+            Decimal128Kind::Infinity => write!(f, "Infinity")?,
+            Decimal128Kind::Finite { exponent, significand } => {
+                let coeff_str = format!("{}", significand.load_be::<u128>());
+                let exp_val = exponent.load_be::<i16>();
+                let adj_exp = exp_val + (coeff_str.len() as i16) - 1;
+                if exp_val <= 0 && adj_exp >= -6 {
+                    // Plain notation
+                } else {
+                    // Exponential notation
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn negative_infinity() {
+        let val = Decimal128::from_bytes([
+            0xf8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ]);
+        let parsed = ParsedDecimal128::new(&val);
+        assert_eq!(parsed, ParsedDecimal128 {
+            sign: true,
+            kind: Decimal128Kind::Infinity,
+        });
     }
 }
