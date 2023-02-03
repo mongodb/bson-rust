@@ -51,48 +51,59 @@ struct ParsedDecimal128 {
     kind: Decimal128Kind,
 }
 
+type Order = Msb0;
+
 #[derive(Debug, Clone, PartialEq)]
 enum Decimal128Kind {
     NaN { signalling: bool },
     Infinity,
     Finite {
-        exponent: BitVec<u8, Msb0>,
-        significand: BitVec<u8, Msb0>,
+        exponent: BitVec<u8, Order>,
+        significand: BitVec<u8, Order>,
+    }
+}
+
+macro_rules! pdbg {
+    ($expr: expr) => {
+        {
+            let val = $expr;
+            println!("{} = {}", stringify!($expr), val);
+            val
+        }
     }
 }
 
 impl ParsedDecimal128 {
     fn new(source: &Decimal128) -> Self {
-        let bits = source.bytes.view_bits::<Msb0>();
+        let tmp: Vec<_> = source.bytes.iter().copied().rev().collect();
+        let bits = tmp.view_bits::<Order>();
+        pdbg!(&bits);
 
         let sign = bits[0];
-        let combination = &bits[1..6];
-        let exp_continuation = &bits[6..18];
-        let sig_continuation = &bits[18..];
-
-        let kind = if combination[0..4].all() {
+        let kind = if bits[1..5].all() {
             // Special value
-            if combination[4] {
-                Decimal128Kind::NaN { signalling: exp_continuation[0] }
+            if bits[5] {
+                Decimal128Kind::NaN { signalling: bits[6] }
             } else {
                 Decimal128Kind::Infinity
             }
         } else {
-            // Finite
-            let mut exponent = bitvec![u8, Msb0;];
-            let mut significand = bitvec![u8, Msb0;];
-            // Extract initial bits from combination
-            if combination[0..1].all() {
-                exponent.extend(&combination[2..4]);
-                significand.extend(bits![u8, Msb0; 1, 0, 0]);
-                significand.push(combination[4]);
+            // Finite value
+            let mut exponent = bitvec![u8, Order;];
+            let mut significand = bitvec![u8, Order;];
+
+            if bits[1..3].all() {
+                exponent.extend(&bits[3..17]);
+                significand.extend(bits![1, 0, 0]);
+                significand.extend(&bits[17..]);
             } else {
-                exponent.extend(&combination[0..1]);
-                significand.push(false);
-                significand.extend(&combination[2..5]);
+                exponent.extend(&bits[1..15]);
+                significand.extend(bits![0]);
+                significand.extend(&bits[15..]);
             }
-            exponent.extend(exp_continuation);
-            significand.extend(sig_continuation);
+
+            pdbg!(&exponent);
+            pdbg!(&significand);
             Decimal128Kind::Finite { exponent, significand }
         };
         ParsedDecimal128 { sign, kind }
@@ -129,18 +140,64 @@ impl fmt::Display for ParsedDecimal128 {
 
 #[cfg(test)]
 mod tests {
+    use crate::Document;
+
     use super::*;
 
     #[test]
-    fn negative_infinity() {
-        let val = Decimal128::from_bytes([
-            0xf8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        ]);
-        let parsed = ParsedDecimal128::new(&val);
+    fn nan() {
+        let canonical_bson = hex::decode(&"180000001364000000000000000000000000000000007C00").unwrap();
+        let val = crate::from_slice::<Document>(&canonical_bson).unwrap();
+        let parsed = ParsedDecimal128::new(&val.get_decimal128("d").unwrap());
+        assert_eq!(parsed, ParsedDecimal128 {
+            sign: false,
+            kind: Decimal128Kind::NaN { signalling: false },
+        });
+    }
+
+    #[test]
+    fn negative_nan() {
+        let canonical_bson = hex::decode(&"18000000136400000000000000000000000000000000FC00").unwrap();
+        let val = crate::from_slice::<Document>(&canonical_bson).unwrap();
+        let parsed = ParsedDecimal128::new(&val.get_decimal128("d").unwrap());
         assert_eq!(parsed, ParsedDecimal128 {
             sign: true,
+            kind: Decimal128Kind::NaN { signalling: false },
+        });
+    }
+
+    #[test]
+    fn snan() {
+        let canonical_bson = hex::decode(&"180000001364000000000000000000000000000000007E00").unwrap();
+        let val = crate::from_slice::<Document>(&canonical_bson).unwrap();
+        let parsed = ParsedDecimal128::new(&val.get_decimal128("d").unwrap());
+        assert_eq!(parsed, ParsedDecimal128 {
+            sign: false,
+            kind: Decimal128Kind::NaN { signalling: true },
+        });
+    }
+
+    #[test]
+    fn inf() {
+        let canonical_bson = hex::decode(&"180000001364000000000000000000000000000000007800").unwrap();
+        let val = crate::from_slice::<Document>(&canonical_bson).unwrap();
+        let parsed = ParsedDecimal128::new(&val.get_decimal128("d").unwrap());
+        assert_eq!(parsed, ParsedDecimal128 {
+            sign: false,
             kind: Decimal128Kind::Infinity,
         });
+    }
+
+    #[test]
+    fn zero() {
+        let canonical_bson = hex::decode(&"180000001364000000000000000000000000000000403000").unwrap();
+        let val = crate::from_slice::<Document>(&canonical_bson).unwrap();
+        let parsed = ParsedDecimal128::new(&val.get_decimal128("d").unwrap());
+        let (_exp, sig) = if let Decimal128Kind::Finite { exponent, significand } = parsed.kind {
+            (exponent, significand)
+        } else {
+            panic!("expected finite, got {:?}", parsed);
+        };
+        assert_eq!(sig.load_le::<u128>(), 0);
     }
 }
