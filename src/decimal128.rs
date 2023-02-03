@@ -64,13 +64,13 @@ enum Decimal128Kind {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct Exponent(BitVec<u8, Order>);
+struct Exponent([u8; 2]);
 
 impl Exponent {
     const BIAS: i16 = 6176;
 
     fn raw(&self) -> u16 {
-        self.0.load_be::<u16>()
+        self.0.view_bits::<Order>().load_be::<u16>()
     }
 
     fn value(&self) -> i16 {
@@ -79,11 +79,11 @@ impl Exponent {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct Significand(BitVec<u8, Order>);
+struct Significand([u8; 16]);
 
 impl Significand {
     fn value(&self) -> u128 {
-        self.0.load_be::<u128>()
+        self.0.view_bits::<Order>().load_be::<u128>()
     }
 }
 
@@ -98,7 +98,6 @@ macro_rules! pdbg {
 }
 
 impl ParsedDecimal128 {
-
     fn new(source: &Decimal128) -> Self {
         let tmp: Vec<_> = source.bytes.iter().copied().rev().collect();
         let bits = tmp.view_bits::<Order>();
@@ -114,21 +113,22 @@ impl ParsedDecimal128 {
             }
         } else {
             // Finite value
-            let mut exponent = bitvec![u8, Order;];
-            let mut significand = bitvec![u8, Order;];
+            let mut exponent = [0u8; 2];
+            let exponent_bits = exponent.view_bits_mut::<Order>();
+            let mut significand = [0u8; 16];
+            let significand_bits = &mut significand.view_bits_mut::<Order>()[14..];
 
             if bits[1..3].all() {
-                exponent.extend(&bits[3..17]);
-                significand.extend(bits![1, 0, 0]);
-                significand.extend(&bits[17..]);
+                exponent_bits[2..].copy_from_bitslice(&bits[3..17]);
+                significand_bits[0..3].clone_from_bitslice(bits![1, 0, 0]);
+                significand_bits[3..].copy_from_bitslice(&bits[17..]);
             } else {
-                exponent.extend(&bits[1..15]);
-                significand.extend(bits![0]);
-                significand.extend(&bits[15..]);
+                exponent_bits[2..].copy_from_bitslice(&bits[1..15]);
+                significand_bits[1..].copy_from_bitslice(&bits[15..]);
             }
 
-            pdbg!(&exponent);
-            pdbg!(&significand);
+            pdbg!(&exponent_bits);
+            pdbg!(&significand_bits);
             Decimal128Kind::Finite {
                 exponent: Exponent(exponent),
                 significand: Significand(significand),
