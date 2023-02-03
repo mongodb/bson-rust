@@ -99,7 +99,13 @@ macro_rules! pdbg {
 
 impl ParsedDecimal128 {
     fn new(source: &Decimal128) -> Self {
-        let tmp: Vec<_> = source.bytes.iter().copied().rev().collect();
+        let tmp: [u8; 16] = {
+            let mut tmp = [0u8; 16];
+            for i in 0..16 {
+                tmp[i] = source.bytes[15-i];
+            }
+            tmp
+        };
         let bits = tmp.view_bits::<Order>();
         pdbg!(&bits);
 
