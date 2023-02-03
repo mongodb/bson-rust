@@ -215,7 +215,7 @@ mod tests {
     }
 
     #[test]
-    fn zero() {
+    fn finite_0() {
         let parsed = dec_from_hex("180000001364000000000000000000000000000000403000");
         let (exp, sig) = if let Decimal128Kind::Finite { exponent, significand } = parsed.kind {
             (exponent, significand)
@@ -224,5 +224,17 @@ mod tests {
         };
         assert_eq!(sig.value(), 0);
         assert_eq!(exp.value(), 0);
+    }
+
+    #[test]
+    fn finite_0_1() {
+        let parsed = dec_from_hex("1800000013640001000000000000000000000000003E3000");
+        let (exp, sig) = if let Decimal128Kind::Finite { exponent, significand } = parsed.kind {
+            (exponent, significand)
+        } else {
+            panic!("expected finite, got {:?}", parsed);
+        };
+        assert_eq!(sig.value(), 1);
+        assert_eq!(exp.value(), -1);
     }
 }
