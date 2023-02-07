@@ -163,8 +163,33 @@ impl fmt::Display for ParsedDecimal128 {
                 let adj_exp = exp_val + (coeff_str.len() as i16) - 1;
                 if exp_val <= 0 && adj_exp >= -6 {
                     // Plain notation
+                    if exp_val == 0 {
+                        write!(f, "{}", coeff_str)?;
+                    } else {
+                        let dec_charlen = exp_val.abs() as usize;
+                        if dec_charlen >= coeff_str.len() {
+                            write!(f, "0.")?;
+                            write!(f, "{}", "0".repeat(dec_charlen - coeff_str.len()))?;
+                            write!(f, "{}", coeff_str)?;
+                        } else {
+                            let (pre, post) = coeff_str.split_at(coeff_str.len() - dec_charlen);
+                            write!(f, "{}", pre)?;
+                            write!(f, ".")?;
+                            write!(f, "{}", post)?;
+                        }
+                    }
                 } else {
                     // Exponential notation
+                    let (pre, post) = coeff_str.split_at(1);
+                    write!(f, "{}", pre)?;
+                    if !post.is_empty() {
+                        write!(f, ".{}", post)?;
+                    }
+                    write!(f, "E")?;
+                    if adj_exp > 0 {
+                        write!(f, "+")?;
+                    }
+                    write!(f, "{}", adj_exp)?;
                 }
             }
         }
@@ -191,6 +216,7 @@ mod tests {
             sign: false,
             kind: Decimal128Kind::NaN { signalling: false },
         });
+        assert_eq!(parsed.to_string(), "NaN");
     }
 
     #[test]
@@ -200,6 +226,7 @@ mod tests {
             sign: true,
             kind: Decimal128Kind::NaN { signalling: false },
         });
+        assert_eq!(parsed.to_string(), "-NaN");
     }
 
     #[test]
@@ -209,6 +236,7 @@ mod tests {
             sign: false,
             kind: Decimal128Kind::NaN { signalling: true },
         });
+        assert_eq!(parsed.to_string(), "sNaN");
     }
 
     #[test]
@@ -218,29 +246,54 @@ mod tests {
             sign: false,
             kind: Decimal128Kind::Infinity,
         });
+        assert_eq!(parsed.to_string(), "Infinity");
+    }
+
+    fn finite_parts(parsed: ParsedDecimal128) -> (i16, u128) {
+        if let Decimal128Kind::Finite { exponent, significand } = parsed.kind {
+            (exponent.value(), significand.value())
+        } else {
+            panic!("expected finite, got {:?}", parsed);
+        }
     }
 
     #[test]
     fn finite_0() {
         let parsed = dec_from_hex("180000001364000000000000000000000000000000403000");
-        let (exp, sig) = if let Decimal128Kind::Finite { exponent, significand } = parsed.kind {
-            (exponent, significand)
-        } else {
-            panic!("expected finite, got {:?}", parsed);
-        };
-        assert_eq!(sig.value(), 0);
-        assert_eq!(exp.value(), 0);
+        assert_eq!(parsed.to_string(), "0");
+        assert!(!parsed.sign);
+        assert_eq!(finite_parts(parsed), (0, 0));
     }
 
     #[test]
     fn finite_0_1() {
         let parsed = dec_from_hex("1800000013640001000000000000000000000000003E3000");
-        let (exp, sig) = if let Decimal128Kind::Finite { exponent, significand } = parsed.kind {
-            (exponent, significand)
-        } else {
-            panic!("expected finite, got {:?}", parsed);
-        };
-        assert_eq!(sig.value(), 1);
-        assert_eq!(exp.value(), -1);
+        assert_eq!(parsed.to_string(), "0.1");
+        assert!(!parsed.sign);
+        assert_eq!(finite_parts(parsed), (-1, 1));
+    }
+
+    #[test]
+    fn finite_long_decimal() {
+        let parsed = dec_from_hex("18000000136400F2AF967ED05C82DE3297FF6FDE3CFC2F00");
+        assert_eq!(parsed.to_string(), "0.1234567890123456789012345678901234");
+        assert!(!parsed.sign);
+        assert_eq!(finite_parts(parsed), (-34, 1234567890123456789012345678901234));
+    }
+
+    #[test]
+    fn finite_smallest() {
+        let parsed = dec_from_hex("18000000136400D204000000000000000000000000343000");
+        assert_eq!(parsed.to_string(), "0.001234");
+        assert!(!parsed.sign);
+        assert_eq!(finite_parts(parsed), (-6, 1234));
+    }
+
+    #[test]
+    fn finite_fractional() {
+        let parsed = dec_from_hex("1800000013640064000000000000000000000000002CB000");
+        assert_eq!(parsed.to_string(), "-1.00E-8");
+        assert!(parsed.sign);
+        assert_eq!(finite_parts(parsed), (-10, 100));
     }
 }
