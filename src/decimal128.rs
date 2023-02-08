@@ -501,11 +501,27 @@ mod tests {
     }
 
     #[test]
+    fn finite_0_parse() {
+        let hex = "180000001364000000000000000000000000000000403000";
+        let parsed: ParsedDecimal128 = "0".parse().unwrap();
+        assert_eq!(finite_parts(&parsed), (0, 0));
+        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
+    }
+
+    #[test]
     fn finite_0_1() {
         let hex = "1800000013640001000000000000000000000000003E3000";
         let parsed = dec_from_hex(hex);
         assert_eq!(parsed.to_string(), "0.1");
         assert!(!parsed.sign);
+        assert_eq!(finite_parts(&parsed), (-1, 1));
+        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
+    }
+
+    #[test]
+    fn finite_0_1_parse() {
+        let hex = "1800000013640001000000000000000000000000003E3000";
+        let parsed: ParsedDecimal128 = "0.1".parse().unwrap();
         assert_eq!(finite_parts(&parsed), (-1, 1));
         assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
     }
@@ -537,6 +553,35 @@ mod tests {
         assert_eq!(parsed.to_string(), "-1.00E-8");
         assert!(parsed.sign);
         assert_eq!(finite_parts(&parsed), (-10, 100));
+        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
+    }
+
+    #[test]
+    fn finite_largest() {
+        let hex = "18000000136400F2AF967ED05C82DE3297FF6FDE3C403000";
+        let parsed = dec_from_hex(hex);
+        assert_eq!(parsed.to_string(), "1234567890123456789012345678901234");
+        assert!(!parsed.sign);
+        assert_eq!(finite_parts(&parsed), (0, 1234567890123456789012345678901234));
+        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
+    }
+
+    #[test]
+    fn finite_scientific_largest() {
+        let hex = "18000000136400FFFFFFFF638E8D37C087ADBE09EDFF5F00";
+        let parsed = dec_from_hex(hex);
+        assert_eq!(parsed.to_string(), "9.999999999999999999999999999999999E+6144");
+        assert!(!parsed.sign);
+        assert_eq!(finite_parts(&parsed), (6111, 9999999999999999999999999999999999));
+        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
+    }
+
+    #[test]
+    fn finite_scientific_largest_parse() {
+        let hex = "18000000136400FFFFFFFF638E8D37C087ADBE09EDFF5F00";
+        let parsed: ParsedDecimal128 = "9.999999999999999999999999999999999E+6144".parse().unwrap();
+        assert!(!parsed.sign);
+        assert_eq!(finite_parts(&parsed), (6111, 9999999999999999999999999999999999));
         assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
     }
 }
