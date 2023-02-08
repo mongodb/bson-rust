@@ -346,7 +346,7 @@ impl std::str::FromStr for ParsedDecimal128 {
                 // Split into parts
                 let mut decimal_str;
                 let exp_str;
-                match finite_str.split_once('E') {
+                match finite_str.split_once('e') {
                     None => {
                         decimal_str = finite_str;
                         exp_str = "0";
@@ -379,8 +379,8 @@ impl std::str::FromStr for ParsedDecimal128 {
 
                 // Check decimal precision
                 {
-                    let len = decimal_str.len();
-                    if len > Coefficient::MAX_DIGITS {
+                    let len = dbg!(dbg!(&decimal_str).len());
+                    if dbg!(len > Coefficient::MAX_DIGITS) {
                         let decimal_str = round_decimal_str(decimal_str, Coefficient::MAX_DIGITS)?;
                         let exp_adj = (len - decimal_str.len()).try_into().map_err(|_| ParseError::Overflow)?;
                         exp = exp.checked_add(exp_adj).ok_or(ParseError::Overflow)?;
@@ -388,7 +388,7 @@ impl std::str::FromStr for ParsedDecimal128 {
                 }
 
                 // Check exponent limits
-                if exp < Exponent::TINY {
+                if dbg!(exp < Exponent::TINY) {
                     let delta = (Exponent::TINY - exp).try_into().map_err(|_| ParseError::Overflow)?;
                     let new_precision = decimal_str.len().checked_sub(delta).ok_or(ParseError::Underflow)?;
                     decimal_str = round_decimal_str(decimal_str, new_precision)?;
