@@ -68,6 +68,19 @@ struct Exponent([u8; 2]);
 
 impl Exponent {
     const BIAS: i16 = 6176;
+    const UNUSED_BITS: usize = 2;
+
+    fn from_bits(src_bits: &BitSlice<u8, Order>) -> Self {
+        let mut bytes = [0u8; 2];
+        bytes
+            .view_bits_mut::<Order>()[Self::UNUSED_BITS..]
+            .copy_from_bitslice(src_bits);
+        Self(bytes)
+    }
+
+    fn bits(&self) -> &BitSlice<u8, Order> {
+        &self.0.view_bits::<Order>()[Self::UNUSED_BITS..]
+    }
 
     fn raw(&self) -> u16 {
         self.0.view_bits::<Order>().load_be::<u16>()
@@ -82,6 +95,21 @@ impl Exponent {
 struct Significand([u8; 16]);
 
 impl Significand {
+    const UNUSED_BITS: usize = 14;
+
+    fn from_bits(src_prefix: &BitSlice<u8, Order>, src_suffix: &BitSlice<u8, Order>) -> Self {
+        let mut bytes = [0u8; 16];
+        let bits = &mut bytes.view_bits_mut::<Order>()[Self::UNUSED_BITS..];
+        let prefix_len = src_prefix.len();
+        bits[0..prefix_len].copy_from_bitslice(src_prefix);
+        bits[prefix_len..].copy_from_bitslice(src_suffix);
+        Self(bytes)
+    }
+
+    fn bits(&self) -> &BitSlice<u8, Order> {
+        &self.0.view_bits::<Order>()[Self::UNUSED_BITS..]
+    }
+
     fn value(&self) -> u128 {
         self.0.view_bits::<Order>().load_be::<u128>()
     }
@@ -96,6 +124,8 @@ macro_rules! pdbg {
         }
     }
 }
+
+const EXPONENT_WIDTH: usize = 14;
 
 impl ParsedDecimal128 {
     fn new(source: &Decimal128) -> Self {
@@ -125,49 +155,51 @@ impl ParsedDecimal128 {
             let significand_prefix;
             if src_bits[1..3].all() {
                 exponent_offset = 3;
-                significand_prefix = bits![static 1, 0, 0];
+                significand_prefix = bits![static u8, Msb0; 1, 0, 0];
             } else {
                 exponent_offset = 1;
-                significand_prefix = bits![static 0];
+                significand_prefix = bits![static u8, Msb0; 0];
             }
 
-            let mut exponent = [0u8; 2];
-            exponent
-                .view_bits_mut::<Order>()[2..]
-                .copy_from_bitslice(&src_bits[exponent_offset..exponent_offset+14]);
-
-            let mut significand = [0u8; 16];
-            let (sig_pre, sig_post) = significand
-                .view_bits_mut::<Order>()[14..]
-                .split_at_mut(significand_prefix.len());
-            sig_pre.clone_from_bitslice(significand_prefix);
-            sig_post.clone_from_bitslice(&src_bits[exponent_offset+14..]);
-
-            pdbg!(exponent.view_bits::<Order>());
-            pdbg!(significand.view_bits::<Order>());
+            let exponent = Exponent::from_bits(&src_bits[exponent_offset..exponent_offset+EXPONENT_WIDTH]);
+            let significand = Significand::from_bits(significand_prefix, &src_bits[exponent_offset+EXPONENT_WIDTH..]);
+            pdbg!(exponent.bits());
+            pdbg!(significand.bits());
             Decimal128Kind::Finite {
-                exponent: Exponent(exponent),
-                significand: Significand(significand),
+                exponent,
+                significand,
             }
         };
         ParsedDecimal128 { sign, kind }
     }
 
     fn pack(&self) -> Decimal128 {
-        let mut bytes = [0u8; 16];
-        let bits = bytes.view_bits_mut::<Order>();
+        let mut dest_bytes = [0u8; 16];
+        let dest_bits = dest_bytes.view_bits_mut::<Order>();
 
-        bits.set(0, self.sign);
+        dest_bits.set(0, self.sign);
 
-        match self.kind {
+        match &self.kind {
             Decimal128Kind::NaN { signalling } => {
-                bits[1..6].clone_from_bitslice(bits![1, 1, 1, 1, 1]);
-                bits.set(6, signalling);
+                dest_bits[1..6].clone_from_bitslice(bits![1, 1, 1, 1, 1]);
+                dest_bits.set(6, *signalling);
             }
             Decimal128Kind::Infinity => {
-                //bits[1..6]
+                dest_bits[1..6].clone_from_bitslice(bits![1, 1, 1, 1, 0]);
             }
-            _ => (),
+            Decimal128Kind::Finite { exponent, significand } => {
+                let sig_bits = significand.0.view_bits::<Order>();
+                let exponent_offset;
+                if sig_bits[0] {
+                    dest_bits.set(1, true);
+                    dest_bits.set(2, true);
+                    exponent_offset = 3;
+                } else {
+                    exponent_offset = 1;
+                };
+                dest_bits[exponent_offset..exponent_offset+14]
+                    .copy_from_bitslice(exponent.0.view_bits::<Order>());
+            }
         }
 
         todo!()
