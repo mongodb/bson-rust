@@ -174,8 +174,8 @@ impl ParsedDecimal128 {
     }
 
     fn pack(&self) -> Decimal128 {
-        let mut dest_bytes = [0u8; 16];
-        let dest_bits = dest_bytes.view_bits_mut::<Order>();
+        let mut tmp = [0u8; 16];
+        let dest_bits = tmp.view_bits_mut::<Order>();
 
         dest_bits.set(0, self.sign);
 
@@ -188,7 +188,7 @@ impl ParsedDecimal128 {
                 dest_bits[1..6].clone_from_bitslice(bits![1, 1, 1, 1, 0]);
             }
             Decimal128Kind::Finite { exponent, significand } => {
-                let sig_bits = significand.0.view_bits::<Order>();
+                let sig_bits = significand.bits();
                 let exponent_offset;
                 if sig_bits[0] {
                     dest_bits.set(1, true);
@@ -197,12 +197,18 @@ impl ParsedDecimal128 {
                 } else {
                     exponent_offset = 1;
                 };
-                dest_bits[exponent_offset..exponent_offset+14]
-                    .copy_from_bitslice(exponent.0.view_bits::<Order>());
+                dest_bits[exponent_offset..exponent_offset+EXPONENT_WIDTH]
+                    .copy_from_bitslice(exponent.bits());
+                dest_bits[exponent_offset+EXPONENT_WIDTH..]
+                    .copy_from_bitslice(sig_bits);
             }
         }
 
-        todo!()
+        let mut bytes = [0u8; 16];
+        for i in 0..16 {
+            bytes[i] = tmp[15-i];
+        }
+        Decimal128 { bytes }
     }
 }
 
@@ -271,14 +277,21 @@ mod tests {
         ParsedDecimal128::new(&d.get_decimal128("d").unwrap())
     }
 
+    fn hex_from_dec(src: &ParsedDecimal128) -> String {
+        let bytes = crate::to_vec(&doc! { "d": src.pack() }).unwrap();
+        hex::encode(bytes)
+    }
+
     #[test]
     fn nan() {
-        let parsed = dec_from_hex("180000001364000000000000000000000000000000007C00");
+        let hex = "180000001364000000000000000000000000000000007C00";
+        let parsed = dec_from_hex(hex);
         assert_eq!(parsed, ParsedDecimal128 {
             sign: false,
             kind: Decimal128Kind::NaN { signalling: false },
         });
         assert_eq!(parsed.to_string(), "NaN");
+        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
     }
 
     #[test]
