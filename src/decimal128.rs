@@ -99,6 +99,7 @@ macro_rules! pdbg {
 
 impl ParsedDecimal128 {
     fn new(source: &Decimal128) -> Self {
+        // BSON byte order is the opposite of the decimal128 byte order, so flip 'em.  The rest of this method could be rewritten to not need this, but readability is helped by keeping the implementation congruent with the spec.
         let tmp: [u8; 16] = {
             let mut tmp = [0u8; 16];
             for i in 0..16 {
@@ -106,41 +107,70 @@ impl ParsedDecimal128 {
             }
             tmp
         };
-        let bits = tmp.view_bits::<Order>();
-        pdbg!(&bits);
+        let src_bits = tmp.view_bits::<Order>();
+        pdbg!(&src_bits);
 
-        let sign = bits[0];
-        let kind = if bits[1..5].all() {
+        let sign = src_bits[0];
+
+        let kind = if src_bits[1..5].all() {
             // Special value
-            if bits[5] {
-                Decimal128Kind::NaN { signalling: bits[6] }
+            if src_bits[5] {
+                Decimal128Kind::NaN { signalling: src_bits[6] }
             } else {
                 Decimal128Kind::Infinity
             }
         } else {
             // Finite value
-            let mut exponent = [0u8; 2];
-            let exponent_bits = exponent.view_bits_mut::<Order>();
-            let mut significand = [0u8; 16];
-            let significand_bits = &mut significand.view_bits_mut::<Order>()[14..];
-
-            if bits[1..3].all() {
-                exponent_bits[2..].copy_from_bitslice(&bits[3..17]);
-                significand_bits[0..3].clone_from_bitslice(bits![1, 0, 0]);
-                significand_bits[3..].copy_from_bitslice(&bits[17..]);
+            let exponent_offset;
+            let significand_prefix;
+            if src_bits[1..3].all() {
+                exponent_offset = 3;
+                significand_prefix = bits![static 1, 0, 0];
             } else {
-                exponent_bits[2..].copy_from_bitslice(&bits[1..15]);
-                significand_bits[1..].copy_from_bitslice(&bits[15..]);
+                exponent_offset = 1;
+                significand_prefix = bits![static 0];
             }
 
-            pdbg!(&exponent_bits);
-            pdbg!(&significand_bits);
+            let mut exponent = [0u8; 2];
+            exponent
+                .view_bits_mut::<Order>()[2..]
+                .copy_from_bitslice(&src_bits[exponent_offset..exponent_offset+14]);
+
+            let mut significand = [0u8; 16];
+            let (sig_pre, sig_post) = significand
+                .view_bits_mut::<Order>()[14..]
+                .split_at_mut(significand_prefix.len());
+            sig_pre.clone_from_bitslice(significand_prefix);
+            sig_post.clone_from_bitslice(&src_bits[exponent_offset+14..]);
+
+            pdbg!(exponent.view_bits::<Order>());
+            pdbg!(significand.view_bits::<Order>());
             Decimal128Kind::Finite {
                 exponent: Exponent(exponent),
                 significand: Significand(significand),
             }
         };
         ParsedDecimal128 { sign, kind }
+    }
+
+    fn pack(&self) -> Decimal128 {
+        let mut bytes = [0u8; 16];
+        let bits = bytes.view_bits_mut::<Order>();
+
+        bits.set(0, self.sign);
+
+        match self.kind {
+            Decimal128Kind::NaN { signalling } => {
+                bits[1..6].clone_from_bitslice(bits![1, 1, 1, 1, 1]);
+                bits.set(6, signalling);
+            }
+            Decimal128Kind::Infinity => {
+                //bits[1..6]
+            }
+            _ => (),
+        }
+
+        todo!()
     }
 }
 
