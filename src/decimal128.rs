@@ -41,7 +41,15 @@ impl fmt::Debug for Decimal128 {
 
 impl fmt::Display for Decimal128 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{}", ParsedDecimal128::new(self))
+    }
+}
+
+impl std::str::FromStr for Decimal128 {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(s.parse::<ParsedDecimal128>()?.pack())
     }
 }
 
@@ -59,7 +67,7 @@ enum Decimal128Kind {
     Infinity,
     Finite {
         exponent: Exponent,
-        significand: Significand,
+        coefficient: Coefficient,
     }
 }
 
@@ -69,12 +77,23 @@ struct Exponent([u8; 2]);
 impl Exponent {
     const BIAS: i16 = 6176;
     const UNUSED_BITS: usize = 2;
+    const WIDTH: usize = 14;
+    const TINY: i16 = -6176;
+    const MAX: i16 = 6144;
 
     fn from_bits(src_bits: &BitSlice<u8, Order>) -> Self {
         let mut bytes = [0u8; 2];
         bytes
             .view_bits_mut::<Order>()[Self::UNUSED_BITS..]
             .copy_from_bitslice(src_bits);
+        Self(bytes)
+    }
+
+    fn from_native(value: i16) -> Self {
+        let mut bytes = [0u8; 2];
+        bytes
+            .view_bits_mut::<Order>()
+            .store_be(value + Self::BIAS);
         Self(bytes)
     }
 
@@ -92,10 +111,11 @@ impl Exponent {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct Significand([u8; 16]);
+struct Coefficient([u8; 16]);
 
-impl Significand {
+impl Coefficient {
     const UNUSED_BITS: usize = 14;
+    const MAX_DIGITS: usize = 34;
 
     fn from_bits(src_prefix: &BitSlice<u8, Order>, src_suffix: &BitSlice<u8, Order>) -> Self {
         let mut bytes = [0u8; 16];
@@ -103,6 +123,14 @@ impl Significand {
         let prefix_len = src_prefix.len();
         bits[0..prefix_len].copy_from_bitslice(src_prefix);
         bits[prefix_len..].copy_from_bitslice(src_suffix);
+        Self(bytes)
+    }
+
+    fn from_native(value: u128) -> Self {
+        let mut bytes = [0u8; 16];
+        bytes
+            .view_bits_mut::<Order>()
+            .store_be(value);
         Self(bytes)
     }
 
@@ -125,7 +153,6 @@ macro_rules! pdbg {
     }
 }
 
-const EXPONENT_WIDTH: usize = 14;
 
 impl ParsedDecimal128 {
     fn new(source: &Decimal128) -> Self {
@@ -152,22 +179,22 @@ impl ParsedDecimal128 {
         } else {
             // Finite value
             let exponent_offset;
-            let significand_prefix;
+            let coeff_prefix;
             if src_bits[1..3].all() {
                 exponent_offset = 3;
-                significand_prefix = bits![static u8, Msb0; 1, 0, 0];
+                coeff_prefix = bits![static u8, Msb0; 1, 0, 0];
             } else {
                 exponent_offset = 1;
-                significand_prefix = bits![static u8, Msb0; 0];
+                coeff_prefix = bits![static u8, Msb0; 0];
             }
 
-            let exponent = Exponent::from_bits(&src_bits[exponent_offset..exponent_offset+EXPONENT_WIDTH]);
-            let significand = Significand::from_bits(significand_prefix, &src_bits[exponent_offset+EXPONENT_WIDTH..]);
+            let exponent = Exponent::from_bits(&src_bits[exponent_offset..exponent_offset+Exponent::WIDTH]);
+            let coefficient = Coefficient::from_bits(coeff_prefix, &src_bits[exponent_offset+Exponent::WIDTH..]);
             pdbg!(exponent.bits());
-            pdbg!(significand.bits());
+            pdbg!(coefficient.bits());
             Decimal128Kind::Finite {
                 exponent,
-                significand,
+                coefficient,
             }
         };
         ParsedDecimal128 { sign, kind }
@@ -187,22 +214,22 @@ impl ParsedDecimal128 {
             Decimal128Kind::Infinity => {
                 dest_bits[1..6].clone_from_bitslice(bits![1, 1, 1, 1, 0]);
             }
-            Decimal128Kind::Finite { exponent, significand } => {
-                let mut sig_bits = significand.bits();
+            Decimal128Kind::Finite { exponent, coefficient } => {
+                let mut coeff_bits = coefficient.bits();
                 let exponent_offset;
-                if sig_bits[0] {
+                if coeff_bits[0] {
                     dest_bits.set(1, true);
                     dest_bits.set(2, true);
-                    sig_bits = &sig_bits[3..];
+                    coeff_bits = &coeff_bits[3..];
                     exponent_offset = 3;
                 } else {
-                    sig_bits = &sig_bits[1..];
+                    coeff_bits = &coeff_bits[1..];
                     exponent_offset = 1;
                 };
-                dest_bits[exponent_offset..exponent_offset+EXPONENT_WIDTH]
+                dest_bits[exponent_offset..exponent_offset+Exponent::WIDTH]
                     .copy_from_bitslice(exponent.bits());
-                dest_bits[exponent_offset+EXPONENT_WIDTH..]
-                    .copy_from_bitslice(sig_bits);
+                dest_bits[exponent_offset+Exponent::WIDTH..]
+                    .copy_from_bitslice(coeff_bits);
             }
         }
 
@@ -227,8 +254,8 @@ impl fmt::Display for ParsedDecimal128 {
                 write!(f, "NaN")?;
             }
             Decimal128Kind::Infinity => write!(f, "Infinity")?,
-            Decimal128Kind::Finite { exponent, significand } => {
-                let coeff_str = format!("{}", significand.value());
+            Decimal128Kind::Finite { exponent, coefficient } => {
+                let coeff_str = format!("{}", coefficient.value());
                 let exp_val = exponent.value();
                 let adj_exp = exp_val + (coeff_str.len() as i16) - 1;
                 if exp_val <= 0 && adj_exp >= -6 {
@@ -265,6 +292,130 @@ impl fmt::Display for ParsedDecimal128 {
         }
         Ok(())
     }
+}
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ParseError {
+    EmptyExponent,
+    InvalidExponent(std::num::ParseIntError),
+    InvalidCoefficient(std::num::ParseIntError),
+    Overflow,
+    Underflow,
+    InexactRounding,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseError::EmptyExponent => write!(f, "empty exponent"),
+            ParseError::InvalidExponent(e) => write!(f, "invalid exponent: {}", e),
+            ParseError::InvalidCoefficient(e) => write!(f, "invalid coefficient: {}", e),
+            ParseError::Overflow => write!(f, "overflow"),
+            ParseError::Underflow => write!(f, "underflow"),
+            ParseError::InexactRounding => write!(f, "inexact rounding"),
+        }
+    }
+}
+
+impl std::error::Error for ParseError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ParseError::InvalidExponent(e) => Some(e),
+            ParseError::InvalidCoefficient(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
+impl std::str::FromStr for ParsedDecimal128 {
+    type Err = ParseError;
+
+    fn from_str(mut s: &str) -> Result<Self, Self::Err> {
+        let sign = if let Some(rest) = s.strip_prefix('-') {
+            s = rest;
+            true
+        } else {
+            false
+        };
+        let kind = match s.to_ascii_lowercase().as_str() {
+            "nan" => Decimal128Kind::NaN { signalling: false },
+            "snan" => Decimal128Kind::NaN { signalling: true },
+            "infinity" | "inf" => Decimal128Kind::Infinity,
+            finite_str => {
+                // Split into parts
+                let mut decimal_str;
+                let exp_str;
+                match finite_str.split_once('E') {
+                    None => {
+                        decimal_str = finite_str;
+                        exp_str = "0";
+                    }
+                    Some((_, "")) => return Err(ParseError::EmptyExponent),
+                    Some((pre, post)) => {
+                        decimal_str = pre;
+                        exp_str = post;
+                    }
+                }
+
+                let mut exp = exp_str.parse::<i16>().map_err(|e| ParseError::InvalidExponent(e))?;
+
+                // Strip leading zeros
+                let rest = decimal_str.trim_start_matches('0');
+                decimal_str = if rest.is_empty() {
+                    "0"
+                } else {
+                    rest
+                };
+
+                // Remove decimal point and adjust exponent
+                let tmp_str;
+                if let Some((pre, post)) = decimal_str.split_once('.') {
+                    let exp_adj = post.len().try_into().map_err(|_| ParseError::Underflow)?;
+                    exp = exp.checked_sub(exp_adj).ok_or(ParseError::Underflow)?;
+                    tmp_str = format!("{}{}", pre, post);
+                    decimal_str = &tmp_str;
+                }
+
+                // Check decimal precision
+                {
+                    let len = decimal_str.len();
+                    if len > Coefficient::MAX_DIGITS {
+                        let decimal_str = round_decimal_str(decimal_str, Coefficient::MAX_DIGITS)?;
+                        let exp_adj = (len - decimal_str.len()).try_into().map_err(|_| ParseError::Overflow)?;
+                        exp = exp.checked_add(exp_adj).ok_or(ParseError::Overflow)?;
+                    }
+                }
+
+                // Check exponent limits
+                if exp < Exponent::TINY {
+                    let delta = (Exponent::TINY - exp).try_into().map_err(|_| ParseError::Overflow)?;
+                    let new_precision = decimal_str.len().checked_sub(delta).ok_or(ParseError::Underflow)?;
+                    decimal_str = round_decimal_str(decimal_str, new_precision)?;
+                }
+                if exp > Exponent::MAX {
+                    return Err(ParseError::Overflow);
+                }
+
+                // Assemble the final value
+                let exponent = Exponent::from_native(exp);
+                let coeff: u128 = decimal_str.parse().map_err(|e| ParseError::InvalidCoefficient(e))?;
+                let coefficient = Coefficient::from_native(coeff);
+                Decimal128Kind::Finite { exponent, coefficient }
+            },
+        };
+
+        Ok(Self { sign, kind })
+    }
+}
+
+fn round_decimal_str(s: &str, precision: usize) -> Result<&str, ParseError> {
+    let (pre, post) = s.split_at(precision);
+    // Any nonzero trimmed digits mean it would be an imprecise round.
+    if post.chars().any(|c| c != '0') {
+        return Err(ParseError::InexactRounding);
+    }
+    Ok(pre)
 }
 
 #[cfg(test)]
@@ -332,8 +483,8 @@ mod tests {
     }
 
     fn finite_parts(parsed: &ParsedDecimal128) -> (i16, u128) {
-        if let Decimal128Kind::Finite { exponent, significand } = &parsed.kind {
-            (exponent.value(), significand.value())
+        if let Decimal128Kind::Finite { exponent, coefficient } = &parsed.kind {
+            (exponent.value(), coefficient.value())
         } else {
             panic!("expected finite, got {:?}", parsed);
         }
