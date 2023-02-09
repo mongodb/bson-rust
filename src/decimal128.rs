@@ -116,6 +116,7 @@ struct Coefficient([u8; 16]);
 impl Coefficient {
     const UNUSED_BITS: usize = 14;
     const MAX_DIGITS: usize = 34;
+    const MAX_VALUE: u128 = 9_999_999_999_999_999_999_999_999_999_999_999;
 
     fn from_bits(src_prefix: &BitSlice<u8, Order>, src_suffix: &BitSlice<u8, Order>) -> Self {
         let mut bytes = [0u8; 16];
@@ -123,7 +124,13 @@ impl Coefficient {
         let prefix_len = src_prefix.len();
         bits[0..prefix_len].copy_from_bitslice(src_prefix);
         bits[prefix_len..].copy_from_bitslice(src_suffix);
-        Self(bytes)
+        let out = Self(bytes);
+        if out.value() > Self::MAX_VALUE {
+            // Invalid coefficients get silently replaced with zero.
+            Self([0u8; 16])
+        } else {
+            out
+        }
     }
 
     fn from_native(value: u128) -> Self {
@@ -491,6 +498,43 @@ mod tests {
     }
 
     #[test]
+    fn invalid_0() {
+        let hex = "180000001364000000000000000000000000000000106C00";
+        let parsed = dec_from_hex(hex);
+        assert_eq!(parsed.to_string(), "0");
+        assert!(!parsed.sign);
+        assert_eq!(finite_parts(&parsed), (0, 0));
+    }
+
+    #[test]
+    fn invalid_neg_0() {
+        let hex = "18000000136400DCBA9876543210DEADBEEF00000010EC00";
+        let parsed = dec_from_hex(hex);
+        assert_eq!(parsed.to_string(), "-0");
+        assert!(parsed.sign);
+        assert_eq!(finite_parts(&parsed), (0, 0));
+    }
+
+    #[test]
+    fn invalid_0_e3() {
+        let hex = "18000000136400FFFFFFFFFFFFFFFFFFFFFFFFFFFF116C00";
+        let parsed = dec_from_hex(hex);
+        assert_eq!(parsed.to_string(), "0E+3");
+        assert!(!parsed.sign);
+        assert_eq!(finite_parts(&parsed), (3, 0));
+    }
+
+    #[test]
+    fn finite_adjusted_exponent_limit() {
+        let hex = "18000000136400F2AF967ED05C82DE3297FF6FDE3CF22F00";
+        let parsed = dec_from_hex(hex);
+        assert_eq!(parsed.to_string(), "0.000001234567890123456789012345678901234");
+        assert!(!parsed.sign);
+        assert_eq!(finite_parts(&parsed), (-39, 1234567890123456789012345678901234));
+        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
+    }
+
+    #[test]
     fn finite_0() {
         let hex = "180000001364000000000000000000000000000000403000";
         let parsed = dec_from_hex(hex);
@@ -582,6 +626,22 @@ mod tests {
         let parsed: ParsedDecimal128 = "9.999999999999999999999999999999999E+6144".parse().unwrap();
         assert!(!parsed.sign);
         assert_eq!(finite_parts(&parsed), (6111, 9999999999999999999999999999999999));
+        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
+    }
+
+    #[test]
+    fn noncanonical_exponent_normalization() {
+        let hex = "1800000013640064000000000000000000000000002CB000";
+        let parsed: ParsedDecimal128 = "-100E-10".parse().unwrap();
+        assert_eq!(parsed.to_string(), "-1.00E-8");
+        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
+    }
+
+    #[test]
+    fn rounded_subnormal() {
+        let hex = "180000001364000100000000000000000000000000000000";
+        let parsed: ParsedDecimal128 = "10E-6177".parse().unwrap();
+        assert_eq!(parsed.to_string(), "1E-6176");
         assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
     }
 }
