@@ -150,17 +150,6 @@ impl Coefficient {
     }
 }
 
-macro_rules! pdbg {
-    ($expr: expr) => {
-        {
-            let val = $expr;
-            println!("{} = {}", stringify!($expr), val);
-            val
-        }
-    }
-}
-
-
 impl ParsedDecimal128 {
     fn new(source: &Decimal128) -> Self {
         // BSON byte order is the opposite of the decimal128 byte order, so flip 'em.  The rest of this method could be rewritten to not need this, but readability is helped by keeping the implementation congruent with the spec.
@@ -172,10 +161,8 @@ impl ParsedDecimal128 {
             tmp
         };
         let src_bits = tmp.view_bits::<Order>();
-        pdbg!(&src_bits);
 
         let sign = src_bits[0];
-
         let kind = if src_bits[1..5].all() {
             // Special value
             if src_bits[5] {
@@ -197,8 +184,6 @@ impl ParsedDecimal128 {
 
             let exponent = Exponent::from_bits(&src_bits[exponent_offset..exponent_offset+Exponent::WIDTH]);
             let coefficient = Coefficient::from_bits(coeff_prefix, &src_bits[exponent_offset+Exponent::WIDTH..]);
-            pdbg!(exponent.bits());
-            pdbg!(coefficient.bits());
             Decimal128Kind::Finite {
                 exponent,
                 coefficient,
@@ -250,14 +235,17 @@ impl ParsedDecimal128 {
 
 impl fmt::Display for ParsedDecimal128 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.sign {
+        // MongoDB diverges from the IEEE spec and requires no sign for NaN
+        if self.sign && !matches!(&self.kind, Decimal128Kind::NaN { .. }) {
             write!(f, "-")?;
         }
         match &self.kind {
-            Decimal128Kind::NaN { signalling } => {
+            Decimal128Kind::NaN { signalling: _signalling } => {
+                /* Likewise, MongoDB requires no 's' prefix for signalling.
                 if *signalling {
                     write!(f, "s")?;
                 }
+                */
                 write!(f, "NaN")?;
             }
             Decimal128Kind::Infinity => write!(f, "Infinity")?,
@@ -339,12 +327,13 @@ impl std::str::FromStr for ParsedDecimal128 {
     type Err = ParseError;
 
     fn from_str(mut s: &str) -> Result<Self, Self::Err> {
-        let sign = if let Some(rest) = s.strip_prefix('-') {
+        let sign;
+        if let Some(rest) = s.strip_prefix(&['-', '+']) {
+            sign = s.chars().next() == Some('-');
             s = rest;
-            true
         } else {
-            false
-        };
+            sign = false;
+        }
         let kind = match s.to_ascii_lowercase().as_str() {
             "nan" => Decimal128Kind::NaN { signalling: false },
             "snan" => Decimal128Kind::NaN { signalling: true },
@@ -366,14 +355,6 @@ impl std::str::FromStr for ParsedDecimal128 {
                 }
                 let mut exp = exp_str.parse::<i16>().map_err(|e| ParseError::InvalidExponent(e))?;
 
-                // Strip leading zeros
-                let rest = decimal_str.trim_start_matches('0');
-                decimal_str = if rest.is_empty() {
-                    "0"
-                } else {
-                    rest
-                };
-
                 // Remove decimal point and adjust exponent
                 let joined_str;
                 if let Some((pre, post)) = decimal_str.split_once('.') {
@@ -383,10 +364,18 @@ impl std::str::FromStr for ParsedDecimal128 {
                     decimal_str = &joined_str;
                 }
 
+                // Strip leading zeros
+                let rest = decimal_str.trim_start_matches('0');
+                decimal_str = if rest.is_empty() {
+                    "0"
+                } else {
+                    rest
+                };
+
                 // Check decimal precision
                 {
                     let len = decimal_str.len();
-                    if dbg!(len > Coefficient::MAX_DIGITS) {
+                    if len > Coefficient::MAX_DIGITS {
                         decimal_str = round_decimal_str(decimal_str, Coefficient::MAX_DIGITS)?;
                         let exp_adj = (len - decimal_str.len()).try_into().map_err(|_| ParseError::Overflow)?;
                         exp = exp.checked_add(exp_adj).ok_or(ParseError::Overflow)?;
@@ -394,7 +383,7 @@ impl std::str::FromStr for ParsedDecimal128 {
                 }
 
                 // Check exponent limits
-                if dbg!(exp < Exponent::TINY) {
+                if exp < Exponent::TINY {
                     let delta = (Exponent::TINY - exp).try_into().map_err(|_| ParseError::Overflow)?;
                     let new_precision = decimal_str.len().checked_sub(delta).ok_or(ParseError::Underflow)?;
                     decimal_str = round_decimal_str(decimal_str, new_precision)?;

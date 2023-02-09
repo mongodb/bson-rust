@@ -474,9 +474,6 @@ impl Bson {
     }
 
     /// Converts the Bson value into its [canonical extended JSON representation](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
-    ///
-    /// Note: extended json encoding for `Decimal128` values is not supported. If this method is
-    /// called on a case which contains a `Decimal128` value, it will panic.
     pub fn into_canonical_extjson(self) -> Value {
         match self {
             Bson::Int32(i) => json!({ "$numberInt": i.to_string() }),
