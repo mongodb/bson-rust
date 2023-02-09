@@ -335,7 +335,7 @@ impl std::str::FromStr for ParsedDecimal128 {
 
     fn from_str(mut s: &str) -> Result<Self, Self::Err> {
         let sign;
-        if let Some(rest) = s.strip_prefix(['-', '+']) {
+        if let Some(rest) = s.strip_prefix(&['-', '+']) {
             sign = s.starts_with('-');
             s = rest;
         } else {
