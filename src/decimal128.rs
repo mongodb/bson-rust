@@ -63,12 +63,14 @@ type Order = Msb0;
 
 #[derive(Debug, Clone, PartialEq)]
 enum Decimal128Kind {
-    NaN { signalling: bool },
+    NaN {
+        signalling: bool,
+    },
     Infinity,
     Finite {
         exponent: Exponent,
         coefficient: Coefficient,
-    }
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -83,17 +85,13 @@ impl Exponent {
 
     fn from_bits(src_bits: &BitSlice<u8, Order>) -> Self {
         let mut bytes = [0u8; 2];
-        bytes
-            .view_bits_mut::<Order>()[Self::UNUSED_BITS..]
-            .copy_from_bitslice(src_bits);
+        bytes.view_bits_mut::<Order>()[Self::UNUSED_BITS..].copy_from_bitslice(src_bits);
         Self(bytes)
     }
 
     fn from_native(value: i16) -> Self {
         let mut bytes = [0u8; 2];
-        bytes
-            .view_bits_mut::<Order>()
-            .store_be(value + Self::BIAS);
+        bytes.view_bits_mut::<Order>().store_be(value + Self::BIAS);
         Self(bytes)
     }
 
@@ -135,9 +133,7 @@ impl Coefficient {
 
     fn from_native(value: u128) -> Self {
         let mut bytes = [0u8; 16];
-        bytes
-            .view_bits_mut::<Order>()
-            .store_be(value);
+        bytes.view_bits_mut::<Order>().store_be(value);
         Self(bytes)
     }
 
@@ -152,11 +148,13 @@ impl Coefficient {
 
 impl ParsedDecimal128 {
     fn new(source: &Decimal128) -> Self {
-        // BSON byte order is the opposite of the decimal128 byte order, so flip 'em.  The rest of this method could be rewritten to not need this, but readability is helped by keeping the implementation congruent with the spec.
+        // BSON byte order is the opposite of the decimal128 spec byte order, so flip 'em.  The rest
+        // of this method could be rewritten to not need this, but readability is helped by
+        // keeping the implementation congruent with the spec.
         let tmp: [u8; 16] = {
             let mut tmp = [0u8; 16];
-            for i in 0..16 {
-                tmp[i] = source.bytes[15-i];
+            for (ix, b) in tmp.iter_mut().enumerate() {
+                *b = source.bytes[15 - ix];
             }
             tmp
         };
@@ -166,7 +164,9 @@ impl ParsedDecimal128 {
         let kind = if src_bits[1..5].all() {
             // Special value
             if src_bits[5] {
-                Decimal128Kind::NaN { signalling: src_bits[6] }
+                Decimal128Kind::NaN {
+                    signalling: src_bits[6],
+                }
             } else {
                 Decimal128Kind::Infinity
             }
@@ -182,8 +182,12 @@ impl ParsedDecimal128 {
                 coeff_prefix = bits![static u8, Msb0; 0];
             }
 
-            let exponent = Exponent::from_bits(&src_bits[exponent_offset..exponent_offset+Exponent::WIDTH]);
-            let coefficient = Coefficient::from_bits(coeff_prefix, &src_bits[exponent_offset+Exponent::WIDTH..]);
+            let exponent =
+                Exponent::from_bits(&src_bits[exponent_offset..exponent_offset + Exponent::WIDTH]);
+            let coefficient = Coefficient::from_bits(
+                coeff_prefix,
+                &src_bits[exponent_offset + Exponent::WIDTH..],
+            );
             Decimal128Kind::Finite {
                 exponent,
                 coefficient,
@@ -206,7 +210,10 @@ impl ParsedDecimal128 {
             Decimal128Kind::Infinity => {
                 dest_bits[1..6].clone_from_bitslice(bits![1, 1, 1, 1, 0]);
             }
-            Decimal128Kind::Finite { exponent, coefficient } => {
+            Decimal128Kind::Finite {
+                exponent,
+                coefficient,
+            } => {
                 let mut coeff_bits = coefficient.bits();
                 let exponent_offset;
                 if coeff_bits[0] {
@@ -218,16 +225,15 @@ impl ParsedDecimal128 {
                     coeff_bits = &coeff_bits[1..];
                     exponent_offset = 1;
                 };
-                dest_bits[exponent_offset..exponent_offset+Exponent::WIDTH]
+                dest_bits[exponent_offset..exponent_offset + Exponent::WIDTH]
                     .copy_from_bitslice(exponent.bits());
-                dest_bits[exponent_offset+Exponent::WIDTH..]
-                    .copy_from_bitslice(coeff_bits);
+                dest_bits[exponent_offset + Exponent::WIDTH..].copy_from_bitslice(coeff_bits);
             }
         }
 
         let mut bytes = [0u8; 16];
         for i in 0..16 {
-            bytes[i] = tmp[15-i];
+            bytes[i] = tmp[15 - i];
         }
         Decimal128 { bytes }
     }
@@ -240,7 +246,9 @@ impl fmt::Display for ParsedDecimal128 {
             write!(f, "-")?;
         }
         match &self.kind {
-            Decimal128Kind::NaN { signalling: _signalling } => {
+            Decimal128Kind::NaN {
+                signalling: _signalling,
+            } => {
                 /* Likewise, MongoDB requires no 's' prefix for signalling.
                 if *signalling {
                     write!(f, "s")?;
@@ -249,7 +257,10 @@ impl fmt::Display for ParsedDecimal128 {
                 write!(f, "NaN")?;
             }
             Decimal128Kind::Infinity => write!(f, "Infinity")?,
-            Decimal128Kind::Finite { exponent, coefficient } => {
+            Decimal128Kind::Finite {
+                exponent,
+                coefficient,
+            } => {
                 let coeff_str = format!("{}", coefficient.value());
                 let exp_val = exponent.value();
                 let adj_exp = exp_val + (coeff_str.len() as i16) - 1;
@@ -258,7 +269,7 @@ impl fmt::Display for ParsedDecimal128 {
                     if exp_val == 0 {
                         write!(f, "{}", coeff_str)?;
                     } else {
-                        let dec_charlen = exp_val.abs() as usize;
+                        let dec_charlen = exp_val.unsigned_abs() as usize;
                         if dec_charlen >= coeff_str.len() {
                             write!(f, "0.")?;
                             write!(f, "{}", "0".repeat(dec_charlen - coeff_str.len()))?;
@@ -328,8 +339,8 @@ impl std::str::FromStr for ParsedDecimal128 {
 
     fn from_str(mut s: &str) -> Result<Self, Self::Err> {
         let sign;
-        if let Some(rest) = s.strip_prefix(&['-', '+']) {
-            sign = s.chars().next() == Some('-');
+        if let Some(rest) = s.strip_prefix(['-', '+']) {
+            sign = s.starts_with('-');
             s = rest;
         } else {
             sign = false;
@@ -353,7 +364,9 @@ impl std::str::FromStr for ParsedDecimal128 {
                         exp_str = post;
                     }
                 }
-                let mut exp = exp_str.parse::<i16>().map_err(|e| ParseError::InvalidExponent(e))?;
+                let mut exp = exp_str
+                    .parse::<i16>()
+                    .map_err(ParseError::InvalidExponent)?;
 
                 // Remove decimal point and adjust exponent
                 let joined_str;
@@ -366,18 +379,16 @@ impl std::str::FromStr for ParsedDecimal128 {
 
                 // Strip leading zeros
                 let rest = decimal_str.trim_start_matches('0');
-                decimal_str = if rest.is_empty() {
-                    "0"
-                } else {
-                    rest
-                };
+                decimal_str = if rest.is_empty() { "0" } else { rest };
 
                 // Check decimal precision
                 {
                     let len = decimal_str.len();
                     if len > Coefficient::MAX_DIGITS {
                         decimal_str = round_decimal_str(decimal_str, Coefficient::MAX_DIGITS)?;
-                        let exp_adj = (len - decimal_str.len()).try_into().map_err(|_| ParseError::Overflow)?;
+                        let exp_adj = (len - decimal_str.len())
+                            .try_into()
+                            .map_err(|_| ParseError::Overflow)?;
                         exp = exp.checked_add(exp_adj).ok_or(ParseError::Overflow)?;
                     }
                 }
@@ -385,8 +396,13 @@ impl std::str::FromStr for ParsedDecimal128 {
                 // Check exponent limits
                 if exp < Exponent::TINY {
                     if decimal_str != "0" {
-                        let delta = (Exponent::TINY - exp).try_into().map_err(|_| ParseError::Overflow)?;
-                        let new_precision = decimal_str.len().checked_sub(delta).ok_or(ParseError::Underflow)?;
+                        let delta = (Exponent::TINY - exp)
+                            .try_into()
+                            .map_err(|_| ParseError::Overflow)?;
+                        let new_precision = decimal_str
+                            .len()
+                            .checked_sub(delta)
+                            .ok_or(ParseError::Underflow)?;
                         decimal_str = round_decimal_str(decimal_str, new_precision)?;
                     }
                     exp = Exponent::TINY;
@@ -394,8 +410,15 @@ impl std::str::FromStr for ParsedDecimal128 {
                 let padded_str;
                 if exp > Exponent::MAX {
                     if decimal_str != "0" {
-                        let delta = (exp - Exponent::MAX).try_into().map_err(|_| ParseError::Overflow)?;
-                        if decimal_str.len().checked_add(delta).ok_or(ParseError::Overflow)? > Coefficient::MAX_DIGITS {
+                        let delta = (exp - Exponent::MAX)
+                            .try_into()
+                            .map_err(|_| ParseError::Overflow)?;
+                        if decimal_str
+                            .len()
+                            .checked_add(delta)
+                            .ok_or(ParseError::Overflow)?
+                            > Coefficient::MAX_DIGITS
+                        {
                             return Err(ParseError::Overflow);
                         }
                         padded_str = format!("{}{}", decimal_str, "0".repeat(delta));
@@ -406,10 +429,15 @@ impl std::str::FromStr for ParsedDecimal128 {
 
                 // Assemble the final value
                 let exponent = Exponent::from_native(exp);
-                let coeff: u128 = decimal_str.parse().map_err(|e| ParseError::InvalidCoefficient(e))?;
+                let coeff: u128 = decimal_str
+                    .parse()
+                    .map_err(ParseError::InvalidCoefficient)?;
                 let coefficient = Coefficient::from_native(coeff);
-                Decimal128Kind::Finite { exponent, coefficient }
-            },
+                Decimal128Kind::Finite {
+                    exponent,
+                    coefficient,
+                }
+            }
         };
 
         Ok(Self { sign, kind })

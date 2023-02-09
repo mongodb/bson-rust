@@ -559,7 +559,6 @@ fn run_test(test: TestFile) {
         }
 
         let json: serde_json::Value = serde_json::Value::String(parse_error.string);
-            //serde_json::from_str(parse_error.string.as_str()).expect(&parse_error.description);
 
         if let Ok(bson) = Bson::try_from(json.clone()) {
             // if converting to bson succeeds, assert that translating that bson to bytes fails

@@ -467,12 +467,14 @@ impl<'de> Visitor<'de> for BsonVisitor {
 
                 "$numberDecimal" => {
                     let string: String = visitor.next_value()?;
-                    return Ok(Bson::Decimal128(string.parse::<Decimal128>().map_err(|_| {
-                        V::Error::invalid_value(
-                            Unexpected::Str(&string),
-                            &"decimal128 as a string",
-                        )
-                    })?));
+                    return Ok(Bson::Decimal128(string.parse::<Decimal128>().map_err(
+                        |_| {
+                            V::Error::invalid_value(
+                                Unexpected::Str(&string),
+                                &"decimal128 as a string",
+                            )
+                        },
+                    )?));
                 }
 
                 "$numberDecimalBytes" => {
