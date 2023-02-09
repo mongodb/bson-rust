@@ -59,8 +59,6 @@ struct ParsedDecimal128 {
     kind: Decimal128Kind,
 }
 
-type Order = Msb0;
-
 #[derive(Debug, Clone, PartialEq)]
 enum Decimal128Kind {
     NaN {
@@ -78,29 +76,30 @@ struct Exponent([u8; 2]);
 
 impl Exponent {
     const BIAS: i16 = 6176;
-    const UNUSED_BITS: usize = 2;
-    const WIDTH: usize = 14;
     const TINY: i16 = -6176;
     const MAX: i16 = 6111;
 
-    fn from_bits(src_bits: &BitSlice<u8, Order>) -> Self {
+    const UNUSED_BITS: usize = 2;
+    const PACKED_WIDTH: usize = 14;
+
+    fn from_bits(src_bits: &BitSlice<u8, Msb0>) -> Self {
         let mut bytes = [0u8; 2];
-        bytes.view_bits_mut::<Order>()[Self::UNUSED_BITS..].copy_from_bitslice(src_bits);
+        bytes.view_bits_mut::<Msb0>()[Self::UNUSED_BITS..].copy_from_bitslice(src_bits);
         Self(bytes)
     }
 
     fn from_native(value: i16) -> Self {
         let mut bytes = [0u8; 2];
-        bytes.view_bits_mut::<Order>().store_be(value + Self::BIAS);
+        bytes.view_bits_mut::<Msb0>().store_be(value + Self::BIAS);
         Self(bytes)
     }
 
-    fn bits(&self) -> &BitSlice<u8, Order> {
-        &self.0.view_bits::<Order>()[Self::UNUSED_BITS..]
+    fn bits(&self) -> &BitSlice<u8, Msb0> {
+        &self.0.view_bits::<Msb0>()[Self::UNUSED_BITS..]
     }
 
     fn raw(&self) -> u16 {
-        self.0.view_bits::<Order>().load_be::<u16>()
+        self.0.view_bits::<Msb0>().load_be::<u16>()
     }
 
     fn value(&self) -> i16 {
@@ -116,9 +115,9 @@ impl Coefficient {
     const MAX_DIGITS: usize = 34;
     const MAX_VALUE: u128 = 9_999_999_999_999_999_999_999_999_999_999_999;
 
-    fn from_bits(src_prefix: &BitSlice<u8, Order>, src_suffix: &BitSlice<u8, Order>) -> Self {
+    fn from_bits(src_prefix: &BitSlice<u8, Msb0>, src_suffix: &BitSlice<u8, Msb0>) -> Self {
         let mut bytes = [0u8; 16];
-        let bits = &mut bytes.view_bits_mut::<Order>()[Self::UNUSED_BITS..];
+        let bits = &mut bytes.view_bits_mut::<Msb0>()[Self::UNUSED_BITS..];
         let prefix_len = src_prefix.len();
         bits[0..prefix_len].copy_from_bitslice(src_prefix);
         bits[prefix_len..].copy_from_bitslice(src_suffix);
@@ -133,22 +132,22 @@ impl Coefficient {
 
     fn from_native(value: u128) -> Self {
         let mut bytes = [0u8; 16];
-        bytes.view_bits_mut::<Order>().store_be(value);
+        bytes.view_bits_mut::<Msb0>().store_be(value);
         Self(bytes)
     }
 
-    fn bits(&self) -> &BitSlice<u8, Order> {
-        &self.0.view_bits::<Order>()[Self::UNUSED_BITS..]
+    fn bits(&self) -> &BitSlice<u8, Msb0> {
+        &self.0.view_bits::<Msb0>()[Self::UNUSED_BITS..]
     }
 
     fn value(&self) -> u128 {
-        self.0.view_bits::<Order>().load_be::<u128>()
+        self.0.view_bits::<Msb0>().load_be::<u128>()
     }
 }
 
 impl ParsedDecimal128 {
     fn new(source: &Decimal128) -> Self {
-        // BSON byte order is the opposite of the decimal128 spec byte order, so flip 'em.  The rest
+        // BSON byte Msb0 is the opposite of the decimal128 spec byte Msb0, so flip 'em.  The rest
         // of this method could be rewritten to not need this, but readability is helped by
         // keeping the implementation congruent with the spec.
         let tmp: [u8; 16] = {
@@ -158,7 +157,7 @@ impl ParsedDecimal128 {
             }
             tmp
         };
-        let src_bits = tmp.view_bits::<Order>();
+        let src_bits = tmp.view_bits::<Msb0>();
 
         let sign = src_bits[0];
         let kind = if src_bits[1..5].all() {
@@ -181,13 +180,10 @@ impl ParsedDecimal128 {
                 exponent_offset = 1;
                 coeff_prefix = bits![static u8, Msb0; 0];
             }
+            let coeff_offset = exponent_offset + Exponent::PACKED_WIDTH;
 
-            let exponent =
-                Exponent::from_bits(&src_bits[exponent_offset..exponent_offset + Exponent::WIDTH]);
-            let coefficient = Coefficient::from_bits(
-                coeff_prefix,
-                &src_bits[exponent_offset + Exponent::WIDTH..],
-            );
+            let exponent = Exponent::from_bits(&src_bits[exponent_offset..coeff_offset]);
+            let coefficient = Coefficient::from_bits(coeff_prefix, &src_bits[coeff_offset..]);
             Decimal128Kind::Finite {
                 exponent,
                 coefficient,
@@ -198,17 +194,17 @@ impl ParsedDecimal128 {
 
     fn pack(&self) -> Decimal128 {
         let mut tmp = [0u8; 16];
-        let dest_bits = tmp.view_bits_mut::<Order>();
+        let dest_bits = tmp.view_bits_mut::<Msb0>();
 
         dest_bits.set(0, self.sign);
 
         match &self.kind {
             Decimal128Kind::NaN { signalling } => {
-                dest_bits[1..6].clone_from_bitslice(bits![1, 1, 1, 1, 1]);
+                dest_bits[1..6].copy_from_bitslice(bits![u8, Msb0; 1, 1, 1, 1, 1]);
                 dest_bits.set(6, *signalling);
             }
             Decimal128Kind::Infinity => {
-                dest_bits[1..6].clone_from_bitslice(bits![1, 1, 1, 1, 0]);
+                dest_bits[1..6].copy_from_bitslice(bits![u8, Msb0; 1, 1, 1, 1, 0]);
             }
             Decimal128Kind::Finite {
                 exponent,
@@ -225,9 +221,9 @@ impl ParsedDecimal128 {
                     coeff_bits = &coeff_bits[1..];
                     exponent_offset = 1;
                 };
-                dest_bits[exponent_offset..exponent_offset + Exponent::WIDTH]
-                    .copy_from_bitslice(exponent.bits());
-                dest_bits[exponent_offset + Exponent::WIDTH..].copy_from_bitslice(coeff_bits);
+                let coeff_offset = exponent_offset + Exponent::PACKED_WIDTH;
+                dest_bits[exponent_offset..coeff_offset].copy_from_bitslice(exponent.bits());
+                dest_bits[coeff_offset..].copy_from_bitslice(coeff_bits);
             }
         }
 
