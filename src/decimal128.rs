@@ -79,7 +79,7 @@ impl Exponent {
     const UNUSED_BITS: usize = 2;
     const WIDTH: usize = 14;
     const TINY: i16 = -6176;
-    const MAX: i16 = 6144;
+    const MAX: i16 = 6111;
 
     fn from_bits(src_bits: &BitSlice<u8, Order>) -> Self {
         let mut bytes = [0u8; 2];
@@ -364,7 +364,6 @@ impl std::str::FromStr for ParsedDecimal128 {
                         exp_str = post;
                     }
                 }
-
                 let mut exp = exp_str.parse::<i16>().map_err(|e| ParseError::InvalidExponent(e))?;
 
                 // Strip leading zeros
@@ -376,19 +375,19 @@ impl std::str::FromStr for ParsedDecimal128 {
                 };
 
                 // Remove decimal point and adjust exponent
-                let tmp_str;
+                let joined_str;
                 if let Some((pre, post)) = decimal_str.split_once('.') {
                     let exp_adj = post.len().try_into().map_err(|_| ParseError::Underflow)?;
                     exp = exp.checked_sub(exp_adj).ok_or(ParseError::Underflow)?;
-                    tmp_str = format!("{}{}", pre, post);
-                    decimal_str = &tmp_str;
+                    joined_str = format!("{}{}", pre, post);
+                    decimal_str = &joined_str;
                 }
 
                 // Check decimal precision
                 {
-                    let len = dbg!(dbg!(&decimal_str).len());
+                    let len = decimal_str.len();
                     if dbg!(len > Coefficient::MAX_DIGITS) {
-                        let decimal_str = round_decimal_str(decimal_str, Coefficient::MAX_DIGITS)?;
+                        decimal_str = round_decimal_str(decimal_str, Coefficient::MAX_DIGITS)?;
                         let exp_adj = (len - decimal_str.len()).try_into().map_err(|_| ParseError::Overflow)?;
                         exp = exp.checked_add(exp_adj).ok_or(ParseError::Overflow)?;
                     }
@@ -399,9 +398,17 @@ impl std::str::FromStr for ParsedDecimal128 {
                     let delta = (Exponent::TINY - exp).try_into().map_err(|_| ParseError::Overflow)?;
                     let new_precision = decimal_str.len().checked_sub(delta).ok_or(ParseError::Underflow)?;
                     decimal_str = round_decimal_str(decimal_str, new_precision)?;
+                    exp = Exponent::TINY;
                 }
+                let padded_str;
                 if exp > Exponent::MAX {
-                    return Err(ParseError::Overflow);
+                    let delta = (exp - Exponent::MAX).try_into().map_err(|_| ParseError::Overflow)?;
+                    if decimal_str.len().checked_add(delta).ok_or(ParseError::Overflow)? > Coefficient::MAX_DIGITS {
+                        return Err(ParseError::Overflow);
+                    }
+                    padded_str = format!("{}{}", decimal_str, "0".repeat(delta));
+                    decimal_str = &padded_str;
+                    exp = Exponent::MAX;
                 }
 
                 // Assemble the final value
@@ -642,6 +649,22 @@ mod tests {
         let hex = "180000001364000100000000000000000000000000000000";
         let parsed: ParsedDecimal128 = "10E-6177".parse().unwrap();
         assert_eq!(parsed.to_string(), "1E-6176");
+        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
+    }
+
+    #[test]
+    fn clamped() {
+        let hex = "180000001364000a00000000000000000000000000fe5f00";
+        let parsed: ParsedDecimal128 = "1E6112".parse().unwrap();
+        assert_eq!(parsed.to_string(), "1.0E+6112");
+        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
+    }
+
+    #[test]
+    fn exact_rounding() {
+        let hex = "18000000136400000000000a5bc138938d44c64d31cc3700";
+        let parsed: ParsedDecimal128 = "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".parse().unwrap();
+        assert_eq!(parsed.to_string(), "1.000000000000000000000000000000000E+999");
         assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
     }
 }
