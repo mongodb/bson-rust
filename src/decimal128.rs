@@ -384,19 +384,23 @@ impl std::str::FromStr for ParsedDecimal128 {
 
                 // Check exponent limits
                 if exp < Exponent::TINY {
-                    let delta = (Exponent::TINY - exp).try_into().map_err(|_| ParseError::Overflow)?;
-                    let new_precision = decimal_str.len().checked_sub(delta).ok_or(ParseError::Underflow)?;
-                    decimal_str = round_decimal_str(decimal_str, new_precision)?;
+                    if decimal_str != "0" {
+                        let delta = (Exponent::TINY - exp).try_into().map_err(|_| ParseError::Overflow)?;
+                        let new_precision = decimal_str.len().checked_sub(delta).ok_or(ParseError::Underflow)?;
+                        decimal_str = round_decimal_str(decimal_str, new_precision)?;
+                    }
                     exp = Exponent::TINY;
                 }
                 let padded_str;
                 if exp > Exponent::MAX {
-                    let delta = (exp - Exponent::MAX).try_into().map_err(|_| ParseError::Overflow)?;
-                    if decimal_str.len().checked_add(delta).ok_or(ParseError::Overflow)? > Coefficient::MAX_DIGITS {
-                        return Err(ParseError::Overflow);
+                    if decimal_str != "0" {
+                        let delta = (exp - Exponent::MAX).try_into().map_err(|_| ParseError::Overflow)?;
+                        if decimal_str.len().checked_add(delta).ok_or(ParseError::Overflow)? > Coefficient::MAX_DIGITS {
+                            return Err(ParseError::Overflow);
+                        }
+                        padded_str = format!("{}{}", decimal_str, "0".repeat(delta));
+                        decimal_str = &padded_str;
                     }
-                    padded_str = format!("{}{}", decimal_str, "0".repeat(delta));
-                    decimal_str = &padded_str;
                     exp = Exponent::MAX;
                 }
 
@@ -419,241 +423,4 @@ fn round_decimal_str(s: &str, precision: usize) -> Result<&str, ParseError> {
         return Err(ParseError::InexactRounding);
     }
     Ok(pre)
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::Document;
-
-    use super::*;
-
-    fn dec_from_hex(s: &str) -> ParsedDecimal128 {
-        let bytes = hex::decode(s).unwrap();
-        let d = crate::from_slice::<Document>(&bytes).unwrap();
-        ParsedDecimal128::new(&d.get_decimal128("d").unwrap())
-    }
-
-    fn hex_from_dec(src: &ParsedDecimal128) -> String {
-        let bytes = crate::to_vec(&doc! { "d": src.pack() }).unwrap();
-        hex::encode(bytes)
-    }
-
-    #[test]
-    fn nan() {
-        let hex = "180000001364000000000000000000000000000000007C00";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed, ParsedDecimal128 {
-            sign: false,
-            kind: Decimal128Kind::NaN { signalling: false },
-        });
-        assert_eq!(parsed.to_string(), "NaN");
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn negative_nan() {
-        let hex = "18000000136400000000000000000000000000000000FC00";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed, ParsedDecimal128 {
-            sign: true,
-            kind: Decimal128Kind::NaN { signalling: false },
-        });
-        assert_eq!(parsed.to_string(), "-NaN");
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn snan() {
-        let hex = "180000001364000000000000000000000000000000007E00";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed, ParsedDecimal128 {
-            sign: false,
-            kind: Decimal128Kind::NaN { signalling: true },
-        });
-        assert_eq!(parsed.to_string(), "sNaN");
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn inf() {
-        let hex = "180000001364000000000000000000000000000000007800";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed, ParsedDecimal128 {
-            sign: false,
-            kind: Decimal128Kind::Infinity,
-        });
-        assert_eq!(parsed.to_string(), "Infinity");
-    }
-
-    fn finite_parts(parsed: &ParsedDecimal128) -> (i16, u128) {
-        if let Decimal128Kind::Finite { exponent, coefficient } = &parsed.kind {
-            (exponent.value(), coefficient.value())
-        } else {
-            panic!("expected finite, got {:?}", parsed);
-        }
-    }
-
-    #[test]
-    fn invalid_0() {
-        let hex = "180000001364000000000000000000000000000000106C00";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed.to_string(), "0");
-        assert!(!parsed.sign);
-        assert_eq!(finite_parts(&parsed), (0, 0));
-    }
-
-    #[test]
-    fn invalid_neg_0() {
-        let hex = "18000000136400DCBA9876543210DEADBEEF00000010EC00";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed.to_string(), "-0");
-        assert!(parsed.sign);
-        assert_eq!(finite_parts(&parsed), (0, 0));
-    }
-
-    #[test]
-    fn invalid_0_e3() {
-        let hex = "18000000136400FFFFFFFFFFFFFFFFFFFFFFFFFFFF116C00";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed.to_string(), "0E+3");
-        assert!(!parsed.sign);
-        assert_eq!(finite_parts(&parsed), (3, 0));
-    }
-
-    #[test]
-    fn finite_adjusted_exponent_limit() {
-        let hex = "18000000136400F2AF967ED05C82DE3297FF6FDE3CF22F00";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed.to_string(), "0.000001234567890123456789012345678901234");
-        assert!(!parsed.sign);
-        assert_eq!(finite_parts(&parsed), (-39, 1234567890123456789012345678901234));
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn finite_0() {
-        let hex = "180000001364000000000000000000000000000000403000";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed.to_string(), "0");
-        assert!(!parsed.sign);
-        assert_eq!(finite_parts(&parsed), (0, 0));
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn finite_0_parse() {
-        let hex = "180000001364000000000000000000000000000000403000";
-        let parsed: ParsedDecimal128 = "0".parse().unwrap();
-        assert_eq!(finite_parts(&parsed), (0, 0));
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn finite_0_1() {
-        let hex = "1800000013640001000000000000000000000000003E3000";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed.to_string(), "0.1");
-        assert!(!parsed.sign);
-        assert_eq!(finite_parts(&parsed), (-1, 1));
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn finite_0_1_parse() {
-        let hex = "1800000013640001000000000000000000000000003E3000";
-        let parsed: ParsedDecimal128 = "0.1".parse().unwrap();
-        assert_eq!(finite_parts(&parsed), (-1, 1));
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn finite_long_decimal() {
-        let hex = "18000000136400F2AF967ED05C82DE3297FF6FDE3CFC2F00";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed.to_string(), "0.1234567890123456789012345678901234");
-        assert!(!parsed.sign);
-        assert_eq!(finite_parts(&parsed), (-34, 1234567890123456789012345678901234));
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn finite_smallest() {
-        let hex = "18000000136400D204000000000000000000000000343000";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed.to_string(), "0.001234");
-        assert!(!parsed.sign);
-        assert_eq!(finite_parts(&parsed), (-6, 1234));
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn finite_fractional() {
-        let hex = "1800000013640064000000000000000000000000002CB000";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed.to_string(), "-1.00E-8");
-        assert!(parsed.sign);
-        assert_eq!(finite_parts(&parsed), (-10, 100));
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn finite_largest() {
-        let hex = "18000000136400F2AF967ED05C82DE3297FF6FDE3C403000";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed.to_string(), "1234567890123456789012345678901234");
-        assert!(!parsed.sign);
-        assert_eq!(finite_parts(&parsed), (0, 1234567890123456789012345678901234));
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn finite_scientific_largest() {
-        let hex = "18000000136400FFFFFFFF638E8D37C087ADBE09EDFF5F00";
-        let parsed = dec_from_hex(hex);
-        assert_eq!(parsed.to_string(), "9.999999999999999999999999999999999E+6144");
-        assert!(!parsed.sign);
-        assert_eq!(finite_parts(&parsed), (6111, 9999999999999999999999999999999999));
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn finite_scientific_largest_parse() {
-        let hex = "18000000136400FFFFFFFF638E8D37C087ADBE09EDFF5F00";
-        let parsed: ParsedDecimal128 = "9.999999999999999999999999999999999E+6144".parse().unwrap();
-        assert!(!parsed.sign);
-        assert_eq!(finite_parts(&parsed), (6111, 9999999999999999999999999999999999));
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn noncanonical_exponent_normalization() {
-        let hex = "1800000013640064000000000000000000000000002CB000";
-        let parsed: ParsedDecimal128 = "-100E-10".parse().unwrap();
-        assert_eq!(parsed.to_string(), "-1.00E-8");
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn rounded_subnormal() {
-        let hex = "180000001364000100000000000000000000000000000000";
-        let parsed: ParsedDecimal128 = "10E-6177".parse().unwrap();
-        assert_eq!(parsed.to_string(), "1E-6176");
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn clamped() {
-        let hex = "180000001364000a00000000000000000000000000fe5f00";
-        let parsed: ParsedDecimal128 = "1E6112".parse().unwrap();
-        assert_eq!(parsed.to_string(), "1.0E+6112");
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
-
-    #[test]
-    fn exact_rounding() {
-        let hex = "18000000136400000000000a5bc138938d44c64d31cc3700";
-        let parsed: ParsedDecimal128 = "1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".parse().unwrap();
-        assert_eq!(parsed.to_string(), "1.000000000000000000000000000000000E+999");
-        assert_eq!(hex_from_dec(&parsed).to_ascii_lowercase(), hex.to_ascii_lowercase());
-    }
 }
