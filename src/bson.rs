@@ -455,7 +455,7 @@ impl Bson {
                 "$date": { "$numberLong": v.timestamp_millis().to_string() },
             }),
             Bson::Symbol(v) => json!({ "$symbol": v }),
-            Bson::Decimal128(_) => panic!("Decimal128 extended JSON not implemented yet."),
+            Bson::Decimal128(v) => json!({ "$numberDecimal": v.to_string() }),
             Bson::Undefined => json!({ "$undefined": true }),
             Bson::MinKey => json!({ "$minKey": 1 }),
             Bson::MaxKey => json!({ "$maxKey": 1 }),

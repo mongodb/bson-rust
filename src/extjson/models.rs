@@ -72,6 +72,24 @@ impl Double {
     }
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Decimal128 {
+    #[serde(rename = "$numberDecimal")]
+    value: String,
+}
+
+impl Decimal128 {
+    pub(crate) fn parse(self) -> extjson::de::Result<crate::Decimal128> {
+        self.value.parse().map_err(|_| {
+            extjson::de::Error::invalid_value(
+                Unexpected::Str(&self.value),
+                &"expected bson decimal128 as string",
+            )
+        })
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ObjectId {

@@ -387,12 +387,6 @@ fn run_test(test: TestFile) {
             }
         }
 
-        // TODO RUST-36: Enable decimal128 tests.
-        // extJSON not implemented for decimal128, so we must stop here.
-        if test.bson_type == "0x13" {
-            continue;
-        }
-
         let cej: serde_json::Value =
             serde_json::from_str(&valid.canonical_extjson).expect(&description);
 
@@ -422,15 +416,12 @@ fn run_test(test: TestFile) {
             }
         }
 
-        // TODO RUST-36: Enable decimal128 tests.
-        if test.bson_type != "0x13" {
-            assert_eq!(
-                Bson::Document(documentfromreader_cb.clone()).into_canonical_extjson(),
-                cej_updated_float,
-                "{}",
-                description
-            );
-        }
+        assert_eq!(
+            Bson::Document(documentfromreader_cb.clone()).into_canonical_extjson(),
+            cej_updated_float,
+            "{}",
+            description
+        );
 
         // native_to_relaxed_extended_json( bson_to_native(cB) ) = cEJ
 
@@ -468,15 +459,12 @@ fn run_test(test: TestFile) {
                 .to_writer(&mut native_to_bson_json_to_native_cej)
                 .unwrap();
 
-            // TODO RUST-36: Enable decimal128 tests.
-            if test.bson_type != "0x13" {
-                assert_eq!(
-                    hex::encode(native_to_bson_json_to_native_cej).to_lowercase(),
-                    valid.canonical_bson.to_lowercase(),
-                    "{}",
-                    description,
-                );
-            }
+            assert_eq!(
+                hex::encode(native_to_bson_json_to_native_cej).to_lowercase(),
+                valid.canonical_bson.to_lowercase(),
+                "{}",
+                description,
+            );
         }
 
         if let Some(ref degenerate_extjson) = valid.degenerate_extjson {
@@ -490,14 +478,11 @@ fn run_test(test: TestFile) {
             let native_to_canonical_extended_json_json_to_native_dej =
                 json_to_native_dej.clone().into_canonical_extjson();
 
-            // TODO RUST-36: Enable decimal128 tests.
-            if test.bson_type != "0x13" {
-                assert_eq!(
-                    native_to_canonical_extended_json_json_to_native_dej, cej,
-                    "{}",
-                    description,
-                );
-            }
+            assert_eq!(
+                native_to_canonical_extended_json_json_to_native_dej, cej,
+                "{}",
+                description,
+            );
 
             // native_to_bson( json_to_native(dEJ) ) = cB (unless lossy)
 
@@ -509,15 +494,12 @@ fn run_test(test: TestFile) {
                     .to_writer(&mut native_to_bson_json_to_native_dej)
                     .unwrap();
 
-                // TODO RUST-36: Enable decimal128 tests.
-                if test.bson_type != "0x13" {
-                    assert_eq!(
-                        hex::encode(native_to_bson_json_to_native_dej).to_lowercase(),
-                        valid.canonical_bson.to_lowercase(),
-                        "{}",
-                        description,
-                    );
-                }
+                assert_eq!(
+                    hex::encode(native_to_bson_json_to_native_dej).to_lowercase(),
+                    valid.canonical_bson.to_lowercase(),
+                    "{}",
+                    description,
+                );
             }
         }
 
@@ -571,18 +553,8 @@ fn run_test(test: TestFile) {
     }
 
     for parse_error in test.parse_errors {
-        // TODO RUST-36: Enable decimal128 tests.
-        if test.bson_type == "0x13" {
-            continue;
-        }
-
         // no special support for dbref convention
         if parse_error.description.contains("DBRef") {
-            continue;
-        }
-
-        // TODO RUST-36: Enable decimal128 tests.
-        if parse_error.description.contains("$numberDecimal") {
             continue;
         }
 
