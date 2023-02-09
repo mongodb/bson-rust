@@ -702,6 +702,14 @@ impl Bson {
                 _ => {}
             },
 
+            ["$numberDecimal"] => {
+                if let Ok(d) = doc.get_str("$numberDecimal") {
+                    if let Ok(d) = d.parse() {
+                        return Bson::Decimal128(d);
+                    }
+                }
+            }
+
             ["$numberDecimalBytes"] => {
                 if let Ok(bytes) = doc.get_binary_generic("$numberDecimalBytes") {
                     if let Ok(b) = bytes.clone().try_into() {
