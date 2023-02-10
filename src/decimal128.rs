@@ -115,7 +115,7 @@ impl Coefficient {
     const MAX_DIGITS: usize = 34;
     const MAX_VALUE: u128 = 9_999_999_999_999_999_999_999_999_999_999_999;
 
-    fn from_bits(src_prefix: &BitSlice<u8, Msb0>, src_suffix: &BitSlice<u8, Msb0>) -> Self {
+    fn from_bits(src_prefix: &BitSlice<u8, Msb0>, src_suffix: &BitSlice<u8, Msb0>) -> Result<Self, ParseError> {
         let mut bytes = [0u8; 16];
         let bits = &mut bytes.view_bits_mut::<Msb0>()[Self::UNUSED_BITS..];
         let prefix_len = src_prefix.len();
@@ -123,10 +123,9 @@ impl Coefficient {
         bits[prefix_len..].copy_from_bitslice(src_suffix);
         let out = Self(bytes);
         if out.value() > Self::MAX_VALUE {
-            // Invalid coefficients get silently replaced with zero.
-            Self([0u8; 16])
+            Err(ParseError::Overflow)
         } else {
-            out
+            Ok(out)
         }
     }
 
@@ -147,7 +146,7 @@ impl Coefficient {
 
 impl ParsedDecimal128 {
     fn new(source: &Decimal128) -> Self {
-        // BSON byte Msb0 is the opposite of the decimal128 spec byte Msb0, so flip 'em.  The rest
+        // BSON byte order is the opposite of the decimal128 spec byte order, so flip 'em.  The rest
         // of this method could be rewritten to not need this, but readability is helped by
         // keeping the implementation congruent with the spec.
         let tmp: [u8; 16] = {
@@ -183,7 +182,11 @@ impl ParsedDecimal128 {
             let coeff_offset = exponent_offset + Exponent::PACKED_WIDTH;
 
             let exponent = Exponent::from_bits(&src_bits[exponent_offset..coeff_offset]);
-            let coefficient = Coefficient::from_bits(coeff_prefix, &src_bits[coeff_offset..]);
+            let coefficient = match Coefficient::from_bits(coeff_prefix, &src_bits[coeff_offset..]) {
+                Ok(c) => c,
+                // Invalid coefficients get silently replaced with zero.
+                Err(_) => Coefficient([0u8; 16]),
+            };
             Decimal128Kind::Finite {
                 exponent,
                 coefficient,
