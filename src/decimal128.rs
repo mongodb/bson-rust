@@ -115,7 +115,10 @@ impl Coefficient {
     const MAX_DIGITS: usize = 34;
     const MAX_VALUE: u128 = 9_999_999_999_999_999_999_999_999_999_999_999;
 
-    fn from_bits(src_prefix: &BitSlice<u8, Msb0>, src_suffix: &BitSlice<u8, Msb0>) -> Result<Self, ParseError> {
+    fn from_bits(
+        src_prefix: &BitSlice<u8, Msb0>,
+        src_suffix: &BitSlice<u8, Msb0>,
+    ) -> Result<Self, ParseError> {
         let mut bytes = [0u8; 16];
         let bits = &mut bytes.view_bits_mut::<Msb0>()[Self::UNUSED_BITS..];
         let prefix_len = src_prefix.len();
@@ -151,9 +154,8 @@ impl ParsedDecimal128 {
         // keeping the implementation congruent with the spec.
         let tmp: [u8; 16] = {
             let mut tmp = [0u8; 16];
-            for (ix, b) in tmp.iter_mut().enumerate() {
-                *b = source.bytes[15 - ix];
-            }
+            tmp.view_bits_mut::<Msb0>()
+                .store_be(source.bytes.view_bits::<Msb0>().load_le::<u128>());
             tmp
         };
         let src_bits = tmp.view_bits::<Msb0>();
@@ -182,7 +184,8 @@ impl ParsedDecimal128 {
             let coeff_offset = exponent_offset + Exponent::PACKED_WIDTH;
 
             let exponent = Exponent::from_bits(&src_bits[exponent_offset..coeff_offset]);
-            let coefficient = match Coefficient::from_bits(coeff_prefix, &src_bits[coeff_offset..]) {
+            let coefficient = match Coefficient::from_bits(coeff_prefix, &src_bits[coeff_offset..])
+            {
                 Ok(c) => c,
                 // Invalid coefficients get silently replaced with zero.
                 Err(_) => Coefficient([0u8; 16]),
@@ -231,9 +234,9 @@ impl ParsedDecimal128 {
         }
 
         let mut bytes = [0u8; 16];
-        for i in 0..16 {
-            bytes[i] = tmp[15 - i];
-        }
+        bytes
+            .view_bits_mut::<Msb0>()
+            .store_le(tmp.view_bits::<Msb0>().load_be::<u128>());
         Decimal128 { bytes }
     }
 }
