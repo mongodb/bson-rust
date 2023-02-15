@@ -455,7 +455,7 @@ impl Bson {
                 "$date": { "$numberLong": v.timestamp_millis().to_string() },
             }),
             Bson::Symbol(v) => json!({ "$symbol": v }),
-            Bson::Decimal128(_) => panic!("Decimal128 extended JSON not implemented yet."),
+            Bson::Decimal128(v) => json!({ "$numberDecimal": v.to_string() }),
             Bson::Undefined => json!({ "$undefined": true }),
             Bson::MinKey => json!({ "$minKey": 1 }),
             Bson::MaxKey => json!({ "$maxKey": 1 }),
@@ -474,9 +474,6 @@ impl Bson {
     }
 
     /// Converts the Bson value into its [canonical extended JSON representation](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
-    ///
-    /// Note: extended json encoding for `Decimal128` values is not supported. If this method is
-    /// called on a case which contains a `Decimal128` value, it will panic.
     pub fn into_canonical_extjson(self) -> Value {
         match self {
             Bson::Int32(i) => json!({ "$numberInt": i.to_string() }),
@@ -704,6 +701,14 @@ impl Bson {
                 }
                 _ => {}
             },
+
+            ["$numberDecimal"] => {
+                if let Ok(d) = doc.get_str("$numberDecimal") {
+                    if let Ok(d) = d.parse() {
+                        return Bson::Decimal128(d);
+                    }
+                }
+            }
 
             ["$numberDecimalBytes"] => {
                 if let Ok(bytes) = doc.get_binary_generic("$numberDecimalBytes") {

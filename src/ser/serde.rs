@@ -695,9 +695,15 @@ impl Serialize for Decimal128 {
     where
         S: ser::Serializer,
     {
-        let mut state = serializer.serialize_struct("$numberDecimal", 1)?;
-        state.serialize_field("$numberDecimalBytes", serde_bytes::Bytes::new(&self.bytes))?;
-        state.end()
+        if serializer.is_human_readable() {
+            let mut state = serializer.serialize_map(Some(1))?;
+            state.serialize_entry("$numberDecimal", &self.to_string())?;
+            state.end()
+        } else {
+            let mut state = serializer.serialize_struct("$numberDecimal", 1)?;
+            state.serialize_field("$numberDecimalBytes", serde_bytes::Bytes::new(&self.bytes))?;
+            state.end()
+        }
     }
 }
 

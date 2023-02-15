@@ -20,7 +20,7 @@ impl Int32 {
         let i: i32 = self.value.parse().map_err(|_| {
             extjson::de::Error::invalid_value(
                 Unexpected::Str(self.value.as_str()),
-                &"expected i32 as a string",
+                &"i32 as a string",
             )
         })?;
         Ok(i)
@@ -39,7 +39,7 @@ impl Int64 {
         let i: i64 = self.value.parse().map_err(|_| {
             extjson::de::Error::invalid_value(
                 Unexpected::Str(self.value.as_str()),
-                &"expected i64 as a string",
+                &"i64 as a string",
             )
         })?;
         Ok(i)
@@ -63,12 +63,30 @@ impl Double {
                 let d: f64 = other.parse().map_err(|_| {
                     extjson::de::Error::invalid_value(
                         Unexpected::Str(other),
-                        &"expected bson double as string",
+                        &"bson double as string",
                     )
                 })?;
                 Ok(d)
             }
         }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Decimal128 {
+    #[serde(rename = "$numberDecimal")]
+    value: String,
+}
+
+impl Decimal128 {
+    pub(crate) fn parse(self) -> extjson::de::Result<crate::Decimal128> {
+        self.value.parse().map_err(|_| {
+            extjson::de::Error::invalid_value(
+                Unexpected::Str(&self.value),
+                &"bson decimal128 as string",
+            )
+        })
     }
 }
 

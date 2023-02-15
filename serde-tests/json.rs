@@ -48,7 +48,7 @@ fn all_types_json() {
         "undefined": { "$undefined": true },
         "code": { "$code": code },
         "code_w_scope": { "$code": code_w_scope.code, "$scope": scope_json },
-        "decimal": { "$numberDecimalBytes": v.decimal.bytes() },
+        "decimal": { "$numberDecimal": v.decimal.to_string() },
         "symbol": { "$symbol": "ok" },
         "min_key": { "$minKey": 1 },
         "max_key": { "$maxKey": 1 },

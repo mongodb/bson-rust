@@ -112,6 +112,11 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
             return Ok(Bson::Double(double.parse()?));
         }
 
+        if obj.contains_key("$numberDecimal") {
+            let decimal: models::Decimal128 = serde_json::from_value(obj.into())?;
+            return Ok(Bson::Decimal128(decimal.parse()?));
+        }
+
         if obj.contains_key("$binary") {
             let binary: models::Binary = serde_json::from_value(obj.into())?;
             return Ok(Bson::Binary(binary.parse()?));
@@ -157,10 +162,6 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
         if obj.contains_key("$dbPointer") {
             let db_ptr: models::DbPointer = serde_json::from_value(obj.into())?;
             return Ok(db_ptr.parse()?.into());
-        }
-
-        if obj.contains_key("$numberDecimal") {
-            return Err(Error::custom("decimal128 extjson support not implemented"));
         }
 
         if obj.contains_key("$undefined") {
