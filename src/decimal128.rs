@@ -75,11 +75,17 @@ enum Decimal128Kind {
 struct Exponent([u8; 2]);
 
 impl Exponent {
+    /// The exponent is stored as an unsigned value; `BIAS` is subtracted to get the actual value.
     const BIAS: i16 = 6176;
+    /// The minimum representable exponent.  This is distinct from the specifications "min" value,
+    /// which marks the point at which exponents are considered subnormal.
     const TINY: i16 = -6176;
+    /// The maximum representable exponent.
     const MAX: i16 = 6111;
 
+    /// The number of unused bits in the parsed representation.
     const UNUSED_BITS: usize = 2;
+    /// The total number of bits in the packed representation.
     const PACKED_WIDTH: usize = 14;
 
     fn from_bits(src_bits: &BitSlice<u8, Msb0>) -> Self {
@@ -111,8 +117,11 @@ impl Exponent {
 struct Coefficient([u8; 16]);
 
 impl Coefficient {
+    /// The number of unused bits in the parsed representation.
     const UNUSED_BITS: usize = 14;
+    /// The maximum number of digits allowed in a base-10 string representation of the coefficient.
     const MAX_DIGITS: usize = 34;
+    /// The maximum allowable value of a coefficient.
     const MAX_VALUE: u128 = 9_999_999_999_999_999_999_999_999_999_999_999;
 
     fn from_bits(

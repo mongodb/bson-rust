@@ -81,8 +81,7 @@ pub(crate) struct Decimal128 {
 
 impl Decimal128 {
     pub(crate) fn parse(self) -> extjson::de::Result<crate::Decimal128> {
-        self.value.parse().map_err(|err| {
-            dbg!(err);
+        self.value.parse().map_err(|_| {
             extjson::de::Error::invalid_value(
                 Unexpected::Str(&self.value),
                 &"bson decimal128 as string",
