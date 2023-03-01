@@ -133,6 +133,16 @@ functions:
           ${PREPARE_SHELL}
           .evergreen/check-rustdoc.sh
 
+  "check wasm compilation":
+    - command: shell.exec
+      type: test
+      params:
+        shell: bash
+        working_dir: "src"
+        script: |
+          ${PREPARE_SHELL}
+          .evergreen/check-wasm.sh
+
   "init test-results":
     - command: shell.exec
       params:
@@ -177,6 +187,10 @@ tasks:
     commands:
       - func: "run fuzzer"
 
+  - name: "wasm-compilation"
+    commands:
+      - func: "check wasm compilation"
+
 axes:
   - id: "extra-rust-versions"
     values:
@@ -207,6 +221,7 @@ buildvariants:
     - ubuntu1804-test
   tasks:
     - name: "compile-only"
+
 -
   name: "lint"
   display_name: "Lint"
@@ -224,3 +239,11 @@ buildvariants:
     - ubuntu1804-test
   tasks:
     - name: "run-fuzzer"
+
+-
+  name: "wasm"
+  display_name: "WASM"
+  run_on:
+    - ubuntu1804-test
+  tasks:
+    - name: "wasm-compilation"
