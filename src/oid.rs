@@ -2,14 +2,15 @@
 //! For more information, see the documentation for the [`ObjectId`] type.
 
 use std::{
-    convert::TryInto,
     error,
     fmt,
     result,
     str::FromStr,
     sync::atomic::{AtomicUsize, Ordering},
-    time::SystemTime,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::{convert::TryInto, time::SystemTime};
 
 use hex::{self, FromHexError};
 use rand::{thread_rng, Rng};
@@ -240,6 +241,9 @@ impl ObjectId {
     /// Generates a new timestamp representing the current seconds since epoch.
     /// Represented in Big Endian.
     fn gen_timestamp() -> [u8; 4] {
+        #[cfg(target_arch = "wasm32")]
+        let timestamp: u32 = (js_sys::Date::now() / 1000.0) as u32;
+        #[cfg(not(target_arch = "wasm32"))]
         let timestamp: u32 = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .expect("system clock is before 1970")
