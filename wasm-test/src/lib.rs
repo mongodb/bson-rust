@@ -1,1 +1,2 @@
-pub use bson;
+#[cfg(test)]
+mod test;
