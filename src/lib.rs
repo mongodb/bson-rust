@@ -59,11 +59,13 @@
 //!
 //! #### Feature Flags
 //!
-//! | Feature      | Description                                                                                         | Extra dependencies | Default |
-//! |:-------------|:----------------------------------------------------------------------------------------------------|:-------------------|:--------|
-//! | `chrono-0_4` | Enable support for v0.4 of the [`chrono`](docs.rs/chrono/0.4) crate in the public API.              | n/a                | no      |
-//! | `uuid-0_8`   | Enable support for v0.8 of the [`uuid`](docs.rs/uuid/0.8) crate in the public API.                  | n/a                | no      |
-//! | `serde_with` | Enable [`serde_with`](docs.rs/serde_with/latest) integrations for `bson::DateTime` and `bson::Uuid` | serde_with         | no      |
+//! | Feature      | Description                                                                                  | Default |
+//! |:-------------|:---------------------------------------------------------------------------------------------|:--------|
+//! | `chrono-0_4` | Enable support for v0.4 of the [`chrono`](docs.rs/chrono/0.4) crate in the public API.       | no      |
+//! | `uuid-0_8`   | Enable support for v0.8 of the [`uuid`](docs.rs/uuid/0.8) crate in the public API.           | no      |
+//! | `uuid-1`     | Enable support for v1.x of the [`uuid`](docs.rs/uuid/1.x) crate in the public API.           | no      |
+//! | `time-0_3`   | Enable support for v0.3 of the [`time`](docs.rs/time/0.3) crate in the public API.           | no      |
+//! | `serde_with` | Enable [`serde_with`](docs.rs/serde_with/latest) integrations for [`DateTime`] and [`Uuid`]. | no      |
 //!
 //! ## BSON values
 //!
