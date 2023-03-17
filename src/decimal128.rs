@@ -6,8 +6,20 @@ use bitvec::prelude::*;
 
 /// Struct representing a BSON Decimal128 type.
 ///
-/// Currently, this type can only be used to round-trip through BSON. See
-/// [RUST-36](https://jira.mongodb.org/browse/RUST-36) to track the progress towards a complete implementation.
+/// This type supports conversion to and from human-readable strings via the [std::fmt::Display] and [std::str::FromStr] traits:
+///
+/// ```rust
+/// # use std::str::FromStr;
+/// # use bson::Decimal128;
+/// # fn example() -> std::result::Result<(), Box<dyn std::error::Error>> {
+/// let value: Decimal128 = "3.14159".parse()?;
+/// assert_eq!("3.14159", format!("{}", value));
+/// let scientific = Decimal128::from_str("1.05E+3")?;
+/// assert_eq!("1.05E+3", scientific.to_string());
+/// # Ok(())
+/// # }
+/// # example().unwrap()
+/// ```
 #[derive(Copy, Clone, PartialEq)]
 pub struct Decimal128 {
     /// BSON bytes containing the decimal128. Stored for round tripping.
