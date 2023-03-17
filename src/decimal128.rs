@@ -6,7 +6,8 @@ use bitvec::prelude::*;
 
 /// Struct representing a BSON Decimal128 type.
 ///
-/// This type supports conversion to and from human-readable strings via the [std::fmt::Display] and [std::str::FromStr] traits:
+/// This type supports conversion to and from human-readable strings via the [std::fmt::Display] and
+/// [std::str::FromStr] traits:
 ///
 /// ```rust
 /// # use std::str::FromStr;
