@@ -260,6 +260,11 @@
 //!
 //! See the module level documentation for the [`uuid`] module.
 //!
+//! ## WASM support
+//!
+//! This crate compiles to the `wasm32-unknown-unknown` target; when doing so, the `js-sys` crate is
+//! used for the current timestamp component of `ObjectId` generation.
+//!
 //! ## Minimum supported Rust version (MSRV)
 //!
 //! The MSRV for this crate is currently 1.56.0. This will be rarely be increased, and if it ever is,
@@ -271,9 +276,9 @@
 
 #[doc(inline)]
 pub use self::{
+    binary::Binary,
     bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
-    binary::Binary,
     de::{
         from_bson, from_bson_with_options, from_document, from_document_with_options, from_reader,
         from_reader_utf8_lossy, from_slice, from_slice_utf8_lossy, Deserializer,
@@ -293,8 +298,8 @@ pub use self::{
 
 #[macro_use]
 mod macros;
-mod bson;
 pub mod binary;
+mod bson;
 pub mod datetime;
 pub mod de;
 pub mod decimal128;

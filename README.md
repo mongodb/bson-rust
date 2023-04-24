@@ -19,6 +19,7 @@ Encoding and decoding support for BSON in Rust
     - [Modeling BSON with strongly typed data structures](#modeling-bson-with-strongly-typed-data-structures)
     - [Working with datetimes](#working-with-datetimes)
     - [Working with UUIDs](#working-with-uuids)
+    - [WASM support](#wasm-support)
 - [Contributing](#contributing)
 - [Running the Tests](#running-the-tests)
 - [Continuous Integration](#continuous-integration)
@@ -249,6 +250,10 @@ let query = doc! {
 ### Working with UUIDs
 
 See the module-level documentation for the [`bson::uuid` module](https://docs.rs/bson/latest/bson/uuid).
+
+### WASM support
+
+This crate compiles to the `wasm32-unknown-unknown` target; when doing so, the `js-sys` crate is used for the current timestamp component of `ObjectId` generation.
 
 ## Minimum supported Rust version (MSRV)
 
