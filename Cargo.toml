@@ -53,7 +53,7 @@ time-0_3 = []
 name = "bson"
 
 [dependencies]
-ahash = "0.7.2"
+ahash = "0.8.0"
 chrono = { version = "0.4.15", features = ["std"], default-features = false, optional = true }
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
