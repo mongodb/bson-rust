@@ -4,9 +4,7 @@ mod modules;
 mod serde;
 mod spec;
 
-use lazy_static::lazy_static;
 use modules::TestLock;
+use once_cell::sync::Lazy;
 
-lazy_static! {
-    pub(crate) static ref LOCK: TestLock = TestLock::new();
-}
+pub(crate) static LOCK: Lazy<TestLock> = Lazy::new(|| TestLock::new());
