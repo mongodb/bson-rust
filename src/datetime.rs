@@ -389,6 +389,19 @@ impl crate::DateTime {
         })?;
         Ok(Self::from_time_0_3(odt))
     }
+
+    /// Computes `self - rhs`, returning the elapsed time as a [`Duration`] or `None` if the result is negative.
+    pub fn checked_sub(self, rhs: Self) -> Option<Duration> {
+        if rhs.0 > self.0 {
+            return None;
+        }
+        Some(Duration::from_millis((self.0 - rhs.0) as u64))
+    }
+
+/// Computes `self - rhs`, returning the elapsed time as a [`Duration`] or a [`Duration`] of zero if the result is negative.
+    pub fn saturating_sub(self, rhs: Self) -> Duration {
+        self.checked_sub(rhs).unwrap_or(Duration::ZERO)
+    }
 }
 
 impl fmt::Debug for crate::DateTime {

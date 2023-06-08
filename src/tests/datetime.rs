@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::tests::LOCK;
 
 #[test]
@@ -37,4 +39,17 @@ fn datetime_to_rfc3339() {
 #[test]
 fn invalid_datetime_to_rfc3339() {
     assert!(crate::DateTime::MAX.try_to_rfc3339_string().is_err());
+}
+
+#[test]
+fn subtraction() {
+    let _guard = LOCK.run_concurrently();
+
+    let date1 = crate::DateTime::from_millis(100);
+    let date2 = crate::DateTime::from_millis(1000);
+
+    assert_eq!(date2.checked_sub(date1), Some(Duration::from_millis(900)));
+    assert_eq!(date2.saturating_sub(date1), Duration::from_millis(900));
+    assert!(date1.checked_sub(date2).is_none());
+    assert_eq!(date1.saturating_sub(date2), Duration::ZERO);
 }
