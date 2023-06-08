@@ -390,17 +390,19 @@ impl crate::DateTime {
         Ok(Self::from_time_0_3(odt))
     }
 
-    /// Computes `self - rhs`, returning the elapsed time as a [`Duration`] or `None` if the result is negative.
-    pub fn checked_sub(self, rhs: Self) -> Option<Duration> {
-        if rhs.0 > self.0 {
+    /// Returns the time elapsed since `earlier`, or `None` if the given `DateTime` is later than
+    /// this one.
+    pub fn checked_duration_since(self, earlier: Self) -> Option<Duration> {
+        if earlier.0 > self.0 {
             return None;
         }
-        Some(Duration::from_millis((self.0 - rhs.0) as u64))
+        Some(Duration::from_millis((self.0 - earlier.0) as u64))
     }
 
-/// Computes `self - rhs`, returning the elapsed time as a [`Duration`] or a [`Duration`] of zero if the result is negative.
-    pub fn saturating_sub(self, rhs: Self) -> Duration {
-        self.checked_sub(rhs).unwrap_or(Duration::ZERO)
+    /// Returns the time elapsed since `earlier`, or a [`Duration`] of zero if the given `DateTime`
+    /// is later than this one.
+    pub fn saturating_duration_since(self, earlier: Self) -> Duration {
+        self.checked_duration_since(earlier).unwrap_or(Duration::ZERO)
     }
 }
 
