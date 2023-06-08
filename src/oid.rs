@@ -13,9 +13,8 @@ use std::{
 use std::{convert::TryInto, time::SystemTime};
 
 use hex::{self, FromHexError};
+use once_cell::sync::Lazy;
 use rand::{thread_rng, Rng};
-
-use lazy_static::lazy_static;
 
 const TIMESTAMP_SIZE: usize = 4;
 const PROCESS_ID_SIZE: usize = 5;
@@ -27,9 +26,8 @@ const COUNTER_OFFSET: usize = PROCESS_ID_OFFSET + PROCESS_ID_SIZE;
 
 const MAX_U24: usize = 0xFF_FFFF;
 
-lazy_static! {
-    static ref OID_COUNTER: AtomicUsize = AtomicUsize::new(thread_rng().gen_range(0..=MAX_U24));
-}
+static OID_COUNTER: Lazy<AtomicUsize> =
+    Lazy::new(|| AtomicUsize::new(thread_rng().gen_range(0..=MAX_U24)));
 
 /// Errors that can occur during [`ObjectId`] construction and generation.
 #[derive(Clone, Debug)]
@@ -255,9 +253,7 @@ impl ObjectId {
 
     /// Generate a random 5-byte array.
     fn gen_process_id() -> [u8; 5] {
-        lazy_static! {
-            static ref BUF: [u8; 5] = thread_rng().gen();
-        }
+        static BUF: Lazy<[u8; 5]> = Lazy::new(|| thread_rng().gen());
 
         *BUF
     }
