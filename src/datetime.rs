@@ -402,7 +402,8 @@ impl crate::DateTime {
     /// Returns the time elapsed since `earlier`, or a [`Duration`] of zero if the given `DateTime`
     /// is later than this one.
     pub fn saturating_duration_since(self, earlier: Self) -> Duration {
-        self.checked_duration_since(earlier).unwrap_or(Duration::ZERO)
+        self.checked_duration_since(earlier)
+            .unwrap_or(Duration::ZERO)
     }
 }
 
