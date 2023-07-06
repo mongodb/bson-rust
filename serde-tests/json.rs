@@ -130,3 +130,24 @@ fn owned_raw_bson() {
     let round_trip = serde_json::to_value(&f).unwrap();
     assert_eq!(round_trip, json);
 }
+
+#[test]
+fn objectid_hex_json() {
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    struct Foo {
+        #[serde(with = "bson::serde_helpers::object_id_as_hex_string")]
+        object_id: bson::oid::ObjectId,
+    }
+
+    let expected = bson::oid::ObjectId::new();
+
+    let json = json!({
+        "object_id": expected.to_hex()
+    });
+
+    let f: Foo = serde_json::from_value(json.clone()).unwrap();
+    assert_eq!(f.object_id, expected);
+
+    let round_trip = serde_json::to_value(&f).unwrap();
+    assert_eq!(round_trip, json);
+}

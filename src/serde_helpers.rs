@@ -23,6 +23,11 @@ pub use hex_string_as_object_id::{
     serialize as serialize_hex_string_as_object_id,
 };
 #[doc(inline)]
+pub use object_id_as_hex_string::{
+    deserialize as deserialize_object_id_from_hex_string,
+    serialize as serialize_object_id_as_hex_string,
+};
+#[doc(inline)]
 pub use i64_as_bson_datetime::{
     deserialize as deserialize_i64_from_bson_datetime,
     serialize as serialize_i64_as_bson_datetime,
@@ -129,14 +134,6 @@ pub fn serialize_u64_as_i64<S: Serializer>(val: &u64, serializer: S) -> Result<S
         Ok(val) => serializer.serialize_i64(val),
         Err(_) => Err(ser::Error::custom(format!("cannot convert {} to i64", val))),
     }
-}
-
-/// Serializes an [`ObjectId`] as a hex string.
-pub fn serialize_object_id_as_hex_string<S: Serializer>(
-    val: &ObjectId,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    val.to_hex().serialize(serializer)
 }
 
 /// Contains functions to serialize a u32 as an f64 (BSON double) and deserialize a
@@ -414,6 +411,37 @@ pub mod hex_string_as_object_id {
                 val
             ))),
         }
+    }
+}
+
+/// Contains functions to serialize a hex string as an ObjectId and deserialize a
+/// hex string from an ObjectId
+///
+/// ```rust
+/// # use serde::{Serialize, Deserialize};
+/// # use bson::oid::ObjectId;
+/// # use bson::serde_helpers::object_id_as_hex_string;
+/// #[derive(Serialize, Deserialize)]
+/// struct Item {
+///     #[serde(with = "object_id_as_hex_string")]
+///     pub id: ObjectId,
+/// }
+/// ```
+pub mod object_id_as_hex_string {
+    use crate::oid::ObjectId;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    /// Deserializes an [`ObjectId`] from a hex string.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ObjectId, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        ObjectId::deserialize(deserializer)
+    }
+
+    /// Serializes an [`ObjectId`] as a hex string.
+    pub fn serialize<S: Serializer>(val: &ObjectId, serializer: S) -> Result<S::Ok, S::Error> {
+        val.to_hex().serialize(serializer)
     }
 }
 
