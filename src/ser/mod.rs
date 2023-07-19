@@ -39,7 +39,7 @@ use crate::{
     Binary,
     RawDocumentBuf,
 };
-use ::serde::{ser::Error as SerdeError, Serialize};
+use serde::{ser::Error as SerdeError, Serialize};
 
 fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
     writer.write_all(&(s.len() as i32 + 1).to_le_bytes())?;

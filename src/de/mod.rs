@@ -42,7 +42,7 @@ use crate::{
     Decimal128,
 };
 
-use ::serde::{
+use serde::{
     de::{DeserializeOwned, Error as _, Unexpected},
     Deserialize,
 };
