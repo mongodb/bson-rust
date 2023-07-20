@@ -510,9 +510,9 @@ macro_rules! trait_impls {
             }
         }
 
-        #[cfg(all($feat, feature = "serde_with3"))]
-        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with3"))))]
-        impl<'de> serde_with3::DeserializeAs<'de, $u> for crate::Uuid {
+        #[cfg(all($feat, feature = "serde_with_3"))]
+        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with_3"))))]
+        impl<'de> serde_with_3::DeserializeAs<'de, $u> for crate::Uuid {
             fn deserialize_as<D>(deserializer: D) -> std::result::Result<$u, D::Error>
             where
                 D: serde::Deserializer<'de>,
@@ -522,9 +522,9 @@ macro_rules! trait_impls {
             }
         }
 
-        #[cfg(all($feat, feature = "serde_with3"))]
-        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with3"))))]
-        impl serde_with3::SerializeAs<$u> for crate::Uuid {
+        #[cfg(all($feat, feature = "serde_with_3"))]
+        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with_3"))))]
+        impl serde_with_3::SerializeAs<$u> for crate::Uuid {
             fn serialize_as<S>(source: &$u, serializer: S) -> std::result::Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,
