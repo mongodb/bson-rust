@@ -467,7 +467,10 @@ impl SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
 }
 
 #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(all(feature = "chrono-0_4", feature = "serde_with-3")))
+)]
 impl<'de> DeserializeAs<'de, chrono::DateTime<Utc>> for crate::DateTime {
     fn deserialize_as<D>(deserializer: D) -> std::result::Result<chrono::DateTime<Utc>, D::Error>
     where
