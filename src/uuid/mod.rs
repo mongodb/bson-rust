@@ -510,8 +510,8 @@ macro_rules! trait_impls {
             }
         }
 
-        #[cfg(all($feat, feature = "serde_with_3"))]
-        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with_3"))))]
+        #[cfg(all($feat, feature = "serde_with-3"))]
+        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with-3"))))]
         impl<'de> serde_with_3::DeserializeAs<'de, $u> for crate::Uuid {
             fn deserialize_as<D>(deserializer: D) -> std::result::Result<$u, D::Error>
             where
