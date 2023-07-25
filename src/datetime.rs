@@ -145,20 +145,20 @@ use serde_with::{DeserializeAs, SerializeAs};
 /// }
 /// # }
 /// ```
-/// ### The `serde_with` feature flag
+/// ### The `serde_with-3` feature flag
 ///
-/// The `serde_with` feature can be enabled to support more ergonomic serde attributes for
+/// The `serde_with-3` feature can be enabled to support more ergonomic serde attributes for
 /// (de)serializing [`chrono::DateTime`] from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
-/// crate. The main benefit of this compared to the regular `serde_helpers` is that `serde_with` can
-/// handle nested [`chrono::DateTime`] values (e.g. in [`Option`]), whereas the former only works on
-/// fields that are exactly [`chrono::DateTime`].
+/// crate. The main benefit of this compared to the regular `serde_helpers` is that `serde_with-3`
+/// can handle nested [`chrono::DateTime`] values (e.g. in [`Option`]), whereas the former only
+/// works on fields that are exactly [`chrono::DateTime`].
 /// ```
-/// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
+/// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
 /// # {
 /// use serde::{Deserialize, Serialize};
 /// use bson::doc;
 ///
-/// #[serde_with::serde_as]
+/// #[serde_with_3::serde_as]
 /// #[derive(Deserialize, Serialize, PartialEq, Debug)]
 /// struct Foo {
 ///   /// Serializes as a BSON datetime rather than using [`chrono::DateTime`]'s serialization
