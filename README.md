@@ -50,8 +50,8 @@ Note that if you are using `bson` through the `mongodb` crate, you do not need t
 | `chrono-0_4` | Enable support for v0.4 of the [`chrono`](https://docs.rs/chrono/0.4) crate in the public API.              | n/a                | no      |
 | `uuid-0_8`   | Enable support for v0.8 of the [`uuid`](https://docs.rs/uuid/0.8) crate in the public API.                  | n/a                | no      |
 | `uuid-1`     | Enable support for v1.x of the [`uuid`](https://docs.rs/uuid/1.0) crate in the public API.                  | n/a                | no      |
-| `serde_with` | Enable [`serde_with`](https://docs.rs/serde_with/latest) integrations for `bson::DateTime` and `bson::Uuid` | serde_with         | no      |
-
+| `serde_with` | Enable [`serde_with`](https://docs.rs/serde_with/1.x) 1.x integrations for `bson::DateTime` and `bson::Uuid`.| serde_with         | no      |
+| `serde_with-3` | Enable [`serde_with`](https://docs.rs/serde_with/3.x) 3.x integrations for `bson::DateTime` and `bson::Uuid`.  Requires Rust 1.61. | serde_with         | no      |
 ## Overview of the BSON Format
 
 BSON, short for Binary JSON, is a binary-encoded serialization of JSON-like documents.
