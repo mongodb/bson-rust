@@ -143,19 +143,19 @@ fn recursive_macro() {
     };
 
     match doc.get("a") {
-        Some(&Bson::String(ref s)) => assert_eq!("foo", s),
+        Some(Bson::String(s)) => assert_eq!("foo", s),
         _ => panic!("String 'foo' was not inserted correctly."),
     }
 
     // Inner Doc 1
     match doc.get("b") {
-        Some(&Bson::Document(ref doc)) => {
+        Some(Bson::Document(doc)) => {
             // Inner doc 2
             match doc.get("bar") {
-                Some(&Bson::Document(ref inner_doc)) => {
+                Some(Bson::Document(inner_doc)) => {
                     // Inner array
                     match inner_doc.get("harbor") {
-                        Some(&Bson::Array(ref arr)) => {
+                        Some(Bson::Array(arr)) => {
                             assert_eq!(2, arr.len());
 
                             // Match array items
@@ -177,7 +177,7 @@ fn recursive_macro() {
 
                     // Inner floating point
                     match inner_doc.get("jelly") {
-                        Some(&Bson::Double(ref fp)) => assert_eq!(42.0, *fp),
+                        Some(Bson::Double(fp)) => assert_eq!(42.0, *fp),
                         _ => panic!("Floating point 42.0 was not inserted correctly."),
                     }
                 }
@@ -189,7 +189,7 @@ fn recursive_macro() {
 
     // Single-item array
     match doc.get("c") {
-        Some(&Bson::Array(ref arr)) => {
+        Some(Bson::Array(arr)) => {
             assert_eq!(1, arr.len());
 
             // Integer type
@@ -203,7 +203,7 @@ fn recursive_macro() {
 
     // Document nested in array
     match doc.get("d") {
-        Some(&Bson::Array(ref arr)) => {
+        Some(Bson::Array(arr)) => {
             assert_eq!(1, arr.len());
 
             // Nested document
@@ -211,7 +211,7 @@ fn recursive_macro() {
                 Some(Bson::Document(ref doc)) => {
                     // String
                     match doc.get("apple") {
-                        Some(&Bson::String(ref s)) => assert_eq!("ripe", s),
+                        Some(Bson::String(s)) => assert_eq!("ripe", s),
                         _ => panic!("String 'ripe' was not inserted correctly."),
                     }
                 }
@@ -223,10 +223,10 @@ fn recursive_macro() {
 
     // Single-item document
     match doc.get("e") {
-        Some(&Bson::Document(ref bdoc)) => {
+        Some(Bson::Document(bdoc)) => {
             // String
             match bdoc.get("single") {
-                Some(&Bson::String(ref s)) => assert_eq!("test", s),
+                Some(Bson::String(s)) => assert_eq!("test", s),
                 _ => panic!("String 'test' was not inserted correctly."),
             }
         }
