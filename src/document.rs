@@ -253,7 +253,7 @@ impl Document {
     /// Get a reference to a Decimal128 value for key, if it exists.
     pub fn get_decimal128(&self, key: impl AsRef<str>) -> ValueAccessResult<&Decimal128> {
         match self.get(key) {
-            Some(&Bson::Decimal128(ref v)) => Ok(v),
+            Some(Bson::Decimal128(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -274,7 +274,7 @@ impl Document {
     /// Get a string slice this key if it exists and has the correct type.
     pub fn get_str(&self, key: impl AsRef<str>) -> ValueAccessResult<&str> {
         match self.get(key) {
-            Some(&Bson::String(ref v)) => Ok(v),
+            Some(Bson::String(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -293,7 +293,7 @@ impl Document {
     /// the correct type.
     pub fn get_array(&self, key: impl AsRef<str>) -> ValueAccessResult<&Array> {
         match self.get(key) {
-            Some(&Bson::Array(ref v)) => Ok(v),
+            Some(Bson::Array(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -313,7 +313,7 @@ impl Document {
     /// the correct type.
     pub fn get_document(&self, key: impl AsRef<str>) -> ValueAccessResult<&Document> {
         match self.get(key) {
-            Some(&Bson::Document(ref v)) => Ok(v),
+            Some(Bson::Document(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }
@@ -458,7 +458,7 @@ impl Document {
     /// Get a reference to a UTC datetime value for this key if it exists and has the correct type.
     pub fn get_datetime(&self, key: impl AsRef<str>) -> ValueAccessResult<&crate::DateTime> {
         match self.get(key) {
-            Some(&Bson::DateTime(ref v)) => Ok(v),
+            Some(Bson::DateTime(v)) => Ok(v),
             Some(_) => Err(ValueAccessError::UnexpectedType),
             None => Err(ValueAccessError::NotPresent),
         }

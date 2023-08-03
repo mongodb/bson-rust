@@ -260,7 +260,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_newtype_struct<T: ?Sized>(
-        mut self,
+        self,
         name: &'static str,
         value: &T,
     ) -> Result<Self::Ok>
