@@ -16,7 +16,7 @@ use time::format_description::well_known::Rfc3339;
 #[cfg(feature = "chrono-0_4")]
 use chrono::{LocalResult, TimeZone, Utc};
 #[cfg(all(
-    feature = "serde_with",
+    any(feature = "serde_with", feature = "serde_with-3"),
     any(feature = "chrono-0_4", feature = "time-0_3")
 ))]
 use serde::{Deserialize, Deserializer, Serialize};
