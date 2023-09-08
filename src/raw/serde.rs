@@ -1,3 +1,5 @@
+mod seeded;
+
 use std::{borrow::Cow, fmt::Debug};
 
 use serde::{de::Visitor, Deserialize};

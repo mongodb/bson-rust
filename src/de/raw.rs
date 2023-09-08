@@ -383,7 +383,7 @@ impl<'de> Deserializer<'de> {
     }
 }
 
-impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
+impl<'de, 'a> SerdeDeserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
     #[inline]
