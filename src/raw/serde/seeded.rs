@@ -1,9 +1,14 @@
-use crate::{raw::serde::CowStr, spec::ElementType, Document, RawDocumentBuf};
+use crate::{
+    raw::{serde::CowStr, ErrorKind},
+    spec::ElementType,
+    Document,
+    RawDocumentBuf,
+};
 use serde::{
     de::{DeserializeSeed, Error, MapAccess, Visitor},
     Deserializer,
 };
-use std::{borrow::Cow, fmt::Formatter};
+use std::{convert::TryFrom, fmt::Formatter};
 
 struct ExtendDocument<'a> {
     buffer: &'a mut Vec<u8>,
@@ -18,7 +23,7 @@ impl<'a> ExtendDocument<'a> {
             buffer,
             embedded: false,
             // Temporary value; will not be used.
-            next_key: CowStr(Cow::Borrowed("")),
+            next_key: CowStr(std::borrow::Cow::Borrowed("")),
         }
     }
 
@@ -77,6 +82,136 @@ impl<'a, 'de: 'a> Visitor<'de> for ExtendDocumentVisitor<'a> {
 
     fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
         formatter.write_str("map or string for now")
+    }
+
+    fn visit_bool<E>(mut self, b: bool) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        let state = self.state.as_mut().unwrap();
+
+        state.append_element_type(ElementType::Boolean);
+        state.append_key();
+        state.buffer.push(b as u8);
+
+        Ok(self.state.unwrap())
+    }
+
+    fn visit_i8<E>(mut self, n: i8) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        let state = self.state.as_mut().unwrap();
+
+        state.append_element_type(ElementType::Int32);
+        state.append_key();
+        state.buffer.extend_from_slice(&(n as i32).to_le_bytes());
+
+        Ok(self.state.unwrap())
+    }
+
+    fn visit_i16<E>(mut self, n: i16) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        let state = self.state.as_mut().unwrap();
+
+        state.append_element_type(ElementType::Int32);
+        state.append_key();
+        state.buffer.extend_from_slice(&(n as i32).to_le_bytes());
+
+        Ok(self.state.unwrap())
+    }
+
+    fn visit_i32<E>(mut self, n: i32) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        let state = self.state.as_mut().unwrap();
+
+        state.append_element_type(ElementType::Int32);
+        state.append_key();
+        state.buffer.extend_from_slice(&n.to_le_bytes());
+
+        Ok(self.state.unwrap())
+    }
+
+    fn visit_i64<E>(mut self, n: i64) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        let state = self.state.as_mut().unwrap();
+
+        state.append_element_type(ElementType::Int64);
+        state.append_key();
+        state.buffer.extend_from_slice(&n.to_le_bytes());
+
+        Ok(self.state.unwrap())
+    }
+
+    fn visit_u8<E>(mut self, n: u8) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        let state = self.state.as_mut().unwrap();
+
+        state.append_element_type(ElementType::Int32);
+        state.append_key();
+        state.buffer.extend_from_slice(&(n as i32).to_le_bytes());
+
+        Ok(self.state.unwrap())
+    }
+
+    fn visit_u16<E>(mut self, n: u16) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        let state = self.state.as_mut().unwrap();
+
+        state.append_element_type(ElementType::Int32);
+        state.append_key();
+        state.buffer.extend_from_slice(&(n as i32).to_le_bytes());
+
+        Ok(self.state.unwrap())
+    }
+
+    fn visit_u32<E>(mut self, n: u32) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        let state = self.state.as_mut().unwrap();
+
+        if let Ok(n) = i32::try_from(n) {
+            state.append_element_type(ElementType::Int32);
+            state.append_key();
+            state.buffer.extend_from_slice(&n.to_le_bytes());
+        } else {
+            state.append_element_type(ElementType::Int64);
+            state.append_key();
+            state.buffer.extend_from_slice(&(n as i64).to_le_bytes());
+        };
+
+        Ok(self.state.unwrap())
+    }
+
+    fn visit_u64<E>(mut self, n: u64) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        let state = self.state.as_mut().unwrap();
+
+        if let Ok(n) = i64::try_from(n) {
+            state.append_element_type(ElementType::Int64);
+            state.append_key();
+            state.buffer.extend_from_slice(&n.to_le_bytes());
+        } else {
+            return Err(Error::custom(format!(
+                "cannot represent {} as a signed BSON number",
+                n
+            )));
+        }
+
+        Ok(self.state.unwrap())
     }
 
     fn visit_map<A>(mut self, mut map: A) -> Result<Self::Value, A::Error>
@@ -151,27 +286,38 @@ impl<'a, 'de: 'a> Visitor<'de> for ExtendDocumentVisitor<'a> {
 }
 
 #[cfg(test)]
-fn json_to_doc(json: &str, expected: Option<Document>) -> bool {
+fn json_to_doc(json: &str) -> crate::raw::error::Result<Document> {
     let mut buffer = Vec::new();
     let extend_document = ExtendDocument::new(&mut buffer);
-
-    match extend_document.deserialize(&mut serde_json::Deserializer::from_str(&json)) {
-        Ok(_) => {
-            let raw_document = RawDocumentBuf::from_bytes(buffer).unwrap();
-            let document = raw_document.to_document().unwrap();
-            Some(document) == expected
-        }
-        Err(_) => expected.is_none(),
-    }
+    extend_document
+        .deserialize(&mut serde_json::Deserializer::from_str(&json))
+        .map_err(|e| {
+            crate::raw::Error::new_without_key(ErrorKind::MalformedValue {
+                message: e.to_string(),
+            })
+        })?;
+    let raw_document = RawDocumentBuf::from_bytes(buffer)?;
+    raw_document.to_document()
 }
 
 #[test]
 fn basic_json() {
-    assert!(json_to_doc("{\"a\": \"B\"}", Some(doc! { "a": "B" })));
-    assert!(json_to_doc("{\"a\"}", None));
-    assert!(json_to_doc(
-        "{\"a\":{\"b\":\"c\"}}",
-        Some(doc! { "a": { "b": "c" } })
-    ));
-    assert!(json_to_doc("a", None));
+    assert_eq!(json_to_doc("{\"a\": \"B\"}"), Ok(doc! { "a": "B" }));
+    assert!(json_to_doc("{\"a\"}").is_err());
+    assert_eq!(
+        json_to_doc("{\"a\":{\"b\":\"c\"}}"),
+        Ok(doc! { "a": { "b": "c" } })
+    );
+    assert!(json_to_doc("a").is_err());
+}
+
+#[test]
+fn numbers() {
+    assert_eq!(json_to_doc("{\"a\": 1}"), Ok(doc! { "a": 1i64 }));
+    assert_eq!(
+        json_to_doc("{\"a\": {\"1\": 1}}"),
+        Ok(doc! {"a": { "1": 1i64 } })
+    );
+    assert!(json_to_doc("{1:1}").is_err());
+    assert!(json_to_doc(&format!("{{\"a\":{}}}", u64::MAX)).is_err());
 }
