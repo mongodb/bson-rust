@@ -1,9 +1,22 @@
-use crate::spec::ElementType;
+use crate::{
+    de::MIN_BSON_DOCUMENT_SIZE,
+    extjson::models::TimestampBody,
+    oid::ObjectId,
+    raw::{serde::CowStr, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    spec::{BinarySubtype, ElementType},
+    RawDocumentBuf,
+};
 use serde::{
     de::{DeserializeSeed, Error as SerdeError, MapAccess, SeqAccess, Visitor},
+    Deserialize,
     Deserializer,
 };
-use std::{convert::TryFrom, fmt::Formatter};
+use serde_bytes::ByteBuf;
+use std::{
+    borrow::Cow,
+    convert::{TryFrom, TryInto},
+    fmt::Formatter,
+};
 
 struct SeededVisitor<'a> {
     buffer: &'a mut Vec<u8>,
@@ -14,11 +27,40 @@ impl<'a> SeededVisitor<'a> {
     fn append_key(&mut self, key: &str) -> Result<(), String> {
         let key_bytes = key.as_bytes();
         if key_bytes.contains(&0) {
-            return Err(format!("key includes interior null byte: {}", key));
+            return Err(format!("key contains interior null byte: {}", key));
         }
 
         self.buffer.extend_from_slice(key_bytes);
         self.buffer.push(0);
+
+        Ok(())
+    }
+
+    fn append_string(&mut self, s: &str) -> Result<(), String> {
+        let bytes = s.as_bytes();
+
+        // Add 1 to account for null byte.
+        self.append_length_bytes(bytes.len() + 1)?;
+        self.buffer.extend_from_slice(bytes);
+        self.buffer.push(0);
+
+        Ok(())
+    }
+
+    fn append_length_bytes(&mut self, length: impl TryInto<i32>) -> Result<(), String> {
+        let length_bytes = match length.try_into() {
+            Ok(length) => length.to_le_bytes(),
+            Err(_) => return Err("element exceeds maximum length".to_string()),
+        };
+
+        self.buffer.extend(length_bytes);
+        Ok(())
+    }
+
+    fn append_binary(&mut self, bytes: &[u8], subtype: u8) -> Result<(), String> {
+        self.append_length_bytes(bytes.len())?;
+        self.buffer.push(subtype);
+        self.buffer.extend(bytes);
 
         Ok(())
     }
@@ -108,19 +150,173 @@ impl<'a, 'de> Visitor<'de> for SeededVisitor<'a> {
             self.embedded = true;
         }
 
-        let length_index = self.pad_document_length();
+        let first_key = match map.next_key::<&str>()? {
+            Some(key) => key,
+            None => {
+                self.buffer.extend(MIN_BSON_DOCUMENT_SIZE.to_le_bytes());
+                self.buffer.push(0);
+                return Ok(ElementType::EmbeddedDocument);
+            }
+        };
 
-        while let Some(key) = map.next_key::<&str>()? {
-            let element_type_index = self.pad_element_type();
-            self.append_key(key).map_err(SerdeError::custom)?;
-            let element_type = map.next_value_seed(&mut self)?;
-            self.write_element_type(element_type, element_type_index);
+        match first_key {
+            "$oid" => {
+                let oid: ObjectId = map.next_value()?;
+                self.buffer.extend(oid.bytes());
+                Ok(ElementType::ObjectId)
+            }
+            "$symbol" => {
+                let s: CowStr = map.next_value()?;
+                self.append_string(s.0.as_ref())
+                    .map_err(SerdeError::custom)?;
+                Ok(ElementType::Symbol)
+            }
+            "$numberDecimalBytes" => {
+                let bytes: ByteBuf = map.next_value()?;
+                self.buffer.extend(&bytes.into_vec());
+                Ok(ElementType::Decimal128)
+            }
+            "$regularExpression" => {
+                #[derive(Deserialize)]
+                struct Regex<'a> {
+                    #[serde(borrow)]
+                    pattern: CowStr<'a>,
+                    #[serde(borrow)]
+                    options: CowStr<'a>,
+                }
+
+                let regex: Regex = map.next_value()?;
+                let pattern = regex.pattern.0.as_ref();
+                let options = regex.options.0.as_ref();
+
+                if pattern.contains('/') || options.contains('/') {
+                    return Err(SerdeError::custom(format!(
+                        "regular expression cannot contain unescaped forward slashes:\n pattern: \
+                         {}\noptions:{}",
+                        pattern, options
+                    )));
+                }
+
+                self.append_key(pattern).map_err(SerdeError::custom)?;
+                self.append_key(options).map_err(SerdeError::custom)?;
+
+                Ok(ElementType::RegularExpression)
+            }
+            "$undefined" => {
+                let _: bool = map.next_value()?;
+                Ok(ElementType::Undefined)
+            }
+            "$binary" => {
+                #[derive(Deserialize)]
+                struct BorrowedBinary<'a> {
+                    #[serde(borrow)]
+                    bytes: Cow<'a, [u8]>,
+
+                    #[serde(rename = "subType")]
+                    subtype: u8,
+                }
+
+                let binary: BorrowedBinary = map.next_value()?;
+                self.append_binary(binary.bytes.as_ref(), binary.subtype)
+                    .map_err(SerdeError::custom)?;
+
+                Ok(ElementType::Binary)
+            }
+            "$date" => {
+                let date: i64 = map.next_value()?;
+                self.buffer.extend(date.to_le_bytes());
+                Ok(ElementType::DateTime)
+            }
+            "$timestamp" => {
+                let timestamp: TimestampBody = map.next_value()?;
+                self.buffer.extend(timestamp.i.to_le_bytes());
+                self.buffer.extend(timestamp.t.to_le_bytes());
+                Ok(ElementType::Timestamp)
+            }
+            "$minKey" => {
+                let _: i32 = map.next_value()?;
+                Ok(ElementType::MinKey)
+            }
+            "$maxKey" => {
+                let _: i32 = map.next_value()?;
+                Ok(ElementType::MaxKey)
+            }
+            "$code" => {
+                let code: CowStr = map.next_value()?;
+                if let Some(key) = map.next_key::<CowStr>()? {
+                    let key = key.0.as_ref();
+                    if key == "$scope" {
+                        let length_index = self.pad_document_length();
+                        self.append_string(code.0.as_ref())
+                            .map_err(SerdeError::custom)?;
+
+                        let scope: RawDocumentBuf = map.next_value()?;
+                        self.buffer.extend(scope.as_bytes());
+
+                        let length_bytes =
+                            ((self.buffer.len() - length_index) as i32).to_le_bytes();
+                        self.buffer[length_index..length_index + 4].copy_from_slice(&length_bytes);
+
+                        Ok(ElementType::JavaScriptCodeWithScope)
+                    } else {
+                        Err(SerdeError::unknown_field(key, &["$scope"]))
+                    }
+                } else {
+                    self.append_string(code.0.as_ref())
+                        .map_err(SerdeError::custom)?;
+                    Ok(ElementType::JavaScriptCode)
+                }
+            }
+            "$dbPointer" => {
+                #[derive(Deserialize)]
+                struct BorrowedDbPointer<'a> {
+                    #[serde(rename = "$ref")]
+                    #[serde(borrow)]
+                    ns: CowStr<'a>,
+
+                    #[serde(rename = "$id")]
+                    id: ObjectId,
+                }
+
+                let db_pointer: BorrowedDbPointer = map.next_value()?;
+
+                self.append_string(db_pointer.ns.0.as_ref())
+                    .map_err(SerdeError::custom)?;
+                self.buffer.extend(db_pointer.id.bytes());
+
+                Ok(ElementType::DbPointer)
+            }
+            RAW_DOCUMENT_NEWTYPE => {
+                let document_bytes: ByteBuf = map.next_value()?;
+                self.buffer.extend(document_bytes.as_ref());
+                Ok(ElementType::EmbeddedDocument)
+            }
+            RAW_ARRAY_NEWTYPE => {
+                let array_bytes: ByteBuf = map.next_value()?;
+                self.buffer.extend(array_bytes.as_ref());
+                Ok(ElementType::Array)
+            }
+            other => {
+                let length_index = self.pad_document_length();
+
+                let mut current_key = other;
+                loop {
+                    let element_type_index = self.pad_element_type();
+                    self.append_key(current_key).map_err(SerdeError::custom)?;
+                    let element_type = map.next_value_seed(&mut self)?;
+                    self.write_element_type(element_type, element_type_index);
+
+                    match map.next_key::<&str>()? {
+                        Some(next_key) => current_key = next_key,
+                        None => break,
+                    }
+                }
+
+                self.finish_document(length_index)
+                    .map_err(SerdeError::custom)?;
+                Ok(ElementType::EmbeddedDocument)
+            }
         }
-
-        self.finish_document(length_index)
-            .map_err(SerdeError::custom)?;
-
-        Ok(ElementType::EmbeddedDocument)
     }
 
     fn visit_seq<A>(mut self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -145,7 +341,6 @@ impl<'a, 'de> Visitor<'de> for SeededVisitor<'a> {
             };
 
             self.write_element_type(element_type, element_type_index);
-
             i += 1;
         }
 
@@ -155,27 +350,11 @@ impl<'a, 'de> Visitor<'de> for SeededVisitor<'a> {
     }
 
     // visit_string and visit_borrowed_str will forward to this method.
-    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    fn visit_str<E>(mut self, s: &str) -> Result<Self::Value, E>
     where
         E: SerdeError,
     {
-        let bytes = s.as_bytes();
-
-        // Add 1 to account for null byte.
-        let length_bytes = match i32::try_from(bytes.len() + 1) {
-            Ok(length) => length.to_le_bytes(),
-            Err(_) => {
-                return Err(SerdeError::custom(format!(
-                    "string exceeds maximum length: {}",
-                    s
-                )))
-            }
-        };
-        self.buffer.extend_from_slice(&length_bytes);
-
-        self.buffer.extend_from_slice(bytes);
-        self.buffer.push(0);
-
+        self.append_string(s).map_err(SerdeError::custom)?;
         Ok(ElementType::String)
     }
 
@@ -291,6 +470,16 @@ impl<'a, 'de> Visitor<'de> for SeededVisitor<'a> {
     {
         self.buffer.push(0);
         Ok(ElementType::Null)
+    }
+
+    // visit_byte_buf and visit_borrowed_bytes will forward to this method.
+    fn visit_bytes<E>(mut self, bytes: &[u8]) -> Result<Self::Value, E>
+    where
+        E: SerdeError,
+    {
+        self.append_binary(bytes, BinarySubtype::Generic.into())
+            .map_err(SerdeError::custom)?;
+        Ok(ElementType::Binary)
     }
 }
 
