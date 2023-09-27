@@ -82,7 +82,7 @@
 //!
 //! ### Iteration
 //!
-//! [`RawDocument`] implements [`IntoIterator`](std::iter::IntoIterator), which can also be
+//! [`RawDocument`] implements [`IntoIterator`], which can also be
 //! accessed via [`RawDocumentBuf::iter`].
 
 //! ```rust
