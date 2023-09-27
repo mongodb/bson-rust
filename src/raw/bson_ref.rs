@@ -5,7 +5,7 @@ use serde_bytes::Bytes;
 
 use super::{
     bson::RawBson,
-    serde::{OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor},
+    serde::{bson_visitor::OwnedOrBorrowedRawBsonVisitor, OwnedOrBorrowedRawBson},
     Error,
     RawArray,
     RawDocument,
