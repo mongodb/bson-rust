@@ -1,14 +1,13 @@
 //! A module defining serde models for the extended JSON representations of the various BSON types.
 
-use std::borrow::Cow;
 use serde::{
     de::{Error, Unexpected},
     Deserialize,
     Serialize,
 };
+use std::borrow::Cow;
 
-use crate::{extjson, oid, spec::BinarySubtype, Bson};
-use crate::raw::serde::CowStr;
+use crate::{extjson, oid, raw::serde::CowStr, spec::BinarySubtype, Bson};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -372,7 +371,6 @@ impl Undefined {
         }
     }
 }
-
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct BorrowedRegexBody<'a> {

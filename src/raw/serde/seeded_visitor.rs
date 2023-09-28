@@ -8,13 +8,17 @@ use serde_bytes::ByteBuf;
 
 use crate::{
     de::MIN_BSON_DOCUMENT_SIZE,
-    extjson::models::TimestampBody,
+    extjson::models::{
+        BorrowedBinaryBody,
+        BorrowedDbPointerBody,
+        BorrowedRegexBody,
+        TimestampBody,
+    },
     oid::ObjectId,
     raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     RawDocumentBuf,
 };
-use crate::extjson::models::{BorrowedBinaryBody, BorrowedDbPointerBody, BorrowedRegexBody};
 
 use super::{CowByteBuffer, CowStr};
 
