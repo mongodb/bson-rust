@@ -19,16 +19,6 @@ use super::{bson::RawBson, RAW_BSON_NEWTYPE};
 use bson_visitor::*;
 use seeded_visitor::*;
 
-/// A copy-on-write byte buffer containing raw BSON bytes. The inner value starts as `None` and
-/// transitions to either `Cow::Borrowed` or `Cow::Owned` depending upon the data visited.
-pub(crate) struct CowByteBuffer<'de>(Option<Cow<'de, [u8]>>);
-
-impl<'de> CowByteBuffer<'de> {
-    pub(crate) fn new() -> Self {
-        Self(None)
-    }
-}
-
 /// Wrapper around a `Cow<str>` to enable borrowed deserialization.
 /// The default [`Deserialize`] impl for [`Cow`] always uses the owned version.
 #[derive(Debug, Deserialize)]

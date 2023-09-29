@@ -20,9 +20,18 @@ use crate::{
     RawDocumentBuf,
 };
 
-use super::{CowByteBuffer, CowStr};
+use super::CowStr;
+
+/// A copy-on-write byte buffer containing raw BSON bytes. The inner value starts as `None` and
+/// transitions to either `Cow::Borrowed` or `Cow::Owned` depending upon the data visited.
+pub(crate) struct CowByteBuffer<'de>(pub(crate) Option<Cow<'de, [u8]>>);
 
 impl<'de> CowByteBuffer<'de> {
+    /// Creates an new empty buffer.
+    pub(crate) fn new() -> Self {
+        Self(None)
+    }
+
     /// The length of the buffer.
     fn len(&self) -> usize {
         match &self.0 {
@@ -39,23 +48,21 @@ impl<'de> CowByteBuffer<'de> {
             .to_mut()
     }
 
-    /// Appends a single byte to the buffer. The buffer will be in an `Owned` state after this
-    /// method is called.
+    /// Appends a single byte to the buffer.
     fn push_byte(&mut self, byte: u8) {
         let buffer = self.get_owned_buffer();
         buffer.push(byte);
     }
 
-    /// Appends a slice of bytes to the buffer. The buffer will be in an `Owned` state after this
-    /// method is called.
+    /// Appends a slice of bytes to the buffer.
     fn append_bytes(&mut self, bytes: &[u8]) {
         let buffer = self.get_owned_buffer();
         buffer.extend_from_slice(bytes);
     }
 
-    /// Appends a slice of borrowed bytes to the buffer. If the buffer is `Empty`, it will be
-    /// transitioned to the `Borrowed` state with a reference to the bytes; otherwise, the bytes
-    /// will be appended to an owned buffer.
+    /// Appends a slice of borrowed bytes to the buffer. If the buffer is currently `None`, it will
+    /// store a reference to the borrowed bytes; otherwise, it will copy the bytes to the
+    /// existing buffer.
     fn append_borrowed_bytes(&mut self, bytes: &'de [u8]) {
         match &mut self.0 {
             Some(buffer) => buffer.to_mut().extend_from_slice(bytes),
@@ -64,14 +71,14 @@ impl<'de> CowByteBuffer<'de> {
     }
 
     /// Copies a slice of bytes into the given range. This method will panic if the range is out of
-    /// bounds. The buffer will be in an `Owned` state after this method is called.
+    /// bounds.
     fn copy_from_slice(&mut self, range: Range<usize>, slice: &[u8]) {
         let buffer = self.get_owned_buffer();
         buffer[range].copy_from_slice(slice);
     }
 
     /// Removes the bytes in the given range from the buffer. This method will panic if the range is
-    /// out of bounds. The buffer will be in an `Owned` state after this method is called.
+    /// out of bounds.
     fn drain(&mut self, range: Range<usize>) {
         let buffer = self.get_owned_buffer();
         buffer.drain(range);
@@ -106,6 +113,10 @@ impl<'a, 'de> DeserializeSeed<'de> for &mut SeededVisitor<'a, 'de> {
     }
 }
 
+/// A visitor that builds up a raw BSON value in a single buffer. This visitor will only produce
+/// valid BSON if the value being deserialized is a byte buffer, slice of bytes, map, or sequence.
+/// Implementations using this visitor should check the `ElementType` returned from `deserialize` to
+/// validate that a valid BSON type was visited.
 impl<'a, 'de> SeededVisitor<'a, 'de> {
     pub(crate) fn new(buffer: &'a mut CowByteBuffer<'de>) -> Self {
         Self { buffer }
@@ -142,8 +153,9 @@ impl<'a, 'de> SeededVisitor<'a, 'de> {
 
     /// Appends an owned byte buffer to the buffer. If the buffer is currently empty (i.e. the byte
     /// buffer was the top-level value provided to the deserializer), the buffer will be updated to
-    /// an owned copy of the bytes provided. Otherwise (i.e. when the value is embedded), the bytes
-    /// and their corresponding length and subtype bytes will be appended to the buffer.
+    /// contain an owned copy of the bytes provided. Otherwise (i.e. when the value is embedded),
+    /// the bytes and their corresponding length and subtype bytes will be appended to the
+    /// buffer.
     fn append_owned_binary(&mut self, bytes: Vec<u8>, subtype: u8) {
         match &mut self.buffer.0 {
             Some(_) => self.append_embedded_binary(&bytes, subtype),
@@ -196,15 +208,16 @@ impl<'a, 'de> SeededVisitor<'a, 'de> {
     /// Writes the length of a document at the given index, which should be obtained from
     /// pad_document_length, and appends the final null byte of the document. Returns an error if
     /// the size does not fit into an i32.
-    fn finish_document(&mut self, index: usize) -> Result<(), String> {
+    fn finish_document(&mut self, length_index: usize) -> Result<(), String> {
         self.buffer.push_byte(0);
 
-        let length_bytes = match i32::try_from(self.buffer.len() - index) {
+        let length_bytes = match i32::try_from(self.buffer.len() - length_index) {
             Ok(length) => length.to_le_bytes(),
-            Err(_) => return Err("document exceeds maximum length".to_string()),
+            Err(_) => return Err("value exceeds maximum length".to_string()),
         };
 
-        self.buffer.copy_from_slice(index..index + 4, &length_bytes);
+        self.buffer
+            .copy_from_slice(length_index..length_index + 4, &length_bytes);
 
         Ok(())
     }
@@ -537,14 +550,6 @@ impl<'a, 'de> Visitor<'de> for SeededVisitor<'a, 'de> {
         E: SerdeError,
     {
         self.append_owned_binary(bytes.to_owned(), BinarySubtype::Generic.into());
-        Ok(ElementType::Binary)
-    }
-
-    fn visit_byte_buf<E>(mut self, bytes: Vec<u8>) -> Result<Self::Value, E>
-    where
-        E: SerdeError,
-    {
-        self.append_owned_binary(bytes, BinarySubtype::Generic.into());
         Ok(ElementType::Binary)
     }
 
