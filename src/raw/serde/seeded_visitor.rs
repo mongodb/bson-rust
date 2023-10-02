@@ -532,7 +532,6 @@ impl<'a, 'de> Visitor<'de> for SeededVisitor<'a, 'de> {
     where
         E: SerdeError,
     {
-        self.buffer.push_byte(0);
         Ok(ElementType::Null)
     }
 
@@ -540,7 +539,6 @@ impl<'a, 'de> Visitor<'de> for SeededVisitor<'a, 'de> {
     where
         E: SerdeError,
     {
-        self.buffer.push_byte(0);
         Ok(ElementType::Null)
     }
 
