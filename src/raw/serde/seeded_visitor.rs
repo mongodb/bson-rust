@@ -15,7 +15,7 @@ use crate::{
         TimestampBody,
     },
     oid::ObjectId,
-    raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     RawDocumentBuf,
 };
@@ -96,7 +96,7 @@ impl<'a, 'de> DeserializeSeed<'de> for SeededVisitor<'a, 'de> {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_any(self)
+        deserializer.deserialize_newtype_struct(RAW_BSON_NEWTYPE, self)
     }
 }
 
@@ -107,9 +107,12 @@ impl<'a, 'de> DeserializeSeed<'de> for &mut SeededVisitor<'a, 'de> {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_any(SeededVisitor {
-            buffer: self.buffer,
-        })
+        deserializer.deserialize_newtype_struct(
+            RAW_BSON_NEWTYPE,
+            SeededVisitor {
+                buffer: self.buffer,
+            },
+        )
     }
 }
 
