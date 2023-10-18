@@ -120,7 +120,7 @@ mod document;
 mod document_buf;
 mod error;
 mod iter;
-mod serde;
+pub(crate) mod serde;
 #[cfg(test)]
 mod test;
 
