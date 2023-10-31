@@ -38,8 +38,7 @@ use crate::{
     raw::RawBinaryRef,
     ser::write_i32,
     spec::{self, BinarySubtype},
-    Binary,
-    Decimal128,
+    Binary, Decimal128,
 };
 
 use ::serde::{
@@ -152,7 +151,8 @@ fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> Result<String> {
         v.push(c);
     }
 
-    Ok(String::from_utf8(v)?)
+    let _ = simdutf8::basic::from_utf8(&v)?;
+    unsafe { Ok(String::from_utf8_unchecked(v)) }
 }
 
 #[inline]
