@@ -14,7 +14,7 @@ use std::{convert::TryInto, time::SystemTime};
 
 use hex::{self, FromHexError};
 use once_cell::sync::Lazy;
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng, random};
 
 const TIMESTAMP_SIZE: usize = 4;
 const PROCESS_ID_SIZE: usize = 5;
@@ -253,7 +253,7 @@ impl ObjectId {
 
     /// Generate a random 5-byte array.
     fn gen_process_id() -> [u8; 5] {
-        static BUF: Lazy<[u8; 5]> = Lazy::new(|| thread_rng().gen());
+        static BUF: Lazy<[u8; 5]> = Lazy::new(random);
 
         *BUF
     }
