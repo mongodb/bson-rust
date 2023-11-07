@@ -14,7 +14,7 @@ use std::{convert::TryInto, time::SystemTime};
 
 use hex::{self, FromHexError};
 use once_cell::sync::Lazy;
-use rand::{thread_rng, Rng, random};
+use rand::{random, thread_rng, Rng};
 
 const TIMESTAMP_SIZE: usize = 4;
 const PROCESS_ID_SIZE: usize = 5;
