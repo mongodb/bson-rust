@@ -107,14 +107,12 @@ pub(crate) fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) ->
         ));
     }
 
+    let mut buf = Vec::with_capacity(len as usize - 1);
+    reader.take(len as u64 - 1).read_to_end(&mut buf)?;
     let s = if utf8_lossy {
-        let mut buf = Vec::with_capacity(len as usize - 1);
-        reader.take(len as u64 - 1).read_to_end(&mut buf)?;
         String::from_utf8_lossy(&buf).to_string()
     } else {
-        let mut s = String::with_capacity(len as usize - 1);
-        reader.take(len as u64 - 1).read_to_string(&mut s)?;
-        s
+        to_string(buf)?
     };
 
     // read the null terminator
@@ -151,7 +149,12 @@ fn read_cstring<R: Read + ?Sized>(reader: &mut R) -> Result<String> {
         v.push(c);
     }
 
+    to_string(v)
+}
+
+fn to_string(v: Vec<u8>) -> Result<String> {
     let _ = simdutf8::basic::from_utf8(&v)?;
+    // Safety: `v` is a valid UTF-8 string.
     unsafe { Ok(String::from_utf8_unchecked(v)) }
 }
 
