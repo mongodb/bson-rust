@@ -38,10 +38,11 @@ use crate::{
     raw::RawBinaryRef,
     ser::write_i32,
     spec::{self, BinarySubtype},
-    Binary, Decimal128,
+    Binary,
+    Decimal128,
 };
 
-use ::serde::{
+use serde::{
     de::{DeserializeOwned, Error as _, Unexpected},
     Deserialize,
 };

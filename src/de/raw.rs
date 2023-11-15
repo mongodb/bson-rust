@@ -7,7 +7,8 @@ use std::{
 
 use serde::{
     de::{EnumAccess, Error as SerdeError, IntoDeserializer, MapAccess, VariantAccess},
-    forward_to_deserialize_any, Deserializer as SerdeDeserializer,
+    forward_to_deserialize_any,
+    Deserializer as SerdeDeserializer,
 };
 
 use crate::{
@@ -15,12 +16,27 @@ use crate::{
     raw::{RawBinaryRef, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
-    Bson, DateTime, Decimal128, DeserializerOptions, RawDocument, Timestamp,
+    Bson,
+    DateTime,
+    Decimal128,
+    DeserializerOptions,
+    RawDocument,
+    Timestamp,
 };
 
 use super::{
-    read_bool, read_f128, read_f64, read_i32, read_i64, read_string, read_u8, DeserializerHint,
-    Error, Result, MAX_BSON_SIZE, MIN_CODE_WITH_SCOPE_SIZE,
+    read_bool,
+    read_f128,
+    read_f64,
+    read_i32,
+    read_i64,
+    read_string,
+    read_u8,
+    DeserializerHint,
+    Error,
+    Result,
+    MAX_BSON_SIZE,
+    MIN_CODE_WITH_SCOPE_SIZE,
 };
 use crate::de::serde::MapDeserializer;
 

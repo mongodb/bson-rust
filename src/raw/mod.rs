@@ -133,7 +133,11 @@ pub use self::{
     array_buf::RawArrayBuf,
     bson::{RawBson, RawJavaScriptCodeWithScope},
     bson_ref::{
-        RawBinaryRef, RawBsonRef, RawDbPointerRef, RawJavaScriptCodeWithScopeRef, RawRegexRef,
+        RawBinaryRef,
+        RawBsonRef,
+        RawDbPointerRef,
+        RawJavaScriptCodeWithScopeRef,
+        RawRegexRef,
     },
     document::RawDocument,
     document_buf::RawDocumentBuf,
