@@ -239,9 +239,9 @@ impl ObjectId {
     /// Generates a new timestamp representing the current seconds since epoch.
     /// Represented in Big Endian.
     fn gen_timestamp() -> [u8; 4] {
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(target_arch = "wasm32", target_os = "unknown")]
         let timestamp: u32 = (js_sys::Date::now() / 1000.0) as u32;
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(not(target_arch = "wasm32", target_os = "unknown"))]
         let timestamp: u32 = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .expect("system clock is before 1970")
