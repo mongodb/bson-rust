@@ -90,7 +90,7 @@ functions:
         working_dir: "src"
         script: |
           ${PREPARE_SHELL}
-          RUST_VERSION=${RUST_VERSION} MSRV=${MSRV} .evergreen/compile-only.sh
+          RUST_VERSION=${RUST_VERSION} MSRV=${MSRV} TARGET=${TARGET} .evergreen/compile-only.sh
 
   "check rustfmt":
     - command: shell.exec
@@ -203,6 +203,18 @@ axes:
         display_name: "nightly"
         variables:
           RUST_VERSION: "nightly"
+  - id: "extra-targets"
+    values:
+      - id: "current"
+        display_name: "current target"
+      - id: "wasi"
+        display_name: "WASI"
+        variables:
+          TARGET: "wasm32-wasi"
+      - id: "wasm"
+        display_name: "WASM"
+        variables:
+          TARGET: "wasm32-unknown-unknown"
 
 buildvariants:
 -
@@ -216,6 +228,7 @@ buildvariants:
 - matrix_name: "compile only"
   matrix_spec:
     extra-rust-versions: "*"
+    extra-targets: "*"
   display_name: "Compile on Rust ${extra-rust-versions}"
   run_on:
     - ubuntu1804-test
