@@ -51,7 +51,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! bson = "2.8.0"
+//! bson = "2.8.1"
 //! ```
 //!
 //! Note that if you are using `bson` through the `mongodb` crate, you do not need to specify it in
