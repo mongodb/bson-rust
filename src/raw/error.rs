@@ -1,4 +1,4 @@
-use std::str::Utf8Error;
+use simdutf8::basic::Utf8Error;
 
 use crate::spec::ElementType;
 

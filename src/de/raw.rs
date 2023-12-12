@@ -1759,7 +1759,7 @@ impl<'a> BsonBuf<'a> {
         let s = if utf8_lossy_override.unwrap_or(self.utf8_lossy) {
             String::from_utf8_lossy(bytes)
         } else {
-            Cow::Borrowed(std::str::from_utf8(bytes).map_err(Error::custom)?)
+            Cow::Borrowed(simdutf8::basic::from_utf8(bytes).map_err(Error::custom)?)
         };
 
         // consume the null byte
