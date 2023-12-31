@@ -120,6 +120,7 @@ mod document;
 mod document_buf;
 mod error;
 mod iter;
+pub mod lazy;
 pub(crate) mod serde;
 #[cfg(test)]
 mod test;
@@ -133,11 +134,7 @@ pub use self::{
     array_buf::RawArrayBuf,
     bson::{RawBson, RawJavaScriptCodeWithScope},
     bson_ref::{
-        RawBinaryRef,
-        RawBsonRef,
-        RawDbPointerRef,
-        RawJavaScriptCodeWithScopeRef,
-        RawRegexRef,
+        RawBinaryRef, RawBsonRef, RawDbPointerRef, RawJavaScriptCodeWithScopeRef, RawRegexRef,
     },
     document::RawDocument,
     document_buf::RawDocumentBuf,
@@ -212,7 +209,7 @@ fn read_nullterminated(buf: &[u8]) -> Result<&str> {
     }
 }
 
-fn read_lenencoded(buf: &[u8]) -> Result<&str> {
+fn read_len_and_end(buf: &[u8]) -> Result<(usize, usize)> {
     if buf.len() < 4 {
         return Err(Error::new_without_key(ErrorKind::MalformedValue {
             message: format!(
@@ -243,12 +240,11 @@ fn read_lenencoded(buf: &[u8]) -> Result<&str> {
             ),
         }));
     }
+    Ok((length as usize + 4, end))
+}
 
-    if buf[end - 1] != 0 {
-        return Err(Error::new_without_key(ErrorKind::MalformedValue {
-            message: "expected string to be null-terminated".to_string(),
-        }));
-    }
+fn read_lenencoded(buf: &[u8]) -> Result<&str> {
+    let end = read_len_and_end(buf)?.1;
 
     // exclude null byte
     try_to_str(&buf[4..(end - 1)])
