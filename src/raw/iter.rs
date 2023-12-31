@@ -10,8 +10,8 @@ use crate::{
 };
 
 use super::{
-    checked_add, error::try_with_key, f64_from_slice, i32_from_slice, i64_from_slice,
-    read_len_and_end, read_lenencoded, read_nullterminated, RawBsonRef, RawDocument,
+    checked_add, error::try_with_key, f64_from_slice, i32_from_slice, i64_from_slice, read_len,
+    read_lenencode, read_nullterminated, RawBsonRef, RawDocument,
 };
 
 /// An iterator over the document's entries.
@@ -104,7 +104,7 @@ impl<'a> RawLazyElement<'a> {
                 RawBsonRef::Double(f64_from_slice(&self.doc.as_bytes()[self.start_at..])?)
             }
             ElementType::String => {
-                RawBsonRef::String(read_lenencoded(&self.doc.as_bytes()[self.start_at..])?)
+                RawBsonRef::String(read_lenencode(&self.doc.as_bytes()[self.start_at..])?)
             }
             ElementType::Boolean => RawBsonRef::Boolean(
                 read_bool(&self.doc.as_bytes()[self.start_at..])
@@ -119,13 +119,13 @@ impl<'a> RawLazyElement<'a> {
                     .map_err(|e| Error::new_with_key(self.key, ErrorKind::new_malformed(e)))?,
             )),
             ElementType::JavaScriptCode => {
-                RawBsonRef::JavaScriptCode(read_lenencoded(&self.doc.as_bytes()[self.start_at..])?)
+                RawBsonRef::JavaScriptCode(read_lenencode(&self.doc.as_bytes()[self.start_at..])?)
             }
             ElementType::Symbol => {
-                RawBsonRef::Symbol(read_lenencoded(&self.doc.as_bytes()[self.start_at..])?)
+                RawBsonRef::Symbol(read_lenencode(&self.doc.as_bytes()[self.start_at..])?)
             }
             ElementType::DbPointer => RawBsonRef::DbPointer(RawDbPointerRef {
-                namespace: read_lenencoded(&self.doc.as_bytes()[self.start_at..])?,
+                namespace: read_lenencode(&self.doc.as_bytes()[self.start_at..])?,
                 id: ObjectId::from_bytes(
                     self.doc.as_bytes()[self.start_at..(self.start_at + self.size)]
                         .try_into()
@@ -186,7 +186,7 @@ impl<'a> RawLazyElement<'a> {
             }
             ElementType::JavaScriptCodeWithScope => {
                 let slice = &self.doc.as_bytes()[self.start_at..(self.start_at + self.size)];
-                let code = read_lenencoded(&slice[4..])?;
+                let code = read_lenencode(&slice[4..])?;
                 let scope_start = 4 + 4 + code.len() + 1;
                 let scope = RawDocument::from_bytes(&slice[scope_start..])?;
 
@@ -256,7 +256,7 @@ impl<'a> Iterator for Iter<'a> {
                 ElementType::Int32 => 4,
                 ElementType::Int64 => 8,
                 ElementType::Double => 8,
-                ElementType::String => read_len_and_end(&self.doc.as_bytes()[valueoffset..])?.0,
+                ElementType::String => read_len(&self.doc.as_bytes()[valueoffset..])?,
                 ElementType::EmbeddedDocument => self.next_document_len(valueoffset)?,
                 ElementType::Array => self.next_document_len(valueoffset)?,
                 ElementType::Binary => {
@@ -275,10 +275,8 @@ impl<'a> Iterator for Iter<'a> {
                 ElementType::Null => 0,
                 ElementType::Undefined => 0,
                 ElementType::Timestamp => 8,
-                ElementType::Symbol => read_len_and_end(&self.doc.as_bytes()[valueoffset..])?.0,
-                ElementType::JavaScriptCode => {
-                    read_len_and_end(&self.doc.as_bytes()[valueoffset..])?.0
-                }
+                ElementType::Symbol => read_len(&self.doc.as_bytes()[valueoffset..])?,
+                ElementType::JavaScriptCode => read_len(&self.doc.as_bytes()[valueoffset..])?,
                 ElementType::JavaScriptCodeWithScope => {
                     let length = (i32_from_slice(&self.doc.as_bytes()[valueoffset..])?) as usize;
 
@@ -291,7 +289,7 @@ impl<'a> Iterator for Iter<'a> {
                     length
                 }
                 ElementType::DbPointer => {
-                    let length = read_len_and_end(&self.doc.as_bytes()[valueoffset..])?.0;
+                    let length = read_len(&self.doc.as_bytes()[valueoffset..])?;
                     length + 1 + 12
                 }
                 ElementType::Decimal128 => 16,

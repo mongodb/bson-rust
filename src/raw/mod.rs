@@ -208,7 +208,7 @@ fn read_nullterminated(buf: &[u8]) -> Result<&str> {
     }
 }
 
-fn read_len_and_end(buf: &[u8]) -> Result<(usize, usize)> {
+fn read_len(buf: &[u8]) -> Result<usize> {
     if buf.len() < 4 {
         return Err(Error::new_without_key(ErrorKind::MalformedValue {
             message: format!(
@@ -239,13 +239,14 @@ fn read_len_and_end(buf: &[u8]) -> Result<(usize, usize)> {
             ),
         }));
     }
-    Ok((length as usize + 4, end))
+
+    Ok(length as usize + 4)
 }
 
-fn read_lenencoded(buf: &[u8]) -> Result<&str> {
-    let end = read_len_and_end(buf)?.1;
+fn read_lenencode(buf: &[u8]) -> Result<&str> {
+    let end = read_len(buf)?;
 
-    // exclude null byte
+    // exclude length-prefix and null byte suffix
     try_to_str(&buf[4..(end - 1)])
 }
 
