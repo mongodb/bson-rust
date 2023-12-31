@@ -3,15 +3,8 @@ mod props;
 
 use super::*;
 use crate::{
-    doc,
-    oid::ObjectId,
-    raw::error::ValueAccessErrorKind,
-    spec::BinarySubtype,
-    Binary,
-    Bson,
-    DateTime,
-    Regex,
-    Timestamp,
+    doc, oid::ObjectId, raw::error::ValueAccessErrorKind, spec::BinarySubtype, Binary, Bson,
+    DateTime, Regex, Timestamp,
 };
 
 #[test]
@@ -87,10 +80,10 @@ fn iterate() {
 fn rawdoc_to_doc() {
     let rawdoc = rawdoc! {
         "f64": 2.5,
-        "string": "hello",
         "document": {},
         "array": ["binary", "serialized", "object", "notation"],
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1, 2, 3] },
+        "string": "hello",
         "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
         "boolean": true,
         "datetime": DateTime::now(),
@@ -372,18 +365,18 @@ fn int64() {
 #[test]
 fn document_iteration() {
     let rawdoc = rawdoc! {
-        "f64": 2.5,
-        "string": "hello",
-        "document": {},
-        "array": ["binary", "serialized", "object", "notation"],
-        "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
+         "f64": 2.5,
+         "string": "hello",
+         "document": {},
+         "array": ["binary", "serialized", "object", "notation"],
+         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
         "object_id": ObjectId::from_bytes([1, 2, 3, 4, 5,6,7,8,9,10, 11,12]),
-        "boolean": true,
-        "datetime": DateTime::now(),
-        "null": RawBson::Null,
-        "regex": Regex { pattern: String::from(r"end\s*$"), options: String::from("i") },
-        "javascript": RawBson::JavaScriptCode(String::from("console.log(console);")),
-        "symbol": RawBson::Symbol(String::from("artist-formerly-known-as")),
+         "boolean": true,
+         "datetime": DateTime::now(),
+         "null": RawBson::Null,
+         "regex": Regex { pattern: String::from(r"end\s*$"), options: String::from("i") },
+         "javascript": RawBson::JavaScriptCode(String::from("console.log(console);")),
+         "symbol": RawBson::Symbol(String::from("artist-formerly-known-as")),
         "javascript_with_scope": RawJavaScriptCodeWithScope {
             code: String::from("console.log(msg);"),
             scope: rawdoc! { "ok": true }

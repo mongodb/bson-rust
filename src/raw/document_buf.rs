@@ -8,22 +8,13 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    de::MIN_BSON_DOCUMENT_SIZE,
-    spec::BinarySubtype,
-    Document,
-    RawBinaryRef,
+    de::MIN_BSON_DOCUMENT_SIZE, spec::BinarySubtype, Document, RawBinaryRef,
     RawJavaScriptCodeWithScopeRef,
 };
 
 use super::{
-    bson::RawBson,
-    serde::OwnedOrBorrowedRawDocument,
-    Error,
-    ErrorKind,
-    Iter,
-    RawBsonRef,
-    RawDocument,
-    Result,
+    bson::RawBson, serde::OwnedOrBorrowedRawDocument, Error, ErrorKind, Iter, RawBsonRef,
+    RawDocument, Result,
 };
 
 /// An owned BSON document (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
@@ -146,8 +137,8 @@ impl RawDocumentBuf {
     /// There is no owning iterator for [`RawDocumentBuf`]. If you need ownership over
     /// elements that might need to allocate, you must explicitly convert
     /// them to owned types yourself.
-    pub fn iter(&self) -> Iter<'_> {
-        self.into_iter()
+    pub fn iter(&self) -> Box<dyn Iterator<Item = Result<(&'_ str, RawBsonRef<'_>)>> + '_> {
+        Iter::new(self).into_eager()
     }
 
     /// Return the contained data as a `Vec<u8>`
@@ -369,11 +360,11 @@ impl TryFrom<&Document> for RawDocumentBuf {
 }
 
 impl<'a> IntoIterator for &'a RawDocumentBuf {
-    type IntoIter = Iter<'a>;
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
     type Item = Result<(&'a str, RawBsonRef<'a>)>;
 
-    fn into_iter(self) -> Iter<'a> {
-        Iter::new(self)
+    fn into_iter(self) -> Box<dyn Iterator<Item = Self::Item> + 'a> {
+        Box::new(Iter::new(self).into_eager())
     }
 }
 

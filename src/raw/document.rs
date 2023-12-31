@@ -8,20 +8,12 @@ use serde::{ser::SerializeMap, Deserialize, Serialize};
 use crate::{
     de::MIN_BSON_DOCUMENT_SIZE,
     raw::{error::ErrorKind, serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
-    DateTime,
-    Timestamp,
+    DateTime, Timestamp,
 };
 
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
-    i32_from_slice,
-    Error,
-    Iter,
-    RawArray,
-    RawBinaryRef,
-    RawBsonRef,
-    RawDocumentBuf,
-    RawRegexRef,
+    i32_from_slice, Error, Iter, RawArray, RawBinaryRef, RawBsonRef, RawDocumentBuf, RawRegexRef,
     Result,
 };
 use crate::{oid::ObjectId, spec::ElementType, Document};
@@ -577,10 +569,10 @@ impl TryFrom<&RawDocument> for crate::Document {
 }
 
 impl<'a> IntoIterator for &'a RawDocument {
-    type IntoIter = Iter<'a>;
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
     type Item = Result<(&'a str, RawBsonRef<'a>)>;
 
-    fn into_iter(self) -> Iter<'a> {
-        Iter::new(self)
+    fn into_iter(self) -> Box<dyn Iterator<Item = Result<(&'a str, RawBsonRef<'a>)>> + 'a> {
+        Box::new(Iter::new(self).into_eager())
     }
 }

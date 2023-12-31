@@ -5,21 +5,10 @@ use serde::{ser::SerializeSeq, Deserialize, Serialize};
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     serde::OwnedOrBorrowedRawArray,
-    Error,
-    Iter,
-    RawBinaryRef,
-    RawBsonRef,
-    RawDocument,
-    RawRegexRef,
-    Result,
+    Error, RawBinaryRef, RawBsonRef, RawDocument, RawRegexRef, Result,
 };
 use crate::{
-    oid::ObjectId,
-    raw::RAW_ARRAY_NEWTYPE,
-    spec::ElementType,
-    Bson,
-    DateTime,
-    RawArrayBuf,
+    oid::ObjectId, raw::RAW_ARRAY_NEWTYPE, spec::ElementType, Bson, DateTime, RawArrayBuf,
     Timestamp,
 };
 
@@ -267,7 +256,7 @@ impl<'a> IntoIterator for &'a RawArray {
 
 /// An iterator over borrowed raw BSON array values.
 pub struct RawArrayIter<'a> {
-    inner: Iter<'a>,
+    inner: Box<dyn Iterator<Item = Result<(&'a str, RawBsonRef<'a>)>> + 'a>,
 }
 
 impl<'a> Iterator for RawArrayIter<'a> {

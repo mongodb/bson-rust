@@ -120,7 +120,6 @@ mod document;
 mod document_buf;
 mod error;
 mod iter;
-pub mod lazy;
 pub(crate) mod serde;
 #[cfg(test)]
 mod test;
