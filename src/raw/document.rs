@@ -15,6 +15,7 @@ use crate::{
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     i32_from_slice,
+    try_to_str,
     Error,
     Iter,
     RawArray,
@@ -491,6 +492,22 @@ impl RawDocument {
     /// Returns whether this document contains any elements or not.
     pub fn is_empty(&self) -> bool {
         self.as_bytes().len() == MIN_BSON_DOCUMENT_SIZE as usize
+    }
+
+    pub(crate) fn read_cstring_at(&self, start_at: usize) -> Result<&str> {
+        let buf = &self.as_bytes()[start_at..];
+
+        let mut splits = buf.splitn(2, |x| *x == 0);
+        let value = splits
+            .next()
+            .ok_or_else(|| Error::new_without_key(ErrorKind::new_malformed("no value")))?;
+        if splits.next().is_some() {
+            Ok(try_to_str(value)?)
+        } else {
+            Err(Error::new_without_key(ErrorKind::new_malformed(
+                "expected null terminator",
+            )))
+        }
     }
 }
 

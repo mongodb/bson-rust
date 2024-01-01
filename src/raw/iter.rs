@@ -25,7 +25,7 @@ use super::{
     i64_from_slice,
     read_len,
     read_lenencode,
-    read_nullterminated,
+    try_to_str,
     RawBsonRef,
     RawDocument,
 };
@@ -135,103 +135,77 @@ impl<'a> RawElement<'a> {
             ElementType::Undefined => RawBsonRef::Undefined,
             ElementType::MinKey => RawBsonRef::MinKey,
             ElementType::MaxKey => RawBsonRef::MaxKey,
-            ElementType::ObjectId => RawBsonRef::ObjectId(ObjectId::from_bytes(
-                self.doc.as_bytes()[self.start_at..(self.start_at + self.size)]
-                    .try_into()
-                    .map_err(|e| Error::new_with_key(self.key, ErrorKind::new_malformed(e)))?,
-            )),
-            ElementType::EmbeddedDocument => RawBsonRef::Document(RawDocument::from_bytes(
-                &self.doc.as_bytes()[self.start_at..(self.start_at + self.size)],
-            )?),
-            ElementType::Array => RawBsonRef::Array(RawArray::from_doc(RawDocument::from_bytes(
-                &self.doc.as_bytes()[self.start_at..(self.start_at + self.size)],
-            )?)),
-            ElementType::Int32 => {
-                RawBsonRef::Int32(i32_from_slice(&self.doc.as_bytes()[self.start_at..])?)
+            ElementType::ObjectId => RawBsonRef::ObjectId(self.get_oid_at(self.start_at)?),
+            ElementType::Int32 => RawBsonRef::Int32(i32_from_slice(self.slice())?),
+            ElementType::Int64 => RawBsonRef::Int64(i64_from_slice(self.slice())?),
+            ElementType::Double => RawBsonRef::Double(f64_from_slice(self.slice())?),
+            ElementType::String => RawBsonRef::String(self.read_str()?),
+            ElementType::EmbeddedDocument => {
+                RawBsonRef::Document(RawDocument::from_bytes(self.slice())?)
             }
-            ElementType::Int64 => {
-                RawBsonRef::Int64(i64_from_slice(&self.doc.as_bytes()[self.start_at..])?)
+            ElementType::Array => {
+                RawBsonRef::Array(RawArray::from_doc(RawDocument::from_bytes(self.slice())?))
             }
-            ElementType::Double => {
-                RawBsonRef::Double(f64_from_slice(&self.doc.as_bytes()[self.start_at..])?)
+            ElementType::Boolean => {
+                RawBsonRef::Boolean(read_bool(self.slice()).map_err(|e| self.malformed_error(e))?)
             }
-            ElementType::String => {
-                RawBsonRef::String(read_lenencode(&self.doc.as_bytes()[self.start_at..])?)
+            ElementType::DateTime => {
+                RawBsonRef::DateTime(DateTime::from_millis(i64_from_slice(self.slice())?))
             }
-            ElementType::Boolean => RawBsonRef::Boolean(
-                read_bool(&self.doc.as_bytes()[self.start_at..])
-                    .map_err(|e| Error::new_with_key(self.key, ErrorKind::new_malformed(e)))?,
-            ),
-            ElementType::DateTime => RawBsonRef::DateTime(DateTime::from_millis(i64_from_slice(
-                &self.doc.as_bytes()[self.start_at..],
-            )?)),
             ElementType::Decimal128 => RawBsonRef::Decimal128(Decimal128::from_bytes(
-                self.doc.as_bytes()[self.start_at..(self.start_at + self.size)]
+                self.slice()
                     .try_into()
-                    .map_err(|e| Error::new_with_key(self.key, ErrorKind::new_malformed(e)))?,
+                    .map_err(|e| self.malformed_error(e))?,
             )),
-            ElementType::JavaScriptCode => {
-                RawBsonRef::JavaScriptCode(read_lenencode(&self.doc.as_bytes()[self.start_at..])?)
-            }
-            ElementType::Symbol => {
-                RawBsonRef::Symbol(read_lenencode(&self.doc.as_bytes()[self.start_at..])?)
-            }
-            ElementType::DbPointer => {
-                let namespace = read_lenencode(&self.doc.as_bytes()[self.start_at..])?;
-                let oid_offset = self.start_at + 4 + namespace.len() + 1;
-                let id = ObjectId::from_bytes(
-                    self.doc.as_bytes()[oid_offset..(oid_offset + 12)]
-                        .try_into()
-                        .unwrap(),
-                );
-                RawBsonRef::DbPointer(RawDbPointerRef { namespace, id })
-            }
+            ElementType::JavaScriptCode => RawBsonRef::JavaScriptCode(self.read_str()?),
+            ElementType::Symbol => RawBsonRef::Symbol(self.read_str()?),
+            ElementType::DbPointer => RawBsonRef::DbPointer(RawDbPointerRef {
+                namespace: read_lenencode(self.slice())?,
+                id: self.get_oid_at(self.start_at + (self.size - 12))?,
+            }),
             ElementType::RegularExpression => {
-                let pattern = read_nullterminated(&self.doc.as_bytes()[self.start_at..])?;
-                let options = read_nullterminated(
-                    &self.doc.as_bytes()[(self.start_at + pattern.len() + 1)..],
-                )?;
-                RawBsonRef::RegularExpression(RawRegexRef { pattern, options })
+                let pattern = self.doc.read_cstring_at(self.start_at)?;
+                RawBsonRef::RegularExpression(RawRegexRef {
+                    pattern,
+                    options: self
+                        .doc
+                        .read_cstring_at(self.start_at + pattern.len() + 1)?,
+                })
             }
             ElementType::Timestamp => RawBsonRef::Timestamp(
-                Timestamp::from_reader(&self.doc.as_bytes()[self.start_at..])
-                    .map_err(|e| Error::new_with_key(self.key, ErrorKind::new_malformed(e)))?,
+                Timestamp::from_reader(self.slice()).map_err(|e| self.malformed_error(e))?,
             ),
             ElementType::Binary => {
-                let len = i32_from_slice(&self.doc.as_bytes()[self.start_at..])? as usize;
+                let len = self.size.checked_sub(4 + 1).ok_or_else(|| {
+                    self.malformed_error(format!("length exceeds maximum: {}", self.size))
+                })?;
+
                 let data_start = self.start_at + 4 + 1;
 
-                if len >= i32::MAX as usize {
-                    return Err(Error::new_with_key(
-                        self.key,
-                        ErrorKind::new_malformed(format!("binary length exceeds maximum: {}", len)),
-                    ));
+                if self.size >= i32::MAX as usize {
+                    return Err(
+                        self.malformed_error(format!("binary length exceeds maximum: {}", len))
+                    );
                 }
 
                 let subtype = BinarySubtype::from(self.doc.as_bytes()[self.start_at + 4]);
                 let data = match subtype {
                     BinarySubtype::BinaryOld => {
                         if len < 4 {
-                            return Err(Error::new_with_key(
-                                self.key,
-                                ErrorKind::new_malformed(
-                                    "old binary subtype has no inner declared length",
-                                ),
+                            return Err(self.malformed_error(
+                                "old binary subtype has no inner declared length",
                             ));
                         }
                         let oldlength =
                             i32_from_slice(&self.doc.as_bytes()[data_start..])? as usize;
                         if checked_add(oldlength, 4)? != len {
-                            return Err(Error::new_with_key(
-                                self.key,
-                                ErrorKind::new_malformed(
-                                    "old binary subtype has wrong inner declared length",
-                                ),
+                            return Err(self.malformed_error(
+                                "old binary subtype has wrong inner declared length",
                             ));
                         }
-                        &self.doc.as_bytes()[(data_start + 4)..(data_start + len)]
+                        self.slice_bounds(data_start + 4, len - 4)
                     }
-                    _ => &self.doc.as_bytes()[data_start..(data_start + len)],
+                    _ => self.slice_bounds(data_start, len),
                 };
                 RawBsonRef::Binary(RawBinaryRef {
                     subtype,
@@ -239,7 +213,11 @@ impl<'a> RawElement<'a> {
                 })
             }
             ElementType::JavaScriptCodeWithScope => {
-                let slice = &self.doc.as_bytes()[self.start_at..(self.start_at + self.size)];
+                if self.size < MIN_CODE_WITH_SCOPE_SIZE as usize {
+                    return Err(self.malformed_error("code with scope length too small"));
+                }
+
+                let slice = self.slice();
                 let code = read_lenencode(&slice[4..])?;
                 let scope_start = 4 + 4 + code.len() + 1;
                 let scope = RawDocument::from_bytes(&slice[scope_start..])?;
@@ -247,6 +225,30 @@ impl<'a> RawElement<'a> {
                 RawBsonRef::JavaScriptCodeWithScope(RawJavaScriptCodeWithScopeRef { code, scope })
             }
         })
+    }
+
+    fn malformed_error(&self, e: impl ToString) -> Error {
+        Error::new_with_key(self.key, ErrorKind::new_malformed(e))
+    }
+
+    fn slice(&self) -> &'a [u8] {
+        self.slice_bounds(self.start_at, self.size)
+    }
+
+    fn slice_bounds(&self, start_at: usize, size: usize) -> &'a [u8] {
+        &self.doc.as_bytes()[start_at..(start_at + size)]
+    }
+
+    fn read_str(&self) -> Result<&'a str> {
+        try_to_str(self.slice_bounds(self.start_at + 4, self.size - 4 - 1))
+    }
+
+    fn get_oid_at(&self, start_at: usize) -> Result<ObjectId> {
+        Ok(ObjectId::from_bytes(
+            self.doc.as_bytes()[start_at..(start_at + 12)]
+                .try_into()
+                .map_err(|e| Error::new_with_key(self.key, ErrorKind::new_malformed(e)))?,
+        ))
     }
 }
 
@@ -257,6 +259,10 @@ impl<'a> Iter<'a> {
                 Ok((val.key, val.value()?))
             })
         }))
+    }
+
+    fn get_next_length_at(&self, start_at: usize) -> Result<i32> {
+        i32_from_slice(&self.doc.as_bytes()[start_at..])
     }
 }
 
@@ -283,7 +289,7 @@ impl<'a> Iterator for Iter<'a> {
             ))));
         }
 
-        let key = match read_nullterminated(&self.doc.as_bytes()[self.offset + 1..]) {
+        let key = match self.doc.read_cstring_at(self.offset + 1) {
             Ok(k) => k,
             Err(e) => {
                 self.valid = false;
@@ -291,7 +297,7 @@ impl<'a> Iterator for Iter<'a> {
             }
         };
 
-        let valueoffset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
+        let offset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
         let kvp_result = try_with_key(key, || {
             let element_type = match ElementType::from(self.doc.as_bytes()[self.offset]) {
                 Some(et) => et,
@@ -307,52 +313,35 @@ impl<'a> Iterator for Iter<'a> {
             };
 
             let element_size = match element_type {
+                ElementType::Boolean => 1,
                 ElementType::Int32 => 4,
                 ElementType::Int64 => 8,
                 ElementType::Double => 8,
-                ElementType::String => read_len(&self.doc.as_bytes()[valueoffset..])?,
-                ElementType::EmbeddedDocument => self.next_document_len(valueoffset)?,
-                ElementType::Array => self.next_document_len(valueoffset)?,
-                ElementType::Binary => {
-                    (i32_from_slice(&self.doc.as_bytes()[valueoffset..])? + 4 + 1) as usize
-                }
-                ElementType::ObjectId => 12,
-                ElementType::Boolean => 1,
                 ElementType::DateTime => 8,
-                ElementType::RegularExpression => {
-                    let pattern = read_nullterminated(&self.doc.as_bytes()[valueoffset..])?;
-                    let options = read_nullterminated(
-                        &self.doc.as_bytes()[(valueoffset + pattern.len() + 1)..],
-                    )?;
-                    pattern.len() + 1 + options.len() + 1
-                }
+                ElementType::Timestamp => 8,
+                ElementType::ObjectId => 12,
+                ElementType::Decimal128 => 16,
                 ElementType::Null => 0,
                 ElementType::Undefined => 0,
-                ElementType::Timestamp => 8,
-                ElementType::Symbol => read_len(&self.doc.as_bytes()[valueoffset..])?,
-                ElementType::JavaScriptCode => read_len(&self.doc.as_bytes()[valueoffset..])?,
-                ElementType::JavaScriptCodeWithScope => {
-                    let length = (i32_from_slice(&self.doc.as_bytes()[valueoffset..])?) as usize;
-
-                    if length < MIN_CODE_WITH_SCOPE_SIZE as usize {
-                        return Err(Error::new_without_key(ErrorKind::new_malformed(
-                            "code with scope length too small",
-                        )));
-                    }
-
-                    length
-                }
-                ElementType::DbPointer => {
-                    let length = read_len(&self.doc.as_bytes()[valueoffset..])?;
-                    length + 12
-                }
-                ElementType::Decimal128 => 16,
                 ElementType::MinKey => 0,
                 ElementType::MaxKey => 0,
+                ElementType::String => read_len(&self.doc.as_bytes()[offset..])?,
+                ElementType::EmbeddedDocument => self.next_document_len(offset)?,
+                ElementType::Array => self.next_document_len(offset)?,
+                ElementType::Binary => (self.get_next_length_at(offset)? + 4 + 1) as usize,
+                ElementType::RegularExpression => {
+                    let pattern = self.doc.read_cstring_at(offset)?;
+                    let options = self.doc.read_cstring_at(offset + pattern.len() + 1)?;
+                    pattern.len() + 1 + options.len() + 1
+                }
+                ElementType::DbPointer => read_len(&self.doc.as_bytes()[offset..])? + 12,
+                ElementType::Symbol => read_len(&self.doc.as_bytes()[offset..])?,
+                ElementType::JavaScriptCode => read_len(&self.doc.as_bytes()[offset..])?,
+                ElementType::JavaScriptCodeWithScope => self.get_next_length_at(offset)? as usize,
             };
 
-            self.verify_enough_bytes(valueoffset, element_size)?;
-            self.offset = valueoffset + element_size;
+            self.verify_enough_bytes(offset, element_size)?;
+            self.offset = offset + element_size;
 
             Ok((element_type, element_size))
         });
@@ -366,7 +355,7 @@ impl<'a> Iterator for Iter<'a> {
                 key,
                 kind,
                 doc: self.doc,
-                start_at: valueoffset,
+                start_at: offset,
                 size,
             }),
             Err(e) => Err(e),

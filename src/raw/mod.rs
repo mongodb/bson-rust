@@ -196,22 +196,6 @@ fn i64_from_slice(val: &[u8]) -> Result<i64> {
     Ok(i64::from_le_bytes(arr))
 }
 
-fn read_nullterminated(buf: &[u8]) -> Result<&str> {
-    let mut splits = buf.splitn(2, |x| *x == 0);
-    let value = splits.next().ok_or_else(|| {
-        Error::new_without_key(ErrorKind::MalformedValue {
-            message: "no value".into(),
-        })
-    })?;
-    if splits.next().is_some() {
-        Ok(try_to_str(value)?)
-    } else {
-        Err(Error::new_without_key(ErrorKind::MalformedValue {
-            message: "expected null terminator".into(),
-        }))
-    }
-}
-
 fn read_len(buf: &[u8]) -> Result<usize> {
     if buf.len() < 4 {
         return Err(Error::new_without_key(ErrorKind::MalformedValue {
