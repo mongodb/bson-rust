@@ -5,8 +5,8 @@ use crate::{
     oid::ObjectId,
     raw::{Error, ErrorKind, Result},
     spec::{BinarySubtype, ElementType},
-    DateTime, Decimal128, RawArray, RawBinaryRef, RawDbPointerRef, RawJavaScriptCodeWithScopeRef,
-    RawRegexRef, Timestamp,
+    Bson, DateTime, Decimal128, RawArray, RawBinaryRef, RawBson, RawDbPointerRef,
+    RawJavaScriptCodeWithScopeRef, RawRegexRef, Timestamp,
 };
 
 use super::{
@@ -69,15 +69,51 @@ impl<'a> Iter<'a> {
 
 #[derive(Clone)]
 pub struct RawLazyElement<'a> {
-    pub key: &'a str,
-    pub kind: ElementType,
+    key: &'a str,
+    kind: ElementType,
     doc: &'a RawDocument,
     start_at: usize,
     size: usize,
 }
 
+impl<'a> TryInto<RawBsonRef<'a>> for RawLazyElement<'a> {
+    type Error = Error;
+
+    fn try_into(self) -> Result<RawBsonRef<'a>> {
+        self.value()
+    }
+}
+
+impl<'a> TryInto<RawBson> for RawLazyElement<'a> {
+    type Error = Error;
+
+    fn try_into(self) -> Result<RawBson> {
+        Ok(self.value()?.to_raw_bson())
+    }
+}
+
+impl<'a> TryInto<Bson> for RawLazyElement<'a> {
+    type Error = Error;
+
+    fn try_into(self) -> Result<Bson> {
+        self.value()?.to_raw_bson().try_into()
+    }
+}
+
 impl<'a> RawLazyElement<'a> {
-    pub fn resolve(self) -> Result<RawBsonRef<'a>> {
+    pub fn len(&self) -> usize {
+        self.size
+    }
+
+    pub fn key(&self) -> String {
+        self.key.to_string()
+    }
+
+    pub fn element_type(&self) -> ElementType {
+        self.kind
+    }
+
+    pub fn value(&self) -> Result<RawBsonRef<'a>> {
         Ok(match self.kind {
             ElementType::Null => RawBsonRef::Null,
             ElementType::Undefined => RawBsonRef::Undefined,
@@ -202,7 +238,7 @@ impl<'a> Iter<'a> {
     pub(crate) fn into_eager(self) -> Box<impl Iterator<Item = Result<(&'a str, RawBsonRef<'a>)>>> {
         Box::new(self.map(|outer| {
             outer.and_then(|val| -> Result<(&'a str, RawBsonRef<'a>)> {
-                Ok((val.key, val.resolve()?))
+                Ok((val.key, val.value()?))
             })
         }))
     }

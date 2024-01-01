@@ -6,24 +6,14 @@ use serde_bytes::Bytes;
 use super::{
     bson::RawBson,
     serde::{bson_visitor::OwnedOrBorrowedRawBsonVisitor, OwnedOrBorrowedRawBson},
-    Error,
-    RawArray,
-    RawDocument,
-    Result,
+    Error, RawArray, RawDocument, Result,
 };
 use crate::{
     extjson,
     oid::{self, ObjectId},
     raw::{RawJavaScriptCodeWithScope, RAW_BSON_NEWTYPE},
     spec::{BinarySubtype, ElementType},
-    Binary,
-    Bson,
-    DbPointer,
-    Decimal128,
-    RawArrayBuf,
-    RawDocumentBuf,
-    Regex,
-    Timestamp,
+    Binary, Bson, DbPointer, Decimal128, RawArrayBuf, RawDocumentBuf, Regex, Timestamp,
 };
 
 /// A BSON value referencing raw bytes stored elsewhere.

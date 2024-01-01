@@ -141,6 +141,24 @@ impl RawDocumentBuf {
         Iter::new(self).into_eager()
     }
 
+    /// Gets an iterator over the elements in the [`RawDocumentBuf`], which yields
+    /// `Result<(&str, RawLazyElement<'_>)>`.
+    ///
+    /// This iterator, which underpins the implementation of the
+    /// default iterator, produces `RawLazyElement` objects, which
+    /// hold a view onto the document but do not parse out or
+    /// construct values until the `.value()` or `.try_into()` methods
+    /// are called.
+    ///
+    /// # Note:
+    ///
+    /// There is no owning iterator for [`RawDocumentBuf`]. If you
+    /// need ownership over elements that might need to allocate, you
+    /// must explicitly convert them to owned types yourself.
+    pub fn lazy_iter(&self) -> Iter<'_> {
+        Iter::new(self)
+    }
+
     /// Return the contained data as a `Vec<u8>`
     ///
     /// ```

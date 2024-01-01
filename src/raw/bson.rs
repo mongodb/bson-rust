@@ -6,27 +6,14 @@ use crate::{
     oid::{self, ObjectId},
     raw::RAW_BSON_NEWTYPE,
     spec::ElementType,
-    Binary,
-    Bson,
-    DbPointer,
-    Decimal128,
-    RawArray,
-    RawArrayBuf,
-    RawBinaryRef,
-    RawBsonRef,
-    RawDbPointerRef,
-    RawDocument,
-    RawDocumentBuf,
-    RawJavaScriptCodeWithScopeRef,
-    RawRegexRef,
-    Regex,
-    Timestamp,
+    Binary, Bson, DbPointer, Decimal128, RawArray, RawArrayBuf, RawBinaryRef, RawBsonRef,
+    RawDbPointerRef, RawDocument, RawDocumentBuf, RawJavaScriptCodeWithScopeRef, RawRegexRef,
+    Regex, Timestamp,
 };
 
 use super::{
     serde::{bson_visitor::OwnedOrBorrowedRawBsonVisitor, OwnedOrBorrowedRawBson},
-    Error,
-    Result,
+    Error, Result,
 };
 
 /// A BSON value backed by owned raw BSON bytes.
