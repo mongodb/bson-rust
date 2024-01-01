@@ -124,14 +124,16 @@ impl<'a> RawLazyElement<'a> {
             ElementType::Symbol => {
                 RawBsonRef::Symbol(read_lenencode(&self.doc.as_bytes()[self.start_at..])?)
             }
-            ElementType::DbPointer => RawBsonRef::DbPointer(RawDbPointerRef {
-                namespace: read_lenencode(&self.doc.as_bytes()[self.start_at..])?,
-                id: ObjectId::from_bytes(
-                    self.doc.as_bytes()[self.start_at..(self.start_at + self.size)]
+            ElementType::DbPointer => {
+                let namespace = read_lenencode(&self.doc.as_bytes()[self.start_at..])?;
+                let oid_offset = self.start_at + 4 + namespace.len() + 1;
+                let id = ObjectId::from_bytes(
+                    self.doc.as_bytes()[oid_offset..(oid_offset + 12)]
                         .try_into()
-                        .map_err(|e| Error::new_with_key(self.key, ErrorKind::new_malformed(e)))?,
-                ),
-            }),
+                        .unwrap(),
+                );
+                RawBsonRef::DbPointer(RawDbPointerRef { namespace, id })
+            }
             ElementType::RegularExpression => {
                 let pattern = read_nullterminated(&self.doc.as_bytes()[self.start_at..])?;
                 let options = read_nullterminated(
@@ -290,7 +292,7 @@ impl<'a> Iterator for Iter<'a> {
                 }
                 ElementType::DbPointer => {
                     let length = read_len(&self.doc.as_bytes()[valueoffset..])?;
-                    length + 1 + 12
+                    length + 12
                 }
                 ElementType::Decimal128 => 16,
                 ElementType::MinKey => 0,
