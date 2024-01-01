@@ -8,12 +8,20 @@ use serde::{ser::SerializeMap, Deserialize, Serialize};
 use crate::{
     de::MIN_BSON_DOCUMENT_SIZE,
     raw::{error::ErrorKind, serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
-    DateTime, Timestamp,
+    DateTime,
+    Timestamp,
 };
 
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
-    i32_from_slice, Error, Iter, RawArray, RawBinaryRef, RawBsonRef, RawDocumentBuf, RawRegexRef,
+    i32_from_slice,
+    Error,
+    Iter,
+    RawArray,
+    RawBinaryRef,
+    RawBsonRef,
+    RawDocumentBuf,
+    RawRegexRef,
     Result,
 };
 use crate::{oid::ObjectId, spec::ElementType, Document};

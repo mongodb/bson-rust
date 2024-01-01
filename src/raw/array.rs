@@ -5,10 +5,20 @@ use serde::{ser::SerializeSeq, Deserialize, Serialize};
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     serde::OwnedOrBorrowedRawArray,
-    Error, RawBinaryRef, RawBsonRef, RawDocument, RawRegexRef, Result,
+    Error,
+    RawBinaryRef,
+    RawBsonRef,
+    RawDocument,
+    RawRegexRef,
+    Result,
 };
 use crate::{
-    oid::ObjectId, raw::RAW_ARRAY_NEWTYPE, spec::ElementType, Bson, DateTime, RawArrayBuf,
+    oid::ObjectId,
+    raw::RAW_ARRAY_NEWTYPE,
+    spec::ElementType,
+    Bson,
+    DateTime,
+    RawArrayBuf,
     Timestamp,
 };
 

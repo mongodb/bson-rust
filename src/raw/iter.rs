@@ -5,13 +5,29 @@ use crate::{
     oid::ObjectId,
     raw::{Error, ErrorKind, Result},
     spec::{BinarySubtype, ElementType},
-    Bson, DateTime, Decimal128, RawArray, RawBinaryRef, RawBson, RawDbPointerRef,
-    RawJavaScriptCodeWithScopeRef, RawRegexRef, Timestamp,
+    Bson,
+    DateTime,
+    Decimal128,
+    RawArray,
+    RawBinaryRef,
+    RawBson,
+    RawDbPointerRef,
+    RawJavaScriptCodeWithScopeRef,
+    RawRegexRef,
+    Timestamp,
 };
 
 use super::{
-    checked_add, error::try_with_key, f64_from_slice, i32_from_slice, i64_from_slice, read_len,
-    read_lenencode, read_nullterminated, RawBsonRef, RawDocument,
+    checked_add,
+    error::try_with_key,
+    f64_from_slice,
+    i32_from_slice,
+    i64_from_slice,
+    read_len,
+    read_lenencode,
+    read_nullterminated,
+    RawBsonRef,
+    RawDocument,
 };
 
 /// An iterator over the document's entries.
