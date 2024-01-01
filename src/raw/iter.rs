@@ -315,7 +315,7 @@ impl<'a> Iterator for Iter<'a> {
                 kind,
                 doc: self.doc,
                 start_at: valueoffset,
-                size: size,
+                size,
             }),
             Err(e) => Err(e),
         })

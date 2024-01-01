@@ -240,6 +240,12 @@ fn read_len(buf: &[u8]) -> Result<usize> {
         }));
     }
 
+    if buf[end - 1] != 0 {
+        return Err(Error::new_without_key(ErrorKind::MalformedValue {
+            message: "expected string to be null-terminated".to_string(),
+        }));
+    }
+
     Ok(length as usize + 4)
 }
 
