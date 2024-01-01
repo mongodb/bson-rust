@@ -162,10 +162,10 @@ impl RawDocument {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn get(&self, key: impl AsRef<str>) -> Result<Option<RawBsonRef<'_>>> {
-        for result in self.into_iter() {
-            let (k, v) = result?;
-            if key.as_ref() == k {
-                return Ok(Some(v));
+        for elem in Iter::new(self) {
+            let elem = elem?;
+            if key.as_ref() == elem.key() {
+                return Ok(Some(elem.try_into()?));
             }
         }
         Ok(None)

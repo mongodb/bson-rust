@@ -68,7 +68,7 @@ impl<'a> Iter<'a> {
 }
 
 #[derive(Clone)]
-pub struct RawLazyElement<'a> {
+pub struct RawElement<'a> {
     key: &'a str,
     kind: ElementType,
     doc: &'a RawDocument,
@@ -76,7 +76,7 @@ pub struct RawLazyElement<'a> {
     size: usize,
 }
 
-impl<'a> TryInto<RawBsonRef<'a>> for RawLazyElement<'a> {
+impl<'a> TryInto<RawBsonRef<'a>> for RawElement<'a> {
     type Error = Error;
 
     fn try_into(self) -> Result<RawBsonRef<'a>> {
@@ -84,7 +84,7 @@ impl<'a> TryInto<RawBsonRef<'a>> for RawLazyElement<'a> {
     }
 }
 
-impl<'a> TryInto<RawBson> for RawLazyElement<'a> {
+impl<'a> TryInto<RawBson> for RawElement<'a> {
     type Error = Error;
 
     fn try_into(self) -> Result<RawBson> {
@@ -92,7 +92,7 @@ impl<'a> TryInto<RawBson> for RawLazyElement<'a> {
     }
 }
 
-impl<'a> TryInto<Bson> for RawLazyElement<'a> {
+impl<'a> TryInto<Bson> for RawElement<'a> {
     type Error = Error;
 
     fn try_into(self) -> Result<Bson> {
@@ -100,7 +100,7 @@ impl<'a> TryInto<Bson> for RawLazyElement<'a> {
     }
 }
 
-impl<'a> RawLazyElement<'a> {
+impl<'a> RawElement<'a> {
     pub fn len(&self) -> usize {
         self.size
     }
@@ -245,9 +245,9 @@ impl<'a> Iter<'a> {
 }
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = Result<RawLazyElement<'a>>;
+    type Item = Result<RawElement<'a>>;
 
-    fn next(&mut self) -> Option<Result<RawLazyElement<'a>>> {
+    fn next(&mut self) -> Option<Result<RawElement<'a>>> {
         if !self.valid {
             return None;
         } else if self.offset == self.doc.as_bytes().len() - 1 {
@@ -346,7 +346,7 @@ impl<'a> Iterator for Iter<'a> {
         }
 
         Some(match kvp_result {
-            Ok((kind, size)) => Ok(RawLazyElement {
+            Ok((kind, size)) => Ok(RawElement {
                 key,
                 kind,
                 doc: self.doc,
