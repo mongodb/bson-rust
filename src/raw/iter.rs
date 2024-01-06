@@ -32,6 +32,34 @@ use super::{
 
 /// An iterator over the document's entries.
 pub struct Iter<'a> {
+    inner: RawIter<'a>,
+}
+
+impl<'a> Iter<'a> {
+    pub(crate) fn new(doc: &'a RawDocument) -> Self {
+        Iter {
+            inner: RawIter::new(doc),
+        }
+    }
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = Result<(&'a str, RawBsonRef<'a>)>;
+
+    fn next(&mut self) -> Option<Result<(&'a str, RawBsonRef<'a>)>> {
+        match self.inner.next() {
+            Some(Ok(elem)) => match elem.value() {
+                Err(e) => Some(Err(e)),
+                Ok(value) => Some(Ok((elem.key, value))),
+            },
+            Some(Err(e)) => Some(Err(e)),
+            None => None,
+        }
+    }
+}
+
+/// An iterator over the document's elements.
+pub struct RawIter<'a> {
     doc: &'a RawDocument,
     offset: usize,
 
@@ -40,7 +68,7 @@ pub struct Iter<'a> {
     valid: bool,
 }
 
-impl<'a> Iter<'a> {
+impl<'a> RawIter<'a> {
     pub(crate) fn new(doc: &'a RawDocument) -> Self {
         Self {
             doc,
@@ -121,8 +149,8 @@ impl<'a> RawElement<'a> {
         self.size
     }
 
-    pub fn key(&self) -> String {
-        self.key.to_string()
+    pub fn key(&self) -> &str {
+        self.key
     }
 
     pub fn element_type(&self) -> ElementType {
@@ -252,21 +280,13 @@ impl<'a> RawElement<'a> {
     }
 }
 
-impl<'a> Iter<'a> {
-    pub(crate) fn into_eager(self) -> Box<impl Iterator<Item = Result<(&'a str, RawBsonRef<'a>)>>> {
-        Box::new(self.map(|outer| {
-            outer.and_then(|val| -> Result<(&'a str, RawBsonRef<'a>)> {
-                Ok((val.key, val.value()?))
-            })
-        }))
-    }
-
+impl<'a> RawIter<'a> {
     fn get_next_length_at(&self, start_at: usize) -> Result<i32> {
         i32_from_slice(&self.doc.as_bytes()[start_at..])
     }
 }
 
-impl<'a> Iterator for Iter<'a> {
+impl<'a> Iterator for RawIter<'a> {
     type Item = Result<RawElement<'a>>;
 
     fn next(&mut self) -> Option<Result<RawElement<'a>>> {

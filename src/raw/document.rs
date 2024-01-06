@@ -15,13 +15,14 @@ use crate::{
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     i32_from_slice,
+    iter::Iter,
     try_to_str,
     Error,
-    Iter,
     RawArray,
     RawBinaryRef,
     RawBsonRef,
     RawDocumentBuf,
+    RawIter,
     RawRegexRef,
     Result,
 };
@@ -171,7 +172,7 @@ impl RawDocument {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn get(&self, key: impl AsRef<str>) -> Result<Option<RawBsonRef<'_>>> {
-        for elem in Iter::new(self) {
+        for elem in RawIter::new(self) {
             let elem = elem?;
             if key.as_ref() == elem.key() {
                 return Ok(Some(elem.try_into()?));
@@ -594,10 +595,10 @@ impl TryFrom<&RawDocument> for crate::Document {
 }
 
 impl<'a> IntoIterator for &'a RawDocument {
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
+    type IntoIter = Iter<'a>;
     type Item = Result<(&'a str, RawBsonRef<'a>)>;
 
-    fn into_iter(self) -> Box<dyn Iterator<Item = Result<(&'a str, RawBsonRef<'a>)>> + 'a> {
-        Box::new(Iter::new(self).into_eager())
+    fn into_iter(self) -> Iter<'a> {
+        Iter::new(self)
     }
 }

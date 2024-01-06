@@ -17,12 +17,13 @@ use crate::{
 
 use super::{
     bson::RawBson,
+    iter::Iter,
     serde::OwnedOrBorrowedRawDocument,
     Error,
     ErrorKind,
-    Iter,
     RawBsonRef,
     RawDocument,
+    RawIter,
     Result,
 };
 
@@ -146,8 +147,8 @@ impl RawDocumentBuf {
     /// There is no owning iterator for [`RawDocumentBuf`]. If you need ownership over
     /// elements that might need to allocate, you must explicitly convert
     /// them to owned types yourself.
-    pub fn iter(&self) -> Box<dyn Iterator<Item = Result<(&'_ str, RawBsonRef<'_>)>> + '_> {
-        Iter::new(self).into_eager()
+    pub fn iter(&self) -> Iter<'_> {
+        Iter::new(self)
     }
 
     /// Gets an iterator over the elements in the [`RawDocumentBuf`],
@@ -166,8 +167,8 @@ impl RawDocumentBuf {
     /// There is no owning iterator for [`RawDocumentBuf`]. If you
     /// need ownership over elements that might need to allocate, you
     /// must explicitly convert them to owned types yourself.
-    pub fn iter_elements(&self) -> Iter<'_> {
-        Iter::new(self)
+    pub fn iter_elements(&self) -> RawIter<'_> {
+        RawIter::new(self)
     }
 
     /// Return the contained data as a `Vec<u8>`
@@ -389,11 +390,11 @@ impl TryFrom<&Document> for RawDocumentBuf {
 }
 
 impl<'a> IntoIterator for &'a RawDocumentBuf {
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
+    type IntoIter = Iter<'a>;
     type Item = Result<(&'a str, RawBsonRef<'a>)>;
 
-    fn into_iter(self) -> Box<dyn Iterator<Item = Self::Item> + 'a> {
-        Box::new(Iter::new(self).into_eager())
+    fn into_iter(self) -> Iter<'a> {
+        Iter::new(self)
     }
 }
 
