@@ -348,7 +348,7 @@ impl<'a> Iterator for RawIter<'a> {
                 ElementType::String => read_len(&self.doc.as_bytes()[offset..])?,
                 ElementType::EmbeddedDocument => self.next_document_len(offset)?,
                 ElementType::Array => self.next_document_len(offset)?,
-                ElementType::Binary => (self.get_next_length_at(offset)? as usize) + 4 + 1,
+                ElementType::Binary => ((4 + 1 as i32) + self.get_next_length_at(offset)?) as usize,
                 ElementType::RegularExpression => {
                     let pattern = self.doc.read_cstring_at(offset)?;
                     let options = self.doc.read_cstring_at(offset + pattern.len() + 1)?;
