@@ -5,29 +5,13 @@ use crate::{
     oid::ObjectId,
     raw::{Error, ErrorKind, Result},
     spec::{BinarySubtype, ElementType},
-    Bson,
-    DateTime,
-    Decimal128,
-    RawArray,
-    RawBinaryRef,
-    RawBson,
-    RawDbPointerRef,
-    RawJavaScriptCodeWithScopeRef,
-    RawRegexRef,
-    Timestamp,
+    Bson, DateTime, Decimal128, RawArray, RawBinaryRef, RawBson, RawDbPointerRef,
+    RawJavaScriptCodeWithScopeRef, RawRegexRef, Timestamp,
 };
 
 use super::{
-    checked_add,
-    error::try_with_key,
-    f64_from_slice,
-    i32_from_slice,
-    i64_from_slice,
-    read_len,
-    read_lenencode,
-    try_to_str,
-    RawBsonRef,
-    RawDocument,
+    checked_add, error::try_with_key, f64_from_slice, i32_from_slice, i64_from_slice, read_len,
+    read_lenencode, try_to_str, RawBsonRef, RawDocument,
 };
 
 /// An iterator over the document's entries.
@@ -348,7 +332,7 @@ impl<'a> Iterator for RawIter<'a> {
                 ElementType::String => read_len(&self.doc.as_bytes()[offset..])?,
                 ElementType::EmbeddedDocument => self.next_document_len(offset)?,
                 ElementType::Array => self.next_document_len(offset)?,
-                ElementType::Binary => ((4 + 1 as i32) + self.get_next_length_at(offset)?) as usize,
+                ElementType::Binary => ((4 + 1_i32) + self.get_next_length_at(offset)?) as usize,
                 ElementType::RegularExpression => {
                     let pattern = self.doc.read_cstring_at(offset)?;
                     let options = self.doc.read_cstring_at(offset + pattern.len() + 1)?;
