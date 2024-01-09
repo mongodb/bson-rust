@@ -37,7 +37,7 @@ use crate::{
 };
 
 /// Possible BSON value types.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub enum Bson {
     /// 64-bit binary floating point
     Double(f64),
@@ -50,6 +50,7 @@ pub enum Bson {
     /// Boolean value
     Boolean(bool),
     /// Null value
+    #[default]
     Null,
     /// Regular expression
     RegularExpression(Regex),
@@ -85,12 +86,6 @@ pub enum Bson {
 
 /// Alias for `Vec<Bson>`.
 pub type Array = Vec<Bson>;
-
-impl Default for Bson {
-    fn default() -> Self {
-        Bson::Null
-    }
-}
 
 impl Display for Bson {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
