@@ -5,13 +5,29 @@ use crate::{
     oid::ObjectId,
     raw::{Error, ErrorKind, Result},
     spec::{BinarySubtype, ElementType},
-    Bson, DateTime, Decimal128, RawArray, RawBinaryRef, RawBson, RawDbPointerRef,
-    RawJavaScriptCodeWithScopeRef, RawRegexRef, Timestamp,
+    Bson,
+    DateTime,
+    Decimal128,
+    RawArray,
+    RawBinaryRef,
+    RawBson,
+    RawDbPointerRef,
+    RawJavaScriptCodeWithScopeRef,
+    RawRegexRef,
+    Timestamp,
 };
 
 use super::{
-    checked_add, error::try_with_key, f64_from_slice, i32_from_slice, i64_from_slice, read_len,
-    read_lenencode, try_to_str, RawBsonRef, RawDocument,
+    checked_add,
+    error::try_with_key,
+    f64_from_slice,
+    i32_from_slice,
+    i64_from_slice,
+    read_len,
+    read_lenencode,
+    try_to_str,
+    RawBsonRef,
+    RawDocument,
 };
 
 /// An iterator over the document's entries.
@@ -348,7 +364,7 @@ impl<'a> Iterator for RawIter<'a> {
                 ElementType::DbPointer => read_len(&self.doc.as_bytes()[offset..])? + 12,
                 ElementType::Symbol => read_len(&self.doc.as_bytes()[offset..])?,
                 ElementType::JavaScriptCode => read_len(&self.doc.as_bytes()[offset..])?,
-                ElementType::JavaScriptCodeWithScope => self.get_next_length_at(offset)? as usize,
+                ElementType::JavaScriptCodeWithScope => self.get_next_length_at(offset)?,
             };
 
             self.verify_enough_bytes(offset, element_size)?;
