@@ -265,8 +265,15 @@ impl<'a> RawElement<'a> {
 }
 
 impl<'a> RawIter<'a> {
-    fn get_next_length_at(&self, start_at: usize) -> Result<i32> {
-        i32_from_slice(&self.doc.as_bytes()[start_at..])
+    fn get_next_length_at(&self, start_at: usize) -> Result<usize> {
+        let len = i32_from_slice(&self.doc.as_bytes()[start_at..])?;
+        if len < 0 {
+            Err(Error::new_without_key(ErrorKind::new_malformed(
+                "lengths can't be negative",
+            )))
+        } else {
+            Ok(len as usize)
+        }
     }
 }
 
@@ -332,7 +339,7 @@ impl<'a> Iterator for RawIter<'a> {
                 ElementType::String => read_len(&self.doc.as_bytes()[offset..])?,
                 ElementType::EmbeddedDocument => self.next_document_len(offset)?,
                 ElementType::Array => self.next_document_len(offset)?,
-                ElementType::Binary => ((4 + 1_i32) + self.get_next_length_at(offset)?) as usize,
+                ElementType::Binary => self.get_next_length_at(offset)? + 4 + 1,
                 ElementType::RegularExpression => {
                     let pattern = self.doc.read_cstring_at(offset)?;
                     let options = self.doc.read_cstring_at(offset + pattern.len() + 1)?;
