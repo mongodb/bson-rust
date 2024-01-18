@@ -181,7 +181,7 @@ macro_rules! bson {
     // Any Into<Bson> type.
     // Must be below every other rule.
     ($other:expr) => {
-        $crate::Bson::from($other)
+        <_ as ::std::convert::Into<$crate::Bson>>::into($other)
     };
 }
 
@@ -392,7 +392,7 @@ macro_rules! rawbson {
     // Any Into<RawBson> type.
     // Must be below every other rule.
     ($other:expr) => {
-        $crate::RawBson::from($other)
+        <_ as ::std::convert::Into<$crate::RawBson>>::into($other)
     };
 }
 
@@ -420,4 +420,39 @@ macro_rules! rawdoc {
         $crate::rawbson!(@object object () ($($tt)+) ($($tt)+));
         object
     }};
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{bson::Bson, RawBson};
+
+    struct Custom;
+
+    impl Into<Bson> for Custom {
+        fn into(self) -> Bson {
+            "foo".into()
+        }
+    }
+
+    impl Into<RawBson> for Custom {
+        fn into(self) -> RawBson {
+            "foo".into()
+        }
+    }
+
+    #[test]
+    fn can_use_macro_with_into_bson() {
+        _ = bson!({
+            "a": Custom,
+        });
+        _ = doc!{
+            "a": Custom,
+        };
+        _ = rawbson!({
+            "a": Custom,
+        });
+        _ = rawdoc!{
+            "a": Custom,
+        };
+    }
 }
