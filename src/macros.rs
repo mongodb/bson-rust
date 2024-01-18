@@ -181,7 +181,7 @@ macro_rules! bson {
     // Any Into<Bson> type.
     // Must be below every other rule.
     ($other:expr) => {
-        $crate::Bson::from($other)
+        <_ as ::std::convert::Into<$crate::Bson>>::into($other)
     };
 }
 
@@ -392,7 +392,7 @@ macro_rules! rawbson {
     // Any Into<RawBson> type.
     // Must be below every other rule.
     ($other:expr) => {
-        $crate::RawBson::from($other)
+        <_ as ::std::convert::Into<$crate::RawBson>>::into($other)
     };
 }
 

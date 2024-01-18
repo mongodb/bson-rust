@@ -242,3 +242,34 @@ fn recursive_macro() {
 
     assert_eq!(rawdoc.into_bytes(), crate::to_vec(&doc).unwrap());
 }
+
+#[test]
+#[allow(clippy::from_over_into)]
+fn can_use_macro_with_into_bson() {
+    struct Custom;
+
+    impl Into<Bson> for Custom {
+        fn into(self) -> Bson {
+            "foo".into()
+        }
+    }
+
+    impl Into<RawBson> for Custom {
+        fn into(self) -> RawBson {
+            "foo".into()
+        }
+    }
+
+    _ = bson!({
+        "a": Custom,
+    });
+    _ = doc! {
+        "a": Custom,
+    };
+    _ = rawbson!({
+        "a": Custom,
+    });
+    _ = rawdoc! {
+        "a": Custom,
+    };
+}
