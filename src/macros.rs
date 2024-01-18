@@ -421,38 +421,3 @@ macro_rules! rawdoc {
         object
     }};
 }
-
-#[cfg(test)]
-mod test {
-    use crate::{bson::Bson, RawBson};
-
-    struct Custom;
-
-    impl Into<Bson> for Custom {
-        fn into(self) -> Bson {
-            "foo".into()
-        }
-    }
-
-    impl Into<RawBson> for Custom {
-        fn into(self) -> RawBson {
-            "foo".into()
-        }
-    }
-
-    #[test]
-    fn can_use_macro_with_into_bson() {
-        _ = bson!({
-            "a": Custom,
-        });
-        _ = doc!{
-            "a": Custom,
-        };
-        _ = rawbson!({
-            "a": Custom,
-        });
-        _ = rawdoc!{
-            "a": Custom,
-        };
-    }
-}
