@@ -17,12 +17,13 @@ use crate::{
 
 use super::{
     bson::RawBson,
+    iter::Iter,
     serde::OwnedOrBorrowedRawDocument,
     Error,
     ErrorKind,
-    Iter,
     RawBsonRef,
     RawDocument,
+    RawIter,
     Result,
 };
 
@@ -147,7 +148,27 @@ impl RawDocumentBuf {
     /// elements that might need to allocate, you must explicitly convert
     /// them to owned types yourself.
     pub fn iter(&self) -> Iter<'_> {
-        self.into_iter()
+        Iter::new(self)
+    }
+
+    /// Gets an iterator over the elements in the [`RawDocumentBuf`],
+    /// which yields `Result<RawElement<'_>>` values. These hold a
+    /// reference to the underlying document but do not explicitly
+    /// resolve the values.
+    ///
+    /// This iterator, which underpins the implementation of the
+    /// default iterator, produces `RawElement` objects, which
+    /// hold a view onto the document but do not parse out or
+    /// construct values until the `.value()` or `.try_into()` methods
+    /// are called.
+    ///
+    /// # Note:
+    ///
+    /// There is no owning iterator for [`RawDocumentBuf`]. If you
+    /// need ownership over elements that might need to allocate, you
+    /// must explicitly convert them to owned types yourself.
+    pub fn iter_elements(&self) -> RawIter<'_> {
+        RawIter::new(self)
     }
 
     /// Return the contained data as a `Vec<u8>`

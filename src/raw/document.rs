@@ -15,12 +15,14 @@ use crate::{
 use super::{
     error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     i32_from_slice,
+    iter::Iter,
+    try_to_str,
     Error,
-    Iter,
     RawArray,
     RawBinaryRef,
     RawBsonRef,
     RawDocumentBuf,
+    RawIter,
     RawRegexRef,
     Result,
 };
@@ -170,10 +172,10 @@ impl RawDocument {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn get(&self, key: impl AsRef<str>) -> Result<Option<RawBsonRef<'_>>> {
-        for result in self.into_iter() {
-            let (k, v) = result?;
-            if key.as_ref() == k {
-                return Ok(Some(v));
+        for elem in RawIter::new(self) {
+            let elem = elem?;
+            if key.as_ref() == elem.key() {
+                return Ok(Some(elem.try_into()?));
             }
         }
         Ok(None)
@@ -491,6 +493,22 @@ impl RawDocument {
     /// Returns whether this document contains any elements or not.
     pub fn is_empty(&self) -> bool {
         self.as_bytes().len() == MIN_BSON_DOCUMENT_SIZE as usize
+    }
+
+    pub(crate) fn read_cstring_at(&self, start_at: usize) -> Result<&str> {
+        let buf = &self.as_bytes()[start_at..];
+
+        let mut splits = buf.splitn(2, |x| *x == 0);
+        let value = splits
+            .next()
+            .ok_or_else(|| Error::new_without_key(ErrorKind::new_malformed("no value")))?;
+        if splits.next().is_some() {
+            Ok(try_to_str(value)?)
+        } else {
+            Err(Error::new_without_key(ErrorKind::new_malformed(
+                "expected null terminator",
+            )))
+        }
     }
 }
 

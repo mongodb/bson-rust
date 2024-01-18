@@ -48,6 +48,14 @@ pub enum ErrorKind {
     Utf8EncodingError(Utf8Error),
 }
 
+impl ErrorKind {
+    pub(crate) fn new_malformed(e: impl ToString) -> Self {
+        ErrorKind::MalformedValue {
+            message: e.to_string(),
+        }
+    }
+}
+
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let p = self

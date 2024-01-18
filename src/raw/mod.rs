@@ -142,7 +142,7 @@ pub use self::{
     document::RawDocument,
     document_buf::RawDocumentBuf,
     error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
-    iter::Iter,
+    iter::RawIter,
 };
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.
@@ -196,23 +196,7 @@ fn i64_from_slice(val: &[u8]) -> Result<i64> {
     Ok(i64::from_le_bytes(arr))
 }
 
-fn read_nullterminated(buf: &[u8]) -> Result<&str> {
-    let mut splits = buf.splitn(2, |x| *x == 0);
-    let value = splits.next().ok_or_else(|| {
-        Error::new_without_key(ErrorKind::MalformedValue {
-            message: "no value".into(),
-        })
-    })?;
-    if splits.next().is_some() {
-        Ok(try_to_str(value)?)
-    } else {
-        Err(Error::new_without_key(ErrorKind::MalformedValue {
-            message: "expected null terminator".into(),
-        }))
-    }
-}
-
-fn read_lenencoded(buf: &[u8]) -> Result<&str> {
+fn read_len(buf: &[u8]) -> Result<usize> {
     if buf.len() < 4 {
         return Err(Error::new_without_key(ErrorKind::MalformedValue {
             message: format!(
@@ -250,7 +234,13 @@ fn read_lenencoded(buf: &[u8]) -> Result<&str> {
         }));
     }
 
-    // exclude null byte
+    Ok(length as usize + 4)
+}
+
+fn read_lenencode(buf: &[u8]) -> Result<&str> {
+    let end = read_len(buf)?;
+
+    // exclude length-prefix and null byte suffix
     try_to_str(&buf[4..(end - 1)])
 }
 
