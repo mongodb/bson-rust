@@ -179,10 +179,13 @@ fn from_impls() {
 
     // References
     assert_eq!(Bson::from(&24i32), Bson::Int32(24));
-    assert_eq!(
-        Bson::try_from(&String::from("data")).unwrap(),
-        Bson::String(String::from("data"))
-    );
+    #[allow(clippy::unnecessary_fallible_conversions)]
+    {
+        assert_eq!(
+            Bson::try_from(&String::from("data")).unwrap(),
+            Bson::String(String::from("data"))
+        );
+    }
     assert_eq!(Bson::from(&oid), Bson::ObjectId(oid));
     assert_eq!(
         Bson::from(&doc! {"a": "b"}),
