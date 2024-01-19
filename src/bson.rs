@@ -237,6 +237,15 @@ where
     }
 }
 
+impl<T> From<&mut T> for Bson
+where
+    for<'a> &'a T: Into<Bson>,
+{
+    fn from(t: &mut T) -> Bson {
+        (&*t).into()
+    }
+}
+
 impl<T> From<Vec<T>> for Bson
 where
     T: Into<Bson>,
