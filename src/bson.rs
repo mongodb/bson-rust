@@ -237,6 +237,17 @@ where
     }
 }
 
+impl<T> From<&mut T> for Bson
+where
+    T: Clone,
+    for<'a> &'a T: Into<Bson>,
+{
+    fn from(t: &mut T) -> Bson {
+        #[allow(suspicious_double_ref_op)]
+        (&&*t).clone().into()
+    }
+}
+
 impl<T> From<Vec<T>> for Bson
 where
     T: Into<Bson>,
