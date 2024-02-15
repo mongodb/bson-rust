@@ -20,11 +20,12 @@ functions:
       type: test
       params:
         working_dir: "src"
+        include_expansions_in_env:
+          - CRATES_IO_TOKEN
         script: |
           set +x
 
           TAG=${GIT_TAG}           \
-          TOKEN=${CRATES_IO_TOKEN} \
             bash .evergreen/release-danger-do-not-run-manually.sh
 
 tasks:

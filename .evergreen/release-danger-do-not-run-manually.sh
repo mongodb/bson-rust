@@ -16,8 +16,8 @@ if [[ -z "$TAG" ]]; then
 	exit 1
 fi
 
-if [[ -z "$TOKEN" ]]; then
-	>&2 echo "\$TOKEN must be set to the crates.io authentication token"
+if [[ -z "$CRATES_IO_TOKEN" ]]; then
+	>&2 echo "\$CRATES_IO_TOKEN must be set to the crates.io authentication token"
 	exit 1
 fi
 
@@ -26,4 +26,4 @@ git checkout $TAG
 
 . ~/.cargo/env
 
-cargo publish --token $TOKEN
+cargo publish --token $CRATES_IO_TOKEN
