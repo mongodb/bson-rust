@@ -1316,14 +1316,14 @@ impl<'de, 'a> CodeWithScopeDeserializer<'de, 'a> {
         F: FnOnce(&mut Self) -> Result<O>,
     {
         let start_bytes = self.root_deserializer.bytes.bytes_read();
-        let out = f(self);
+        let out = f(self)?;
         let bytes_read = self.root_deserializer.bytes.bytes_read() - start_bytes;
         self.length_remaining -= bytes_read as i32;
 
         if self.length_remaining < 0 {
             return Err(Error::custom("length of CodeWithScope too short"));
         }
-        out
+        Ok(out)
     }
 }
 
