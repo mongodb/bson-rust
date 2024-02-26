@@ -142,7 +142,7 @@ pub use self::{
     document::RawDocument,
     document_buf::RawDocumentBuf,
     error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
-    iter::RawIter,
+    iter::{RawElement, RawIter},
 };
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.
