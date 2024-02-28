@@ -181,6 +181,16 @@ impl RawDocument {
         Ok(None)
     }
 
+    /// Gets an iterator over the elements in the [`RawDocument`] that yields
+    /// `Result<(&str, RawBson<'_>)>`.
+    pub fn iter(&self) -> Iter<'_> {
+        Iter::new(self)
+    }
+
+    pub fn iter_elements(&self) -> RawIter<'_> {
+        RawIter::new(self)
+    }
+
     fn get_with<'a, T>(
         &'a self,
         key: impl AsRef<str>,
@@ -599,6 +609,6 @@ impl<'a> IntoIterator for &'a RawDocument {
     type Item = Result<(&'a str, RawBsonRef<'a>)>;
 
     fn into_iter(self) -> Iter<'a> {
-        Iter::new(self)
+        self.iter()
     }
 }

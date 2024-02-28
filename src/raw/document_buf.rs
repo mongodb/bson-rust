@@ -157,10 +157,10 @@ impl RawDocumentBuf {
     /// resolve the values.
     ///
     /// This iterator, which underpins the implementation of the
-    /// default iterator, produces `RawElement` objects, which
-    /// hold a view onto the document but do not parse out or
-    /// construct values until the `.value()` or `.try_into()` methods
-    /// are called.
+    /// default iterator, produces `RawElement` objects that hold a
+    /// view onto the document but do not parse out or construct
+    /// values until the `.value()` or `.try_into()` methods are
+    /// called.
     ///
     /// # Note:
     ///
@@ -394,7 +394,7 @@ impl<'a> IntoIterator for &'a RawDocumentBuf {
     type Item = Result<(&'a str, RawBsonRef<'a>)>;
 
     fn into_iter(self) -> Iter<'a> {
-        Iter::new(self)
+        self.iter()
     }
 }
 
