@@ -145,6 +145,10 @@ impl<'a> TryInto<Bson> for RawElement<'a> {
 }
 
 impl<'a> RawElement<'a> {
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn len(&self) -> usize {
         self.size
     }
