@@ -144,6 +144,7 @@ impl<'a> TryInto<Bson> for RawElement<'a> {
     }
 }
 
+#[allow(clippy::len_without_is_empty)]
 impl<'a> RawElement<'a> {
     pub fn len(&self) -> usize {
         self.size
