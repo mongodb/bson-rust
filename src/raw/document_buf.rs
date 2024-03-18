@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     de::MIN_BSON_DOCUMENT_SIZE,
-    spec::BinarySubtype,
+    spec::{BinarySubtype, ElementType},
     Document,
     RawBinaryRef,
     RawJavaScriptCodeWithScopeRef,
@@ -215,42 +215,19 @@ impl RawDocumentBuf {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn append(&mut self, key: impl AsRef<str>, value: impl Into<RawBson>) {
-        fn append_string(doc: &mut RawDocumentBuf, value: &str) {
-            doc.data
-                .extend(((value.as_bytes().len() + 1) as i32).to_le_bytes());
-            doc.data.extend(value.as_bytes());
-            doc.data.push(0);
-        }
-
-        fn append_cstring(doc: &mut RawDocumentBuf, value: &str) {
-            if value.contains('\0') {
-                panic!("cstr includes interior null byte: {}", value)
-            }
-            doc.data.extend(value.as_bytes());
-            doc.data.push(0);
-        }
-
-        let original_len = self.data.len();
-
-        // write the key for the next value to the end
-        // the element type will replace the previous null byte terminator of the document
-        append_cstring(self, key.as_ref());
-
         let value = value.into();
-        let element_type = value.element_type();
-
-        match value {
+        self.append_to_data(key, value.element_type(), |data| match value {
             RawBson::Int32(i) => {
-                self.data.extend(i.to_le_bytes());
+                data.extend(i.to_le_bytes());
             }
             RawBson::String(s) => {
-                append_string(self, s.as_str());
+                append_string(data, s.as_str());
             }
             RawBson::Document(d) => {
-                self.data.extend(d.into_bytes());
+                data.extend(d.into_bytes());
             }
             RawBson::Array(a) => {
-                self.data.extend(a.into_vec());
+                data.extend(a.into_vec());
             }
             RawBson::Binary(b) => {
                 let len = RawBinaryRef {
@@ -258,38 +235,38 @@ impl RawDocumentBuf {
                     subtype: b.subtype,
                 }
                 .len();
-                self.data.extend(len.to_le_bytes());
-                self.data.push(b.subtype.into());
+                data.extend(len.to_le_bytes());
+                data.push(b.subtype.into());
                 if let BinarySubtype::BinaryOld = b.subtype {
-                    self.data.extend((len - 4).to_le_bytes())
+                    data.extend((len - 4).to_le_bytes())
                 }
-                self.data.extend(b.bytes);
+                data.extend(b.bytes);
             }
             RawBson::Boolean(b) => {
-                self.data.push(b as u8);
+                data.push(b as u8);
             }
             RawBson::DateTime(dt) => {
-                self.data.extend(dt.timestamp_millis().to_le_bytes());
+                data.extend(dt.timestamp_millis().to_le_bytes());
             }
             RawBson::DbPointer(dbp) => {
-                append_string(self, dbp.namespace.as_str());
-                self.data.extend(dbp.id.bytes());
+                append_string(data, dbp.namespace.as_str());
+                data.extend(dbp.id.bytes());
             }
             RawBson::Decimal128(d) => {
-                self.data.extend(d.bytes());
+                data.extend(d.bytes());
             }
             RawBson::Double(d) => {
-                self.data.extend(d.to_le_bytes());
+                data.extend(d.to_le_bytes());
             }
             RawBson::Int64(i) => {
-                self.data.extend(i.to_le_bytes());
+                data.extend(i.to_le_bytes());
             }
             RawBson::RegularExpression(re) => {
-                append_cstring(self, re.pattern.as_str());
-                append_cstring(self, re.options.as_str());
+                append_cstring(data, re.pattern.as_str());
+                append_cstring(data, re.options.as_str());
             }
             RawBson::JavaScriptCode(js) => {
-                append_string(self, js.as_str());
+                append_string(data, js.as_str());
             }
             RawBson::JavaScriptCodeWithScope(code_w_scope) => {
                 let len = RawJavaScriptCodeWithScopeRef {
@@ -297,21 +274,113 @@ impl RawDocumentBuf {
                     scope: &code_w_scope.scope,
                 }
                 .len();
-                self.data.extend(len.to_le_bytes());
-                append_string(self, code_w_scope.code.as_str());
-                self.data.extend(code_w_scope.scope.into_bytes());
+                data.extend(len.to_le_bytes());
+                append_string(data, code_w_scope.code.as_str());
+                data.extend(code_w_scope.scope.into_bytes());
             }
             RawBson::Timestamp(ts) => {
-                self.data.extend(ts.to_le_i64().to_le_bytes());
+                data.extend(ts.to_le_i64().to_le_bytes());
             }
             RawBson::ObjectId(oid) => {
-                self.data.extend(oid.bytes());
+                data.extend(oid.bytes());
             }
             RawBson::Symbol(s) => {
-                append_string(self, s.as_str());
+                append_string(data, s.as_str());
             }
             RawBson::Null | RawBson::Undefined | RawBson::MinKey | RawBson::MaxKey => {}
-        }
+        })
+    }
+
+    /// Append a key value pair to the end of the document without checking to see if
+    /// the key already exists.
+    ///
+    /// It is a user error to append the same key more than once to the same document, and it may
+    /// result in errors when communicating with MongoDB.
+    ///
+    /// If the provided key contains an interior null byte, this method will panic.
+    pub fn append_ref<'a>(&mut self, key: impl AsRef<str>, value: impl Into<RawBsonRef<'a>>) {
+        let value = value.into();
+        self.append_to_data(key, value.element_type(), |data| match value {
+            RawBsonRef::Int32(i) => {
+                data.extend(i.to_le_bytes());
+            }
+            RawBsonRef::String(s) => {
+                append_string(data, s);
+            }
+            RawBsonRef::Document(d) => {
+                data.extend(d.as_bytes());
+            }
+            RawBsonRef::Array(a) => {
+                data.extend(a.as_bytes());
+            }
+            RawBsonRef::Binary(b) => {
+                let len = b.len();
+                data.extend(len.to_le_bytes());
+                data.push(b.subtype.into());
+                if let BinarySubtype::BinaryOld = b.subtype {
+                    data.extend((len - 4).to_le_bytes())
+                }
+                data.extend(b.bytes);
+            }
+            RawBsonRef::Boolean(b) => {
+                data.push(b as u8);
+            }
+            RawBsonRef::DateTime(dt) => {
+                data.extend(dt.timestamp_millis().to_le_bytes());
+            }
+            RawBsonRef::DbPointer(dbp) => {
+                append_string(data, dbp.namespace);
+                data.extend(dbp.id.bytes());
+            }
+            RawBsonRef::Decimal128(d) => {
+                data.extend(d.bytes());
+            }
+            RawBsonRef::Double(d) => {
+                data.extend(d.to_le_bytes());
+            }
+            RawBsonRef::Int64(i) => {
+                data.extend(i.to_le_bytes());
+            }
+            RawBsonRef::RegularExpression(re) => {
+                append_cstring(data, re.pattern);
+                append_cstring(data, re.options);
+            }
+            RawBsonRef::JavaScriptCode(js) => {
+                append_string(data, js);
+            }
+            RawBsonRef::JavaScriptCodeWithScope(code_w_scope) => {
+                let len = RawJavaScriptCodeWithScopeRef {
+                    code: code_w_scope.code,
+                    scope: &code_w_scope.scope,
+                }
+                .len();
+                data.extend(len.to_le_bytes());
+                append_string(data, code_w_scope.code);
+                data.extend(code_w_scope.scope.as_bytes());
+            }
+            RawBsonRef::Timestamp(ts) => {
+                data.extend(ts.to_le_i64().to_le_bytes());
+            }
+            RawBsonRef::ObjectId(oid) => {
+                data.extend(oid.bytes());
+            }
+            RawBsonRef::Symbol(s) => {
+                append_string(data, s);
+            }
+            RawBsonRef::Null | RawBsonRef::Undefined | RawBsonRef::MinKey | RawBsonRef::MaxKey => {}
+        })
+    }
+
+    fn append_to_data(&mut self, key: impl AsRef<str>, element_type: ElementType, apply: impl FnOnce(&mut Vec<u8>)) {
+        let original_len = self.data.len();
+
+        // write the key for the next value to the end
+        // the element type will replace the previous null byte terminator of the document
+        append_cstring(&mut self.data, key.as_ref());
+
+        // execute the append
+        apply(&mut self.data);
+
         // update element type
         self.data[original_len - 1] = element_type as u8;
         // append trailing null byte
@@ -326,6 +395,21 @@ impl RawDocumentBuf {
     pub fn to_document(&self) -> Result<Document> {
         self.as_ref().try_into()
     }
+}
+
+fn append_string(data: &mut Vec<u8>, value: &str) {
+    data
+        .extend(((value.as_bytes().len() + 1) as i32).to_le_bytes());
+    data.extend(value.as_bytes());
+    data.push(0);
+}
+
+fn append_cstring(data: &mut Vec<u8>, value: &str) {
+    if value.contains('\0') {
+        panic!("cstr includes interior null byte: {}", value)
+    }
+    data.extend(value.as_bytes());
+    data.push(0);
 }
 
 impl Default for RawDocumentBuf {
