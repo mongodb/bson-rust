@@ -371,7 +371,12 @@ impl RawDocumentBuf {
         })
     }
 
-    fn append_to_data(&mut self, key: impl AsRef<str>, element_type: ElementType, apply: impl FnOnce(&mut Vec<u8>)) {
+    fn append_to_data(
+        &mut self,
+        key: impl AsRef<str>,
+        element_type: ElementType,
+        apply: impl FnOnce(&mut Vec<u8>),
+    ) {
         let original_len = self.data.len();
 
         // write the key for the next value to the end
@@ -398,8 +403,7 @@ impl RawDocumentBuf {
 }
 
 fn append_string(data: &mut Vec<u8>, value: &str) {
-    data
-        .extend(((value.as_bytes().len() + 1) as i32).to_le_bytes());
+    data.extend(((value.as_bytes().len() + 1) as i32).to_le_bytes());
     data.extend(value.as_bytes());
     data.push(0);
 }
