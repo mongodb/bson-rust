@@ -543,17 +543,20 @@ impl Document {
     /// # }
     /// ```
     pub fn to_writer<W: Write>(&self, mut writer: W) -> crate::ser::Result<()> {
-        let mut buf = Vec::new();
-        for (key, val) in self.into_iter() {
-            serialize_bson(&mut buf, key.as_ref(), val)?;
-        }
-
-        write_i32(
-            &mut writer,
-            (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
-        )?;
+        // let mut buf = Vec::new();
+        // for (key, val) in self.into_iter() {
+        // serialize_bson(&mut buf, key.as_ref(), val)?;
+        // }
+        //
+        // write_i32(
+        // &mut writer,
+        // (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
+        // )?;
+        // writer.write_all(&buf)?;
+        // writer.write_all(&[0])?;
+        // Ok(())
+        let buf = crate::to_vec(self)?;
         writer.write_all(&buf)?;
-        writer.write_all(&[0])?;
         Ok(())
     }
 
