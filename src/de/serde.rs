@@ -415,7 +415,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                 }
 
                 "$timestamp" => {
-                    let ts = dbg!(visitor.next_value::<extjson::models::TimestampBody>()?);
+                    let ts = visitor.next_value::<extjson::models::TimestampBody>()?;
                     return Ok(Bson::Timestamp(Timestamp {
                         time: ts.t,
                         increment: ts.i,

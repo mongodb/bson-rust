@@ -219,7 +219,7 @@ impl<'de> Deserializer<'de> {
 
         match self.current_type {
             ElementType::Int32 => visitor.visit_i32(read_i32(&mut self.bytes)?),
-            ElementType::Int64 => visitor.visit_i64(dbg!(read_i64(&mut self.bytes)?)),
+            ElementType::Int64 => visitor.visit_i64(read_i64(&mut self.bytes)?),
             ElementType::Double => visitor.visit_f64(read_f64(&mut self.bytes)?),
             ElementType::String => match self.deserialize_str()? {
                 Cow::Borrowed(s) => visitor.visit_borrowed_str(s),
