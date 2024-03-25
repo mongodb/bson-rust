@@ -198,7 +198,9 @@ impl<'a> RawBinaryRef<'a> {
 
 impl Timestamp {
     pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
-        read_i64(&mut reader).map(Timestamp::from_le_i64)
+        let mut bytes = [0; 8];
+        reader.read_exact(&mut bytes)?;
+        Ok(Timestamp::from_le_bytes(bytes))
     }
 }
 

@@ -1029,19 +1029,21 @@ impl Display for Timestamp {
 }
 
 impl Timestamp {
-    pub(crate) fn to_le_i64(self) -> i64 {
-        let upper = (self.time.to_le() as u64) << 32;
-        let lower = self.increment.to_le() as u64;
-
-        (upper | lower) as i64
+    pub(crate) fn to_le_bytes(self) -> [u8; 8] {
+        let mut out = [0; 8];
+        out[0..4].copy_from_slice(&self.increment.to_le_bytes());
+        out[4..8].copy_from_slice(&self.time.to_le_bytes());
+        out
     }
 
-    pub(crate) fn from_le_i64(val: i64) -> Self {
-        let ts = val.to_le();
-
-        Timestamp {
-            time: ((ts as u64) >> 32) as u32,
-            increment: (ts & 0xFFFF_FFFF) as u32,
+    pub(crate) fn from_le_bytes(bytes: [u8; 8]) -> Self {
+        let mut inc_bytes = [0; 4];
+        inc_bytes.copy_from_slice(&bytes[0..4]);
+        let mut time_bytes = [0; 4];
+        time_bytes.copy_from_slice(&bytes[4..8]);
+        Self {
+            increment: u32::from_le_bytes(inc_bytes),
+            time: u32::from_le_bytes(time_bytes),
         }
     }
 }

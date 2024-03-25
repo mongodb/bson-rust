@@ -300,7 +300,7 @@ impl RawDocumentBuf {
                 self.data.extend(code_w_scope.scope.as_bytes());
             }
             RawBsonRef::Timestamp(ts) => {
-                self.data.extend(ts.to_le_i64().to_le_bytes());
+                self.data.extend(ts.to_le_bytes());
             }
             RawBsonRef::ObjectId(oid) => {
                 self.data.extend(oid.bytes());
