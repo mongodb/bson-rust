@@ -30,13 +30,12 @@ pub use self::{
     serde::{Serializer, SerializerOptions},
 };
 
-use std::{io::Write, iter::FromIterator, mem};
+use std::io::Write;
 
 use crate::{
-    bson::{Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex},
+    bson::{Bson, Document},
     de::MAX_BSON_SIZE,
     spec::BinarySubtype,
-    Binary,
     RawDocumentBuf,
 };
 use ::serde::{ser::Error as SerdeError, Serialize};
@@ -104,83 +103,6 @@ fn write_binary<W: Write>(mut writer: W, bytes: &[u8], subtype: BinarySubtype) -
     };
 
     writer.write_all(bytes).map_err(From::from)
-}
-
-fn serialize_array<W: Write + ?Sized>(writer: &mut W, arr: &[Bson]) -> Result<()> {
-    let mut buf = Vec::new();
-    for (key, val) in arr.iter().enumerate() {
-        serialize_bson(&mut buf, &key.to_string(), val)?;
-    }
-
-    write_i32(
-        writer,
-        (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
-    )?;
-    writer.write_all(&buf)?;
-    writer.write_all(b"\0")?;
-    Ok(())
-}
-
-pub(crate) fn serialize_bson<W: Write + ?Sized>(
-    writer: &mut W,
-    key: &str,
-    val: &Bson,
-) -> Result<()> {
-    writer.write_all(&[val.element_type() as u8])?;
-    write_cstring(writer, key)?;
-
-    match *val {
-        Bson::Double(v) => write_f64(writer, v),
-        Bson::String(ref v) => write_string(writer, v),
-        Bson::Array(ref v) => serialize_array(writer, v),
-        Bson::Document(ref v) => v.to_writer(writer),
-        Bson::Boolean(v) => writer.write_all(&[v as u8]).map_err(From::from),
-        Bson::RegularExpression(Regex {
-            ref pattern,
-            ref options,
-        }) => {
-            write_cstring(writer, pattern)?;
-
-            let mut chars: Vec<char> = options.chars().collect();
-            chars.sort_unstable();
-
-            write_cstring(writer, String::from_iter(chars).as_str())
-        }
-        Bson::JavaScriptCode(ref code) => write_string(writer, code),
-        Bson::ObjectId(ref id) => writer.write_all(&id.bytes()).map_err(From::from),
-        Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
-            ref code,
-            ref scope,
-        }) => {
-            let mut buf = Vec::new();
-            write_string(&mut buf, code)?;
-            scope.to_writer(&mut buf)?;
-
-            write_i32(writer, buf.len() as i32 + 4)?;
-            writer.write_all(&buf).map_err(From::from)
-        }
-        Bson::Int32(v) => write_i32(writer, v),
-        Bson::Int64(v) => write_i64(writer, v),
-        Bson::Timestamp(ts) => write_i64(writer, ts.to_le_i64()),
-        Bson::Binary(Binary { subtype, ref bytes }) => write_binary(writer, bytes, subtype),
-        Bson::DateTime(ref v) => write_i64(writer, v.timestamp_millis()),
-        Bson::Null => Ok(()),
-        Bson::Symbol(ref v) => write_string(writer, v),
-        Bson::Decimal128(ref v) => {
-            writer.write_all(&v.bytes)?;
-            Ok(())
-        }
-        Bson::Undefined => Ok(()),
-        Bson::MinKey => Ok(()),
-        Bson::MaxKey => Ok(()),
-        Bson::DbPointer(DbPointer {
-            ref namespace,
-            ref id,
-        }) => {
-            write_string(writer, namespace)?;
-            writer.write_all(&id.bytes()).map_err(From::from)
-        }
-    }
 }
 
 /// Encode a `T` Serializable into a [`Bson`] value.

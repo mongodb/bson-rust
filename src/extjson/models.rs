@@ -225,7 +225,7 @@ pub(crate) struct Timestamp {
     body: TimestampBody,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct TimestampBody {
     #[serde(serialize_with = "crate::serde_helpers::serialize_u32_as_i64")]

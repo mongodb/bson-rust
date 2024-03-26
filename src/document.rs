@@ -1,22 +1,21 @@
 //! A BSON document represented as an associative HashMap with insertion ordering.
 
 use std::{
+    convert::TryInto,
     error,
     fmt::{self, Debug, Display, Formatter},
     io::{Read, Write},
     iter::{Extend, FromIterator, IntoIterator},
-    mem,
 };
 
 use ahash::RandomState;
 use indexmap::IndexMap;
-use serde::de::Error;
+use serde::{de::Error, Deserialize};
 
 use crate::{
     bson::{Array, Bson, Timestamp},
-    de::{deserialize_bson_kvp, ensure_read_exactly, read_i32, MIN_BSON_DOCUMENT_SIZE},
+    de::{read_i32, MIN_BSON_DOCUMENT_SIZE},
     oid::ObjectId,
-    ser::{serialize_bson, write_i32},
     spec::BinarySubtype,
     Binary,
     Decimal128,
@@ -543,23 +542,12 @@ impl Document {
     /// # }
     /// ```
     pub fn to_writer<W: Write>(&self, mut writer: W) -> crate::ser::Result<()> {
-        let mut buf = Vec::new();
-        for (key, val) in self.into_iter() {
-            serialize_bson(&mut buf, key.as_ref(), val)?;
-        }
-
-        write_i32(
-            &mut writer,
-            (buf.len() + mem::size_of::<i32>() + mem::size_of::<u8>()) as i32,
-        )?;
+        let buf = crate::to_vec(self)?;
         writer.write_all(&buf)?;
-        writer.write_all(&[0])?;
         Ok(())
     }
 
     fn decode<R: Read + ?Sized>(reader: &mut R, utf_lossy: bool) -> crate::de::Result<Document> {
-        let mut doc = Document::new();
-
         let length = read_i32(reader)?;
         if length < MIN_BSON_DOCUMENT_SIZE {
             return Err(crate::de::Error::invalid_length(
@@ -567,29 +555,17 @@ impl Document {
                 &"document length must be at least 5",
             ));
         }
-
-        ensure_read_exactly(
-            reader,
-            (length as usize) - 4,
-            "document length longer than contents",
-            |cursor| {
-                loop {
-                    let mut tag_byte = [0];
-                    cursor.read_exact(&mut tag_byte)?;
-                    let tag = tag_byte[0];
-
-                    if tag == 0 {
-                        break;
-                    }
-
-                    let (key, val) = deserialize_bson_kvp(cursor, tag, utf_lossy)?;
-                    doc.insert(key, val);
-                }
-                Ok(())
-            },
-        )?;
-
-        Ok(doc)
+        let ulen: usize =
+            length
+                .try_into()
+                .map_err(|e| crate::de::Error::DeserializationError {
+                    message: format!("invalid document length: {}", e),
+                })?;
+        let mut buf = vec![0u8; ulen];
+        buf[0..4].copy_from_slice(&length.to_le_bytes());
+        reader.read_exact(&mut buf[4..])?;
+        let mut deserializer = crate::de::RawDeserializer::new(&buf, utf_lossy);
+        Document::deserialize(&mut deserializer)
     }
 
     /// Attempts to deserialize a [`Document`] from a byte stream.
