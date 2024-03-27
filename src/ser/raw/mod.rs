@@ -56,8 +56,13 @@ impl SerializerHint {
 
 impl Serializer {
     pub(crate) fn new() -> Self {
+        Self::with_vec(Vec::new())
+    }
+
+    pub(crate) fn with_vec(mut bytes: Vec<u8>) -> Self {
+        bytes.clear();
         Self {
-            bytes: Vec::new(),
+            bytes,
             type_index: 0,
             hint: SerializerHint::None,
         }
