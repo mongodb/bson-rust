@@ -1,4 +1,6 @@
 use crate::{
+    from_document,
+    from_slice,
     spec::BinarySubtype,
     uuid::{Uuid, UuidRepresentation},
     Binary,
@@ -268,4 +270,23 @@ fn interop_1() {
     let d_bson = doc! { "uuid": uuid };
     let d_uuid = doc! { "uuid": uuid_uuid };
     assert_eq!(d_bson, d_uuid);
+}
+
+#[test]
+fn deserialize_uuid_from_string() {
+    #[derive(Deserialize)]
+    struct UuidWrapper {
+        uuid: Uuid,
+    }
+
+    let uuid = Uuid::new();
+
+    let doc = doc! { "uuid": uuid.to_string() };
+    let wrapper: UuidWrapper = from_document(doc).expect("failed to deserialize document");
+    assert_eq!(wrapper.uuid, uuid);
+
+    let raw_doc = rawdoc! { "uuid": uuid.to_string() };
+    let wrapper: UuidWrapper =
+        from_slice(raw_doc.as_bytes()).expect("failed to deserialize raw document");
+    assert_eq!(wrapper.uuid, uuid);
 }

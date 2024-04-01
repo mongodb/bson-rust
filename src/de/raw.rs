@@ -208,15 +208,6 @@ impl<'de> Deserializer<'de> {
     where
         V: serde::de::Visitor<'de>,
     {
-        if let DeserializerHint::BinarySubtype(expected_st) = hint {
-            if self.current_type != ElementType::Binary {
-                return Err(Error::custom(format!(
-                    "expected Binary with subtype {:?}, instead got {:?}",
-                    expected_st, self.current_type
-                )));
-            }
-        }
-
         match self.current_type {
             ElementType::Int32 => visitor.visit_i32(read_i32(&mut self.bytes)?),
             ElementType::Int64 => visitor.visit_i64(read_i64(&mut self.bytes)?),
