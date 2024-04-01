@@ -637,13 +637,12 @@ impl Deserializer {
 
         let is_rawbson = matches!(hint, DeserializerHint::RawBson);
 
-        if let DeserializerHint::BinarySubtype(expected_st) = hint {
-            match value {
-                Bson::Binary(ref b) if b.subtype == expected_st => {}
-                ref b => {
+        if let DeserializerHint::BinarySubtype(expected_subtype) = hint {
+            if let Bson::Binary(ref binary) = value {
+                if binary.subtype != expected_subtype {
                     return Err(Error::custom(format!(
-                        "expected Binary with subtype {:?}, instead got {:?}",
-                        expected_st, b
+                        "expected Binary with subtype {:?}, instead got subtype {:?}",
+                        expected_subtype, binary.subtype
                     )));
                 }
             }
