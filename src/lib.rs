@@ -51,7 +51,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! bson = "2.9.0"
+//! bson = "2.10.0"
 //! ```
 //!
 //! Note that if you are using `bson` through the `mongodb` crate, you do not need to specify it in
@@ -208,25 +208,26 @@
 //! let redacted_bson = bson::to_bson(&person).unwrap();
 //! ```
 //!
-//! Any types that implement [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize) can be used in this way. Doing so helps
-//! separate the "business logic" that operates over the data from the (de)serialization logic that
-//! translates the data to/from its serialized form. This can lead to more clear and concise code
-//! that is also less error prone.
+//! Any types that implement [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize)
+//! can be used in this way. Doing so helps separate the "business logic" that operates over the
+//! data from the (de)serialization logic that translates the data to/from its serialized form. This
+//! can lead to more clear and concise code that is also less error prone.
 //!
 //! ## Working with datetimes
 //!
 //! The BSON format includes a datetime type, which is modeled in this crate by the
 //! [`DateTime`] struct, and the
-//! [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize) implementations for this struct produce and parse BSON datetimes
-//! when serializing to or deserializing from BSON. The popular crate [`chrono`](docs.rs/chrono)
-//! also provides a [`DateTime`] type, but its [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize) implementations operate
+//! [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize) implementations for this
+//! struct produce and parse BSON datetimes when serializing to or deserializing from BSON. The
+//! popular crate [`chrono`](docs.rs/chrono) also provides a [`DateTime`] type, but its
+//! [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize) implementations operate
 //! on strings instead, so when using it with BSON, the BSON datetime type is not used. To work
 //! around this, the `chrono-0_4` feature flag can be enabled. This flag exposes a number of
-//! convenient conversions between [`bson::DateTime`](crate::DateTime) and [`chrono::DateTime`], including the
-//! [`serde_helpers::chrono_datetime_as_bson_datetime`]
-//! serde helper, which can be used to (de)serialize [`chrono::DateTime`]s to/from BSON datetimes, and
-//! the `From<chrono::DateTime>` implementation for [`Bson`], which allows [`chrono::DateTime`] values
-//! to be used in the `doc!` and `bson!` macros.
+//! convenient conversions between [`bson::DateTime`](crate::DateTime) and [`chrono::DateTime`],
+//! including the [`serde_helpers::chrono_datetime_as_bson_datetime`]
+//! serde helper, which can be used to (de)serialize [`chrono::DateTime`]s to/from BSON datetimes,
+//! and the `From<chrono::DateTime>` implementation for [`Bson`], which allows [`chrono::DateTime`]
+//! values to be used in the `doc!` and `bson!` macros.
 //!
 //! e.g.
 //! ``` rust
@@ -267,8 +268,8 @@
 //!
 //! ## Minimum supported Rust version (MSRV)
 //!
-//! The MSRV for this crate is currently 1.64.0. This will be rarely be increased, and if it ever is,
-//! it will only happen in a minor or major version release.
+//! The MSRV for this crate is currently 1.64.0. This will be rarely be increased, and if it ever
+//! is, it will only happen in a minor or major version release.
 
 #![allow(clippy::cognitive_complexity, clippy::derive_partial_eq_without_eq)]
 #![doc(html_root_url = "https://docs.rs/bson/2.6.0")]
@@ -280,18 +281,40 @@ pub use self::{
     bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     de::{
-        from_bson, from_bson_with_options, from_document, from_document_with_options, from_reader,
-        from_reader_utf8_lossy, from_slice, from_slice_utf8_lossy, Deserializer,
+        from_bson,
+        from_bson_with_options,
+        from_document,
+        from_document_with_options,
+        from_reader,
+        from_reader_utf8_lossy,
+        from_slice,
+        from_slice_utf8_lossy,
+        Deserializer,
         DeserializerOptions,
     },
     decimal128::Decimal128,
     raw::{
-        RawArray, RawArrayBuf, RawBinaryRef, RawBson, RawBsonRef, RawDbPointerRef, RawDocument,
-        RawDocumentBuf, RawJavaScriptCodeWithScope, RawJavaScriptCodeWithScopeRef, RawRegexRef,
+        RawArray,
+        RawArrayBuf,
+        RawBinaryRef,
+        RawBson,
+        RawBsonRef,
+        RawDbPointerRef,
+        RawDocument,
+        RawDocumentBuf,
+        RawJavaScriptCodeWithScope,
+        RawJavaScriptCodeWithScopeRef,
+        RawRegexRef,
     },
     ser::{
-        to_bson, to_bson_with_options, to_document, to_document_with_options, to_raw_document_buf,
-        to_vec, Serializer, SerializerOptions,
+        to_bson,
+        to_bson_with_options,
+        to_document,
+        to_document_with_options,
+        to_raw_document_buf,
+        to_vec,
+        Serializer,
+        SerializerOptions,
     },
     uuid::{Uuid, UuidRepresentation},
 };
