@@ -18,6 +18,7 @@ use crate::{
     extjson,
     oid::ObjectId,
     raw::{RawDbPointerRef, RawRegexRef, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Binary,
@@ -296,7 +297,7 @@ impl ser::Serializer for Serializer {
 
     #[inline]
     fn serialize_newtype_struct<T: ?Sized>(
-        self,
+        mut self,
         name: &'static str,
         value: &T,
     ) -> crate::ser::Result<Bson>
@@ -348,6 +349,10 @@ impl ser::Serializer for Serializer {
                     b
                 ))),
             },
+            HUMAN_READABLE_NEWTYPE => {
+                self.options.human_readable = Some(true);
+                value.serialize(self)
+            }
             _ => value.serialize(self),
         }
     }

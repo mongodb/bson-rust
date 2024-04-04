@@ -2,6 +2,7 @@ mod binary_subtype;
 mod datetime;
 mod modules;
 mod serde;
+mod serde_helpers;
 mod spec;
 
 use modules::TestLock;

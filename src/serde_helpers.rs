@@ -1,8 +1,8 @@
 //! Collection of helper functions for serializing to and deserializing from BSON using Serde
 
-use std::{convert::TryFrom, result::Result};
+use std::{convert::TryFrom, marker::PhantomData, result::Result};
 
-use serde::{ser, Serialize, Serializer};
+use serde::{de::Visitor, ser, Deserialize, Serialize, Serializer};
 
 use crate::oid::ObjectId;
 
@@ -792,5 +792,46 @@ pub mod timestamp_as_u32 {
     {
         let time = u32::deserialize(deserializer)?;
         Ok(Timestamp { time, increment: 0 })
+    }
+}
+
+/// Wrapping a type in `HumanReadable` signals to the BSON serde integration that it and all
+/// recursively contained types should be handled as if
+/// [`SerializerOptions::human_readable`](crate::SerializerOptions::human_readable) and
+/// [`DeserializerOptions::human_readable`](crate::DeserializerOptions::human_readable) are
+/// set to `true`.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct HumanReadable<T>(pub T);
+
+pub(crate) const HUMAN_READABLE_NEWTYPE: &str = "$__bson_private_human_readable";
+
+impl<T: Serialize> Serialize for HumanReadable<T> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_newtype_struct(HUMAN_READABLE_NEWTYPE, &self.0)
+    }
+}
+
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for HumanReadable<T> {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct V<T>(PhantomData<fn() -> T>);
+        impl<'de, T: Deserialize<'de>> Visitor<'de> for V<T> {
+            type Value = HumanReadable<T>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("HumanReadable wrapper")
+            }
+            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                T::deserialize(deserializer).map(HumanReadable)
+            }
+        }
+        deserializer.deserialize_newtype_struct(HUMAN_READABLE_NEWTYPE, V(PhantomData))
     }
 }

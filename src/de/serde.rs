@@ -26,6 +26,7 @@ use crate::{
     document::{Document, IntoIter},
     oid::ObjectId,
     raw::{RawBsonRef, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Binary,
@@ -815,7 +816,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
 
     #[inline]
     fn deserialize_newtype_struct<V>(
-        self,
+        mut self,
         name: &'static str,
         visitor: V,
     ) -> crate::de::Result<V::Value>
@@ -847,6 +848,10 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 }
 
                 self.deserialize_next(visitor, DeserializerHint::RawBson)
+            }
+            HUMAN_READABLE_NEWTYPE => {
+                self.options.human_readable = Some(true);
+                visitor.visit_newtype_struct(self)
             }
             _ => visitor.visit_newtype_struct(self),
         }
