@@ -72,14 +72,15 @@ fn human_readable_wrapper() {
     struct SubData {
         value: Detector,
     }
+    let data = Data {
+        outer: Detector::new(),
+        wrapped: HumanReadable(Detector::new()),
+        inner: HumanReadable(SubData {
+            value: Detector::new(),
+        }),
+    };
     let bson = crate::to_bson_with_options(
-        &Data {
-            outer: Detector::new(),
-            wrapped: HumanReadable(Detector::new()),
-            inner: HumanReadable(SubData {
-                value: Detector::new(),
-            }),
-        },
+        &data,
         crate::SerializerOptions::builder()
             .human_readable(false)
             .build(),
@@ -103,23 +104,25 @@ fn human_readable_wrapper() {
             .build(),
     )
     .unwrap();
-    assert_eq!(
-        tripped,
-        Data {
-            outer: Detector {
-                serialized_as: false,
-                deserialized_as: false
-            },
-            wrapped: HumanReadable(Detector {
+    let expected = Data {
+        outer: Detector {
+            serialized_as: false,
+            deserialized_as: false,
+        },
+        wrapped: HumanReadable(Detector {
+            serialized_as: true,
+            deserialized_as: true,
+        }),
+        inner: HumanReadable(SubData {
+            value: Detector {
                 serialized_as: true,
-                deserialized_as: true
-            }),
-            inner: HumanReadable(SubData {
-                value: Detector {
-                    serialized_as: true,
-                    deserialized_as: true
-                }
-            })
-        }
-    )
+                deserialized_as: true,
+            },
+        }),
+    };
+    assert_eq!(&tripped, &expected);
+
+    let bytes = crate::to_vec(&data).unwrap();
+    let raw_tripped: Data = crate::from_slice(&bytes).unwrap();
+    assert_eq!(&raw_tripped, &expected);
 }
