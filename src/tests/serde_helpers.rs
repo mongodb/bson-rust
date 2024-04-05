@@ -83,6 +83,7 @@ fn human_readable_wrapper() {
     };
     let bson = crate::to_bson_with_options(
         &data,
+        #[allow(deprecated)]
         crate::SerializerOptions::builder()
             .human_readable(false)
             .build(),
@@ -102,6 +103,7 @@ fn human_readable_wrapper() {
 
     let tripped: Data = crate::from_bson_with_options(
         bson,
+        #[allow(deprecated)]
         crate::DeserializerOptions::builder()
             .human_readable(false)
             .build(),

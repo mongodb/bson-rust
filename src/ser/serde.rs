@@ -121,6 +121,7 @@ pub struct Serializer {
 pub struct SerializerOptions {
     /// Whether the [`Serializer`] should present itself as human readable or not.
     /// The default value is true.
+    #[deprecated = "use bson::serde_helpers::HumanReadable"]
     pub human_readable: Option<bool>,
 }
 
@@ -140,6 +141,8 @@ pub struct SerializerOptionsBuilder {
 
 impl SerializerOptionsBuilder {
     /// Set the value for [`SerializerOptions::is_human_readable`].
+    #[deprecated = "use bson::serde_helpers::HumanReadable"]
+    #[allow(deprecated)]
     pub fn human_readable(mut self, value: impl Into<Option<bool>>) -> Self {
         self.options.human_readable = value.into();
         self
@@ -349,6 +352,7 @@ impl ser::Serializer for Serializer {
                     b
                 ))),
             },
+            #[allow(deprecated)]
             HUMAN_READABLE_NEWTYPE => {
                 self.options.human_readable = Some(true);
                 value.serialize(self)
@@ -452,6 +456,7 @@ impl ser::Serializer for Serializer {
         })
     }
 
+    #[allow(deprecated)]
     fn is_human_readable(&self) -> bool {
         self.options.human_readable.unwrap_or(true)
     }

@@ -295,6 +295,7 @@ impl<'de> Deserializer<'de> {
                         let doc = Bson::JavaScriptCode(code).into_extended_document(false);
                         visitor.visit_map(MapDeserializer::new(
                             doc,
+                            #[allow(deprecated)]
                             DeserializerOptions::builder().human_readable(false).build(),
                         ))
                     }
@@ -352,6 +353,7 @@ impl<'de> Deserializer<'de> {
                         let doc = Bson::Symbol(symbol).into_extended_document(false);
                         visitor.visit_map(MapDeserializer::new(
                             doc,
+                            #[allow(deprecated)]
                             DeserializerOptions::builder().human_readable(false).build(),
                         ))
                     }
