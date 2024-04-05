@@ -26,6 +26,7 @@ use crate::{
     document::{Document, IntoIter},
     oid::ObjectId,
     raw::{RawBsonRef, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
     Binary,
@@ -578,6 +579,7 @@ pub struct Deserializer {
 pub struct DeserializerOptions {
     /// Whether the [`Deserializer`] should present itself as human readable or not.
     /// The default is true.
+    #[deprecated = "use bson::serde_helpers::HumanReadable"]
     pub human_readable: Option<bool>,
 }
 
@@ -597,6 +599,8 @@ pub struct DeserializerOptionsBuilder {
 
 impl DeserializerOptionsBuilder {
     /// Set the value for [`DeserializerOptions::human_readable`].
+    #[deprecated = "use bson::serde_helpers::HumanReadable"]
+    #[allow(deprecated)]
     pub fn human_readable(mut self, val: impl Into<Option<bool>>) -> Self {
         self.options.human_readable = val.into();
         self
@@ -716,6 +720,7 @@ macro_rules! forward_to_deserialize {
 impl<'de> de::Deserializer<'de> for Deserializer {
     type Error = crate::de::Error;
 
+    #[allow(deprecated)]
     fn is_human_readable(&self) -> bool {
         self.options.human_readable.unwrap_or(true)
     }
@@ -815,7 +820,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
 
     #[inline]
     fn deserialize_newtype_struct<V>(
-        self,
+        mut self,
         name: &'static str,
         visitor: V,
     ) -> crate::de::Result<V::Value>
@@ -847,6 +852,11 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 }
 
                 self.deserialize_next(visitor, DeserializerHint::RawBson)
+            }
+            #[allow(deprecated)]
+            HUMAN_READABLE_NEWTYPE => {
+                self.options.human_readable = Some(true);
+                visitor.visit_newtype_struct(self)
             }
             _ => visitor.visit_newtype_struct(self),
         }

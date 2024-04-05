@@ -14,6 +14,7 @@ use super::{write_binary, write_cstring, write_f64, write_i32, write_i64, write_
 use crate::{
     raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     ser::{Error, Result},
+    serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
 };
@@ -30,6 +31,8 @@ pub(crate) struct Serializer {
 
     /// Hint provided by the type being serialized.
     hint: SerializerHint,
+
+    human_readable: bool,
 }
 
 /// Various bits of information that the serialized type can provide to the serializer to
@@ -60,6 +63,7 @@ impl Serializer {
             bytes: Vec::new(),
             type_index: 0,
             hint: SerializerHint::None,
+            human_readable: false,
         }
     }
 
@@ -115,7 +119,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     type SerializeStructVariant = VariantSerializer<'a>;
 
     fn is_human_readable(&self) -> bool {
-        false
+        self.human_readable
     }
 
     #[inline]
@@ -267,6 +271,13 @@ impl<'a> serde::Serializer for &'a mut Serializer {
             UUID_NEWTYPE_NAME => self.hint = SerializerHint::Uuid,
             RAW_DOCUMENT_NEWTYPE => self.hint = SerializerHint::RawDocument,
             RAW_ARRAY_NEWTYPE => self.hint = SerializerHint::RawArray,
+            HUMAN_READABLE_NEWTYPE => {
+                let old = self.human_readable;
+                self.human_readable = true;
+                let result = value.serialize(&mut *self);
+                self.human_readable = old;
+                return result;
+            }
             _ => {}
         }
         value.serialize(self)
