@@ -64,6 +64,7 @@ fn human_readable_wrapper() {
     }
     #[derive(PartialEq, Eq, Debug, Serialize, Deserialize)]
     struct Data {
+        first: HumanReadable<Detector>,
         outer: Detector,
         wrapped: HumanReadable<Detector>,
         inner: HumanReadable<SubData>,
@@ -73,6 +74,7 @@ fn human_readable_wrapper() {
         value: Detector,
     }
     let data = Data {
+        first: HumanReadable(Detector::new()),
         outer: Detector::new(),
         wrapped: HumanReadable(Detector::new()),
         inner: HumanReadable(SubData {
@@ -89,6 +91,7 @@ fn human_readable_wrapper() {
     assert_eq!(
         bson.as_document().unwrap(),
         &doc! {
+            "first": "human readable",
             "outer": "not human readable",
             "wrapped": "human readable",
             "inner": {
@@ -105,6 +108,10 @@ fn human_readable_wrapper() {
     )
     .unwrap();
     let expected = Data {
+        first: HumanReadable(Detector {
+            serialized_as: true,
+            deserialized_as: true,
+        }),
         outer: Detector {
             serialized_as: false,
             deserialized_as: false,

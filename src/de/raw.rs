@@ -459,8 +459,11 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 self.deserialize_next(visitor, DeserializerHint::RawBson)
             }
             HUMAN_READABLE_NEWTYPE => {
+                let old = self.human_readable;
                 self.human_readable = true;
-                visitor.visit_newtype_struct(self)
+                let result = visitor.visit_newtype_struct(&mut *self);
+                self.human_readable = old;
+                result
             }
             _ => visitor.visit_newtype_struct(self),
         }

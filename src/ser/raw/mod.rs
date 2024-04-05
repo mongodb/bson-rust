@@ -271,7 +271,13 @@ impl<'a> serde::Serializer for &'a mut Serializer {
             UUID_NEWTYPE_NAME => self.hint = SerializerHint::Uuid,
             RAW_DOCUMENT_NEWTYPE => self.hint = SerializerHint::RawDocument,
             RAW_ARRAY_NEWTYPE => self.hint = SerializerHint::RawArray,
-            HUMAN_READABLE_NEWTYPE => self.human_readable = true,
+            HUMAN_READABLE_NEWTYPE => {
+                let old = self.human_readable;
+                self.human_readable = true;
+                let result = value.serialize(&mut *self);
+                self.human_readable = old;
+                return result;
+            }
             _ => {}
         }
         value.serialize(self)
