@@ -150,7 +150,7 @@ impl<'a> RawElement<'a> {
         self.size
     }
 
-    pub fn key(&self) -> &str {
+    pub fn key(&self) -> &'a str {
         self.key
     }
 
