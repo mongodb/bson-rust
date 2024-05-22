@@ -651,6 +651,21 @@ fn test_serde_legacy_uuid_1() {
 }
 
 #[test]
+fn test_de_uuid_extjson_string() {
+    let _guard = LOCK.run_concurrently();
+
+    let uuid_bson_bytes =
+        hex::decode("1D000000057800100000000473FFD26444B34C6990E8E7D1DFC035D400").unwrap();
+    let uuid_document = Document::from_reader(uuid_bson_bytes.as_slice()).unwrap();
+    let expected_uuid_bson = Bson::from_extended_document(uuid_document);
+
+    let ext_json_uuid = "{\"x\" : { \"$uuid\" : \"73ffd264-44b3-4c69-90e8-e7d1dfc035d4\"}}";
+    let actual_uuid_bson: Bson = serde_json::from_str(ext_json_uuid).unwrap();
+
+    assert_eq!(actual_uuid_bson, expected_uuid_bson);
+}
+
+#[test]
 fn test_de_oid_string() {
     let _guard = LOCK.run_concurrently();
 
