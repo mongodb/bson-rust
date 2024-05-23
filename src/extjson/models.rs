@@ -188,7 +188,7 @@ impl Binary {
 #[serde(deny_unknown_fields)]
 pub(crate) struct Uuid {
     #[serde(rename = "$uuid")]
-    value: String,
+    pub(crate) value: String,
 }
 
 impl Uuid {

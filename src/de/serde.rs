@@ -381,6 +381,14 @@ impl<'de> Visitor<'de> for BsonVisitor {
                     ));
                 }
 
+                "$uuid" => {
+                    let v: String = visitor.next_value()?;
+                    let uuid = extjson::models::Uuid { value: v }
+                        .parse()
+                        .map_err(Error::custom)?;
+                    return Ok(Bson::Binary(uuid));
+                }
+
                 "$code" => {
                     let code = visitor.next_value::<String>()?;
                     if let Some(key) = visitor.next_key::<String>()? {
