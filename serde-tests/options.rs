@@ -177,6 +177,7 @@ impl<'de> Deserialize<'de> for Seq {
 
 #[test]
 fn to_bson_with_options() {
+    #[allow(deprecated)]
     let options = SerializerOptions::builder().human_readable(false).build();
 
     let mut hm = HashMap::new();
@@ -199,6 +200,7 @@ fn to_bson_with_options() {
 
 #[test]
 fn from_bson_with_options() {
+    #[allow(deprecated)]
     let options = DeserializerOptions::builder().human_readable(false).build();
 
     let doc = doc! {

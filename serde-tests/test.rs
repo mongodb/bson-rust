@@ -88,6 +88,7 @@ where
 
     let non_human_readable_doc = bson::to_document_with_options(
         &expected_value,
+        #[allow(deprecated)]
         SerializerOptions::builder().human_readable(false).build(),
     )
     .expect(description);
@@ -96,6 +97,7 @@ where
         expected_value,
         &bson::from_document_with_options::<T>(
             non_human_readable_doc,
+            #[allow(deprecated)]
             DeserializerOptions::builder().human_readable(false).build()
         )
         .expect(description),
@@ -1388,6 +1390,7 @@ fn non_human_readable() {
     let human_readable = bson::to_bson(&val).unwrap();
     let non_human_readable = bson::to_bson_with_options(
         &val,
+        #[allow(deprecated)]
         SerializerOptions::builder().human_readable(false).build(),
     )
     .unwrap();
