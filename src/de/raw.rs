@@ -17,7 +17,6 @@ use crate::{
     serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
-    Bson,
     DateTime,
     Decimal128,
     DeserializerOptions,
@@ -292,9 +291,8 @@ impl<'de> Deserializer<'de> {
                     )),
                     _ => {
                         let code = read_string(&mut self.bytes, utf8_lossy)?;
-                        let doc = Bson::JavaScriptCode(code).into_extended_document(false);
                         visitor.visit_map(MapDeserializer::new(
-                            doc,
+                            doc! { "$code": code },
                             #[allow(deprecated)]
                             DeserializerOptions::builder().human_readable(false).build(),
                         ))
@@ -350,9 +348,8 @@ impl<'de> Deserializer<'de> {
                     )),
                     _ => {
                         let symbol = read_string(&mut self.bytes, utf8_lossy)?;
-                        let doc = Bson::Symbol(symbol).into_extended_document(false);
                         visitor.visit_map(MapDeserializer::new(
-                            doc,
+                            doc! { "$symbol": symbol },
                             #[allow(deprecated)]
                             DeserializerOptions::builder().human_readable(false).build(),
                         ))
