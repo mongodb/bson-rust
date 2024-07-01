@@ -85,11 +85,7 @@ impl Serialize for Bson {
             }
             Bson::RegularExpression(re) => re.serialize(serializer),
             Bson::Timestamp(t) => t.serialize(serializer),
-            Bson::Decimal128(d) => {
-                let mut state = serializer.serialize_struct("$numberDecimal", 1)?;
-                state.serialize_field("$numberDecimalBytes", Bytes::new(&d.bytes))?;
-                state.end()
-            }
+            Bson::Decimal128(d) => d.serialize(serializer),
             Bson::Undefined => {
                 let mut state = serializer.serialize_struct("$undefined", 1)?;
                 state.serialize_field("$undefined", &true)?;
@@ -705,15 +701,14 @@ impl Serialize for Decimal128 {
     where
         S: ser::Serializer,
     {
-        if serializer.is_human_readable() {
-            let mut state = serializer.serialize_map(Some(1))?;
-            state.serialize_entry("$numberDecimal", &self.to_string())?;
-            state.end()
+        let human_readable = serializer.is_human_readable();
+        let mut state = serializer.serialize_struct("$numberDecimal", 1)?;
+        if human_readable {
+            state.serialize_field("$numberDecimal", &self.to_string())?;
         } else {
-            let mut state = serializer.serialize_struct("$numberDecimal", 1)?;
             state.serialize_field("$numberDecimalBytes", serde_bytes::Bytes::new(&self.bytes))?;
-            state.end()
         }
+        state.end()
     }
 }
 
