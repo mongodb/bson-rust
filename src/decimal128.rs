@@ -48,7 +48,7 @@ impl Decimal128 {
 
 impl fmt::Debug for Decimal128 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Decimal128(...)")
+        write!(f, "Decimal128({})", hex::encode(self.bytes))
     }
 }
 

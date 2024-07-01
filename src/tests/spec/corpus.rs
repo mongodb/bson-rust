@@ -267,12 +267,15 @@ fn run_test(test: TestFile) {
             description,
         );
 
-        assert_eq!(
-            hex::encode(documenttowriter_todocument_documentfromreader_cb).to_lowercase(),
-            valid.canonical_bson.to_lowercase(),
-            "{}",
-            description,
-        );
+        // bson::to_document(&Document) may be lossy due to round-tripping extjson
+        if valid.lossy != Some(true) {
+            assert_eq!(
+                hex::encode(documenttowriter_todocument_documentfromreader_cb).to_lowercase(),
+                valid.canonical_bson.to_lowercase(),
+                "{}",
+                description,
+            );
+        }
 
         assert_eq!(
             hex::encode(tovec_documentfromreader_cb).to_lowercase(),
@@ -313,11 +316,14 @@ fn run_test(test: TestFile) {
                 description
             );
 
-            assert_eq!(
-                documentfromreader_cb, todocument_documentfromreader_cb,
-                "{}",
-                description
-            );
+            // bson::to_document(&Document) may be lossy due to round-tripping extjson
+            if valid.lossy != Some(true) {
+                assert_eq!(
+                    documentfromreader_cb, todocument_documentfromreader_cb,
+                    "{}",
+                    description
+                );
+            }
 
             assert_eq!(
                 document_from_raw_document, documentfromreader_cb,
