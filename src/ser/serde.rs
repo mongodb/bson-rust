@@ -10,7 +10,6 @@ use serde::ser::{
     SerializeTupleStruct,
     SerializeTupleVariant,
 };
-use serde_bytes::Bytes;
 
 use crate::{
     bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
