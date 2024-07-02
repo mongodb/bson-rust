@@ -308,7 +308,7 @@ impl<'a, 'de> Visitor<'de> for SeededVisitor<'a, 'de> {
                             }
                             RawBsonRef::Undefined => Ok(ElementType::Undefined),
                             RawBsonRef::DateTime(dt) => {
-                                self.buffer.append_bytes(&dt.to_le_bytes());
+                                self.buffer.append_bytes(&dt.as_le_bytes());
                                 Ok(ElementType::DateTime)
                             }
                             RawBsonRef::Timestamp(ts) => {

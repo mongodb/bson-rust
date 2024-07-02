@@ -406,7 +406,7 @@ impl crate::DateTime {
             .unwrap_or(Duration::ZERO)
     }
 
-    pub(crate) fn to_le_bytes(&self) -> [u8; 8] {
+    pub(crate) fn as_le_bytes(&self) -> [u8; 8] {
         self.0.to_le_bytes()
     }
 }
