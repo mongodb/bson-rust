@@ -33,6 +33,18 @@ pub(crate) enum OwnedOrBorrowedRawBson<'a> {
     Borrowed(RawBsonRef<'a>),
 }
 
+impl<'a> OwnedOrBorrowedRawBson<'a> {
+    pub(crate) fn as_ref<'b>(&'b self) -> RawBsonRef<'b>
+    where
+        'a: 'b,
+    {
+        match self {
+            Self::Borrowed(r) => *r,
+            Self::Owned(bson) => bson.as_raw_bson_ref(),
+        }
+    }
+}
+
 impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawBson<'a> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

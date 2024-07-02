@@ -4,23 +4,15 @@ use serde::{
     de::{DeserializeSeed, Error as SerdeError, MapAccess, SeqAccess, Visitor},
     Deserializer,
 };
-use serde_bytes::ByteBuf;
 
 use crate::{
-    de::MIN_BSON_DOCUMENT_SIZE,
-    extjson::models::{
-        BorrowedBinaryBody,
-        BorrowedDbPointerBody,
-        BorrowedRegexBody,
-        TimestampBody,
-    },
-    oid::ObjectId,
-    raw::{RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::RAW_BSON_NEWTYPE,
     spec::{BinarySubtype, ElementType},
-    RawDocumentBuf,
+    RawBson,
+    RawBsonRef,
 };
 
-use super::CowStr;
+use super::{CowStr, MapParse, OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor};
 
 /// A copy-on-write byte buffer containing raw BSON bytes. The inner value starts as `None` and
 /// transitions to either `Cow::Borrowed` or `Cow::Owned` depending upon the data visited.
@@ -272,122 +264,88 @@ impl<'a, 'de> Visitor<'de> for SeededVisitor<'a, 'de> {
     where
         A: MapAccess<'de>,
     {
-        let first_key = match map.next_key::<CowStr>()? {
-            Some(key) => key,
-            None => {
-                self.buffer
-                    .append_bytes(&MIN_BSON_DOCUMENT_SIZE.to_le_bytes());
-                self.buffer.push_byte(0);
-                return Ok(ElementType::EmbeddedDocument);
-            }
-        };
-
-        match first_key.0.as_ref() {
-            "$oid" => {
-                let oid: ObjectId = map.next_value()?;
-                self.buffer.append_bytes(&oid.bytes());
-                Ok(ElementType::ObjectId)
-            }
-            "$symbol" => {
-                let s: &str = map.next_value()?;
-                self.append_string(s);
-                Ok(ElementType::Symbol)
-            }
-            "$numberDecimalBytes" => {
-                let bytes: ByteBuf = map.next_value()?;
-                self.buffer.append_bytes(&bytes.into_vec());
-                Ok(ElementType::Decimal128)
-            }
-            "$regularExpression" => {
-                let regex: BorrowedRegexBody = map.next_value()?;
-                let pattern = regex.pattern.as_ref();
-                let options = regex.options.as_ref();
-
-                self.append_cstring(pattern).map_err(SerdeError::custom)?;
-                self.append_cstring(options).map_err(SerdeError::custom)?;
-
-                Ok(ElementType::RegularExpression)
-            }
-            "$undefined" => {
-                let _: bool = map.next_value()?;
-                Ok(ElementType::Undefined)
-            }
-            "$binary" => {
-                let binary: BorrowedBinaryBody = map.next_value()?;
-                match binary.bytes {
-                    Cow::Borrowed(borrowed_bytes) => {
-                        self.append_borrowed_binary(borrowed_bytes, binary.subtype);
+        match OwnedOrBorrowedRawBsonVisitor::parse_map(&mut map)? {
+            MapParse::Leaf(bson) => {
+                match bson {
+                    // Cases that need to distinguish owned and borrowed
+                    OwnedOrBorrowedRawBson::Borrowed(RawBsonRef::Binary(b)) => {
+                        self.append_borrowed_binary(b.bytes, b.subtype.into());
+                        Ok(ElementType::Binary)
                     }
-                    Cow::Owned(owned_bytes) => {
-                        self.append_owned_binary(owned_bytes, binary.subtype);
+                    OwnedOrBorrowedRawBson::Owned(RawBson::Binary(b)) => {
+                        self.append_owned_binary(b.bytes, b.subtype.into());
+                        Ok(ElementType::Binary)
+                    }
+                    OwnedOrBorrowedRawBson::Borrowed(RawBsonRef::Document(doc)) => {
+                        self.buffer.append_borrowed_bytes(doc.as_bytes());
+                        Ok(ElementType::EmbeddedDocument)
+                    }
+                    OwnedOrBorrowedRawBson::Borrowed(RawBsonRef::Array(arr)) => {
+                        self.buffer.append_borrowed_bytes(arr.as_bytes());
+                        Ok(ElementType::Array)
+                    }
+                    // Cases that don't
+                    _ => {
+                        match bson.as_ref() {
+                            RawBsonRef::ObjectId(oid) => {
+                                self.buffer.append_bytes(&oid.bytes());
+                                Ok(ElementType::ObjectId)
+                            }
+                            RawBsonRef::Symbol(s) => {
+                                self.append_string(s);
+                                Ok(ElementType::Symbol)
+                            }
+                            RawBsonRef::Decimal128(d) => {
+                                self.buffer.append_bytes(&d.bytes);
+                                Ok(ElementType::Decimal128)
+                            }
+                            RawBsonRef::RegularExpression(re) => {
+                                self.append_cstring(re.pattern)
+                                    .map_err(SerdeError::custom)?;
+                                self.append_cstring(re.options)
+                                    .map_err(SerdeError::custom)?;
+                                Ok(ElementType::RegularExpression)
+                            }
+                            RawBsonRef::Undefined => Ok(ElementType::Undefined),
+                            RawBsonRef::DateTime(dt) => {
+                                self.buffer.append_bytes(&dt.to_le_bytes());
+                                Ok(ElementType::DateTime)
+                            }
+                            RawBsonRef::Timestamp(ts) => {
+                                self.buffer.append_bytes(&ts.increment.to_le_bytes());
+                                self.buffer.append_bytes(&ts.time.to_le_bytes());
+                                Ok(ElementType::Timestamp)
+                            }
+                            RawBsonRef::MinKey => Ok(ElementType::MinKey),
+                            RawBsonRef::MaxKey => Ok(ElementType::MaxKey),
+                            RawBsonRef::JavaScriptCode(s) => {
+                                self.append_string(s);
+                                Ok(ElementType::JavaScriptCode)
+                            }
+                            RawBsonRef::JavaScriptCodeWithScope(jsc) => {
+                                let length_index = self.pad_document_length();
+                                self.append_string(jsc.code);
+                                self.buffer.append_bytes(jsc.scope.as_bytes());
+
+                                let length_bytes =
+                                    ((self.buffer.len() - length_index) as i32).to_le_bytes();
+                                self.buffer
+                                    .copy_from_slice(length_index..length_index + 4, &length_bytes);
+
+                                Ok(ElementType::JavaScriptCodeWithScope)
+                            }
+                            RawBsonRef::DbPointer(dbp) => {
+                                self.append_string(dbp.namespace);
+                                self.buffer.append_bytes(&dbp.id.bytes());
+                                Ok(ElementType::DbPointer)
+                            }
+                            // No other `Leaf` arms are emitted by `parse_map`
+                            _ => unreachable!(),
+                        }
                     }
                 }
-
-                Ok(ElementType::Binary)
             }
-            "$date" => {
-                let date: i64 = map.next_value()?;
-                self.buffer.append_bytes(&date.to_le_bytes());
-                Ok(ElementType::DateTime)
-            }
-            "$timestamp" => {
-                let timestamp: TimestampBody = map.next_value()?;
-                self.buffer.append_bytes(&timestamp.i.to_le_bytes());
-                self.buffer.append_bytes(&timestamp.t.to_le_bytes());
-                Ok(ElementType::Timestamp)
-            }
-            "$minKey" => {
-                let _: i32 = map.next_value()?;
-                Ok(ElementType::MinKey)
-            }
-            "$maxKey" => {
-                let _: i32 = map.next_value()?;
-                Ok(ElementType::MaxKey)
-            }
-            "$code" => {
-                let code: CowStr = map.next_value()?;
-                if let Some(key) = map.next_key::<CowStr>()? {
-                    let key = key.0.as_ref();
-                    if key == "$scope" {
-                        let length_index = self.pad_document_length();
-                        self.append_string(code.0.as_ref());
-
-                        let scope: RawDocumentBuf = map.next_value()?;
-                        self.buffer.append_bytes(scope.as_bytes());
-
-                        let length_bytes =
-                            ((self.buffer.len() - length_index) as i32).to_le_bytes();
-                        self.buffer
-                            .copy_from_slice(length_index..length_index + 4, &length_bytes);
-
-                        Ok(ElementType::JavaScriptCodeWithScope)
-                    } else {
-                        Err(SerdeError::unknown_field(key, &["$scope"]))
-                    }
-                } else {
-                    self.append_string(code.0.as_ref());
-                    Ok(ElementType::JavaScriptCode)
-                }
-            }
-            "$dbPointer" => {
-                let db_pointer: BorrowedDbPointerBody = map.next_value()?;
-
-                self.append_string(db_pointer.ns.0.as_ref());
-                self.buffer.append_bytes(&db_pointer.id.bytes());
-
-                Ok(ElementType::DbPointer)
-            }
-            RAW_DOCUMENT_NEWTYPE => {
-                let document_bytes: &[u8] = map.next_value()?;
-                self.buffer.append_borrowed_bytes(document_bytes);
-                Ok(ElementType::EmbeddedDocument)
-            }
-            RAW_ARRAY_NEWTYPE => {
-                let array_bytes: &[u8] = map.next_value()?;
-                self.buffer.append_borrowed_bytes(array_bytes);
-                Ok(ElementType::Array)
-            }
-            _ => {
+            MapParse::Aggregate(first_key) => {
                 self.iterate_map(first_key, map)?;
                 Ok(ElementType::EmbeddedDocument)
             }

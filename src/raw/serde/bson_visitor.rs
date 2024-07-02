@@ -44,6 +44,160 @@ use super::{
 /// A visitor used to deserialize types backed by raw BSON.
 pub(crate) struct OwnedOrBorrowedRawBsonVisitor;
 
+pub(super) enum MapParse<'de> {
+    Leaf(OwnedOrBorrowedRawBson<'de>),
+    Aggregate(CowStr<'de>),
+}
+
+impl OwnedOrBorrowedRawBsonVisitor {
+    pub(super) fn parse_map<'de, A>(map: &mut A) -> Result<MapParse<'de>, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        let first_key = match map.next_key::<CowStr>()? {
+            Some(k) => k,
+            None => {
+                return Ok(MapParse::Leaf(
+                    RawBson::Document(RawDocumentBuf::new()).into(),
+                ))
+            }
+        };
+        Ok(MapParse::Leaf(match first_key.0.as_ref() {
+            "$oid" => {
+                let oid: ObjectId = map.next_value()?;
+                RawBsonRef::ObjectId(oid).into()
+            }
+            "$symbol" => {
+                let s: CowStr = map.next_value()?;
+                match s.0 {
+                    Cow::Borrowed(s) => RawBsonRef::Symbol(s).into(),
+                    Cow::Owned(s) => RawBson::Symbol(s).into(),
+                }
+            }
+            "$numberDecimalBytes" => {
+                let bytes: ByteBuf = map.next_value()?;
+                RawBsonRef::Decimal128(Decimal128::deserialize_from_slice(bytes.as_ref())?).into()
+            }
+            "$regularExpression" => {
+                let body: BorrowedRegexBody = map.next_value()?;
+
+                match (body.pattern, body.options) {
+                    (Cow::Borrowed(p), Cow::Borrowed(o)) => {
+                        RawBsonRef::RegularExpression(RawRegexRef {
+                            pattern: p,
+                            options: o,
+                        })
+                        .into()
+                    }
+                    (p, o) => RawBson::RegularExpression(Regex {
+                        pattern: p.into_owned(),
+                        options: o.into_owned(),
+                    })
+                    .into(),
+                }
+            }
+            "$undefined" => {
+                let _: bool = map.next_value()?;
+                RawBsonRef::Undefined.into()
+            }
+            "$binary" => {
+                let v: BorrowedBinaryBody = map.next_value()?;
+
+                if let Cow::Borrowed(bytes) = v.bytes {
+                    RawBsonRef::Binary(RawBinaryRef {
+                        bytes,
+                        subtype: v.subtype.into(),
+                    })
+                    .into()
+                } else {
+                    RawBson::Binary(Binary {
+                        bytes: v.bytes.into_owned(),
+                        subtype: v.subtype.into(),
+                    })
+                    .into()
+                }
+            }
+            "$date" => {
+                let date: i64 = map.next_value()?;
+                RawBsonRef::DateTime(DateTime::from_millis(date)).into()
+            }
+            "$timestamp" => {
+                let timestamp: TimestampBody = map.next_value()?;
+                RawBsonRef::Timestamp(Timestamp {
+                    time: timestamp.t,
+                    increment: timestamp.i,
+                })
+                .into()
+            }
+            "$minKey" => {
+                let _ = map.next_value::<i32>()?;
+                RawBsonRef::MinKey.into()
+            }
+            "$maxKey" => {
+                let _ = map.next_value::<i32>()?;
+                RawBsonRef::MaxKey.into()
+            }
+            "$code" => {
+                let code = map.next_value::<CowStr>()?;
+                if let Some(key) = map.next_key::<CowStr>()? {
+                    if key.0.as_ref() == "$scope" {
+                        let scope = map.next_value::<OwnedOrBorrowedRawDocument>()?;
+                        match (code.0, scope) {
+                            (Cow::Borrowed(code), OwnedOrBorrowedRawDocument::Borrowed(scope)) => {
+                                RawBsonRef::JavaScriptCodeWithScope(RawJavaScriptCodeWithScopeRef {
+                                    code,
+                                    scope,
+                                })
+                                .into()
+                            }
+                            (code, scope) => {
+                                RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
+                                    code: code.into_owned(),
+                                    scope: scope.into_owned(),
+                                })
+                                .into()
+                            }
+                        }
+                    } else {
+                        return Err(SerdeError::unknown_field(&key.0, &["$scope"]));
+                    }
+                } else if let Cow::Borrowed(code) = code.0 {
+                    RawBsonRef::JavaScriptCode(code).into()
+                } else {
+                    RawBson::JavaScriptCode(code.0.into_owned()).into()
+                }
+            }
+            "$dbPointer" => {
+                let db_pointer: BorrowedDbPointerBody = map.next_value()?;
+                if let Cow::Borrowed(ns) = db_pointer.ns.0 {
+                    RawBsonRef::DbPointer(RawDbPointerRef {
+                        namespace: ns,
+                        id: db_pointer.id,
+                    })
+                    .into()
+                } else {
+                    RawBson::DbPointer(DbPointer {
+                        namespace: db_pointer.ns.0.into_owned(),
+                        id: db_pointer.id,
+                    })
+                    .into()
+                }
+            }
+            RAW_DOCUMENT_NEWTYPE => {
+                let bson = map.next_value::<&[u8]>()?;
+                let doc = RawDocument::from_bytes(bson).map_err(SerdeError::custom)?;
+                RawBsonRef::Document(doc).into()
+            }
+            RAW_ARRAY_NEWTYPE => {
+                let bson = map.next_value::<&[u8]>()?;
+                let doc = RawDocument::from_bytes(bson).map_err(SerdeError::custom)?;
+                RawBsonRef::Array(RawArray::from_doc(doc)).into()
+            }
+            _ => return Ok(MapParse::Aggregate(first_key)),
+        }))
+    }
+}
+
 impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
     type Value = OwnedOrBorrowedRawBson<'de>;
 
@@ -209,145 +363,9 @@ impl<'de> Visitor<'de> for OwnedOrBorrowedRawBsonVisitor {
     where
         A: serde::de::MapAccess<'de>,
     {
-        let first_key = match map.next_key::<CowStr>()? {
-            Some(k) => k,
-            None => return Ok(RawBson::Document(RawDocumentBuf::new()).into()),
-        };
-
-        match first_key.0.as_ref() {
-            "$oid" => {
-                let oid: ObjectId = map.next_value()?;
-                Ok(RawBsonRef::ObjectId(oid).into())
-            }
-            "$symbol" => {
-                let s: CowStr = map.next_value()?;
-                match s.0 {
-                    Cow::Borrowed(s) => Ok(RawBsonRef::Symbol(s).into()),
-                    Cow::Owned(s) => Ok(RawBson::Symbol(s).into()),
-                }
-            }
-            "$numberDecimalBytes" => {
-                let bytes: ByteBuf = map.next_value()?;
-                return Ok(RawBsonRef::Decimal128(Decimal128::deserialize_from_slice(
-                    bytes.as_ref(),
-                )?)
-                .into());
-            }
-            "$regularExpression" => {
-                let body: BorrowedRegexBody = map.next_value()?;
-
-                match (body.pattern, body.options) {
-                    (Cow::Borrowed(p), Cow::Borrowed(o)) => {
-                        Ok(RawBsonRef::RegularExpression(RawRegexRef {
-                            pattern: p,
-                            options: o,
-                        })
-                        .into())
-                    }
-                    (p, o) => Ok(RawBson::RegularExpression(Regex {
-                        pattern: p.into_owned(),
-                        options: o.into_owned(),
-                    })
-                    .into()),
-                }
-            }
-            "$undefined" => {
-                let _: bool = map.next_value()?;
-                Ok(RawBsonRef::Undefined.into())
-            }
-            "$binary" => {
-                let v: BorrowedBinaryBody = map.next_value()?;
-
-                if let Cow::Borrowed(bytes) = v.bytes {
-                    Ok(RawBsonRef::Binary(RawBinaryRef {
-                        bytes,
-                        subtype: v.subtype.into(),
-                    })
-                    .into())
-                } else {
-                    Ok(RawBson::Binary(Binary {
-                        bytes: v.bytes.into_owned(),
-                        subtype: v.subtype.into(),
-                    })
-                    .into())
-                }
-            }
-            "$date" => {
-                let date: i64 = map.next_value()?;
-                Ok(RawBsonRef::DateTime(DateTime::from_millis(date)).into())
-            }
-            "$timestamp" => {
-                let timestamp: TimestampBody = map.next_value()?;
-                Ok(RawBsonRef::Timestamp(Timestamp {
-                    time: timestamp.t,
-                    increment: timestamp.i,
-                })
-                .into())
-            }
-            "$minKey" => {
-                let _ = map.next_value::<i32>()?;
-                Ok(RawBsonRef::MinKey.into())
-            }
-            "$maxKey" => {
-                let _ = map.next_value::<i32>()?;
-                Ok(RawBsonRef::MaxKey.into())
-            }
-            "$code" => {
-                let code = map.next_value::<CowStr>()?;
-                if let Some(key) = map.next_key::<CowStr>()? {
-                    if key.0.as_ref() == "$scope" {
-                        let scope = map.next_value::<OwnedOrBorrowedRawDocument>()?;
-                        match (code.0, scope) {
-                            (Cow::Borrowed(code), OwnedOrBorrowedRawDocument::Borrowed(scope)) => {
-                                Ok(RawBsonRef::JavaScriptCodeWithScope(
-                                    RawJavaScriptCodeWithScopeRef { code, scope },
-                                )
-                                .into())
-                            }
-                            (code, scope) => Ok(RawBson::JavaScriptCodeWithScope(
-                                RawJavaScriptCodeWithScope {
-                                    code: code.into_owned(),
-                                    scope: scope.into_owned(),
-                                },
-                            )
-                            .into()),
-                        }
-                    } else {
-                        Err(SerdeError::unknown_field(&key.0, &["$scope"]))
-                    }
-                } else if let Cow::Borrowed(code) = code.0 {
-                    Ok(RawBsonRef::JavaScriptCode(code).into())
-                } else {
-                    Ok(RawBson::JavaScriptCode(code.0.into_owned()).into())
-                }
-            }
-            "$dbPointer" => {
-                let db_pointer: BorrowedDbPointerBody = map.next_value()?;
-                if let Cow::Borrowed(ns) = db_pointer.ns.0 {
-                    Ok(RawBsonRef::DbPointer(RawDbPointerRef {
-                        namespace: ns,
-                        id: db_pointer.id,
-                    })
-                    .into())
-                } else {
-                    Ok(RawBson::DbPointer(DbPointer {
-                        namespace: db_pointer.ns.0.into_owned(),
-                        id: db_pointer.id,
-                    })
-                    .into())
-                }
-            }
-            RAW_DOCUMENT_NEWTYPE => {
-                let bson = map.next_value::<&[u8]>()?;
-                let doc = RawDocument::from_bytes(bson).map_err(SerdeError::custom)?;
-                Ok(RawBsonRef::Document(doc).into())
-            }
-            RAW_ARRAY_NEWTYPE => {
-                let bson = map.next_value::<&[u8]>()?;
-                let doc = RawDocument::from_bytes(bson).map_err(SerdeError::custom)?;
-                Ok(RawBsonRef::Array(RawArray::from_doc(doc)).into())
-            }
-            _ => {
+        match Self::parse_map(&mut map)? {
+            MapParse::Leaf(value) => Ok(value),
+            MapParse::Aggregate(first_key) => {
                 let mut buffer = CowByteBuffer::new();
                 let seeded_visitor = SeededVisitor::new(&mut buffer);
                 seeded_visitor.iterate_map(first_key, map)?;
