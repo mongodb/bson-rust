@@ -352,7 +352,7 @@ pub mod chrono_datetime_as_bson_datetime_optional {
         val: &Option<chrono::DateTime<Utc>>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let datetime = val.map(|datetime| DateTime::from_chrono(datetime));
+        let datetime = val.map(DateTime::from_chrono);
         datetime.serialize(serializer)
     }
 }
