@@ -405,6 +405,10 @@ impl crate::DateTime {
         self.checked_duration_since(earlier)
             .unwrap_or(Duration::ZERO)
     }
+
+    pub(crate) fn as_le_bytes(&self) -> [u8; 8] {
+        self.0.to_le_bytes()
+    }
 }
 
 impl fmt::Debug for crate::DateTime {
