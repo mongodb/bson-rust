@@ -866,6 +866,59 @@ fn test_datetime_helpers() {
         assert_eq!(b.date, expected);
     }
 
+    #[cfg(feature = "chrono-0_4")]
+    {
+        use std::str::FromStr;
+        #[derive(Deserialize, Serialize)]
+        struct B {
+            #[serde(with = "serde_helpers::chrono_datetime_as_bson_datetime_optional")]
+            pub date: Option<chrono::DateTime<chrono::Utc>>,
+        }
+
+        let date = r#"
+    {
+        "date": {
+                "$date": {
+                    "$numberLong": "1591700287095"
+                }
+        }
+    }"#;
+        let json: serde_json::Value = serde_json::from_str(date).unwrap();
+        let b: B = serde_json::from_value(json).unwrap();
+        let expected: Option<chrono::DateTime<chrono::Utc>> =
+            Some(chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap());
+        assert_eq!(b.date, expected);
+        let doc = to_document(&b).unwrap();
+        assert_eq!(
+            Some(doc.get_datetime("date").unwrap().to_chrono()),
+            expected
+        );
+        let b: B = from_document(doc).unwrap();
+        assert_eq!(b.date, expected);
+    }
+
+    #[cfg(feature = "chrono-0_4")]
+    {
+        #[derive(Deserialize, Serialize)]
+        struct B {
+            #[serde(with = "serde_helpers::chrono_datetime_as_bson_datetime_optional")]
+            pub date: Option<chrono::DateTime<chrono::Utc>>,
+        }
+
+        let date = r#"
+    {
+        "date": null
+    }"#;
+        let json: serde_json::Value = serde_json::from_str(date).unwrap();
+        let b: B = serde_json::from_value(json).unwrap();
+        let expected = None;
+        assert_eq!(b.date, expected);
+        let doc = to_document(&b).unwrap();
+        assert_eq!(None, expected);
+        let b: B = from_document(doc).unwrap();
+        assert_eq!(b.date, expected);
+    }
+
     #[derive(Deserialize, Serialize)]
     struct C {
         #[serde(with = "rfc3339_string_as_bson_datetime")]
