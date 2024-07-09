@@ -285,64 +285,71 @@ impl<'a, 'de> Visitor<'de> for SeededVisitor<'a, 'de> {
                         Ok(ElementType::Array)
                     }
                     // Cases that don't
-                    _ => {
-                        match bson.as_ref() {
-                            RawBsonRef::ObjectId(oid) => {
-                                self.buffer.append_bytes(&oid.bytes());
-                                Ok(ElementType::ObjectId)
-                            }
-                            RawBsonRef::Symbol(s) => {
-                                self.append_string(s);
-                                Ok(ElementType::Symbol)
-                            }
-                            RawBsonRef::Decimal128(d) => {
-                                self.buffer.append_bytes(&d.bytes);
-                                Ok(ElementType::Decimal128)
-                            }
-                            RawBsonRef::RegularExpression(re) => {
-                                self.append_cstring(re.pattern)
-                                    .map_err(SerdeError::custom)?;
-                                self.append_cstring(re.options)
-                                    .map_err(SerdeError::custom)?;
-                                Ok(ElementType::RegularExpression)
-                            }
-                            RawBsonRef::Undefined => Ok(ElementType::Undefined),
-                            RawBsonRef::DateTime(dt) => {
-                                self.buffer.append_bytes(&dt.as_le_bytes());
-                                Ok(ElementType::DateTime)
-                            }
-                            RawBsonRef::Timestamp(ts) => {
-                                self.buffer.append_bytes(&ts.increment.to_le_bytes());
-                                self.buffer.append_bytes(&ts.time.to_le_bytes());
-                                Ok(ElementType::Timestamp)
-                            }
-                            RawBsonRef::MinKey => Ok(ElementType::MinKey),
-                            RawBsonRef::MaxKey => Ok(ElementType::MaxKey),
-                            RawBsonRef::JavaScriptCode(s) => {
-                                self.append_string(s);
-                                Ok(ElementType::JavaScriptCode)
-                            }
-                            RawBsonRef::JavaScriptCodeWithScope(jsc) => {
-                                let length_index = self.pad_document_length();
-                                self.append_string(jsc.code);
-                                self.buffer.append_bytes(jsc.scope.as_bytes());
-
-                                let length_bytes =
-                                    ((self.buffer.len() - length_index) as i32).to_le_bytes();
-                                self.buffer
-                                    .copy_from_slice(length_index..length_index + 4, &length_bytes);
-
-                                Ok(ElementType::JavaScriptCodeWithScope)
-                            }
-                            RawBsonRef::DbPointer(dbp) => {
-                                self.append_string(dbp.namespace);
-                                self.buffer.append_bytes(&dbp.id.bytes());
-                                Ok(ElementType::DbPointer)
-                            }
-                            // No other `Leaf` arms are emitted by `parse_map`
-                            _ => unreachable!(),
+                    _ => match bson.as_ref() {
+                        RawBsonRef::ObjectId(oid) => {
+                            self.buffer.append_bytes(&oid.bytes());
+                            Ok(ElementType::ObjectId)
                         }
-                    }
+                        RawBsonRef::Symbol(s) => {
+                            self.append_string(s);
+                            Ok(ElementType::Symbol)
+                        }
+                        RawBsonRef::Decimal128(d) => {
+                            self.buffer.append_bytes(&d.bytes);
+                            Ok(ElementType::Decimal128)
+                        }
+                        RawBsonRef::RegularExpression(re) => {
+                            self.append_cstring(re.pattern)
+                                .map_err(SerdeError::custom)?;
+                            self.append_cstring(re.options)
+                                .map_err(SerdeError::custom)?;
+                            Ok(ElementType::RegularExpression)
+                        }
+                        RawBsonRef::Undefined => Ok(ElementType::Undefined),
+                        RawBsonRef::DateTime(dt) => {
+                            self.buffer.append_bytes(&dt.as_le_bytes());
+                            Ok(ElementType::DateTime)
+                        }
+                        RawBsonRef::Timestamp(ts) => {
+                            self.buffer.append_bytes(&ts.increment.to_le_bytes());
+                            self.buffer.append_bytes(&ts.time.to_le_bytes());
+                            Ok(ElementType::Timestamp)
+                        }
+                        RawBsonRef::MinKey => Ok(ElementType::MinKey),
+                        RawBsonRef::MaxKey => Ok(ElementType::MaxKey),
+                        RawBsonRef::JavaScriptCode(s) => {
+                            self.append_string(s);
+                            Ok(ElementType::JavaScriptCode)
+                        }
+                        RawBsonRef::JavaScriptCodeWithScope(jsc) => {
+                            let length_index = self.pad_document_length();
+                            self.append_string(jsc.code);
+                            self.buffer.append_bytes(jsc.scope.as_bytes());
+
+                            let length_bytes =
+                                ((self.buffer.len() - length_index) as i32).to_le_bytes();
+                            self.buffer
+                                .copy_from_slice(length_index..length_index + 4, &length_bytes);
+
+                            Ok(ElementType::JavaScriptCodeWithScope)
+                        }
+                        RawBsonRef::DbPointer(dbp) => {
+                            self.append_string(dbp.namespace);
+                            self.buffer.append_bytes(&dbp.id.bytes());
+                            Ok(ElementType::DbPointer)
+                        }
+                        RawBsonRef::Double(d) => self.visit_f64(d),
+                        RawBsonRef::String(s) => self.visit_str(s),
+                        RawBsonRef::Boolean(b) => self.visit_bool(b),
+                        RawBsonRef::Null => self.visit_none(),
+                        RawBsonRef::Int32(i) => self.visit_i32(i),
+                        RawBsonRef::Int64(i) => self.visit_i64(i),
+                        // These are always borrowed and are handled
+                        // at the top of the outer `match`.
+                        RawBsonRef::Array(_) | RawBsonRef::Document(_) | RawBsonRef::Binary(_) => {
+                            unreachable!()
+                        }
+                    },
                 }
             }
             MapParse::Aggregate(first_key) => {
