@@ -314,7 +314,7 @@ pub mod chrono_datetime_as_bson_datetime {
 }
 
 /// Contains functions to serialize an [`Option<chrono::DateTime>`] as an [`Option<crate::DateTime>`] and deserialize
-/// a [`Option<chrono::DateTime>`] from a [`Option<crate::DateTime>`].
+/// an [`Option<chrono::DateTime>`] from an [`Option<crate::DateTime>`].
 ///
 /// ```rust
 /// # #[cfg(feature = "chrono-0_4")]
