@@ -313,7 +313,7 @@ pub mod chrono_datetime_as_bson_datetime {
     }
 }
 
-/// Contains functions to serialize a [`Option<chrono::DateTime>`] as a [`Option<crate::DateTime>`] and deserialize
+/// Contains functions to serialize an [`Option<chrono::DateTime>`] as an [`Option<crate::DateTime>`] and deserialize
 /// a [`Option<chrono::DateTime>`] from a [`Option<crate::DateTime>`].
 ///
 /// ```rust
