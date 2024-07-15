@@ -17,6 +17,12 @@ pub use chrono_datetime_as_bson_datetime::{
     deserialize as deserialize_chrono_datetime_from_bson_datetime,
     serialize as serialize_chrono_datetime_as_bson_datetime,
 };
+#[cfg(feature = "chrono-0_4")]
+#[doc(inline)]
+pub use chrono_datetime_as_bson_datetime_optional::{
+    deserialize as deserialize_chrono_datetime_from_bson_datetime_optional,
+    serialize as serialize_chrono_datetime_as_bson_datetime_optional,
+};
 #[doc(inline)]
 pub use hex_string_as_object_id::{
     deserialize as deserialize_hex_string_from_object_id,
@@ -303,6 +309,51 @@ pub mod chrono_datetime_as_bson_datetime {
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         let datetime = DateTime::from_chrono(val.to_owned());
+        datetime.serialize(serializer)
+    }
+}
+
+/// Contains functions to serialize an [`Option<chrono::DateTime>`] as an
+/// [`Option<crate::DateTime>`] and deserialize an [`Option<chrono::DateTime>`] from an
+/// [`Option<crate::DateTime>`].
+///
+/// ```rust
+/// # #[cfg(feature = "chrono-0_4")]
+/// # {
+/// # use serde::{Serialize, Deserialize};
+/// # use bson::serde_helpers::chrono_datetime_as_bson_datetime_optional;
+/// #[derive(Serialize, Deserialize)]
+/// struct Event {
+///     #[serde(with = "chrono_datetime_as_bson_datetime_optional")]
+///     pub date: Option<chrono::DateTime<chrono::Utc>>,
+/// }
+/// # }
+/// ```
+#[cfg(feature = "chrono-0_4")]
+#[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
+pub mod chrono_datetime_as_bson_datetime_optional {
+    use crate::DateTime;
+    use chrono::Utc;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::result::Result;
+
+    /// Deserializes a [`chrono::DateTime`] from a [`crate::DateTime`].
+    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<chrono::DateTime<Utc>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let val = Option::deserialize(deserializer)?.map(|datetime: DateTime| datetime.to_chrono());
+        Ok(val)
+    }
+
+    /// Serializes a [`Option<chrono::DateTime>`] as a [`Option<crate::DateTime>`].
+    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
+    pub fn serialize<S: Serializer>(
+        val: &Option<chrono::DateTime<Utc>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let datetime = val.map(DateTime::from_chrono);
         datetime.serialize(serializer)
     }
 }
