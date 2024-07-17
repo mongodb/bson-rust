@@ -267,10 +267,10 @@ impl<'a> RawElement<'a> {
         })
     }
 
-    pub(crate) fn value_utf8_lossy(&self) -> Result<RawBson> {
-        Ok(match self.kind {
-            ElementType::String => RawBson::String(self.read_utf8_lossy()),
-            ElementType::JavaScriptCode => RawBson::JavaScriptCode(self.read_utf8_lossy()),
+    pub(crate) fn value_utf8_lossy(&self) -> Result<Option<Utf8LossyBson<'a>>> {
+        Ok(Some(match self.kind {
+            ElementType::String => Utf8LossyBson::String(self.read_utf8_lossy()),
+            ElementType::JavaScriptCode => Utf8LossyBson::JavaScriptCode(self.read_utf8_lossy()),
             ElementType::JavaScriptCodeWithScope => {
                 if self.size < MIN_CODE_WITH_SCOPE_SIZE as usize {
                     return Err(self.malformed_error("code with scope length too small"));
@@ -279,12 +279,15 @@ impl<'a> RawElement<'a> {
                 let slice = self.slice();
                 let code = String::from_utf8_lossy(read_lenencode_bytes(&slice[4..])?).into_owned();
                 let scope_start = 4 + 4 + code.len() + 1;
-                let scope = RawDocument::from_bytes(&slice[scope_start..])?.to_owned();
+                let scope = RawDocument::from_bytes(&slice[scope_start..])?;
 
-                RawBson::JavaScriptCodeWithScope(crate::RawJavaScriptCodeWithScope { code, scope })
+                Utf8LossyBson::JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope {
+                    code,
+                    scope,
+                })
             }
-            ElementType::Symbol => RawBson::Symbol(self.read_utf8_lossy()),
-            ElementType::DbPointer => RawBson::DbPointer(crate::DbPointer {
+            ElementType::Symbol => Utf8LossyBson::Symbol(self.read_utf8_lossy()),
+            ElementType::DbPointer => Utf8LossyBson::DbPointer(crate::DbPointer {
                 namespace: String::from_utf8_lossy(read_lenencode_bytes(self.slice())?)
                     .into_owned(),
                 id: self.get_oid_at(self.start_at + (self.size - 12))?,
@@ -293,7 +296,7 @@ impl<'a> RawElement<'a> {
                 let pattern =
                     String::from_utf8_lossy(self.doc.cstring_bytes_at(self.start_at)?).into_owned();
                 let pattern_len = pattern.len();
-                RawBson::RegularExpression(crate::Regex {
+                Utf8LossyBson::RegularExpression(crate::Regex {
                     pattern,
                     options: String::from_utf8_lossy(
                         self.doc.cstring_bytes_at(self.start_at + pattern_len + 1)?,
@@ -301,8 +304,8 @@ impl<'a> RawElement<'a> {
                     .into_owned(),
                 })
             }
-            _ => self.value()?.to_raw_bson(),
-        })
+            _ => return Ok(None),
+        }))
     }
 
     fn malformed_error(&self, e: impl ToString) -> Error {
@@ -446,4 +449,18 @@ impl<'a> Iterator for RawIter<'a> {
             Err(e) => Err(e),
         })
     }
+}
+
+pub(crate) enum Utf8LossyBson<'a> {
+    String(String),
+    JavaScriptCode(String),
+    JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope<'a>),
+    Symbol(String),
+    DbPointer(crate::DbPointer),
+    RegularExpression(crate::Regex),
+}
+
+pub(crate) struct Utf8LossyJavaScriptCodeWithScope<'a> {
+    pub(crate) code: String,
+    pub(crate) scope: &'a RawDocument,
 }

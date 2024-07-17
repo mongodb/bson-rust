@@ -145,6 +145,8 @@ pub use self::{
     iter::{RawElement, RawIter},
 };
 
+pub(crate) use self::iter::{Utf8LossyBson, Utf8LossyJavaScriptCodeWithScope};
+
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.
 pub(crate) const RAW_DOCUMENT_NEWTYPE: &str = "$__private__bson_RawDocument";
 

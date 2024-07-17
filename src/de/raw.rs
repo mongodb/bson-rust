@@ -24,6 +24,8 @@ use crate::{
         RawBinaryRef,
         RawElement,
         RawIter,
+        Utf8LossyBson,
+        Utf8LossyJavaScriptCodeWithScope,
         RAW_ARRAY_NEWTYPE,
         RAW_BSON_NEWTYPE,
         RAW_DOCUMENT_NEWTYPE,
@@ -1892,28 +1894,23 @@ impl<'de> Deserializer2<'de> {
         V: serde::de::Visitor<'de>,
     {
         if self.options.utf8_lossy {
-            match self.element.element_type() {
-                ElementType::String
-                | ElementType::RegularExpression
-                | ElementType::JavaScriptCode => {
-                    return match self
-                        .element
-                        .value_utf8_lossy()
-                        .map_err(Error::deserialization)?
-                    {
-                        RawBson::String(s) => visitor.visit_string(s),
-                        RawBson::RegularExpression(re) => {
-                            visitor.visit_map(RegexAccess2::new(BsonCow::Owned(re)))
-                        }
-                        RawBson::JavaScriptCode(code) => visitor.visit_map(MapDeserializer::new(
-                            doc! { "$code": code },
-                            #[allow(deprecated)]
-                            DeserializerOptions::builder().human_readable(false).build(),
-                        )),
-                        _ => todo!(),
+            if let Some(lossy) = self
+                .element
+                .value_utf8_lossy()
+                .map_err(Error::deserialization)?
+            {
+                return match lossy {
+                    Utf8LossyBson::String(s) => visitor.visit_string(s),
+                    Utf8LossyBson::RegularExpression(re) => {
+                        visitor.visit_map(RegexAccess2::new(BsonCow::Owned(re)))
                     }
-                }
-                _ => (),
+                    Utf8LossyBson::JavaScriptCode(code) => visitor.visit_map(MapDeserializer::new(
+                        doc! { "$code": code },
+                        #[allow(deprecated)]
+                        DeserializerOptions::builder().human_readable(false).build(),
+                    )),
+                    _ => todo!(),
+                };
             }
         }
         match self.element.value().map_err(Error::deserialization)? {
@@ -2172,7 +2169,7 @@ impl<'a, 'de> serde::de::Deserializer<'de> for &'a mut RegexAccess2<'de> {
 }
 
 struct CodeWithScopeAccess2<'de> {
-    cws: BsonCow<RawJavaScriptCodeWithScopeRef<'de>, RawJavaScriptCodeWithScope>,
+    cws: BsonCow<RawJavaScriptCodeWithScopeRef<'de>, Utf8LossyJavaScriptCodeWithScope<'de>>,
     hint: DeserializerHint,
     options: Deserializer2Options,
     stage: CodeWithScopeDeserializationStage,
@@ -2180,7 +2177,7 @@ struct CodeWithScopeAccess2<'de> {
 
 impl<'de> CodeWithScopeAccess2<'de> {
     fn new(
-        cws: BsonCow<RawJavaScriptCodeWithScopeRef<'de>, RawJavaScriptCodeWithScope>,
+        cws: BsonCow<RawJavaScriptCodeWithScopeRef<'de>, Utf8LossyJavaScriptCodeWithScope<'de>>,
         hint: DeserializerHint,
         options: Deserializer2Options,
     ) -> Self {
@@ -2237,18 +2234,17 @@ impl<'a, 'de> serde::de::Deserializer<'de> for &'a CodeWithScopeAccess2<'de> {
                 BsonCow::Borrowed(cws) => visitor.visit_borrowed_str(cws.code),
                 BsonCow::Owned(cws) => visitor.visit_str(&cws.code),
             },
-            CodeWithScopeDeserializationStage::Scope => match &self.cws {
-                BsonCow::Borrowed(cws) => match self.hint {
-                    DeserializerHint::RawBson => {
-                        visitor.visit_map(RawDocumentAccess::new(cws.scope))
-                    }
-                    _ => visitor.visit_map(DocumentAccess2::new(cws.scope, self.options.clone())?),
-                },
-                BsonCow::Owned(_) => todo!(), // ???
-                _ => todo!(),
-            },
+            CodeWithScopeDeserializationStage::Scope => {
+                let scope = match &self.cws {
+                    BsonCow::Borrowed(cws) => cws.scope,
+                    BsonCow::Owned(cws) => cws.scope,
+                };
+                match self.hint {
+                    DeserializerHint::RawBson => visitor.visit_map(RawDocumentAccess::new(scope)),
+                    _ => visitor.visit_map(DocumentAccess2::new(scope, self.options.clone())?),
+                }
+            }
             CodeWithScopeDeserializationStage::Done => Err(Error::EndOfStream),
-            _ => todo!(),
         }
     }
 
