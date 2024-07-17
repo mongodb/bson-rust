@@ -237,11 +237,15 @@ fn read_len(buf: &[u8]) -> Result<usize> {
     Ok(length as usize + 4)
 }
 
-fn read_lenencode(buf: &[u8]) -> Result<&str> {
+fn read_lenencode_bytes(buf: &[u8]) -> Result<&[u8]> {
     let end = read_len(buf)?;
 
     // exclude length-prefix and null byte suffix
-    try_to_str(&buf[4..(end - 1)])
+    Ok(&buf[4..(end - 1)])
+}
+
+fn read_lenencode(buf: &[u8]) -> Result<&str> {
+    try_to_str(read_lenencode_bytes(buf)?)
 }
 
 fn try_to_str(data: &[u8]) -> Result<&str> {
