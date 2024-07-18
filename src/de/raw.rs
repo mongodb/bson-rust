@@ -2002,6 +2002,33 @@ impl<'de> Deserializer2<'de> {
             }
         }
     }
+
+    fn get_string(&self) -> Result<Cow<'de, str>> {
+        if self.options.utf8_lossy {
+            let value = self
+                .element
+                .value_utf8_lossy()
+                .map_err(Error::deserialization)?;
+            let s = match value {
+                Some(Utf8LossyBson::String(s)) => s,
+                _ => {
+                    return Err(Error::deserialization(
+                        "internal error: unexpected non-string",
+                    ))
+                }
+            };
+            Ok(Cow::Owned(s))
+        } else {
+            match self.element.value().map_err(Error::deserialization)? {
+                RawBsonRef::String(s) => Ok(Cow::Borrowed(s)),
+                _ => {
+                    return Err(Error::deserialization(
+                        "internal error: unexpected non-string",
+                    ))
+                }
+            }
+        }
+    }
 }
 
 impl<'de> serde::de::Deserializer<'de> for Deserializer2<'de> {
@@ -2026,6 +2053,32 @@ impl<'de> serde::de::Deserializer<'de> for Deserializer2<'de> {
         }
     }
 
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        match self.element.element_type() {
+            ElementType::String => visitor.visit_enum(self.get_string()?.into_deserializer()),
+            ElementType::EmbeddedDocument => {
+                let doc = match self.element.value().map_err(Error::deserialization)? {
+                    RawBsonRef::Document(doc) => doc,
+                    _ => {
+                        return Err(Error::deserialization(
+                            "internal error: unexpected non-document",
+                        ))
+                    }
+                };
+                visitor.visit_enum(DocumentAccess2::new(doc, self.options.clone())?)
+            }
+            t => Err(Error::custom(format!("expected enum, instead got {:?}", t))),
+        }
+    }
+
     fn deserialize_bytes<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
@@ -2036,18 +2089,6 @@ impl<'de> serde::de::Deserializer<'de> for Deserializer2<'de> {
     fn deserialize_newtype_struct<V>(
         self,
         name: &'static str,
-        visitor: V,
-    ) -> std::result::Result<V::Value, Self::Error>
-    where
-        V: serde::de::Visitor<'de>,
-    {
-        todo!()
-    }
-
-    fn deserialize_enum<V>(
-        self,
-        name: &'static str,
-        variants: &'static [&'static str],
         visitor: V,
     ) -> std::result::Result<V::Value, Self::Error>
     where
@@ -2089,6 +2130,21 @@ impl<'de> DocumentAccess2<'de> {
             .transpose()
             .map_err(Error::deserialization)?;
         Ok(())
+    }
+
+    fn deserializer(self) -> Result<Deserializer2<'de>> {
+        let elem = match self.elem {
+            Some(e) => e,
+            None => {
+                return Err(Error::deserialization(
+                    "internal error: no element for deserializer",
+                ))
+            }
+        };
+        Ok(Deserializer2 {
+            element: elem.clone(),
+            options: self.options.clone(),
+        })
     }
 }
 
@@ -2142,6 +2198,63 @@ impl<'de> serde::de::SeqAccess<'de> for DocumentAccess2<'de> {
                 })
                 .map(Some),
         }
+    }
+}
+
+impl<'de> serde::de::EnumAccess<'de> for DocumentAccess2<'de> {
+    type Error = Error;
+    type Variant = Self;
+
+    fn variant_seed<V>(
+        mut self,
+        seed: V,
+    ) -> std::result::Result<(V::Value, Self::Variant), Self::Error>
+    where
+        V: serde::de::DeserializeSeed<'de>,
+    {
+        self.advance()?;
+        let elem = match &self.elem {
+            Some(e) => e,
+            None => return Err(Error::EndOfStream),
+        };
+        let de: BorrowedStrDeserializer<'_, Error> = BorrowedStrDeserializer::new(elem.key());
+        let key = seed.deserialize(de)?;
+        Ok((key, self))
+    }
+}
+
+impl<'de> serde::de::VariantAccess<'de> for DocumentAccess2<'de> {
+    type Error = Error;
+
+    fn unit_variant(self) -> std::result::Result<(), Self::Error> {
+        Err(Error::custom(
+            "expected a string enum, got a document instead",
+        ))
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> std::result::Result<T::Value, Self::Error>
+    where
+        T: serde::de::DeserializeSeed<'de>,
+    {
+        seed.deserialize(self.deserializer()?)
+    }
+
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        self.deserializer()?.deserialize_seq(visitor)
+    }
+
+    fn struct_variant<V>(
+        self,
+        fields: &'static [&'static str],
+        visitor: V,
+    ) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        self.deserializer()?.deserialize_map(visitor)
     }
 }
 
