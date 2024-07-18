@@ -1194,11 +1194,14 @@ impl<'a, 'de> serde::de::Deserializer<'de> for &'a mut DbPointerAccess<'de> {
         V: serde::de::Visitor<'de>,
     {
         match self.stage {
-            DbPointerDeserializationStage::TopLevel => visitor.visit_map(DbPointerAccess {
-                dbp: self.dbp.clone(),
-                hint: self.hint,
-                stage: DbPointerDeserializationStage::Namespace,
-            }),
+            DbPointerDeserializationStage::TopLevel => {
+                self.stage = DbPointerDeserializationStage::Done;
+                visitor.visit_map(DbPointerAccess {
+                    dbp: self.dbp.clone(),
+                    hint: self.hint,
+                    stage: DbPointerDeserializationStage::Namespace,
+                })
+            }
             DbPointerDeserializationStage::Namespace => {
                 self.stage = DbPointerDeserializationStage::Id;
                 match &self.dbp {
@@ -1285,6 +1288,9 @@ impl<'de> serde::de::MapAccess<'de> for RegexAccess<'de> {
     where
         V: serde::de::DeserializeSeed<'de>,
     {
+        if matches!(self.stage, RegexDeserializationStage::Done) {
+            return Err(Error::custom("Regex fully deserialized already"));
+        }
         seed.deserialize(self)
     }
 }
@@ -1297,10 +1303,13 @@ impl<'a, 'de> serde::de::Deserializer<'de> for &'a mut RegexAccess<'de> {
         V: serde::de::Visitor<'de>,
     {
         match self.stage {
-            RegexDeserializationStage::TopLevel => visitor.visit_map(RegexAccess {
-                re: self.re.clone(),
-                stage: RegexDeserializationStage::Pattern,
-            }),
+            RegexDeserializationStage::TopLevel => {
+                self.stage = RegexDeserializationStage::Done;
+                visitor.visit_map(RegexAccess {
+                    re: self.re.clone(),
+                    stage: RegexDeserializationStage::Pattern,
+                })
+            }
             RegexDeserializationStage::Pattern => {
                 self.stage = RegexDeserializationStage::Options;
                 match &self.re {
