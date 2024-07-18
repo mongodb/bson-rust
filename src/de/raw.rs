@@ -1917,7 +1917,11 @@ impl<'de> Deserializer2<'de> {
                     Utf8LossyBson::DbPointer(dbp) => {
                         visitor.visit_map(DbPointerAccess2::new(BsonCow::Owned(dbp), hint))
                     }
-                    Utf8LossyBson::Symbol(_) => todo!(),
+                    Utf8LossyBson::Symbol(s) => visitor.visit_map(MapDeserializer::new(
+                        doc! { "$symbol": s },
+                        #[allow(deprecated)]
+                        DeserializerOptions::builder().human_readable(false).build(),
+                    )),
                 };
             }
         }
@@ -1980,10 +1984,12 @@ impl<'de> Deserializer2<'de> {
             RawBsonRef::JavaScriptCodeWithScope(jsc) => visitor.visit_map(
                 CodeWithScopeAccess2::new(BsonCow::Borrowed(jsc), hint, self.options.clone()),
             ),
+            RawBsonRef::Symbol(s) => {
+                visitor.visit_map(RawBsonAccess::new("$symbol", BsonContent::Str(s)))
+            }
             /// mark
             RawBsonRef::Timestamp(_) => todo!(),
 
-            RawBsonRef::Symbol(_) => todo!(),
             RawBsonRef::Decimal128(_) => todo!(),
 
             RawBsonRef::MaxKey => todo!(),
