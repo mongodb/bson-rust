@@ -2328,7 +2328,7 @@ impl<'de> serde::de::MapAccess<'de> for RegexAccess2<'de> {
             RegexDeserializationStage::Options => "options",
             RegexDeserializationStage::Done => return Ok(None),
         };
-        seed.deserialize(BorrowedStrDeserializer::new(name))
+        seed.deserialize(FieldDeserializer { field_name: name })
             .map(Some)
     }
 
@@ -2419,15 +2419,12 @@ impl<'de> serde::de::MapAccess<'de> for CodeWithScopeAccess2<'de> {
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        match self.stage {
-            CodeWithScopeDeserializationStage::Code => seed
-                .deserialize(BorrowedStrDeserializer::new("$code"))
-                .map(Some),
-            CodeWithScopeDeserializationStage::Scope => seed
-                .deserialize(BorrowedStrDeserializer::new("$scope"))
-                .map(Some),
-            CodeWithScopeDeserializationStage::Done => Ok(None),
-        }
+        let field_name = match self.stage {
+            CodeWithScopeDeserializationStage::Code => "$code",
+            CodeWithScopeDeserializationStage::Scope => "$scope",
+            CodeWithScopeDeserializationStage::Done => return Ok(None),
+        };
+        seed.deserialize(FieldDeserializer { field_name }).map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> std::result::Result<V::Value, Self::Error>
@@ -2517,7 +2514,7 @@ impl<'de> serde::de::MapAccess<'de> for DbPointerAccess2<'de> {
             DbPointerDeserializationStage::Id => "$id",
             DbPointerDeserializationStage::Done => return Ok(None),
         };
-        seed.deserialize(BorrowedStrDeserializer::new(name))
+        seed.deserialize(FieldDeserializer { field_name: name })
             .map(Some)
     }
 
