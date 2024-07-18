@@ -2101,7 +2101,39 @@ impl<'de> serde::de::Deserializer<'de> for Deserializer2<'de> {
     where
         V: serde::de::Visitor<'de>,
     {
-        todo!()
+        match name {
+            UUID_NEWTYPE_NAME => self.deserialize_hint(
+                visitor,
+                DeserializerHint::BinarySubtype(BinarySubtype::Uuid),
+            ),
+            RAW_BSON_NEWTYPE => self.deserialize_hint(visitor, DeserializerHint::RawBson),
+            RAW_DOCUMENT_NEWTYPE => {
+                if self.element.element_type() != ElementType::EmbeddedDocument {
+                    return Err(serde::de::Error::custom(format!(
+                        "expected raw document, instead got {:?}",
+                        self.element.element_type()
+                    )));
+                }
+
+                self.deserialize_hint(visitor, DeserializerHint::RawBson)
+            }
+            RAW_ARRAY_NEWTYPE => {
+                if self.element.element_type() != ElementType::Array {
+                    return Err(serde::de::Error::custom(format!(
+                        "expected raw array, instead got {:?}",
+                        self.element.element_type()
+                    )));
+                }
+
+                self.deserialize_hint(visitor, DeserializerHint::RawBson)
+            }
+            HUMAN_READABLE_NEWTYPE => {
+                let mut inner = self;
+                inner.options.human_readable = true;
+                visitor.visit_newtype_struct(inner)
+            }
+            _ => visitor.visit_newtype_struct(self),
+        }
     }
 
     fn is_human_readable(&self) -> bool {
