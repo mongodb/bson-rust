@@ -312,7 +312,7 @@ impl<'a> RawElement<'a> {
         Error::new_with_key(self.key, ErrorKind::new_malformed(e))
     }
 
-    fn slice(&self) -> &'a [u8] {
+    pub(crate) fn slice(&self) -> &'a [u8] {
         self.slice_bounds(self.start_at, self.size)
     }
 

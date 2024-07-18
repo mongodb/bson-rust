@@ -1889,6 +1889,10 @@ impl<'de> Deserializer2<'de> {
         })
     }
 
+    fn value(&self) -> Result<RawBsonRef<'de>> {
+        self.element.value().map_err(Error::deserialization)
+    }
+
     /// Deserialize the element, using the type of the element along with the
     /// provided hint to determine how to visit the data.
     fn deserialize_hint<V>(&self, visitor: V, hint: DeserializerHint) -> Result<V::Value>
@@ -1925,7 +1929,7 @@ impl<'de> Deserializer2<'de> {
                 };
             }
         }
-        match self.element.value().map_err(Error::deserialization)? {
+        match self.value()? {
             RawBsonRef::Int32(i) => visitor.visit_i32(i),
             RawBsonRef::Int64(i) => visitor.visit_i64(i),
             RawBsonRef::Double(d) => visitor.visit_f64(d),
@@ -2019,7 +2023,7 @@ impl<'de> Deserializer2<'de> {
             };
             Ok(Cow::Owned(s))
         } else {
-            match self.element.value().map_err(Error::deserialization)? {
+            match self.value()? {
                 RawBsonRef::String(s) => Ok(Cow::Borrowed(s)),
                 _ => {
                     return Err(Error::deserialization(
@@ -2065,7 +2069,7 @@ impl<'de> serde::de::Deserializer<'de> for Deserializer2<'de> {
         match self.element.element_type() {
             ElementType::String => visitor.visit_enum(self.get_string()?.into_deserializer()),
             ElementType::EmbeddedDocument => {
-                let doc = match self.element.value().map_err(Error::deserialization)? {
+                let doc = match self.value()? {
                     RawBsonRef::Document(doc) => doc,
                     _ => {
                         return Err(Error::deserialization(
@@ -2083,7 +2087,10 @@ impl<'de> serde::de::Deserializer<'de> for Deserializer2<'de> {
     where
         V: serde::de::Visitor<'de>,
     {
-        todo!()
+        match self.element.element_type() {
+            ElementType::ObjectId => visitor.visit_borrowed_bytes(self.element.slice()),
+            _ => self.deserialize_any(visitor),
+        }
     }
 
     fn deserialize_newtype_struct<V>(
