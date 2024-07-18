@@ -65,7 +65,7 @@ impl<'de> Deserializer<'de> {
 
     /// Deserialize the element, using the type of the element along with the
     /// provided hint to determine how to visit the data.
-    fn deserialize_next<V>(&self, visitor: V, hint: DeserializerHint) -> Result<V::Value>
+    fn deserialize_hint<V>(&self, visitor: V, hint: DeserializerHint) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
     {
@@ -217,7 +217,7 @@ impl<'de> serde::de::Deserializer<'de> for Deserializer<'de> {
     where
         V: serde::de::Visitor<'de>,
     {
-        self.deserialize_next(visitor, DeserializerHint::None)
+        self.deserialize_hint(visitor, DeserializerHint::None)
     }
 
     #[inline]
@@ -276,11 +276,11 @@ impl<'de> serde::de::Deserializer<'de> for Deserializer<'de> {
         V: serde::de::Visitor<'de>,
     {
         match name {
-            UUID_NEWTYPE_NAME => self.deserialize_next(
+            UUID_NEWTYPE_NAME => self.deserialize_hint(
                 visitor,
                 DeserializerHint::BinarySubtype(BinarySubtype::Uuid),
             ),
-            RAW_BSON_NEWTYPE => self.deserialize_next(visitor, DeserializerHint::RawBson),
+            RAW_BSON_NEWTYPE => self.deserialize_hint(visitor, DeserializerHint::RawBson),
             RAW_DOCUMENT_NEWTYPE => {
                 if self.element.element_type() != ElementType::EmbeddedDocument {
                     return Err(serde::de::Error::custom(format!(
@@ -289,7 +289,7 @@ impl<'de> serde::de::Deserializer<'de> for Deserializer<'de> {
                     )));
                 }
 
-                self.deserialize_next(visitor, DeserializerHint::RawBson)
+                self.deserialize_hint(visitor, DeserializerHint::RawBson)
             }
             RAW_ARRAY_NEWTYPE => {
                 if self.element.element_type() != ElementType::Array {
@@ -299,7 +299,7 @@ impl<'de> serde::de::Deserializer<'de> for Deserializer<'de> {
                     )));
                 }
 
-                self.deserialize_next(visitor, DeserializerHint::RawBson)
+                self.deserialize_hint(visitor, DeserializerHint::RawBson)
             }
             HUMAN_READABLE_NEWTYPE => {
                 let mut inner = self;
@@ -1034,6 +1034,13 @@ enum BinaryDeserializationStage {
     Done,
 }
 
+/// A [`MapAccess`] providing access to a BSON code with scope being deserialized.
+///
+/// If hinted to be raw BSON, this deserializes the serde data model equivalent
+/// of { "$code": <borrowed str>, "$scope": <&RawDocument> } }.
+///
+/// Otherwise, this deserializes the serde data model equivalent of
+/// { "$code": <borrowed str> "$scope": <map> }.
 struct CodeWithScopeAccess<'de> {
     cws: BsonCow<RawJavaScriptCodeWithScopeRef<'de>, Utf8LossyJavaScriptCodeWithScope<'de>>,
     hint: DeserializerHint,
