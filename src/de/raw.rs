@@ -37,11 +37,9 @@ use crate::{
     DbPointer,
     Decimal128,
     DeserializerOptions,
-    RawBson,
     RawBsonRef,
     RawDbPointerRef,
     RawDocument,
-    RawJavaScriptCodeWithScope,
     RawJavaScriptCodeWithScopeRef,
     RawRegexRef,
     Regex,
@@ -2278,7 +2276,7 @@ impl<'de> serde::de::VariantAccess<'de> for DocumentAccess2<'de> {
         seed.deserialize(self.deserializer()?)
     }
 
-    fn tuple_variant<V>(self, len: usize, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
@@ -2287,7 +2285,7 @@ impl<'de> serde::de::VariantAccess<'de> for DocumentAccess2<'de> {
 
     fn struct_variant<V>(
         self,
-        fields: &'static [&'static str],
+        _fields: &'static [&'static str],
         visitor: V,
     ) -> std::result::Result<V::Value, Self::Error>
     where

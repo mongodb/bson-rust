@@ -48,7 +48,7 @@ use ::serde::{
 
 pub(crate) use self::serde::{convert_unsigned_to_signed_raw, BsonVisitor};
 
-pub(crate) use self::raw::Deserializer as RawDeserializer;
+pub(crate) use self::raw::{Deserializer as RawDeserializer, Deserializer2 as RawDeserializer2};
 
 pub(crate) const MAX_BSON_SIZE: i32 = 16 * 1024 * 1024;
 pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
@@ -335,8 +335,8 @@ pub fn from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    let mut deserializer = raw::Deserializer::new(bytes, false);
-    T::deserialize(&mut deserializer)
+    let deserializer = raw::Deserializer2::new(bytes, false)?;
+    T::deserialize(deserializer)
 }
 
 /// Deserialize an instance of type `T` from a slice of BSON bytes, replacing any invalid UTF-8
@@ -349,6 +349,6 @@ pub fn from_slice_utf8_lossy<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    let mut deserializer = raw::Deserializer::new(bytes, true);
-    T::deserialize(&mut deserializer)
+    let deserializer = raw::Deserializer2::new(bytes, true)?;
+    T::deserialize(deserializer)
 }
