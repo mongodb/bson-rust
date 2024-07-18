@@ -1987,13 +1987,19 @@ impl<'de> Deserializer2<'de> {
             RawBsonRef::Symbol(s) => {
                 visitor.visit_map(RawBsonAccess::new("$symbol", BsonContent::Str(s)))
             }
-            /// mark
-            RawBsonRef::Timestamp(_) => todo!(),
-
-            RawBsonRef::Decimal128(_) => todo!(),
-
-            RawBsonRef::MaxKey => todo!(),
-            RawBsonRef::MinKey => todo!(),
+            RawBsonRef::Timestamp(ts) => {
+                let mut d = TimestampDeserializer::new(ts);
+                visitor.visit_map(TimestampAccess {
+                    deserializer: &mut d,
+                })
+            }
+            RawBsonRef::Decimal128(d128) => visitor.visit_map(Decimal128Access::new(d128)),
+            RawBsonRef::MaxKey => {
+                visitor.visit_map(RawBsonAccess::new("$maxKey", BsonContent::Int32(1)))
+            }
+            RawBsonRef::MinKey => {
+                visitor.visit_map(RawBsonAccess::new("$minKey", BsonContent::Int32(1)))
+            }
         }
     }
 }
