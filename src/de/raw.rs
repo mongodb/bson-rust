@@ -1909,7 +1909,11 @@ impl<'de> Deserializer2<'de> {
                         #[allow(deprecated)]
                         DeserializerOptions::builder().human_readable(false).build(),
                     )),
-                    _ => todo!(),
+                    Utf8LossyBson::JavaScriptCodeWithScope(jsc) => visitor.visit_map(
+                        CodeWithScopeAccess2::new(BsonCow::Owned(jsc), hint, self.options.clone()),
+                    ),
+                    Utf8LossyBson::Symbol(_) => todo!(),
+                    Utf8LossyBson::DbPointer(_) => todo!(),
                 };
             }
         }
@@ -1931,7 +1935,26 @@ impl<'de> Deserializer2<'de> {
                 }
                 _ => visitor.visit_seq(DocumentAccess2::new(arr.as_doc(), self.options.clone())?),
             },
-            RawBsonRef::Binary(_) => todo!(),
+            RawBsonRef::Binary(bin) => {
+                if let DeserializerHint::BinarySubtype(expected_subtype) = hint {
+                    if bin.subtype != expected_subtype {
+                        return Err(Error::custom(format!(
+                            "expected binary subtype {:?} instead got {:?}",
+                            expected_subtype, bin.subtype
+                        )));
+                    }
+                }
+
+                match bin.subtype {
+                    BinarySubtype::Generic => visitor.visit_borrowed_bytes(bin.bytes),
+                    _ => {
+                        let mut d = BinaryDeserializer::new(bin, hint);
+                        visitor.visit_map(BinaryAccess {
+                            deserializer: &mut d,
+                        })
+                    }
+                }
+            }
             RawBsonRef::Undefined => {
                 visitor.visit_map(RawBsonAccess::new("$undefined", BsonContent::Boolean(true)))
             }
