@@ -34,10 +34,12 @@ use crate::{
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
     DateTime,
+    DbPointer,
     Decimal128,
     DeserializerOptions,
     RawBson,
     RawBsonRef,
+    RawDbPointerRef,
     RawDocument,
     RawJavaScriptCodeWithScope,
     RawJavaScriptCodeWithScopeRef,
@@ -1912,8 +1914,10 @@ impl<'de> Deserializer2<'de> {
                     Utf8LossyBson::JavaScriptCodeWithScope(jsc) => visitor.visit_map(
                         CodeWithScopeAccess2::new(BsonCow::Owned(jsc), hint, self.options.clone()),
                     ),
+                    Utf8LossyBson::DbPointer(dbp) => {
+                        visitor.visit_map(DbPointerAccess2::new(BsonCow::Owned(dbp), hint))
+                    }
                     Utf8LossyBson::Symbol(_) => todo!(),
-                    Utf8LossyBson::DbPointer(_) => todo!(),
                 };
             }
         }
@@ -1967,6 +1971,9 @@ impl<'de> Deserializer2<'de> {
             RawBsonRef::RegularExpression(re) => {
                 visitor.visit_map(RegexAccess2::new(BsonCow::Borrowed(re)))
             }
+            RawBsonRef::DbPointer(dbp) => {
+                visitor.visit_map(DbPointerAccess2::new(BsonCow::Borrowed(dbp), hint))
+            }
             RawBsonRef::JavaScriptCode(s) => {
                 visitor.visit_map(RawBsonAccess::new("$code", BsonContent::Str(s)))
             }
@@ -1981,7 +1988,6 @@ impl<'de> Deserializer2<'de> {
 
             RawBsonRef::MaxKey => todo!(),
             RawBsonRef::MinKey => todo!(),
-            RawBsonRef::DbPointer(_) => todo!(),
         }
     }
 }
@@ -2135,23 +2141,16 @@ enum BsonCow<Borrowed, Owned> {
 
 struct RegexAccess2<'de> {
     re: BsonCow<RawRegexRef<'de>, Regex>,
-    stage: RegexAccess2Stage,
+    stage: RegexDeserializationStage,
 }
 
 impl<'de> RegexAccess2<'de> {
     fn new(re: BsonCow<RawRegexRef<'de>, Regex>) -> Self {
         Self {
             re,
-            stage: RegexAccess2Stage::TopLevel,
+            stage: RegexDeserializationStage::TopLevel,
         }
     }
-}
-
-enum RegexAccess2Stage {
-    TopLevel,
-    Pattern,
-    Options,
-    Done,
 }
 
 impl<'de> serde::de::MapAccess<'de> for RegexAccess2<'de> {
@@ -2161,18 +2160,14 @@ impl<'de> serde::de::MapAccess<'de> for RegexAccess2<'de> {
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        match self.stage {
-            RegexAccess2Stage::TopLevel => seed
-                .deserialize(BorrowedStrDeserializer::new("$regularExpression"))
-                .map(Some),
-            RegexAccess2Stage::Pattern => seed
-                .deserialize(BorrowedStrDeserializer::new("pattern"))
-                .map(Some),
-            RegexAccess2Stage::Options => seed
-                .deserialize(BorrowedStrDeserializer::new("options"))
-                .map(Some),
-            RegexAccess2Stage::Done => Ok(None),
-        }
+        let name = match self.stage {
+            RegexDeserializationStage::TopLevel => "$regularExpression",
+            RegexDeserializationStage::Pattern => "pattern",
+            RegexDeserializationStage::Options => "options",
+            RegexDeserializationStage::Done => return Ok(None),
+        };
+        seed.deserialize(BorrowedStrDeserializer::new(name))
+            .map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> std::result::Result<V::Value, Self::Error>
@@ -2191,26 +2186,35 @@ impl<'a, 'de> serde::de::Deserializer<'de> for &'a mut RegexAccess2<'de> {
         V: serde::de::Visitor<'de>,
     {
         match self.stage {
-            RegexAccess2Stage::TopLevel => visitor.visit_map(RegexAccess2 {
+            RegexDeserializationStage::TopLevel => visitor.visit_map(RegexAccess2 {
                 re: self.re.clone(),
-                stage: RegexAccess2Stage::Pattern,
+                stage: RegexDeserializationStage::Pattern,
             }),
-            RegexAccess2Stage::Pattern => {
-                self.stage = RegexAccess2Stage::Options;
+            RegexDeserializationStage::Pattern => {
+                self.stage = RegexDeserializationStage::Options;
                 match &self.re {
                     BsonCow::Borrowed(re) => visitor.visit_borrowed_str(re.pattern),
                     BsonCow::Owned(re) => visitor.visit_str(&re.pattern),
                 }
             }
-            RegexAccess2Stage::Options => {
-                self.stage = RegexAccess2Stage::Done;
+            RegexDeserializationStage::Options => {
+                self.stage = RegexDeserializationStage::Done;
                 match &self.re {
                     BsonCow::Borrowed(re) => visitor.visit_borrowed_str(re.options),
                     BsonCow::Owned(re) => visitor.visit_str(&re.options),
                 }
             }
-            RegexAccess2Stage::Done => Err(Error::custom("Regex fully deserialized already")),
+            RegexDeserializationStage::Done => {
+                Err(Error::custom("Regex fully deserialized already"))
+            }
         }
+    }
+
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
     }
 
     fn is_human_readable(&self) -> bool {
@@ -2219,7 +2223,7 @@ impl<'a, 'de> serde::de::Deserializer<'de> for &'a mut RegexAccess2<'de> {
 
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
+        bytes byte_buf map struct option unit
         ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
@@ -2304,6 +2308,13 @@ impl<'a, 'de> serde::de::Deserializer<'de> for &'a CodeWithScopeAccess2<'de> {
         }
     }
 
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
     fn is_human_readable(&self) -> bool {
         self.options.human_readable
     }
@@ -2311,6 +2322,99 @@ impl<'a, 'de> serde::de::Deserializer<'de> for &'a CodeWithScopeAccess2<'de> {
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct option unit
-        ignored_any unit_struct tuple_struct tuple enum identifier newtype_struct
+        ignored_any unit_struct tuple_struct tuple enum identifier
+    }
+}
+
+struct DbPointerAccess2<'de> {
+    dbp: BsonCow<RawDbPointerRef<'de>, DbPointer>,
+    hint: DeserializerHint,
+    stage: DbPointerDeserializationStage,
+}
+
+impl<'de> DbPointerAccess2<'de> {
+    fn new(dbp: BsonCow<RawDbPointerRef<'de>, DbPointer>, hint: DeserializerHint) -> Self {
+        Self {
+            dbp,
+            hint,
+            stage: DbPointerDeserializationStage::TopLevel,
+        }
+    }
+}
+
+impl<'de> serde::de::MapAccess<'de> for DbPointerAccess2<'de> {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> std::result::Result<Option<K::Value>, Self::Error>
+    where
+        K: serde::de::DeserializeSeed<'de>,
+    {
+        let name = match self.stage {
+            DbPointerDeserializationStage::TopLevel => "$dbPointer",
+            DbPointerDeserializationStage::Namespace => "$ref",
+            DbPointerDeserializationStage::Id => "$id",
+            DbPointerDeserializationStage::Done => return Ok(None),
+        };
+        seed.deserialize(BorrowedStrDeserializer::new(name))
+            .map(Some)
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: serde::de::DeserializeSeed<'de>,
+    {
+        seed.deserialize(self)
+    }
+}
+
+impl<'a, 'de> serde::de::Deserializer<'de> for &'a mut DbPointerAccess2<'de> {
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        match self.stage {
+            DbPointerDeserializationStage::TopLevel => visitor.visit_map(DbPointerAccess2 {
+                dbp: self.dbp.clone(),
+                hint: self.hint,
+                stage: DbPointerDeserializationStage::Namespace,
+            }),
+            DbPointerDeserializationStage::Namespace => {
+                self.stage = DbPointerDeserializationStage::Id;
+                match &self.dbp {
+                    BsonCow::Borrowed(dbp) => visitor.visit_borrowed_str(dbp.namespace),
+                    BsonCow::Owned(dbp) => visitor.visit_str(&dbp.namespace),
+                }
+            }
+            DbPointerDeserializationStage::Id => {
+                self.stage = DbPointerDeserializationStage::Done;
+                let oid = match &self.dbp {
+                    BsonCow::Borrowed(dbp) => dbp.id,
+                    BsonCow::Owned(dbp) => dbp.id,
+                };
+                visitor.visit_map(ObjectIdAccess::new(oid, self.hint))
+            }
+            DbPointerDeserializationStage::Done => {
+                Err(Error::custom("DbPointer fully deserialized already"))
+            }
+        }
+    }
+
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+        bytes byte_buf map struct option unit
+        ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
