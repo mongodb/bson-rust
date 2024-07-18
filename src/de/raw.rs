@@ -199,11 +199,9 @@ impl<'de> Deserializer<'de> {
         } else {
             match self.value()? {
                 RawBsonRef::String(s) => Ok(Cow::Borrowed(s)),
-                _ => {
-                    return Err(Error::deserialization(
-                        "internal error: unexpected non-string",
-                    ))
-                }
+                _ => Err(Error::deserialization(
+                    "internal error: unexpected non-string",
+                )),
             }
         }
     }
