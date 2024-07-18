@@ -92,6 +92,10 @@ impl RawArray {
         unsafe { &*(doc as *const RawDocument as *const RawArray) }
     }
 
+    pub(crate) fn as_doc(&self) -> &RawDocument {
+        &self.doc
+    }
+
     /// Convert this borrowed [`RawArray`] into an owned [`RawArrayBuf`].
     ///
     /// This involves a traversal of the array to count the values.

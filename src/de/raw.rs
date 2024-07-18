@@ -1925,7 +1925,12 @@ impl<'de> Deserializer2<'de> {
                 DeserializerHint::RawBson => visitor.visit_map(RawDocumentAccess::new(doc)),
                 _ => visitor.visit_map(DocumentAccess2::new(doc, self.options.clone())?),
             },
-            RawBsonRef::Array(_) => todo!(),
+            RawBsonRef::Array(arr) => match hint {
+                DeserializerHint::RawBson => {
+                    visitor.visit_map(RawDocumentAccess::for_array(arr.as_doc()))
+                }
+                _ => visitor.visit_seq(DocumentAccess2::new(arr.as_doc(), self.options.clone())?),
+            },
             RawBsonRef::Binary(_) => todo!(),
             RawBsonRef::Undefined => {
                 visitor.visit_map(RawBsonAccess::new("$undefined", BsonContent::Boolean(true)))
@@ -2035,6 +2040,15 @@ impl<'de> DocumentAccess2<'de> {
             options,
         })
     }
+
+    fn advance(&mut self) -> Result<()> {
+        self.elem = self
+            .iter
+            .next()
+            .transpose()
+            .map_err(Error::deserialization)?;
+        Ok(())
+    }
 }
 
 impl<'de> serde::de::MapAccess<'de> for DocumentAccess2<'de> {
@@ -2044,11 +2058,7 @@ impl<'de> serde::de::MapAccess<'de> for DocumentAccess2<'de> {
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        self.elem = self
-            .iter
-            .next()
-            .transpose()
-            .map_err(Error::deserialization)?;
+        self.advance()?;
         match &self.elem {
             None => Ok(None),
             Some(elem) => seed
@@ -2067,6 +2077,29 @@ impl<'de> serde::de::MapAccess<'de> for DocumentAccess2<'de> {
                 element: elem.clone(),
                 options: self.options.clone(),
             }),
+        }
+    }
+}
+
+impl<'de> serde::de::SeqAccess<'de> for DocumentAccess2<'de> {
+    type Error = Error;
+
+    fn next_element_seed<T>(
+        &mut self,
+        seed: T,
+    ) -> std::result::Result<Option<T::Value>, Self::Error>
+    where
+        T: serde::de::DeserializeSeed<'de>,
+    {
+        self.advance()?;
+        match &self.elem {
+            None => Ok(None),
+            Some(elem) => seed
+                .deserialize(Deserializer2 {
+                    element: elem.clone(),
+                    options: self.options.clone(),
+                })
+                .map(Some),
         }
     }
 }
