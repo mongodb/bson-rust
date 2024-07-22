@@ -34,11 +34,8 @@ use std::io::Read;
 
 use crate::{
     bson::{Bson, Document, Timestamp},
-    oid::ObjectId,
-    raw::RawBinaryRef,
     ser::write_i32,
     spec::BinarySubtype,
-    Decimal128,
 };
 
 use ::serde::{
@@ -71,38 +68,6 @@ enum DeserializerHint {
     RawBson,
 }
 
-pub(crate) fn read_string<R: Read + ?Sized>(reader: &mut R, utf8_lossy: bool) -> Result<String> {
-    let len = read_i32(reader)?;
-
-    // UTF-8 String must have at least 1 byte (the last 0x00).
-    if len < 1 {
-        return Err(Error::invalid_length(
-            len as usize,
-            &"UTF-8 string must have at least 1 byte",
-        ));
-    }
-
-    let s = if utf8_lossy {
-        let mut buf = Vec::with_capacity(len as usize - 1);
-        reader.take(len as u64 - 1).read_to_end(&mut buf)?;
-        String::from_utf8_lossy(&buf).to_string()
-    } else {
-        let mut s = String::with_capacity(len as usize - 1);
-        reader.take(len as u64 - 1).read_to_string(&mut s)?;
-        s
-    };
-
-    // read the null terminator
-    if read_u8(reader)? != 0 {
-        return Err(Error::invalid_length(
-            len as usize,
-            &"contents of string longer than provided length",
-        ));
-    }
-
-    Ok(s)
-}
-
 pub(crate) fn read_bool<R: Read>(mut reader: R) -> Result<bool> {
     let val = read_u8(&mut reader)?;
     if val > 1 {
@@ -129,86 +94,11 @@ pub(crate) fn read_i32<R: Read + ?Sized>(reader: &mut R) -> Result<i32> {
     Ok(i32::from_le_bytes(buf))
 }
 
-#[inline]
-pub(crate) fn read_i64<R: Read + ?Sized>(reader: &mut R) -> Result<i64> {
-    let mut buf = [0; 8];
-    reader.read_exact(&mut buf)?;
-    Ok(i64::from_le_bytes(buf))
-}
-
-#[inline]
-fn read_f64<R: Read + ?Sized>(reader: &mut R) -> Result<f64> {
-    let mut buf = [0; 8];
-    reader.read_exact(&mut buf)?;
-    Ok(f64::from_le_bytes(buf))
-}
-
-/// Placeholder decoder for `Decimal128`. Reads 128 bits and just stores them, does no validation or
-/// parsing.
-#[inline]
-fn read_f128<R: Read + ?Sized>(reader: &mut R) -> Result<Decimal128> {
-    let mut buf = [0u8; 128 / 8];
-    reader.read_exact(&mut buf)?;
-    Ok(Decimal128 { bytes: buf })
-}
-
-impl<'a> RawBinaryRef<'a> {
-    pub(crate) fn from_slice_with_len_and_payload(
-        mut bytes: &'a [u8],
-        mut len: i32,
-        subtype: BinarySubtype,
-    ) -> Result<Self> {
-        if !(0..=MAX_BSON_SIZE).contains(&len) {
-            return Err(Error::invalid_length(
-                len as usize,
-                &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
-            ));
-        } else if len as usize > bytes.len() {
-            return Err(Error::invalid_length(
-                len as usize,
-                &format!(
-                    "binary length {} exceeds buffer length {}",
-                    len,
-                    bytes.len()
-                )
-                .as_str(),
-            ));
-        }
-
-        // Skip length data in old binary.
-        if let BinarySubtype::BinaryOld = subtype {
-            let data_len = read_i32(&mut bytes)?;
-
-            if data_len + 4 != len {
-                return Err(Error::invalid_length(
-                    data_len as usize,
-                    &"0x02 length did not match top level binary length",
-                ));
-            }
-
-            len -= 4;
-        }
-
-        Ok(Self {
-            bytes: &bytes[0..len as usize],
-            subtype,
-        })
-    }
-}
-
 impl Timestamp {
     pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
         let mut bytes = [0; 8];
         reader.read_exact(&mut bytes)?;
         Ok(Timestamp::from_le_bytes(bytes))
-    }
-}
-
-impl ObjectId {
-    pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
-        let mut buf = [0u8; 12];
-        reader.read_exact(&mut buf)?;
-        Ok(Self::from_bytes(buf))
     }
 }
 
@@ -335,8 +225,8 @@ pub fn from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    let mut deserializer = raw::Deserializer::new(bytes, false);
-    T::deserialize(&mut deserializer)
+    let deserializer = raw::Deserializer::new(bytes, false)?;
+    T::deserialize(deserializer)
 }
 
 /// Deserialize an instance of type `T` from a slice of BSON bytes, replacing any invalid UTF-8
@@ -349,6 +239,6 @@ pub fn from_slice_utf8_lossy<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    let mut deserializer = raw::Deserializer::new(bytes, true);
-    T::deserialize(&mut deserializer)
+    let deserializer = raw::Deserializer::new(bytes, true)?;
+    T::deserialize(deserializer)
 }

@@ -564,8 +564,8 @@ impl Document {
         let mut buf = vec![0u8; ulen];
         buf[0..4].copy_from_slice(&length.to_le_bytes());
         reader.read_exact(&mut buf[4..])?;
-        let mut deserializer = crate::de::RawDeserializer::new(&buf, utf_lossy);
-        Document::deserialize(&mut deserializer)
+        let deserializer = crate::de::RawDeserializer::new(&buf, utf_lossy)?;
+        Document::deserialize(deserializer)
     }
 
     /// Attempts to deserialize a [`Document`] from a byte stream.

@@ -25,6 +25,7 @@ use super::{
     i64_from_slice,
     read_len,
     read_lenencode,
+    read_lenencode_bytes,
     try_to_str,
     RawBsonRef,
     RawDocument,
@@ -146,6 +147,16 @@ impl<'a> TryInto<Bson> for RawElement<'a> {
 
 #[allow(clippy::len_without_is_empty)]
 impl<'a> RawElement<'a> {
+    pub(crate) fn toplevel(bytes: &'a [u8]) -> Result<Self> {
+        let doc = RawDocument::from_bytes(bytes)?;
+        Ok(Self {
+            key: "TOPLEVEL",
+            kind: ElementType::EmbeddedDocument,
+            doc,
+            start_at: 0,
+            size: doc.as_bytes().len(),
+        })
+    }
     pub fn len(&self) -> usize {
         self.size
     }
@@ -256,11 +267,52 @@ impl<'a> RawElement<'a> {
         })
     }
 
+    pub(crate) fn value_utf8_lossy(&self) -> Result<Option<Utf8LossyBson<'a>>> {
+        Ok(Some(match self.kind {
+            ElementType::String => Utf8LossyBson::String(self.read_utf8_lossy()),
+            ElementType::JavaScriptCode => Utf8LossyBson::JavaScriptCode(self.read_utf8_lossy()),
+            ElementType::JavaScriptCodeWithScope => {
+                if self.size < MIN_CODE_WITH_SCOPE_SIZE as usize {
+                    return Err(self.malformed_error("code with scope length too small"));
+                }
+
+                let slice = self.slice();
+                let code = String::from_utf8_lossy(read_lenencode_bytes(&slice[4..])?).into_owned();
+                let scope_start = 4 + 4 + code.len() + 1;
+                let scope = RawDocument::from_bytes(&slice[scope_start..])?;
+
+                Utf8LossyBson::JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope {
+                    code,
+                    scope,
+                })
+            }
+            ElementType::Symbol => Utf8LossyBson::Symbol(self.read_utf8_lossy()),
+            ElementType::DbPointer => Utf8LossyBson::DbPointer(crate::DbPointer {
+                namespace: String::from_utf8_lossy(read_lenencode_bytes(self.slice())?)
+                    .into_owned(),
+                id: self.get_oid_at(self.start_at + (self.size - 12))?,
+            }),
+            ElementType::RegularExpression => {
+                let pattern =
+                    String::from_utf8_lossy(self.doc.cstring_bytes_at(self.start_at)?).into_owned();
+                let pattern_len = pattern.len();
+                Utf8LossyBson::RegularExpression(crate::Regex {
+                    pattern,
+                    options: String::from_utf8_lossy(
+                        self.doc.cstring_bytes_at(self.start_at + pattern_len + 1)?,
+                    )
+                    .into_owned(),
+                })
+            }
+            _ => return Ok(None),
+        }))
+    }
+
     fn malformed_error(&self, e: impl ToString) -> Error {
         Error::new_with_key(self.key, ErrorKind::new_malformed(e))
     }
 
-    fn slice(&self) -> &'a [u8] {
+    pub(crate) fn slice(&self) -> &'a [u8] {
         self.slice_bounds(self.start_at, self.size)
     }
 
@@ -268,8 +320,16 @@ impl<'a> RawElement<'a> {
         &self.doc.as_bytes()[start_at..(start_at + size)]
     }
 
+    fn str_bytes(&self) -> &'a [u8] {
+        self.slice_bounds(self.start_at + 4, self.size - 4 - 1)
+    }
+
     fn read_str(&self) -> Result<&'a str> {
-        try_to_str(self.slice_bounds(self.start_at + 4, self.size - 4 - 1))
+        try_to_str(self.str_bytes())
+    }
+
+    fn read_utf8_lossy(&self) -> String {
+        String::from_utf8_lossy(self.str_bytes()).into_owned()
     }
 
     fn get_oid_at(&self, start_at: usize) -> Result<ObjectId> {
@@ -389,4 +449,18 @@ impl<'a> Iterator for RawIter<'a> {
             Err(e) => Err(e),
         })
     }
+}
+
+pub(crate) enum Utf8LossyBson<'a> {
+    String(String),
+    JavaScriptCode(String),
+    JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope<'a>),
+    Symbol(String),
+    DbPointer(crate::DbPointer),
+    RegularExpression(crate::Regex),
+}
+
+pub(crate) struct Utf8LossyJavaScriptCodeWithScope<'a> {
+    pub(crate) code: String,
+    pub(crate) scope: &'a RawDocument,
 }

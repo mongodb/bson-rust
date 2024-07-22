@@ -38,6 +38,14 @@ pub enum Error {
     },
 }
 
+impl Error {
+    pub(crate) fn deserialization(msg: impl ToString) -> Self {
+        Self::DeserializationError {
+            message: msg.to_string(),
+        }
+    }
+}
+
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         Error::Io(Arc::new(err))

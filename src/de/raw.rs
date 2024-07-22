@@ -1,383 +1,213 @@
-use std::{
-    borrow::Cow,
-    convert::TryInto,
-    io::{ErrorKind, Read},
-    sync::Arc,
-};
+use std::borrow::Cow;
 
 use serde::{
-    de::{EnumAccess, Error as SerdeError, IntoDeserializer, MapAccess, VariantAccess},
+    de::{value::BorrowedStrDeserializer, Error as SerdeError, IntoDeserializer, MapAccess},
     forward_to_deserialize_any,
     Deserializer as SerdeDeserializer,
 };
 
 use crate::{
     oid::ObjectId,
-    raw::{RawBinaryRef, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{
+        RawBinaryRef,
+        RawElement,
+        RawIter,
+        Utf8LossyBson,
+        Utf8LossyJavaScriptCodeWithScope,
+        RAW_ARRAY_NEWTYPE,
+        RAW_BSON_NEWTYPE,
+        RAW_DOCUMENT_NEWTYPE,
+    },
     serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
     DateTime,
+    DbPointer,
     Decimal128,
-    DeserializerOptions,
+    RawBsonRef,
+    RawDbPointerRef,
     RawDocument,
+    RawJavaScriptCodeWithScopeRef,
+    RawRegexRef,
+    Regex,
     Timestamp,
 };
 
-use super::{
-    read_bool,
-    read_f128,
-    read_f64,
-    read_i32,
-    read_i64,
-    read_string,
-    read_u8,
-    DeserializerHint,
-    Error,
-    Result,
-    MAX_BSON_SIZE,
-    MIN_CODE_WITH_SCOPE_SIZE,
-};
+use super::{DeserializerHint, Error, Result};
 use crate::de::serde::MapDeserializer;
 
-/// Deserializer used to parse and deserialize raw BSON bytes.
+/// Deserializer mapping from raw bson to serde's data model.
 pub(crate) struct Deserializer<'de> {
-    bytes: BsonBuf<'de>,
+    element: RawElement<'de>,
+    options: DeserializerOptions,
+}
 
-    /// The type of the element currently being deserialized.
-    ///
-    /// When the Deserializer is initialized, this will be `ElementType::EmbeddedDocument`, as the
-    /// only top level type is a document. The "embedded" portion is incorrect in this context,
-    /// but given that there's no difference between deserializing an embedded document and a
-    /// top level one, the distinction isn't necessary.
-    current_type: ElementType,
-
+#[derive(Debug, Clone)]
+struct DeserializerOptions {
+    utf8_lossy: bool,
     human_readable: bool,
 }
 
-/// Enum used to determine what the type of document being deserialized is in
-/// `Deserializer::deserialize_document`.
-enum DocumentType {
-    Array,
-    EmbeddedDocument,
-}
-
 impl<'de> Deserializer<'de> {
-    pub(crate) fn new(buf: &'de [u8], utf8_lossy: bool) -> Self {
-        Self {
-            bytes: BsonBuf::new(buf, utf8_lossy),
-            current_type: ElementType::EmbeddedDocument,
-            human_readable: false,
-        }
-    }
-
-    /// Ensure the entire document was visited, returning an error if not.
-    /// Will read the trailing null byte if necessary (i.e. the visitor stopped after visiting
-    /// exactly the number of elements in the document).
-    fn end_document(&mut self, length_remaining: i32) -> Result<()> {
-        match length_remaining.cmp(&1) {
-            std::cmp::Ordering::Equal => {
-                let nullbyte = read_u8(&mut self.bytes)?;
-                if nullbyte != 0 {
-                    return Err(Error::custom(format!(
-                        "expected null byte at end of document, got {:#x} instead",
-                        nullbyte
-                    )));
-                }
-            }
-            std::cmp::Ordering::Greater => {
-                return Err(Error::custom(format!(
-                    "document has bytes remaining that were not visited: {}",
-                    length_remaining
-                )));
-            }
-            std::cmp::Ordering::Less => {
-                if length_remaining < 0 {
-                    return Err(Error::custom("length of document was too short"));
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Read a string from the BSON.
-    ///
-    /// If utf8_lossy, this will be an owned string if invalid UTF-8 is encountered in the string,
-    /// otherwise it will be borrowed.
-    fn deserialize_str(&mut self) -> Result<Cow<'de, str>> {
-        self.bytes.read_str()
-    }
-
-    /// Read a null-terminated C style string from the underling BSON.
-    ///
-    /// If utf8_lossy, this will be an owned string if invalid UTF-8 is encountered in the string,
-    /// otherwise it will be borrowed.
-    fn deserialize_cstr(&mut self) -> Result<Cow<'de, str>> {
-        self.bytes.read_cstr()
-    }
-
-    /// Read an ObjectId from the underling BSON.
-    ///
-    /// If hinted to use raw BSON, the bytes of the ObjectId will be visited.
-    /// Otherwise, a map in the shape of the extended JSON format of an ObjectId will be.
-    fn deserialize_objectid<V>(&mut self, visitor: V, hint: DeserializerHint) -> Result<V::Value>
-    where
-        V: serde::de::Visitor<'de>,
-    {
-        let oid = ObjectId::from_reader(&mut self.bytes)?;
-        visitor.visit_map(ObjectIdAccess::new(oid, hint))
-    }
-
-    /// Read a document from the underling BSON, whether it's an array or an actual document.
-    ///
-    /// If hinted to use raw BSON, the bytes themselves will be visited using a special newtype
-    /// name. Otherwise, the key-value pairs will be accessed in order, either as part of a
-    /// [`MapAccess`] for documents or a [`SeqAccess`] for arrays.
-    fn deserialize_document<V>(
-        &mut self,
-        visitor: V,
-        hint: DeserializerHint,
-        document_type: DocumentType,
-    ) -> Result<V::Value>
-    where
-        V: serde::de::Visitor<'de>,
-    {
-        let is_array = match document_type {
-            DocumentType::Array => true,
-            DocumentType::EmbeddedDocument => false,
-        };
-
-        match hint {
-            DeserializerHint::RawBson => {
-                let mut len = self.bytes.slice(4)?;
-                let len = read_i32(&mut len)?;
-
-                let doc = RawDocument::from_bytes(self.bytes.read_slice(len as usize)?)
-                    .map_err(Error::custom)?;
-
-                let access = if is_array {
-                    RawDocumentAccess::for_array(doc)
-                } else {
-                    RawDocumentAccess::new(doc)
-                };
-
-                visitor.visit_map(access)
-            }
-            _ if is_array => self.access_document(|access| visitor.visit_seq(access)),
-            _ => self.access_document(|access| visitor.visit_map(access)),
-        }
-    }
-
-    /// Construct a [`DocumentAccess`] and pass it into the provided closure, returning the
-    /// result of the closure if no other errors are encountered.
-    fn access_document<F, O>(&mut self, f: F) -> Result<O>
-    where
-        F: FnOnce(DocumentAccess<'_, 'de>) -> Result<O>,
-    {
-        let mut length_remaining = read_i32(&mut self.bytes)?;
-        if length_remaining < 4 {
-            return Err(Error::custom("invalid length, less than min document size"));
-        }
-        length_remaining -= 4;
-        let out = f(DocumentAccess {
-            root_deserializer: self,
-            length_remaining: &mut length_remaining,
-        });
-
-        if out.is_ok() {
-            self.end_document(length_remaining)?;
-        }
-        out
-    }
-
-    /// Deserialize the next element type and update `current_type` accordingly.
-    /// Returns [`None`] if a null byte is read.
-    fn deserialize_next_type(&mut self) -> Result<Option<ElementType>> {
-        let tag = read_u8(&mut self.bytes)?;
-        if tag == 0 {
-            return Ok(None);
-        }
-
-        let element_type = ElementType::from(tag)
-            .ok_or_else(|| Error::custom(format!("invalid element type: {}", tag)))?;
-
-        self.current_type = element_type;
-        Ok(Some(element_type))
-    }
-
-    /// Deserialize the next element in the BSON, using the type of the element along with the
-    /// provided hint to determine how to visit the data.
-    fn deserialize_next<V>(&mut self, visitor: V, hint: DeserializerHint) -> Result<V::Value>
-    where
-        V: serde::de::Visitor<'de>,
-    {
-        match self.current_type {
-            ElementType::Int32 => visitor.visit_i32(read_i32(&mut self.bytes)?),
-            ElementType::Int64 => visitor.visit_i64(read_i64(&mut self.bytes)?),
-            ElementType::Double => visitor.visit_f64(read_f64(&mut self.bytes)?),
-            ElementType::String => match self.deserialize_str()? {
-                Cow::Borrowed(s) => visitor.visit_borrowed_str(s),
-                Cow::Owned(string) => visitor.visit_string(string),
+    pub(crate) fn new(buf: &'de [u8], utf8_lossy: bool) -> Result<Self> {
+        Ok(Self {
+            element: RawElement::toplevel(buf).map_err(Error::deserialization)?,
+            options: DeserializerOptions {
+                utf8_lossy,
+                human_readable: false,
             },
-            ElementType::Boolean => visitor.visit_bool(read_bool(&mut self.bytes)?),
-            ElementType::Null => visitor.visit_unit(),
-            ElementType::ObjectId => self.deserialize_objectid(visitor, hint),
-            ElementType::EmbeddedDocument => {
-                self.deserialize_document(visitor, hint, DocumentType::EmbeddedDocument)
-            }
-            ElementType::Array => self.deserialize_document(visitor, hint, DocumentType::Array),
-            ElementType::Binary => {
-                let len = read_i32(&mut self.bytes)?;
-                if !(0..=MAX_BSON_SIZE).contains(&len) {
-                    return Err(Error::invalid_length(
-                        len as usize,
-                        &format!("binary length must be between 0 and {}", MAX_BSON_SIZE).as_str(),
-                    ));
-                }
-                let subtype = BinarySubtype::from(read_u8(&mut self.bytes)?);
+        })
+    }
 
+    fn value(&self) -> Result<RawBsonRef<'de>> {
+        self.element.value().map_err(Error::deserialization)
+    }
+
+    /// Deserialize the element, using the type of the element along with the
+    /// provided hint to determine how to visit the data.
+    fn deserialize_hint<V>(&self, visitor: V, hint: DeserializerHint) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        if self.options.utf8_lossy {
+            if let Some(lossy) = self
+                .element
+                .value_utf8_lossy()
+                .map_err(Error::deserialization)?
+            {
+                return match lossy {
+                    Utf8LossyBson::String(s) => visitor.visit_string(s),
+                    Utf8LossyBson::RegularExpression(re) => {
+                        visitor.visit_map(RegexAccess::new(BsonCow::Owned(re)))
+                    }
+                    Utf8LossyBson::JavaScriptCode(code) => visitor.visit_map(MapDeserializer::new(
+                        doc! { "$code": code },
+                        #[allow(deprecated)]
+                        crate::DeserializerOptions::builder()
+                            .human_readable(false)
+                            .build(),
+                    )),
+                    Utf8LossyBson::JavaScriptCodeWithScope(jsc) => visitor.visit_map(
+                        CodeWithScopeAccess::new(BsonCow::Owned(jsc), hint, self.options.clone()),
+                    ),
+                    Utf8LossyBson::DbPointer(dbp) => {
+                        visitor.visit_map(DbPointerAccess::new(BsonCow::Owned(dbp), hint))
+                    }
+                    Utf8LossyBson::Symbol(s) => visitor.visit_map(MapDeserializer::new(
+                        doc! { "$symbol": s },
+                        #[allow(deprecated)]
+                        crate::DeserializerOptions::builder()
+                            .human_readable(false)
+                            .build(),
+                    )),
+                };
+            }
+        }
+        match self.value()? {
+            RawBsonRef::Int32(i) => visitor.visit_i32(i),
+            RawBsonRef::Int64(i) => visitor.visit_i64(i),
+            RawBsonRef::Double(d) => visitor.visit_f64(d),
+            RawBsonRef::String(s) => visitor.visit_borrowed_str(s),
+            RawBsonRef::Boolean(b) => visitor.visit_bool(b),
+            RawBsonRef::Null => visitor.visit_unit(),
+            RawBsonRef::ObjectId(oid) => visitor.visit_map(ObjectIdAccess::new(oid, hint)),
+            RawBsonRef::Document(doc) => match hint {
+                DeserializerHint::RawBson => visitor.visit_map(RawDocumentAccess::new(doc)),
+                _ => visitor.visit_map(DocumentAccess::new(doc, self.options.clone())?),
+            },
+            RawBsonRef::Array(arr) => match hint {
+                DeserializerHint::RawBson => {
+                    visitor.visit_map(RawDocumentAccess::for_array(arr.as_doc()))
+                }
+                _ => visitor.visit_seq(DocumentAccess::new(arr.as_doc(), self.options.clone())?),
+            },
+            RawBsonRef::Binary(bin) => {
                 if let DeserializerHint::BinarySubtype(expected_subtype) = hint {
-                    if subtype != expected_subtype {
+                    if bin.subtype != expected_subtype {
                         return Err(Error::custom(format!(
                             "expected binary subtype {:?} instead got {:?}",
-                            expected_subtype, subtype
+                            expected_subtype, bin.subtype
                         )));
                     }
                 }
 
-                match subtype {
-                    BinarySubtype::Generic => {
-                        visitor.visit_borrowed_bytes(self.bytes.read_slice(len as usize)?)
-                    }
+                match bin.subtype {
+                    BinarySubtype::Generic => visitor.visit_borrowed_bytes(bin.bytes),
                     _ => {
-                        let binary = RawBinaryRef::from_slice_with_len_and_payload(
-                            self.bytes.read_slice(len as usize)?,
-                            len,
-                            subtype,
-                        )?;
-                        let mut d = BinaryDeserializer::new(binary, hint);
+                        let mut d = BinaryDeserializer::new(bin, hint);
                         visitor.visit_map(BinaryAccess {
                             deserializer: &mut d,
                         })
                     }
                 }
             }
-            ElementType::Undefined => {
+            RawBsonRef::Undefined => {
                 visitor.visit_map(RawBsonAccess::new("$undefined", BsonContent::Boolean(true)))
             }
-            ElementType::DateTime => {
-                let dti = read_i64(&mut self.bytes)?;
-                let dt = DateTime::from_millis(dti);
+            RawBsonRef::DateTime(dt) => {
                 let mut d = DateTimeDeserializer::new(dt, hint);
                 visitor.visit_map(DateTimeAccess {
                     deserializer: &mut d,
                 })
             }
-            ElementType::RegularExpression => {
-                let mut de = RegexDeserializer::new(&mut *self);
-                visitor.visit_map(RegexAccess::new(&mut de))
+            RawBsonRef::RegularExpression(re) => {
+                visitor.visit_map(RegexAccess::new(BsonCow::Borrowed(re)))
             }
-            ElementType::DbPointer => {
-                let mut de = DbPointerDeserializer::new(&mut *self, hint);
-                visitor.visit_map(DbPointerAccess::new(&mut de))
+            RawBsonRef::DbPointer(dbp) => {
+                visitor.visit_map(DbPointerAccess::new(BsonCow::Borrowed(dbp), hint))
             }
-            ElementType::JavaScriptCode => {
-                let utf8_lossy = self.bytes.utf8_lossy;
-
-                match hint {
-                    DeserializerHint::RawBson => visitor.visit_map(RawBsonAccess::new(
-                        "$code",
-                        BsonContent::Str(self.bytes.read_borrowed_str()?),
-                    )),
-                    _ => {
-                        let code = read_string(&mut self.bytes, utf8_lossy)?;
-                        visitor.visit_map(MapDeserializer::new(
-                            doc! { "$code": code },
-                            #[allow(deprecated)]
-                            DeserializerOptions::builder().human_readable(false).build(),
-                        ))
-                    }
-                }
+            RawBsonRef::JavaScriptCode(s) => {
+                visitor.visit_map(RawBsonAccess::new("$code", BsonContent::Str(s)))
             }
-            ElementType::JavaScriptCodeWithScope => {
-                let len = read_i32(&mut self.bytes)?;
-
-                if len < MIN_CODE_WITH_SCOPE_SIZE {
-                    return Err(SerdeError::invalid_length(
-                        len.try_into().unwrap_or(0),
-                        &format!(
-                            "CodeWithScope to be at least {} bytes",
-                            MIN_CODE_WITH_SCOPE_SIZE
-                        )
-                        .as_str(),
-                    ));
-                } else if (self.bytes.bytes_remaining() as i32) < len - 4 {
-                    return Err(SerdeError::invalid_length(
-                        len.try_into().unwrap_or(0),
-                        &format!(
-                            "CodeWithScope to be at most {} bytes",
-                            self.bytes.bytes_remaining()
-                        )
-                        .as_str(),
-                    ));
-                }
-
-                let mut de = CodeWithScopeDeserializer::new(&mut *self, hint, len - 4);
-                let out = visitor.visit_map(CodeWithScopeAccess::new(&mut de));
-
-                if de.length_remaining != 0 {
-                    return Err(SerdeError::invalid_length(
-                        len.try_into().unwrap_or(0),
-                        &format!(
-                            "CodeWithScope length {} bytes greater than actual length",
-                            de.length_remaining
-                        )
-                        .as_str(),
-                    ));
-                }
-
-                out
+            RawBsonRef::JavaScriptCodeWithScope(jsc) => visitor.visit_map(
+                CodeWithScopeAccess::new(BsonCow::Borrowed(jsc), hint, self.options.clone()),
+            ),
+            RawBsonRef::Symbol(s) => {
+                visitor.visit_map(RawBsonAccess::new("$symbol", BsonContent::Str(s)))
             }
-            ElementType::Symbol => {
-                let utf8_lossy = self.bytes.utf8_lossy;
-
-                match hint {
-                    DeserializerHint::RawBson => visitor.visit_map(RawBsonAccess::new(
-                        "$symbol",
-                        BsonContent::Str(self.bytes.read_borrowed_str()?),
-                    )),
-                    _ => {
-                        let symbol = read_string(&mut self.bytes, utf8_lossy)?;
-                        visitor.visit_map(MapDeserializer::new(
-                            doc! { "$symbol": symbol },
-                            #[allow(deprecated)]
-                            DeserializerOptions::builder().human_readable(false).build(),
-                        ))
-                    }
-                }
-            }
-            ElementType::Timestamp => {
-                let ts = Timestamp::from_reader(&mut self.bytes)?;
+            RawBsonRef::Timestamp(ts) => {
                 let mut d = TimestampDeserializer::new(ts);
                 visitor.visit_map(TimestampAccess {
                     deserializer: &mut d,
                 })
             }
-            ElementType::Decimal128 => {
-                let d128 = read_f128(&mut self.bytes)?;
-                visitor.visit_map(Decimal128Access::new(d128))
-            }
-            ElementType::MaxKey => {
+            RawBsonRef::Decimal128(d128) => visitor.visit_map(Decimal128Access::new(d128)),
+            RawBsonRef::MaxKey => {
                 visitor.visit_map(RawBsonAccess::new("$maxKey", BsonContent::Int32(1)))
             }
-            ElementType::MinKey => {
+            RawBsonRef::MinKey => {
                 visitor.visit_map(RawBsonAccess::new("$minKey", BsonContent::Int32(1)))
+            }
+        }
+    }
+
+    fn get_string(&self) -> Result<Cow<'de, str>> {
+        if self.options.utf8_lossy {
+            let value = self
+                .element
+                .value_utf8_lossy()
+                .map_err(Error::deserialization)?;
+            let s = match value {
+                Some(Utf8LossyBson::String(s)) => s,
+                _ => {
+                    return Err(Error::deserialization(
+                        "internal error: unexpected non-string",
+                    ))
+                }
+            };
+            Ok(Cow::Owned(s))
+        } else {
+            match self.value()? {
+                RawBsonRef::String(s) => Ok(Cow::Borrowed(s)),
+                _ => Err(Error::deserialization(
+                    "internal error: unexpected non-string",
+                )),
             }
         }
     }
 }
 
-impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
+impl<'de> serde::de::Deserializer<'de> for Deserializer<'de> {
     type Error = Error;
 
     #[inline]
@@ -385,7 +215,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: serde::de::Visitor<'de>,
     {
-        self.deserialize_next(visitor, DeserializerHint::None)
+        self.deserialize_hint(visitor, DeserializerHint::None)
     }
 
     #[inline]
@@ -393,7 +223,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: serde::de::Visitor<'de>,
     {
-        match self.current_type {
+        match self.element.element_type() {
             ElementType::Null => visitor.visit_none(),
             _ => visitor.visit_some(self),
         }
@@ -401,75 +231,85 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
     fn deserialize_enum<V>(
         self,
-        _name: &str,
+        _name: &'static str,
         _variants: &'static [&'static str],
         visitor: V,
-    ) -> Result<V::Value>
+    ) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
-        match self.current_type {
-            ElementType::String => visitor.visit_enum(self.deserialize_str()?.into_deserializer()),
+        match self.element.element_type() {
+            ElementType::String => visitor.visit_enum(self.get_string()?.into_deserializer()),
             ElementType::EmbeddedDocument => {
-                self.access_document(|access| visitor.visit_enum(access))
+                let doc = match self.value()? {
+                    RawBsonRef::Document(doc) => doc,
+                    _ => {
+                        return Err(Error::deserialization(
+                            "internal error: unexpected non-document",
+                        ))
+                    }
+                };
+                visitor.visit_enum(DocumentAccess::new(doc, self.options.clone())?)
             }
             t => Err(Error::custom(format!("expected enum, instead got {:?}", t))),
         }
     }
 
-    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_bytes<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
-        match self.current_type {
-            ElementType::ObjectId => visitor.visit_borrowed_bytes(self.bytes.read_slice(12)?),
+        match self.element.element_type() {
+            ElementType::ObjectId => visitor.visit_borrowed_bytes(self.element.slice()),
             _ => self.deserialize_any(visitor),
         }
     }
 
-    fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(
+        self,
+        name: &'static str,
+        visitor: V,
+    ) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
         match name {
-            UUID_NEWTYPE_NAME => self.deserialize_next(
+            UUID_NEWTYPE_NAME => self.deserialize_hint(
                 visitor,
                 DeserializerHint::BinarySubtype(BinarySubtype::Uuid),
             ),
-            RAW_BSON_NEWTYPE => self.deserialize_next(visitor, DeserializerHint::RawBson),
+            RAW_BSON_NEWTYPE => self.deserialize_hint(visitor, DeserializerHint::RawBson),
             RAW_DOCUMENT_NEWTYPE => {
-                if self.current_type != ElementType::EmbeddedDocument {
+                if self.element.element_type() != ElementType::EmbeddedDocument {
                     return Err(serde::de::Error::custom(format!(
                         "expected raw document, instead got {:?}",
-                        self.current_type
+                        self.element.element_type()
                     )));
                 }
 
-                self.deserialize_next(visitor, DeserializerHint::RawBson)
+                self.deserialize_hint(visitor, DeserializerHint::RawBson)
             }
             RAW_ARRAY_NEWTYPE => {
-                if self.current_type != ElementType::Array {
+                if self.element.element_type() != ElementType::Array {
                     return Err(serde::de::Error::custom(format!(
                         "expected raw array, instead got {:?}",
-                        self.current_type
+                        self.element.element_type()
                     )));
                 }
 
-                self.deserialize_next(visitor, DeserializerHint::RawBson)
+                self.deserialize_hint(visitor, DeserializerHint::RawBson)
             }
             HUMAN_READABLE_NEWTYPE => {
-                let old = self.human_readable;
-                self.human_readable = true;
-                let result = visitor.visit_newtype_struct(&mut *self);
-                self.human_readable = old;
-                result
+                let mut inner = self;
+                inner.options.human_readable = true;
+                visitor.visit_newtype_struct(inner)
             }
             _ => visitor.visit_newtype_struct(self),
         }
     }
 
     fn is_human_readable(&self) -> bool {
-        self.human_readable
+        self.options.human_readable
     }
 
     forward_to_deserialize_any! {
@@ -479,205 +319,153 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 }
 
-/// Struct for accessing documents for deserialization purposes.
-/// This is used to deserialize maps, structs, sequences, and enums.
-struct DocumentAccess<'d, 'de> {
-    root_deserializer: &'d mut Deserializer<'de>,
-    length_remaining: &'d mut i32,
+struct DocumentAccess<'de> {
+    iter: RawIter<'de>,
+    elem: Option<RawElement<'de>>,
+    options: DeserializerOptions,
 }
 
-impl<'d, 'de> DocumentAccess<'d, 'de> {
-    /// Read the next element type and update the root deserializer with it.
-    ///
-    /// Returns `Ok(None)` if the document has been fully read and has no more elements.
-    fn read_next_type(&mut self) -> Result<Option<ElementType>> {
-        let t = self.read(|s| s.root_deserializer.deserialize_next_type())?;
-
-        if t.is_none() && *self.length_remaining != 0 {
-            return Err(Error::custom(format!(
-                "got null byte but still have length {} remaining",
-                self.length_remaining
-            )));
-        }
-
-        Ok(t)
+impl<'de> DocumentAccess<'de> {
+    fn new(doc: &'de RawDocument, options: DeserializerOptions) -> Result<Self> {
+        Ok(Self {
+            iter: doc.iter_elements(),
+            elem: None,
+            options,
+        })
     }
 
-    /// Executes a closure that reads from the BSON bytes and returns an error if the number of
-    /// bytes read exceeds length_remaining.
-    ///
-    /// A mutable reference to this [`DocumentAccess`] is passed into the closure.
-    fn read<F, O>(&mut self, f: F) -> Result<O>
-    where
-        F: FnOnce(&mut Self) -> Result<O>,
-    {
-        let start_bytes = self.root_deserializer.bytes.bytes_read();
-        let out = f(self)?;
-        let bytes_read = self.root_deserializer.bytes.bytes_read() - start_bytes;
-        let bytes_read: i32 = bytes_read
-            .try_into()
-            .map_err(|_| Error::custom("overflow in read size"))?;
-        if bytes_read > *self.length_remaining {
-            return Err(Error::custom("length of document too short"));
-        }
-        *self.length_remaining -= bytes_read;
-        Ok(out)
+    fn advance(&mut self) -> Result<()> {
+        self.elem = self
+            .iter
+            .next()
+            .transpose()
+            .map_err(Error::deserialization)?;
+        Ok(())
     }
 
-    /// Read the next value from the document.
-    fn read_next_value<V>(&mut self, seed: V) -> Result<V::Value>
-    where
-        V: serde::de::DeserializeSeed<'de>,
-    {
-        self.read(|s| seed.deserialize(&mut *s.root_deserializer))
+    fn deserializer(self) -> Result<Deserializer<'de>> {
+        let elem = match self.elem {
+            Some(e) => e,
+            None => {
+                return Err(Error::deserialization(
+                    "internal error: no element for deserializer",
+                ))
+            }
+        };
+        Ok(Deserializer {
+            element: elem,
+            options: self.options,
+        })
     }
 }
 
-impl<'d, 'de> serde::de::MapAccess<'de> for DocumentAccess<'d, 'de> {
-    type Error = crate::de::Error;
+impl<'de> serde::de::MapAccess<'de> for DocumentAccess<'de> {
+    type Error = Error;
 
-    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+    fn next_key_seed<K>(&mut self, seed: K) -> std::result::Result<Option<K::Value>, Self::Error>
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        if self.read_next_type()?.is_none() {
-            return Ok(None);
+        self.advance()?;
+        match &self.elem {
+            None => Ok(None),
+            Some(elem) => seed
+                .deserialize(BorrowedStrDeserializer::new(elem.key()))
+                .map(Some),
         }
-
-        self.read(|s| {
-            seed.deserialize(DocumentKeyDeserializer {
-                root_deserializer: &mut *s.root_deserializer,
-            })
-        })
-        .map(Some)
     }
 
-    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    fn next_value_seed<V>(&mut self, seed: V) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        self.read_next_value(seed)
+        match &self.elem {
+            None => Err(Error::deserialization("too many values requested")),
+            Some(elem) => seed.deserialize(Deserializer {
+                element: elem.clone(),
+                options: self.options.clone(),
+            }),
+        }
     }
 }
 
-impl<'d, 'de> serde::de::SeqAccess<'de> for DocumentAccess<'d, 'de> {
+impl<'de> serde::de::SeqAccess<'de> for DocumentAccess<'de> {
     type Error = Error;
 
-    fn next_element_seed<S>(&mut self, seed: S) -> Result<Option<S::Value>>
+    fn next_element_seed<T>(
+        &mut self,
+        seed: T,
+    ) -> std::result::Result<Option<T::Value>, Self::Error>
     where
-        S: serde::de::DeserializeSeed<'de>,
+        T: serde::de::DeserializeSeed<'de>,
     {
-        if self.read_next_type()?.is_none() {
-            return Ok(None);
+        self.advance()?;
+        match &self.elem {
+            None => Ok(None),
+            Some(elem) => seed
+                .deserialize(Deserializer {
+                    element: elem.clone(),
+                    options: self.options.clone(),
+                })
+                .map(Some),
         }
-        let _index = self.read(|s| s.root_deserializer.deserialize_cstr())?;
-        self.read_next_value(seed).map(Some)
     }
 }
 
-impl<'d, 'de> EnumAccess<'de> for DocumentAccess<'d, 'de> {
+impl<'de> serde::de::EnumAccess<'de> for DocumentAccess<'de> {
     type Error = Error;
     type Variant = Self;
 
-    fn variant_seed<V>(mut self, seed: V) -> Result<(V::Value, Self::Variant)>
+    fn variant_seed<V>(
+        mut self,
+        seed: V,
+    ) -> std::result::Result<(V::Value, Self::Variant), Self::Error>
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        if self.read_next_type()?.is_none() {
-            return Err(Error::EndOfStream);
-        }
-
-        let key = self.read(|s| {
-            seed.deserialize(DocumentKeyDeserializer {
-                root_deserializer: &mut *s.root_deserializer,
-            })
-        })?;
-
+        self.advance()?;
+        let elem = match &self.elem {
+            Some(e) => e,
+            None => return Err(Error::EndOfStream),
+        };
+        let de: BorrowedStrDeserializer<'_, Error> = BorrowedStrDeserializer::new(elem.key());
+        let key = seed.deserialize(de)?;
         Ok((key, self))
     }
 }
 
-impl<'d, 'de> VariantAccess<'de> for DocumentAccess<'d, 'de> {
+impl<'de> serde::de::VariantAccess<'de> for DocumentAccess<'de> {
     type Error = Error;
 
-    fn unit_variant(self) -> Result<()> {
+    fn unit_variant(self) -> std::result::Result<(), Self::Error> {
         Err(Error::custom(
             "expected a string enum, got a document instead",
         ))
     }
 
-    fn newtype_variant_seed<S>(mut self, seed: S) -> Result<S::Value>
+    fn newtype_variant_seed<T>(self, seed: T) -> std::result::Result<T::Value, Self::Error>
     where
-        S: serde::de::DeserializeSeed<'de>,
+        T: serde::de::DeserializeSeed<'de>,
     {
-        self.read_next_value(seed)
+        seed.deserialize(self.deserializer()?)
     }
 
-    fn tuple_variant<V>(mut self, _len: usize, visitor: V) -> Result<V::Value>
-    where
-        V: serde::de::Visitor<'de>,
-    {
-        self.read(|s| s.root_deserializer.deserialize_seq(visitor))
-    }
-
-    fn struct_variant<V>(mut self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
-        self.read(|s| s.root_deserializer.deserialize_map(visitor))
-    }
-}
-
-/// Deserializer used specifically for deserializing a document's cstring keys.
-struct DocumentKeyDeserializer<'d, 'de> {
-    root_deserializer: &'d mut Deserializer<'de>,
-}
-
-impl<'d, 'de> serde::de::Deserializer<'de> for DocumentKeyDeserializer<'d, 'de> {
-    type Error = Error;
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: serde::de::Visitor<'de>,
-    {
-        let s = self.root_deserializer.deserialize_cstr()?;
-        match s {
-            Cow::Borrowed(b) => visitor.visit_borrowed_str(b),
-            Cow::Owned(string) => visitor.visit_string(string),
-        }
+        self.deserializer()?.deserialize_seq(visitor)
     }
 
-    fn deserialize_enum<V>(
+    fn struct_variant<V>(
         self,
-        _name: &str,
-        _variants: &'static [&'static str],
+        _fields: &'static [&'static str],
         visitor: V,
-    ) -> Result<V::Value>
+    ) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
-        visitor.visit_enum(
-            self.root_deserializer
-                .deserialize_cstr()?
-                .into_deserializer(),
-        )
-    }
-
-    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
-    where
-        V: serde::de::Visitor<'de>,
-    {
-        visitor.visit_newtype_struct(self)
-    }
-
-    fn is_human_readable(&self) -> bool {
-        false
-    }
-
-    forward_to_deserialize_any! {
-        bool char str bytes byte_buf option unit unit_struct string
-        identifier seq tuple tuple_struct struct map
-        ignored_any i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
+        self.deserializer()?.deserialize_map(visitor)
     }
 }
 
@@ -1251,84 +1039,58 @@ enum BinaryDeserializationStage {
 ///
 /// Otherwise, this deserializes the serde data model equivalent of
 /// { "$code": <borrowed str> "$scope": <map> }.
-struct CodeWithScopeAccess<'de, 'd, 'a> {
-    deserializer: &'a mut CodeWithScopeDeserializer<'de, 'd>,
+struct CodeWithScopeAccess<'de> {
+    cws: BsonCow<RawJavaScriptCodeWithScopeRef<'de>, Utf8LossyJavaScriptCodeWithScope<'de>>,
+    hint: DeserializerHint,
+    options: DeserializerOptions,
+    stage: CodeWithScopeDeserializationStage,
 }
 
-impl<'de, 'd, 'a> CodeWithScopeAccess<'de, 'd, 'a> {
-    fn new(deserializer: &'a mut CodeWithScopeDeserializer<'de, 'd>) -> Self {
-        Self { deserializer }
+impl<'de> CodeWithScopeAccess<'de> {
+    fn new(
+        cws: BsonCow<RawJavaScriptCodeWithScopeRef<'de>, Utf8LossyJavaScriptCodeWithScope<'de>>,
+        hint: DeserializerHint,
+        options: DeserializerOptions,
+    ) -> Self {
+        Self {
+            cws,
+            hint,
+            options,
+            stage: CodeWithScopeDeserializationStage::Code,
+        }
     }
 }
 
-impl<'de, 'd, 'a> serde::de::MapAccess<'de> for CodeWithScopeAccess<'de, 'd, 'a> {
+impl<'de> serde::de::MapAccess<'de> for CodeWithScopeAccess<'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        match self.deserializer.stage {
-            CodeWithScopeDeserializationStage::Code => seed
-                .deserialize(FieldDeserializer {
-                    field_name: "$code",
-                })
-                .map(Some),
-            CodeWithScopeDeserializationStage::Scope => seed
-                .deserialize(FieldDeserializer {
-                    field_name: "$scope",
-                })
-                .map(Some),
-            CodeWithScopeDeserializationStage::Done => Ok(None),
-        }
+        let field_name = match self.stage {
+            CodeWithScopeDeserializationStage::Code => "$code",
+            CodeWithScopeDeserializationStage::Scope => "$scope",
+            CodeWithScopeDeserializationStage::Done => return Ok(None),
+        };
+        seed.deserialize(FieldDeserializer { field_name }).map(Some)
     }
 
-    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    fn next_value_seed<V>(&mut self, seed: V) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        seed.deserialize(&mut *self.deserializer)
+        let value = seed.deserialize(&*self)?;
+        self.stage = match self.stage {
+            CodeWithScopeDeserializationStage::Code => CodeWithScopeDeserializationStage::Scope,
+            CodeWithScopeDeserializationStage::Scope => CodeWithScopeDeserializationStage::Done,
+            CodeWithScopeDeserializationStage::Done => return Err(Error::EndOfStream),
+        };
+        Ok(value)
     }
 }
 
-struct CodeWithScopeDeserializer<'de, 'a> {
-    root_deserializer: &'a mut Deserializer<'de>,
-    stage: CodeWithScopeDeserializationStage,
-    hint: DeserializerHint,
-    length_remaining: i32,
-}
-
-impl<'de, 'a> CodeWithScopeDeserializer<'de, 'a> {
-    fn new(root_deserializer: &'a mut Deserializer<'de>, hint: DeserializerHint, len: i32) -> Self {
-        Self {
-            root_deserializer,
-            stage: CodeWithScopeDeserializationStage::Code,
-            hint,
-            length_remaining: len,
-        }
-    }
-
-    /// Executes a closure that reads from the BSON bytes and returns an error if the number of
-    /// bytes read exceeds length_remaining.
-    ///
-    /// A mutable reference to this [`CodeWithScopeDeserializer`] is passed into the closure.
-    fn read<F, O>(&mut self, f: F) -> Result<O>
-    where
-        F: FnOnce(&mut Self) -> Result<O>,
-    {
-        let start_bytes = self.root_deserializer.bytes.bytes_read();
-        let out = f(self)?;
-        let bytes_read = self.root_deserializer.bytes.bytes_read() - start_bytes;
-        self.length_remaining -= bytes_read as i32;
-
-        if self.length_remaining < 0 {
-            return Err(Error::custom("length of CodeWithScope too short"));
-        }
-        Ok(out)
-    }
-}
-
-impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut CodeWithScopeDeserializer<'de, 'a> {
+impl<'a, 'de> serde::de::Deserializer<'de> for &'a CodeWithScopeAccess<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -1336,26 +1098,21 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut CodeWithScopeDeserial
         V: serde::de::Visitor<'de>,
     {
         match self.stage {
-            CodeWithScopeDeserializationStage::Code => {
-                self.stage = CodeWithScopeDeserializationStage::Scope;
-                match self.read(|s| s.root_deserializer.deserialize_str())? {
-                    Cow::Borrowed(s) => visitor.visit_borrowed_str(s),
-                    Cow::Owned(s) => visitor.visit_string(s),
+            CodeWithScopeDeserializationStage::Code => match &self.cws {
+                BsonCow::Borrowed(cws) => visitor.visit_borrowed_str(cws.code),
+                BsonCow::Owned(cws) => visitor.visit_str(&cws.code),
+            },
+            CodeWithScopeDeserializationStage::Scope => {
+                let scope = match &self.cws {
+                    BsonCow::Borrowed(cws) => cws.scope,
+                    BsonCow::Owned(cws) => cws.scope,
+                };
+                match self.hint {
+                    DeserializerHint::RawBson => visitor.visit_map(RawDocumentAccess::new(scope)),
+                    _ => visitor.visit_map(DocumentAccess::new(scope, self.options.clone())?),
                 }
             }
-            CodeWithScopeDeserializationStage::Scope => {
-                self.stage = CodeWithScopeDeserializationStage::Done;
-                self.read(|s| {
-                    s.root_deserializer.deserialize_document(
-                        visitor,
-                        s.hint,
-                        DocumentType::EmbeddedDocument,
-                    )
-                })
-            }
-            CodeWithScopeDeserializationStage::Done => Err(Error::custom(
-                "JavaScriptCodeWithScope fully deserialized already",
-            )),
+            CodeWithScopeDeserializationStage::Done => Err(Error::EndOfStream),
         }
     }
 
@@ -1367,7 +1124,7 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut CodeWithScopeDeserial
     }
 
     fn is_human_readable(&self) -> bool {
-        false
+        self.options.human_readable
     }
 
     serde::forward_to_deserialize_any! {
@@ -1388,86 +1145,77 @@ enum CodeWithScopeDeserializationStage {
 ///
 /// Regardless of the hint, this deserializes the serde data model equivalent
 /// of { "$dbPointer": { "$ref": <borrowed str>, "$id": <bytes> } }.
-struct DbPointerAccess<'de, 'd, 'a> {
-    deserializer: &'a mut DbPointerDeserializer<'de, 'd>,
+struct DbPointerAccess<'de> {
+    dbp: BsonCow<RawDbPointerRef<'de>, DbPointer>,
+    hint: DeserializerHint,
+    stage: DbPointerDeserializationStage,
 }
 
-impl<'de, 'd, 'a> DbPointerAccess<'de, 'd, 'a> {
-    fn new(deserializer: &'a mut DbPointerDeserializer<'de, 'd>) -> Self {
-        Self { deserializer }
+impl<'de> DbPointerAccess<'de> {
+    fn new(dbp: BsonCow<RawDbPointerRef<'de>, DbPointer>, hint: DeserializerHint) -> Self {
+        Self {
+            dbp,
+            hint,
+            stage: DbPointerDeserializationStage::TopLevel,
+        }
     }
 }
 
-impl<'de, 'd, 'a> serde::de::MapAccess<'de> for DbPointerAccess<'de, 'd, 'a> {
+impl<'de> serde::de::MapAccess<'de> for DbPointerAccess<'de> {
     type Error = Error;
 
-    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+    fn next_key_seed<K>(&mut self, seed: K) -> std::result::Result<Option<K::Value>, Self::Error>
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        match self.deserializer.stage {
-            DbPointerDeserializationStage::TopLevel => seed
-                .deserialize(FieldDeserializer {
-                    field_name: "$dbPointer",
-                })
-                .map(Some),
-            DbPointerDeserializationStage::Namespace => seed
-                .deserialize(FieldDeserializer { field_name: "$ref" })
-                .map(Some),
-            DbPointerDeserializationStage::Id => seed
-                .deserialize(FieldDeserializer { field_name: "$id" })
-                .map(Some),
-            DbPointerDeserializationStage::Done => Ok(None),
-        }
+        let name = match self.stage {
+            DbPointerDeserializationStage::TopLevel => "$dbPointer",
+            DbPointerDeserializationStage::Namespace => "$ref",
+            DbPointerDeserializationStage::Id => "$id",
+            DbPointerDeserializationStage::Done => return Ok(None),
+        };
+        seed.deserialize(FieldDeserializer { field_name: name })
+            .map(Some)
     }
 
-    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    fn next_value_seed<V>(&mut self, seed: V) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        seed.deserialize(&mut *self.deserializer)
+        seed.deserialize(self)
     }
 }
 
-struct DbPointerDeserializer<'de, 'a> {
-    root_deserializer: &'a mut Deserializer<'de>,
-    stage: DbPointerDeserializationStage,
-    hint: DeserializerHint,
-}
-
-impl<'de, 'a> DbPointerDeserializer<'de, 'a> {
-    fn new(root_deserializer: &'a mut Deserializer<'de>, hint: DeserializerHint) -> Self {
-        Self {
-            root_deserializer,
-            stage: DbPointerDeserializationStage::TopLevel,
-            hint,
-        }
-    }
-}
-
-impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut DbPointerDeserializer<'de, 'a> {
+impl<'a, 'de> serde::de::Deserializer<'de> for &'a mut DbPointerAccess<'de> {
     type Error = Error;
 
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::Visitor<'de>,
     {
         match self.stage {
             DbPointerDeserializationStage::TopLevel => {
-                self.stage = DbPointerDeserializationStage::Namespace;
-                visitor.visit_map(DbPointerAccess::new(self))
+                self.stage = DbPointerDeserializationStage::Done;
+                visitor.visit_map(DbPointerAccess {
+                    dbp: self.dbp.clone(),
+                    hint: self.hint,
+                    stage: DbPointerDeserializationStage::Namespace,
+                })
             }
             DbPointerDeserializationStage::Namespace => {
                 self.stage = DbPointerDeserializationStage::Id;
-                match self.root_deserializer.deserialize_str()? {
-                    Cow::Borrowed(s) => visitor.visit_borrowed_str(s),
-                    Cow::Owned(s) => visitor.visit_string(s),
+                match &self.dbp {
+                    BsonCow::Borrowed(dbp) => visitor.visit_borrowed_str(dbp.namespace),
+                    BsonCow::Owned(dbp) => visitor.visit_str(&dbp.namespace),
                 }
             }
             DbPointerDeserializationStage::Id => {
                 self.stage = DbPointerDeserializationStage::Done;
-                self.root_deserializer
-                    .deserialize_objectid(visitor, self.hint)
+                let oid = match &self.dbp {
+                    BsonCow::Borrowed(dbp) => dbp.id,
+                    BsonCow::Owned(dbp) => dbp.id,
+                };
+                visitor.visit_map(ObjectIdAccess::new(oid, self.hint))
             }
             DbPointerDeserializationStage::Done => {
                 Err(Error::custom("DbPointer fully deserialized already"))
@@ -1505,66 +1253,49 @@ enum DbPointerDeserializationStage {
 ///
 /// Regardless of the hint, this deserializes the serde data model equivalent
 /// of { "$regularExpression": { "pattern": <borrowed str>, "options": <borrowed str> } }.
-struct RegexAccess<'de, 'd, 'a> {
-    deserializer: &'a mut RegexDeserializer<'de, 'd>,
+struct RegexAccess<'de> {
+    re: BsonCow<RawRegexRef<'de>, Regex>,
+    stage: RegexDeserializationStage,
 }
 
-impl<'de, 'd, 'a> RegexAccess<'de, 'd, 'a> {
-    fn new(deserializer: &'a mut RegexDeserializer<'de, 'd>) -> Self {
-        Self { deserializer }
+impl<'de> RegexAccess<'de> {
+    fn new(re: BsonCow<RawRegexRef<'de>, Regex>) -> Self {
+        Self {
+            re,
+            stage: RegexDeserializationStage::TopLevel,
+        }
     }
 }
 
-impl<'de, 'd, 'a> serde::de::MapAccess<'de> for RegexAccess<'de, 'd, 'a> {
+impl<'de> serde::de::MapAccess<'de> for RegexAccess<'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        match self.deserializer.stage {
-            RegexDeserializationStage::TopLevel => seed
-                .deserialize(FieldDeserializer {
-                    field_name: "$regularExpression",
-                })
-                .map(Some),
-            RegexDeserializationStage::Pattern => seed
-                .deserialize(FieldDeserializer {
-                    field_name: "pattern",
-                })
-                .map(Some),
-            RegexDeserializationStage::Options => seed
-                .deserialize(FieldDeserializer {
-                    field_name: "options",
-                })
-                .map(Some),
-            RegexDeserializationStage::Done => Ok(None),
-        }
+        let name = match self.stage {
+            RegexDeserializationStage::TopLevel => "$regularExpression",
+            RegexDeserializationStage::Pattern => "pattern",
+            RegexDeserializationStage::Options => "options",
+            RegexDeserializationStage::Done => return Ok(None),
+        };
+        seed.deserialize(FieldDeserializer { field_name: name })
+            .map(Some)
     }
 
-    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    fn next_value_seed<V>(&mut self, seed: V) -> std::result::Result<V::Value, Self::Error>
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        seed.deserialize(&mut *self.deserializer)
-    }
-}
-
-struct RegexDeserializer<'de, 'a> {
-    root_deserializer: &'a mut Deserializer<'de>,
-    stage: RegexDeserializationStage,
-}
-
-impl<'de, 'a> RegexDeserializer<'de, 'a> {
-    fn new(root_deserializer: &'a mut Deserializer<'de>) -> Self {
-        Self {
-            root_deserializer,
-            stage: RegexDeserializationStage::TopLevel,
+        if matches!(self.stage, RegexDeserializationStage::Done) {
+            return Err(Error::custom("Regex fully deserialized already"));
         }
+        seed.deserialize(self)
     }
 }
 
-impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut RegexDeserializer<'de, 'a> {
+impl<'a, 'de> serde::de::Deserializer<'de> for &'a mut RegexAccess<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -1573,20 +1304,37 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut RegexDeserializer<'de
     {
         match self.stage {
             RegexDeserializationStage::TopLevel => {
-                self.stage.advance();
-                visitor.visit_map(RegexAccess::new(self))
+                self.stage = RegexDeserializationStage::Done;
+                visitor.visit_map(RegexAccess {
+                    re: self.re.clone(),
+                    stage: RegexDeserializationStage::Pattern,
+                })
             }
-            RegexDeserializationStage::Pattern | RegexDeserializationStage::Options => {
-                self.stage.advance();
-                match self.root_deserializer.deserialize_cstr()? {
-                    Cow::Borrowed(s) => visitor.visit_borrowed_str(s),
-                    Cow::Owned(s) => visitor.visit_string(s),
+            RegexDeserializationStage::Pattern => {
+                self.stage = RegexDeserializationStage::Options;
+                match &self.re {
+                    BsonCow::Borrowed(re) => visitor.visit_borrowed_str(re.pattern),
+                    BsonCow::Owned(re) => visitor.visit_str(&re.pattern),
+                }
+            }
+            RegexDeserializationStage::Options => {
+                self.stage = RegexDeserializationStage::Done;
+                match &self.re {
+                    BsonCow::Borrowed(re) => visitor.visit_borrowed_str(re.options),
+                    BsonCow::Owned(re) => visitor.visit_str(&re.options),
                 }
             }
             RegexDeserializationStage::Done => {
-                Err(Error::custom("DbPointer fully deserialized already"))
+                Err(Error::custom("Regex fully deserialized already"))
             }
         }
+    }
+
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
     }
 
     fn is_human_readable(&self) -> bool {
@@ -1595,7 +1343,7 @@ impl<'de, 'a, 'b> serde::de::Deserializer<'de> for &'b mut RegexDeserializer<'de
 
     serde::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
-        bytes byte_buf map struct option unit newtype_struct
+        bytes byte_buf map struct option unit
         ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
@@ -1606,17 +1354,6 @@ enum RegexDeserializationStage {
     Pattern,
     Options,
     Done,
-}
-
-impl RegexDeserializationStage {
-    fn advance(&mut self) {
-        *self = match self {
-            RegexDeserializationStage::TopLevel => RegexDeserializationStage::Pattern,
-            RegexDeserializationStage::Pattern => RegexDeserializationStage::Options,
-            RegexDeserializationStage::Options => RegexDeserializationStage::Done,
-            RegexDeserializationStage::Done => RegexDeserializationStage::Done,
-        }
-    }
 }
 
 /// Helper access struct for visiting the extended JSON model of simple BSON types.
@@ -1708,137 +1445,8 @@ impl<'de> serde::de::Deserializer<'de> for RawBsonDeserializer<'de> {
     }
 }
 
-/// Struct wrapping a slice of BSON bytes.
-struct BsonBuf<'a> {
-    bytes: &'a [u8],
-    index: usize,
-
-    /// Whether or not to insert replacement characters in place of invalid UTF-8 sequences when
-    /// deserializing strings.
-    utf8_lossy: bool,
-}
-
-impl<'a> Read for BsonBuf<'a> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.index_check()?;
-        let bytes_read = self.bytes[self.index..].as_ref().read(buf)?;
-        self.index += bytes_read;
-        Ok(bytes_read)
-    }
-}
-
-impl<'a> BsonBuf<'a> {
-    fn new(bytes: &'a [u8], utf8_lossy: bool) -> Self {
-        Self {
-            bytes,
-            index: 0,
-            utf8_lossy,
-        }
-    }
-
-    fn bytes_read(&self) -> usize {
-        self.index
-    }
-
-    fn bytes_remaining(&self) -> usize {
-        self.bytes.len() - self.bytes_read()
-    }
-
-    /// Verify the index has not run out of bounds.
-    fn index_check(&self) -> std::io::Result<()> {
-        if self.index >= self.bytes.len() {
-            return Err(ErrorKind::UnexpectedEof.into());
-        }
-        Ok(())
-    }
-
-    /// Get the string starting at the provided index and ending at the buffer's current index.
-    ///
-    /// Can optionally override the global UTF-8 lossy setting to ensure bytes are not allocated.
-    fn str(&mut self, start: usize, utf8_lossy_override: Option<bool>) -> Result<Cow<'a, str>> {
-        let bytes = &self.bytes[start..self.index];
-        let s = if utf8_lossy_override.unwrap_or(self.utf8_lossy) {
-            String::from_utf8_lossy(bytes)
-        } else {
-            Cow::Borrowed(std::str::from_utf8(bytes).map_err(Error::custom)?)
-        };
-
-        // consume the null byte
-        if self.bytes[self.index] != 0 {
-            return Err(Error::custom("string was not null-terminated"));
-        }
-        self.index += 1;
-        self.index_check()?;
-
-        Ok(s)
-    }
-
-    /// Attempts to read a null-terminated UTF-8 cstring from the data.
-    ///
-    /// If utf8_lossy and invalid UTF-8 is encountered, the unicode replacement character will be
-    /// inserted in place of the offending data, resulting in an owned [`String`]. Otherwise, the
-    /// data will be borrowed as-is.
-    fn read_cstr(&mut self) -> Result<Cow<'a, str>> {
-        let start = self.index;
-        while self.index < self.bytes.len() && self.bytes[self.index] != 0 {
-            self.index += 1
-        }
-
-        self.index_check()?;
-
-        self.str(start, None)
-    }
-
-    fn _advance_to_len_encoded_str(&mut self) -> Result<usize> {
-        let len = read_i32(self)?;
-        let start = self.index;
-
-        // UTF-8 String must have at least 1 byte (the last 0x00).
-        if len < 1 {
-            return Err(Error::invalid_length(
-                len as usize,
-                &"UTF-8 string must have at least 1 byte",
-            ));
-        }
-
-        self.index += (len - 1) as usize;
-        self.index_check()?;
-
-        Ok(start)
-    }
-
-    /// Attempts to read a null-terminated UTF-8 string from the data.
-    ///
-    /// If invalid UTF-8 is encountered, the unicode replacement character will be inserted in place
-    /// of the offending data, resulting in an owned [`String`]. Otherwise, the data will be
-    /// borrowed as-is.
-    fn read_str(&mut self) -> Result<Cow<'a, str>> {
-        let start = self._advance_to_len_encoded_str()?;
-        self.str(start, None)
-    }
-
-    /// Attempts to read a null-terminated UTF-8 string from the data.
-    fn read_borrowed_str(&mut self) -> Result<&'a str> {
-        let start = self._advance_to_len_encoded_str()?;
-        match self.str(start, Some(false))? {
-            Cow::Borrowed(s) => Ok(s),
-            Cow::Owned(_) => panic!("should have errored when encountering invalid UTF-8"),
-        }
-    }
-
-    fn slice(&self, length: usize) -> Result<&'a [u8]> {
-        if self.index + length > self.bytes.len() {
-            return Err(Error::Io(Arc::new(
-                std::io::ErrorKind::UnexpectedEof.into(),
-            )));
-        }
-
-        Ok(&self.bytes[self.index..(self.index + length)])
-    }
-
-    fn read_slice(&mut self, length: usize) -> Result<&'a [u8]> {
-        let slice = self.slice(length)?;
-        self.index += length;
-        Ok(slice)
-    }
+#[derive(Debug, Copy, Clone)]
+enum BsonCow<Borrowed, Owned> {
+    Borrowed(Borrowed),
+    Owned(Owned),
 }

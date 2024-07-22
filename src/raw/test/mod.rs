@@ -462,6 +462,14 @@ fn into_bson_conversion() {
     );
 }
 
+#[test]
+fn fuzz_oom() {
+    let bytes: &[u8] = &[
+        17, 0, 0, 0, 11, 36, 100, 97, 116, 101, 0, 111, 112, 101, 0, 4, 0,
+    ];
+    let _ = crate::from_slice::<crate::Document>(bytes);
+}
+
 use props::arbitrary_bson;
 use proptest::prelude::*;
 use std::convert::TryInto;
