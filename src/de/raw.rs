@@ -353,8 +353,8 @@ impl<'de> DocumentAccess<'de> {
             }
         };
         Ok(Deserializer {
-            element: elem.clone(),
-            options: self.options.clone(),
+            element: elem,
+            options: self.options,
         })
     }
 }
