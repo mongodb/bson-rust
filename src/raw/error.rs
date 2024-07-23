@@ -14,19 +14,18 @@ pub struct Error {
 }
 
 impl Error {
-    pub(crate) fn new_with_key(key: impl Into<String>, kind: ErrorKind) -> Self {
-        Self {
-            kind,
-            key: Some(key.into()),
-        }
-    }
-
-    pub(crate) fn new_without_key(kind: ErrorKind) -> Self {
+    pub(crate) fn new(kind: ErrorKind) -> Self {
         Self { key: None, kind }
     }
 
-    pub(crate) fn with_key(mut self, key: impl AsRef<str>) -> Self {
-        self.key = Some(key.as_ref().to_string());
+    pub(crate) fn malformed(e: impl ToString) -> Self {
+        Self::new(ErrorKind::MalformedValue {
+            message: e.to_string(),
+        })
+    }
+
+    pub(crate) fn with_key(mut self, key: impl Into<String>) -> Self {
+        self.key = Some(key.into());
         self
     }
 
@@ -46,14 +45,6 @@ pub enum ErrorKind {
 
     /// Improper UTF-8 bytes were found when proper UTF-8 was expected.
     Utf8EncodingError(Utf8Error),
-}
-
-impl ErrorKind {
-    pub(crate) fn new_malformed(e: impl ToString) -> Self {
-        ErrorKind::MalformedValue {
-            message: e.to_string(),
-        }
-    }
 }
 
 impl std::fmt::Display for Error {
@@ -80,7 +71,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Execute the provided closure, mapping the key of the returned error (if any) to the provided
 /// key.
-pub(crate) fn try_with_key<G, F: FnOnce() -> Result<G>>(key: impl AsRef<str>, f: F) -> Result<G> {
+pub(crate) fn try_with_key<G, F: FnOnce() -> Result<G>>(key: impl Into<String>, f: F) -> Result<G> {
     f().map_err(|e| e.with_key(key))
 }
 

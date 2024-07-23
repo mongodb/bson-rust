@@ -1,7 +1,6 @@
 //! A BSON document represented as an associative HashMap with insertion ordering.
 
 use std::{
-    convert::TryInto,
     error,
     fmt::{self, Debug, Display, Formatter},
     io::{Read, Write},
@@ -10,11 +9,10 @@ use std::{
 
 use ahash::RandomState;
 use indexmap::IndexMap;
-use serde::{de::Error, Deserialize};
+use serde::Deserialize;
 
 use crate::{
     bson::{Array, Bson, Timestamp},
-    de::{read_i32, MIN_BSON_DOCUMENT_SIZE},
     oid::ObjectId,
     spec::BinarySubtype,
     Binary,
@@ -548,22 +546,7 @@ impl Document {
     }
 
     fn decode<R: Read + ?Sized>(reader: &mut R, utf_lossy: bool) -> crate::de::Result<Document> {
-        let length = read_i32(reader)?;
-        if length < MIN_BSON_DOCUMENT_SIZE {
-            return Err(crate::de::Error::invalid_length(
-                length as usize,
-                &"document length must be at least 5",
-            ));
-        }
-        let ulen: usize =
-            length
-                .try_into()
-                .map_err(|e| crate::de::Error::DeserializationError {
-                    message: format!("invalid document length: {}", e),
-                })?;
-        let mut buf = vec![0u8; ulen];
-        buf[0..4].copy_from_slice(&length.to_le_bytes());
-        reader.read_exact(&mut buf[4..])?;
+        let buf = crate::de::reader_to_vec(reader)?;
         let deserializer = crate::de::RawDeserializer::new(&buf, utf_lossy)?;
         Document::deserialize(deserializer)
     }
