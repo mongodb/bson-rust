@@ -51,7 +51,7 @@ struct DeserializerOptions {
 impl<'de> Deserializer<'de> {
     pub(crate) fn new(buf: &'de [u8], utf8_lossy: bool) -> Result<Self> {
         Ok(Self {
-            element: RawElement::toplevel(buf).map_err(Error::deserialization)?,
+            element: RawElement::toplevel(buf)?,
             options: DeserializerOptions {
                 utf8_lossy,
                 human_readable: false,
@@ -60,7 +60,7 @@ impl<'de> Deserializer<'de> {
     }
 
     fn value(&self) -> Result<RawBsonRef<'de>> {
-        self.element.value().map_err(Error::deserialization)
+        Ok(self.element.value()?)
     }
 
     /// Deserialize the element, using the type of the element along with the
@@ -70,11 +70,7 @@ impl<'de> Deserializer<'de> {
         V: serde::de::Visitor<'de>,
     {
         if self.options.utf8_lossy {
-            if let Some(lossy) = self
-                .element
-                .value_utf8_lossy()
-                .map_err(Error::deserialization)?
-            {
+            if let Some(lossy) = self.element.value_utf8_lossy()? {
                 return match lossy {
                     Utf8LossyBson::String(s) => visitor.visit_string(s),
                     Utf8LossyBson::RegularExpression(re) => {
@@ -183,10 +179,7 @@ impl<'de> Deserializer<'de> {
 
     fn get_string(&self) -> Result<Cow<'de, str>> {
         if self.options.utf8_lossy {
-            let value = self
-                .element
-                .value_utf8_lossy()
-                .map_err(Error::deserialization)?;
+            let value = self.element.value_utf8_lossy()?;
             let s = match value {
                 Some(Utf8LossyBson::String(s)) => s,
                 _ => {
@@ -335,11 +328,7 @@ impl<'de> DocumentAccess<'de> {
     }
 
     fn advance(&mut self) -> Result<()> {
-        self.elem = self
-            .iter
-            .next()
-            .transpose()
-            .map_err(Error::deserialization)?;
+        self.elem = self.iter.next().transpose()?;
         Ok(())
     }
 
