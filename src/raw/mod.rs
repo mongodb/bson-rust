@@ -198,6 +198,31 @@ fn i64_from_slice(val: &[u8]) -> Result<i64> {
     Ok(i64::from_le_bytes(arr))
 }
 
+fn u8_from_slice(val: &[u8]) -> Result<u8> {
+    let arr = val
+        .get(0..1)
+        .and_then(|s| s.try_into().ok())
+        .ok_or_else(|| {
+            Error::malformed(format!(
+                "expected 1 byte to read u8, instead got {}",
+                val.len()
+            ))
+        })?;
+    Ok(u8::from_le_bytes(arr))
+}
+
+pub(crate) fn bool_from_slice(val: &[u8]) -> Result<bool> {
+    let val = u8_from_slice(val)?;
+    if val > 1 {
+        return Err(Error::malformed(format!(
+            "boolean must be stored as 0 or 1, got {}",
+            val
+        )));
+    }
+
+    Ok(val != 0)
+}
+
 fn read_len(buf: &[u8]) -> Result<usize> {
     if buf.len() < 4 {
         return Err(Error::new_without_key(ErrorKind::MalformedValue {

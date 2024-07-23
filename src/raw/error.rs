@@ -25,6 +25,10 @@ impl Error {
         Self { key: None, kind }
     }
 
+    pub(crate) fn malformed(e: impl ToString) -> Self {
+        Self::new_without_key(ErrorKind::new_malformed(e))
+    }
+
     pub(crate) fn with_key(mut self, key: impl AsRef<str>) -> Self {
         self.key = Some(key.as_ref().to_string());
         self

@@ -39,7 +39,7 @@ use crate::{
 };
 
 use ::serde::{
-    de::{DeserializeOwned, Error as _, Unexpected},
+    de::{DeserializeOwned, Error as _},
     Deserialize,
 };
 
@@ -66,32 +66,6 @@ enum DeserializerHint {
     /// The type being deserialized is raw BSON, meaning no allocations should occur as part of
     /// deserializing and everything should be visited via borrowing or [`Copy`] if possible.
     RawBson,
-}
-
-pub(crate) fn read_bool<R: Read>(mut reader: R) -> Result<bool> {
-    let val = read_u8(&mut reader)?;
-    if val > 1 {
-        return Err(Error::invalid_value(
-            Unexpected::Unsigned(val as u64),
-            &"boolean must be stored as 0 or 1",
-        ));
-    }
-
-    Ok(val != 0)
-}
-
-#[inline]
-pub(crate) fn read_u8<R: Read + ?Sized>(reader: &mut R) -> Result<u8> {
-    let mut buf = [0; 1];
-    reader.read_exact(&mut buf)?;
-    Ok(u8::from_le_bytes(buf))
-}
-
-#[inline]
-pub(crate) fn read_i32<R: Read + ?Sized>(reader: &mut R) -> Result<i32> {
-    let mut buf = [0; 4];
-    reader.read_exact(&mut buf)?;
-    Ok(i32::from_le_bytes(buf))
 }
 
 impl Timestamp {
@@ -181,8 +155,10 @@ where
     Deserialize::deserialize(de)
 }
 
-fn reader_to_vec<R: Read>(mut reader: R) -> Result<Vec<u8>> {
-    let length = read_i32(&mut reader)?;
+pub(crate) fn reader_to_vec<R: Read>(mut reader: R) -> Result<Vec<u8>> {
+    let mut buf = [0; 4];
+    reader.read_exact(&mut buf)?;
+    let length = i32::from_le_bytes(buf);
 
     if length < MIN_BSON_DOCUMENT_SIZE {
         return Err(Error::custom("document size too small"));

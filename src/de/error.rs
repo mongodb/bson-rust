@@ -58,6 +58,12 @@ impl From<string::FromUtf8Error> for Error {
     }
 }
 
+impl From<crate::raw::Error> for Error {
+    fn from(value: crate::raw::Error) -> Self {
+        Self::deserialization(value)
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
