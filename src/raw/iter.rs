@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use crate::{
     de::{MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
     oid::ObjectId,
-    raw::{Error, ErrorKind, Result},
+    raw::{Error, Result},
     spec::{BinarySubtype, ElementType},
     Bson,
     DateTime,
@@ -82,11 +82,11 @@ impl<'a> RawIter<'a> {
     fn verify_enough_bytes(&self, start: usize, num_bytes: usize) -> Result<()> {
         let end = checked_add(start, num_bytes)?;
         if self.doc.as_bytes().get(start..end).is_none() {
-            return Err(Error::new_without_key(ErrorKind::new_malformed(format!(
+            return Err(Error::malformed(format!(
                 "length exceeds remaining length of buffer: {} vs {}",
                 num_bytes,
                 self.doc.as_bytes().len() - start
-            ))));
+            )));
         }
         Ok(())
     }
@@ -96,18 +96,16 @@ impl<'a> RawIter<'a> {
         let size = i32_from_slice(&self.doc.as_bytes()[starting_at..])? as usize;
 
         if size < MIN_BSON_DOCUMENT_SIZE as usize {
-            return Err(Error::new_without_key(ErrorKind::new_malformed(format!(
+            return Err(Error::malformed(format!(
                 "document too small: {} bytes",
                 size
-            ))));
+            )));
         }
 
         self.verify_enough_bytes(starting_at, size)?;
 
         if self.doc.as_bytes()[starting_at + size - 1] != 0 {
-            return Err(Error::new_without_key(ErrorKind::new_malformed(
-                "not null terminated",
-            )));
+            return Err(Error::malformed("not null terminated"));
         }
         Ok(size)
     }
@@ -310,7 +308,7 @@ impl<'a> RawElement<'a> {
     }
 
     fn malformed_error(&self, e: impl ToString) -> Error {
-        Error::new_with_key(self.key, ErrorKind::new_malformed(e))
+        Error::malformed(e).with_key(self.key)
     }
 
     pub(crate) fn slice(&self) -> &'a [u8] {
@@ -337,7 +335,7 @@ impl<'a> RawElement<'a> {
         Ok(ObjectId::from_bytes(
             self.doc.as_bytes()[start_at..(start_at + 12)]
                 .try_into()
-                .map_err(|e| Error::new_with_key(self.key, ErrorKind::new_malformed(e)))?,
+                .map_err(|e| Error::malformed(e).with_key(self.key))?,
         ))
     }
 }
@@ -346,9 +344,7 @@ impl<'a> RawIter<'a> {
     fn get_next_length_at(&self, start_at: usize) -> Result<usize> {
         let len = i32_from_slice(&self.doc.as_bytes()[start_at..])?;
         if len < 0 {
-            Err(Error::new_without_key(ErrorKind::new_malformed(
-                "lengths can't be negative",
-            )))
+            Err(Error::malformed("lengths can't be negative"))
         } else {
             Ok(len as usize)
         }
@@ -367,15 +363,11 @@ impl<'a> Iterator for RawIter<'a> {
                 return None;
             } else {
                 self.valid = false;
-                return Some(Err(Error::new_without_key(ErrorKind::new_malformed(
-                    "document not null terminated",
-                ))));
+                return Some(Err(Error::malformed("document not null terminated")));
             }
         } else if self.offset >= self.doc.as_bytes().len() {
             self.valid = false;
-            return Some(Err(Error::new_without_key(ErrorKind::new_malformed(
-                "iteration overflowed document",
-            ))));
+            return Some(Err(Error::malformed("iteration overflowed document")));
         }
 
         let key = match self.doc.read_cstring_at(self.offset + 1) {
@@ -391,13 +383,11 @@ impl<'a> Iterator for RawIter<'a> {
             let element_type = match ElementType::from(self.doc.as_bytes()[self.offset]) {
                 Some(et) => et,
                 None => {
-                    return Err(Error::new_with_key(
-                        key,
-                        ErrorKind::new_malformed(format!(
-                            "invalid tag: {}",
-                            self.doc.as_bytes()[self.offset]
-                        )),
+                    return Err(Error::malformed(format!(
+                        "invalid tag: {}",
+                        self.doc.as_bytes()[self.offset]
                     ))
+                    .with_key(key))
                 }
             };
 

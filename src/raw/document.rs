@@ -519,15 +519,11 @@ impl RawDocument {
         let buf = &self.as_bytes()[start_at..];
 
         let mut splits = buf.splitn(2, |x| *x == 0);
-        let value = splits
-            .next()
-            .ok_or_else(|| Error::new_without_key(ErrorKind::new_malformed("no value")))?;
+        let value = splits.next().ok_or_else(|| Error::malformed("no value"))?;
         if splits.next().is_some() {
             Ok(value)
         } else {
-            Err(Error::new_without_key(ErrorKind::new_malformed(
-                "expected null terminator",
-            )))
+            Err(Error::malformed("expected null terminator"))
         }
     }
 

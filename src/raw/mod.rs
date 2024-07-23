@@ -163,9 +163,10 @@ fn f64_from_slice(val: &[u8]) -> Result<f64> {
         .get(0..8)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
-            Error::new_without_key(ErrorKind::MalformedValue {
-                message: format!("expected 8 bytes to read double, instead got {}", val.len()),
-            })
+            Error::malformed(format!(
+                "expected 8 bytes to read double, instead got {}",
+                val.len()
+            ))
         })?;
     Ok(f64::from_le_bytes(arr))
 }
@@ -177,9 +178,10 @@ fn i32_from_slice(val: &[u8]) -> Result<i32> {
         .get(0..4)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
-            Error::new_without_key(ErrorKind::MalformedValue {
-                message: format!("expected 4 bytes to read i32, instead got {}", val.len()),
-            })
+            Error::malformed(format!(
+                "expected 4 bytes to read i32, instead got {}",
+                val.len()
+            ))
         })?;
     Ok(i32::from_le_bytes(arr))
 }
@@ -191,9 +193,10 @@ fn i64_from_slice(val: &[u8]) -> Result<i64> {
         .get(0..8)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
-            Error::new_without_key(ErrorKind::MalformedValue {
-                message: format!("expected 8 bytes to read i64, instead got {}", val.len()),
-            })
+            Error::malformed(format!(
+                "expected 8 bytes to read i64, instead got {}",
+                val.len()
+            ))
         })?;
     Ok(i64::from_le_bytes(arr))
 }
@@ -225,40 +228,32 @@ pub(crate) fn bool_from_slice(val: &[u8]) -> Result<bool> {
 
 fn read_len(buf: &[u8]) -> Result<usize> {
     if buf.len() < 4 {
-        return Err(Error::new_without_key(ErrorKind::MalformedValue {
-            message: format!(
-                "expected buffer with string to contain at least 4 bytes, but it only has {}",
-                buf.len()
-            ),
-        }));
+        return Err(Error::malformed(format!(
+            "expected buffer with string to contain at least 4 bytes, but it only has {}",
+            buf.len()
+        )));
     }
 
     let length = i32_from_slice(&buf[..4])?;
     let end = checked_add(usize_try_from_i32(length)?, 4)?;
 
     if end < MIN_BSON_STRING_SIZE as usize {
-        return Err(Error::new_without_key(ErrorKind::MalformedValue {
-            message: format!(
-                "BSON length encoded string needs to be at least {} bytes, instead got {}",
-                MIN_BSON_STRING_SIZE, end
-            ),
-        }));
+        return Err(Error::malformed(format!(
+            "BSON length encoded string needs to be at least {} bytes, instead got {}",
+            MIN_BSON_STRING_SIZE, end
+        )));
     }
 
     if buf.len() < end {
-        return Err(Error::new_without_key(ErrorKind::MalformedValue {
-            message: format!(
-                "expected buffer to contain at least {} bytes, but it only has {}",
-                end,
-                buf.len()
-            ),
-        }));
+        return Err(Error::malformed(format!(
+            "expected buffer to contain at least {} bytes, but it only has {}",
+            end,
+            buf.len()
+        )));
     }
 
     if buf[end - 1] != 0 {
-        return Err(Error::new_without_key(ErrorKind::MalformedValue {
-            message: "expected string to be null-terminated".to_string(),
-        }));
+        return Err(Error::malformed("expected string to be null-terminated"));
     }
 
     Ok(length as usize + 4)
@@ -276,21 +271,14 @@ fn read_lenencode(buf: &[u8]) -> Result<&str> {
 }
 
 fn try_to_str(data: &[u8]) -> Result<&str> {
-    std::str::from_utf8(data).map_err(|e| Error::new_without_key(ErrorKind::Utf8EncodingError(e)))
+    std::str::from_utf8(data).map_err(|e| Error::new(ErrorKind::Utf8EncodingError(e)))
 }
 
 fn usize_try_from_i32(i: i32) -> Result<usize> {
-    usize::try_from(i).map_err(|e| {
-        Error::new_without_key(ErrorKind::MalformedValue {
-            message: e.to_string(),
-        })
-    })
+    usize::try_from(i).map_err(Error::malformed)
 }
 
 fn checked_add(lhs: usize, rhs: usize) -> Result<usize> {
-    lhs.checked_add(rhs).ok_or_else(|| {
-        Error::new_without_key(ErrorKind::MalformedValue {
-            message: "attempted to add with overflow".to_string(),
-        })
-    })
+    lhs.checked_add(rhs)
+        .ok_or_else(|| Error::malformed("attempted to add with overflow"))
 }
