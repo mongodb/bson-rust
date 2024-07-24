@@ -13,18 +13,18 @@ impl<'a> RawWriter<'a> {
         Self { data }
     }
 
-    pub(super) fn append<'b>(&mut self, key: &str, value: RawBsonRef<'b>) {
+    pub(super) fn append(&mut self, key: &str, value: RawBsonRef) -> crate::ser::Result<()> {
         let original_len = self.data.len();
         self.data[original_len - 1] = value.element_type() as u8;
 
-        self.append_cstring(key);
+        write_cstring(self.data, key)?;
 
         match value {
             RawBsonRef::Int32(i) => {
                 self.data.extend(i.to_le_bytes());
             }
             RawBsonRef::String(s) => {
-                self.append_string(s);
+                write_string(self.data, s);
             }
             RawBsonRef::Document(d) => {
                 self.data.extend(d.as_bytes());
@@ -48,7 +48,7 @@ impl<'a> RawWriter<'a> {
                 self.data.extend(dt.timestamp_millis().to_le_bytes());
             }
             RawBsonRef::DbPointer(dbp) => {
-                self.append_string(dbp.namespace);
+                write_string(self.data, dbp.namespace);
                 self.data.extend(dbp.id.bytes());
             }
             RawBsonRef::Decimal128(d) => {
@@ -61,16 +61,16 @@ impl<'a> RawWriter<'a> {
                 self.data.extend(i.to_le_bytes());
             }
             RawBsonRef::RegularExpression(re) => {
-                self.append_cstring(re.pattern);
-                self.append_cstring(re.options);
+                write_cstring(self.data, re.pattern)?;
+                write_cstring(self.data, re.options)?;
             }
             RawBsonRef::JavaScriptCode(js) => {
-                self.append_string(js);
+                write_string(self.data, js);
             }
             RawBsonRef::JavaScriptCodeWithScope(code_w_scope) => {
                 let len = code_w_scope.len();
                 self.data.extend(len.to_le_bytes());
-                self.append_string(code_w_scope.code);
+                write_string(self.data, code_w_scope.code);
                 self.data.extend(code_w_scope.scope.as_bytes());
             }
             RawBsonRef::Timestamp(ts) => {
@@ -80,7 +80,7 @@ impl<'a> RawWriter<'a> {
                 self.data.extend(oid.bytes());
             }
             RawBsonRef::Symbol(s) => {
-                self.append_string(s);
+                write_string(self.data, s);
             }
             RawBsonRef::Null | RawBsonRef::Undefined | RawBsonRef::MinKey | RawBsonRef::MaxKey => {}
         }
@@ -90,13 +90,7 @@ impl<'a> RawWriter<'a> {
         // update length
         let new_len = (self.data.len() as i32).to_le_bytes();
         self.data[0..4].copy_from_slice(&new_len);
-    }
 
-    fn append_string(&mut self, value: &str) {
-        write_string(&mut self.data, value)
-    }
-
-    fn append_cstring(&mut self, value: &str) {
-        write_cstring(&mut self.data, value).unwrap();
+        Ok(())
     }
 }

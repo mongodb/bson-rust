@@ -223,7 +223,9 @@ impl RawDocumentBuf {
     ///
     /// If the provided key contains an interior null byte, this method will panic.
     pub fn append_ref<'a>(&mut self, key: impl AsRef<str>, value: impl Into<RawBsonRef<'a>>) {
-        raw_writer::RawWriter::new(&mut self.data).append(key.as_ref(), value.into())
+        raw_writer::RawWriter::new(&mut self.data)
+            .append(key.as_ref(), value.into())
+            .unwrap()
     }
 
     /// Convert this [`RawDocumentBuf`] to a [`Document`], returning an error
