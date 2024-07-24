@@ -1,4 +1,8 @@
-use crate::{spec::BinarySubtype, RawBsonRef};
+use crate::{
+    ser::{write_cstring, write_string},
+    spec::BinarySubtype,
+    RawBsonRef,
+};
 
 pub(super) struct RawWriter<'a> {
     data: &'a mut Vec<u8>,
@@ -89,17 +93,10 @@ impl<'a> RawWriter<'a> {
     }
 
     fn append_string(&mut self, value: &str) {
-        self.data
-            .extend(((value.as_bytes().len() + 1) as i32).to_le_bytes());
-        self.data.extend(value.as_bytes());
-        self.data.push(0);
+        write_string(&mut self.data, value)
     }
 
     fn append_cstring(&mut self, value: &str) {
-        if value.contains('\0') {
-            panic!("cstr includes interior null byte: {}", value)
-        }
-        self.data.extend(value.as_bytes());
-        self.data.push(0);
+        write_cstring(&mut self.data, value).unwrap();
     }
 }

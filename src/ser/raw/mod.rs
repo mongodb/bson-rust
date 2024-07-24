@@ -199,7 +199,8 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     #[inline]
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
         self.update_element_type(ElementType::String)?;
-        write_string(&mut self.bytes, v)
+        write_string(&mut self.bytes, v);
+        Ok(())
     }
 
     #[inline]
