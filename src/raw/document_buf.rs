@@ -225,7 +225,7 @@ impl RawDocumentBuf {
     pub fn append_ref<'a>(&mut self, key: impl AsRef<str>, value: impl Into<RawBsonRef<'a>>) {
         raw_writer::RawWriter::new(&mut self.data)
             .append(key.as_ref(), value.into())
-            .unwrap()
+            .expect("key should not contain interior null byte")
     }
 
     /// Convert this [`RawDocumentBuf`] to a [`Document`], returning an error
