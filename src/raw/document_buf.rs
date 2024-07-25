@@ -7,7 +7,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{de::MIN_BSON_DOCUMENT_SIZE, spec::BinarySubtype, Document};
+use crate::{de::MIN_BSON_DOCUMENT_SIZE, Document};
 
 use super::{
     bson::RawBson,
@@ -20,6 +20,8 @@ use super::{
     RawIter,
     Result,
 };
+
+mod raw_writer;
 
 /// An owned BSON document (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
 /// This can be created from a `Vec<u8>` or a [`crate::Document`].
@@ -221,103 +223,9 @@ impl RawDocumentBuf {
     ///
     /// If the provided key contains an interior null byte, this method will panic.
     pub fn append_ref<'a>(&mut self, key: impl AsRef<str>, value: impl Into<RawBsonRef<'a>>) {
-        fn append_string(doc: &mut RawDocumentBuf, value: &str) {
-            doc.data
-                .extend(((value.as_bytes().len() + 1) as i32).to_le_bytes());
-            doc.data.extend(value.as_bytes());
-            doc.data.push(0);
-        }
-
-        fn append_cstring(doc: &mut RawDocumentBuf, value: &str) {
-            if value.contains('\0') {
-                panic!("cstr includes interior null byte: {}", value)
-            }
-            doc.data.extend(value.as_bytes());
-            doc.data.push(0);
-        }
-
-        let original_len = self.data.len();
-
-        // write the key for the next value to the end
-        // the element type will replace the previous null byte terminator of the document
-        append_cstring(self, key.as_ref());
-
-        let value = value.into();
-        let element_type = value.element_type();
-
-        match value {
-            RawBsonRef::Int32(i) => {
-                self.data.extend(i.to_le_bytes());
-            }
-            RawBsonRef::String(s) => {
-                append_string(self, s);
-            }
-            RawBsonRef::Document(d) => {
-                self.data.extend(d.as_bytes());
-            }
-            RawBsonRef::Array(a) => {
-                self.data.extend(a.as_bytes());
-            }
-            RawBsonRef::Binary(b) => {
-                let len = b.len();
-                self.data.extend(len.to_le_bytes());
-                self.data.push(b.subtype.into());
-                if let BinarySubtype::BinaryOld = b.subtype {
-                    self.data.extend((len - 4).to_le_bytes())
-                }
-                self.data.extend(b.bytes);
-            }
-            RawBsonRef::Boolean(b) => {
-                self.data.push(b as u8);
-            }
-            RawBsonRef::DateTime(dt) => {
-                self.data.extend(dt.timestamp_millis().to_le_bytes());
-            }
-            RawBsonRef::DbPointer(dbp) => {
-                append_string(self, dbp.namespace);
-                self.data.extend(dbp.id.bytes());
-            }
-            RawBsonRef::Decimal128(d) => {
-                self.data.extend(d.bytes());
-            }
-            RawBsonRef::Double(d) => {
-                self.data.extend(d.to_le_bytes());
-            }
-            RawBsonRef::Int64(i) => {
-                self.data.extend(i.to_le_bytes());
-            }
-            RawBsonRef::RegularExpression(re) => {
-                append_cstring(self, re.pattern);
-                append_cstring(self, re.options);
-            }
-            RawBsonRef::JavaScriptCode(js) => {
-                append_string(self, js);
-            }
-            RawBsonRef::JavaScriptCodeWithScope(code_w_scope) => {
-                let len = code_w_scope.len();
-                self.data.extend(len.to_le_bytes());
-                append_string(self, code_w_scope.code);
-                self.data.extend(code_w_scope.scope.as_bytes());
-            }
-            RawBsonRef::Timestamp(ts) => {
-                self.data.extend(ts.to_le_bytes());
-            }
-            RawBsonRef::ObjectId(oid) => {
-                self.data.extend(oid.bytes());
-            }
-            RawBsonRef::Symbol(s) => {
-                append_string(self, s);
-            }
-            RawBsonRef::Null | RawBsonRef::Undefined | RawBsonRef::MinKey | RawBsonRef::MaxKey => {}
-        }
-
-        // update element type
-        self.data[original_len - 1] = element_type as u8;
-        // append trailing null byte
-        self.data.push(0);
-        // update length
-        let new_len = (self.data.len() as i32).to_le_bytes();
-        self.data[0..4].copy_from_slice(&new_len);
+        raw_writer::RawWriter::new(&mut self.data)
+            .append(key.as_ref(), value.into())
+            .expect("key should not contain interior null byte")
     }
 
     /// Convert this [`RawDocumentBuf`] to a [`Document`], returning an error

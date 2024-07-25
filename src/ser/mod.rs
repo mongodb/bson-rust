@@ -40,19 +40,18 @@ use crate::{
 };
 use ::serde::{ser::Error as SerdeError, Serialize};
 
-fn write_string<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
-    writer.write_all(&(s.len() as i32 + 1).to_le_bytes())?;
-    writer.write_all(s.as_bytes())?;
-    writer.write_all(b"\0")?;
-    Ok(())
+pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
+    buf.extend(&(s.len() as i32 + 1).to_le_bytes());
+    buf.extend(s.as_bytes());
+    buf.push(0);
 }
 
-fn write_cstring<W: Write + ?Sized>(writer: &mut W, s: &str) -> Result<()> {
+pub(crate) fn write_cstring(buf: &mut Vec<u8>, s: &str) -> Result<()> {
     if s.contains('\0') {
         return Err(Error::InvalidCString(s.into()));
     }
-    writer.write_all(s.as_bytes())?;
-    writer.write_all(b"\0")?;
+    buf.extend(s.as_bytes());
+    buf.push(0);
     Ok(())
 }
 

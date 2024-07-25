@@ -265,7 +265,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
                 write_binary(&mut self.root_serializer.bytes, bytes.as_slice(), subtype)?;
             }
             SerializationStep::Symbol | SerializationStep::DbPointerRef => {
-                write_string(&mut self.root_serializer.bytes, v)?;
+                write_string(&mut self.root_serializer.bytes, v);
             }
             SerializationStep::RegExPattern => {
                 write_cstring(&mut self.root_serializer.bytes, v)?;
@@ -278,7 +278,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
                 write_cstring(&mut self.root_serializer.bytes, sorted.as_str())?;
             }
             SerializationStep::Code => {
-                write_string(&mut self.root_serializer.bytes, v)?;
+                write_string(&mut self.root_serializer.bytes, v);
             }
             SerializationStep::CodeWithScopeCode => {
                 self.state = SerializationStep::CodeWithScopeScope {
@@ -313,7 +313,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
                     scope: RawDocument::from_bytes(v).map_err(Error::custom)?,
                 };
                 write_i32(&mut self.root_serializer.bytes, raw.len())?;
-                write_string(&mut self.root_serializer.bytes, code)?;
+                write_string(&mut self.root_serializer.bytes, code);
                 self.root_serializer.bytes.write_all(v)?;
                 self.state = SerializationStep::Done;
                 Ok(())
@@ -590,7 +590,7 @@ impl<'a> CodeWithScopeSerializer<'a> {
     fn start(code: &str, rs: &'a mut Serializer) -> Result<Self> {
         let start = rs.bytes.len();
         write_i32(&mut rs.bytes, 0)?; // placeholder length
-        write_string(&mut rs.bytes, code)?;
+        write_string(&mut rs.bytes, code);
 
         let doc = DocumentSerializer::start(rs)?;
         Ok(Self { start, doc })

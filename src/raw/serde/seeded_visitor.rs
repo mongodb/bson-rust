@@ -7,6 +7,7 @@ use serde::{
 
 use crate::{
     raw::RAW_BSON_NEWTYPE,
+    ser::{write_cstring, write_string},
     spec::{BinarySubtype, ElementType},
     RawBson,
     RawBsonRef,
@@ -119,26 +120,12 @@ impl<'a, 'de> SeededVisitor<'a, 'de> {
 
     /// Appends a cstring to the buffer. Returns an error if the given string contains a null byte.
     fn append_cstring(&mut self, key: &str) -> Result<(), String> {
-        let key_bytes = key.as_bytes();
-        if key_bytes.contains(&0) {
-            return Err(format!("key contains interior null byte: {}", key));
-        }
-
-        self.buffer.append_bytes(key_bytes);
-        self.buffer.push_byte(0);
-
-        Ok(())
+        write_cstring(self.buffer.get_owned_buffer(), key).map_err(|e| e.to_string())
     }
 
     /// Appends a string and its length to the buffer.
     fn append_string(&mut self, s: &str) {
-        let bytes = s.as_bytes();
-
-        // Add 1 to account for null byte.
-        self.append_length_bytes((bytes.len() + 1) as i32);
-
-        self.buffer.append_bytes(bytes);
-        self.buffer.push_byte(0);
+        write_string(self.buffer.get_owned_buffer(), s)
     }
 
     /// Converts the given length into little-endian bytes and appends the bytes to the buffer.
