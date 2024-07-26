@@ -71,9 +71,9 @@ impl<'a> serde::ser::SerializeSeq for DocumentSerializer<'a> {
     type Error = Error;
 
     #[inline]
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         let index = self.num_keys_serialized;
         self.serialize_doc_key_custom(|rs| {
@@ -97,17 +97,17 @@ impl<'a> serde::ser::SerializeMap for DocumentSerializer<'a> {
     type Error = Error;
 
     #[inline]
-    fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<()>
+    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.serialize_doc_key(key)
     }
 
     #[inline]
-    fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_value<T>(&mut self, value: &T) -> Result<()>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         value.serialize(&mut *self.root_serializer)
     }
@@ -123,9 +123,9 @@ impl<'a> serde::ser::SerializeStruct for DocumentSerializer<'a> {
     type Error = Error;
 
     #[inline]
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.serialize_doc_key(key)?;
         value.serialize(&mut *self.root_serializer)
@@ -143,9 +143,9 @@ impl<'a> serde::ser::SerializeTuple for DocumentSerializer<'a> {
     type Error = Error;
 
     #[inline]
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.serialize_doc_key(&self.num_keys_serialized.to_string())?;
         value.serialize(&mut *self.root_serializer)
@@ -163,9 +163,9 @@ impl<'a> serde::ser::SerializeTupleStruct for DocumentSerializer<'a> {
     type Error = Error;
 
     #[inline]
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.serialize_doc_key(&self.num_keys_serialized.to_string())?;
         value.serialize(&mut *self.root_serializer)
@@ -278,9 +278,9 @@ impl<'a> serde::Serializer for KeySerializer<'a> {
     }
 
     #[inline]
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(self)
     }
@@ -306,15 +306,15 @@ impl<'a> serde::Serializer for KeySerializer<'a> {
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(self)
     }
 
     #[inline]
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
         _variant_index: u32,
@@ -322,7 +322,7 @@ impl<'a> serde::Serializer for KeySerializer<'a> {
         value: &T,
     ) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Self::invalid_key(value))
     }

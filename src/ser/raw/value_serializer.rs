@@ -328,9 +328,9 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
     }
 
     #[inline]
-    fn serialize_some<T: ?Sized>(self, _value: &T) -> Result<Self::Ok>
+    fn serialize_some<T>(self, _value: &T) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(self.invalid_step("some"))
     }
@@ -356,9 +356,9 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self, name: &'static str, value: &T) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         match (&mut self.state, name) {
             (
@@ -376,7 +376,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
     }
 
     #[inline]
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
         _variant_index: u32,
@@ -384,7 +384,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
         _value: &T,
     ) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(self.invalid_step("newtype_variant"))
     }
@@ -454,9 +454,9 @@ impl<'a, 'b> SerializeStruct for &'b mut ValueSerializer<'a> {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         match (&self.state, key) {
             (SerializationStep::DateTime, "$date") => {
@@ -602,17 +602,17 @@ impl<'a> SerializeMap for CodeWithScopeSerializer<'a> {
     type Error = Error;
 
     #[inline]
-    fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<()>
+    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         self.doc.serialize_key(key)
     }
 
     #[inline]
-    fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_value<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         self.doc.serialize_value(value)
     }
