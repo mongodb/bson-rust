@@ -26,8 +26,7 @@
 //! There are two modes of extJSON: "Canonical" and "Relaxed". They are the same except for the
 //! following differences:
 //!   - In relaxed mode, all BSON numbers are represented by the JSON number type, rather than the
-//!     object
-//! notation.
+//!     object notation.
 //!   - In relaxed mode, the string in the datetime object notation is RFC 3339 (ISO-8601) formatted
 //!     (if the date is after 1970).
 //!

@@ -332,7 +332,7 @@ fn test_counter_overflow_u24_max() {
 #[test]
 fn test_counter_overflow_usize_max() {
     let _guard = LOCK.run_exclusively();
-    let start = usize::max_value();
+    let start = usize::MAX;
     OID_COUNTER.store(start, Ordering::SeqCst);
     // Test counter overflows to u24_max when set to usize_max
     let oid = ObjectId::new();

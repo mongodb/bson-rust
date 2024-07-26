@@ -182,7 +182,7 @@ impl TryFrom<serde_json::Value> for Bson {
             serde_json::Value::Number(x) => x
                 .as_i64()
                 .map(|i| {
-                    if i >= std::i32::MIN as i64 && i <= std::i32::MAX as i64 {
+                    if i >= i32::MIN as i64 && i <= i32::MAX as i64 {
                         Bson::Int32(i as i32)
                     } else {
                         Bson::Int64(i)

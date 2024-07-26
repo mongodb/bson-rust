@@ -499,9 +499,9 @@ impl<'a> serde::ser::SerializeTupleVariant for VariantSerializer<'a> {
     type Error = Error;
 
     #[inline]
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         self.serialize_element(format!("{}", self.num_elements_serialized).as_str(), value)
     }
@@ -518,9 +518,9 @@ impl<'a> serde::ser::SerializeStructVariant for VariantSerializer<'a> {
     type Error = Error;
 
     #[inline]
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         self.serialize_element(key, value)
     }
