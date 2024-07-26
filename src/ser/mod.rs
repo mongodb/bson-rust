@@ -112,9 +112,9 @@ fn write_binary<W: Write>(mut writer: W, bytes: &[u8], subtype: BinarySubtype) -
 /// the format is human readable or not. To serialize to a [`Document`] with a serializer that
 /// presents itself as not human readable, use [`to_bson_with_options`] with
 /// [`SerializerOptions::human_readable`] set to false.
-pub fn to_bson<T: ?Sized>(value: &T) -> Result<Bson>
+pub fn to_bson<T>(value: &T) -> Result<Bson>
 where
-    T: Serialize,
+    T: Serialize + ?Sized,
 {
     let ser = Serializer::new();
     value.serialize(ser)
@@ -136,9 +136,9 @@ where
 /// assert_eq!(bson, bson!({ "a": "ok" }));
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub fn to_bson_with_options<T: ?Sized>(value: &T, options: SerializerOptions) -> Result<Bson>
+pub fn to_bson_with_options<T>(value: &T, options: SerializerOptions) -> Result<Bson>
 where
-    T: Serialize,
+    T: Serialize + ?Sized,
 {
     let ser = Serializer::new_with_options(options);
     value.serialize(ser)
@@ -152,9 +152,9 @@ where
 /// the format is human readable or not. To serialize to a [`Document`] with a serializer that
 /// presents itself as not human readable, use [`to_document_with_options`] with
 /// [`SerializerOptions::human_readable`] set to false.
-pub fn to_document<T: ?Sized>(value: &T) -> Result<Document>
+pub fn to_document<T>(value: &T) -> Result<Document>
 where
-    T: Serialize,
+    T: Serialize + ?Sized,
 {
     to_document_with_options(value, Default::default())
 }
@@ -175,12 +175,9 @@ where
 /// assert_eq!(doc, doc! { "a": "ok" });
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub fn to_document_with_options<T: ?Sized>(
-    value: &T,
-    options: SerializerOptions,
-) -> Result<Document>
+pub fn to_document_with_options<T>(value: &T, options: SerializerOptions) -> Result<Document>
 where
-    T: Serialize,
+    T: Serialize + ?Sized,
 {
     match to_bson_with_options(value, options)? {
         Bson::Document(doc) => Ok(doc),

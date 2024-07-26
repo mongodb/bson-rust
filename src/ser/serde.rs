@@ -266,9 +266,9 @@ impl ser::Serializer for Serializer {
     }
 
     #[inline]
-    fn serialize_some<V: ?Sized>(self, value: &V) -> crate::ser::Result<Bson>
+    fn serialize_some<V>(self, value: &V) -> crate::ser::Result<Bson>
     where
-        V: Serialize,
+        V: Serialize + ?Sized,
     {
         value.serialize(self)
     }
@@ -294,13 +294,13 @@ impl ser::Serializer for Serializer {
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(
+    fn serialize_newtype_struct<T>(
         mut self,
         name: &'static str,
         value: &T,
     ) -> crate::ser::Result<Bson>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         match name {
             UUID_NEWTYPE_NAME => {
@@ -357,7 +357,7 @@ impl ser::Serializer for Serializer {
     }
 
     #[inline]
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
         _variant_index: u32,
@@ -365,7 +365,7 @@ impl ser::Serializer for Serializer {
         value: &T,
     ) -> crate::ser::Result<Bson>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         let mut newtype_variant = Document::new();
         newtype_variant.insert(variant, to_bson_with_options(value, self.options)?);

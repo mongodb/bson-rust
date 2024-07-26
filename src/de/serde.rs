@@ -359,9 +359,9 @@ impl<'de> Visitor<'de> for BsonVisitor {
                 "$numberDouble" => {
                     let string: String = visitor.next_value()?;
                     let val = match string.as_str() {
-                        "Infinity" => Bson::Double(std::f64::INFINITY),
-                        "-Infinity" => Bson::Double(std::f64::NEG_INFINITY),
-                        "NaN" => Bson::Double(std::f64::NAN),
+                        "Infinity" => Bson::Double(f64::INFINITY),
+                        "-Infinity" => Bson::Double(f64::NEG_INFINITY),
+                        "NaN" => Bson::Double(f64::NAN),
                         _ => Bson::Double(string.parse().map_err(|_| {
                             V::Error::invalid_value(
                                 Unexpected::Str(&string),

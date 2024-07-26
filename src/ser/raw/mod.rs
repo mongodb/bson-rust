@@ -236,9 +236,9 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     #[inline]
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         value.serialize(self)
     }
@@ -264,9 +264,9 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     #[inline]
-    fn serialize_newtype_struct<T: ?Sized>(self, name: &'static str, value: &T) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<Self::Ok>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         match name {
             UUID_NEWTYPE_NAME => self.hint = SerializerHint::Uuid,
@@ -285,7 +285,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 
     #[inline]
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
         _variant_index: u32,
@@ -293,7 +293,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         value: &T,
     ) -> Result<Self::Ok>
     where
-        T: serde::Serialize,
+        T: serde::Serialize + ?Sized,
     {
         self.update_element_type(ElementType::EmbeddedDocument)?;
         let mut d = DocumentSerializer::start(&mut *self)?;
@@ -396,9 +396,9 @@ impl<'a> SerializeStruct for StructSerializer<'a> {
     type Error = Error;
 
     #[inline]
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         match self {
             StructSerializer::Value(ref mut v) => (&mut *v).serialize_field(key, value),
@@ -499,9 +499,9 @@ impl<'a> serde::ser::SerializeTupleVariant for VariantSerializer<'a> {
     type Error = Error;
 
     #[inline]
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         self.serialize_element(format!("{}", self.num_elements_serialized).as_str(), value)
     }
@@ -518,9 +518,9 @@ impl<'a> serde::ser::SerializeStructVariant for VariantSerializer<'a> {
     type Error = Error;
 
     #[inline]
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         self.serialize_element(key, value)
     }
