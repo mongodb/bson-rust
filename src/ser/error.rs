@@ -46,6 +46,19 @@ impl Error {
         let source = Box::new(err.into_inner());
         Self::WithPath { path, source }
     }
+
+    #[cfg(test)]
+    pub(crate) fn strip_path(self) -> Self {
+        #[cfg(feature = "serde_path_to_error")]
+        match self {
+            Self::WithPath { path: _, source } => *source,
+            _ => self,
+        }
+        #[cfg(not(feature = "serde_path_to_error"))]
+        {
+            self
+        }
+    }
 }
 
 impl From<io::Error> for Error {
@@ -70,6 +83,7 @@ impl fmt::Display for Error {
                  size.",
                 value
             ),
+            #[cfg(feature = "serde_path_to_error")]
             Error::WithPath { path, source } => write!(fmt, "error at {}: {}", path, source),
         }
     }
