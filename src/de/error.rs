@@ -40,11 +40,11 @@ pub enum Error {
     #[cfg(feature = "serde_path_to_error")]
     #[non_exhaustive]
     WithPath {
-        /// The original error.
-        source: Box<Error>,
-
         /// The path to the error.
         path: serde_path_to_error::Path,
+
+        /// The original error.
+        source: Box<Error>,
     },
 }
 
@@ -59,7 +59,7 @@ impl Error {
     pub(crate) fn with_path(err: serde_path_to_error::Error<Error>) -> Self {
         let path = err.path().clone();
         let source = Box::new(err.into_inner());
-        Self::WithPath { source, path }
+        Self::WithPath { path, source }
     }
 }
 
@@ -93,7 +93,8 @@ impl fmt::Display for Error {
             ),
             Error::EndOfStream => fmt.write_str("end of stream"),
             Error::DeserializationError { message } => message.fmt(fmt),
-            Error::WithPath { source, path } => write!(fmt, "error at {}: {}", path, source),
+            #[cfg(feature = "serde_path_to_error")]
+            Error::WithPath { path, source } => write!(fmt, "error at {}: {}", path, source),
         }
     }
 }

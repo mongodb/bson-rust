@@ -1116,3 +1116,36 @@ fn fuzz_regression_00() {
     let buf: &[u8] = &[227, 0, 35, 4, 2, 0, 255, 255, 255, 127, 255, 255, 255, 47];
     let _ = crate::from_slice::<Document>(buf);
 }
+
+#[cfg(feature = "serde_path_to_error")]
+#[test]
+fn path_to_error_de() {
+    #[derive(Deserialize, Debug)]
+    #[allow(dead_code)]
+    struct Foo {
+        one: Bar,
+        two: Bar,
+    }
+    #[derive(Deserialize, Debug)]
+    #[allow(dead_code)]
+    struct Bar {
+        value: String,
+    }
+
+    let src = doc! {
+        "one": {
+            "value": "hello",
+        },
+        "two": {
+            "value": 42,
+        },
+    };
+    let result: Result<Foo, _> = crate::from_document(src);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        crate::de::Error::WithPath { source: _, path } => {
+            assert_eq!("two.value", path.to_string())
+        }
+        e => panic!("unexpected error: {:?}", e),
+    }
+}
