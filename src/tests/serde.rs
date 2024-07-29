@@ -1149,3 +1149,37 @@ fn path_to_error_de() {
         e => panic!("unexpected error: {:?}", e),
     }
 }
+
+#[cfg(feature = "serde_path_to_error")]
+#[test]
+fn path_to_error_de_raw() {
+    #[derive(Deserialize, Debug)]
+    #[allow(dead_code)]
+    struct Foo {
+        one: Bar,
+        two: Bar,
+    }
+    #[derive(Deserialize, Debug)]
+    #[allow(dead_code)]
+    struct Bar {
+        value: String,
+    }
+
+    let src = rawdoc! {
+        "one": {
+            "value": "hello",
+        },
+        "two": {
+            "value": 42,
+        },
+    }
+    .into_bytes();
+    let result: Result<Foo, _> = crate::from_slice(&src);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        crate::de::Error::WithPath { source: _, path } => {
+            assert_eq!("two.value", path.to_string())
+        }
+        e => panic!("unexpected error: {:?}", e),
+    }
+}

@@ -91,7 +91,7 @@ where
     let de = Deserializer::new(bson);
     #[cfg(feature = "serde_path_to_error")]
     {
-        serde_path_to_error::deserialize(de).map_err(Error::with_path)
+        return serde_path_to_error::deserialize(de).map_err(Error::with_path);
     }
     #[cfg(not(feature = "serde_path_to_error"))]
     {
@@ -208,8 +208,7 @@ pub fn from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    let deserializer = raw::Deserializer::new(bytes, false)?;
-    T::deserialize(deserializer)
+    from_raw(raw::Deserializer::new(bytes, false)?)
 }
 
 /// Deserialize an instance of type `T` from a slice of BSON bytes, replacing any invalid UTF-8
@@ -222,6 +221,18 @@ pub fn from_slice_utf8_lossy<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    let deserializer = raw::Deserializer::new(bytes, true)?;
-    T::deserialize(deserializer)
+    from_raw(raw::Deserializer::new(bytes, true)?)
+}
+
+pub(crate) fn from_raw<'de, T: Deserialize<'de>>(
+    deserializer: raw::Deserializer<'de>,
+) -> Result<T> {
+    #[cfg(feature = "serde_path_to_error")]
+    {
+        serde_path_to_error::deserialize(deserializer).map_err(Error::with_path)
+    }
+    #[cfg(not(feature = "serde_path_to_error"))]
+    {
+        T::deserialize(deserializer)
+    }
 }
