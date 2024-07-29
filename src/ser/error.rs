@@ -29,6 +29,7 @@ pub enum Error {
     UnsignedIntegerExceededRange(u64),
 
     #[cfg(feature = "serde_path_to_error")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "serde_path_to_error")))]
     #[non_exhaustive]
     WithPath {
         /// The path to the error.
