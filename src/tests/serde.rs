@@ -1183,3 +1183,31 @@ fn path_to_error_de_raw() {
         e => panic!("unexpected error: {:?}", e),
     }
 }
+
+#[cfg(feature = "serde_path_to_error")]
+#[test]
+fn path_to_error_ser() {
+    use std::u64;
+
+    #[derive(Serialize, Debug)]
+    struct Foo {
+        one: Bar,
+        two: Bar,
+    }
+    #[derive(Serialize, Debug)]
+    struct Bar {
+        value: u64,
+    }
+    let src = Foo {
+        one: Bar { value: 42 },
+        two: Bar { value: u64::MAX },
+    };
+    let result = crate::to_bson(&src);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        crate::ser::Error::WithPath { source: _, path } => {
+            assert_eq!("two.value", path.to_string())
+        }
+        e => panic!("unexpected error: {:?}", e),
+    }
+}
