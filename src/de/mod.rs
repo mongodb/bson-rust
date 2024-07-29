@@ -89,7 +89,11 @@ where
     T: DeserializeOwned,
 {
     let de = Deserializer::new(bson);
-    Deserialize::deserialize(de)
+    if cfg!(feature = "serde_path_to_error") {
+        serde_path_to_error::deserialize(de).map_err(Error::with_path)
+    } else {
+        Deserialize::deserialize(de)
+    }
 }
 
 /// Deserialize a `T` from the provided [`Bson`] value, configuring the underlying
