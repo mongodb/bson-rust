@@ -1118,96 +1118,90 @@ fn fuzz_regression_00() {
 }
 
 #[cfg(feature = "serde_path_to_error")]
-#[test]
-fn path_to_error_de() {
-    #[derive(Deserialize, Debug)]
-    #[allow(dead_code)]
+mod serde_path_to_error {
+    use super::*;
+
+    #[derive(Serialize, Deserialize, Debug)]
     struct Foo {
         one: Bar,
         two: Bar,
     }
-    #[derive(Deserialize, Debug)]
-    #[allow(dead_code)]
-    struct Bar {
-        value: String,
-    }
 
-    let src = doc! {
-        "one": {
-            "value": "hello",
-        },
-        "two": {
-            "value": 42,
-        },
-    };
-    let result: Result<Foo, _> = crate::from_document(src);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        crate::de::Error::WithPath { source: _, path } => {
-            assert_eq!("two.value", path.to_string())
-        }
-        e => panic!("unexpected error: {:?}", e),
-    }
-}
-
-#[cfg(feature = "serde_path_to_error")]
-#[test]
-fn path_to_error_de_raw() {
-    #[derive(Deserialize, Debug)]
-    #[allow(dead_code)]
-    struct Foo {
-        one: Bar,
-        two: Bar,
-    }
-    #[derive(Deserialize, Debug)]
-    #[allow(dead_code)]
-    struct Bar {
-        value: String,
-    }
-
-    let src = rawdoc! {
-        "one": {
-            "value": "hello",
-        },
-        "two": {
-            "value": 42,
-        },
-    }
-    .into_bytes();
-    let result: Result<Foo, _> = crate::from_slice(&src);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        crate::de::Error::WithPath { source: _, path } => {
-            assert_eq!("two.value", path.to_string())
-        }
-        e => panic!("unexpected error: {:?}", e),
-    }
-}
-
-#[cfg(feature = "serde_path_to_error")]
-#[test]
-fn path_to_error_ser() {
-    use std::u64;
-
-    #[derive(Serialize, Debug)]
-    struct Foo {
-        one: Bar,
-        two: Bar,
-    }
-    #[derive(Serialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     struct Bar {
         value: u64,
     }
-    let src = Foo {
-        one: Bar { value: 42 },
-        two: Bar { value: u64::MAX },
-    };
-    let result = crate::to_bson(&src);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        crate::ser::Error::WithPath { source: _, path } => {
-            assert_eq!("two.value", path.to_string())
+
+    #[test]
+    fn de() {
+        let src = doc! {
+            "one": {
+                "value": 42,
+            },
+            "two": {
+                "value": "hello",
+            },
+        };
+        let result: Result<Foo, _> = crate::from_document(src);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            crate::de::Error::WithPath { source: _, path } => {
+                assert_eq!("two.value", path.to_string())
+            }
+            e => panic!("unexpected error: {:?}", e),
         }
-        e => panic!("unexpected error: {:?}", e),
+    }
+
+    #[test]
+    fn de_raw() {
+        let src = rawdoc! {
+            "one": {
+                "value": 42,
+            },
+            "two": {
+                "value": "hello",
+            },
+        }
+        .into_bytes();
+        let result: Result<Foo, _> = crate::from_slice(&src);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            crate::de::Error::WithPath { source: _, path } => {
+                assert_eq!("two.value", path.to_string())
+            }
+            e => panic!("unexpected error: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn ser() {
+        let src = Foo {
+            one: Bar { value: 42 },
+            two: Bar { value: u64::MAX },
+        };
+        let result = crate::to_bson(&src);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            crate::ser::Error::WithPath { source: _, path } => {
+                assert_eq!("two.value", path.to_string())
+            }
+            e => panic!("unexpected error: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn ser_raw() {
+        let src = Foo {
+            one: Bar { value: 42 },
+            two: Bar { value: u64::MAX },
+        };
+        let result = crate::to_vec(&src);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            crate::ser::Error::WithPath { source: _, path } => {
+                assert_eq!("two.value", path.to_string())
+            }
+            e => panic!("unexpected error: {:?}", e),
+        }
     }
 }
