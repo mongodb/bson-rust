@@ -211,6 +211,14 @@ separate the "business logic" that operates over the data from the (de)serializa
 translates the data to/from its serialized form. This can lead to more clear and concise code
 that is also less error prone.
 
+When serializing values that cannot be represented in BSON, or deserialzing from BSON that does
+not match the format expected by the type, the default error will only report the specific field
+that failed. To aid debugging, enabling the [`serde_path_to_error`](#feature-flags) feature will
+[augment errors](https://docs.rs/bson/latest/bson/de/enum.Error.html#variant.WithPath) with the
+full field path from root object to failing field.  This feature does incur a small CPU and memory
+overhead during (de)serialization and should be enabled with care in performance-sensitive
+environments.
+
 ### Working with datetimes
 
 The BSON format includes a datetime type, which is modeled in this crate by the
