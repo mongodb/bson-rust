@@ -67,7 +67,7 @@
 //! | `time-0_3`   | Enable support for v0.3 of the [`time`](https://docs.rs/time/0.3) crate in the public API.           | no      |
 //! | `serde_with` | Enable [`serde_with`](https://docs.rs/serde_with/1.x) 1.x integrations for [`DateTime`] and [`Uuid`]. | no      |
 //! | `serde_with-3` | Enable [`serde_with`](https://docs.rs/serde_with/3.x) 3.x integrations for [`DateTime`] and [`Uuid`]. | no      |
-//! | `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_err/latest). | no |
+//! | `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_err/latest).  This is an unstable feature and any breaking changes to `serde_path_to_error` may affect usage of it via this feature. | no |
 //!
 //! ## BSON values
 //!
