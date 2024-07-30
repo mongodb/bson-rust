@@ -27,6 +27,39 @@ pub enum Error {
 
     /// An unsigned integer type could not fit into a signed integer type.
     UnsignedIntegerExceededRange(u64),
+
+    #[cfg(feature = "serde_path_to_error")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "serde_path_to_error")))]
+    #[non_exhaustive]
+    WithPath {
+        /// The path to the error.
+        path: serde_path_to_error::Path,
+
+        /// The original error.
+        source: Box<Error>,
+    },
+}
+
+impl Error {
+    #[cfg(feature = "serde_path_to_error")]
+    pub(crate) fn with_path(err: serde_path_to_error::Error<Error>) -> Self {
+        let path = err.path().clone();
+        let source = Box::new(err.into_inner());
+        Self::WithPath { path, source }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn strip_path(self) -> Self {
+        #[cfg(feature = "serde_path_to_error")]
+        match self {
+            Self::WithPath { path: _, source } => *source,
+            _ => self,
+        }
+        #[cfg(not(feature = "serde_path_to_error"))]
+        {
+            self
+        }
+    }
 }
 
 impl From<io::Error> for Error {
@@ -37,13 +70,13 @@ impl From<io::Error> for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Io(ref inner) => inner.fmt(fmt),
-            Error::InvalidDocumentKey(ref key) => write!(fmt, "Invalid map key type: {}", key),
+        match self {
+            Error::Io(inner) => inner.fmt(fmt),
+            Error::InvalidDocumentKey(key) => write!(fmt, "Invalid map key type: {}", key),
             Error::InvalidCString(ref string) => {
                 write!(fmt, "cstrings cannot contain null bytes: {:?}", string)
             }
-            Error::SerializationError { ref message } => message.fmt(fmt),
+            Error::SerializationError { message } => message.fmt(fmt),
             Error::UnsignedIntegerExceededRange(value) => write!(
                 fmt,
                 "BSON does not support unsigned integers.
@@ -51,6 +84,8 @@ impl fmt::Display for Error {
                  size.",
                 value
             ),
+            #[cfg(feature = "serde_path_to_error")]
+            Error::WithPath { path, source } => write!(fmt, "error at {}: {}", path, source),
         }
     }
 }

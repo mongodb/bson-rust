@@ -65,7 +65,9 @@
 //! | `uuid-0_8`   | Enable support for v0.8 of the [`uuid`](https://docs.rs/uuid/0.8) crate in the public API.           | no      |
 //! | `uuid-1`     | Enable support for v1.x of the [`uuid`](https://docs.rs/uuid/1.x) crate in the public API.           | no      |
 //! | `time-0_3`   | Enable support for v0.3 of the [`time`](https://docs.rs/time/0.3) crate in the public API.           | no      |
-//! | `serde_with` | Enable [`serde_with`](https://docs.rs/serde_with/latest) integrations for [`DateTime`] and [`Uuid`]. | no      |
+//! | `serde_with` | Enable [`serde_with`](https://docs.rs/serde_with/1.x) 1.x integrations for [`DateTime`] and [`Uuid`]. | no      |
+//! | `serde_with-3` | Enable [`serde_with`](https://docs.rs/serde_with/3.x) 3.x integrations for [`DateTime`] and [`Uuid`]. | no      |
+//! | `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_err/latest).  This is an unstable feature and any breaking changes to `serde_path_to_error` may affect usage of it via this feature. | no |
 //!
 //! ## BSON values
 //!
@@ -212,6 +214,13 @@
 //! can be used in this way. Doing so helps separate the "business logic" that operates over the
 //! data from the (de)serialization logic that translates the data to/from its serialized form. This
 //! can lead to more clear and concise code that is also less error prone.
+//!
+//! When serializing values that cannot be represented in BSON, or deserialzing from BSON that does
+//! not match the format expected by the type, the default error will only report the specific field
+//! that failed. To aid debugging, enabling the `serde_path_to_error` feature will
+//! [augment errors](crate::de::Error::WithPath) with the full field path from root object to
+//! failing field.  This feature does incur a small CPU and memory overhead during (de)serialization
+//! and should be enabled with care in performance-sensitive environments.
 //!
 //! ## Working with datetimes
 //!

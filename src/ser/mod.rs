@@ -117,6 +117,11 @@ where
     T: Serialize + ?Sized,
 {
     let ser = Serializer::new();
+    #[cfg(feature = "serde_path_to_error")]
+    {
+        serde_path_to_error::serialize(value, ser).map_err(Error::with_path)
+    }
+    #[cfg(not(feature = "serde_path_to_error"))]
     value.serialize(ser)
 }
 
@@ -197,7 +202,14 @@ where
     T: Serialize,
 {
     let mut serializer = raw::Serializer::new();
-    value.serialize(&mut serializer)?;
+    #[cfg(feature = "serde_path_to_error")]
+    {
+        serde_path_to_error::serialize(value, &mut serializer).map_err(Error::with_path)?;
+    }
+    #[cfg(not(feature = "serde_path_to_error"))]
+    {
+        value.serialize(&mut serializer)?;
+    }
     Ok(serializer.into_vec())
 }
 

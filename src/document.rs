@@ -9,7 +9,6 @@ use std::{
 
 use ahash::RandomState;
 use indexmap::IndexMap;
-use serde::Deserialize;
 
 use crate::{
     bson::{Array, Bson, Timestamp},
@@ -547,8 +546,7 @@ impl Document {
 
     fn decode<R: Read + ?Sized>(reader: &mut R, utf_lossy: bool) -> crate::de::Result<Document> {
         let buf = crate::de::reader_to_vec(reader)?;
-        let deserializer = crate::de::RawDeserializer::new(&buf, utf_lossy)?;
-        Document::deserialize(deserializer)
+        crate::de::from_raw(crate::de::RawDeserializer::new(&buf, utf_lossy)?)
     }
 
     /// Attempts to deserialize a [`Document`] from a byte stream.

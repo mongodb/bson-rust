@@ -109,11 +109,8 @@ fn uint64_u2i() {
     let deser_min: u64 = from_bson(obj_min).unwrap();
     assert_eq!(deser_min, u64::MIN);
 
-    let obj_max: ser::Result<Bson> = to_bson(&u64::MAX);
-    assert_matches!(
-        obj_max,
-        Err(ser::Error::UnsignedIntegerExceededRange(u64::MAX))
-    );
+    let err: ser::Error = to_bson(&u64::MAX).unwrap_err().strip_path();
+    assert_matches!(err, ser::Error::UnsignedIntegerExceededRange(u64::MAX));
 }
 
 #[test]
@@ -161,11 +158,11 @@ fn cstring_null_bytes_error() {
     fn verify_doc(doc: Document) {
         let mut vec = Vec::new();
         assert!(matches!(
-            doc.to_writer(&mut vec).unwrap_err(),
+            doc.to_writer(&mut vec).unwrap_err().strip_path(),
             ser::Error::InvalidCString(_)
         ));
         assert!(matches!(
-            to_vec(&doc).unwrap_err(),
+            to_vec(&doc).unwrap_err().strip_path(),
             ser::Error::InvalidCString(_)
         ));
     }

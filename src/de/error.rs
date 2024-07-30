@@ -36,6 +36,17 @@ pub enum Error {
         /// A message describing the error.
         message: String,
     },
+
+    #[cfg(feature = "serde_path_to_error")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "serde_path_to_error")))]
+    #[non_exhaustive]
+    WithPath {
+        /// The path to the error.
+        path: serde_path_to_error::Path,
+
+        /// The original error.
+        source: Box<Error>,
+    },
 }
 
 impl Error {
@@ -43,6 +54,13 @@ impl Error {
         Self::DeserializationError {
             message: msg.to_string(),
         }
+    }
+
+    #[cfg(feature = "serde_path_to_error")]
+    pub(crate) fn with_path(err: serde_path_to_error::Error<Error>) -> Self {
+        let path = err.path().clone();
+        let source = Box::new(err.into_inner());
+        Self::WithPath { path, source }
     }
 }
 
@@ -66,19 +84,18 @@ impl From<crate::raw::Error> for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Io(ref inner) => inner.fmt(fmt),
-            Error::InvalidUtf8String(ref inner) => inner.fmt(fmt),
-            Error::UnrecognizedDocumentElementType {
-                ref key,
-                element_type,
-            } => write!(
+        match self {
+            Error::Io(inner) => inner.fmt(fmt),
+            Error::InvalidUtf8String(inner) => inner.fmt(fmt),
+            Error::UnrecognizedDocumentElementType { key, element_type } => write!(
                 fmt,
                 "unrecognized element type for key \"{}\": `{:#x}`",
                 key, element_type
             ),
             Error::EndOfStream => fmt.write_str("end of stream"),
-            Error::DeserializationError { ref message } => message.fmt(fmt),
+            Error::DeserializationError { message } => message.fmt(fmt),
+            #[cfg(feature = "serde_path_to_error")]
+            Error::WithPath { path, source } => write!(fmt, "error at {}: {}", path, source),
         }
     }
 }
