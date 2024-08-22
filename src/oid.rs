@@ -185,8 +185,10 @@ impl ObjectId {
     pub fn from_parts(seconds_since_epoch: u32, process_id: [u8; 5], counter: [u8; 3]) -> Self {
         let mut bytes = [0; 12];
 
-        bytes[TIMESTAMP_OFFSET..(TIMESTAMP_OFFSET + TIMESTAMP_SIZE)].clone_from_slice(&u32::to_be_bytes(seconds_since_epoch));
-        bytes[PROCESS_ID_OFFSET..(PROCESS_ID_OFFSET + PROCESS_ID_SIZE)].clone_from_slice(&process_id);
+        bytes[TIMESTAMP_OFFSET..(TIMESTAMP_OFFSET + TIMESTAMP_SIZE)]
+            .clone_from_slice(&u32::to_be_bytes(seconds_since_epoch));
+        bytes[PROCESS_ID_OFFSET..(PROCESS_ID_OFFSET + PROCESS_ID_SIZE)]
+            .clone_from_slice(&process_id);
         bytes[COUNTER_OFFSET..(COUNTER_OFFSET + COUNTER_SIZE)].clone_from_slice(&counter);
 
         Self::from_bytes(bytes)
