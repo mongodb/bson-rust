@@ -58,3 +58,18 @@ fn fromstr_oid() {
     let actual_s = hex::encode(oid_res.unwrap().bytes());
     assert_eq!(s, &actual_s, "parsed and expected oids differ");
 }
+
+#[test]
+fn oid_from_parts() {
+    let _guard = LOCK.run_concurrently();
+    let seconds_since_epoch = 123;
+    let process_id = [4, 5, 6, 7, 8];
+    let counter = [9, 10, 11];
+    let oid = ObjectId::from_parts(seconds_since_epoch, process_id, counter);
+    assert_eq!(
+        oid.timestamp().timestamp_millis(),
+        i64::from(seconds_since_epoch) * 1000
+    );
+    assert_eq!(&oid.bytes()[4..9], &process_id);
+    assert_eq!(&oid.bytes()[9..], &counter);
+}
