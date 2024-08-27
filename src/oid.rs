@@ -166,25 +166,32 @@ impl ObjectId {
     /// Generates a new [`ObjectId`], represented in bytes.
     /// See the [docs](http://www.mongodb.com/docs/manual/reference/object-id/)
     /// for more information.
-    pub fn new() -> ObjectId {
-        let timestamp = ObjectId::gen_timestamp();
-        let process_id = ObjectId::gen_process_id();
-        let counter = ObjectId::gen_count();
+    pub fn new() -> Self {
+        let timestamp = Self::gen_timestamp();
+        let process_id = Self::gen_process_id();
+        let counter = Self::gen_count();
 
-        let mut buf: [u8; 12] = [0; 12];
-        buf[TIMESTAMP_OFFSET..(TIMESTAMP_SIZE + TIMESTAMP_OFFSET)]
-            .clone_from_slice(&timestamp[..TIMESTAMP_SIZE]);
-        buf[PROCESS_ID_OFFSET..(PROCESS_ID_SIZE + PROCESS_ID_OFFSET)]
-            .clone_from_slice(&process_id[..PROCESS_ID_SIZE]);
-        buf[COUNTER_OFFSET..(COUNTER_SIZE + COUNTER_OFFSET)]
-            .clone_from_slice(&counter[..COUNTER_SIZE]);
-
-        ObjectId::from_bytes(buf)
+        Self::from_parts(timestamp, process_id, counter)
     }
 
     /// Constructs a new ObjectId wrapper around the raw byte representation.
     pub const fn from_bytes(bytes: [u8; 12]) -> ObjectId {
         ObjectId { id: bytes }
+    }
+
+    /// Construct an `ObjectId` from its parts.
+    /// See the [docs](http://www.mongodb.com/docs/manual/reference/object-id/)
+    /// for more information.
+    pub fn from_parts(seconds_since_epoch: u32, process_id: [u8; 5], counter: [u8; 3]) -> Self {
+        let mut bytes = [0; 12];
+
+        bytes[TIMESTAMP_OFFSET..(TIMESTAMP_OFFSET + TIMESTAMP_SIZE)]
+            .clone_from_slice(&u32::to_be_bytes(seconds_since_epoch));
+        bytes[PROCESS_ID_OFFSET..(PROCESS_ID_OFFSET + PROCESS_ID_SIZE)]
+            .clone_from_slice(&process_id);
+        bytes[COUNTER_OFFSET..(COUNTER_OFFSET + COUNTER_SIZE)].clone_from_slice(&counter);
+
+        Self::from_bytes(bytes)
     }
 
     /// Creates an ObjectID using a 12-byte (24-char) hexadecimal string.
@@ -237,8 +244,7 @@ impl ObjectId {
     }
 
     /// Generates a new timestamp representing the current seconds since epoch.
-    /// Represented in Big Endian.
-    fn gen_timestamp() -> [u8; 4] {
+    fn gen_timestamp() -> u32 {
         #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
         let timestamp: u32 = (js_sys::Date::now() / 1000.0) as u32;
         #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -248,7 +254,8 @@ impl ObjectId {
             .as_secs()
             .try_into()
             .unwrap(); // will succeed until 2106 since timestamp is unsigned
-        timestamp.to_be_bytes()
+
+        timestamp
     }
 
     /// Generate a random 5-byte array.
