@@ -179,7 +179,7 @@ impl ObjectId {
         ObjectId { id: bytes }
     }
 
-    /// Construct an ObjectId from its parts.
+    /// Construct an `ObjectId` from its parts.
     /// See the [docs](http://www.mongodb.com/docs/manual/reference/object-id/)
     /// for more information.
     pub fn from_parts(seconds_since_epoch: u32, process_id: [u8; 5], counter: [u8; 3]) -> Self {
