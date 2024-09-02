@@ -24,6 +24,7 @@
 use std::{
     convert::{TryFrom, TryInto},
     fmt::{self, Debug, Display, Formatter},
+    hash::Hash,
 };
 
 use serde_json::{json, Value};
@@ -86,6 +87,44 @@ pub enum Bson {
 
 /// Alias for `Vec<Bson>`.
 pub type Array = Vec<Bson>;
+
+#[cfg(feature = "hashable")]
+impl Hash for Bson {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Bson::Double(double) => {
+                if *double == 0.0_f64 {
+                    // There are 2 zero representations, +0 and -0, which
+                    // compare equal but have different bits. We use the +0 hash
+                    // for both so that hash(+0) == hash(-0).
+                    0.0_f64.to_bits().hash(state);
+                } else {
+                    double.to_bits().hash(state);
+                }
+            },
+            Bson::String(x) => x.hash(state),
+            Bson::Array(x) => x.hash(state),
+            Bson::Document(x) => x.hash(state),
+            Bson::Boolean(x) => x.hash(state),
+            Bson::RegularExpression(x) => x.hash(state),
+            Bson::JavaScriptCode(x) => x.hash(state),
+            Bson::JavaScriptCodeWithScope(x) => x.hash(state),
+            Bson::Int32(x) => x.hash(state),
+            Bson::Int64(x) => x.hash(state),
+            Bson::Timestamp(x) => x.hash(state),
+            Bson::Binary(x) => x.hash(state),
+            Bson::ObjectId(x) => x.hash(state),
+            Bson::DateTime(x) => x.hash(state),
+            Bson::Symbol(x) => x.hash(state),
+            Bson::Decimal128(x) => x.hash(state),
+            Bson::DbPointer(x) => x.hash(state),
+            Bson::Null | Bson::Undefined | Bson::MaxKey | Bson::MinKey => (),
+        }
+    }
+}
+
+#[cfg(feature = "hashable")]
+impl Eq for Bson {}
 
 impl Display for Bson {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
@@ -1046,7 +1085,7 @@ impl Timestamp {
 }
 
 /// Represents a BSON regular expression value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Regex {
     /// The regex pattern to match.
     pub pattern: String,
@@ -1081,6 +1120,7 @@ impl Display for Regex {
 
 /// Represents a BSON code with scope value.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "hashable", derive(Eq, Hash))]
 pub struct JavaScriptCodeWithScope {
     /// The JavaScript code.
     pub code: String,
@@ -1096,7 +1136,7 @@ impl Display for JavaScriptCodeWithScope {
 }
 
 /// Represents a DBPointer. (Deprecated)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct DbPointer {
     pub(crate) namespace: String,
     pub(crate) id: oid::ObjectId,
