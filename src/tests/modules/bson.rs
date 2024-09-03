@@ -499,6 +499,6 @@ fn test_hashable() {
     assert_eq!(map.remove(&key), Some(1));
     assert_eq!(map.remove(&Bson::Undefined), Some(3));
     assert_eq!(map.remove(&Bson::Null), Some(2));
-    
+
     assert!(map.is_empty());
 }

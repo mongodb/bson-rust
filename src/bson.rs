@@ -101,7 +101,7 @@ impl Hash for Bson {
                 } else {
                     double.to_bits().hash(state);
                 }
-            },
+            }
             Bson::String(x) => x.hash(state),
             Bson::Array(x) => x.hash(state),
             Bson::Document(x) => x.hash(state),

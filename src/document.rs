@@ -1,13 +1,13 @@
 //! A BSON document represented as an associative HashMap with insertion ordering.
 
+#[cfg(feature = "hashable")]
+use std::hash::Hash;
 use std::{
     error,
     fmt::{self, Debug, Display, Formatter},
     io::{Read, Write},
     iter::{Extend, FromIterator, IntoIterator},
 };
-#[cfg(feature = "hashable")]
-use std::hash::Hash;
 
 use ahash::RandomState;
 use indexmap::IndexMap;
@@ -73,7 +73,7 @@ impl Default for Document {
 impl Hash for Document {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let mut entries = Vec::from_iter(&self.inner);
-        entries.sort_unstable_by(|a,b| a.0.cmp(b.0));
+        entries.sort_unstable_by(|a, b| a.0.cmp(b.0));
         entries.hash(state);
     }
 }
