@@ -469,6 +469,16 @@ impl std::str::FromStr for ParsedDecimal128 {
 }
 
 fn round_decimal_str(s: &str, precision: usize) -> Result<&str, ParseError> {
+    // TODO: In 1.80+ there's split_at_checked to make sure the split doesn't
+    // panic if the index doesn't falls at a codepoint boundary, until then
+    // we can check it with s.is_char_boundary(precision)
+    if !s.is_char_boundary(precision) {
+        // a non-digit (all single byte utf8) would trigger a ParseIntError::InvalidDigit,
+        // so here we generate a ParseIntError::InvalidDigit kind of error too.
+        return Err(ParseError::InvalidCoefficient(
+            u8::from_str_radix("❤", 10).unwrap_err(),
+        ));
+    }
     let (pre, post) = s.split_at(precision);
     // Any nonzero trimmed digits mean it would be an imprecise round.
     if post.chars().any(|c| c != '0') {

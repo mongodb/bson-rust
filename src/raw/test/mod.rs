@@ -10,9 +10,21 @@ use crate::{
     Binary,
     Bson,
     DateTime,
+    Decimal128,
     Regex,
     Timestamp,
 };
+
+#[test]
+fn test_decimal128_doesnt_panic_on_bad_codepoint_boundary() {
+    use crate::decimal128::ParseError;
+    use std::{num::IntErrorKind::InvalidDigit, str::FromStr};
+    // idx 34 (Coefficient::MAX_DIGITS) on this string isn't a valid codepoint boundary
+    assert!(
+        matches!(Decimal128::from_str("111111111111111111111111111111111❤"),
+        Err(ParseError::InvalidCoefficient(e)) if *e.kind() == InvalidDigit)
+    )
+}
 
 #[test]
 fn string_from_document() {
