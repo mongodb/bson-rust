@@ -491,8 +491,14 @@ fn debug_print() {
 #[test]
 fn test_hashable() {
     let mut map = std::collections::HashMap::new();
-    map.insert(bson!({"a":1, "b": 2}), 8);
+    map.insert(bson!({"a":1, "b": 2}), 1);
+    map.insert(Bson::Null, 2);
+    map.insert(Bson::Undefined, 3);
+
     let key = bson!({"b": 2, "a":1});
-    assert_eq!(map.remove(&key), Some(8));
+    assert_eq!(map.remove(&key), Some(1));
+    assert_eq!(map.remove(&Bson::Undefined), Some(3));
+    assert_eq!(map.remove(&Bson::Null), Some(2));
+    
     assert!(map.is_empty());
 }
