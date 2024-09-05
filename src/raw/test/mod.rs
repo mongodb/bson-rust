@@ -18,12 +18,12 @@ use crate::{
 #[test]
 fn test_decimal128_doesnt_panic_on_bad_codepoint_boundary() {
     use crate::decimal128::ParseError;
-    use std::{num::IntErrorKind::InvalidDigit, str::FromStr};
+    use std::str::FromStr;
     // idx 34 (Coefficient::MAX_DIGITS) on this string isn't a valid codepoint boundary
-    assert!(
-        matches!(Decimal128::from_str("111111111111111111111111111111111❤"),
-        Err(ParseError::InvalidCoefficient(e)) if *e.kind() == InvalidDigit)
-    )
+    assert!(matches!(
+        Decimal128::from_str("111111111111111111111111111111111❤"),
+        Err(ParseError::Unparseable)
+    ))
 }
 
 #[test]

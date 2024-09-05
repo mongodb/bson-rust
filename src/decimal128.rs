@@ -333,6 +333,7 @@ pub enum ParseError {
     Overflow,
     Underflow,
     InexactRounding,
+    Unparseable,
 }
 
 impl fmt::Display for ParseError {
@@ -344,6 +345,7 @@ impl fmt::Display for ParseError {
             ParseError::Overflow => write!(f, "overflow"),
             ParseError::Underflow => write!(f, "underflow"),
             ParseError::InexactRounding => write!(f, "inexact rounding"),
+            ParseError::Unparseable => write!(f, "unparseable"),
         }
     }
 }
@@ -473,11 +475,7 @@ fn round_decimal_str(s: &str, precision: usize) -> Result<&str, ParseError> {
     // panic if the index doesn't falls at a codepoint boundary, until then
     // we can check it with s.is_char_boundary(precision)
     if !s.is_char_boundary(precision) {
-        // a non-digit (all single byte utf8) would trigger a ParseIntError::InvalidDigit,
-        // so here we generate a ParseIntError::InvalidDigit kind of error too.
-        return Err(ParseError::InvalidCoefficient(
-            u8::from_str_radix("❤", 10).unwrap_err(),
-        ));
+        return Err(ParseError::Unparseable);
     }
     let (pre, post) = s.split_at(precision);
     // Any nonzero trimmed digits mean it would be an imprecise round.
