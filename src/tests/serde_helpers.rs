@@ -1,6 +1,12 @@
+use core::str;
+
 use serde::{de::Visitor, Deserialize, Serialize};
 
-use crate::serde_helpers::HumanReadable;
+use crate::{
+    from_slice,
+    serde_helpers::{HumanReadable, Utf8LossyDeserialization},
+    Document,
+};
 
 #[test]
 fn human_readable_wrapper() {
@@ -134,4 +140,52 @@ fn human_readable_wrapper() {
     let bytes = crate::to_vec(&data).unwrap();
     let raw_tripped: Data = crate::from_slice(&bytes).unwrap();
     assert_eq!(&raw_tripped, &expected);
+}
+
+#[test]
+#[allow(dead_code)] // suppress warning for unread fields
+fn utf8_lossy_wrapper() {
+    // See https://doc.rust-lang.org/std/str/fn.from_utf8.html for details on how the invalid utf8
+    // strings are constructed.
+
+    let good_bytes = rawdoc! { "s1": "💖", "s2": "💖" }.into_bytes();
+
+    let heart_index = "💖".bytes().next().unwrap();
+    let first_heart = good_bytes.iter().position(|b| *b == heart_index).unwrap();
+    let second_heart = good_bytes
+        .iter()
+        .skip(first_heart + 1)
+        .position(|b| *b == heart_index)
+        .unwrap()
+        + first_heart
+        + 1;
+
+    let mut both_strings_invalid_bytes = good_bytes.clone();
+    both_strings_invalid_bytes[first_heart] = 0;
+    both_strings_invalid_bytes[second_heart] = 0;
+
+    #[derive(Debug, Deserialize)]
+    struct NoUtf8Lossy {
+        s1: String,
+        s2: String,
+    }
+
+    from_slice::<NoUtf8Lossy>(&both_strings_invalid_bytes).unwrap_err();
+    from_slice::<Utf8LossyDeserialization<NoUtf8Lossy>>(&both_strings_invalid_bytes).unwrap();
+
+    #[derive(Debug, Deserialize)]
+    struct FirstStringUtf8Lossy {
+        s1: Utf8LossyDeserialization<String>,
+        s2: String,
+    }
+
+    let mut first_string_invalid_bytes = good_bytes.clone();
+    first_string_invalid_bytes[first_heart] = 0;
+
+    from_slice::<FirstStringUtf8Lossy>(&first_string_invalid_bytes).unwrap();
+    from_slice::<FirstStringUtf8Lossy>(&both_strings_invalid_bytes).unwrap_err();
+    from_slice::<Utf8LossyDeserialization<FirstStringUtf8Lossy>>(&both_strings_invalid_bytes)
+        .unwrap();
+
+    from_slice::<Utf8LossyDeserialization<Document>>(&both_strings_invalid_bytes).unwrap();
 }
