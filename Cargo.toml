@@ -43,7 +43,7 @@ chrono-0_4 = ["chrono"]
 uuid-1 = []
 # if enabled, include API for interfacing with time 0.3
 time-0_3 = []
-# If enabled, implement Hash/Eq
+# If enabled, implement Hash/Eq for Bson and Document
 hashable = []
 serde_path_to_error = ["dep:serde_path_to_error"]
 # if enabled, include serde_with interop.
