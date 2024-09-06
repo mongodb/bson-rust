@@ -54,6 +54,7 @@ Note that if you are using `bson` through the `mongodb` crate, you do not need t
 | `serde_with` | Enable [`serde_with`](https://docs.rs/serde_with/1.x) 1.x integrations for `bson::DateTime` and `bson::Uuid`.| serde_with         | no      |
 | `serde_with-3` | Enable [`serde_with`](https://docs.rs/serde_with/3.x) 3.x integrations for `bson::DateTime` and `bson::Uuid`.| serde_with         | no      |
 | `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_err/latest).  This is an unstable feature and any breaking changes to `serde_path_to_error` may affect usage of it via this feature.  | serde_path_to_error  | no |
+| `hashable`   | Implement `core::hash::Hash` and `std::cmp::Eq` on `Bson` and `Document`.                  | n/a                | no      |
 
 ## Overview of the BSON Format
 

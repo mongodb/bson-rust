@@ -6,7 +6,7 @@ use std::{
 };
 
 /// Represents a BSON binary value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Binary {
     /// The subtype of the bytes.
     pub subtype: BinarySubtype,

@@ -21,7 +21,7 @@ use bitvec::prelude::*;
 /// # }
 /// # example().unwrap()
 /// ```
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
 pub struct Decimal128 {
     /// BSON bytes containing the decimal128. Stored for round tripping.
     pub(crate) bytes: [u8; 16],
