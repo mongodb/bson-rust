@@ -333,6 +333,7 @@ pub enum ParseError {
     Overflow,
     Underflow,
     InexactRounding,
+    Unparseable,
 }
 
 impl fmt::Display for ParseError {
@@ -344,6 +345,7 @@ impl fmt::Display for ParseError {
             ParseError::Overflow => write!(f, "overflow"),
             ParseError::Underflow => write!(f, "underflow"),
             ParseError::InexactRounding => write!(f, "inexact rounding"),
+            ParseError::Unparseable => write!(f, "unparseable"),
         }
     }
 }
@@ -469,6 +471,12 @@ impl std::str::FromStr for ParsedDecimal128 {
 }
 
 fn round_decimal_str(s: &str, precision: usize) -> Result<&str, ParseError> {
+    // TODO: In 1.80+ there's split_at_checked to make sure the split doesn't
+    // panic if the index doesn't falls at a codepoint boundary, until then
+    // we can check it with s.is_char_boundary(precision)
+    if !s.is_char_boundary(precision) {
+        return Err(ParseError::Unparseable);
+    }
     let (pre, post) = s.split_at(precision);
     // Any nonzero trimmed digits mean it would be an imprecise round.
     if post.chars().any(|c| c != '0') {
