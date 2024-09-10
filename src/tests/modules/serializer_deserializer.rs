@@ -73,6 +73,7 @@ fn test_encode_decode_utf8_string_invalid() {
     doc.to_writer(&mut buf).unwrap();
 
     let expected = doc! { "key": "��" };
+    #[allow(deprecated)]
     let decoded = Document::from_reader_utf8_lossy(&mut Cursor::new(buf)).unwrap();
     assert_eq!(decoded, expected);
 }

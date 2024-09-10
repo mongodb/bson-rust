@@ -888,6 +888,12 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for HumanReadable<T> {
 }
 
 /// Wrapper type for deserializing BSON bytes with invalid UTF-8 sequences.
+///
+/// Any invalid UTF-8 strings contained in the wrapped type will be replaced with the Unicode
+/// replacement character. This wrapper type only has an effect when deserializing from BSON bytes.
+///
+/// This wrapper type has no impact on serialization. Serializing a `Utf8LossyDeserialization<T>`
+/// will call the `serialize` method for the wrapped `T`.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Utf8LossyDeserialization<T>(pub T);
 

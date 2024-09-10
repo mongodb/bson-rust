@@ -5,7 +5,6 @@ use serde::{de::Visitor, Deserialize, Serialize};
 use crate::{
     from_slice,
     serde_helpers::{HumanReadable, Utf8LossyDeserialization},
-    Document,
 };
 
 #[test]
@@ -145,24 +144,15 @@ fn human_readable_wrapper() {
 #[test]
 #[allow(dead_code)] // suppress warning for unread fields
 fn utf8_lossy_wrapper() {
-    // See https://doc.rust-lang.org/std/str/fn.from_utf8.html for details on how the invalid utf8
-    // strings are constructed.
+    let invalid_bytes = b"\x80\xae".to_vec();
+    let invalid_string = unsafe { String::from_utf8_unchecked(invalid_bytes) };
 
-    let good_bytes = rawdoc! { "s1": "💖", "s2": "💖" }.into_bytes();
+    let both_strings_invalid_bytes =
+        rawdoc! { "s1": invalid_string.clone(), "s2": invalid_string.clone() }.into_bytes();
+    let first_string_invalid_bytes =
+        rawdoc! { "s1": invalid_string.clone(), "s2": ":)" }.into_bytes();
 
-    let heart_index = "💖".bytes().next().unwrap();
-    let first_heart = good_bytes.iter().position(|b| *b == heart_index).unwrap();
-    let second_heart = good_bytes
-        .iter()
-        .skip(first_heart + 1)
-        .position(|b| *b == heart_index)
-        .unwrap()
-        + first_heart
-        + 1;
-
-    let mut both_strings_invalid_bytes = good_bytes.clone();
-    both_strings_invalid_bytes[first_heart] = 0;
-    both_strings_invalid_bytes[second_heart] = 0;
+    let expected_replacement = "��".to_string();
 
     #[derive(Debug, Deserialize)]
     struct NoUtf8Lossy {
@@ -171,7 +161,12 @@ fn utf8_lossy_wrapper() {
     }
 
     from_slice::<NoUtf8Lossy>(&both_strings_invalid_bytes).unwrap_err();
-    from_slice::<Utf8LossyDeserialization<NoUtf8Lossy>>(&both_strings_invalid_bytes).unwrap();
+
+    let s = from_slice::<Utf8LossyDeserialization<NoUtf8Lossy>>(&both_strings_invalid_bytes)
+        .unwrap()
+        .0;
+    assert_eq!(s.s1, expected_replacement);
+    assert_eq!(s.s2, expected_replacement);
 
     #[derive(Debug, Deserialize)]
     struct FirstStringUtf8Lossy {
@@ -179,13 +174,16 @@ fn utf8_lossy_wrapper() {
         s2: String,
     }
 
-    let mut first_string_invalid_bytes = good_bytes.clone();
-    first_string_invalid_bytes[first_heart] = 0;
+    let s = from_slice::<FirstStringUtf8Lossy>(&first_string_invalid_bytes).unwrap();
+    assert_eq!(s.s1.0, expected_replacement);
+    assert_eq!(&s.s2, ":)");
 
-    from_slice::<FirstStringUtf8Lossy>(&first_string_invalid_bytes).unwrap();
     from_slice::<FirstStringUtf8Lossy>(&both_strings_invalid_bytes).unwrap_err();
-    from_slice::<Utf8LossyDeserialization<FirstStringUtf8Lossy>>(&both_strings_invalid_bytes)
-        .unwrap();
 
-    from_slice::<Utf8LossyDeserialization<Document>>(&both_strings_invalid_bytes).unwrap();
+    let s =
+        from_slice::<Utf8LossyDeserialization<FirstStringUtf8Lossy>>(&both_strings_invalid_bytes)
+            .unwrap()
+            .0;
+    assert_eq!(s.s1.0, expected_replacement);
+    assert_eq!(s.s2, expected_replacement);
 }
