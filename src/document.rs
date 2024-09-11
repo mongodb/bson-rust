@@ -599,6 +599,7 @@ impl Document {
     /// This is mainly useful when reading raw BSON returned from a MongoDB server, which
     /// in rare cases can contain invalidly truncated strings (<https://jira.mongodb.org/browse/SERVER-24007>).
     /// For most use cases, `Document::from_reader` can be used instead.
+    #[deprecated = "use bson::serde_helpers::Utf8LossyDeserialization"]
     pub fn from_reader_utf8_lossy<R: Read>(mut reader: R) -> crate::de::Result<Document> {
         Self::decode(&mut reader, true)
     }

@@ -18,7 +18,7 @@ use crate::{
         RAW_BSON_NEWTYPE,
         RAW_DOCUMENT_NEWTYPE,
     },
-    serde_helpers::HUMAN_READABLE_NEWTYPE,
+    serde_helpers::{HUMAN_READABLE_NEWTYPE, UTF8_LOSSY_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
     DateTime,
@@ -295,6 +295,11 @@ impl<'de> serde::de::Deserializer<'de> for Deserializer<'de> {
             HUMAN_READABLE_NEWTYPE => {
                 let mut inner = self;
                 inner.options.human_readable = true;
+                visitor.visit_newtype_struct(inner)
+            }
+            UTF8_LOSSY_NEWTYPE => {
+                let mut inner = self;
+                inner.options.utf8_lossy = true;
                 visitor.visit_newtype_struct(inner)
             }
             _ => visitor.visit_newtype_struct(self),

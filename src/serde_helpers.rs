@@ -886,3 +886,46 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for HumanReadable<T> {
         deserializer.deserialize_newtype_struct(HUMAN_READABLE_NEWTYPE, V(PhantomData))
     }
 }
+
+/// Wrapper type for deserializing BSON bytes with invalid UTF-8 sequences.
+///
+/// Any invalid UTF-8 strings contained in the wrapped type will be replaced with the Unicode
+/// replacement character. This wrapper type only has an effect when deserializing from BSON bytes.
+///
+/// This wrapper type has no impact on serialization. Serializing a `Utf8LossyDeserialization<T>`
+/// will call the `serialize` method for the wrapped `T`.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct Utf8LossyDeserialization<T>(pub T);
+
+pub(crate) const UTF8_LOSSY_NEWTYPE: &str = "$__bson_private_utf8_lossy";
+
+impl<T: Serialize> Serialize for Utf8LossyDeserialization<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for Utf8LossyDeserialization<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct V<T>(PhantomData<fn() -> T>);
+        impl<'de, T: Deserialize<'de>> Visitor<'de> for V<T> {
+            type Value = Utf8LossyDeserialization<T>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("Utf8Lossy wrapper")
+            }
+            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                T::deserialize(deserializer).map(Utf8LossyDeserialization)
+            }
+        }
+        deserializer.deserialize_newtype_struct(UTF8_LOSSY_NEWTYPE, V(PhantomData))
+    }
+}

@@ -7,6 +7,7 @@ use std::{
 
 use crate::{
     raw::{RawBsonRef, RawDocument},
+    serde_helpers::Utf8LossyDeserialization,
     tests::LOCK,
     Bson,
     Document,
@@ -549,12 +550,15 @@ fn run_test(test: TestFile) {
         crate::from_reader::<_, Document>(bson.as_slice()).expect_err(description.as_str());
 
         if decode_error.description.contains("invalid UTF-8") {
+            #[allow(deprecated)]
             crate::from_reader_utf8_lossy::<_, Document>(bson.as_slice()).unwrap_or_else(|err| {
                 panic!(
                     "{}: utf8_lossy should not fail (failed with {:?})",
                     description, err
                 )
             });
+            crate::from_slice::<Utf8LossyDeserialization<Document>>(bson.as_slice())
+                .expect(&description);
         }
     }
 

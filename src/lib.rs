@@ -295,9 +295,7 @@ pub use self::{
         from_document,
         from_document_with_options,
         from_reader,
-        from_reader_utf8_lossy,
         from_slice,
-        from_slice_utf8_lossy,
         Deserializer,
         DeserializerOptions,
     },
@@ -327,6 +325,9 @@ pub use self::{
     },
     uuid::{Uuid, UuidRepresentation},
 };
+
+#[allow(deprecated)]
+pub use self::de::{from_reader_utf8_lossy, from_slice_utf8_lossy,};
 
 #[macro_use]
 mod macros;
