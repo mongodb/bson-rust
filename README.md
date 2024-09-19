@@ -37,7 +37,7 @@ This crate is available on [crates.io](https://crates.io/crates/bson). To use it
 
 ```toml
 [dependencies]
-bson = "2.12.0"
+bson = "2.13.0"
 ```
 
 Note that if you are using `bson` through the `mongodb` crate, you do not need to specify it in your
