@@ -28,3 +28,7 @@ path = "fuzz_targets/iterate.rs"
 [[bin]]
 name = "raw_deserialize"
 path = "fuzz_targets/raw_deserialize.rs"
+
+[[bin]]
+name = "raw_deserialize_utf8_lossy"
+path = "fuzz_targets/raw_deserialize_utf8_lossy.rs"
