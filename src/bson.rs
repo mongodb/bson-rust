@@ -146,7 +146,7 @@ impl Display for Bson {
 
                 fmt.write_str("]")
             }
-            Bson::Document(ref doc) => write!(fmt, "{}", doc),
+            Bson::Document(ref doc) => if fmt.alternate() {write!(fmt, "{doc:#}")} else {write!(fmt, "{}", doc)},
             Bson::Boolean(b) => write!(fmt, "{}", b),
             Bson::Null => write!(fmt, "null"),
             Bson::RegularExpression(ref x) => write!(fmt, "{}", x),
