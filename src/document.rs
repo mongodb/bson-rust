@@ -80,7 +80,10 @@ impl Hash for Document {
 
 impl Display for Document {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        fmt.write_str(if fmt.alternate() { "{\n" } else { "{" })?;
+        fmt.write_str("{")?;
+        if fmt.alternate() && self.inner.len() > 0 {
+            fmt.write_str("\n")?;
+        }
 
         let mut first = true;
         for (k, v) in self {
@@ -94,7 +97,7 @@ impl Display for Document {
             write!(fmt, "\"{}\": {}", k, v)?;
         }
 
-        if fmt.alternate() {
+        if fmt.alternate() && self.inner.len() > 0 {
             write!(fmt, "\n}}")
         } else {
             write!(fmt, "{}}}", if !first { " " } else { "" })
