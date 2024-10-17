@@ -81,7 +81,7 @@ impl Hash for Document {
 impl Display for Document {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         fmt.write_str("{")?;
-        if fmt.alternate() && self.inner.len() > 0 {
+        if fmt.alternate() && self.inner.is_empty() {
             fmt.write_str("\n")?;
         }
 
@@ -97,7 +97,7 @@ impl Display for Document {
             write!(fmt, "\"{}\": {}", k, v)?;
         }
 
-        if fmt.alternate() && self.inner.len() > 0 {
+        if fmt.alternate() && self.inner.is_empty() {
             write!(fmt, "\n}}")
         } else {
             write!(fmt, "{}}}", if !first { " " } else { "" })
