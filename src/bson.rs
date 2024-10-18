@@ -134,19 +134,38 @@ impl Display for Bson {
             Bson::Array(ref vec) => {
                 fmt.write_str("[")?;
 
+                let indent_str;
+                if let Some(width) = fmt.width() {
+                    indent_str = " ".repeat(width);
+                } else {
+                    indent_str = "".to_string();
+                }
+
                 let mut first = true;
                 for bson in vec {
                     if !first {
                         fmt.write_str(", ")?;
                     }
-
-                    write!(fmt, "{}", bson)?;
+                    if fmt.alternate() {
+                        write!(fmt, "\n {indent_str}{}", bson)?;
+                    } else {
+                        write!(fmt, "{}", bson)?;
+                    }
                     first = false;
                 }
-
-                fmt.write_str("]")
+                if fmt.alternate() && !vec.is_empty() {
+                    write!(fmt, "\n{indent_str}]")
+                } else {
+                    fmt.write_str("]")
+                }
             }
-            Bson::Document(ref doc) => write!(fmt, "{}", doc),
+            Bson::Document(ref doc) => {
+                if fmt.alternate() {
+                    write!(fmt, "{doc:#}")
+                } else {
+                    write!(fmt, "{doc}")
+                }
+            }
             Bson::Boolean(b) => write!(fmt, "{}", b),
             Bson::Null => write!(fmt, "null"),
             Bson::RegularExpression(ref x) => write!(fmt, "{}", x),
