@@ -245,3 +245,55 @@ fn extend() {
         },
     );
 }
+
+#[test]
+fn test_display_empty_doc() {
+    let empty_expectation = "{}".to_string();
+    let doc = doc! {};
+    let doc_display = format!("{doc}");
+    assert_eq!(empty_expectation, doc_display);
+
+    let doc_display_pretty = format!("{doc:#}");
+    assert_eq!(empty_expectation, doc_display_pretty);
+}
+
+#[test]
+fn test_display_doc() {
+    let doc = doc! {
+        "hello": "world"
+    };
+
+    let doc_display_expectation = "{ \"hello\": \"world\" }".to_string();
+    assert_eq!(doc_display_expectation, format!("{doc}"));
+
+    let doc_display_pretty_expectation = "{\n \"hello\": \"world\"\n}";
+    assert_eq!(doc_display_pretty_expectation, format!("{doc:#}"));
+}
+
+#[test]
+fn test_display_nested_doc() {
+    let doc = doc! {
+        "hello": {
+            "hello": 2
+        }
+    };
+
+    let doc_display_expectation = "{ \"hello\": { \"hello\": 2 } }".to_string();
+    assert_eq!(doc_display_expectation, format!("{doc}"));
+
+    let doc_display_pretty_expectation = "{\n \"hello\": {\n   \"hello\": 2\n }\n}";
+    assert_eq!(doc_display_pretty_expectation, format!("{doc:#}"));
+}
+
+#[test]
+fn test_display_doc_with_array() {
+    let doc = doc! {
+        "hello": [1, 2, 3]
+    };
+
+    let doc_display_expectation = "{ \"hello\": [1, 2, 3] }".to_string();
+    assert_eq!(doc_display_expectation, format!("{doc}"));
+
+    let doc_display_pretty_expectation = "{\n \"hello\": [\n  1, \n  2, \n  3\n ]\n}";
+    assert_eq!(doc_display_pretty_expectation, format!("{doc:#}"));
+}

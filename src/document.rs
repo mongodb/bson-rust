@@ -80,8 +80,14 @@ impl Hash for Document {
 
 impl Display for Document {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        fmt.write_str("{")?;
-        if fmt.alternate() && self.inner.is_empty() {
+        let indent_str;
+        if let Some(width) = fmt.width() {
+            indent_str = " ".repeat(width);
+        } else {
+            indent_str = "".to_string();
+        }
+        write!(fmt, "{{")?;
+        if fmt.alternate() && !self.inner.is_empty() {
             fmt.write_str("\n")?;
         }
 
@@ -89,16 +95,38 @@ impl Display for Document {
         for (k, v) in self {
             if first {
                 first = false;
-                fmt.write_str(" ")?;
+                write!(fmt, "{indent_str} ")?;
             } else {
                 fmt.write_str(if fmt.alternate() { ", \n " } else { ", " })?;
             }
 
-            write!(fmt, "\"{}\": {}", k, v)?;
+            if fmt.alternate() {
+                let mut indent;
+                if let Some(width) = fmt.width() {
+                    indent = width;
+                } else {
+                    indent = 0;
+                }
+                match v {
+                    Bson::Document(ref doc) => {
+                        indent += 1;
+                        write!(fmt, "{indent_str}\"{}\": {doc:#indent$}", k)?;
+                    }
+                    Bson::Array(_arr) => {
+                        indent += 1;
+                        write!(fmt, "{indent_str}\"{}\": {v:#indent$}", k)?;
+                    }
+                    _ => {
+                        write!(fmt, "{indent_str}\"{}\": {}", k, v)?;
+                    }
+                }
+            } else {
+                write!(fmt, "{indent_str}\"{}\": {}", k, v)?;
+            }
         }
 
-        if fmt.alternate() && self.inner.is_empty() {
-            write!(fmt, "\n}}")
+        if fmt.alternate() && !self.inner.is_empty() {
+            write!(fmt, "\n{indent_str}}}")
         } else {
             write!(fmt, "{}}}", if !first { " " } else { "" })
         }
