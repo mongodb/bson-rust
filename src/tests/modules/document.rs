@@ -248,7 +248,7 @@ fn extend() {
 
 #[test]
 fn test_display_empty_doc() {
-    let empty_expectation = "{}".to_string();
+    let empty_expectation = "{}";
     let doc = doc! {};
     let doc_display = format!("{doc}");
     assert_eq!(empty_expectation, doc_display);
@@ -263,10 +263,12 @@ fn test_display_doc() {
         "hello": "world"
     };
 
-    let doc_display_expectation = "{ \"hello\": \"world\" }".to_string();
+    let doc_display_expectation = "{ \"hello\": \"world\" }";
     assert_eq!(doc_display_expectation, format!("{doc}"));
 
-    let doc_display_pretty_expectation = "{\n \"hello\": \"world\"\n}";
+    let doc_display_pretty_expectation = r#"{
+ "hello": "world"
+}"#;
     assert_eq!(doc_display_pretty_expectation, format!("{doc:#}"));
 }
 
@@ -278,11 +280,16 @@ fn test_display_nested_doc() {
         }
     };
 
-    let doc_display_expectation = "{ \"hello\": { \"hello\": 2 } }".to_string();
+    let doc_display_expectation = "{ \"hello\": { \"hello\": 2 } }";
     assert_eq!(doc_display_expectation, format!("{doc}"));
 
-    let doc_display_pretty_expectation = "{\n \"hello\": {\n   \"hello\": 2\n }\n}";
-    assert_eq!(doc_display_pretty_expectation, format!("{doc:#}"));
+    let doc_display_pretty_expectation = r#"{
+ "hello": {
+  "hello": 2
+ }
+}"#;
+    let formatted = format!("{doc:#}");
+    assert_eq!(doc_display_pretty_expectation, formatted);
 }
 
 #[test]
@@ -291,9 +298,60 @@ fn test_display_doc_with_array() {
         "hello": [1, 2, 3]
     };
 
-    let doc_display_expectation = "{ \"hello\": [1, 2, 3] }".to_string();
+    let doc_display_expectation = "{ \"hello\": [1, 2, 3] }";
     assert_eq!(doc_display_expectation, format!("{doc}"));
 
-    let doc_display_pretty_expectation = "{\n \"hello\": [\n  1, \n  2, \n  3\n ]\n}";
-    assert_eq!(doc_display_pretty_expectation, format!("{doc:#}"));
+    let doc_display_pretty_expectation = r#"{
+ "hello": [
+  1, 
+  2, 
+  3
+ ]
+}"#;
+    let formatted = format!("{doc:#}");
+    assert_eq!(doc_display_pretty_expectation, formatted);
+}
+
+#[test]
+fn test_pretty_printing() {
+    let d = doc! { "hello": "world!", "world": "hello", "key": "val" };
+    let expected = r#"{ "hello": "world!", "world": "hello", "key": "val" }"#;
+    let formatted = format!("{d}");
+    assert_eq!(
+        expected, formatted,
+        "expected:\n{expected}\ngot:\n{formatted}"
+    );
+
+    let d = doc! { "hello": "world!", "nested": { "key": "val", "double": { "a": "thing" } } };
+    let expected = r#"{
+ "hello": "world!",
+ "nested": {
+  "key": "val",
+  "double": {
+   "a": "thing"
+  }
+ }
+}"#;
+    let formatted = format!("{d:#}");
+    assert_eq!(
+        expected, formatted,
+        "expected:\n{expected}\ngot:\n{formatted}"
+    );
+
+    let d =
+        doc! { "hello": "world!", "nested": { "key": "val", "double": { "a": [1, 2], "c": "d"} } };
+    let expected = r#"{
+ "hello": "world!",
+ "nested": {
+  "key": "val",
+  "double": {
+   "a": [
+    1, 
+    2
+   ],
+   "c": "d"
+  }
+ }
+}"#;
+    assert_eq!(expected, format!("{d:#}"));
 }

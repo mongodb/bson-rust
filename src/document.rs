@@ -95,9 +95,9 @@ impl Display for Document {
         for (k, v) in self {
             if first {
                 first = false;
-                write!(fmt, "{indent_str} ")?;
+                write!(fmt, " ")?;
             } else {
-                fmt.write_str(if fmt.alternate() { ", \n " } else { ", " })?;
+                fmt.write_str(if fmt.alternate() { ",\n " } else { ", " })?;
             }
 
             if fmt.alternate() {
