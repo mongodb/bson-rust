@@ -80,12 +80,9 @@ impl Hash for Document {
 
 impl Display for Document {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        let indent_str;
-        if let Some(width) = fmt.width() {
-            indent_str = " ".repeat(width);
-        } else {
-            indent_str = "".to_string();
-        }
+        let indent = fmt.width().unwrap_or(2);
+        let indent_str = " ".repeat(indent);
+
         write!(fmt, "{{")?;
         if fmt.alternate() && !self.inner.is_empty() {
             fmt.write_str("\n")?;
@@ -93,40 +90,41 @@ impl Display for Document {
 
         let mut first = true;
         for (k, v) in self {
-            if first {
-                first = false;
-                write!(fmt, " ")?;
-            } else {
-                fmt.write_str(if fmt.alternate() { ",\n " } else { ", " })?;
+            if !fmt.alternate() {
+                if first {
+                    first = false;
+                    write!(fmt, " ")?;
+                } else {
+                    fmt.write_str(", ")?;
+                }
+                write!(fmt, "\"{}\": {}", k, v)?;
             }
 
             if fmt.alternate() {
-                let mut indent;
-                if let Some(width) = fmt.width() {
-                    indent = width;
+                if first {
+                    first = false;
                 } else {
-                    indent = 0;
+                    fmt.write_str(",\n")?;
                 }
                 match v {
                     Bson::Document(ref doc) => {
-                        indent += 1;
-                        write!(fmt, "{indent_str}\"{}\": {doc:#indent$}", k)?;
+                        let new_indent = indent + 2;
+                        write!(fmt, "{indent_str}\"{}\": {doc:#new_indent$}", k)?;
                     }
                     Bson::Array(_arr) => {
-                        indent += 1;
-                        write!(fmt, "{indent_str}\"{}\": {v:#indent$}", k)?;
+                        let new_indent = indent + 2;
+                        write!(fmt, "{indent_str}\"{}\": {v:#new_indent$}", k)?;
                     }
                     _ => {
                         write!(fmt, "{indent_str}\"{}\": {}", k, v)?;
                     }
                 }
-            } else {
-                write!(fmt, "{indent_str}\"{}\": {}", k, v)?;
             }
         }
 
+        let closing_bracket_indent_str = " ".repeat(indent - 2);
         if fmt.alternate() && !self.inner.is_empty() {
-            write!(fmt, "\n{indent_str}}}")
+            write!(fmt, "\n{closing_bracket_indent_str}}}")
         } else {
             write!(fmt, "{}}}", if !first { " " } else { "" })
         }

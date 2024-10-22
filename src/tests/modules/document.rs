@@ -267,7 +267,7 @@ fn test_display_doc() {
     assert_eq!(doc_display_expectation, format!("{doc}"));
 
     let doc_display_pretty_expectation = r#"{
- "hello": "world"
+  "hello": "world"
 }"#;
     assert_eq!(doc_display_pretty_expectation, format!("{doc:#}"));
 }
@@ -284,9 +284,9 @@ fn test_display_nested_doc() {
     assert_eq!(doc_display_expectation, format!("{doc}"));
 
     let doc_display_pretty_expectation = r#"{
- "hello": {
-  "hello": 2
- }
+  "hello": {
+    "hello": 2
+  }
 }"#;
     let formatted = format!("{doc:#}");
     assert_eq!(doc_display_pretty_expectation, formatted);
@@ -302,14 +302,29 @@ fn test_display_doc_with_array() {
     assert_eq!(doc_display_expectation, format!("{doc}"));
 
     let doc_display_pretty_expectation = r#"{
- "hello": [
-  1, 
-  2, 
-  3
- ]
+  "hello": [
+    1, 
+    2, 
+    3
+  ]
 }"#;
     let formatted = format!("{doc:#}");
     assert_eq!(doc_display_pretty_expectation, formatted);
+
+    let nested_array_doc = doc! {
+        "a": [1, [1, 2]]
+    };
+
+    let expectation = r#"{
+  "a": [
+    1, 
+    [
+      1, 
+      2
+    ]
+  ]
+}"#;
+    assert_eq!(expectation, format!("{nested_array_doc:#}"));
 }
 
 #[test]
@@ -324,13 +339,13 @@ fn test_pretty_printing() {
 
     let d = doc! { "hello": "world!", "nested": { "key": "val", "double": { "a": "thing" } } };
     let expected = r#"{
- "hello": "world!",
- "nested": {
-  "key": "val",
-  "double": {
-   "a": "thing"
+  "hello": "world!",
+  "nested": {
+    "key": "val",
+    "double": {
+      "a": "thing"
+    }
   }
- }
 }"#;
     let formatted = format!("{d:#}");
     assert_eq!(
@@ -341,17 +356,17 @@ fn test_pretty_printing() {
     let d =
         doc! { "hello": "world!", "nested": { "key": "val", "double": { "a": [1, 2], "c": "d"} } };
     let expected = r#"{
- "hello": "world!",
- "nested": {
-  "key": "val",
-  "double": {
-   "a": [
-    1, 
-    2
-   ],
-   "c": "d"
+  "hello": "world!",
+  "nested": {
+    "key": "val",
+    "double": {
+      "a": [
+        1, 
+        2
+      ],
+      "c": "d"
+    }
   }
- }
 }"#;
     assert_eq!(expected, format!("{d:#}"));
 }

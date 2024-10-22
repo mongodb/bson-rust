@@ -134,12 +134,8 @@ impl Display for Bson {
             Bson::Array(ref vec) => {
                 fmt.write_str("[")?;
 
-                let indent_str;
-                if let Some(width) = fmt.width() {
-                    indent_str = " ".repeat(width);
-                } else {
-                    indent_str = "".to_string();
-                }
+                let indent = fmt.width().unwrap_or(2);
+                let indent_str = " ".repeat(indent);
 
                 let mut first = true;
                 for bson in vec {
@@ -147,14 +143,28 @@ impl Display for Bson {
                         fmt.write_str(", ")?;
                     }
                     if fmt.alternate() {
-                        write!(fmt, "\n {indent_str}{}", bson)?;
+                        write!(fmt, "\n{indent_str}")?;
+                        match bson {
+                            Bson::Array(_arr) => {
+                                let new_indent = indent + 2;
+                                write!(fmt, "{bson:#new_indent$}")?;
+                            }
+                            Bson::Document(ref doc) => {
+                                let new_indent = indent + 2;
+                                write!(fmt, "{doc:#new_indent$}")?;
+                            }
+                            _ => {
+                                write!(fmt, "{}", bson)?;
+                            }
+                        }
                     } else {
                         write!(fmt, "{}", bson)?;
                     }
                     first = false;
                 }
                 if fmt.alternate() && !vec.is_empty() {
-                    write!(fmt, "\n{indent_str}]")
+                    let closing_bracket_indent_str = " ".repeat(indent - 2);
+                    write!(fmt, "\n{closing_bracket_indent_str}]")
                 } else {
                     fmt.write_str("]")
                 }
