@@ -134,19 +134,48 @@ impl Display for Bson {
             Bson::Array(ref vec) => {
                 fmt.write_str("[")?;
 
+                let indent = fmt.width().unwrap_or(2);
+                let indent_str = " ".repeat(indent);
+
                 let mut first = true;
                 for bson in vec {
                     if !first {
                         fmt.write_str(", ")?;
                     }
-
-                    write!(fmt, "{}", bson)?;
+                    if fmt.alternate() {
+                        write!(fmt, "\n{indent_str}")?;
+                        match bson {
+                            Bson::Array(_arr) => {
+                                let new_indent = indent + 2;
+                                write!(fmt, "{bson:#new_indent$}")?;
+                            }
+                            Bson::Document(ref doc) => {
+                                let new_indent = indent + 2;
+                                write!(fmt, "{doc:#new_indent$}")?;
+                            }
+                            _ => {
+                                write!(fmt, "{}", bson)?;
+                            }
+                        }
+                    } else {
+                        write!(fmt, "{}", bson)?;
+                    }
                     first = false;
                 }
-
-                fmt.write_str("]")
+                if fmt.alternate() && !vec.is_empty() {
+                    let closing_bracket_indent_str = " ".repeat(indent - 2);
+                    write!(fmt, "\n{closing_bracket_indent_str}]")
+                } else {
+                    fmt.write_str("]")
+                }
             }
-            Bson::Document(ref doc) => write!(fmt, "{}", doc),
+            Bson::Document(ref doc) => {
+                if fmt.alternate() {
+                    write!(fmt, "{doc:#}")
+                } else {
+                    write!(fmt, "{doc}")
+                }
+            }
             Bson::Boolean(b) => write!(fmt, "{}", b),
             Bson::Null => write!(fmt, "null"),
             Bson::RegularExpression(ref x) => write!(fmt, "{}", x),

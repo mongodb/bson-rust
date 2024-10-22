@@ -80,21 +80,54 @@ impl Hash for Document {
 
 impl Display for Document {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        fmt.write_str("{")?;
+        let indent = fmt.width().unwrap_or(2);
+        let indent_str = " ".repeat(indent);
+
+        write!(fmt, "{{")?;
+        if fmt.alternate() && !self.inner.is_empty() {
+            fmt.write_str("\n")?;
+        }
 
         let mut first = true;
         for (k, v) in self {
-            if first {
-                first = false;
-                fmt.write_str(" ")?;
-            } else {
-                fmt.write_str(", ")?;
+            if !fmt.alternate() {
+                if first {
+                    first = false;
+                    write!(fmt, " ")?;
+                } else {
+                    fmt.write_str(", ")?;
+                }
+                write!(fmt, "\"{}\": {}", k, v)?;
             }
 
-            write!(fmt, "\"{}\": {}", k, v)?;
+            if fmt.alternate() {
+                if first {
+                    first = false;
+                } else {
+                    fmt.write_str(",\n")?;
+                }
+                match v {
+                    Bson::Document(ref doc) => {
+                        let new_indent = indent + 2;
+                        write!(fmt, "{indent_str}\"{}\": {doc:#new_indent$}", k)?;
+                    }
+                    Bson::Array(_arr) => {
+                        let new_indent = indent + 2;
+                        write!(fmt, "{indent_str}\"{}\": {v:#new_indent$}", k)?;
+                    }
+                    _ => {
+                        write!(fmt, "{indent_str}\"{}\": {}", k, v)?;
+                    }
+                }
+            }
         }
 
-        write!(fmt, "{}}}", if !first { " " } else { "" })
+        let closing_bracket_indent_str = " ".repeat(indent - 2);
+        if fmt.alternate() && !self.inner.is_empty() {
+            write!(fmt, "\n{closing_bracket_indent_str}}}")
+        } else {
+            write!(fmt, "{}}}", if !first { " " } else { "" })
+        }
     }
 }
 
