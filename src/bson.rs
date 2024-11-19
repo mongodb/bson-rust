@@ -25,6 +25,7 @@ use std::{
     convert::{TryFrom, TryInto},
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
+    ops::Index,
 };
 
 use serde_json::{json, Value};
@@ -232,6 +233,20 @@ impl Debug for Bson {
             Bson::MinKey => write!(fmt, "MinKey"),
             Bson::MaxKey => write!(fmt, "MaxKey"),
             Bson::DbPointer(ref pointer) => Debug::fmt(pointer, fmt),
+        }
+    }
+}
+
+impl Index<&str> for Bson {
+    type Output = Bson;
+
+    fn index(&self, index: &str) -> &Self::Output {
+        match *self {
+            Bson::Document(ref doc) => match doc.get(index) {
+                Some(v) => v,
+                None => &Bson::Null,
+            },
+            _ => &Bson::Null,
         }
     }
 }

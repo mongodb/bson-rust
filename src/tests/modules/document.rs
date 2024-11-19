@@ -370,3 +370,48 @@ fn test_pretty_printing() {
 }"#;
     assert_eq!(expected, format!("{d:#}"));
 }
+
+#[test]
+fn test_indexing() {
+    let d = doc! {"x": 1};
+    let val = d["x"].as_i32().unwrap();
+    assert_eq!(val, 1);
+
+    let d = doc! {"x": {"y": 100}};
+    let val = d["x"]["y"].as_i32().unwrap();
+    assert_eq!(val, 100);
+
+    let d = doc! {"x" : true};
+    let val = d["x"].as_bool().unwrap();
+    assert!(val);
+
+    let d = doc! {"x": "y"};
+    let val = d["x"].as_str().unwrap();
+    assert_eq!(val, "y");
+
+    let d = doc! {"x": 1.9};
+    let val = d["x"].as_f64().unwrap();
+    assert_eq!(val, 1.9);
+
+    let d = doc! {"x": [1, 2, 3]};
+    let val = d["x"].as_array().unwrap();
+    assert_eq!(val.len(), 3);
+}
+
+#[test]
+fn test_indexing_key_not_found() {
+    let d = doc! {"x": 1};
+    let val = &d["y"];
+    assert!(val.as_null().is_some());
+
+    let d = doc! {"x": {"y": 1}};
+    let val = &d["x"]["z"];
+    assert!(val.as_null().is_some());
+}
+
+#[test]
+fn test_indexing_on_wrong_bson_type() {
+    let d = doc! {"x": {"y": 1}};
+    let val = &d["x"]["y"]["z"];
+    assert!(val.as_null().is_some());
+}
