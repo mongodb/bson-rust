@@ -7,6 +7,7 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
     io::{Read, Write},
     iter::{Extend, FromIterator, IntoIterator},
+    ops::Index,
 };
 
 use ahash::RandomState;
@@ -136,6 +137,17 @@ impl Debug for Document {
         write!(fmt, "Document(")?;
         Debug::fmt(&self.inner, fmt)?;
         write!(fmt, ")")
+    }
+}
+
+impl Index<&str> for Document {
+    type Output = Bson;
+
+    fn index(&self, index: &str) -> &Self::Output {
+        match self.get(index) {
+            Some(v) => v,
+            None => &Bson::Null,
+        }
     }
 }
 
