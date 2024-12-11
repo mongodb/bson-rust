@@ -363,6 +363,20 @@ impl crate::DateTime {
         self.0
     }
 
+    /// Adds `millis` milliseconds to the [`DateTime`] saturating at [`DateTime::MIN`] and
+    /// [`DateTime::MAX`].
+    pub fn saturating_add_millis(self, millis: i64) -> Self {
+        Self::from_millis(self.0.saturating_add(millis))
+    }
+
+    /// Adds `duration` to the [`DateTime`] saturating at [`DateTime::MAX`].
+    ///
+    /// As [`DateTime`] only have millisecond-precision this will only use the whole milliseconds
+    /// of `duration`.
+    pub fn saturating_add_duration(self, duration: Duration) -> Self {
+        self.saturating_add_millis(duration.as_millis().try_into().unwrap_or(i64::MAX))
+    }
+
     #[deprecated(since = "2.3.0", note = "Use try_to_rfc3339_string instead.")]
     /// Convert this [`DateTime`] to an RFC 3339 formatted string.  Panics if it could not be
     /// represented in that format.
