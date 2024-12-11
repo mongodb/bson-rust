@@ -165,12 +165,7 @@ functions:
             echo "No crashes found in artifacts directory. Skipping archive creation."
           fi
           # currently there is no aws_key set, so let's cat out the files
-          for x in $(ls "src/fuzz/artifacts"); do
-            for y in $(ls $x); do
-              echo "crash file $x/$y"
-              cat "src/fuzz/artifacts/$x/$y" || true
-            done
-          done
+          find src/fuzz -type f -exec sh -c 'for f; do echo "$f"; cat "$f"; done' sh {} +
     # Upload crash artifacts if they exist
     - command: s3.put
       params:
