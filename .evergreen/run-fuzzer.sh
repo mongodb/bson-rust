@@ -6,8 +6,15 @@ set -o errexit
 
 cd fuzz
 
-# Create artifacts directory for crash reports
+# Create directories for crashes and corpus
 mkdir -p artifacts
+mkdir -p corpus
+
+# Generate initial corpus if directory is empty
+if [ -z "$(ls -A corpus)" ]; then
+    echo "Generating initial corpus..."
+    cargo run --bin generate_corpus
+fi
 
 # Function to run fuzzer and collect crashes
 run_fuzzer() {
@@ -19,7 +26,8 @@ run_fuzzer() {
         -rss_limit_mb=4096 \
         -max_total_time=$time \
         -artifact_prefix=artifacts/ \
-        -print_final_stats=1
+        -print_final_stats=1 \
+        corpus/
 }
 
 # Run existing targets
@@ -40,3 +48,4 @@ if [ "$(ls -A artifacts)" ]; then
 else
     echo "No crashes found."
 fi
+
