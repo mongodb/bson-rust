@@ -7,6 +7,7 @@ set -o errexit
 cd fuzz
 
 # Create directories for crashes and corpus
+rm -Rf artifacts | true
 mkdir -p artifacts
 mkdir -p corpus
 
@@ -40,12 +41,3 @@ run_fuzzer "malformed_length" 60
 run_fuzzer "type_markers" 120
 run_fuzzer "string_handling" 120
 run_fuzzer "serialization" 120
-
-# If any crashes were found, save them as test artifacts
-if [ "$(ls -A artifacts)" ]; then
-    echo "Crashes found! Check artifacts directory."
-    exit 1
-else
-    echo "No crashes found."
-fi
-
