@@ -128,7 +128,7 @@ impl<'a> TryInto<RawBsonRef<'a>> for RawElement<'a> {
     }
 }
 
-impl<'a> TryInto<RawBson> for RawElement<'a> {
+impl TryInto<RawBson> for RawElement<'_> {
     type Error = Error;
 
     fn try_into(self) -> Result<RawBson> {
@@ -136,7 +136,7 @@ impl<'a> TryInto<RawBson> for RawElement<'a> {
     }
 }
 
-impl<'a> TryInto<Bson> for RawElement<'a> {
+impl TryInto<Bson> for RawElement<'_> {
     type Error = Error;
 
     fn try_into(self) -> Result<Bson> {
@@ -340,7 +340,7 @@ impl<'a> RawElement<'a> {
     }
 }
 
-impl<'a> RawIter<'a> {
+impl RawIter<'_> {
     fn get_next_length_at(&self, start_at: usize) -> Result<usize> {
         let len = i32_from_slice(&self.doc.as_bytes()[start_at..])?;
         if len < 0 {

@@ -66,7 +66,7 @@ impl<'a> DocumentSerializer<'a> {
     }
 }
 
-impl<'a> serde::ser::SerializeSeq for DocumentSerializer<'a> {
+impl serde::ser::SerializeSeq for DocumentSerializer<'_> {
     type Ok = ();
     type Error = Error;
 
@@ -91,7 +91,7 @@ impl<'a> serde::ser::SerializeSeq for DocumentSerializer<'a> {
     }
 }
 
-impl<'a> serde::ser::SerializeMap for DocumentSerializer<'a> {
+impl serde::ser::SerializeMap for DocumentSerializer<'_> {
     type Ok = ();
 
     type Error = Error;
@@ -117,7 +117,7 @@ impl<'a> serde::ser::SerializeMap for DocumentSerializer<'a> {
     }
 }
 
-impl<'a> serde::ser::SerializeStruct for DocumentSerializer<'a> {
+impl serde::ser::SerializeStruct for DocumentSerializer<'_> {
     type Ok = ();
 
     type Error = Error;
@@ -137,7 +137,7 @@ impl<'a> serde::ser::SerializeStruct for DocumentSerializer<'a> {
     }
 }
 
-impl<'a> serde::ser::SerializeTuple for DocumentSerializer<'a> {
+impl serde::ser::SerializeTuple for DocumentSerializer<'_> {
     type Ok = ();
 
     type Error = Error;
@@ -157,7 +157,7 @@ impl<'a> serde::ser::SerializeTuple for DocumentSerializer<'a> {
     }
 }
 
-impl<'a> serde::ser::SerializeTupleStruct for DocumentSerializer<'a> {
+impl serde::ser::SerializeTupleStruct for DocumentSerializer<'_> {
     type Ok = ();
 
     type Error = Error;
@@ -183,13 +183,13 @@ struct KeySerializer<'a> {
     root_serializer: &'a mut Serializer,
 }
 
-impl<'a> KeySerializer<'a> {
+impl KeySerializer<'_> {
     fn invalid_key<T: Serialize>(v: T) -> Error {
         Error::InvalidDocumentKey(to_bson(&v).unwrap_or(Bson::Null))
     }
 }
 
-impl<'a> serde::Serializer for KeySerializer<'a> {
+impl serde::Serializer for KeySerializer<'_> {
     type Ok = ();
 
     type Error = Error;

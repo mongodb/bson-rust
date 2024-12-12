@@ -391,7 +391,7 @@ pub(crate) enum StructSerializer<'a> {
     Document(DocumentSerializer<'a>),
 }
 
-impl<'a> SerializeStruct for StructSerializer<'a> {
+impl SerializeStruct for StructSerializer<'_> {
     type Ok = ();
     type Error = Error;
 
@@ -493,7 +493,7 @@ impl<'a> VariantSerializer<'a> {
     }
 }
 
-impl<'a> serde::ser::SerializeTupleVariant for VariantSerializer<'a> {
+impl serde::ser::SerializeTupleVariant for VariantSerializer<'_> {
     type Ok = ();
 
     type Error = Error;
@@ -512,7 +512,7 @@ impl<'a> serde::ser::SerializeTupleVariant for VariantSerializer<'a> {
     }
 }
 
-impl<'a> serde::ser::SerializeStructVariant for VariantSerializer<'a> {
+impl serde::ser::SerializeStructVariant for VariantSerializer<'_> {
     type Ok = ();
 
     type Error = Error;

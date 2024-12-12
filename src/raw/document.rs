@@ -548,14 +548,14 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
     }
 }
 
-impl<'a> Serialize for &'a RawDocument {
+impl Serialize for &RawDocument {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         struct KvpSerializer<'a>(&'a RawDocument);
 
-        impl<'a> Serialize for KvpSerializer<'a> {
+        impl Serialize for KvpSerializer<'_> {
             fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,

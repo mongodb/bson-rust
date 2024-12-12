@@ -696,7 +696,7 @@ pub struct VacantEntry<'a> {
     inner: indexmap::map::VacantEntry<'a, String, Bson>,
 }
 
-impl<'a> VacantEntry<'a> {
+impl VacantEntry<'_> {
     /// Gets a reference to the key that would be used when inserting a value through the
     /// [VacantEntry].
     fn key(&self) -> &str {
@@ -709,7 +709,7 @@ pub struct OccupiedEntry<'a> {
     inner: indexmap::map::OccupiedEntry<'a, String, Bson>,
 }
 
-impl<'a> OccupiedEntry<'a> {
+impl OccupiedEntry<'_> {
     /// Gets a reference to the key in the entry.
     pub fn key(&self) -> &str {
         self.inner.key()

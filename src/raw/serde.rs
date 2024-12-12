@@ -54,7 +54,7 @@ impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawBson<'a> {
     }
 }
 
-impl<'a> Debug for OwnedOrBorrowedRawBson<'a> {
+impl Debug for OwnedOrBorrowedRawBson<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Owned(o) => o.fmt(f),
@@ -69,7 +69,7 @@ impl<'a> From<RawBsonRef<'a>> for OwnedOrBorrowedRawBson<'a> {
     }
 }
 
-impl<'a> From<RawBson> for OwnedOrBorrowedRawBson<'a> {
+impl From<RawBson> for OwnedOrBorrowedRawBson<'_> {
     fn from(b: RawBson) -> Self {
         OwnedOrBorrowedRawBson::Owned(b)
     }
@@ -82,7 +82,7 @@ pub(crate) enum OwnedOrBorrowedRawDocument<'a> {
     Borrowed(&'a RawDocument),
 }
 
-impl<'a> OwnedOrBorrowedRawDocument<'a> {
+impl OwnedOrBorrowedRawDocument<'_> {
     pub(crate) fn into_owned(self) -> RawDocumentBuf {
         match self {
             Self::Owned(o) => o,
@@ -91,7 +91,7 @@ impl<'a> OwnedOrBorrowedRawDocument<'a> {
     }
 }
 
-impl<'a> From<RawDocumentBuf> for OwnedOrBorrowedRawDocument<'a> {
+impl From<RawDocumentBuf> for OwnedOrBorrowedRawDocument<'_> {
     fn from(doc: RawDocumentBuf) -> Self {
         Self::Owned(doc)
     }
@@ -160,7 +160,7 @@ pub(crate) enum OwnedOrBorrowedRawArray<'a> {
     Borrowed(&'a RawArray),
 }
 
-impl<'a> OwnedOrBorrowedRawArray<'a> {
+impl OwnedOrBorrowedRawArray<'_> {
     pub(crate) fn into_owned(self) -> RawArrayBuf {
         match self {
             Self::Owned(o) => o,
