@@ -197,7 +197,7 @@ axes:
       - id: "min"
         display_name: "1.64 (minimum supported version)"
         variables:
-          RUST_VERSION: "1.64.0"
+          RUST_VERSION: "1.71.1"
           MSRV: "true"
       - id: "nightly"
         display_name: "nightly"
@@ -229,7 +229,7 @@ buildvariants:
   matrix_spec:
     extra-rust-versions: "*"
     extra-targets: "*"
-  display_name: "Compile on Rust ${extra-rust-versions}"
+  display_name: "Compile on Rust ${extra-rust-versions} (${extra-targets})"
   run_on:
     - ubuntu1804-test
   tasks:
