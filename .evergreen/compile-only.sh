@@ -10,9 +10,9 @@ if [ ! -z "$TARGET" ]; then
     TARGET="--target=$TARGET"
 fi
 
-# pin all dependencies when checking msrv compilation
+# pin necessary dependencies when checking msrv compilation
 if [ "$MSRV" = "true" ]; then
-    cp .evergreen/Cargo.lock.msrv Cargo.lock
+    patch Cargo.toml .evergreen/MSRV-Cargo.toml.diff
 fi
 
 rustup run $RUST_VERSION cargo build $TARGET
