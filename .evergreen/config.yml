@@ -195,7 +195,7 @@ axes:
   - id: "extra-rust-versions"
     values:
       - id: "min"
-        display_name: "1.64 (minimum supported version)"
+        display_name: "1.71.1 (minimum supported version)"
         variables:
           RUST_VERSION: "1.71.1"
           MSRV: "true"
