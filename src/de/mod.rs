@@ -91,7 +91,7 @@ where
     let de = Deserializer::new(bson);
     #[cfg(feature = "serde_path_to_error")]
     {
-        return serde_path_to_error::deserialize(de).map_err(Error::with_path);
+        serde_path_to_error::deserialize(de).map_err(Error::with_path)
     }
     #[cfg(not(feature = "serde_path_to_error"))]
     {

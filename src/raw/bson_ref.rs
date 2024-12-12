@@ -312,7 +312,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawBsonRef<'a> {
     }
 }
 
-impl<'a> Serialize for RawBsonRef<'a> {
+impl Serialize for RawBsonRef<'_> {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -371,13 +371,13 @@ impl<'a> TryFrom<RawBsonRef<'a>> for Bson {
     }
 }
 
-impl<'a> From<i32> for RawBsonRef<'a> {
+impl From<i32> for RawBsonRef<'_> {
     fn from(i: i32) -> Self {
         RawBsonRef::Int32(i)
     }
 }
 
-impl<'a> From<i64> for RawBsonRef<'a> {
+impl From<i64> for RawBsonRef<'_> {
     fn from(i: i64) -> Self {
         RawBsonRef::Int64(i)
     }
@@ -389,13 +389,13 @@ impl<'a> From<&'a str> for RawBsonRef<'a> {
     }
 }
 
-impl<'a> From<f64> for RawBsonRef<'a> {
+impl From<f64> for RawBsonRef<'_> {
     fn from(f: f64) -> Self {
         RawBsonRef::Double(f)
     }
 }
 
-impl<'a> From<bool> for RawBsonRef<'a> {
+impl From<bool> for RawBsonRef<'_> {
     fn from(b: bool) -> Self {
         RawBsonRef::Boolean(b)
     }
@@ -425,25 +425,25 @@ impl<'a> From<&'a RawArrayBuf> for RawBsonRef<'a> {
     }
 }
 
-impl<'a> From<crate::DateTime> for RawBsonRef<'a> {
+impl From<crate::DateTime> for RawBsonRef<'_> {
     fn from(dt: crate::DateTime) -> Self {
         RawBsonRef::DateTime(dt)
     }
 }
 
-impl<'a> From<Timestamp> for RawBsonRef<'a> {
+impl From<Timestamp> for RawBsonRef<'_> {
     fn from(ts: Timestamp) -> Self {
         RawBsonRef::Timestamp(ts)
     }
 }
 
-impl<'a> From<ObjectId> for RawBsonRef<'a> {
+impl From<ObjectId> for RawBsonRef<'_> {
     fn from(oid: ObjectId) -> Self {
         RawBsonRef::ObjectId(oid)
     }
 }
 
-impl<'a> From<Decimal128> for RawBsonRef<'a> {
+impl From<Decimal128> for RawBsonRef<'_> {
     fn from(d: Decimal128) -> Self {
         RawBsonRef::Decimal128(d)
     }
@@ -459,7 +459,7 @@ pub struct RawBinaryRef<'a> {
     pub bytes: &'a [u8],
 }
 
-impl<'a> RawBinaryRef<'a> {
+impl RawBinaryRef<'_> {
     /// Copy the contents into a [`Binary`].
     pub fn to_binary(&self) -> Binary {
         Binary {
@@ -491,7 +491,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawBinaryRef<'a> {
     }
 }
 
-impl<'a> Serialize for RawBinaryRef<'a> {
+impl Serialize for RawBinaryRef<'_> {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -569,7 +569,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawRegexRef<'a> {
     }
 }
 
-impl<'a> Serialize for RawRegexRef<'a> {
+impl Serialize for RawRegexRef<'_> {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -606,7 +606,7 @@ pub struct RawJavaScriptCodeWithScopeRef<'a> {
     pub scope: &'a RawDocument,
 }
 
-impl<'a> RawJavaScriptCodeWithScopeRef<'a> {
+impl RawJavaScriptCodeWithScopeRef<'_> {
     pub(crate) fn len(self) -> i32 {
         4 + 4 + self.code.len() as i32 + 1 + self.scope.as_bytes().len() as i32
     }
@@ -627,7 +627,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawJavaScriptCodeWithScopeRef<'a> {
     }
 }
 
-impl<'a> Serialize for RawJavaScriptCodeWithScopeRef<'a> {
+impl Serialize for RawJavaScriptCodeWithScopeRef<'_> {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -667,7 +667,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawDbPointerRef<'a> {
     }
 }
 
-impl<'a> Serialize for RawDbPointerRef<'a> {
+impl Serialize for RawDbPointerRef<'_> {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

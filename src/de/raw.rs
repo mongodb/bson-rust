@@ -730,7 +730,7 @@ struct TimestampAccess<'d> {
     deserializer: &'d mut TimestampDeserializer,
 }
 
-impl<'de, 'd> serde::de::MapAccess<'de> for TimestampAccess<'d> {
+impl<'de> serde::de::MapAccess<'de> for TimestampAccess<'_> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -775,7 +775,7 @@ impl TimestampDeserializer {
     }
 }
 
-impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut TimestampDeserializer {
+impl<'de> serde::de::Deserializer<'de> for &mut TimestampDeserializer {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -823,7 +823,7 @@ struct DateTimeAccess<'d> {
     deserializer: &'d mut DateTimeDeserializer,
 }
 
-impl<'de, 'd> serde::de::MapAccess<'de> for DateTimeAccess<'d> {
+impl<'de> serde::de::MapAccess<'de> for DateTimeAccess<'_> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -875,7 +875,7 @@ impl DateTimeDeserializer {
     }
 }
 
-impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut DateTimeDeserializer {
+impl<'de> serde::de::Deserializer<'de> for &mut DateTimeDeserializer {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -932,7 +932,7 @@ struct BinaryAccess<'d, 'de> {
     deserializer: &'d mut BinaryDeserializer<'de>,
 }
 
-impl<'de, 'd> serde::de::MapAccess<'de> for BinaryAccess<'d, 'de> {
+impl<'de> serde::de::MapAccess<'de> for BinaryAccess<'_, 'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -976,7 +976,7 @@ impl<'a> BinaryDeserializer<'a> {
     }
 }
 
-impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut BinaryDeserializer<'de> {
+impl<'de> serde::de::Deserializer<'de> for &mut BinaryDeserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -1084,7 +1084,7 @@ impl<'de> serde::de::MapAccess<'de> for CodeWithScopeAccess<'de> {
     }
 }
 
-impl<'a, 'de> serde::de::Deserializer<'de> for &'a CodeWithScopeAccess<'de> {
+impl<'de> serde::de::Deserializer<'de> for &CodeWithScopeAccess<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -1180,7 +1180,7 @@ impl<'de> serde::de::MapAccess<'de> for DbPointerAccess<'de> {
     }
 }
 
-impl<'a, 'de> serde::de::Deserializer<'de> for &'a mut DbPointerAccess<'de> {
+impl<'de> serde::de::Deserializer<'de> for &mut DbPointerAccess<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
@@ -1289,7 +1289,7 @@ impl<'de> serde::de::MapAccess<'de> for RegexAccess<'de> {
     }
 }
 
-impl<'a, 'de> serde::de::Deserializer<'de> for &'a mut RegexAccess<'de> {
+impl<'de> serde::de::Deserializer<'de> for &mut RegexAccess<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>

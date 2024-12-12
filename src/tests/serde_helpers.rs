@@ -41,7 +41,7 @@ fn human_readable_wrapper() {
             D: serde::Deserializer<'de>,
         {
             struct V;
-            impl<'de> Visitor<'de> for V {
+            impl Visitor<'_> for V {
                 type Value = bool;
 
                 fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

@@ -136,7 +136,7 @@ impl<'a> IntoIterator for &'a RawArrayBuf {
     }
 }
 
-impl<'a> From<RawArrayBuf> for Cow<'a, RawArray> {
+impl From<RawArrayBuf> for Cow<'_, RawArray> {
     fn from(rd: RawArrayBuf) -> Self {
         Cow::Owned(rd)
     }
