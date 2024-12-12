@@ -6,7 +6,44 @@ set -o errexit
 
 cd fuzz
 
-# each runs for a minute
-cargo +nightly fuzz run deserialize -- -rss_limit_mb=4096 -max_total_time=60
-cargo +nightly fuzz run raw_deserialize -- -rss_limit_mb=4096 -max_total_time=60
-cargo +nightly fuzz run iterate -- -rss_limit_mb=4096 -max_total_time=60
+# Create directories for crashes and corpus
+mkdir -p artifacts
+mkdir -p corpus
+
+# Generate initial corpus if directory is empty
+if [ -z "$(ls -A corpus)" ]; then
+    echo "Generating initial corpus..."
+    cargo run --bin generate_corpus
+fi
+
+# Function to run fuzzer and collect crashes
+run_fuzzer() {
+    target=$1
+    echo "Running fuzzer for $target"
+    # Run fuzzer and redirect crashes to artifacts directory
+    RUST_BACKTRACE=1 cargo +nightly fuzz run $target -- \
+        -rss_limit_mb=4096 \
+        -max_total_time=60 \
+        -artifact_prefix=artifacts/ \
+        -print_final_stats=1 \
+        corpus/
+}
+
+# Run existing targets
+run_fuzzer "deserialize"
+run_fuzzer "raw_deserialize"
+run_fuzzer "iterate"
+
+# Run new security-focused targets
+run_fuzzer "malformed_length"
+run_fuzzer "type_markers"
+run_fuzzer "string_handling"
+run_fuzzer "serialization"
+
+# If any crashes were found, save them as test artifacts
+if [ "$(ls -A artifacts)" ]; then
+    echo "Crashes found! Check artifacts directory."
+    exit 1
+else
+    echo "No crashes found."
+fi

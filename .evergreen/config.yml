@@ -13,15 +13,18 @@ stepback: true
 command_type: system
 
 # Protect ourself against rogue test case, or curl gone wild, that runs forever
-# 12 minutes is the longest we'll ever run
-exec_timeout_secs: 3600 # 12 minutes is the longest we'll ever run
+# 60 minutes is the longest we'll ever run
+exec_timeout_secs: 3600 # 1 hour total for security-focused fuzzing
 
 # What to do when evergreen hits the timeout (`post:` tasks are run automatically)
 timeout:
   - command: shell.exec
     params:
       script: |
-        ls -la
+        echo "Fuzzing timed out. Collecting any available artifacts..."
+        if [ -d "src/fuzz/artifacts" ]; then
+          tar czf "${PROJECT_DIRECTORY}/crash-artifacts.tar.gz" src/fuzz/artifacts/
+        fi
 
 functions:
   "fetch source":
@@ -154,7 +157,25 @@ functions:
     - command: shell.exec
       params:
         script: |
-            # Nothing needs to be done here
+          # Archive crash artifacts if they exist and contain crashes
+          if [ -d "src/fuzz/artifacts" ] && [ "$(ls -A src/fuzz/artifacts)" ]; then
+            echo "Crashes found in artifacts directory. Creating archive..."
+            tar czf "${PROJECT_DIRECTORY}/crash-artifacts.tar.gz" src/fuzz/artifacts/
+          else
+            echo "No crashes found in artifacts directory. Skipping archive creation."
+          fi
+    # Upload crash artifacts if they exist
+    - command: s3.put
+      params:
+        aws_key: ${aws_key}
+        aws_secret: ${aws_secret}
+        local_file: ${PROJECT_DIRECTORY}/crash-artifacts.tar.gz
+        remote_file: ${CURRENT_VERSION}/crash-artifacts.tar.gz
+        bucket: mciuploads
+        permissions: public-read
+        content_type: application/x-gzip
+        optional: true
+
 pre:
   - func: "fetch source"
   - func: "install dependencies"
