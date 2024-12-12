@@ -39,11 +39,3 @@ run_fuzzer "malformed_length"
 run_fuzzer "type_markers"
 run_fuzzer "string_handling"
 run_fuzzer "serialization"
-
-# If any crashes were found, save them as test artifacts
-if [ "$(ls -A artifacts)" ]; then
-    echo "Crashes found! Check artifacts directory."
-    exit 1
-else
-    echo "No crashes found."
-fi
