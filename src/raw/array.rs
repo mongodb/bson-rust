@@ -304,14 +304,14 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
     }
 }
 
-impl<'a> Serialize for &'a RawArray {
+impl Serialize for &RawArray {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         struct SeqSerializer<'a>(&'a RawArray);
 
-        impl<'a> Serialize for SeqSerializer<'a> {
+        impl Serialize for SeqSerializer<'_> {
             fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,

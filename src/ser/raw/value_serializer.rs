@@ -148,7 +148,7 @@ impl<'a> ValueSerializer<'a> {
     }
 }
 
-impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
+impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
     type Ok = ();
     type Error = Error;
 
@@ -450,7 +450,7 @@ impl<'a, 'b> serde::Serializer for &'b mut ValueSerializer<'a> {
     }
 }
 
-impl<'a, 'b> SerializeStruct for &'b mut ValueSerializer<'a> {
+impl SerializeStruct for &mut ValueSerializer<'_> {
     type Ok = ();
     type Error = Error;
 
@@ -597,7 +597,7 @@ impl<'a> CodeWithScopeSerializer<'a> {
     }
 }
 
-impl<'a> SerializeMap for CodeWithScopeSerializer<'a> {
+impl SerializeMap for CodeWithScopeSerializer<'_> {
     type Ok = ();
     type Error = Error;
 

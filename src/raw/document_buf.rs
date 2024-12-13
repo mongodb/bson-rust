@@ -268,7 +268,7 @@ impl std::fmt::Debug for RawDocumentBuf {
     }
 }
 
-impl<'a> From<RawDocumentBuf> for Cow<'a, RawDocument> {
+impl From<RawDocumentBuf> for Cow<'_, RawDocument> {
     fn from(rd: RawDocumentBuf) -> Self {
         Cow::Owned(rd)
     }

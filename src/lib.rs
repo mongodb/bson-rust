@@ -277,7 +277,7 @@
 //!
 //! ## Minimum supported Rust version (MSRV)
 //!
-//! The MSRV for this crate is currently 1.64.0. This will be rarely be increased, and if it ever
+//! The MSRV for this crate is currently 1.71.1. This will be rarely be increased, and if it ever
 //! is, it will only happen in a minor or major version release.
 
 #![allow(clippy::cognitive_complexity, clippy::derive_partial_eq_without_eq)]
@@ -327,7 +327,7 @@ pub use self::{
 };
 
 #[allow(deprecated)]
-pub use self::de::{from_reader_utf8_lossy, from_slice_utf8_lossy,};
+pub use self::de::{from_reader_utf8_lossy, from_slice_utf8_lossy};
 
 #[macro_use]
 mod macros;

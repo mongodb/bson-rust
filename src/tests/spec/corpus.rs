@@ -71,7 +71,7 @@ struct ParseError {
 
 struct FieldVisitor<'a, T>(&'a str, PhantomData<T>);
 
-impl<'de, 'a, T> serde::de::Visitor<'de> for FieldVisitor<'a, T>
+impl<'de, T> serde::de::Visitor<'de> for FieldVisitor<'_, T>
 where
     T: Deserialize<'de>,
 {

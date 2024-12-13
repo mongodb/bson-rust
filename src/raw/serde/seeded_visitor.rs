@@ -82,7 +82,7 @@ pub(crate) struct SeededVisitor<'a, 'de> {
     buffer: &'a mut CowByteBuffer<'de>,
 }
 
-impl<'a, 'de> DeserializeSeed<'de> for SeededVisitor<'a, 'de> {
+impl<'de> DeserializeSeed<'de> for SeededVisitor<'_, 'de> {
     type Value = ElementType;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -93,7 +93,7 @@ impl<'a, 'de> DeserializeSeed<'de> for SeededVisitor<'a, 'de> {
     }
 }
 
-impl<'a, 'de> DeserializeSeed<'de> for &mut SeededVisitor<'a, 'de> {
+impl<'de> DeserializeSeed<'de> for &mut SeededVisitor<'_, 'de> {
     type Value = ElementType;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -233,7 +233,7 @@ impl<'a, 'de> SeededVisitor<'a, 'de> {
     }
 }
 
-impl<'a, 'de> Visitor<'de> for SeededVisitor<'a, 'de> {
+impl<'de> Visitor<'de> for SeededVisitor<'_, 'de> {
     type Value = ElementType;
 
     fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
