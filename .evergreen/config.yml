@@ -159,7 +159,7 @@ functions:
         script: |
           # Archive crash artifacts if they exist and contain crashes
           if [ -d "src/fuzz/artifacts" ] && [ "$(ls -A src/fuzz/artifacts)" ]; then
-            echo "Crashes found in artifacts directory. Creating archive..."
+            echo "Creating artifacts archive..."
             tar czf "${PROJECT_DIRECTORY}/crash-artifacts.tar.gz" src/fuzz/artifacts/
           else
             echo "No crashes found in artifacts directory. Skipping archive creation."
