@@ -15,9 +15,7 @@ fuzz_target!(|input: &[u8]| {
                 let reserialized_doc = Document::try_from(reserialized).unwrap();
                 // Ensure that the reserialized document is the same as the original document, the
                 // bytes can differ while still resulting in the same Document.
-                if doc != reserialized_doc {
-                    panic!("reserialization failed");
-                }
+                assert_eq!(doc, reserialized_doc, "reserialization failed");
             }
         }
     }
