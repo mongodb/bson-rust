@@ -13,8 +13,6 @@ fn convert_bson_ref(bson_ref: RawBsonRef) -> Option<RawBson> {
         RawBsonRef::Double(d) => {
             if d.is_nan() {
                 Some(RawBsonRef::Double(f64::NAN).to_raw_bson())
-            } else if d.is_infinite() {
-                Some(RawBsonRef::Double(d).to_raw_bson())
             } else {
                 Some(RawBsonRef::Double(d).to_raw_bson())
             }
@@ -62,25 +60,23 @@ fn convert_bson_ref(bson_ref: RawBsonRef) -> Option<RawBson> {
             }
         }
         RawBsonRef::Binary(b) => {
-            if b.bytes.len() <= i32::MAX as usize &&
-               match b.subtype {
-                   BinarySubtype::Generic |
-                   BinarySubtype::Function |
-                   BinarySubtype::BinaryOld |
-                   BinarySubtype::UuidOld |
-                   BinarySubtype::Uuid |
-                   BinarySubtype::Md5 |
-                   BinarySubtype::UserDefined(_) => true,
-                   _ => false
-               } {
+            if b.bytes.len() <= i32::MAX as usize
+                && match b.subtype {
+                    BinarySubtype::Generic
+                    | BinarySubtype::Function
+                    | BinarySubtype::BinaryOld
+                    | BinarySubtype::UuidOld
+                    | BinarySubtype::Uuid
+                    | BinarySubtype::Md5
+                    | BinarySubtype::UserDefined(_) => true,
+                    _ => false,
+                }
+            {
                 Some(RawBsonRef::Binary(b).to_raw_bson())
             } else {
                 None
             }
         }
-        RawBsonRef::ObjectId(id) => Some(RawBsonRef::ObjectId(id).to_raw_bson()),
-        RawBsonRef::Boolean(b) => Some(RawBsonRef::Boolean(b).to_raw_bson()),
-        RawBsonRef::Null => Some(RawBsonRef::Null.to_raw_bson()),
         RawBsonRef::RegularExpression(regex) => {
             let valid_options = "ilmsux";
             let mut options_sorted = regex.options.chars().collect::<Vec<_>>();
@@ -88,9 +84,10 @@ fn convert_bson_ref(bson_ref: RawBsonRef) -> Option<RawBson> {
             options_sorted.dedup();
             let sorted_str: String = options_sorted.into_iter().collect();
 
-            if sorted_str.chars().all(|c| valid_options.contains(c)) &&
-               !regex.pattern.contains('\0') &&
-               regex.pattern.len() <= (i32::MAX as usize) {
+            if sorted_str.chars().all(|c| valid_options.contains(c))
+                && !regex.pattern.contains('\0')
+                && regex.pattern.len() <= (i32::MAX as usize)
+            {
                 Some(RawBsonRef::RegularExpression(regex).to_raw_bson())
             } else {
                 None
@@ -104,9 +101,10 @@ fn convert_bson_ref(bson_ref: RawBsonRef) -> Option<RawBson> {
             }
         }
         RawBsonRef::JavaScriptCodeWithScope(code_w_scope) => {
-            if !code_w_scope.code.is_empty() &&
-               !code_w_scope.code.contains('\0') &&
-               code_w_scope.code.len() <= (i32::MAX as usize) {
+            if !code_w_scope.code.is_empty()
+                && !code_w_scope.code.contains('\0')
+                && code_w_scope.code.len() <= (i32::MAX as usize)
+            {
                 Some(RawBsonRef::JavaScriptCodeWithScope(code_w_scope).to_raw_bson())
             } else {
                 None
@@ -123,10 +121,6 @@ fn convert_bson_ref(bson_ref: RawBsonRef) -> Option<RawBson> {
                 None
             }
         }
-        RawBsonRef::Int32(i) => Some(RawBsonRef::Int32(i).to_raw_bson()),
-        RawBsonRef::Int64(i) => Some(RawBsonRef::Int64(i).to_raw_bson()),
-        RawBsonRef::Timestamp(ts) => Some(RawBsonRef::Timestamp(ts).to_raw_bson()),
-        RawBsonRef::DateTime(dt) => Some(RawBsonRef::DateTime(dt).to_raw_bson()),
         RawBsonRef::Decimal128(d) => {
             let d_str = d.to_string();
             if d_str.contains("NaN") {
@@ -145,9 +139,7 @@ fn convert_bson_ref(bson_ref: RawBsonRef) -> Option<RawBson> {
                 Some(RawBsonRef::Decimal128(d).to_raw_bson())
             }
         }
-        RawBsonRef::MinKey => Some(RawBsonRef::MinKey.to_raw_bson()),
-        RawBsonRef::MaxKey => Some(RawBsonRef::MaxKey.to_raw_bson()),
-        RawBsonRef::Undefined => Some(RawBsonRef::Undefined.to_raw_bson()),
+        other => Some(other.to_raw_bson()),
     }
 }
 
@@ -165,25 +157,42 @@ fuzz_target!(|input: Input| {
                     match value {
                         RawBsonRef::Double(d) if d.is_nan() => {
                             if let Some(converted_ref) = converted.as_raw_bson_ref().as_f64() {
-                                assert!(converted_ref.is_nan(),
-                                       "NaN comparison failed for key: {}", key);
+                                assert!(
+                                    converted_ref.is_nan(),
+                                    "NaN comparison failed for key: {}",
+                                    key
+                                );
                             }
                         }
                         RawBsonRef::Double(d) if d.is_infinite() => {
                             if let Some(converted_ref) = converted.as_raw_bson_ref().as_f64() {
-                                assert_eq!(d.is_sign_positive(), converted_ref.is_sign_positive(),
-                                         "Infinity sign mismatch for key: {}", key);
-                                assert!(converted_ref.is_infinite(),
-                                       "Infinity comparison failed for key: {}", key);
+                                assert_eq!(
+                                    d.is_sign_positive(),
+                                    converted_ref.is_sign_positive(),
+                                    "Infinity sign mismatch for key: {}",
+                                    key
+                                );
+                                assert!(
+                                    converted_ref.is_infinite(),
+                                    "Infinity comparison failed for key: {}",
+                                    key
+                                );
                             }
                         }
                         RawBsonRef::Decimal128(d) if d.to_string().contains("NaN") => {
                             match converted.as_raw_bson_ref() {
                                 RawBsonRef::Decimal128(cd) => {
-                                    assert!(cd.to_string().contains("NaN"),
-                                           "Decimal128 NaN comparison failed for key: {}", key);
+                                    assert!(
+                                        cd.to_string().contains("NaN"),
+                                        "Decimal128 NaN comparison failed for key: {}",
+                                        key
+                                    );
                                 }
-                                _ => panic!("Type mismatch: expected Decimal128, got different type for key: {}", key),
+                                _ => panic!(
+                                    "Type mismatch: expected Decimal128, got different type for \
+                                     key: {}",
+                                    key
+                                ),
                             }
                         }
                         RawBsonRef::Decimal128(d) if d.to_string().contains("Infinity") => {
@@ -191,15 +200,25 @@ fuzz_target!(|input: Input| {
                                 RawBsonRef::Decimal128(cd) => {
                                     let d_str = d.to_string();
                                     let cd_str = cd.to_string();
-                                    assert_eq!(d_str, cd_str,
-                                             "Decimal128 Infinity comparison failed for key: {}", key);
+                                    assert_eq!(
+                                        d_str, cd_str,
+                                        "Decimal128 Infinity comparison failed for key: {}",
+                                        key
+                                    );
                                 }
-                                _ => panic!("Type mismatch: expected Decimal128, got different type for key: {}", key),
+                                _ => panic!(
+                                    "Type mismatch: expected Decimal128, got different type for \
+                                     key: {}",
+                                    key
+                                ),
                             }
                         }
                         _ => {
-                            assert_eq!(converted, original_bytes,
-                                     "Serialization mismatch for key: {}", key);
+                            assert_eq!(
+                                converted, original_bytes,
+                                "Serialization mismatch for key: {}",
+                                key
+                            );
                         }
                     }
                 }

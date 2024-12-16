@@ -1,8 +1,10 @@
 use bson::{doc, Bson, Decimal128};
-use std::fs;
-use std::path::Path;
-use std::io::{Error, ErrorKind};
-use std::str::FromStr;
+use std::{
+    fs,
+    io::{Error, ErrorKind},
+    path::Path,
+    str::FromStr,
+};
 
 fn main() -> std::io::Result<()> {
     let corpus_dir = Path::new("fuzz/corpus");
@@ -20,18 +22,21 @@ fn generate_length_edge_cases(dir: &Path) -> std::io::Result<()> {
     let target_dir = dir.join("malformed_length");
     fs::create_dir_all(&target_dir)?;
 
+    // Invalid length
+    fs::write(target_dir.join("invalid_len"), vec![4, 5])?;
+
     // Minimal valid document
     let min_doc = doc! {};
     fs::write(
         target_dir.join("min_doc"),
-        bson::to_vec(&min_doc).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+        bson::to_vec(&min_doc).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     // Document with length near i32::MAX
     let large_doc = doc! { "a": "b".repeat(i32::MAX as usize / 2) };
     fs::write(
         target_dir.join("large_doc"),
-        bson::to_vec(&large_doc).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+        bson::to_vec(&large_doc).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     Ok(())
@@ -68,7 +73,7 @@ fn generate_type_marker_cases(dir: &Path) -> std::io::Result<()> {
     };
     fs::write(
         target_dir.join("all_types"),
-        bson::to_vec(&all_types).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+        bson::to_vec(&all_types).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     Ok(())
@@ -95,7 +100,7 @@ fn generate_string_edge_cases(dir: &Path) -> std::io::Result<()> {
     };
     fs::write(
         target_dir.join("utf8_cases"),
-        bson::to_vec(&utf8_cases).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+        bson::to_vec(&utf8_cases).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     Ok(())
@@ -111,11 +116,15 @@ fn generate_serialization_cases(dir: &Path) -> std::io::Result<()> {
     for i in 0..100 {
         let next_doc = doc! {};
         current.insert(i.to_string(), next_doc);
-        current = current.get_mut(&i.to_string()).unwrap().as_document_mut().unwrap();
+        current = current
+            .get_mut(&i.to_string())
+            .unwrap()
+            .as_document_mut()
+            .unwrap();
     }
     fs::write(
         target_dir.join("nested_doc"),
-        bson::to_vec(&nested_doc).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+        bson::to_vec(&nested_doc).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     // Document with large binary data
@@ -127,7 +136,7 @@ fn generate_serialization_cases(dir: &Path) -> std::io::Result<()> {
     };
     fs::write(
         target_dir.join("large_binary"),
-        bson::to_vec(&large_binary).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?
+        bson::to_vec(&large_binary).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     Ok(())

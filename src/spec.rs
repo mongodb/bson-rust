@@ -21,11 +21,14 @@
 
 //! Constants derived from the [BSON Specification Version 1.1](http://bsonspec.org/spec.html).
 
-use std::convert::From;
+use std::{convert::From, fmt};
 
-mod fmt;
-#[allow(unused_imports)]
-pub use self::fmt::*;
+impl fmt::LowerHex for BinarySubtype {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value: u8 = (*self).into();
+        fmt::LowerHex::fmt(&value, f)
+    }
+}
 
 const ELEMENT_TYPE_FLOATING_POINT: u8 = 0x01;
 const ELEMENT_TYPE_UTF8_STRING: u8 = 0x02;
