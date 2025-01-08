@@ -40,10 +40,6 @@ name = "raw_deserialize_utf8_lossy"
 path = "fuzz_targets/raw_deserialize_utf8_lossy.rs"
 
 [[bin]]
-name = "malformed_length"
-path = "fuzz_targets/malformed_length.rs"
-
-[[bin]]
 name = "type_markers"
 path = "fuzz_targets/type_markers.rs"
 
