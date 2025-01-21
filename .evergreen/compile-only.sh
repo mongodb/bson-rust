@@ -6,6 +6,10 @@ set -o errexit
 rustup update $RUST_VERSION
 
 if [ ! -z "$TARGET" ]; then
+    if [[ "$TARGET" = "wasm32-wasi" && "$RUST_VERSION" = "nightly" ]]; then
+        # renamed in newer versions of rustc
+        TARGET="wasm32-wasip1"
+    fi
     rustup target add $TARGET --toolchain $RUST_VERSION
     TARGET="--target=$TARGET"
 fi
