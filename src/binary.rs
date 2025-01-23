@@ -105,7 +105,7 @@ pub enum Error {
     /// While trying to decode from base64, an error was returned.
     DecodingError { message: String },
 
-    /// Invalid bytes were provided to construct a [`Binary`] of subtype [`BinarySubtype::Vector`].
+    /// A [`Vector`]-related error occurred.
     Vector { message: String },
 }
 
