@@ -16,23 +16,26 @@ const PACKED_BIT: u8 = 0x10;
 /// [`BinarySubtype::Vector`].
 ///
 /// ```rust
+/// # use bson::binary::{Binary, Vector};
 /// let vector = Vector::Int8(vec![0, 1, 2]);
 /// let binary = Binary::from(vector);
 /// ```
 ///
-/// The `Serialize` and `Deserialize` implementations for `Vector` treat it as a `Binary`.
+/// `Vector` serializes to and deserializes from a `Binary`.
 ///
 /// ```rust
+/// # use serde::{Serialize, Deserialize};
+/// # use bson::{binary::{Result, Vector}, spec::ElementType};
 /// #[derive(Serialize, Deserialize)]
 /// struct Data {
 ///     vector: Vector,
 /// }
 ///
 /// let data = Data { vector: Vector::Int8(vec![0, 1, 2]) };
-/// let document = bson::to_document(&data);
+/// let document = bson::to_document(&data).unwrap();
 /// assert_eq!(document.get("vector").unwrap().element_type(), ElementType::Binary);
 ///
-/// let data = bson::from_document(document);
+/// let data: Data = bson::from_document(document).unwrap();
 /// assert_eq!(data.vector, Vector::Int8(vec![0, 1, 2]));
 /// ```
 ///
@@ -63,13 +66,17 @@ impl PackedBitVector {
     /// single-bit elements in little-endian format. For example, the following vector:
     ///
     /// ```rust
+    /// # use bson::binary::{Result, PackedBitVector};
+    /// # fn main() -> Result<()> {
     /// let packed_bits = vec![238, 224];
-    /// let vector = PackedBitVector::new(packed_bits, 0);
+    /// let vector = PackedBitVector::new(packed_bits, 0)?;
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// represents a 16-bit vector containing the following values:
     ///
-    /// ```
+    /// ```text
     /// [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0]
     /// ```
     ///
@@ -77,7 +84,7 @@ impl PackedBitVector {
     /// final byte. For example, the vector in the previous example with a padding of 4 would
     /// represent a 12-bit vector containing the following values:
     ///
-    /// ```
+    /// ```text
     /// [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0]
     /// ```
     ///
