@@ -1,4 +1,5 @@
 mod corpus;
+mod vector;
 
 use std::{
     any::type_name,
@@ -7,7 +8,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::RawDocumentBuf;
+use crate::Bson;
 use serde::de::DeserializeOwned;
 
 pub(crate) fn run_spec_test<T, F>(spec: &[&str], run_test_file: F)
@@ -31,13 +32,16 @@ where
         let file = File::open(&path)
             .unwrap_or_else(|e| panic!("Failed to open file at {:?}: {}", path, e));
 
-        let test_bson: RawDocumentBuf = serde_json::from_reader(file).unwrap_or_else(|e| {
-            panic!(
-                "Failed to deserialize test JSON to BSON in {:?}: {}",
-                path, e
-            )
-        });
-        let test: T = crate::from_slice(test_bson.as_bytes()).unwrap_or_else(|e| {
+        let mut json_deserializer = serde_json::Deserializer::from_reader(file);
+        let test_bson: Bson = serde_path_to_error::deserialize(&mut json_deserializer)
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to deserialize test JSON to BSON in {:?}: {}",
+                    path, e
+                )
+            });
+        let bson_deserializer = crate::Deserializer::new(test_bson);
+        let test: T = serde_path_to_error::deserialize(bson_deserializer).unwrap_or_else(|e| {
             panic!(
                 "Failed to deserialize test BSON to {} in {:?}: {}",
                 type_name::<T>(),
