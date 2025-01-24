@@ -1,9 +1,15 @@
+#! Module containing functionality related to BSON binary values.
+
+mod vector;
+
 use crate::{spec::BinarySubtype, Document, RawBinaryRef};
 use std::{
     convert::TryFrom,
     error,
     fmt::{self, Display},
 };
+
+pub use vector::{PackedBitVector, Vector};
 
 /// Represents a BSON binary value.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -98,6 +104,9 @@ impl Binary {
 pub enum Error {
     /// While trying to decode from base64, an error was returned.
     DecodingError { message: String },
+
+    /// A [`Vector`]-related error occurred.
+    Vector { message: String },
 }
 
 impl error::Error for Error {}
@@ -105,7 +114,8 @@ impl error::Error for Error {}
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::DecodingError { message: m } => fmt.write_str(m),
+            Error::DecodingError { message } => fmt.write_str(message),
+            Error::Vector { message } => fmt.write_str(message),
         }
     }
 }
