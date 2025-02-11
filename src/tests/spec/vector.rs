@@ -31,7 +31,7 @@ struct TestFile {
 struct Test {
     description: String,
     valid: bool,
-    vector: Vec<Number>,
+    vector: Option<Vec<Number>>,
     #[serde(
         rename = "dtype_hex",
         deserialize_with = "deserialize_u8_from_hex_string"
@@ -131,51 +131,69 @@ fn vector_from_numbers(
     }
 }
 
+// Only return the binary if it represents a valid vector; otherwise, return an error.
+fn binary_from_bytes(bson: &str, test_key: &str, description: &str) -> Result<Binary, String> {
+    let bytes = hex::decode(bson).expect(description);
+    let mut test_document = Document::from_reader(bytes.as_slice()).expect(description);
+    let bson = test_document.remove(test_key).expect(description);
+    let binary = match bson {
+        Bson::Binary(binary) => binary,
+        other => panic!("{}: expected binary, got {}", description, other),
+    };
+    // TryFrom<Binary> for Vector
+    if let Err(error) = Vector::try_from(&binary) {
+        Err(error.to_string())
+    } else {
+        Ok(binary)
+    }
+}
+
 fn run_test_file(test_file: TestFile) {
     for test in test_file.tests {
         let description = format!("{} ({})", test.description, test_file.description);
 
-        let test_vector = match (
-            vector_from_numbers(test.vector, test.d_type, test.padding),
-            test.valid,
-        ) {
-            (Ok(vector), true) => vector,
-            (Err(_), false) => return,
-            (Ok(vector), false) => panic!(
-                "{}: valid was false but successfully constructed vector {:?}",
-                description, vector
-            ),
-            (Err(error), true) => panic!(
-                "{}: valid was true but vector construction failed with error {}",
-                description, error
-            ),
+        let test_vector = match test.vector {
+            Some(vector) => match vector_from_numbers(vector, test.d_type, test.padding) {
+                Ok(vector) => {
+                    assert!(test.valid, "{}", description);
+                    Some(vector)
+                }
+                Err(_) => {
+                    assert!(!test.valid, "{}", description);
+                    None
+                }
+            },
+            None => None,
         };
 
-        let Some(canonical_bson) = test.canonical_bson else {
+        let test_binary = match test.canonical_bson {
+            Some(bson) => match binary_from_bytes(&bson, &test_file.test_key, &description) {
+                Ok(vector) => {
+                    assert!(test.valid, "{}", description);
+                    Some(vector)
+                }
+                Err(error) => {
+                    assert!(!test.valid, "{}: {}", description, error);
+                    None
+                }
+            },
+            None => None,
+        };
+
+        let (Some(test_vector), Some(test_binary)) = (test_vector, test_binary) else {
             return;
         };
 
-        let bytes = hex::decode(canonical_bson).expect(&description);
-        let mut test_document = Document::from_reader(bytes.as_slice()).expect(&description);
-        // Rename the field to match the name used in the struct below.
-        let vector = test_document
-            .remove(&test_file.test_key)
-            .expect(&description);
-        test_document.insert("vector", vector);
-        let bson = test_document.get("vector").expect(&description);
-        let test_binary = match bson {
-            Bson::Binary(binary) => binary,
-            other => panic!("{}: expected binary, got {}", description, other),
-        };
+        let test_document = doc! { "vector": &test_binary };
 
         // TryFrom<Binary> for Vector
-        let parsed_vector = Vector::try_from(test_binary).expect(&description);
+        let parsed_vector = Vector::try_from(&test_binary).expect(&description);
         assert_eq!(parsed_vector, test_vector);
 
         // From<Vector> for Binary
         let binary = Binary::from(&test_vector);
         assert_eq!(binary.subtype, BinarySubtype::Vector);
-        assert_eq!(&binary, test_binary);
+        assert_eq!(binary, test_binary);
 
         // From<Vector> for Bson
         let document = doc! { "vector": &test_vector };
