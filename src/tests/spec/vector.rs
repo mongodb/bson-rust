@@ -140,7 +140,6 @@ fn binary_from_bytes(bson: &str, test_key: &str, description: &str) -> Result<Bi
         Bson::Binary(binary) => binary,
         other => panic!("{}: expected binary, got {}", description, other),
     };
-    // TryFrom<Binary> for Vector
     if let Err(error) = Vector::try_from(&binary) {
         Err(error.to_string())
     } else {
