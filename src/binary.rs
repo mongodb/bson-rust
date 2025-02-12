@@ -2,7 +2,7 @@
 
 mod vector;
 
-use crate::{spec::BinarySubtype, Document, RawBinaryRef};
+use crate::{base64, spec::BinarySubtype, Document, RawBinaryRef};
 use std::{
     convert::TryFrom,
     error,

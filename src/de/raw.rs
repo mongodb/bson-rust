@@ -7,6 +7,7 @@ use serde::{
 };
 
 use crate::{
+    base64,
     oid::ObjectId,
     raw::{
         RawBinaryRef,

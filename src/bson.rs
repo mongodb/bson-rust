@@ -32,6 +32,7 @@ use serde_json::{json, Value};
 
 pub use crate::document::Document;
 use crate::{
+    base64,
     oid::{self, ObjectId},
     spec::{BinarySubtype, ElementType},
     Binary,

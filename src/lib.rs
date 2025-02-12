@@ -347,3 +347,5 @@ pub mod uuid;
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) mod base64;

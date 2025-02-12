@@ -12,6 +12,7 @@ use serde::ser::{
 };
 
 use crate::{
+    base64,
     bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     extjson,

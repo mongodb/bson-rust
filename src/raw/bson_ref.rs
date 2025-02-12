@@ -12,6 +12,7 @@ use super::{
     Result,
 };
 use crate::{
+    base64,
     extjson,
     oid::{self, ObjectId},
     raw::{RawJavaScriptCodeWithScope, RAW_BSON_NEWTYPE},
