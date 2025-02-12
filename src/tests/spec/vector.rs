@@ -157,8 +157,8 @@ fn run_test_file(test_file: TestFile) {
                     assert!(test.valid, "{}", description);
                     Some(vector)
                 }
-                Err(_) => {
-                    assert!(!test.valid, "{}", description);
+                Err(error) => {
+                    assert!(!test.valid, "{}: {}", description, error);
                     None
                 }
             },
