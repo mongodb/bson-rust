@@ -1,4 +1,4 @@
-use crate::{spec::BinarySubtype, tests::LOCK, Binary};
+use crate::{base64, spec::BinarySubtype, tests::LOCK, Binary};
 
 #[test]
 fn binary_from_base64() {

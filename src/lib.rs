@@ -331,6 +331,7 @@ pub use self::de::{from_reader_utf8_lossy, from_slice_utf8_lossy};
 
 #[macro_use]
 mod macros;
+mod base64;
 pub mod binary;
 mod bson;
 pub mod datetime;

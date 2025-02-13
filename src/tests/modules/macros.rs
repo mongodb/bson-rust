@@ -1,4 +1,5 @@
 use crate::{
+    base64,
     doc,
     oid::ObjectId,
     spec::BinarySubtype,

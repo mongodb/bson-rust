@@ -7,7 +7,7 @@ use serde::{
 };
 use std::borrow::Cow;
 
-use crate::{extjson, oid, raw::serde::CowStr, spec::BinarySubtype, Bson};
+use crate::{base64, extjson, oid, raw::serde::CowStr, spec::BinarySubtype, Bson};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
