@@ -1,6 +1,8 @@
---- Cargo.toml	2024-12-12 10:00:04
-+++ Cargo.toml.msrv	2024-12-12 10:20:57
-@@ -57,6 +57,7 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 6f163c0..2ea30d1 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -57,6 +57,7 @@ name = "bson"
  
  [dependencies]
  ahash = "0.8.0"
@@ -8,3 +10,11 @@
  chrono = { version = "0.4.15", features = ["std"], default-features = false, optional = true }
  rand = "0.8"
  serde = { version = "1.0", features = ["derive"] }
+@@ -77,6 +78,7 @@ serde_path_to_error = { version = "0.1.16", optional = true }
+ [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+ js-sys = "0.3"
+ uuid = { version = "1.1.2", features = ["serde", "v4", "js"] }
++getrandom = "=0.2"
+ 
+ [dev-dependencies]
+ assert_matches = "1.2"
