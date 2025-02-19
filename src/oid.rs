@@ -2,7 +2,9 @@
 //! For more information, see the documentation for the [`ObjectId`] type.
 
 use std::{
-    error, fmt, result,
+    error,
+    fmt,
+    result,
     str::FromStr,
     sync::atomic::{AtomicUsize, Ordering},
 };
