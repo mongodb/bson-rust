@@ -1,7 +1,7 @@
 use serde::{ser::Impossible, Serialize};
 
 use crate::{
-    ser::{write_cstring, Error, Result},
+    ser::{Error, Result},
     to_bson, Bson,
 };
 
@@ -22,29 +22,15 @@ impl<'a> DocumentSerializer<'a> {
         })
     }
 
-    /// Serialize a document key using the provided closure.
-    fn serialize_doc_key_custom<F: FnOnce(&mut Serializer) -> Result<()>>(
-        &mut self,
-        f: F,
-    ) -> Result<()> {
-        // push a dummy element type for now, will update this once we serialize the value
-        self.root_serializer.reserve_element_type();
-        f(self.root_serializer)?;
-        self.num_keys_serialized += 1;
-        Ok(())
-    }
-
     /// Serialize a document key to string using [`KeySerializer`].
     fn serialize_doc_key<T>(&mut self, key: &T) -> Result<()>
     where
         T: serde::Serialize + ?Sized,
     {
-        self.serialize_doc_key_custom(|rs| {
-            key.serialize(KeySerializer {
-                root_serializer: rs,
-            })?;
-            Ok(())
+        key.serialize(KeySerializer {
+            root_serializer: &mut self.root_serializer,
         })?;
+        self.num_keys_serialized += 1;
         Ok(())
     }
 
@@ -63,14 +49,9 @@ impl serde::ser::SerializeSeq for DocumentSerializer<'_> {
     where
         T: serde::Serialize + ?Sized,
     {
-        let index = self.num_keys_serialized;
-        self.root_serializer.set_next_key(Key::Index(index)); // XXX must increment num_keys_serialized.
-        self.serialize_doc_key_custom(|rs| {
-            use std::io::Write;
-            write!(&mut rs.bytes, "{}", index)?;
-            rs.bytes.push(0);
-            Ok(())
-        })?;
+        self.root_serializer
+            .set_next_key(Key::Index(self.num_keys_serialized));
+        self.num_keys_serialized += 1;
         value.serialize(&mut *self.root_serializer)
     }
 
@@ -117,7 +98,6 @@ impl serde::ser::SerializeStruct for DocumentSerializer<'_> {
         T: serde::Serialize + ?Sized,
     {
         self.root_serializer.set_next_key(Key::Static(key));
-        self.serialize_doc_key(key)?; // XXX remove, this does not need to go through KeySerializer
         value.serialize(&mut *self.root_serializer)
     }
 
@@ -139,7 +119,7 @@ impl serde::ser::SerializeTuple for DocumentSerializer<'_> {
     {
         self.root_serializer
             .set_next_key(Key::Index(self.num_keys_serialized));
-        self.serialize_doc_key(&self.num_keys_serialized.to_string())?; // XXX increment num_keys_serialized instead
+        self.num_keys_serialized += 1;
         value.serialize(&mut *self.root_serializer)
     }
 
@@ -257,7 +237,7 @@ impl serde::Serializer for KeySerializer<'_> {
     #[inline]
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
         self.root_serializer.set_next_key(Key::Owned(v.to_owned()));
-        write_cstring(&mut self.root_serializer.bytes, v)
+        Ok(())
     }
 
     #[inline]

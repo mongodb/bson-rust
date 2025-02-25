@@ -204,7 +204,6 @@ where
     let mut len_serializer = raw::len_serializer::Serializer::new();
     value.serialize(&mut len_serializer)?;
     let lens = len_serializer.into_lens();
-    println!("lens={:?}", &lens);
     let mut serializer = raw::Serializer::new(lens.into_iter());
     #[cfg(feature = "serde_path_to_error")]
     {

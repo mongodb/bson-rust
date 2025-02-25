@@ -29,11 +29,6 @@ pub(crate) struct Serializer {
 
     next_key: Option<Key>,
 
-    /// The index into `bytes` where the current element type will need to be stored.
-    /// This needs to be set retroactively because in BSON, the element type comes before the key,
-    /// but in serde, the serializer learns of the type after serializing the key.
-    type_index: usize,
-
     /// Hint provided by the type being serialized.
     hint: SerializerHint,
 
@@ -56,6 +51,7 @@ enum SerializerHint {
     RawArray,
 }
 
+#[derive(Debug, Clone)]
 enum Key {
     Static(&'static str),
     Owned(String),
@@ -74,7 +70,6 @@ impl Serializer {
             lens,
             bytes: Vec::new(),
             next_key: None,
-            type_index: 0,
             hint: SerializerHint::None,
             human_readable: false,
         }
@@ -98,11 +93,21 @@ impl Serializer {
     #[inline]
     fn write_key(&mut self, t: ElementType) -> Result<()> {
         if let Some(key) = self.next_key.take() {
+            println!("write_key({:?}) key={:?}", t, key);
             self.bytes.push(t as u8);
-            self.write_key_string(&key)
+            match key {
+                Key::Static(k) => write_cstring(&mut self.bytes, k),
+                Key::Owned(k) => write_cstring(&mut self.bytes, &k),
+                Key::Index(i) => {
+                    use std::io::Write;
+                    write!(&mut self.bytes, "{}", i)?;
+                    self.bytes.push(0);
+                    Ok(())
+                }
+            }
         } else {
             if self.bytes.is_empty() && t == ElementType::EmbeddedDocument {
-                // don't need to set the element type for the top level document
+                // don't need to write element type and key for top-level document.
                 Ok(())
             } else {
                 Err(Error::custom(format!(
@@ -111,46 +116,6 @@ impl Serializer {
                 )))
             }
         }
-    }
-
-    #[inline]
-    fn write_key_string(&mut self, key: &Key) -> Result<()> {
-        match key {
-            Key::Static(k) => write_cstring(&mut self.bytes, k),
-            Key::Owned(k) => write_cstring(&mut self.bytes, &k),
-            Key::Index(i) => {
-                use std::io::Write;
-                write!(&mut self.bytes, "{}", i)?;
-                self.bytes.push(0);
-                Ok(())
-            }
-        }
-    }
-
-    /// Reserve a spot for the element type to be set retroactively via `update_element_type`.
-    #[inline]
-    fn reserve_element_type(&mut self) {
-        self.type_index = self.bytes.len(); // record index
-        self.bytes.push(0); // push temporary placeholder
-    }
-
-    /// Retroactively set the element type of the most recently serialized element.
-    #[inline]
-    fn update_element_type(&mut self, t: ElementType) -> Result<()> {
-        if self.type_index == 0 {
-            if matches!(t, ElementType::EmbeddedDocument) {
-                // don't need to set the element type for the top level document
-                return Ok(());
-            } else {
-                return Err(Error::custom(format!(
-                    "attempted to encode a non-document type at the top level: {:?}",
-                    t
-                )));
-            }
-        }
-
-        self.bytes[self.type_index] = t as u8;
-        Ok(())
     }
 }
 
@@ -172,7 +137,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Boolean)?;
+        self.write_key(ElementType::Boolean)?;
         self.bytes.push(v as u8);
         Ok(())
     }
@@ -189,14 +154,14 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_i32(self, v: i32) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Int32)?;
+        self.write_key(ElementType::Int32)?;
         write_i32(&mut self.bytes, v)?;
         Ok(())
     }
 
     #[inline]
     fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Int64)?;
+        self.write_key(ElementType::Int64)?;
         write_i64(&mut self.bytes, v)?;
         Ok(())
     }
@@ -233,7 +198,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_f64(self, v: f64) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Double)?;
+        self.write_key(ElementType::Double)?;
         write_f64(&mut self.bytes, v)
     }
 
@@ -246,7 +211,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::String)?;
+        self.write_key(ElementType::String)?;
         write_string(&mut self.bytes, v);
         Ok(())
     }
@@ -255,15 +220,15 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         match self.hint.take() {
             SerializerHint::RawDocument => {
-                self.update_element_type(ElementType::EmbeddedDocument)?;
+                self.write_key(ElementType::EmbeddedDocument)?;
                 self.bytes.write_all(v)?;
             }
             SerializerHint::RawArray => {
-                self.update_element_type(ElementType::Array)?;
+                self.write_key(ElementType::Array)?;
                 self.bytes.write_all(v)?;
             }
             hint => {
-                self.update_element_type(ElementType::Binary)?;
+                self.write_key(ElementType::Binary)?;
 
                 let subtype = if matches!(hint, SerializerHint::Uuid) {
                     BinarySubtype::Uuid
@@ -279,7 +244,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_none(self) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Null)?;
+        self.write_key(ElementType::Null)?;
         Ok(())
     }
 
@@ -343,7 +308,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     where
         T: serde::Serialize + ?Sized,
     {
-        self.update_element_type(ElementType::EmbeddedDocument)?;
+        self.write_key(ElementType::EmbeddedDocument)?;
         let mut d = DocumentSerializer::start(&mut *self)?;
         d.serialize_entry(variant, value)?;
         d.end_doc()?;
@@ -352,7 +317,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        self.update_element_type(ElementType::Array)?;
+        self.write_key(ElementType::Array)?;
         DocumentSerializer::start(&mut *self)
     }
 
@@ -378,13 +343,13 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        self.update_element_type(ElementType::EmbeddedDocument)?;
+        self.write_key(ElementType::EmbeddedDocument)?;
         VariantSerializer::start(&mut *self, variant, VariantInnerType::Tuple)
     }
 
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        self.update_element_type(ElementType::EmbeddedDocument)?;
+        self.write_key(ElementType::EmbeddedDocument)?;
         DocumentSerializer::start(&mut *self)
     }
 
@@ -407,7 +372,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
             _ => None,
         };
 
-        self.update_element_type(
+        self.write_key(
             value_type
                 .map(Into::into)
                 .unwrap_or(ElementType::EmbeddedDocument),
@@ -426,7 +391,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        self.update_element_type(ElementType::EmbeddedDocument)?;
+        self.write_key(ElementType::EmbeddedDocument)?;
         VariantSerializer::start(&mut *self, variant, VariantInnerType::Struct)
     }
 }
@@ -505,8 +470,6 @@ impl<'a> VariantSerializer<'a> {
     where
         T: Serialize + ?Sized,
     {
-        self.root_serializer.reserve_element_type();
-        self.root_serializer.write_key_string(&k)?;
         self.root_serializer.set_next_key(k);
         v.serialize(&mut *self.root_serializer)?;
 
