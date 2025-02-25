@@ -27,6 +27,8 @@ pub(crate) struct Serializer {
 
     bytes: Vec<u8>,
 
+    next_key: Option<Key>,
+
     /// The index into `bytes` where the current element type will need to be stored.
     /// This needs to be set retroactively because in BSON, the element type comes before the key,
     /// but in serde, the serializer learns of the type after serializing the key.
@@ -54,6 +56,12 @@ enum SerializerHint {
     RawArray,
 }
 
+enum Key {
+    Static(&'static str),
+    Owned(String),
+    Index(usize),
+}
+
 impl SerializerHint {
     fn take(&mut self) -> SerializerHint {
         std::mem::replace(self, SerializerHint::None)
@@ -65,6 +73,7 @@ impl Serializer {
         Self {
             lens,
             bytes: Vec::new(),
+            next_key: None,
             type_index: 0,
             hint: SerializerHint::None,
             human_readable: false,
@@ -79,6 +88,43 @@ impl Serializer {
     #[inline]
     fn write_next_len(&mut self) -> Result<()> {
         write_i32(&mut self.bytes, self.lens.next().expect("pre-recorded len"))
+    }
+
+    #[inline]
+    fn set_next_key(&mut self, key: Key) {
+        self.next_key = Some(key);
+    }
+
+    #[inline]
+    fn write_key(&mut self, t: ElementType) -> Result<()> {
+        if let Some(key) = self.next_key.take() {
+            self.bytes.push(t as u8);
+            self.write_key_string(&key)
+        } else {
+            if self.bytes.is_empty() && t == ElementType::EmbeddedDocument {
+                // don't need to set the element type for the top level document
+                Ok(())
+            } else {
+                Err(Error::custom(format!(
+                    "attempted to encode a non-document type at the top level: {:?}",
+                    t
+                )))
+            }
+        }
+    }
+
+    #[inline]
+    fn write_key_string(&mut self, key: &Key) -> Result<()> {
+        match key {
+            Key::Static(k) => write_cstring(&mut self.bytes, k),
+            Key::Owned(k) => write_cstring(&mut self.bytes, &k),
+            Key::Index(i) => {
+                use std::io::Write;
+                write!(&mut self.bytes, "{}", i)?;
+                self.bytes.push(0);
+                Ok(())
+            }
+        }
     }
 
     /// Reserve a spot for the element type to be set retroactively via `update_element_type`.
@@ -455,12 +501,13 @@ impl<'a> VariantSerializer<'a> {
     }
 
     #[inline]
-    fn serialize_element<T>(&mut self, k: &str, v: &T) -> Result<()>
+    fn serialize_element<T>(&mut self, k: Key, v: &T) -> Result<()>
     where
         T: Serialize + ?Sized,
     {
         self.root_serializer.reserve_element_type();
-        write_cstring(&mut self.root_serializer.bytes, k)?;
+        self.root_serializer.write_key_string(&k)?;
+        self.root_serializer.set_next_key(k);
         v.serialize(&mut *self.root_serializer)?;
 
         self.num_elements_serialized += 1;
@@ -487,7 +534,7 @@ impl serde::ser::SerializeTupleVariant for VariantSerializer<'_> {
     where
         T: Serialize + ?Sized,
     {
-        self.serialize_element(format!("{}", self.num_elements_serialized).as_str(), value)
+        self.serialize_element(Key::Index(self.num_elements_serialized), value)
     }
 
     #[inline]
@@ -506,7 +553,7 @@ impl serde::ser::SerializeStructVariant for VariantSerializer<'_> {
     where
         T: Serialize + ?Sized,
     {
-        self.serialize_element(key, value)
+        self.serialize_element(Key::Static(key), value)
     }
 
     #[inline]

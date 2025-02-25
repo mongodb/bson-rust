@@ -5,7 +5,7 @@ use crate::{
     to_bson, Bson,
 };
 
-use super::Serializer;
+use super::{Key, Serializer};
 
 /// Serializer used to serialize document or array bodies.
 pub(crate) struct DocumentSerializer<'a> {
@@ -64,6 +64,7 @@ impl serde::ser::SerializeSeq for DocumentSerializer<'_> {
         T: serde::Serialize + ?Sized,
     {
         let index = self.num_keys_serialized;
+        self.root_serializer.set_next_key(Key::Index(index)); // XXX must increment num_keys_serialized.
         self.serialize_doc_key_custom(|rs| {
             use std::io::Write;
             write!(&mut rs.bytes, "{}", index)?;
@@ -89,7 +90,7 @@ impl serde::ser::SerializeMap for DocumentSerializer<'_> {
     where
         T: serde::Serialize + ?Sized,
     {
-        self.serialize_doc_key(key)
+        self.serialize_doc_key(key) // XXX this may result in a new copy.
     }
 
     #[inline]
@@ -115,7 +116,8 @@ impl serde::ser::SerializeStruct for DocumentSerializer<'_> {
     where
         T: serde::Serialize + ?Sized,
     {
-        self.serialize_doc_key(key)?;
+        self.root_serializer.set_next_key(Key::Static(key));
+        self.serialize_doc_key(key)?; // XXX remove, this does not need to go through KeySerializer
         value.serialize(&mut *self.root_serializer)
     }
 
@@ -135,7 +137,9 @@ impl serde::ser::SerializeTuple for DocumentSerializer<'_> {
     where
         T: serde::Serialize + ?Sized,
     {
-        self.serialize_doc_key(&self.num_keys_serialized.to_string())?;
+        self.root_serializer
+            .set_next_key(Key::Index(self.num_keys_serialized));
+        self.serialize_doc_key(&self.num_keys_serialized.to_string())?; // XXX increment num_keys_serialized instead
         value.serialize(&mut *self.root_serializer)
     }
 
@@ -252,6 +256,7 @@ impl serde::Serializer for KeySerializer<'_> {
 
     #[inline]
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
+        self.root_serializer.set_next_key(Key::Owned(v.to_owned()));
         write_cstring(&mut self.root_serializer.bytes, v)
     }
 
