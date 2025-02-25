@@ -34,18 +34,19 @@ use std::io::Write;
 
 use crate::{
     bson::{Bson, Document},
-    de::MAX_BSON_SIZE,
-    spec::BinarySubtype,
     RawDocumentBuf,
 };
 use ::serde::{ser::Error as SerdeError, Serialize};
+use bytes::BufMut;
 
+// XXX remove
 pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
     buf.extend(&(s.len() as i32 + 1).to_le_bytes());
     buf.extend(s.as_bytes());
     buf.push(0);
 }
 
+// XXX remove
 pub(crate) fn write_cstring(buf: &mut Vec<u8>, s: &str) -> Result<()> {
     if s.contains('\0') {
         return Err(Error::InvalidCString(s.into()));
@@ -55,53 +56,13 @@ pub(crate) fn write_cstring(buf: &mut Vec<u8>, s: &str) -> Result<()> {
     Ok(())
 }
 
+// XXX remove
 #[inline]
 pub(crate) fn write_i32<W: Write + ?Sized>(writer: &mut W, val: i32) -> Result<()> {
     writer
         .write_all(&val.to_le_bytes())
         .map(|_| ())
         .map_err(From::from)
-}
-
-#[inline]
-fn write_i64<W: Write + ?Sized>(writer: &mut W, val: i64) -> Result<()> {
-    writer
-        .write_all(&val.to_le_bytes())
-        .map(|_| ())
-        .map_err(From::from)
-}
-
-#[inline]
-fn write_f64<W: Write + ?Sized>(writer: &mut W, val: f64) -> Result<()> {
-    writer
-        .write_all(&val.to_le_bytes())
-        .map(|_| ())
-        .map_err(From::from)
-}
-
-#[inline]
-fn write_binary<W: Write>(mut writer: W, bytes: &[u8], subtype: BinarySubtype) -> Result<()> {
-    let len = if let BinarySubtype::BinaryOld = subtype {
-        bytes.len() + 4
-    } else {
-        bytes.len()
-    };
-
-    if len > MAX_BSON_SIZE as usize {
-        return Err(Error::custom(format!(
-            "binary length {} exceeded maximum size",
-            bytes.len()
-        )));
-    }
-
-    write_i32(&mut writer, len as i32)?;
-    writer.write_all(&[subtype.into()])?;
-
-    if let BinarySubtype::BinaryOld = subtype {
-        write_i32(&mut writer, len as i32 - 4)?;
-    };
-
-    writer.write_all(bytes).map_err(From::from)
 }
 
 /// Encode a `T` Serializable into a [`Bson`] value.
@@ -201,10 +162,28 @@ pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize,
 {
+    to_buf_mut(value, |len| Vec::with_capacity(len))
+}
+
+#[inline]
+pub fn to_buf_mut<T, F, B>(value: &T, create: F) -> Result<B>
+where
+    T: Serialize,
+    F: Fn(usize) -> B,
+    B: BufMut,
+{
     let mut len_serializer = raw::len_serializer::Serializer::new();
-    value.serialize(&mut len_serializer)?;
+    #[cfg(feature = "serde_path_to_error")]
+    {
+        serde_path_to_error::serialize(value, &mut len_serializer).map_err(Error::with_path)?;
+    }
+    #[cfg(not(feature = "serde_path_to_error"))]
+    {
+        value.serialize(&mut len_serializer)?;
+    }
     let lens = len_serializer.into_lens();
-    let mut serializer = raw::Serializer::new(lens.into_iter());
+    let buf = create(*lens.first().expect("root document must have length") as usize);
+    let mut serializer = raw::Serializer::new(buf, lens.into_iter());
     #[cfg(feature = "serde_path_to_error")]
     {
         serde_path_to_error::serialize(value, &mut serializer).map_err(Error::with_path)?;
@@ -213,7 +192,7 @@ where
     {
         value.serialize(&mut serializer)?;
     }
-    Ok(serializer.into_vec())
+    Ok(serializer.into_buf())
 }
 
 /// Serialize the given `T` as a [`RawDocumentBuf`].
