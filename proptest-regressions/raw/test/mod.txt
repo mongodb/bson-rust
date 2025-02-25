@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 7d265dcc185e765bd763a321052fec8f67887f8f16dca9781d0161bbb0f8fdb0 # shrinks to bson = Document({"": String("")})
+cc b931d167d43e92047967875bd28287e133c1464fcdae96025b5345e959f097fb # shrinks to bson = JavaScriptCodeWithScope { code: "", scope: Document({"": Document({"": Binary { subtype: BinaryOld, bytes: [0, 0, 0, 0] }})}) }

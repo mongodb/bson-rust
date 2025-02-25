@@ -1,32 +1,24 @@
 use serde::{ser::Impossible, Serialize};
 
 use crate::{
-    ser::{write_cstring, write_i32, Error, Result},
-    to_bson,
-    Bson,
+    ser::{write_cstring, Error, Result},
+    to_bson, Bson,
 };
 
 use super::Serializer;
-
-pub(crate) struct DocumentSerializationResult<'a> {
-    pub(crate) root_serializer: &'a mut Serializer,
-}
 
 /// Serializer used to serialize document or array bodies.
 pub(crate) struct DocumentSerializer<'a> {
     root_serializer: &'a mut Serializer,
     num_keys_serialized: usize,
-    start: usize,
 }
 
 impl<'a> DocumentSerializer<'a> {
     pub(crate) fn start(rs: &'a mut Serializer) -> crate::ser::Result<Self> {
-        let start = rs.bytes.len();
-        write_i32(&mut rs.bytes, 0)?;
+        rs.write_next_len()?;
         Ok(Self {
             root_serializer: rs,
             num_keys_serialized: 0,
-            start,
         })
     }
 
@@ -56,13 +48,9 @@ impl<'a> DocumentSerializer<'a> {
         Ok(())
     }
 
-    pub(crate) fn end_doc(self) -> crate::ser::Result<DocumentSerializationResult<'a>> {
+    pub(crate) fn end_doc(self) -> crate::ser::Result<()> {
         self.root_serializer.bytes.push(0);
-        let length = (self.root_serializer.bytes.len() - self.start) as i32;
-        self.root_serializer.replace_i32(self.start, length);
-        Ok(DocumentSerializationResult {
-            root_serializer: self.root_serializer,
-        })
+        Ok(())
     }
 }
 

@@ -1,4 +1,5 @@
 mod document_serializer;
+pub(super) mod len_serializer;
 mod value_serializer;
 
 use std::io::Write;
@@ -22,6 +23,8 @@ use document_serializer::DocumentSerializer;
 
 /// Serializer used to convert a type `T` into raw BSON bytes.
 pub(crate) struct Serializer {
+    lens: std::vec::IntoIter<i32>,
+
     bytes: Vec<u8>,
 
     /// The index into `bytes` where the current element type will need to be stored.
@@ -58,8 +61,9 @@ impl SerializerHint {
 }
 
 impl Serializer {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(lens: std::vec::IntoIter<i32>) -> Self {
         Self {
+            lens,
             bytes: Vec::new(),
             type_index: 0,
             hint: SerializerHint::None,
@@ -70,6 +74,11 @@ impl Serializer {
     /// Convert this serializer into the vec of the serialized bytes.
     pub(crate) fn into_vec(self) -> Vec<u8> {
         self.bytes
+    }
+
+    #[inline]
+    fn write_next_len(&mut self) -> Result<()> {
+        write_i32(&mut self.bytes, self.lens.next().expect("pre-recorded len"))
     }
 
     /// Reserve a spot for the element type to be set retroactively via `update_element_type`.
@@ -96,13 +105,6 @@ impl Serializer {
 
         self.bytes[self.type_index] = t as u8;
         Ok(())
-    }
-
-    /// Replace an i32 value at the given index with the given value.
-    #[inline]
-    fn replace_i32(&mut self, at: usize, with: i32) {
-        let portion = &mut self.bytes[at..at + 4];
-        portion.copy_from_slice(&with.to_le_bytes());
     }
 }
 
@@ -425,13 +427,6 @@ enum VariantInnerType {
 pub(crate) struct VariantSerializer<'a> {
     root_serializer: &'a mut Serializer,
 
-    /// Variants are serialized as documents of the form `{ <variant name>: <document or array> }`,
-    /// and `doc_start` indicates the index at which the outer document begins.
-    doc_start: usize,
-
-    /// `inner_start` indicates the index at which the inner document or array begins.
-    inner_start: usize,
-
     /// How many elements have been serialized in the inner document / array so far.
     num_elements_serialized: usize,
 }
@@ -442,9 +437,7 @@ impl<'a> VariantSerializer<'a> {
         variant: &'static str,
         inner_type: VariantInnerType,
     ) -> Result<Self> {
-        let doc_start = rs.bytes.len();
-        // write placeholder length for document, will be updated at end
-        write_i32(&mut rs.bytes, 0)?;
+        rs.write_next_len()?;
 
         let inner = match inner_type {
             VariantInnerType::Struct => ElementType::EmbeddedDocument,
@@ -452,15 +445,12 @@ impl<'a> VariantSerializer<'a> {
         };
         rs.bytes.push(inner as u8);
         write_cstring(&mut rs.bytes, variant)?;
-        let inner_start = rs.bytes.len();
         // write placeholder length for inner, will be updated at end
-        write_i32(&mut rs.bytes, 0)?;
+        rs.write_next_len()?;
 
         Ok(Self {
             root_serializer: rs,
             num_elements_serialized: 0,
-            doc_start,
-            inner_start,
         })
     }
 
@@ -481,14 +471,8 @@ impl<'a> VariantSerializer<'a> {
     fn end_both(self) -> Result<()> {
         // null byte for the inner
         self.root_serializer.bytes.push(0);
-        let arr_length = (self.root_serializer.bytes.len() - self.inner_start) as i32;
-        self.root_serializer
-            .replace_i32(self.inner_start, arr_length);
-
         // null byte for document
         self.root_serializer.bytes.push(0);
-        let doc_length = (self.root_serializer.bytes.len() - self.doc_start) as i32;
-        self.root_serializer.replace_i32(self.doc_start, doc_length);
         Ok(())
     }
 }

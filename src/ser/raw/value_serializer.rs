@@ -11,8 +11,7 @@ use crate::{
     raw::RAW_DOCUMENT_NEWTYPE,
     ser::{write_binary, write_cstring, write_i32, write_i64, write_string, Error, Result},
     spec::{BinarySubtype, ElementType},
-    RawDocument,
-    RawJavaScriptCodeWithScopeRef,
+    RawDocument, RawJavaScriptCodeWithScopeRef,
 };
 
 use super::{document_serializer::DocumentSerializer, Serializer};
@@ -582,19 +581,17 @@ impl SerializeStruct for &mut ValueSerializer<'_> {
 }
 
 pub(crate) struct CodeWithScopeSerializer<'a> {
-    start: usize,
     doc: DocumentSerializer<'a>,
 }
 
 impl<'a> CodeWithScopeSerializer<'a> {
     #[inline]
     fn start(code: &str, rs: &'a mut Serializer) -> Result<Self> {
-        let start = rs.bytes.len();
-        write_i32(&mut rs.bytes, 0)?; // placeholder length
+        rs.write_next_len()?;
         write_string(&mut rs.bytes, code);
 
         let doc = DocumentSerializer::start(rs)?;
-        Ok(Self { start, doc })
+        Ok(Self { doc })
     }
 }
 
@@ -620,10 +617,6 @@ impl SerializeMap for CodeWithScopeSerializer<'_> {
 
     #[inline]
     fn end(self) -> Result<Self::Ok> {
-        let result = self.doc.end_doc()?;
-
-        let total_len = (result.root_serializer.bytes.len() - self.start) as i32;
-        result.root_serializer.replace_i32(self.start, total_len);
-        Ok(())
+        self.doc.end_doc().map(|_| ())
     }
 }

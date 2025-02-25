@@ -1,22 +1,9 @@
 use std::iter::FromIterator;
 
 use crate::{
-    oid::ObjectId,
-    raw::RawJavaScriptCodeWithScope,
-    spec::BinarySubtype,
-    tests::LOCK,
-    Binary,
-    Bson,
-    DateTime,
-    DbPointer,
-    Decimal128,
-    Document,
-    JavaScriptCodeWithScope,
-    RawArrayBuf,
-    RawBson,
-    RawDocumentBuf,
-    Regex,
-    Timestamp,
+    oid::ObjectId, raw::RawJavaScriptCodeWithScope, spec::BinarySubtype, tests::LOCK, Binary, Bson,
+    DateTime, DbPointer, Decimal128, Document, JavaScriptCodeWithScope, RawArrayBuf, RawBson,
+    RawDocumentBuf, Regex, Timestamp,
 };
 
 use pretty_assertions::assert_eq;
