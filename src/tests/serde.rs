@@ -666,6 +666,19 @@ fn test_de_uuid_extjson_string() {
 }
 
 #[test]
+fn test_de_date_extjson_number() {
+    let _guard = LOCK.run_concurrently();
+
+    let ext_json_canonical = r#"{ "$date": { "$numberLong": "1136239445000" } }"#;
+    let expected_date_bson: Bson = serde_json::from_str(ext_json_canonical).unwrap();
+
+    let ext_json_legacy_java = r#"{ "$date": 1136239445000 }"#;
+    let actual_date_bson: Bson = serde_json::from_str(ext_json_legacy_java).unwrap();
+
+    assert_eq!(actual_date_bson, expected_date_bson);
+}
+
+#[test]
 fn test_de_oid_string() {
     let _guard = LOCK.run_concurrently();
 
