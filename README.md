@@ -269,7 +269,7 @@ This crate compiles to the `wasm32-unknown-unknown` target; when doing so, the `
 
 ## Minimum supported Rust version (MSRV)
 
-The MSRV for this crate is currently 1.71.1. Increases to the MSRV will only happen in a minor or major version release, and will be to a Rust version at least six months old.
+The MSRV for this crate is currently 1.81. Increases to the MSRV will only happen in a minor or major version release, and will be to a Rust version at least six months old.
 
 ## Contributing
 
