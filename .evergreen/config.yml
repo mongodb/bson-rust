@@ -242,7 +242,7 @@ buildvariants:
   name: "tests"
   display_name: "Tests"
   run_on:
-    - ubuntu1804-test
+    - ubuntu2204-small
   tasks:
     - name: "test"
 
@@ -252,7 +252,7 @@ buildvariants:
     extra-targets: "*"
   display_name: "Compile on Rust ${extra-rust-versions} (${extra-targets})"
   run_on:
-    - ubuntu1804-test
+    - ubuntu2204-small
   tasks:
     - name: "compile-only"
 
@@ -260,7 +260,7 @@ buildvariants:
   name: "lint"
   display_name: "Lint"
   run_on:
-    - ubuntu1804-test
+    - ubuntu2204-small
   tasks:
     - name: "check-clippy"
     - name: "check-rustfmt"
@@ -270,7 +270,7 @@ buildvariants:
   name: "fuzz"
   display_name: "Raw BSON Fuzzer"
   run_on:
-    - ubuntu1804-test
+    - ubuntu2204-small
   tasks:
     - name: "run-fuzzer"
 
@@ -278,6 +278,6 @@ buildvariants:
   name: "wasm"
   display_name: "WASM"
   run_on:
-    - ubuntu1804-test
+    - ubuntu2204-small
   tasks:
     - name: "wasm-test"
