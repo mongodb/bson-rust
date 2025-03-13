@@ -10,6 +10,9 @@ if [ ! -z "$TARGET" ]; then
         # renamed in newer versions of rustc
         TARGET="wasm32-wasip1"
     fi
+    if [[ "$TARGET" = "wasm32-unknown-unknown" ]]; then
+        export RUSTFLAGS='--cfg getrandom_backend="wasm_js"'
+    fi
     rustup target add $TARGET --toolchain $RUST_VERSION
     TARGET="--target=$TARGET"
 fi
