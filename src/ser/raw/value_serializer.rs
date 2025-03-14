@@ -1,6 +1,5 @@
 use std::convert::TryFrom;
 
-use bytes::BufMut;
 use serde::{
     ser::{Error as SerdeError, Impossible, SerializeMap, SerializeStruct},
     Serialize,
@@ -15,7 +14,7 @@ use crate::{
     RawDocument, RawJavaScriptCodeWithScopeRef,
 };
 
-use super::{document_serializer::DocumentSerializer, Serializer};
+use super::{document_serializer::DocumentSerializer, DocumentBufMut, Serializer};
 
 /// A serializer used specifically for serializing the serde-data-model form of a BSON type (e.g.
 /// [`Binary`]) to raw bytes.
@@ -149,7 +148,7 @@ impl<'a, B> ValueSerializer<'a, B> {
     }
 }
 
-impl<'b, B: BufMut> serde::Serializer for &'b mut ValueSerializer<'_, B> {
+impl<'b, B: DocumentBufMut> serde::Serializer for &'b mut ValueSerializer<'_, B> {
     type Ok = ();
     type Error = Error;
 
@@ -453,7 +452,7 @@ impl<'b, B: BufMut> serde::Serializer for &'b mut ValueSerializer<'_, B> {
     }
 }
 
-impl<B: BufMut> SerializeStruct for &mut ValueSerializer<'_, B> {
+impl<B: DocumentBufMut> SerializeStruct for &mut ValueSerializer<'_, B> {
     type Ok = ();
     type Error = Error;
 
@@ -587,10 +586,10 @@ pub(crate) struct CodeWithScopeSerializer<'a, B> {
     doc: DocumentSerializer<'a, B>,
 }
 
-impl<'a, B: BufMut> CodeWithScopeSerializer<'a, B> {
+impl<'a, B: DocumentBufMut> CodeWithScopeSerializer<'a, B> {
     #[inline]
     fn start(code: &str, rs: &'a mut Serializer<B>) -> Result<Self> {
-        rs.write_next_len()?;
+        rs.buf.begin_doc()?;
         rs.write_string(code);
 
         let doc = DocumentSerializer::start(rs)?;
@@ -598,7 +597,7 @@ impl<'a, B: BufMut> CodeWithScopeSerializer<'a, B> {
     }
 }
 
-impl<B: BufMut> SerializeMap for CodeWithScopeSerializer<'_, B> {
+impl<B: DocumentBufMut> SerializeMap for CodeWithScopeSerializer<'_, B> {
     type Ok = ();
     type Error = Error;
 
@@ -620,6 +619,6 @@ impl<B: BufMut> SerializeMap for CodeWithScopeSerializer<'_, B> {
 
     #[inline]
     fn end(self) -> Result<Self::Ok> {
-        self.doc.end_doc().map(|_| ())
+        self.doc.end_doc()
     }
 }

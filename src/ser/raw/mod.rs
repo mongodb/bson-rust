@@ -20,12 +20,145 @@ use crate::{
 };
 use document_serializer::DocumentSerializer;
 
+// XXX begin_doc and end_doc appear to be infalliable.
+pub(crate) trait DocumentBufMut: BufMut {
+    /// Track/record information related to the document started at this point.
+    fn begin_doc(&mut self) -> Result<()>;
+    /// Track/record any information related to the end of the current document.
+    fn end_doc(&mut self) -> Result<()>;
+    /// Return true if begin_doc() has been called at least once.
+    fn in_document(&self) -> bool;
+}
+
+pub(crate) struct LenRecordingDocumentBufMut {
+    stream_len: usize,
+    lens: Vec<i32>,
+    stack: Vec<(usize, usize)>,
+}
+
+impl LenRecordingDocumentBufMut {
+    fn new() -> Self {
+        Self {
+            stream_len: 0,
+            lens: vec![],
+            stack: vec![],
+        }
+    }
+
+    fn into_lens(self) -> Vec<i32> {
+        assert!(self.stack.is_empty());
+        self.lens
+    }
+}
+
+impl DocumentBufMut for LenRecordingDocumentBufMut {
+    fn begin_doc(&mut self) -> Result<()> {
+        if self.stack.is_empty() && self.stream_len > 0 {
+            panic!("must begin stream with a document.")
+        }
+        let index = self.lens.len();
+        self.lens.push(0);
+        self.stack.push((index, self.stream_len));
+        self.stream_len += 4; // length value that will be written to the stream.
+        Ok(())
+    }
+
+    fn end_doc(&mut self) -> Result<()> {
+        self.stream_len += 1; // null terminator
+        let (index, doc_begin) = self.stack.pop().unwrap();
+        self.lens[index] = self.stream_len as i32 - doc_begin as i32;
+        Ok(())
+    }
+
+    fn in_document(&self) -> bool {
+        !self.stack.is_empty()
+    }
+}
+
+unsafe impl BufMut for LenRecordingDocumentBufMut {
+    fn remaining_mut(&self) -> usize {
+        0
+    }
+
+    unsafe fn advance_mut(&mut self, cnt: usize) {
+        self.stream_len += cnt;
+    }
+
+    fn chunk_mut(&mut self) -> &mut bytes::buf::UninitSlice {
+        bytes::buf::UninitSlice::new(&mut [])
+    }
+
+    fn put<T: bytes::buf::Buf>(&mut self, src: T)
+    where
+        Self: Sized,
+    {
+        self.stream_len += src.remaining()
+    }
+
+    fn put_slice(&mut self, src: &[u8]) {
+        self.stream_len += src.len();
+    }
+
+    fn put_bytes(&mut self, _val: u8, cnt: usize) {
+        self.stream_len += cnt;
+    }
+}
+
+pub(crate) struct LenReplayingDocumentBufMut<B> {
+    buf: B,
+    lens: std::vec::IntoIter<i32>,
+    started: bool,
+}
+
+impl<B> LenReplayingDocumentBufMut<B> {
+    pub(crate) fn new(buf: B, lens: Vec<i32>) -> Self {
+        Self {
+            buf,
+            lens: lens.into_iter(),
+            started: false,
+        }
+    }
+
+    pub(crate) fn into_inner(self) -> B {
+        self.buf
+    }
+}
+
+impl<B: BufMut> DocumentBufMut for LenReplayingDocumentBufMut<B> {
+    fn begin_doc(&mut self) -> Result<()> {
+        let len = self.lens.next().unwrap();
+        self.buf.put_i32_le(len);
+        self.started = true;
+        Ok(())
+    }
+
+    fn end_doc(&mut self) -> Result<()> {
+        self.buf.put_u8(0);
+        Ok(())
+    }
+
+    fn in_document(&self) -> bool {
+        self.started
+    }
+}
+
+unsafe impl<B: BufMut> BufMut for LenReplayingDocumentBufMut<B> {
+    fn remaining_mut(&self) -> usize {
+        self.buf.remaining_mut()
+    }
+
+    unsafe fn advance_mut(&mut self, cnt: usize) {
+        self.buf.advance_mut(cnt);
+    }
+
+    fn chunk_mut(&mut self) -> &mut bytes::buf::UninitSlice {
+        self.buf.chunk_mut()
+    }
+}
+
 /// Serializer used to convert a type `T` into raw BSON bytes.
 pub(crate) struct Serializer<B> {
     buf: B,
-
-    lens: std::vec::IntoIter<i32>,
-    started: bool,
 
     next_key: Option<Key>,
 
@@ -64,12 +197,10 @@ impl SerializerHint {
     }
 }
 
-impl<B: BufMut> Serializer<B> {
-    pub(crate) fn new(buf: B, lens: std::vec::IntoIter<i32>) -> Self {
+impl<B: DocumentBufMut> Serializer<B> {
+    pub(crate) fn new(buf: B) -> Self {
         Self {
             buf,
-            lens,
-            started: false,
             next_key: None,
             hint: SerializerHint::None,
             human_readable: false,
@@ -79,15 +210,6 @@ impl<B: BufMut> Serializer<B> {
     /// Convert this serializer into the vec of the serialized bytes.
     pub(crate) fn into_buf(self) -> B {
         self.buf
-    }
-
-    // XXX fix sig, this is not falliable.
-    #[inline]
-    fn write_next_len(&mut self) -> Result<()> {
-        self.buf
-            .put_i32_le(self.lens.next().expect("pre-recorded len"));
-        self.started = true;
-        Ok(())
     }
 
     #[inline]
@@ -105,7 +227,7 @@ impl<B: BufMut> Serializer<B> {
                 Key::Index(i) => self.write_cstring(&i.to_string()),
             }
         } else {
-            if !self.started && t == ElementType::EmbeddedDocument {
+            if !self.buf.in_document() && t == ElementType::EmbeddedDocument {
                 // don't need to write element type and key for top-level document.
                 Ok(())
             } else {
@@ -161,7 +283,7 @@ impl<B: BufMut> Serializer<B> {
     }
 }
 
-impl<'a, B: BufMut> serde::Serializer for &'a mut Serializer<B> {
+impl<'a, B: DocumentBufMut> serde::Serializer for &'a mut Serializer<B> {
     type Ok = ();
     type Error = Error;
 
@@ -447,7 +569,7 @@ pub(crate) enum StructSerializer<'a, B> {
     Document(DocumentSerializer<'a, B>),
 }
 
-impl<B: BufMut> SerializeStruct for StructSerializer<'_, B> {
+impl<B: DocumentBufMut> SerializeStruct for StructSerializer<'_, B> {
     type Ok = ();
     type Error = Error;
 
@@ -485,13 +607,13 @@ pub(crate) struct VariantSerializer<'a, B> {
     num_elements_serialized: usize,
 }
 
-impl<'a, B: BufMut> VariantSerializer<'a, B> {
+impl<'a, B: DocumentBufMut> VariantSerializer<'a, B> {
     fn start(
         rs: &'a mut Serializer<B>,
         variant: &'static str,
         inner_type: VariantInnerType,
     ) -> Result<Self> {
-        rs.write_next_len()?;
+        rs.buf.begin_doc()?;
 
         let inner = match inner_type {
             VariantInnerType::Struct => ElementType::EmbeddedDocument,
@@ -499,7 +621,7 @@ impl<'a, B: BufMut> VariantSerializer<'a, B> {
         };
         rs.buf.put_u8(inner as u8);
         rs.write_cstring(&variant)?;
-        rs.write_next_len()?;
+        rs.buf.begin_doc()?;
 
         Ok(Self {
             root_serializer: rs,
@@ -521,15 +643,13 @@ impl<'a, B: BufMut> VariantSerializer<'a, B> {
 
     #[inline]
     fn end_both(self) -> Result<()> {
-        // null byte for the inner
-        self.root_serializer.buf.put_u8(0);
-        // null byte for document
-        self.root_serializer.buf.put_u8(0);
+        self.root_serializer.buf.end_doc()?;
+        self.root_serializer.buf.end_doc()?;
         Ok(())
     }
 }
 
-impl<B: BufMut> serde::ser::SerializeTupleVariant for VariantSerializer<'_, B> {
+impl<B: DocumentBufMut> serde::ser::SerializeTupleVariant for VariantSerializer<'_, B> {
     type Ok = ();
 
     type Error = Error;
@@ -548,7 +668,7 @@ impl<B: BufMut> serde::ser::SerializeTupleVariant for VariantSerializer<'_, B> {
     }
 }
 
-impl<B: BufMut> serde::ser::SerializeStructVariant for VariantSerializer<'_, B> {
+impl<B: DocumentBufMut> serde::ser::SerializeStructVariant for VariantSerializer<'_, B> {
     type Ok = ();
 
     type Error = Error;

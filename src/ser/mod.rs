@@ -183,7 +183,7 @@ where
     }
     let lens = len_serializer.into_lens();
     let buf = create(*lens.first().expect("root document must have length") as usize);
-    let mut serializer = raw::Serializer::new(buf, lens.into_iter());
+    let mut serializer = raw::Serializer::new(raw::LenReplayingDocumentBufMut::new(buf, lens));
     #[cfg(feature = "serde_path_to_error")]
     {
         serde_path_to_error::serialize(value, &mut serializer).map_err(Error::with_path)?;
@@ -192,7 +192,7 @@ where
     {
         value.serialize(&mut serializer)?;
     }
-    Ok(serializer.into_buf())
+    Ok(serializer.into_buf().into_inner())
 }
 
 /// Serialize the given `T` as a [`RawDocumentBuf`].
