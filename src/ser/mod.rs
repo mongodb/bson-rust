@@ -172,7 +172,7 @@ where
     F: Fn(usize) -> B,
     B: BufMut,
 {
-    let mut len_serializer = raw::len_serializer::Serializer::new();
+    let mut len_serializer = raw::Serializer::new(raw::LenRecordingDocumentBufMut::new());
     #[cfg(feature = "serde_path_to_error")]
     {
         serde_path_to_error::serialize(value, &mut len_serializer).map_err(Error::with_path)?;
@@ -181,8 +181,8 @@ where
     {
         value.serialize(&mut len_serializer)?;
     }
-    let lens = len_serializer.into_lens();
-    let buf = create(*lens.first().expect("root document must have length") as usize);
+    let lens = len_serializer.into_buf().into_lens();
+    let buf = create(*lens.first().unwrap_or(&5) as usize);
     let mut serializer = raw::Serializer::new(raw::LenReplayingDocumentBufMut::new(buf, lens));
     #[cfg(feature = "serde_path_to_error")]
     {

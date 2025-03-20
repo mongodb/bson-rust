@@ -2,6 +2,7 @@ use serde::{ser::Impossible, Serialize};
 
 use crate::{
     ser::{Error, Result},
+    spec::ElementType,
     to_bson, Bson,
 };
 
@@ -14,8 +15,11 @@ pub(crate) struct DocumentSerializer<'a, B> {
 }
 
 impl<'a, B: DocumentBufMut> DocumentSerializer<'a, B> {
-    pub(crate) fn start(rs: &'a mut Serializer<B>) -> crate::ser::Result<Self> {
-        rs.buf.begin_doc()?;
+    pub(crate) fn start(
+        rs: &'a mut Serializer<B>,
+        doc_type: ElementType,
+    ) -> crate::ser::Result<Self> {
+        rs.buf.begin_doc(doc_type)?;
         Ok(Self {
             root_serializer: rs,
             num_keys_serialized: 0,
@@ -34,9 +38,9 @@ impl<'a, B: DocumentBufMut> DocumentSerializer<'a, B> {
         Ok(())
     }
 
-    pub(crate) fn end_doc(self) -> crate::ser::Result<()> {
+    pub(crate) fn end_doc(self) -> crate::ser::Result<&'a mut Serializer<B>> {
         self.root_serializer.buf.end_doc()?;
-        Ok(())
+        Ok(self.root_serializer)
     }
 }
 

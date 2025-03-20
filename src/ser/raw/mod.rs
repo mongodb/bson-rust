@@ -1,5 +1,4 @@
 mod document_serializer;
-pub(super) mod len_serializer;
 mod value_serializer;
 
 use bytes::BufMut;
@@ -23,21 +22,28 @@ use document_serializer::DocumentSerializer;
 // XXX begin_doc and end_doc appear to be infalliable.
 pub(crate) trait DocumentBufMut: BufMut {
     /// Track/record information related to the document started at this point.
-    fn begin_doc(&mut self) -> Result<()>;
+    fn begin_doc(&mut self, doc_type: ElementType) -> Result<()>;
     /// Track/record any information related to the end of the current document.
     fn end_doc(&mut self) -> Result<()>;
     /// Return true if begin_doc() has been called at least once.
     fn in_document(&self) -> bool;
 }
 
+#[derive(Debug)]
+struct StackItem {
+    len_index: usize,
+    begin_offset: usize,
+    doc_type: ElementType,
+}
+
 pub(crate) struct LenRecordingDocumentBufMut {
     stream_len: usize,
     lens: Vec<i32>,
-    stack: Vec<(usize, usize)>,
+    stack: Vec<StackItem>,
 }
 
 impl LenRecordingDocumentBufMut {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             stream_len: 0,
             lens: vec![],
@@ -45,28 +51,34 @@ impl LenRecordingDocumentBufMut {
         }
     }
 
-    fn into_lens(self) -> Vec<i32> {
-        assert!(self.stack.is_empty());
+    pub(crate) fn into_lens(self) -> Vec<i32> {
+        assert!(self.stack.is_empty(), "{:?}", self.stack);
         self.lens
     }
 }
 
 impl DocumentBufMut for LenRecordingDocumentBufMut {
-    fn begin_doc(&mut self) -> Result<()> {
+    fn begin_doc(&mut self, doc_type: ElementType) -> Result<()> {
         if self.stack.is_empty() && self.stream_len > 0 {
             panic!("must begin stream with a document.")
         }
         let index = self.lens.len();
         self.lens.push(0);
-        self.stack.push((index, self.stream_len));
+        self.stack.push(StackItem {
+            len_index: index,
+            begin_offset: self.stream_len,
+            doc_type,
+        });
         self.stream_len += 4; // length value that will be written to the stream.
         Ok(())
     }
 
     fn end_doc(&mut self) -> Result<()> {
-        self.stream_len += 1; // null terminator
-        let (index, doc_begin) = self.stack.pop().unwrap();
-        self.lens[index] = self.stream_len as i32 - doc_begin as i32;
+        let item = self.stack.pop().expect("paired with begin_doc()");
+        if item.doc_type != ElementType::JavaScriptCodeWithScope {
+            self.stream_len += 1; // null terminator
+        }
+        self.lens[item.len_index] = self.stream_len as i32 - item.begin_offset as i32;
         Ok(())
     }
 
@@ -107,7 +119,7 @@ unsafe impl BufMut for LenRecordingDocumentBufMut {
 pub(crate) struct LenReplayingDocumentBufMut<B> {
     buf: B,
     lens: std::vec::IntoIter<i32>,
-    started: bool,
+    doc_type_stack: Vec<ElementType>,
 }
 
 impl<B> LenReplayingDocumentBufMut<B> {
@@ -115,7 +127,7 @@ impl<B> LenReplayingDocumentBufMut<B> {
         Self {
             buf,
             lens: lens.into_iter(),
-            started: false,
+            doc_type_stack: vec![],
         }
     }
 
@@ -125,20 +137,23 @@ impl<B> LenReplayingDocumentBufMut<B> {
 }
 
 impl<B: BufMut> DocumentBufMut for LenReplayingDocumentBufMut<B> {
-    fn begin_doc(&mut self) -> Result<()> {
+    fn begin_doc(&mut self, doc_type: ElementType) -> Result<()> {
         let len = self.lens.next().unwrap();
         self.buf.put_i32_le(len);
-        self.started = true;
+        self.doc_type_stack.push(doc_type);
         Ok(())
     }
 
     fn end_doc(&mut self) -> Result<()> {
-        self.buf.put_u8(0);
+        let doc_type = self.doc_type_stack.pop().expect("paired with begin_doc()");
+        if doc_type != ElementType::JavaScriptCodeWithScope {
+            self.buf.put_u8(0);
+        }
         Ok(())
     }
 
     fn in_document(&self) -> bool {
-        self.started
+        !self.doc_type_stack.is_empty()
     }
 }
 
@@ -474,7 +489,7 @@ impl<'a, B: DocumentBufMut> serde::Serializer for &'a mut Serializer<B> {
         T: serde::Serialize + ?Sized,
     {
         self.write_key(ElementType::EmbeddedDocument)?;
-        let mut d = DocumentSerializer::start(&mut *self)?;
+        let mut d = DocumentSerializer::start(&mut *self, ElementType::EmbeddedDocument)?;
         d.serialize_entry(variant, value)?;
         d.end_doc()?;
         Ok(())
@@ -483,7 +498,7 @@ impl<'a, B: DocumentBufMut> serde::Serializer for &'a mut Serializer<B> {
     #[inline]
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         self.write_key(ElementType::Array)?;
-        DocumentSerializer::start(&mut *self)
+        DocumentSerializer::start(&mut *self, ElementType::Array)
     }
 
     #[inline]
@@ -515,7 +530,7 @@ impl<'a, B: DocumentBufMut> serde::Serializer for &'a mut Serializer<B> {
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         self.write_key(ElementType::EmbeddedDocument)?;
-        DocumentSerializer::start(&mut *self)
+        DocumentSerializer::start(&mut *self, ElementType::EmbeddedDocument)
     }
 
     #[inline]
@@ -544,7 +559,10 @@ impl<'a, B: DocumentBufMut> serde::Serializer for &'a mut Serializer<B> {
         )?;
         match value_type {
             Some(vt) => Ok(StructSerializer::Value(ValueSerializer::new(self, vt))),
-            None => Ok(StructSerializer::Document(DocumentSerializer::start(self)?)),
+            None => Ok(StructSerializer::Document(DocumentSerializer::start(
+                self,
+                ElementType::EmbeddedDocument,
+            )?)),
         }
     }
 
@@ -613,7 +631,7 @@ impl<'a, B: DocumentBufMut> VariantSerializer<'a, B> {
         variant: &'static str,
         inner_type: VariantInnerType,
     ) -> Result<Self> {
-        rs.buf.begin_doc()?;
+        rs.buf.begin_doc(ElementType::EmbeddedDocument)?;
 
         let inner = match inner_type {
             VariantInnerType::Struct => ElementType::EmbeddedDocument,
@@ -621,7 +639,7 @@ impl<'a, B: DocumentBufMut> VariantSerializer<'a, B> {
         };
         rs.buf.put_u8(inner as u8);
         rs.write_cstring(&variant)?;
-        rs.buf.begin_doc()?;
+        rs.buf.begin_doc(inner)?;
 
         Ok(Self {
             root_serializer: rs,

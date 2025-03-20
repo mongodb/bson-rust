@@ -589,10 +589,10 @@ pub(crate) struct CodeWithScopeSerializer<'a, B> {
 impl<'a, B: DocumentBufMut> CodeWithScopeSerializer<'a, B> {
     #[inline]
     fn start(code: &str, rs: &'a mut Serializer<B>) -> Result<Self> {
-        rs.buf.begin_doc()?;
+        rs.buf.begin_doc(ElementType::JavaScriptCodeWithScope)?;
         rs.write_string(code);
 
-        let doc = DocumentSerializer::start(rs)?;
+        let doc = DocumentSerializer::start(rs, ElementType::EmbeddedDocument)?;
         Ok(Self { doc })
     }
 }
@@ -619,6 +619,7 @@ impl<B: DocumentBufMut> SerializeMap for CodeWithScopeSerializer<'_, B> {
 
     #[inline]
     fn end(self) -> Result<Self::Ok> {
-        self.doc.end_doc()
+        let rs = self.doc.end_doc()?;
+        rs.buf.end_doc()
     }
 }
