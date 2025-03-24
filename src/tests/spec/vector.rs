@@ -49,38 +49,11 @@ where
     u8::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
 enum Number {
     Int(i16),
     Float(f32),
-}
-
-impl<'de> Deserialize<'de> for Number {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum NumberHelper {
-            Int(i16),
-            Float(f32),
-            String(String),
-        }
-
-        let helper = NumberHelper::deserialize(deserializer)?;
-        match helper {
-            NumberHelper::Int(n) => Ok(Self::Int(n)),
-            NumberHelper::Float(n) => Ok(Self::Float(n)),
-            NumberHelper::String(s) => match s.as_str() {
-                "inf" => Ok(Self::Float(f32::INFINITY)),
-                "-inf" => Ok(Self::Float(f32::NEG_INFINITY)),
-                other => Err(serde::de::Error::custom(format!(
-                    "unsupported number value {}",
-                    other
-                ))),
-            },
-        }
-    }
 }
 
 // Some of the invalid cases (e.g. mixed number types, padding for non-packed-bit vectors) are
