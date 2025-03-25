@@ -246,10 +246,10 @@ impl TryFrom<Binary> for Vector {
     }
 }
 
-// Convenience impl to allow passing a Vector directly into the doc! macro. From<Vector> is already
+// Convenience impl to allow passing a Vector directly into the doc! macro. From<&Vector> is already
 // implemented by a blanket impl in src/bson.rs.
-impl From<&Vector> for Bson {
-    fn from(vector: &Vector) -> Self {
+impl From<Vector> for Bson {
+    fn from(vector: Vector) -> Self {
         Self::Binary(Binary::from(vector))
     }
 }

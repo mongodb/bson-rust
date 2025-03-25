@@ -170,6 +170,8 @@ fn run_test_file(test_file: TestFile) {
         // From<Vector> for Bson
         let document = doc! { "vector": &test_vector };
         assert_eq!(document, test_document);
+        let document = doc! { "vector": test_vector.clone() };
+        assert_eq!(document, test_document);
 
         // From<Vector> for RawBson
         let raw_document = rawdoc! { "vector": &test_vector };
