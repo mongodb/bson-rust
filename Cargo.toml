@@ -45,6 +45,9 @@ uuid-1 = []
 time-0_3 = []
 # If enabled, implement Hash/Eq for Bson and Document
 hashable = []
+# If enabled, the maximum document size will be increased from the MongoDB cap
+# of 16 MB to the BSON spec maximum size of 2^31 - 1
+uncapped_max_size = []
 serde_path_to_error = ["dep:serde_path_to_error"]
 # if enabled, include serde_with interop.
 # should be used in conjunction with chrono-0_4 or uuid-0_8.
