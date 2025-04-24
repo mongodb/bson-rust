@@ -1094,6 +1094,7 @@ impl<'de> MapAccess<'de> for MapDeserializer {
     where
         K: DeserializeSeed<'de>,
     {
+        let x = 1;
         match self.iter.next() {
             Some((key, value)) => {
                 self.len -= 1;
