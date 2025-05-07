@@ -289,16 +289,7 @@ pub use self::{
     binary::Binary,
     bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
-    de::{
-        from_bson,
-        from_bson_with_options,
-        from_document,
-        from_document_with_options,
-        from_reader,
-        from_slice,
-        Deserializer,
-        DeserializerOptions,
-    },
+    de::{from_bson, from_document, from_reader, from_slice, Deserializer, DeserializerOptions},
     decimal128::Decimal128,
     raw::{
         RawArray,

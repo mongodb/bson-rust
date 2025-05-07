@@ -79,7 +79,6 @@ impl<'de> Deserializer<'de> {
                     }
                     Utf8LossyBson::JavaScriptCode(code) => visitor.visit_map(MapDeserializer::new(
                         doc! { "$code": code },
-                        #[allow(deprecated)]
                         crate::DeserializerOptions::builder()
                             .human_readable(false)
                             .build(),
@@ -92,7 +91,6 @@ impl<'de> Deserializer<'de> {
                     }
                     Utf8LossyBson::Symbol(s) => visitor.visit_map(MapDeserializer::new(
                         doc! { "$symbol": s },
-                        #[allow(deprecated)]
                         crate::DeserializerOptions::builder()
                             .human_readable(false)
                             .build(),

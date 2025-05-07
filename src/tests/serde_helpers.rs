@@ -78,6 +78,7 @@ fn human_readable_wrapper() {
     struct SubData {
         value: Detector,
     }
+
     let data = Data {
         first: HumanReadable(Detector::new()),
         outer: Detector::new(),
@@ -86,34 +87,19 @@ fn human_readable_wrapper() {
             value: Detector::new(),
         }),
     };
-    let bson = crate::to_bson_with_options(
-        &data,
-        #[allow(deprecated)]
-        crate::SerializerOptions::builder()
-            .human_readable(false)
-            .build(),
-    )
-    .unwrap();
-    assert_eq!(
-        bson.as_document().unwrap(),
-        &doc! {
-            "first": "human readable",
-            "outer": "not human readable",
-            "wrapped": "human readable",
-            "inner": {
-                "value": "human readable",
-            }
+    // use the raw serializer, which is non-human-readable
+    let data_doc = crate::to_raw_document_buf(&data).unwrap();
+    let expected_data_doc = rawdoc! {
+        "first": "human readable",
+        "outer": "not human readable",
+        "wrapped": "human readable",
+        "inner": {
+            "value": "human readable",
         }
-    );
+    };
+    assert_eq!(data_doc, expected_data_doc);
 
-    let tripped: Data = crate::from_bson_with_options(
-        bson,
-        #[allow(deprecated)]
-        crate::DeserializerOptions::builder()
-            .human_readable(false)
-            .build(),
-    )
-    .unwrap();
+    let tripped: Data = crate::from_slice(expected_data_doc.as_bytes()).unwrap();
     let expected = Data {
         first: HumanReadable(Detector {
             serialized_as: true,
@@ -135,10 +121,6 @@ fn human_readable_wrapper() {
         }),
     };
     assert_eq!(&tripped, &expected);
-
-    let bytes = crate::to_vec(&data).unwrap();
-    let raw_tripped: Data = crate::from_slice(&bytes).unwrap();
-    assert_eq!(&raw_tripped, &expected);
 }
 
 #[test]
