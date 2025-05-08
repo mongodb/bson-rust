@@ -30,7 +30,7 @@ Encoding and decoding support for BSON in Rust
 
 ## Installation
 ### Requirements
-- Rust 1.48+
+- Rust 1.81+
 
 ### Importing
 This crate is available on [crates.io](https://crates.io/crates/bson). To use it in your application, simply add it to your project's `Cargo.toml`.

@@ -16,6 +16,7 @@ repository = "https://github.com/mongodb/bson-rust"
 edition = "2021"
 keywords = ["bson", "mongodb", "serde", "serialization", "deserialization"]
 categories = ["encoding"]
+rust-version = "1.81"
 
 # By default cargo include everything git include
 # cargo diet can help to manage what's not useful.
