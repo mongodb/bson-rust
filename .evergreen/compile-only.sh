@@ -17,9 +17,9 @@ if [ ! -z "$TARGET" ]; then
     TARGET="--target=$TARGET"
 fi
 
-# pin necessary dependencies when checking msrv compilation
+# Generate a new lockfile with MSRV-compatible dependencies.
 if [ "$MSRV" = "true" ]; then
-    patch Cargo.toml .evergreen/MSRV-Cargo.toml.diff
+    CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS=fallback cargo +nightly -Zmsrv-policy generate-lockfile
 fi
 
 rustup run $RUST_VERSION cargo build $TARGET
