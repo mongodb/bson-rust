@@ -27,7 +27,7 @@ mod serde;
 
 pub use self::{
     error::{Error, Result},
-    serde::{Deserializer, DeserializerOptions},
+    serde::Deserializer,
 };
 
 use std::io::Read;

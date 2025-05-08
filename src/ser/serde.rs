@@ -114,31 +114,10 @@ pub struct Serializer {
 /// Options used to configure a [`Serializer`].
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
-pub struct SerializerOptions {
+pub(crate) struct SerializerOptions {
     /// Whether the [`Serializer`] should present itself as human readable or not.
     /// The default value is true. For internal use only.
     pub(crate) human_readable: Option<bool>,
-}
-
-impl SerializerOptions {
-    /// Create a builder used to construct a new [`SerializerOptions`].
-    pub fn builder() -> SerializerOptionsBuilder {
-        SerializerOptionsBuilder {
-            options: Default::default(),
-        }
-    }
-}
-
-/// A builder used to construct new [`SerializerOptions`] structs.
-pub struct SerializerOptionsBuilder {
-    options: SerializerOptions,
-}
-
-impl SerializerOptionsBuilder {
-    /// Consume this builder and produce a [`SerializerOptions`].
-    pub fn build(self) -> SerializerOptions {
-        self.options
-    }
 }
 
 impl Serializer {
@@ -151,7 +130,7 @@ impl Serializer {
     }
 
     /// Construct a new [`Serializer`] configured with the provided [`SerializerOptions`].
-    pub fn new_with_options(options: SerializerOptions) -> Self {
+    pub(crate) fn new_with_options(options: SerializerOptions) -> Self {
         Serializer { options }
     }
 }

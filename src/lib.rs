@@ -289,7 +289,7 @@ pub use self::{
     binary::Binary,
     bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
-    de::{from_bson, from_document, from_reader, from_slice, Deserializer, DeserializerOptions},
+    de::{from_bson, from_document, from_reader, from_slice, Deserializer},
     decimal128::Decimal128,
     raw::{
         RawArray,
@@ -304,16 +304,7 @@ pub use self::{
         RawJavaScriptCodeWithScopeRef,
         RawRegexRef,
     },
-    ser::{
-        to_bson,
-        to_bson_with_options,
-        to_document,
-        to_document_with_options,
-        to_raw_document_buf,
-        to_vec,
-        Serializer,
-        SerializerOptions,
-    },
+    ser::{to_bson, to_document, to_raw_document_buf, to_vec, Serializer},
     uuid::{Uuid, UuidRepresentation},
 };
 

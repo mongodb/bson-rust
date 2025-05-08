@@ -79,9 +79,9 @@ impl<'de> Deserializer<'de> {
                     }
                     Utf8LossyBson::JavaScriptCode(code) => visitor.visit_map(MapDeserializer::new(
                         doc! { "$code": code },
-                        crate::DeserializerOptions::builder()
-                            .human_readable(false)
-                            .build(),
+                        crate::de::serde::DeserializerOptions {
+                            human_readable: Some(false),
+                        },
                     )),
                     Utf8LossyBson::JavaScriptCodeWithScope(jsc) => visitor.visit_map(
                         CodeWithScopeAccess::new(BsonCow::Owned(jsc), hint, self.options.clone()),
@@ -91,9 +91,9 @@ impl<'de> Deserializer<'de> {
                     }
                     Utf8LossyBson::Symbol(s) => visitor.visit_map(MapDeserializer::new(
                         doc! { "$symbol": s },
-                        crate::DeserializerOptions::builder()
-                            .human_readable(false)
-                            .build(),
+                        crate::de::serde::DeserializerOptions {
+                            human_readable: Some(false),
+                        },
                     )),
                 };
             }
