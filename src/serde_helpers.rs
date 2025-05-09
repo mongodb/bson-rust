@@ -847,10 +847,8 @@ pub mod timestamp_as_u32 {
 }
 
 /// Wrapping a type in `HumanReadable` signals to the BSON serde integration that it and all
-/// recursively contained types should be handled as if
-/// [`SerializerOptions::human_readable`](crate::SerializerOptions::human_readable) and
-/// [`DeserializerOptions::human_readable`](crate::DeserializerOptions::human_readable) are
-/// set to `true`.
+/// recursively contained types should be serialized to and deserialized from their human-readable
+/// formats.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct HumanReadable<T>(pub T);
 

@@ -114,40 +114,10 @@ pub struct Serializer {
 /// Options used to configure a [`Serializer`].
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
-pub struct SerializerOptions {
+pub(crate) struct SerializerOptions {
     /// Whether the [`Serializer`] should present itself as human readable or not.
-    /// The default value is true.
-    #[deprecated = "use bson::serde_helpers::HumanReadable"]
-    pub human_readable: Option<bool>,
-}
-
-impl SerializerOptions {
-    /// Create a builder used to construct a new [`SerializerOptions`].
-    pub fn builder() -> SerializerOptionsBuilder {
-        SerializerOptionsBuilder {
-            options: Default::default(),
-        }
-    }
-}
-
-/// A builder used to construct new [`SerializerOptions`] structs.
-pub struct SerializerOptionsBuilder {
-    options: SerializerOptions,
-}
-
-impl SerializerOptionsBuilder {
-    /// Set the value for [`SerializerOptions::is_human_readable`].
-    #[deprecated = "use bson::serde_helpers::HumanReadable"]
-    #[allow(deprecated)]
-    pub fn human_readable(mut self, value: impl Into<Option<bool>>) -> Self {
-        self.options.human_readable = value.into();
-        self
-    }
-
-    /// Consume this builder and produce a [`SerializerOptions`].
-    pub fn build(self) -> SerializerOptions {
-        self.options
-    }
+    /// The default value is true. For internal use only.
+    pub(crate) human_readable: Option<bool>,
 }
 
 impl Serializer {
@@ -160,7 +130,7 @@ impl Serializer {
     }
 
     /// Construct a new [`Serializer`] configured with the provided [`SerializerOptions`].
-    pub fn new_with_options(options: SerializerOptions) -> Self {
+    pub(crate) fn new_with_options(options: SerializerOptions) -> Self {
         Serializer { options }
     }
 }
@@ -348,7 +318,6 @@ impl ser::Serializer for Serializer {
                     b
                 ))),
             },
-            #[allow(deprecated)]
             HUMAN_READABLE_NEWTYPE => {
                 self.options.human_readable = Some(true);
                 value.serialize(self)
@@ -452,7 +421,6 @@ impl ser::Serializer for Serializer {
         })
     }
 
-    #[allow(deprecated)]
     fn is_human_readable(&self) -> bool {
         self.options.human_readable.unwrap_or(true)
     }

@@ -580,44 +580,13 @@ pub struct Deserializer {
     options: DeserializerOptions,
 }
 
-/// Options used to configure a [`Deserializer`]. These can also be passed into
-/// [`crate::from_bson_with_options`] and [`crate::from_document_with_options`].
+/// Options used to configure a [`Deserializer`].
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
-pub struct DeserializerOptions {
+pub(crate) struct DeserializerOptions {
     /// Whether the [`Deserializer`] should present itself as human readable or not.
-    /// The default is true.
-    #[deprecated = "use bson::serde_helpers::HumanReadable"]
-    pub human_readable: Option<bool>,
-}
-
-impl DeserializerOptions {
-    /// Create a builder struct used to construct a [`DeserializerOptions`].
-    pub fn builder() -> DeserializerOptionsBuilder {
-        DeserializerOptionsBuilder {
-            options: Default::default(),
-        }
-    }
-}
-
-/// Builder used to construct a [`DeserializerOptions`].
-pub struct DeserializerOptionsBuilder {
-    options: DeserializerOptions,
-}
-
-impl DeserializerOptionsBuilder {
-    /// Set the value for [`DeserializerOptions::human_readable`].
-    #[deprecated = "use bson::serde_helpers::HumanReadable"]
-    #[allow(deprecated)]
-    pub fn human_readable(mut self, val: impl Into<Option<bool>>) -> Self {
-        self.options.human_readable = val.into();
-        self
-    }
-
-    /// Consume this builder and produce a [`DeserializerOptions`].
-    pub fn build(self) -> DeserializerOptions {
-        self.options
-    }
+    /// The default is true. For internal use only.
+    pub(crate) human_readable: Option<bool>,
 }
 
 impl Deserializer {
@@ -627,7 +596,7 @@ impl Deserializer {
     }
 
     /// Create a new [`Deserializer`] using the provided options.
-    pub fn new_with_options(value: Bson, options: DeserializerOptions) -> Self {
+    pub(crate) fn new_with_options(value: Bson, options: DeserializerOptions) -> Self {
         Deserializer {
             value: Some(value),
             options,

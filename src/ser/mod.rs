@@ -27,18 +27,21 @@ mod serde;
 
 pub use self::{
     error::{Error, Result},
-    serde::{Serializer, SerializerOptions},
+    serde::Serializer,
 };
 
 use std::io::Write;
 
+#[rustfmt::skip]
+use ::serde::{ser::Error as SerdeError, Serialize};
+
 use crate::{
     bson::{Bson, Document},
     de::MAX_BSON_SIZE,
+    ser::serde::SerializerOptions,
     spec::BinarySubtype,
     RawDocumentBuf,
 };
-use ::serde::{ser::Error as SerdeError, Serialize};
 
 pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
     buf.extend(&(s.len() as i32 + 1).to_le_bytes());
@@ -109,9 +112,7 @@ fn write_binary<W: Write>(mut writer: W, bytes: &[u8], subtype: BinarySubtype) -
 /// The [`Serializer`] used by this function presents itself as human readable, whereas the
 /// one used in [`to_vec`] does not. This means that this function will produce different BSON than
 /// [`to_vec`] for types that change their serialization output depending on whether
-/// the format is human readable or not. To serialize to a [`Document`] with a serializer that
-/// presents itself as not human readable, use [`to_bson_with_options`] with
-/// [`SerializerOptions::human_readable`] set to false.
+/// the format is human readable or not.
 pub fn to_bson<T>(value: &T) -> Result<Bson>
 where
     T: Serialize + ?Sized,
@@ -125,23 +126,8 @@ where
     value.serialize(ser)
 }
 
-/// Encode a `T` into a [`Bson`] value, configuring the underlying serializer with the provided
-/// options.
-/// ```
-/// # use serde::Serialize;
-/// # use bson::{bson, SerializerOptions};
-/// #[derive(Debug, Serialize)]
-/// struct MyData {
-///     a: String,
-/// }
-///
-/// let data = MyData { a: "ok".to_string() };
-/// let options = SerializerOptions::builder().human_readable(false).build();
-/// let bson = bson::to_bson_with_options(&data, options)?;
-/// assert_eq!(bson, bson!({ "a": "ok" }));
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-pub fn to_bson_with_options<T>(value: &T, options: SerializerOptions) -> Result<Bson>
+/// Internal-only method to serialize data to BSON with the given options.
+pub(crate) fn to_bson_with_options<T>(value: &T, options: SerializerOptions) -> Result<Bson>
 where
     T: Serialize + ?Sized,
 {
@@ -154,37 +140,12 @@ where
 /// The [`Serializer`] used by this function presents itself as human readable, whereas the
 /// one used in [`to_vec`] does not. This means that this function will produce different BSON than
 /// [`to_vec`] for types that change their serialization output depending on whether
-/// the format is human readable or not. To serialize to a [`Document`] with a serializer that
-/// presents itself as not human readable, use [`to_document_with_options`] with
-/// [`SerializerOptions::human_readable`] set to false.
+/// the format is human readable or not.
 pub fn to_document<T>(value: &T) -> Result<Document>
 where
     T: Serialize + ?Sized,
 {
-    to_document_with_options(value, Default::default())
-}
-
-/// Encode a `T` into a [`Document`], configuring the underlying serializer with the provided
-/// options.
-/// ```
-/// # use serde::Serialize;
-/// # use bson::{doc, SerializerOptions};
-/// #[derive(Debug, Serialize)]
-/// struct MyData {
-///     a: String,
-/// }
-///
-/// let data = MyData { a: "ok".to_string() };
-/// let options = SerializerOptions::builder().human_readable(false).build();
-/// let doc = bson::to_document_with_options(&data, options)?;
-/// assert_eq!(doc, doc! { "a": "ok" });
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-pub fn to_document_with_options<T>(value: &T, options: SerializerOptions) -> Result<Document>
-where
-    T: Serialize + ?Sized,
-{
-    match to_bson_with_options(value, options)? {
+    match to_bson(value)? {
         Bson::Document(doc) => Ok(doc),
         bson => Err(Error::SerializationError {
             message: format!(
