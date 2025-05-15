@@ -414,14 +414,6 @@ impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for Bson {
     }
 }
 
-#[cfg(feature = "uuid-0_8")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
-impl From<uuid_0_8::Uuid> for Bson {
-    fn from(uuid: uuid_0_8::Uuid) -> Self {
-        Bson::Binary(uuid.into())
-    }
-}
-
 #[cfg(feature = "uuid-1")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
 impl From<uuid::Uuid> for Bson {

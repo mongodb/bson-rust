@@ -240,22 +240,6 @@ fn test_binary_to_uuid_python_legacy_rep() {
     );
 }
 
-#[cfg(feature = "uuid-0_8")]
-#[test]
-fn interop_0_8() {
-    let uuid = crate::Uuid::new();
-    let uuid_uuid = uuid.to_uuid_0_8();
-    assert_eq!(uuid.to_string(), uuid_uuid.to_string());
-    assert_eq!(&uuid.bytes(), uuid_uuid.as_bytes());
-
-    let back: crate::Uuid = uuid_uuid.into();
-    assert_eq!(back, uuid);
-
-    let d_bson = doc! { "uuid": uuid };
-    let d_uuid = doc! { "uuid": uuid_uuid };
-    assert_eq!(d_bson, d_uuid);
-}
-
 #[cfg(feature = "uuid-1")]
 #[test]
 fn interop_1() {

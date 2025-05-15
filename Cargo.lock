@@ -142,8 +142,7 @@ dependencies = [
  "serde_with 1.14.0",
  "serde_with 3.12.0",
  "time",
- "uuid 0.8.2",
- "uuid 1.16.0",
+ "uuid",
 ]
 
 [[package]]
@@ -1138,16 +1137,6 @@ name = "unicode-width"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af"
-
-[[package]]
-name = "uuid"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
-dependencies = [
- "getrandom 0.2.16",
- "serde",
-]
 
 [[package]]
 name = "uuid"
