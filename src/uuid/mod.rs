@@ -71,9 +71,6 @@
 //! # };
 //! ```
 //!
-//! For backwards compatibility, a `uuid-0_8` feature flag can be enabled, which provides the same
-//! API for interoperation with version 0.8 of the `uuid` crate.
-//!
 //! ## The `serde_with-3` feature flag
 //!
 //! The `serde_with-3` feature can be enabled to support more ergonomic serde attributes for
@@ -214,22 +211,6 @@ impl Default for Uuid {
     }
 }
 
-#[cfg(feature = "uuid-0_8")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-0_8")))]
-impl Uuid {
-    /// Create a [`Uuid`] from a [`uuid::Uuid`](https://docs.rs/uuid/0.8/uuid/struct.Uuid.html) from
-    /// the [`uuid`](https://docs.rs/uuid/0.8) crate.
-    pub fn from_uuid_0_8(uuid: uuid_0_8::Uuid) -> Self {
-        Self::from_external_uuid(uuid::Uuid::from_u128(uuid.as_u128()))
-    }
-
-    /// Convert this [`Uuid`] to a [`uuid::Uuid`](https://docs.rs/uuid/0.8/uuid/struct.Uuid.html) from
-    /// the [`uuid`](https://docs.rs/uuid/0.8) crate.
-    pub fn to_uuid_0_8(self) -> uuid_0_8::Uuid {
-        uuid_0_8::Uuid::from_bytes(self.uuid.into_bytes())
-    }
-}
-
 #[cfg(feature = "uuid-1")]
 #[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
 impl Uuid {
@@ -309,20 +290,6 @@ impl From<Uuid> for Binary {
 impl From<Uuid> for Bson {
     fn from(u: Uuid) -> Self {
         Bson::Binary(u.into())
-    }
-}
-
-#[cfg(feature = "uuid-0_8")]
-impl From<uuid_0_8::Uuid> for Uuid {
-    fn from(u: uuid_0_8::Uuid) -> Self {
-        Self::from_uuid_0_8(u)
-    }
-}
-
-#[cfg(feature = "uuid-0_8")]
-impl From<Uuid> for uuid_0_8::Uuid {
-    fn from(s: Uuid) -> Self {
-        s.to_uuid_0_8()
     }
 }
 
@@ -535,7 +502,6 @@ macro_rules! trait_impls {
         }
     };
 }
-trait_impls!(feature = "uuid-0_8", uuid_0_8::Uuid);
 trait_impls!(feature = "uuid-1", uuid::Uuid);
 
 /// Errors that can occur during [`Uuid`] construction and generation.
