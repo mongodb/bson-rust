@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "bson"
-version = "2.14.0"
+version = "3.0.0"
 dependencies = [
  "ahash",
  "assert_matches",
