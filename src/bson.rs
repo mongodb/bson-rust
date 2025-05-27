@@ -461,8 +461,6 @@ impl From<Bson> for Value {
 
 impl Bson {
     /// Converts the Bson value into its [relaxed extended JSON representation](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
-    ///
-    /// Note: If this method is called on a case which contains a `Decimal128` value, it will panic.
     pub fn into_relaxed_extjson(self) -> Value {
         match self {
             Bson::Double(v) if v.is_nan() => {
