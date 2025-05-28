@@ -198,7 +198,7 @@ impl RawDocumentBuf {
     ///
     /// let mut subdoc = RawDocumentBuf::new();
     /// subdoc.append("a key", true);
-    /// doc.append("a document", &subdoc);
+    /// doc.append("a document", subdoc);
     ///
     /// let expected = doc! {
     ///     "a string": "some string",
