@@ -1,6 +1,11 @@
 //! Collection of helper functions for serializing to and deserializing from BSON using Serde
 
-use std::{convert::TryFrom, marker::PhantomData, result::Result};
+use std::{
+    convert::TryFrom,
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+    result::Result,
+};
 
 use serde::{de::Visitor, ser, Deserialize, Serialize, Serializer};
 
@@ -718,7 +723,8 @@ pub mod timestamp_as_u32 {
 /// Wrapping a type in `HumanReadable` signals to the BSON serde integration that it and all
 /// recursively contained types should be serialized to and deserialized from their human-readable
 /// formats.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Default)]
+#[repr(transparent)]
 pub struct HumanReadable<T>(pub T);
 
 pub(crate) const HUMAN_READABLE_NEWTYPE: &str = "$__bson_private_human_readable";
@@ -753,6 +759,56 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for HumanReadable<T> {
         deserializer.deserialize_newtype_struct(HUMAN_READABLE_NEWTYPE, V(PhantomData))
     }
 }
+
+impl<T: std::fmt::Display> std::fmt::Display for HumanReadable<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<T> From<T> for HumanReadable<T> {
+    fn from(value: T) -> Self {
+        Self(value)
+    }
+}
+
+impl<T> Deref for HumanReadable<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for HumanReadable<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T, R> AsRef<R> for HumanReadable<T>
+where
+    R: ?Sized,
+    <HumanReadable<T> as Deref>::Target: AsRef<R>,
+{
+    fn as_ref(&self) -> &R {
+        self.deref().as_ref()
+    }
+}
+
+impl<T, R: ?Sized> AsMut<R> for HumanReadable<T>
+where
+    <HumanReadable<T> as Deref>::Target: AsMut<R>,
+{
+    fn as_mut(&mut self) -> &mut R {
+        self.deref_mut().as_mut()
+    }
+}
+
+// One could imagine passthrough Borrow impls; however, it turns out that can't be made to work
+// because of the existing base library impl of Borrow<T> for T will conflict despite that not
+// actually being possible to construct (https://github.com/rust-lang/rust/issues/50237).  So,
+// sadly, Borrow impls for HumanReadable are deliberately omitted :(
 
 /// Wrapper type for deserializing BSON bytes with invalid UTF-8 sequences.
 ///
