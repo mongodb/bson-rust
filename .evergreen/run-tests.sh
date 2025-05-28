@@ -4,8 +4,11 @@ set -o errexit
 
 . ~/.cargo/env
 
-RUST_BACKTRACE=1 cargo test
-RUST_BACKTRACE=1 cargo test --all-features
+export RUST_BACKTRACE=1
+
+cargo test
+cargo test --all-features
+cargo test --doc
 
 cd serde-tests
-RUST_BACKTRACE=1 cargo test
+cargo test

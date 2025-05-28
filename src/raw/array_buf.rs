@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{RawArray, RawBsonRef, RawDocumentBuf};
 
-use super::{bson::RawBson, serde::OwnedOrBorrowedRawArray, RawArrayIter};
+use super::{document_buf::BindRawBsonRef, serde::OwnedOrBorrowedRawArray, RawArrayIter};
 
 /// An owned BSON array value (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON
 /// bytes. This type can be used to construct owned array values, which can be used to append to
@@ -92,7 +92,7 @@ impl RawArrayBuf {
     /// assert!(iter.next().is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn push(&mut self, value: impl Into<RawBson>) {
+    pub fn push(&mut self, value: impl BindRawBsonRef) {
         self.inner.append(self.len.to_string(), value);
         self.len += 1;
     }
@@ -148,7 +148,7 @@ impl<'a> From<&'a RawArrayBuf> for Cow<'a, RawArray> {
     }
 }
 
-impl<T: Into<RawBson>> FromIterator<T> for RawArrayBuf {
+impl<T: BindRawBsonRef> FromIterator<T> for RawArrayBuf {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut array_buf = RawArrayBuf::new();
         for item in iter {

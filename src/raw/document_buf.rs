@@ -188,7 +188,6 @@ impl RawDocumentBuf {
     /// result in errors when communicating with MongoDB.
     ///
     /// If the provided key contains an interior null byte, this method will panic.
-    ///
     /// ```
     /// # use bson::raw::Error;
     /// use bson::{doc, raw::RawDocumentBuf};
@@ -199,7 +198,7 @@ impl RawDocumentBuf {
     ///
     /// let mut subdoc = RawDocumentBuf::new();
     /// subdoc.append("a key", true);
-    /// doc.append("a document", subdoc);
+    /// doc.append("a document", &subdoc);
     ///
     /// let expected = doc! {
     ///     "a string": "some string",
@@ -210,22 +209,12 @@ impl RawDocumentBuf {
     /// assert_eq!(doc.to_document()?, expected);
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn append(&mut self, key: impl AsRef<str>, value: impl Into<RawBson>) {
-        let value = value.into();
-        self.append_ref(key, value.as_raw_bson_ref())
-    }
-
-    /// Append a key value pair to the end of the document without checking to see if
-    /// the key already exists.
-    ///
-    /// It is a user error to append the same key more than once to the same document, and it may
-    /// result in errors when communicating with MongoDB.
-    ///
-    /// If the provided key contains an interior null byte, this method will panic.
-    pub fn append_ref<'a>(&mut self, key: impl AsRef<str>, value: impl Into<RawBsonRef<'a>>) {
-        raw_writer::RawWriter::new(&mut self.data)
-            .append(key.as_ref(), value.into())
-            .expect("key should not contain interior null byte")
+    pub fn append(&mut self, key: impl AsRef<str>, value: impl BindRawBsonRef) {
+        value.bind(|value_ref| {
+            raw_writer::RawWriter::new(&mut self.data)
+                .append(key.as_ref(), value_ref)
+                .expect("key should not contain interior null byte")
+        })
     }
 
     /// Convert this [`RawDocumentBuf`] to a [`Document`], returning an error
@@ -325,7 +314,7 @@ impl Borrow<RawDocument> for RawDocumentBuf {
     }
 }
 
-impl<S: AsRef<str>, T: Into<RawBson>> FromIterator<(S, T)> for RawDocumentBuf {
+impl<S: AsRef<str>, T: BindRawBsonRef> FromIterator<(S, T)> for RawDocumentBuf {
     fn from_iter<I: IntoIterator<Item = (S, T)>>(iter: I) -> Self {
         let mut buf = RawDocumentBuf::new();
         for (k, v) in iter {
@@ -333,4 +322,124 @@ impl<S: AsRef<str>, T: Into<RawBson>> FromIterator<(S, T)> for RawDocumentBuf {
         }
         buf
     }
+}
+
+pub trait BindRawBsonRef {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'a> FnOnce(RawBsonRef<'a>) -> R;
+}
+
+impl BindRawBsonRef for RawBson {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
+    {
+        f(self.as_raw_bson_ref())
+    }
+}
+
+impl BindRawBsonRef for &RawBson {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
+    {
+        f(self.as_raw_bson_ref())
+    }
+}
+
+impl<'a> BindRawBsonRef for RawBsonRef<'a> {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
+    {
+        f(self)
+    }
+}
+
+impl<'a> BindRawBsonRef for super::RawBinaryRef<'a> {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
+    {
+        f(self.into())
+    }
+}
+
+impl<'a> BindRawBsonRef for super::RawJavaScriptCodeWithScopeRef<'a> {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
+    {
+        f(self.into())
+    }
+}
+
+impl<'a> BindRawBsonRef for super::RawRegexRef<'a> {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
+    {
+        f(self.into())
+    }
+}
+
+macro_rules! raw_bson_ref_from_impls {
+    ($($t:ty),+$(,)?) => {
+        $(
+            impl BindRawBsonRef for $t {
+                fn bind<F, R>(self, f: F) -> R
+                where
+                    F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
+                {
+                    f(self.into())
+                }
+            }
+        )+
+    };
+}
+
+raw_bson_ref_from_impls! {
+    &crate::Binary,
+    &super::RawArray,
+    &super::RawArrayBuf,
+    &RawDocument,
+    &RawDocumentBuf,
+    &str,
+    crate::DateTime,
+    crate::Decimal128,
+    crate::oid::ObjectId,
+    crate::Timestamp,
+    bool,
+    f64,
+    i32,
+    i64,
+}
+
+macro_rules! raw_bson_from_impls {
+    ($($t:ty),+$(,)?) => {
+        $(
+            impl BindRawBsonRef for $t {
+                fn bind<F, R>(self, f: F) -> R
+                where
+                    F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
+                {
+                    let tmp: RawBson = self.into();
+                    f(tmp.as_raw_bson_ref())
+                }
+            }
+        )+
+    };
+}
+
+raw_bson_from_impls! {
+    &crate::binary::Vector,
+    crate::Binary,
+    crate::DbPointer,
+    super::RawArrayBuf,
+    RawDocumentBuf,
+    super::RawJavaScriptCodeWithScope,
+    crate::Regex,
+    String,
+    crate::binary::Vector,
 }
