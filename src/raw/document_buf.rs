@@ -324,6 +324,9 @@ impl<S: AsRef<str>, T: BindRawBsonRef> FromIterator<(S, T)> for RawDocumentBuf {
     }
 }
 
+/// Types that can be consumed to produce raw bson references valid for a limited lifetime.
+/// Conceptually a union between `T: Into<RawBson>` and `T: Into<RawBsonRef>`; if your type
+/// implements either of those you should consider adding an impl for this as well.
 pub trait BindRawBsonRef {
     fn bind<F, R>(self, f: F) -> R
     where
