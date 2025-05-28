@@ -351,39 +351,12 @@ impl BindRawBsonRef for &RawBson {
     }
 }
 
-impl<'a> BindRawBsonRef for RawBsonRef<'a> {
+impl BindRawBsonRef for RawBsonRef<'_> {
     fn bind<F, R>(self, f: F) -> R
     where
         F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
     {
         f(self)
-    }
-}
-
-impl<'a> BindRawBsonRef for super::RawBinaryRef<'a> {
-    fn bind<F, R>(self, f: F) -> R
-    where
-        F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
-    {
-        f(self.into())
-    }
-}
-
-impl<'a> BindRawBsonRef for super::RawJavaScriptCodeWithScopeRef<'a> {
-    fn bind<F, R>(self, f: F) -> R
-    where
-        F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
-    {
-        f(self.into())
-    }
-}
-
-impl<'a> BindRawBsonRef for super::RawRegexRef<'a> {
-    fn bind<F, R>(self, f: F) -> R
-    where
-        F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
-    {
-        f(self.into())
     }
 }
 
@@ -406,6 +379,9 @@ raw_bson_ref_from_impls! {
     &crate::Binary,
     &super::RawArray,
     &super::RawArrayBuf,
+    super::RawBinaryRef<'_>,
+    super::RawJavaScriptCodeWithScopeRef<'_>,
+    super::RawRegexRef<'_>,
     &RawDocument,
     &RawDocumentBuf,
     &str,

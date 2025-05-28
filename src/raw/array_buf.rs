@@ -14,8 +14,8 @@ use super::{document_buf::BindRawBsonRef, serde::OwnedOrBorrowedRawArray, RawArr
 /// bytes. This type can be used to construct owned array values, which can be used to append to
 /// [`RawDocumentBuf`] or as a field in a [`Deserialize`] struct.
 ///
-/// Iterating over a [`RawArrayBuf`] yields either an error or a [`RawBson`] value that borrows from
-/// the original document without making any additional allocations.
+/// Iterating over a [`RawArrayBuf`] yields either an error or a [`RawBson`](crate::raw::RawBson)
+/// value that borrows from the original document without making any additional allocations.
 /// ```
 /// # use bson::raw::Error;
 /// use bson::raw::RawArrayBuf;
