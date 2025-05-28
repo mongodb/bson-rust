@@ -806,7 +806,7 @@ where
 }
 
 // One could imagine passthrough Borrow impls; however, it turns out that can't be made to work
-// because of the exisitng base library impl of Borrow<T> for T will conflict despite that not
+// because of the existing base library impl of Borrow<T> for T will conflict despite that not
 // actually being possible to construct (https://github.com/rust-lang/rust/issues/50237).  So,
 // sadly, Borrow impls for HumanReadable are deliberately omitted :(
 
