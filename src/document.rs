@@ -1,10 +1,9 @@
 //! A BSON document represented as an associative HashMap with insertion ordering.
 
-#[cfg(feature = "hashable")]
-use std::hash::Hash;
 use std::{
     error,
     fmt::{self, Debug, Display, Formatter},
+    hash::Hash,
     io::{Read, Write},
     iter::{Extend, FromIterator, IntoIterator},
     ops::Index,
@@ -58,8 +57,7 @@ impl Display for ValueAccessError {
 impl error::Error for ValueAccessError {}
 
 /// A BSON document represented as an associative HashMap with insertion ordering.
-#[derive(Clone, PartialEq)]
-#[cfg_attr(feature = "hashable", derive(Eq))]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Document {
     inner: IndexMap<String, Bson, RandomState>,
 }
@@ -70,7 +68,6 @@ impl Default for Document {
     }
 }
 
-#[cfg(feature = "hashable")]
 impl Hash for Document {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let mut entries = Vec::from_iter(&self.inner);
