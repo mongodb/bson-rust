@@ -16,15 +16,10 @@ use time::format_description::well_known::Rfc3339;
 #[cfg(feature = "chrono-0_4")]
 use chrono::{LocalResult, TimeZone, Utc};
 #[cfg(all(
-    any(feature = "serde_with", feature = "serde_with-3"),
+    feature = "serde_with-3",
     any(feature = "chrono-0_4", feature = "time-0_3")
 ))]
 use serde::{Deserialize, Deserializer, Serialize};
-#[cfg(all(
-    feature = "serde_with",
-    any(feature = "chrono-0_4", feature = "time-0_3")
-))]
-use serde_with::{DeserializeAs, SerializeAs};
 
 /// Struct representing a BSON datetime.
 /// Note: BSON datetimes have millisecond precision.
@@ -158,7 +153,7 @@ use serde_with::{DeserializeAs, SerializeAs};
 /// use serde::{Deserialize, Serialize};
 /// use bson::doc;
 ///
-/// #[serde_with_3::serde_as]
+/// #[serde_with::serde_as]
 /// #[derive(Deserialize, Serialize, PartialEq, Debug)]
 /// struct Foo {
 ///   /// Serializes as a BSON datetime rather than using [`chrono::DateTime`]'s serialization
@@ -479,39 +474,12 @@ impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for crate::DateTime {
     }
 }
 
-#[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "chrono-0_4", feature = "serde_with"))))]
-impl<'de> DeserializeAs<'de, chrono::DateTime<Utc>> for crate::DateTime {
-    fn deserialize_as<D>(deserializer: D) -> std::result::Result<chrono::DateTime<Utc>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let dt = DateTime::deserialize(deserializer)?;
-        Ok(dt.to_chrono())
-    }
-}
-
-#[cfg(all(feature = "chrono-0_4", feature = "serde_with"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "chrono-0_4", feature = "chrono-0_4"))))]
-impl SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
-    fn serialize_as<S>(
-        source: &chrono::DateTime<Utc>,
-        serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let dt = DateTime::from_chrono(*source);
-        dt.serialize(serializer)
-    }
-}
-
 #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
 #[cfg_attr(
     docsrs,
     doc(cfg(all(feature = "chrono-0_4", feature = "serde_with-3")))
 )]
-impl<'de> serde_with_3::DeserializeAs<'de, chrono::DateTime<Utc>> for crate::DateTime {
+impl<'de> serde_with::DeserializeAs<'de, chrono::DateTime<Utc>> for crate::DateTime {
     fn deserialize_as<D>(deserializer: D) -> std::result::Result<chrono::DateTime<Utc>, D::Error>
     where
         D: Deserializer<'de>,
@@ -523,7 +491,7 @@ impl<'de> serde_with_3::DeserializeAs<'de, chrono::DateTime<Utc>> for crate::Dat
 
 #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "chrono-0_4", feature = "chrono-0_4"))))]
-impl serde_with_3::SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
+impl serde_with::SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
     fn serialize_as<S>(
         source: &chrono::DateTime<Utc>,
         serializer: S,
@@ -552,36 +520,9 @@ impl From<time::OffsetDateTime> for crate::DateTime {
     }
 }
 
-#[cfg(all(feature = "time-0_3", feature = "serde_with"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "time-0_3", feature = "serde_with"))))]
-impl<'de> DeserializeAs<'de, time::OffsetDateTime> for crate::DateTime {
-    fn deserialize_as<D>(deserializer: D) -> std::result::Result<time::OffsetDateTime, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let dt = DateTime::deserialize(deserializer)?;
-        Ok(dt.to_time_0_3())
-    }
-}
-
-#[cfg(all(feature = "time-0_3", feature = "serde_with"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "time-0_3", feature = "chrono-0_4"))))]
-impl SerializeAs<time::OffsetDateTime> for crate::DateTime {
-    fn serialize_as<S>(
-        source: &time::OffsetDateTime,
-        serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let dt = DateTime::from_time_0_3(*source);
-        dt.serialize(serializer)
-    }
-}
-
 #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "time-0_3", feature = "serde_with-3"))))]
-impl<'de> serde_with_3::DeserializeAs<'de, time::OffsetDateTime> for crate::DateTime {
+impl<'de> serde_with::DeserializeAs<'de, time::OffsetDateTime> for crate::DateTime {
     fn deserialize_as<D>(deserializer: D) -> std::result::Result<time::OffsetDateTime, D::Error>
     where
         D: Deserializer<'de>,
@@ -593,7 +534,7 @@ impl<'de> serde_with_3::DeserializeAs<'de, time::OffsetDateTime> for crate::Date
 
 #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "time-0_3", feature = "chrono-0_4"))))]
-impl serde_with_3::SerializeAs<time::OffsetDateTime> for crate::DateTime {
+impl serde_with::SerializeAs<time::OffsetDateTime> for crate::DateTime {
     fn serialize_as<S>(
         source: &time::OffsetDateTime,
         serializer: S,

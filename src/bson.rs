@@ -90,7 +90,6 @@ pub enum Bson {
 /// Alias for `Vec<Bson>`.
 pub type Array = Vec<Bson>;
 
-#[cfg(feature = "hashable")]
 impl Hash for Bson {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
@@ -125,7 +124,6 @@ impl Hash for Bson {
     }
 }
 
-#[cfg(feature = "hashable")]
 impl Eq for Bson {}
 
 impl Display for Bson {
@@ -1154,8 +1152,7 @@ impl Display for Regex {
 }
 
 /// Represents a BSON code with scope value.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "hashable", derive(Eq, Hash))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct JavaScriptCodeWithScope {
     /// The JavaScript code.
     pub code: String,

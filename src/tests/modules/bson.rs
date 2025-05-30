@@ -488,7 +488,6 @@ fn debug_print() {
     assert_eq!(format!("{:#?}", doc), pretty_print);
 }
 
-#[cfg(feature = "hashable")]
 #[test]
 fn test_hashable() {
     let mut map = std::collections::HashMap::new();

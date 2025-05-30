@@ -85,7 +85,7 @@
 //! use serde::{Deserialize, Serialize};
 //! use bson::doc;
 //!
-//! #[serde_with_3::serde_as]
+//! #[serde_with::serde_as]
 //! #[derive(Deserialize, Serialize, PartialEq, Debug)]
 //! struct Foo {
 //!   /// Serializes as a BSON binary rather than using [`uuid::Uuid`]'s serialization
@@ -453,8 +453,8 @@ macro_rules! trait_impls {
             }
         }
 
-        #[cfg(all($feat, feature = "serde_with"))]
-        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with"))))]
+        #[cfg(all($feat, feature = "serde_with-3"))]
+        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with-3"))))]
         impl<'de> serde_with::DeserializeAs<'de, $u> for crate::Uuid {
             fn deserialize_as<D>(deserializer: D) -> std::result::Result<$u, D::Error>
             where
@@ -465,33 +465,9 @@ macro_rules! trait_impls {
             }
         }
 
-        #[cfg(all($feat, feature = "serde_with"))]
-        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with"))))]
+        #[cfg(all($feat, feature = "serde_with-3"))]
+        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with-3"))))]
         impl serde_with::SerializeAs<$u> for crate::Uuid {
-            fn serialize_as<S>(source: &$u, serializer: S) -> std::result::Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                let uuid = Uuid::from(*source);
-                uuid.serialize(serializer)
-            }
-        }
-
-        #[cfg(all($feat, feature = "serde_with-3"))]
-        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with-3"))))]
-        impl<'de> serde_with_3::DeserializeAs<'de, $u> for crate::Uuid {
-            fn deserialize_as<D>(deserializer: D) -> std::result::Result<$u, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                let uuid = Uuid::deserialize(deserializer)?;
-                Ok(uuid.into())
-            }
-        }
-
-        #[cfg(all($feat, feature = "serde_with-3"))]
-        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with-3"))))]
-        impl serde_with_3::SerializeAs<$u> for crate::Uuid {
             fn serialize_as<S>(source: &$u, serializer: S) -> std::result::Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,
