@@ -100,6 +100,11 @@ where
 fn run_test(test: TestFile) {
     let _guard = LOCK.run_concurrently();
     for valid in test.valid {
+        #[cfg(not(feature = "large_dates"))]
+        if test.description == "Y10K" {
+            continue;
+        }
+
         let description = format!("{}: {}", test.description, valid.description);
 
         let canonical_bson = hex::decode(&valid.canonical_bson).expect(&description);

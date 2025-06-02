@@ -67,6 +67,7 @@
 //! | `serde_with-3` | Enable [`serde_with`](https://docs.rs/serde_with/3.x) 3.x integrations for [`DateTime`] and [`Uuid`]. | no      |
 //! | `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_err/latest).  This is an unstable feature and any breaking changes to `serde_path_to_error` may affect usage of it via this feature. | no |
 //! | `compat-3-0-0` | Required for future compatibility if default features are disabled. | no |
+//! | `large_dates` | Increase the supported year range for `bson::DateTime` from +/-9,999 (inclusive) to +/-999,999 (inclusive). Note that enabling this feature can impact performance and introduce parsing ambiguities. | no |
 //!
 //! ## BSON values
 //!
