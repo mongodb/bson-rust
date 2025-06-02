@@ -140,7 +140,7 @@ pub use self::{
         RawRegexRef,
     },
     document::RawDocument,
-    document_buf::RawDocumentBuf,
+    document_buf::{BindRawBsonRef, RawDocumentBuf},
     error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     iter::{RawElement, RawIter},
 };
