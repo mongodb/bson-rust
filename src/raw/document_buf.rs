@@ -189,43 +189,38 @@ impl RawDocumentBuf {
     ///
     /// If the provided key contains an interior null byte, this method will panic.
     ///
+    /// Values can be any type that can be converted to either borrowed or owned raw bson data; see
+    /// the documentation for [BindRawBsonRef] for more details.
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocumentBuf};
+    /// use bson::{doc, raw::{RawBsonRef, RawDocumentBuf}};
     ///
     /// let mut doc = RawDocumentBuf::new();
+    /// // `&str` and `i32` both convert to `RawBsonRef`
     /// doc.append("a string", "some string");
     /// doc.append("an integer", 12_i32);
     ///
     /// let mut subdoc = RawDocumentBuf::new();
     /// subdoc.append("a key", true);
-    /// doc.append("a document", subdoc);
+    /// doc.append("a borrowed document", &subdoc);
+    /// doc.append("an owned document", subdoc);
     ///
     /// let expected = doc! {
     ///     "a string": "some string",
     ///     "an integer": 12_i32,
-    ///     "a document": { "a key": true },
+    ///     "a borrowed document": { "a key": true },
+    ///     "an owned document": { "a key": true },
     /// };
     ///
     /// assert_eq!(doc.to_document()?, expected);
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn append(&mut self, key: impl AsRef<str>, value: impl Into<RawBson>) {
-        let value = value.into();
-        self.append_ref(key, value.as_raw_bson_ref())
-    }
-
-    /// Append a key value pair to the end of the document without checking to see if
-    /// the key already exists.
-    ///
-    /// It is a user error to append the same key more than once to the same document, and it may
-    /// result in errors when communicating with MongoDB.
-    ///
-    /// If the provided key contains an interior null byte, this method will panic.
-    pub fn append_ref<'a>(&mut self, key: impl AsRef<str>, value: impl Into<RawBsonRef<'a>>) {
-        raw_writer::RawWriter::new(&mut self.data)
-            .append(key.as_ref(), value.into())
-            .expect("key should not contain interior null byte")
+    pub fn append(&mut self, key: impl AsRef<str>, value: impl BindRawBsonRef) {
+        value.bind(|value_ref| {
+            raw_writer::RawWriter::new(&mut self.data)
+                .append(key.as_ref(), value_ref)
+                .expect("key should not contain interior null byte")
+        })
     }
 
     /// Convert this [`RawDocumentBuf`] to a [`Document`], returning an error
@@ -325,7 +320,7 @@ impl Borrow<RawDocument> for RawDocumentBuf {
     }
 }
 
-impl<S: AsRef<str>, T: Into<RawBson>> FromIterator<(S, T)> for RawDocumentBuf {
+impl<S: AsRef<str>, T: BindRawBsonRef> FromIterator<(S, T)> for RawDocumentBuf {
     fn from_iter<I: IntoIterator<Item = (S, T)>>(iter: I) -> Self {
         let mut buf = RawDocumentBuf::new();
         for (k, v) in iter {
@@ -333,4 +328,69 @@ impl<S: AsRef<str>, T: Into<RawBson>> FromIterator<(S, T)> for RawDocumentBuf {
         }
         buf
     }
+}
+
+/// Types that can be consumed to produce raw bson references valid for a limited lifetime.
+/// Conceptually a union between `T: Into<RawBson>` and `T: Into<RawBsonRef>`; if your type
+/// implements `Into<RawBsonRef>` it will automatically implement this, but if it only
+/// implements `Into<RawBson>` it will need to manually define the trivial impl.
+pub trait BindRawBsonRef {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'a> FnOnce(RawBsonRef<'a>) -> R;
+}
+
+impl<'a, T: Into<RawBsonRef<'a>>> BindRawBsonRef for T {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
+    {
+        f(self.into())
+    }
+}
+
+impl BindRawBsonRef for RawBson {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
+    {
+        f(self.as_raw_bson_ref())
+    }
+}
+
+impl BindRawBsonRef for &RawBson {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
+    {
+        f(self.as_raw_bson_ref())
+    }
+}
+
+macro_rules! raw_bson_from_impls {
+    ($($t:ty),+$(,)?) => {
+        $(
+            impl BindRawBsonRef for $t {
+                fn bind<F, R>(self, f: F) -> R
+                where
+                    F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
+                {
+                    let tmp: RawBson = self.into();
+                    f(tmp.as_raw_bson_ref())
+                }
+            }
+        )+
+    };
+}
+
+raw_bson_from_impls! {
+    &crate::binary::Vector,
+    crate::Binary,
+    crate::DbPointer,
+    super::RawArrayBuf,
+    RawDocumentBuf,
+    super::RawJavaScriptCodeWithScope,
+    crate::Regex,
+    String,
+    crate::binary::Vector,
 }
