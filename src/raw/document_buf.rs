@@ -188,22 +188,28 @@ impl RawDocumentBuf {
     /// result in errors when communicating with MongoDB.
     ///
     /// If the provided key contains an interior null byte, this method will panic.
+    ///
+    /// Values can be any type that can be converted to either borrowed or owned raw bson data; see
+    /// the documentation for [BindRawBsonRef] for more details.
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{doc, raw::RawDocumentBuf};
+    /// use bson::{doc, raw::{RawBsonRef, RawDocumentBuf}};
     ///
     /// let mut doc = RawDocumentBuf::new();
+    /// // `&str` and `i32` both convert to `RawBsonRef`
     /// doc.append("a string", "some string");
     /// doc.append("an integer", 12_i32);
     ///
     /// let mut subdoc = RawDocumentBuf::new();
     /// subdoc.append("a key", true);
-    /// doc.append("a document", subdoc);
+    /// doc.append("a borrowed document", &subdoc);
+    /// doc.append("an owned document", subdoc);
     ///
     /// let expected = doc! {
     ///     "a string": "some string",
     ///     "an integer": 12_i32,
-    ///     "a document": { "a key": true },
+    ///     "a borrowed document": { "a key": true },
+    ///     "an owned document": { "a key": true },
     /// };
     ///
     /// assert_eq!(doc.to_document()?, expected);
@@ -326,11 +332,21 @@ impl<S: AsRef<str>, T: BindRawBsonRef> FromIterator<(S, T)> for RawDocumentBuf {
 
 /// Types that can be consumed to produce raw bson references valid for a limited lifetime.
 /// Conceptually a union between `T: Into<RawBson>` and `T: Into<RawBsonRef>`; if your type
-/// implements either of those you should consider adding an impl for this as well.
+/// implements `Into<RawBsonRef>` it will automatically implement this, but if it only
+/// implements `Into<RawBson>` it will need to manually define the trivial impl.
 pub trait BindRawBsonRef {
     fn bind<F, R>(self, f: F) -> R
     where
         F: for<'a> FnOnce(RawBsonRef<'a>) -> R;
+}
+
+impl<'a, T: Into<RawBsonRef<'a>>> BindRawBsonRef for T {
+    fn bind<F, R>(self, f: F) -> R
+    where
+        F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
+    {
+        f(self.into())
+    }
 }
 
 impl BindRawBsonRef for RawBson {
@@ -349,50 +365,6 @@ impl BindRawBsonRef for &RawBson {
     {
         f(self.as_raw_bson_ref())
     }
-}
-
-impl BindRawBsonRef for RawBsonRef<'_> {
-    fn bind<F, R>(self, f: F) -> R
-    where
-        F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
-    {
-        f(self)
-    }
-}
-
-macro_rules! raw_bson_ref_from_impls {
-    ($($t:ty),+$(,)?) => {
-        $(
-            impl BindRawBsonRef for $t {
-                fn bind<F, R>(self, f: F) -> R
-                where
-                    F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
-                {
-                    f(self.into())
-                }
-            }
-        )+
-    };
-}
-
-raw_bson_ref_from_impls! {
-    &crate::Binary,
-    &super::RawArray,
-    &super::RawArrayBuf,
-    super::RawBinaryRef<'_>,
-    super::RawJavaScriptCodeWithScopeRef<'_>,
-    super::RawRegexRef<'_>,
-    &RawDocument,
-    &RawDocumentBuf,
-    &str,
-    crate::DateTime,
-    crate::Decimal128,
-    crate::oid::ObjectId,
-    crate::Timestamp,
-    bool,
-    f64,
-    i32,
-    i64,
 }
 
 macro_rules! raw_bson_from_impls {
