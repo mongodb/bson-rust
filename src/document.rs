@@ -695,9 +695,9 @@ impl Document {
         Ok(())
     }
 
-    fn decode<R: Read + ?Sized>(reader: &mut R, utf_lossy: bool) -> crate::de::Result<Document> {
+    fn decode<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
         let buf = crate::de::reader_to_vec(reader)?;
-        crate::de::from_raw(crate::de::RawDeserializer::new(&buf, utf_lossy)?)
+        crate::de::from_raw(crate::de::RawDeserializer::new(&buf)?)
     }
 
     /// Attempts to deserialize a [`Document`] from a byte stream.
@@ -729,18 +729,7 @@ impl Document {
     /// # }
     /// ```
     pub fn from_reader<R: Read>(mut reader: R) -> crate::de::Result<Document> {
-        Self::decode(&mut reader, false)
-    }
-
-    /// Attempt to deserialize a [`Document`] that may contain invalid UTF-8 strings from a byte
-    /// stream.
-    ///
-    /// This is mainly useful when reading raw BSON returned from a MongoDB server, which
-    /// in rare cases can contain invalidly truncated strings (<https://jira.mongodb.org/browse/SERVER-24007>).
-    /// For most use cases, `Document::from_reader` can be used instead.
-    #[deprecated = "use bson::serde_helpers::Utf8LossyDeserialization"]
-    pub fn from_reader_utf8_lossy<R: Read>(mut reader: R) -> crate::de::Result<Document> {
-        Self::decode(&mut reader, true)
+        Self::decode(&mut reader)
     }
 }
 

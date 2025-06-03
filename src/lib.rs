@@ -308,9 +308,6 @@ pub use self::{
     uuid::{Uuid, UuidRepresentation},
 };
 
-#[allow(deprecated)]
-pub use self::de::{from_reader_utf8_lossy, from_slice_utf8_lossy};
-
 #[macro_use]
 mod macros;
 mod base64;
