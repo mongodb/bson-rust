@@ -101,7 +101,7 @@ fn run_test(test: TestFile) {
     let _guard = LOCK.run_concurrently();
     for valid in test.valid {
         #[cfg(not(feature = "large_dates"))]
-        if test.description == "Y10K" {
+        if valid.description == "Y10K" {
             continue;
         }
 
