@@ -1,5 +1,3 @@
-use std::str::Utf8Error;
-
 use crate::spec::ElementType;
 
 /// An error that occurs when attempting to parse raw BSON bytes.
@@ -44,7 +42,7 @@ pub enum ErrorKind {
     MalformedValue { message: String },
 
     /// Improper UTF-8 bytes were found when proper UTF-8 was expected.
-    Utf8EncodingError(Utf8Error),
+    Utf8EncodingError,
 }
 
 impl std::fmt::Display for Error {
@@ -60,7 +58,7 @@ impl std::fmt::Display for Error {
             ErrorKind::MalformedValue { message } => {
                 write!(f, "{}malformed value: {:?}", prefix, message)
             }
-            ErrorKind::Utf8EncodingError(e) => write!(f, "{}utf-8 encoding error: {}", prefix, e),
+            ErrorKind::Utf8EncodingError => write!(f, "{}utf-8 encoding error", prefix),
         }
     }
 }
