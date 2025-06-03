@@ -174,6 +174,14 @@ use serde::{Deserialize, Deserializer, Serialize};
 /// # }
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
+///
+/// ## Large Dates
+/// The range of dates supported by `DateTime` are defined by [`DateTime::MIN`] and
+/// [`DateTime::MAX`]. However, some utilities for constructing and converting `DateTimes`, such as
+/// interop with the [`time::OffsetDateTime`] type and with RFC 3339 strings, are bounded by the
+/// [`time`] crate's supported date range. The `large_dates` feature can be enabled to expand this
+/// range, which enables the
+/// [`large-dates` feature for `time`](https://docs.rs/time/latest/time/#feature-flags).
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 pub struct DateTime(i64);
 
