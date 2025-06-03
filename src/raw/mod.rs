@@ -271,7 +271,7 @@ fn read_lenencode(buf: &[u8]) -> Result<&str> {
 }
 
 fn try_to_str(data: &[u8]) -> Result<&str> {
-    std::str::from_utf8(data).map_err(|e| Error::new(ErrorKind::Utf8EncodingError(e)))
+    simdutf8::basic::from_utf8(data).map_err(|_| Error::new(ErrorKind::Utf8EncodingError))
 }
 
 fn usize_try_from_i32(i: i32) -> Result<usize> {
