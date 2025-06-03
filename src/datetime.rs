@@ -386,13 +386,6 @@ impl crate::DateTime {
         }
     }
 
-    #[deprecated(since = "2.3.0", note = "Use try_to_rfc3339_string instead.")]
-    /// Convert this [`DateTime`] to an RFC 3339 formatted string.  Panics if it could not be
-    /// represented in that format.
-    pub fn to_rfc3339_string(self) -> String {
-        self.try_to_rfc3339_string().unwrap()
-    }
-
     /// Convert this [`DateTime`] to an RFC 3339 formatted string.
     pub fn try_to_rfc3339_string(self) -> Result<String> {
         self.to_time_0_3()

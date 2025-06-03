@@ -18,6 +18,7 @@ use crate::{
     Decimal128,
     Document,
     JavaScriptCodeWithScope,
+    RawDocumentBuf,
     Regex,
     Timestamp,
 };
@@ -73,8 +74,10 @@ fn test_encode_decode_utf8_string_invalid() {
     doc.to_writer(&mut buf).unwrap();
 
     let expected = doc! { "key": "��" };
-    #[allow(deprecated)]
-    let decoded = Document::from_reader_utf8_lossy(&mut Cursor::new(buf)).unwrap();
+    let decoded = RawDocumentBuf::from_reader(&mut Cursor::new(buf))
+        .unwrap()
+        .to_document_utf8_lossy()
+        .unwrap();
     assert_eq!(decoded, expected);
 }
 

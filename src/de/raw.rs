@@ -50,11 +50,11 @@ struct DeserializerOptions {
 }
 
 impl<'de> Deserializer<'de> {
-    pub(crate) fn new(buf: &'de [u8], utf8_lossy: bool) -> Result<Self> {
+    pub(crate) fn new(buf: &'de [u8]) -> Result<Self> {
         Ok(Self {
             element: RawElement::toplevel(buf)?,
             options: DeserializerOptions {
-                utf8_lossy,
+                utf8_lossy: false,
                 human_readable: false,
             },
         })

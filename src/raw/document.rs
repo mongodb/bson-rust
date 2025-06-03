@@ -508,6 +508,17 @@ impl RawDocument {
         let bytes = self.cstring_bytes_at(start_at)?;
         try_to_str(bytes)
     }
+
+    /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.
+    pub fn to_document(&self) -> Result<Document> {
+        self.as_ref().try_into()
+    }
+
+    /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.  Any
+    /// invalid UTF-8 sequences will be replaced with the Unicode replacement character.
+    pub fn to_document_utf8_lossy(&self) -> Result<Document> {
+        todo!()
+    }
 }
 
 impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
