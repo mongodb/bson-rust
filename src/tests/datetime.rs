@@ -37,6 +37,7 @@ fn datetime_to_rfc3339() {
 }
 
 #[test]
+#[cfg(feature = "large_dates")]
 fn invalid_datetime_to_rfc3339() {
     assert!(crate::DateTime::MAX.try_to_rfc3339_string().is_err());
 }
