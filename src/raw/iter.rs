@@ -265,7 +265,14 @@ impl<'a> RawElement<'a> {
         })
     }
 
-    pub(crate) fn value_utf8_lossy(&self) -> Result<Option<Utf8LossyBson<'a>>> {
+    pub fn value_utf8_lossy(&self) -> Result<RawBson> {
+        match self.value_utf8_lossy_inner()? {
+            Some(v) => Ok(v.into()),
+            None => Ok(self.value()?.to_raw_bson()),
+        }
+    }
+
+    pub(crate) fn value_utf8_lossy_inner(&self) -> Result<Option<Utf8LossyBson<'a>>> {
         Ok(Some(match self.kind {
             ElementType::String => Utf8LossyBson::String(self.read_utf8_lossy()),
             ElementType::JavaScriptCode => Utf8LossyBson::JavaScriptCode(self.read_utf8_lossy()),

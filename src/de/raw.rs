@@ -71,7 +71,7 @@ impl<'de> Deserializer<'de> {
         V: serde::de::Visitor<'de>,
     {
         if self.options.utf8_lossy {
-            if let Some(lossy) = self.element.value_utf8_lossy()? {
+            if let Some(lossy) = self.element.value_utf8_lossy_inner()? {
                 return match lossy {
                     Utf8LossyBson::String(s) => visitor.visit_string(s),
                     Utf8LossyBson::RegularExpression(re) => {
@@ -178,7 +178,7 @@ impl<'de> Deserializer<'de> {
 
     fn get_string(&self) -> Result<Cow<'de, str>> {
         if self.options.utf8_lossy {
-            let value = self.element.value_utf8_lossy()?;
+            let value = self.element.value_utf8_lossy_inner()?;
             let s = match value {
                 Some(Utf8LossyBson::String(s)) => s,
                 _ => {
