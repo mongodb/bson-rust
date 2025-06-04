@@ -452,3 +452,22 @@ pub(crate) struct Utf8LossyJavaScriptCodeWithScope<'a> {
     pub(crate) code: String,
     pub(crate) scope: &'a RawDocument,
 }
+
+impl<'a> From<Utf8LossyBson<'a>> for RawBson {
+    fn from(value: Utf8LossyBson<'a>) -> Self {
+        match value {
+            Utf8LossyBson::String(s) => RawBson::String(s),
+            Utf8LossyBson::JavaScriptCode(s) => RawBson::JavaScriptCode(s),
+            Utf8LossyBson::JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope {
+                code,
+                scope,
+            }) => RawBson::JavaScriptCodeWithScope(super::RawJavaScriptCodeWithScope {
+                code,
+                scope: scope.to_raw_document_buf(),
+            }),
+            Utf8LossyBson::Symbol(s) => RawBson::Symbol(s),
+            Utf8LossyBson::DbPointer(p) => RawBson::DbPointer(p),
+            Utf8LossyBson::RegularExpression(r) => RawBson::RegularExpression(r),
+        }
+    }
+}

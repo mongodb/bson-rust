@@ -10,6 +10,7 @@ use crate::{
     error::{Error, Result},
     raw::{serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
     DateTime,
+    RawBson,
     Timestamp,
 };
 
@@ -511,13 +512,24 @@ impl RawDocument {
 
     /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.
     pub fn to_document(&self) -> Result<Document> {
-        self.as_ref().try_into()
+        self.try_into()
     }
 
     /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.  Any
     /// invalid UTF-8 sequences will be replaced with the Unicode replacement character.
     pub fn to_document_utf8_lossy(&self) -> Result<Document> {
-        todo!()
+        self.iter_elements()
+            .map(|res| {
+                res.and_then(|e| {
+                    let key = e.key().to_owned();
+                    let raw_value: RawBson = match e.value_utf8_lossy()? {
+                        Some(l) => l.into(),
+                        None => e.value()?.to_raw_bson(),
+                    };
+                    Ok((key, raw_value.try_into()?))
+                })
+            })
+            .collect()
     }
 }
 
