@@ -5,27 +5,33 @@ use crate::spec::ElementType;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// An error that can occur in the `bson` crate.
-#[non_exhaustive]
 #[derive(Debug, Error)]
 #[error("Kind: {kind}")]
+#[non_exhaustive]
 pub struct Error {
     /// The kind of error that occurred.
     pub kind: ErrorKind,
 }
 
-#[non_exhaustive]
+/// The types of errors that can occur in the `bson` crate.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ErrorKind {
+    /// An error occurred when attempting to access a value in a document.
     #[error("An error occurred when attempting to access a document value for key {key}: {kind}")]
     #[non_exhaustive]
     ValueAccess {
+        /// The key of the value.
         key: String,
+
+        /// The kind of error that occurred.
         kind: ValueAccessErrorKind,
     },
 }
 
-#[non_exhaustive]
+/// The types of errors that can occur when attempting to access a value in a document.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ValueAccessErrorKind {
     /// No value for the specified key was present in the document.
     #[error("The key was not present in the document")]
@@ -44,6 +50,7 @@ pub enum ValueAccessErrorKind {
 
     /// An error occurred when attempting to parse the document's BSON bytes.
     #[error("{message}")]
+    #[non_exhaustive]
     InvalidBson { message: String },
 }
 
