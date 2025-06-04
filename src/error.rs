@@ -16,9 +16,12 @@ pub struct Error {
 #[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum ErrorKind {
-    #[error("An error occurred when attempting to access a document value: {kind}")]
+    #[error("An error occurred when attempting to access a document value for key {key}: {kind}")]
     #[non_exhaustive]
-    ValueAccess { kind: ValueAccessErrorKind },
+    ValueAccess {
+        key: String,
+        kind: ValueAccessErrorKind,
+    },
 }
 
 #[non_exhaustive]
@@ -45,18 +48,33 @@ pub enum ValueAccessErrorKind {
 }
 
 impl Error {
-    pub(crate) fn value_access_not_present() -> Self {
+    pub(crate) fn value_access_not_present(key: impl Into<String>) -> Self {
         Self {
             kind: ErrorKind::ValueAccess {
+                key: key.into(),
                 kind: ValueAccessErrorKind::NotPresent,
             },
         }
     }
 
-    pub(crate) fn value_access_unexpected_type(actual: ElementType, expected: ElementType) -> Self {
+    pub(crate) fn value_access_unexpected_type(
+        key: impl Into<String>,
+        actual: ElementType,
+        expected: ElementType,
+    ) -> Self {
         Self {
             kind: ErrorKind::ValueAccess {
+                key: key.into(),
                 kind: ValueAccessErrorKind::UnexpectedType { actual, expected },
+            },
+        }
+    }
+
+    pub(crate) fn value_access_invalid_bson(key: impl Into<String>, message: String) -> Self {
+        Self {
+            kind: ErrorKind::ValueAccess {
+                key: key.into(),
+                kind: ValueAccessErrorKind::InvalidBson { message },
             },
         }
     }
@@ -67,6 +85,7 @@ impl Error {
             self.kind,
             ErrorKind::ValueAccess {
                 kind: ValueAccessErrorKind::NotPresent,
+                ..
             }
         )
     }
@@ -77,6 +96,7 @@ impl Error {
             self.kind,
             ErrorKind::ValueAccess {
                 kind: ValueAccessErrorKind::UnexpectedType { .. },
+                ..
             }
         )
     }
