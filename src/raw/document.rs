@@ -10,7 +10,6 @@ use crate::{
     error::{Error, Result},
     raw::{error::ErrorKind, serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
     DateTime,
-    RawBson,
     Timestamp,
 };
 
@@ -535,14 +534,7 @@ impl RawDocument {
     pub fn to_document_utf8_lossy(&self) -> Result<Document> {
         self.iter_elements()
             .map(|res| {
-                res.and_then(|e| {
-                    let key = e.key().to_owned();
-                    let raw_value: RawBson = match e.value_utf8_lossy()? {
-                        Some(l) => l.into(),
-                        None => e.value()?.to_raw_bson(),
-                    };
-                    Ok((key, raw_value.try_into()?))
-                })
+                res.and_then(|e| Ok((e.key().to_owned(), e.value_utf8_lossy()?.try_into()?)))
             })
             .collect()
     }
