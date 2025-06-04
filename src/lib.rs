@@ -320,6 +320,7 @@ pub mod datetime;
 pub mod de;
 pub mod decimal128;
 pub mod document;
+pub mod error;
 pub mod extjson;
 pub mod oid;
 pub mod raw;

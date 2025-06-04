@@ -1,7 +1,6 @@
 //! A BSON document represented as an associative HashMap with insertion ordering.
 
 use std::{
-    error,
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
     io::{Read, Write},
@@ -14,47 +13,12 @@ use indexmap::IndexMap;
 
 use crate::{
     bson::{Array, Bson, Timestamp},
+    error::{Error, Result},
     oid::ObjectId,
-    spec::BinarySubtype,
+    spec::{BinarySubtype, ElementType},
     Binary,
     Decimal128,
 };
-
-/// Error to indicate that either a value was empty or it contained an unexpected
-/// type, for use with the direct getters.
-#[derive(PartialEq, Clone)]
-#[non_exhaustive]
-pub enum ValueAccessError {
-    /// Cannot find the expected field with the specified key
-    NotPresent,
-    /// Found a Bson value with the specified key, but not with the expected type
-    UnexpectedType,
-}
-
-/// Result of accessing Bson value
-pub type ValueAccessResult<T> = Result<T, ValueAccessError>;
-
-impl Debug for ValueAccessError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match *self {
-            ValueAccessError::NotPresent => write!(f, "ValueAccessError: field is not present"),
-            ValueAccessError::UnexpectedType => {
-                write!(f, "ValueAccessError: field does not have the expected type")
-            }
-        }
-    }
-}
-
-impl Display for ValueAccessError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match *self {
-            ValueAccessError::NotPresent => write!(f, "field is not present"),
-            ValueAccessError::UnexpectedType => write!(f, "field does not have the expected type"),
-        }
-    }
-}
-
-impl error::Error for ValueAccessError {}
 
 /// A BSON document represented as an associative HashMap with insertion ordering.
 #[derive(Clone, PartialEq, Eq)]
@@ -246,300 +210,382 @@ impl<'a> Iterator for IterMut<'a> {
 }
 
 impl Document {
-    /// Creates a new empty Document.
+    /// Returns a new empty document.
     pub fn new() -> Document {
         Document {
             inner: IndexMap::default(),
         }
     }
 
-    /// Gets an iterator over the entries of the map.
+    /// Returns an iterator over the contents of the document.
     pub fn iter(&self) -> Iter {
         self.into_iter()
     }
 
-    /// Gets an iterator over pairs of keys and mutable values.
+    /// Returns an iterator over mutable references to the contents of the document.
     pub fn iter_mut(&mut self) -> IterMut {
         IterMut {
             inner: self.inner.iter_mut(),
         }
     }
 
-    /// Clears the document, removing all values.
+    /// Removes all values from the document.
     pub fn clear(&mut self) {
         self.inner.clear();
     }
 
-    /// Returns a reference to the Bson corresponding to the key.
+    /// Returns a reference to the [`Bson`] value that corresponds to the given key, if present.
     pub fn get(&self, key: impl AsRef<str>) -> Option<&Bson> {
         self.inner.get(key.as_ref())
     }
 
-    /// Gets a mutable reference to the Bson corresponding to the key
+    /// Returns a mutable reference to the [`Bson`] value that corresponds to the given key, if
+    /// present.
     pub fn get_mut(&mut self, key: impl AsRef<str>) -> Option<&mut Bson> {
         self.inner.get_mut(key.as_ref())
     }
 
-    /// Get a floating point value for this key if it exists and has
-    /// the correct type.
-    pub fn get_f64(&self, key: impl AsRef<str>) -> ValueAccessResult<f64> {
+    /// Returns the value for the given key if one is present and is of type
+    /// [`ElementType::Double`].
+    pub fn get_f64(&self, key: impl AsRef<str>) -> Result<f64> {
         match self.get(key) {
             Some(&Bson::Double(v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Double,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable reference to a floating point value for this key if it exists and has
-    /// the correct type.
-    pub fn get_f64_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut f64> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Double`].
+    pub fn get_f64_mut(&mut self, key: impl AsRef<str>) -> Result<&mut f64> {
         match self.get_mut(key) {
             Some(&mut Bson::Double(ref mut v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Double,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a reference to a Decimal128 value for key, if it exists.
-    pub fn get_decimal128(&self, key: impl AsRef<str>) -> ValueAccessResult<&Decimal128> {
+    /// Returns a reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Decimal128`].
+    pub fn get_decimal128(&self, key: impl AsRef<str>) -> Result<&Decimal128> {
         match self.get(key) {
             Some(Bson::Decimal128(v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Decimal128,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable reference to a Decimal128 value for key, if it exists.
-    pub fn get_decimal128_mut(
-        &mut self,
-        key: impl AsRef<str>,
-    ) -> ValueAccessResult<&mut Decimal128> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Decimal128`].
+    pub fn get_decimal128_mut(&mut self, key: impl AsRef<str>) -> Result<&mut Decimal128> {
         match self.get_mut(key) {
             Some(&mut Bson::Decimal128(ref mut v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Decimal128,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a string slice this key if it exists and has the correct type.
-    pub fn get_str(&self, key: impl AsRef<str>) -> ValueAccessResult<&str> {
+    /// Returns a reference to the value for the given key if one is present and is of type
+    /// [`ElementType::String`].
+    pub fn get_str(&self, key: impl AsRef<str>) -> Result<&str> {
         match self.get(key) {
             Some(Bson::String(v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::String,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable string slice this key if it exists and has the correct type.
-    pub fn get_str_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut str> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::String`].
+    pub fn get_str_mut(&mut self, key: impl AsRef<str>) -> Result<&mut str> {
         match self.get_mut(key) {
             Some(&mut Bson::String(ref mut v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::String,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a reference to an array for this key if it exists and has
-    /// the correct type.
-    pub fn get_array(&self, key: impl AsRef<str>) -> ValueAccessResult<&Array> {
+    /// Returns a reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Array`].
+    pub fn get_array(&self, key: impl AsRef<str>) -> Result<&Array> {
         match self.get(key) {
             Some(Bson::Array(v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Array,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable reference to an array for this key if it exists and has
-    /// the correct type.
-    pub fn get_array_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut Array> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Array`].
+    pub fn get_array_mut(&mut self, key: impl AsRef<str>) -> Result<&mut Array> {
         match self.get_mut(key) {
             Some(&mut Bson::Array(ref mut v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Array,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a reference to a document for this key if it exists and has
-    /// the correct type.
-    pub fn get_document(&self, key: impl AsRef<str>) -> ValueAccessResult<&Document> {
+    /// Returns a reference to the value for the given key if one is present and is of type
+    /// [`ElementType::EmbeddedDocument`].
+    pub fn get_document(&self, key: impl AsRef<str>) -> Result<&Document> {
         match self.get(key) {
             Some(Bson::Document(v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::EmbeddedDocument,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable reference to a document for this key if it exists and has
-    /// the correct type.
-    pub fn get_document_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut Document> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::EmbeddedDocument`].
+    pub fn get_document_mut(&mut self, key: impl AsRef<str>) -> Result<&mut Document> {
         match self.get_mut(key) {
             Some(&mut Bson::Document(ref mut v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::EmbeddedDocument,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a bool value for this key if it exists and has the correct type.
-    pub fn get_bool(&self, key: impl AsRef<str>) -> ValueAccessResult<bool> {
+    /// Returns a reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Boolean`].
+    pub fn get_bool(&self, key: impl AsRef<str>) -> Result<bool> {
         match self.get(key) {
             Some(&Bson::Boolean(v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Boolean,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable reference to a bool value for this key if it exists and has the correct type.
-    pub fn get_bool_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut bool> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Boolean`].
+    pub fn get_bool_mut(&mut self, key: impl AsRef<str>) -> Result<&mut bool> {
         match self.get_mut(key) {
             Some(&mut Bson::Boolean(ref mut v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Boolean,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Returns wether this key has a null value
-    pub fn is_null(&self, key: impl AsRef<str>) -> bool {
-        self.get(key) == Some(&Bson::Null)
+    /// Returns the unit type if the given key corresponds to a [`Bson::Null`] value.
+    pub fn get_null(&self, key: impl AsRef<str>) -> Result<()> {
+        match self.get(key) {
+            Some(&Bson::Null) => Ok(()),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Null,
+            )),
+            None => Err(Error::value_access_not_present()),
+        }
     }
 
-    /// Get an i32 value for this key if it exists and has the correct type.
-    pub fn get_i32(&self, key: impl AsRef<str>) -> ValueAccessResult<i32> {
+    /// Returns the value for the given key if one is present and is of type [`ElementType::Int32`].
+    pub fn get_i32(&self, key: impl AsRef<str>) -> Result<i32> {
         match self.get(key) {
             Some(&Bson::Int32(v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Int32,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable reference to an i32 value for this key if it exists and has the correct type.
-    pub fn get_i32_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut i32> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Int32`].
+    pub fn get_i32_mut(&mut self, key: impl AsRef<str>) -> Result<&mut i32> {
         match self.get_mut(key) {
             Some(&mut Bson::Int32(ref mut v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Int32,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get an i64 value for this key if it exists and has the correct type.
-    pub fn get_i64(&self, key: impl AsRef<str>) -> ValueAccessResult<i64> {
+    /// Returns the value for the given key if one is present and is of type [`ElementType::Int64`].
+    pub fn get_i64(&self, key: impl AsRef<str>) -> Result<i64> {
         match self.get(key) {
             Some(&Bson::Int64(v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Int64,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable reference to an i64 value for this key if it exists and has the correct type.
-    pub fn get_i64_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut i64> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Int64`].
+    pub fn get_i64_mut(&mut self, key: impl AsRef<str>) -> Result<&mut i64> {
         match self.get_mut(key) {
             Some(&mut Bson::Int64(ref mut v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Int64,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a time stamp value for this key if it exists and has the correct type.
-    pub fn get_timestamp(&self, key: impl AsRef<str>) -> ValueAccessResult<Timestamp> {
+    /// Returns the value for the given key if one is present and is of type
+    /// [`ElementType::Timestamp`].
+    pub fn get_timestamp(&self, key: impl AsRef<str>) -> Result<Timestamp> {
         match self.get(key) {
             Some(&Bson::Timestamp(timestamp)) => Ok(timestamp),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Timestamp,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable reference to a time stamp value for this key if it exists and has the correct
-    /// type.
-    pub fn get_timestamp_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut Timestamp> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Timestamp`].
+    pub fn get_timestamp_mut(&mut self, key: impl AsRef<str>) -> Result<&mut Timestamp> {
         match self.get_mut(key) {
             Some(&mut Bson::Timestamp(ref mut timestamp)) => Ok(timestamp),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Timestamp,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a reference to a generic binary value for this key if it exists and has the correct
-    /// type.
-    pub fn get_binary_generic(&self, key: impl AsRef<str>) -> ValueAccessResult<&Vec<u8>> {
+    /// Returns a reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Binary`] with binary subtype [`BinarySubtype::Generic`].
+    pub fn get_binary_generic(&self, key: impl AsRef<str>) -> Result<&Vec<u8>> {
         match self.get(key) {
             Some(&Bson::Binary(Binary {
                 subtype: BinarySubtype::Generic,
                 ref bytes,
             })) => Ok(bytes),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Binary,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable reference generic binary value for this key if it exists and has the correct
-    /// type.
-    pub fn get_binary_generic_mut(
-        &mut self,
-        key: impl AsRef<str>,
-    ) -> ValueAccessResult<&mut Vec<u8>> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::Binary`] with binary subtype [`BinarySubtype::Generic`].
+    pub fn get_binary_generic_mut(&mut self, key: impl AsRef<str>) -> Result<&mut Vec<u8>> {
         match self.get_mut(key) {
             Some(&mut Bson::Binary(Binary {
                 subtype: BinarySubtype::Generic,
                 ref mut bytes,
             })) => Ok(bytes),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::Binary,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get an object id value for this key if it exists and has the correct type.
-    pub fn get_object_id(&self, key: impl AsRef<str>) -> ValueAccessResult<ObjectId> {
+    /// Returns the value for the given key if one is present and is of type
+    /// [`ElementType::ObjectId`].
+    pub fn get_object_id(&self, key: impl AsRef<str>) -> Result<ObjectId> {
         match self.get(key) {
             Some(&Bson::ObjectId(v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::ObjectId,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable reference to an object id value for this key if it exists and has the correct
-    /// type.
-    pub fn get_object_id_mut(&mut self, key: impl AsRef<str>) -> ValueAccessResult<&mut ObjectId> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::ObjectId`].
+    pub fn get_object_id_mut(&mut self, key: impl AsRef<str>) -> Result<&mut ObjectId> {
         match self.get_mut(key) {
             Some(&mut Bson::ObjectId(ref mut v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::ObjectId,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a reference to a UTC datetime value for this key if it exists and has the correct type.
-    pub fn get_datetime(&self, key: impl AsRef<str>) -> ValueAccessResult<&crate::DateTime> {
+    /// Returns a reference to the value for the given key if one is present and is of type
+    /// [`ElementType::DateTime`].
+    pub fn get_datetime(&self, key: impl AsRef<str>) -> Result<&crate::DateTime> {
         match self.get(key) {
             Some(Bson::DateTime(v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::DateTime,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Get a mutable reference to a UTC datetime value for this key if it exists and has the
-    /// correct type.
-    pub fn get_datetime_mut(
-        &mut self,
-        key: impl AsRef<str>,
-    ) -> ValueAccessResult<&mut crate::DateTime> {
+    /// Returns a mutable reference to the value for the given key if one is present and is of type
+    /// [`ElementType::DateTime`].
+    pub fn get_datetime_mut(&mut self, key: impl AsRef<str>) -> Result<&mut crate::DateTime> {
         match self.get_mut(key) {
             Some(&mut Bson::DateTime(ref mut v)) => Ok(v),
-            Some(_) => Err(ValueAccessError::UnexpectedType),
-            None => Err(ValueAccessError::NotPresent),
+            Some(bson) => Err(Error::value_access_unexpected_type(
+                bson.element_type(),
+                ElementType::DateTime,
+            )),
+            None => Err(Error::value_access_not_present()),
         }
     }
 
-    /// Returns true if the map contains a value for the specified key.
+    /// Returns whether the map contains a value for the specified key.
     pub fn contains_key(&self, key: impl AsRef<str>) -> bool {
         self.inner.contains_key(key.as_ref())
     }
 
-    /// Gets a collection of all keys in the document.
+    /// Returns an iterator over the keys in the document.
     pub fn keys(&self) -> Keys {
         Keys {
             inner: self.inner.keys(),
         }
     }
 
-    /// Gets a collection of all values in the document.
+    /// Returns an iterator over the values in the document.
     pub fn values(&self) -> Values {
         Values {
             inner: self.inner.values(),
@@ -551,26 +597,27 @@ impl Document {
         self.inner.len()
     }
 
-    /// Returns true if the document contains no elements
+    /// Returns whether the document is empty.
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
-    /// Sets the value of the entry with the OccupiedEntry's key,
-    /// and returns the entry's old value. Accepts any type that
-    /// can be converted into Bson.
+    /// Inserts the provided key-value pair into the document. Any type that implements `Into<Bson>`
+    /// can be specified as a value. If a value is already present for the given key, it will be
+    /// overridden and returned.
     pub fn insert<KT: Into<String>, BT: Into<Bson>>(&mut self, key: KT, val: BT) -> Option<Bson> {
         self.inner.insert(key.into(), val.into())
     }
 
-    /// Takes the value of the entry out of the document, and returns it.
-    /// Computes in **O(n)** time (average).
+    /// Removes and returns the value that corresponds to the given key if present. Computes in
+    /// **O(n)** time (average).
     pub fn remove(&mut self, key: impl AsRef<str>) -> Option<Bson> {
         self.inner.shift_remove(key.as_ref())
     }
 
-    pub fn entry(&mut self, k: String) -> Entry {
-        match self.inner.entry(k) {
+    /// Returns an [`Entry`] for the given key.
+    pub fn entry(&mut self, k: impl Into<String>) -> Entry {
+        match self.inner.entry(k.into()) {
             indexmap::map::Entry::Occupied(o) => Entry::Occupied(OccupiedEntry { inner: o }),
             indexmap::map::Entry::Vacant(v) => Entry::Vacant(VacantEntry { inner: v }),
         }
@@ -647,9 +694,7 @@ impl Document {
     }
 }
 
-/// A view into a single entry in a map, which may either be vacant or occupied.
-///
-/// This enum is constructed from the entry method on HashMap.
+/// A view into a single entry in a document, which may either be vacant or occupied.
 pub enum Entry<'a> {
     /// An occupied entry.
     Occupied(OccupiedEntry<'a>),
