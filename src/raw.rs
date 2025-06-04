@@ -141,7 +141,7 @@ pub use self::{
     },
     document::RawDocument,
     document_buf::{BindRawBsonRef, RawDocumentBuf},
-    error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
+    error::{Error, ErrorKind, Result},
     iter::{RawElement, RawIter},
 };
 

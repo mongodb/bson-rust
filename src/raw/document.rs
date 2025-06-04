@@ -228,7 +228,6 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::raw::ValueAccessErrorKind;
     /// use bson::rawdoc;
     ///
     /// let doc = rawdoc! {
@@ -249,7 +248,7 @@ impl RawDocument {
     /// key corresponds to a value which isn't a string.
     ///
     /// ```
-    /// use bson::{rawdoc, raw::ValueAccessErrorKind};
+    /// use bson::rawdoc;
     ///
     /// let doc = rawdoc! {
     ///     "string": "hello",
@@ -270,7 +269,7 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{rawdoc, raw::ValueAccessErrorKind};
+    /// use bson::rawdoc;
     ///
     /// let doc = rawdoc! {
     ///     "doc": { "key": "value"},
@@ -290,7 +289,7 @@ impl RawDocument {
     /// the key corresponds to a value which isn't an array.
     ///
     /// ```
-    /// use bson::{rawdoc, error::{ErrorKind, ValueAccessErrorKind}};
+    /// use bson::rawdoc;
     ///
     /// let doc = rawdoc! {
     ///     "array": [true, 3],
@@ -316,7 +315,6 @@ impl RawDocument {
     /// ```
     /// use bson::{
     ///     rawdoc,
-    ///     raw::ValueAccessErrorKind,
     ///     spec::BinarySubtype,
     ///     Binary,
     /// };
@@ -340,7 +338,7 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{rawdoc, oid::ObjectId, raw::ValueAccessErrorKind};
+    /// use bson::{rawdoc, oid::ObjectId};
     ///
     /// let doc = rawdoc! {
     ///     "_id": ObjectId::new(),
@@ -361,7 +359,7 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{rawdoc, oid::ObjectId, raw::ValueAccessErrorKind};
+    /// use bson::{rawdoc, oid::ObjectId};
     ///
     /// let doc = rawdoc! {
     ///     "_id": ObjectId::new(),
@@ -382,7 +380,7 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{rawdoc, raw::ValueAccessErrorKind, DateTime};
+    /// use bson::{rawdoc, DateTime};
     ///
     /// let dt = DateTime::now();
     /// let doc = rawdoc! {
@@ -403,7 +401,7 @@ impl RawDocument {
     /// the key corresponds to a value which isn't a regex.
     ///
     /// ```
-    /// use bson::{rawdoc, Regex, raw::ValueAccessErrorKind};
+    /// use bson::{rawdoc, Regex};
     ///
     /// let doc = rawdoc! {
     ///     "regex": Regex {
@@ -428,7 +426,7 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{rawdoc, Timestamp, raw::ValueAccessErrorKind};
+    /// use bson::{rawdoc, Timestamp};
     ///
     /// let doc = rawdoc! {
     ///     "bool": true,
@@ -452,7 +450,7 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{rawdoc, raw::ValueAccessErrorKind};
+    /// use bson::rawdoc;
     ///
     /// let doc = rawdoc! {
     ///     "bool": true,
@@ -473,7 +471,7 @@ impl RawDocument {
     ///
     /// ```
     /// # use bson::raw::Error;
-    /// use bson::{rawdoc, raw::ValueAccessErrorKind};
+    /// use bson::rawdoc;
     ///
     /// let doc = rawdoc! {
     ///     "bool": true,
