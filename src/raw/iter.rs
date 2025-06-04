@@ -9,11 +9,9 @@ use crate::{
     DateTime,
     Decimal128,
     RawArray,
-    RawArrayBuf,
     RawBinaryRef,
     RawBson,
     RawDbPointerRef,
-    RawDocumentBuf,
     RawJavaScriptCodeWithScopeRef,
     RawRegexRef,
     Timestamp,
@@ -269,41 +267,8 @@ impl<'a> RawElement<'a> {
 
     pub fn value_utf8_lossy(&self) -> Result<RawBson> {
         match self.value_utf8_lossy_inner()? {
-            Some(v) => Ok(match v {
-                Utf8LossyBson::JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope {
-                    code,
-                    scope,
-                }) => {
-                    let mut tmp = RawDocumentBuf::new();
-                    for elem in scope.iter_elements() {
-                        let elem = elem?;
-                        tmp.append(elem.key(), elem.value_utf8_lossy()?);
-                    }
-                    RawBson::JavaScriptCodeWithScope(super::RawJavaScriptCodeWithScope {
-                        code,
-                        scope: tmp,
-                    })
-                }
-                v => v.into(),
-            }),
-            None => Ok(match self.value()? {
-                RawBsonRef::Array(arr) => {
-                    let mut tmp = RawArrayBuf::new();
-                    for elem in arr.iter_elements() {
-                        tmp.push(elem?.value_utf8_lossy()?);
-                    }
-                    RawBson::Array(tmp)
-                }
-                RawBsonRef::Document(doc) => {
-                    let mut tmp = RawDocumentBuf::new();
-                    for elem in doc.iter_elements() {
-                        let elem = elem?;
-                        tmp.append(elem.key(), elem.value_utf8_lossy()?);
-                    }
-                    RawBson::Document(tmp)
-                }
-                v => v.to_raw_bson(),
-            }),
+            Some(v) => Ok(v.into()),
+            None => Ok(self.value()?.to_raw_bson()),
         }
     }
 

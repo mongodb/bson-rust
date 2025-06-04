@@ -9,7 +9,11 @@ use crate::{
     de::MIN_BSON_DOCUMENT_SIZE,
     error::{Error, Result},
     raw::{serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
+    Bson,
     DateTime,
+    JavaScriptCodeWithScope,
+    RawBson,
+    RawJavaScriptCodeWithScope,
     Timestamp,
 };
 
@@ -517,11 +521,45 @@ impl RawDocument {
     /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.  Any
     /// invalid UTF-8 sequences will be replaced with the Unicode replacement character.
     pub fn to_document_utf8_lossy(&self) -> Result<Document> {
-        self.iter_elements()
-            .map(|res| {
-                res.and_then(|e| Ok((e.key().to_owned(), e.value_utf8_lossy()?.try_into()?)))
-            })
-            .collect()
+        let mut out = Document::new();
+        for elem in self.iter_elements() {
+            let elem = elem?;
+            let value = deep_utf8_lossy(elem.value_utf8_lossy()?)?;
+            out.insert(elem.key(), value);
+        }
+        Ok(out)
+    }
+}
+
+fn deep_utf8_lossy(src: RawBson) -> Result<Bson> {
+    match src {
+        RawBson::Array(arr) => {
+            let mut tmp = vec![];
+            for elem in arr.iter_elements() {
+                tmp.push(deep_utf8_lossy(elem?.value_utf8_lossy()?)?);
+            }
+            Ok(Bson::Array(tmp))
+        }
+        RawBson::Document(doc) => {
+            let mut tmp = doc! {};
+            for elem in doc.iter_elements() {
+                let elem = elem?;
+                tmp.insert(elem.key(), deep_utf8_lossy(elem.value_utf8_lossy()?)?);
+            }
+            Ok(Bson::Document(tmp))
+        }
+        RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope { code, scope }) => {
+            let mut tmp = doc! {};
+            for elem in scope.iter_elements() {
+                let elem = elem?;
+                tmp.insert(elem.key(), deep_utf8_lossy(elem.value_utf8_lossy()?)?);
+            }
+            Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                code,
+                scope: tmp,
+            }))
+        }
+        v => v.try_into(),
     }
 }
 
