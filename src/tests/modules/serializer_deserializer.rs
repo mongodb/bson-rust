@@ -68,12 +68,12 @@ fn test_encode_decode_utf8_string_invalid() {
     let bytes = b"\x80\xae".to_vec();
     let src = unsafe { String::from_utf8_unchecked(bytes) };
 
-    let doc = doc! { "key": src };
+    let doc = doc! { "key": &src, "subdoc": { "subkey": &src } };
 
     let mut buf = Vec::new();
     doc.to_writer(&mut buf).unwrap();
 
-    let expected = doc! { "key": "��" };
+    let expected = doc! { "key": "��", "subdoc": { "subkey": "��" } };
     let decoded = RawDocumentBuf::from_reader(&mut Cursor::new(buf))
         .unwrap()
         .to_document_utf8_lossy()

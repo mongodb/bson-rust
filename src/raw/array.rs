@@ -212,6 +212,11 @@ impl RawArray {
     pub fn is_empty(&self) -> bool {
         self.doc.is_empty()
     }
+
+    /// Returns an iterator over the `RawElement`s in the array.
+    pub fn iter_elements(&self) -> RawIter {
+        RawIter::new(&self.doc)
+    }
 }
 
 impl std::fmt::Debug for RawArray {
