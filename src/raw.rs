@@ -30,7 +30,7 @@
 //!   elem.as_str(),
 //!   Some("y'all"),
 //! );
-//! # Ok::<(), bson::raw::Error>(())
+//! # Ok::<(), bson::error::Error>(())
 //! ```
 //!
 //! ### [`crate::Document`] interop
@@ -109,7 +109,7 @@
 //! let (key, value): (&str, RawBsonRef) = doc_iter.next().unwrap()?;
 //! assert_eq!(key, "year");
 //! assert_eq!(value.as_str(), Some("2021"));
-//! # Ok::<(), bson::raw::Error>(())
+//! # Ok::<(), bson::error::Error>(())
 //! ```
 
 mod array;
