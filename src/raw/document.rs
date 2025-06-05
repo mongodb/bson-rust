@@ -8,7 +8,7 @@ use serde::{ser::SerializeMap, Deserialize, Serialize};
 use crate::{
     de::MIN_BSON_DOCUMENT_SIZE,
     error::{Error, Result},
-    raw::{error::ErrorKind, serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
+    raw::{serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
     DateTime,
     Timestamp,
 };
@@ -95,32 +95,17 @@ impl RawDocument {
         let data = data.as_ref();
 
         if data.len() < 5 {
-            return Err(RawError {
-                key: None,
-                kind: ErrorKind::MalformedValue {
-                    message: "document too short".into(),
-                },
-            });
+            return Err(Error::malformed_value("document too short"));
         }
 
         let length = i32_from_slice(data)?;
 
         if data.len() as i32 != length {
-            return Err(RawError {
-                key: None,
-                kind: ErrorKind::MalformedValue {
-                    message: "document length incorrect".into(),
-                },
-            });
+            return Err(Error::malformed_value("document length incorrect"));
         }
 
         if data[data.len() - 1] != 0 {
-            return Err(RawError {
-                key: None,
-                kind: ErrorKind::MalformedValue {
-                    message: "document not null-terminated".into(),
-                },
-            });
+            return Err(Error::malformed_value("document not null-terminated"));
         }
 
         Ok(RawDocument::new_unchecked(data))
@@ -211,15 +196,15 @@ impl RawDocument {
 
         let bson = self
             .get(key)
-            .map_err(|e| Error::value_access_invalid_bson(key, format!("{:?}", e)))?
-            .ok_or_else(|| Error::value_access_not_present(key))?;
+            .map_err(|e| Error::value_access_invalid_bson(format!("{:?}", e)))?
+            .ok_or_else(Error::value_access_not_present)
+            .map_err(|e| e.with_key(key))?;
         match f(bson) {
             Some(t) => Ok(t),
-            None => Err(Error::value_access_unexpected_type(
-                key,
-                bson.element_type(),
-                expected_type,
-            )),
+            None => Err(
+                Error::value_access_unexpected_type(bson.element_type(), expected_type)
+                    .with_key(key),
+            ),
         }
     }
 
@@ -511,11 +496,11 @@ impl RawDocument {
         let mut splits = buf.splitn(2, |x| *x == 0);
         let value = splits
             .next()
-            .ok_or_else(|| RawError::malformed("no value"))?;
+            .ok_or_else(|| RawError::malformed_value("no value"))?;
         if splits.next().is_some() {
             Ok(value)
         } else {
-            Err(RawError::malformed("expected null terminator"))
+            Err(RawError::malformed_value("expected null terminator"))
         }
     }
 

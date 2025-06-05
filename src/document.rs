@@ -252,12 +252,12 @@ impl Document {
         match self.get(key) {
             Some(&Bson::Double(v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Double,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -267,12 +267,12 @@ impl Document {
         match self.get_mut(key) {
             Some(&mut Bson::Double(ref mut v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Double,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a reference to the value for the given key if one is present and is of type
@@ -282,12 +282,12 @@ impl Document {
         match self.get(key) {
             Some(Bson::Decimal128(v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Decimal128,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -297,12 +297,12 @@ impl Document {
         match self.get_mut(key) {
             Some(&mut Bson::Decimal128(ref mut v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Decimal128,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a reference to the value for the given key if one is present and is of type
@@ -310,14 +310,14 @@ impl Document {
     pub fn get_str(&self, key: impl AsRef<str>) -> Result<&str> {
         let key = key.as_ref();
         match self.get(key) {
-            Some(Bson::String(v)) => Ok(v),
+            Some(Bson::String(v)) => Ok(v.as_str()),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::String,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -325,14 +325,14 @@ impl Document {
     pub fn get_str_mut(&mut self, key: impl AsRef<str>) -> Result<&mut str> {
         let key = key.as_ref();
         match self.get_mut(key) {
-            Some(&mut Bson::String(ref mut v)) => Ok(v),
+            Some(&mut Bson::String(ref mut v)) => Ok(v.as_mut_str()),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::String,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a reference to the value for the given key if one is present and is of type
@@ -342,12 +342,12 @@ impl Document {
         match self.get(key) {
             Some(Bson::Array(v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Array,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -357,12 +357,12 @@ impl Document {
         match self.get_mut(key) {
             Some(&mut Bson::Array(ref mut v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Array,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a reference to the value for the given key if one is present and is of type
@@ -372,12 +372,12 @@ impl Document {
         match self.get(key) {
             Some(Bson::Document(v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::EmbeddedDocument,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -387,12 +387,12 @@ impl Document {
         match self.get_mut(key) {
             Some(&mut Bson::Document(ref mut v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::EmbeddedDocument,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a reference to the value for the given key if one is present and is of type
@@ -402,12 +402,12 @@ impl Document {
         match self.get(key) {
             Some(&Bson::Boolean(v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Boolean,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -417,12 +417,12 @@ impl Document {
         match self.get_mut(key) {
             Some(&mut Bson::Boolean(ref mut v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Boolean,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns [`Bson::Null`] if the given key corresponds to a [`Bson::Null`] value.
@@ -431,12 +431,12 @@ impl Document {
         match self.get(key) {
             Some(&Bson::Null) => Ok(Bson::Null),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Null,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns the value for the given key if one is present and is of type [`ElementType::Int32`].
@@ -445,12 +445,12 @@ impl Document {
         match self.get(key) {
             Some(&Bson::Int32(v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Int32,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -460,12 +460,12 @@ impl Document {
         match self.get_mut(key) {
             Some(&mut Bson::Int32(ref mut v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Int32,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns the value for the given key if one is present and is of type [`ElementType::Int64`].
@@ -474,12 +474,12 @@ impl Document {
         match self.get(key) {
             Some(&Bson::Int64(v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Int64,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -489,12 +489,12 @@ impl Document {
         match self.get_mut(key) {
             Some(&mut Bson::Int64(ref mut v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Int64,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns the value for the given key if one is present and is of type
@@ -504,12 +504,12 @@ impl Document {
         match self.get(key) {
             Some(&Bson::Timestamp(timestamp)) => Ok(timestamp),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Timestamp,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -519,12 +519,12 @@ impl Document {
         match self.get_mut(key) {
             Some(&mut Bson::Timestamp(ref mut timestamp)) => Ok(timestamp),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Timestamp,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a reference to the value for the given key if one is present and is of type
@@ -537,12 +537,12 @@ impl Document {
                 ref bytes,
             })) => Ok(bytes),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Binary,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -555,12 +555,12 @@ impl Document {
                 ref mut bytes,
             })) => Ok(bytes),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::Binary,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns the value for the given key if one is present and is of type
@@ -570,12 +570,12 @@ impl Document {
         match self.get(key) {
             Some(&Bson::ObjectId(v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::ObjectId,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -585,12 +585,12 @@ impl Document {
         match self.get_mut(key) {
             Some(&mut Bson::ObjectId(ref mut v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::ObjectId,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a reference to the value for the given key if one is present and is of type
@@ -600,12 +600,12 @@ impl Document {
         match self.get(key) {
             Some(Bson::DateTime(v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::DateTime,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns a mutable reference to the value for the given key if one is present and is of type
@@ -615,12 +615,12 @@ impl Document {
         match self.get_mut(key) {
             Some(&mut Bson::DateTime(ref mut v)) => Ok(v),
             Some(bson) => Err(Error::value_access_unexpected_type(
-                key,
                 bson.element_type(),
                 ElementType::DateTime,
             )),
-            None => Err(Error::value_access_not_present(key)),
+            None => Err(Error::value_access_not_present()),
         }
+        .map_err(|e| e.with_key(key))
     }
 
     /// Returns whether the map contains a value for the specified key.

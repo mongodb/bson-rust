@@ -14,7 +14,6 @@ use super::{
     iter::Iter,
     serde::OwnedOrBorrowedRawDocument,
     Error,
-    ErrorKind,
     RawBsonRef,
     RawDocument,
     RawIter,
@@ -111,12 +110,7 @@ impl RawDocumentBuf {
     /// ```
     pub fn from_document(doc: &Document) -> Result<RawDocumentBuf> {
         let mut data = Vec::new();
-        doc.to_writer(&mut data).map_err(|e| Error {
-            key: None,
-            kind: ErrorKind::MalformedValue {
-                message: e.to_string(),
-            },
-        })?;
+        doc.to_writer(&mut data).map_err(Error::malformed_value)?;
 
         Ok(Self { data })
     }
