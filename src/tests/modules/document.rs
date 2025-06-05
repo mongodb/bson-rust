@@ -1,6 +1,5 @@
 use crate::{
     doc,
-    document::ValueAccessError,
     oid::ObjectId,
     spec::BinarySubtype,
     tests::LOCK,
@@ -66,42 +65,45 @@ fn test_getters() {
     };
 
     assert_eq!(None, doc.get("nonsense"));
-    assert_eq!(Err(ValueAccessError::NotPresent), doc.get_str("nonsense"));
-    assert_eq!(
-        Err(ValueAccessError::UnexpectedType),
-        doc.get_str("floating_point")
-    );
+    assert!(doc
+        .get_str("nonsense")
+        .unwrap_err()
+        .is_value_access_not_present());
+    assert!(doc
+        .get_str("floating_point")
+        .unwrap_err()
+        .is_value_access_unexpected_type());
 
     assert_eq!(Some(&Bson::Double(10.0)), doc.get("floating_point"));
-    assert_eq!(Ok(10.0), doc.get_f64("floating_point"));
+    assert_eq!(10.0, doc.get_f64("floating_point").unwrap());
 
     assert_eq!(
         Some(&Bson::String("a value".to_string())),
         doc.get("string")
     );
-    assert_eq!(Ok("a value"), doc.get_str("string"));
+    assert_eq!("a value", doc.get_str("string").unwrap());
 
     let array = vec![Bson::Int32(10), Bson::Int32(20), Bson::Int32(30)];
     assert_eq!(Some(&Bson::Array(array.clone())), doc.get("array"));
-    assert_eq!(Ok(&array), doc.get_array("array"));
+    assert_eq!(&array, doc.get_array("array").unwrap());
 
     let embedded = doc! { "key": 1 };
     assert_eq!(Some(&Bson::Document(embedded.clone())), doc.get("doc"));
-    assert_eq!(Ok(&embedded), doc.get_document("doc"));
+    assert_eq!(&embedded, doc.get_document("doc").unwrap());
 
     assert_eq!(Some(&Bson::Boolean(true)), doc.get("bool"));
-    assert_eq!(Ok(true), doc.get_bool("bool"));
+    assert!(doc.get_bool("bool").unwrap());
 
     doc.insert("null".to_string(), Bson::Null);
     assert_eq!(Some(&Bson::Null), doc.get("null"));
-    assert!(doc.is_null("null"));
-    assert!(!doc.is_null("array"));
+    assert_eq!(doc.get_null("null").unwrap(), Bson::Null);
+    assert!(doc.get_null("array").is_err());
 
     assert_eq!(Some(&Bson::Int32(1)), doc.get("i32"));
-    assert_eq!(Ok(1i32), doc.get_i32("i32"));
+    assert_eq!(1i32, doc.get_i32("i32").unwrap());
 
     assert_eq!(Some(&Bson::Int64(1)), doc.get("i64"));
-    assert_eq!(Ok(1i64), doc.get_i64("i64"));
+    assert_eq!(1i64, doc.get_i64("i64").unwrap());
 
     doc.insert(
         "timestamp".to_string(),
@@ -118,21 +120,21 @@ fn test_getters() {
         doc.get("timestamp")
     );
     assert_eq!(
-        Ok(Timestamp {
+        Timestamp {
             time: 0,
             increment: 100,
-        }),
-        doc.get_timestamp("timestamp")
+        },
+        doc.get_timestamp("timestamp").unwrap()
     );
 
     let dt = crate::DateTime::from_time_0_3(datetime);
     assert_eq!(Some(&Bson::DateTime(dt)), doc.get("datetime"));
-    assert_eq!(Ok(&dt), doc.get_datetime("datetime"));
+    assert_eq!(&dt, doc.get_datetime("datetime").unwrap());
 
     let object_id = ObjectId::new();
     doc.insert("_id".to_string(), Bson::ObjectId(object_id));
     assert_eq!(Some(&Bson::ObjectId(object_id)), doc.get("_id"));
-    assert_eq!(Ok(object_id), doc.get_object_id("_id"));
+    assert_eq!(object_id, doc.get_object_id("_id").unwrap());
 
     assert_eq!(
         Some(&Bson::Binary(Binary {
@@ -141,7 +143,7 @@ fn test_getters() {
         })),
         doc.get("binary")
     );
-    assert_eq!(Ok(&binary), doc.get_binary_generic("binary"));
+    assert_eq!(&binary, doc.get_binary_generic("binary").unwrap());
 }
 
 #[test]
@@ -301,13 +303,7 @@ fn test_display_doc_with_array() {
     let doc_display_expectation = "{ \"hello\": [1, 2, 3] }";
     assert_eq!(doc_display_expectation, format!("{doc}"));
 
-    let doc_display_pretty_expectation = r#"{
-  "hello": [
-    1, 
-    2, 
-    3
-  ]
-}"#;
+    let doc_display_pretty_expectation = "{\n  \"hello\": [\n    1, \n    2, \n    3\n  ]\n}";
     let formatted = format!("{doc:#}");
     assert_eq!(doc_display_pretty_expectation, formatted);
 
@@ -315,15 +311,7 @@ fn test_display_doc_with_array() {
         "a": [1, [1, 2]]
     };
 
-    let expectation = r#"{
-  "a": [
-    1, 
-    [
-      1, 
-      2
-    ]
-  ]
-}"#;
+    let expectation = "{\n  \"a\": [\n    1, \n    [\n      1, \n      2\n    ]\n  ]\n}";
     assert_eq!(expectation, format!("{nested_array_doc:#}"));
 }
 
@@ -338,37 +326,16 @@ fn test_pretty_printing() {
     );
 
     let d = doc! { "hello": "world!", "nested": { "key": "val", "double": { "a": "thing" } } };
-    let expected = r#"{
-  "hello": "world!",
-  "nested": {
-    "key": "val",
-    "double": {
-      "a": "thing"
-    }
-  }
-}"#;
+    #[rustfmt::skip]
+    let expected =  "{\n  \"hello\": \"world!\",\n  \"nested\": {\n    \"key\": \"val\",\n    \"double\": {\n      \"a\": \"thing\"\n    }\n  }\n}";
     let formatted = format!("{d:#}");
-    assert_eq!(
-        expected, formatted,
-        "expected:\n{expected}\ngot:\n{formatted}"
-    );
+    assert_eq!(formatted, expected);
 
     let d =
         doc! { "hello": "world!", "nested": { "key": "val", "double": { "a": [1, 2], "c": "d"} } };
-    let expected = r#"{
-  "hello": "world!",
-  "nested": {
-    "key": "val",
-    "double": {
-      "a": [
-        1, 
-        2
-      ],
-      "c": "d"
-    }
-  }
-}"#;
-    assert_eq!(expected, format!("{d:#}"));
+    #[rustfmt::skip]
+    let expected = "{\n  \"hello\": \"world!\",\n  \"nested\": {\n    \"key\": \"val\",\n    \"double\": {\n      \"a\": [\n        1, \n        2\n      ],\n      \"c\": \"d\"\n    }\n  }\n}";
+    assert_eq!(format!("{d:#}"), expected);
 }
 
 #[test]

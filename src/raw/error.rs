@@ -1,5 +1,3 @@
-use crate::spec::ElementType;
-
 /// An error that occurs when attempting to parse raw BSON bytes.
 #[derive(Debug, PartialEq, Clone)]
 #[non_exhaustive]
@@ -72,65 +70,3 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub(crate) fn try_with_key<G, F: FnOnce() -> Result<G>>(key: impl Into<String>, f: F) -> Result<G> {
     f().map_err(|e| e.with_key(key))
 }
-
-pub type ValueAccessResult<T> = std::result::Result<T, ValueAccessError>;
-
-/// Error to indicate that either a value was empty or it contained an unexpected
-/// type, for use with the direct getters (e.g. [`crate::RawDocument::get_str`]).
-#[derive(Debug, PartialEq, Clone)]
-#[non_exhaustive]
-pub struct ValueAccessError {
-    /// The type of error that was encountered.
-    pub kind: ValueAccessErrorKind,
-
-    /// The key at which the error was encountered.
-    pub(crate) key: String,
-}
-
-impl ValueAccessError {
-    /// The key at which the error was encountered.
-    pub fn key(&self) -> &str {
-        self.key.as_str()
-    }
-}
-
-/// The type of error encountered when using a direct getter (e.g. [`crate::RawDocument::get_str`]).
-#[derive(Debug, PartialEq, Clone)]
-#[non_exhaustive]
-pub enum ValueAccessErrorKind {
-    /// Cannot find the expected field with the specified key
-    NotPresent,
-
-    /// Found a Bson value with the specified key, but not with the expected type
-    #[non_exhaustive]
-    UnexpectedType {
-        /// The type that was expected.
-        expected: ElementType,
-
-        /// The actual type that was encountered.
-        actual: ElementType,
-    },
-
-    /// An error was encountered attempting to decode the document.
-    InvalidBson(super::Error),
-}
-
-impl std::fmt::Display for ValueAccessError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let prefix = format!("error at key: \"{}\": ", self.key);
-
-        match &self.kind {
-            ValueAccessErrorKind::UnexpectedType { actual, expected } => write!(
-                f,
-                "{} unexpected element type: {:?}, expected: {:?}",
-                prefix, actual, expected
-            ),
-            ValueAccessErrorKind::InvalidBson(error) => {
-                write!(f, "{}: {}", prefix, error)
-            }
-            ValueAccessErrorKind::NotPresent => write!(f, "{}value not present", prefix),
-        }
-    }
-}
-
-impl std::error::Error for ValueAccessError {}
