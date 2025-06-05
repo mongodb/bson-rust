@@ -425,11 +425,11 @@ impl Document {
         }
     }
 
-    /// Returns the unit type if the given key corresponds to a [`Bson::Null`] value.
-    pub fn get_null(&self, key: impl AsRef<str>) -> Result<()> {
+    /// Returns [`Bson::Null`] if the given key corresponds to a [`Bson::Null`] value.
+    pub fn get_null(&self, key: impl AsRef<str>) -> Result<Bson> {
         let key = key.as_ref();
         match self.get(key) {
-            Some(&Bson::Null) => Ok(()),
+            Some(&Bson::Null) => Ok(Bson::Null),
             Some(bson) => Err(Error::value_access_unexpected_type(
                 key,
                 bson.element_type(),
