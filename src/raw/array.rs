@@ -115,15 +115,15 @@ impl RawArray {
     ) -> Result<T> {
         let bson = self
             .get(index)
-            .map_err(|e| Error::value_access_invalid_bson(index.to_string(), format!("{:?}", e)))?
-            .ok_or_else(|| Error::value_access_not_present(index.to_string()))?;
+            .map_err(|e| Error::value_access_invalid_bson(format!("{:?}", e)))?
+            .ok_or_else(Error::value_access_not_present)
+            .map_err(|e| e.with_index(index))?;
         match f(bson) {
             Some(t) => Ok(t),
-            None => Err(Error::value_access_unexpected_type(
-                index.to_string(),
-                bson.element_type(),
-                expected_type,
-            )),
+            None => Err(
+                Error::value_access_unexpected_type(bson.element_type(), expected_type)
+                    .with_index(index),
+            ),
         }
     }
 

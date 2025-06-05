@@ -17,7 +17,7 @@ use super::{document_buf::BindRawBsonRef, serde::OwnedOrBorrowedRawArray, RawArr
 /// Iterating over a [`RawArrayBuf`] yields either an error or a [`RawBson`](crate::raw::RawBson)
 /// value that borrows from the original document without making any additional allocations.
 /// ```
-/// # use bson::raw::Error;
+/// # use bson::error::Error;
 /// use bson::raw::RawArrayBuf;
 ///
 /// let mut array = RawArrayBuf::new();
@@ -67,7 +67,7 @@ impl RawArrayBuf {
     /// Append a value to the end of the array.
     ///
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::raw::{RawArrayBuf, RawDocumentBuf};
     ///
     /// let mut array = RawArrayBuf::new();

@@ -8,7 +8,7 @@ use serde::{ser::SerializeMap, Deserialize, Serialize};
 use crate::{
     de::MIN_BSON_DOCUMENT_SIZE,
     error::{Error, Result},
-    raw::{error::ErrorKind, serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
+    raw::{serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
     DateTime,
     Timestamp,
 };
@@ -42,7 +42,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// Iterating over a [`RawDocument`] yields either an error or a key-value pair that borrows from
 /// the original document without making any additional allocations.
 /// ```
-/// # use bson::raw::{Error};
+/// # use bson::error::Error;
 /// use bson::raw::RawDocument;
 ///
 /// let doc = RawDocument::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
@@ -89,38 +89,23 @@ impl RawDocument {
     /// use bson::raw::RawDocument;
     ///
     /// let doc = RawDocument::from_bytes(b"\x05\0\0\0\0")?;
-    /// # Ok::<(), bson::raw::Error>(())
+    /// # Ok::<(), bson::error::Error>(())
     /// ```
     pub fn from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&RawDocument> {
         let data = data.as_ref();
 
         if data.len() < 5 {
-            return Err(RawError {
-                key: None,
-                kind: ErrorKind::MalformedValue {
-                    message: "document too short".into(),
-                },
-            });
+            return Err(Error::malformed_value("document too short"));
         }
 
         let length = i32_from_slice(data)?;
 
         if data.len() as i32 != length {
-            return Err(RawError {
-                key: None,
-                kind: ErrorKind::MalformedValue {
-                    message: "document length incorrect".into(),
-                },
-            });
+            return Err(Error::malformed_value("document length incorrect"));
         }
 
         if data[data.len() - 1] != 0 {
-            return Err(RawError {
-                key: None,
-                kind: ErrorKind::MalformedValue {
-                    message: "document not null-terminated".into(),
-                },
-            });
+            return Err(Error::malformed_value("document not null-terminated"));
         }
 
         Ok(RawDocument::new_unchecked(data))
@@ -143,12 +128,12 @@ impl RawDocument {
     /// Creates a new [`RawDocumentBuf`] with an owned copy of the BSON bytes.
     ///
     /// ```
-    /// use bson::raw::{RawDocument, RawDocumentBuf, Error};
+    /// use bson::raw::{RawDocument, RawDocumentBuf};
     ///
     /// let data = b"\x05\0\0\0\0";
     /// let doc_ref = RawDocument::from_bytes(data)?;
     /// let doc: RawDocumentBuf = doc_ref.to_raw_document_buf();
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), bson::error::Error>(())
     pub fn to_raw_document_buf(&self) -> RawDocumentBuf {
         // unwrap is ok here because we already verified the bytes in `RawDocumentRef::new`
         RawDocumentBuf::from_bytes(self.data.to_owned()).unwrap()
@@ -158,7 +143,7 @@ impl RawDocument {
     /// found.
     ///
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::{rawdoc, oid::ObjectId};
     ///
     /// let doc = rawdoc! {
@@ -211,15 +196,15 @@ impl RawDocument {
 
         let bson = self
             .get(key)
-            .map_err(|e| Error::value_access_invalid_bson(key, format!("{:?}", e)))?
-            .ok_or_else(|| Error::value_access_not_present(key))?;
+            .map_err(|e| Error::value_access_invalid_bson(format!("{:?}", e)))?
+            .ok_or_else(Error::value_access_not_present)
+            .map_err(|e| e.with_key(key))?;
         match f(bson) {
             Some(t) => Ok(t),
-            None => Err(Error::value_access_unexpected_type(
-                key,
-                bson.element_type(),
-                expected_type,
-            )),
+            None => Err(
+                Error::value_access_unexpected_type(bson.element_type(), expected_type)
+                    .with_key(key),
+            ),
         }
     }
 
@@ -227,7 +212,7 @@ impl RawDocument {
     /// if the key corresponds to a value which isn't a double.
     ///
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::rawdoc;
     ///
     /// let doc = rawdoc! {
@@ -268,7 +253,7 @@ impl RawDocument {
     /// the key corresponds to a value which isn't a document.
     ///
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::rawdoc;
     ///
     /// let doc = rawdoc! {
@@ -337,7 +322,7 @@ impl RawDocument {
     /// the key corresponds to a value which isn't an ObjectId.
     ///
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::{rawdoc, oid::ObjectId};
     ///
     /// let doc = rawdoc! {
@@ -358,7 +343,7 @@ impl RawDocument {
     /// the key corresponds to a value which isn't a boolean.
     ///
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::{rawdoc, oid::ObjectId};
     ///
     /// let doc = rawdoc! {
@@ -379,7 +364,7 @@ impl RawDocument {
     /// error if the key corresponds to a value which isn't a DateTime.
     ///
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::{rawdoc, DateTime};
     ///
     /// let dt = DateTime::now();
@@ -425,7 +410,7 @@ impl RawDocument {
     /// error if the key corresponds to a value which isn't a timestamp.
     ///
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::{rawdoc, Timestamp};
     ///
     /// let doc = rawdoc! {
@@ -449,7 +434,7 @@ impl RawDocument {
     /// the key corresponds to a value which isn't a 32-bit integer.
     ///
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::rawdoc;
     ///
     /// let doc = rawdoc! {
@@ -470,7 +455,7 @@ impl RawDocument {
     /// the key corresponds to a value which isn't a 64-bit integer.
     ///
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::rawdoc;
     ///
     /// let doc = rawdoc! {
@@ -490,7 +475,7 @@ impl RawDocument {
     /// Return a reference to the contained data as a `&[u8]`
     ///
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::rawdoc;
     /// let docbuf = rawdoc! {};
     /// assert_eq!(docbuf.as_bytes(), b"\x05\x00\x00\x00\x00");
@@ -511,11 +496,11 @@ impl RawDocument {
         let mut splits = buf.splitn(2, |x| *x == 0);
         let value = splits
             .next()
-            .ok_or_else(|| RawError::malformed("no value"))?;
+            .ok_or_else(|| RawError::malformed_value("no value"))?;
         if splits.next().is_some() {
             Ok(value)
         } else {
-            Err(RawError::malformed("expected null terminator"))
+            Err(RawError::malformed_value("expected null terminator"))
         }
     }
 
