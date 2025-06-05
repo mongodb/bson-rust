@@ -114,9 +114,7 @@ impl Error {
 
     pub(crate) fn value_access_invalid_bson(message: String) -> Self {
         ErrorKind::ValueAccess {
-            kind: ValueAccessErrorKind::InvalidBson {
-                message: message.into(),
-            },
+            kind: ValueAccessErrorKind::InvalidBson { message },
         }
         .into()
     }
