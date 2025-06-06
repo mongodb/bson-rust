@@ -514,13 +514,13 @@ impl RawDocument {
     }
 
     /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.
-    pub fn to_document(&self) -> Result<Document> {
+    pub fn to_document(&self) -> RawResult<Document> {
         self.try_into()
     }
 
     /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.  Any
     /// invalid UTF-8 sequences will be replaced with the Unicode replacement character.
-    pub fn to_document_utf8_lossy(&self) -> Result<Document> {
+    pub fn to_document_utf8_lossy(&self) -> RawResult<Document> {
         let mut out = Document::new();
         for elem in self.iter_elements() {
             let elem = elem?;
@@ -531,7 +531,7 @@ impl RawDocument {
     }
 }
 
-fn deep_utf8_lossy(src: RawBson) -> Result<Bson> {
+fn deep_utf8_lossy(src: RawBson) -> RawResult<Bson> {
     match src {
         RawBson::Array(arr) => {
             let mut tmp = vec![];
