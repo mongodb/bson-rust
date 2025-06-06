@@ -32,7 +32,7 @@ impl Error {
 }
 
 /// The different categories of errors that can be returned when reading from raw BSON.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum ErrorKind {
     /// A BSON value did not fit the proper format.
@@ -41,6 +41,24 @@ pub enum ErrorKind {
 
     /// Improper UTF-8 bytes were found when proper UTF-8 was expected.
     Utf8EncodingError,
+
+    /// A wrapped deserialization error.
+    /// TODO RUST-1406: collapse this
+    DeError(crate::de::Error),
+}
+
+impl PartialEq for ErrorKind {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Self::MalformedValue { message: l_message },
+                Self::MalformedValue { message: r_message },
+            ) => l_message == r_message,
+            (Self::Utf8EncodingError, Self::Utf8EncodingError) => true,
+            (Self::DeError(_), Self::DeError(_)) => true,
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Error {
@@ -57,7 +75,14 @@ impl std::fmt::Display for Error {
                 write!(f, "{}malformed value: {:?}", prefix, message)
             }
             ErrorKind::Utf8EncodingError => write!(f, "{}utf-8 encoding error", prefix),
+            ErrorKind::DeError(e) => write!(f, "{}deserialization error: {}", prefix, e),
         }
+    }
+}
+
+impl From<crate::de::Error> for Error {
+    fn from(value: crate::de::Error) -> Self {
+        Self::new(ErrorKind::DeError(value))
     }
 }
 

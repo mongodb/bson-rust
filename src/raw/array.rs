@@ -212,6 +212,20 @@ impl RawArray {
     pub fn is_empty(&self) -> bool {
         self.doc.is_empty()
     }
+
+    /// Gets an iterator over the elements in the [`RawArray`],
+    /// which yields `Result<RawElement<'_>>` values. These hold a
+    /// reference to the underlying array but do not explicitly
+    /// resolve the values.
+    ///
+    /// This iterator, which underpins the implementation of the
+    /// default iterator, produces `RawElement` objects that hold a
+    /// view onto the array but do not parse out or construct
+    /// values until the `.value()` or `.try_into()` methods are
+    /// called.
+    pub fn iter_elements(&self) -> RawIter {
+        RawIter::new(&self.doc)
+    }
 }
 
 impl std::fmt::Debug for RawArray {
