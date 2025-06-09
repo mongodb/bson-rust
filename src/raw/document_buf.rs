@@ -1,6 +1,6 @@
 use std::{
     borrow::{Borrow, Cow},
-    convert::{TryFrom, TryInto},
+    convert::TryFrom,
     iter::FromIterator,
     ops::Deref,
 };
@@ -65,7 +65,7 @@ pub struct RawDocumentBuf {
 
 impl RawDocumentBuf {
     /// Creates a new, empty [`RawDocumentBuf`].
-    pub fn new() -> RawDocumentBuf {
+    pub fn new() -> Self {
         let mut data = Vec::new();
         data.extend(MIN_BSON_DOCUMENT_SIZE.to_le_bytes());
         data.push(0);
@@ -89,9 +89,14 @@ impl RawDocumentBuf {
     /// let doc = RawDocumentBuf::from_bytes(b"\x05\0\0\0\0".to_vec())?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn from_bytes(data: Vec<u8>) -> Result<RawDocumentBuf> {
+    pub fn from_bytes(data: Vec<u8>) -> Result<Self> {
         let _ = RawDocument::from_bytes(data.as_slice())?;
         Ok(Self { data })
+    }
+
+    pub fn from_reader<R: std::io::Read>(reader: R) -> Result<Self> {
+        let buf = crate::de::reader_to_vec(reader)?;
+        Self::from_bytes(buf)
     }
 
     /// Create a [`RawDocumentBuf`] from a [`Document`].
@@ -212,12 +217,6 @@ impl RawDocumentBuf {
                 .append(key.as_ref(), value_ref)
                 .expect("key should not contain interior null byte")
         })
-    }
-
-    /// Convert this [`RawDocumentBuf`] to a [`Document`], returning an error
-    /// if invalid BSON is encountered.
-    pub fn to_document(&self) -> Result<Document> {
-        self.as_ref().try_into()
     }
 }
 

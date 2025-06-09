@@ -137,40 +137,12 @@ where
     from_slice(bytes.as_slice())
 }
 
-/// Deserialize an instance of type `T` from an I/O stream of BSON, replacing any invalid UTF-8
-/// sequences with the Unicode replacement character.
-///
-/// This is mainly useful when reading raw BSON returned from a MongoDB server, which
-/// in rare cases can contain invalidly truncated strings (<https://jira.mongodb.org/browse/SERVER-24007>).
-/// For most use cases, [`crate::from_reader`] can be used instead.
-pub fn from_reader_utf8_lossy<R, T>(reader: R) -> Result<T>
-where
-    T: DeserializeOwned,
-    R: Read,
-{
-    let bytes = reader_to_vec(reader)?;
-    from_slice_utf8_lossy(bytes.as_slice())
-}
-
 /// Deserialize an instance of type `T` from a slice of BSON bytes.
 pub fn from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    from_raw(raw::Deserializer::new(bytes, false)?)
-}
-
-/// Deserialize an instance of type `T` from a slice of BSON bytes, replacing any invalid UTF-8
-/// sequences with the Unicode replacement character.
-///
-/// This is mainly useful when reading raw BSON returned from a MongoDB server, which
-/// in rare cases can contain invalidly truncated strings (<https://jira.mongodb.org/browse/SERVER-24007>).
-/// For most use cases, [`crate::from_slice`] can be used instead.
-pub fn from_slice_utf8_lossy<'de, T>(bytes: &'de [u8]) -> Result<T>
-where
-    T: Deserialize<'de>,
-{
-    from_raw(raw::Deserializer::new(bytes, true)?)
+    from_raw(raw::Deserializer::new(bytes)?)
 }
 
 pub(crate) fn from_raw<'de, T: Deserialize<'de>>(

@@ -265,7 +265,14 @@ impl<'a> RawElement<'a> {
         })
     }
 
-    pub(crate) fn value_utf8_lossy(&self) -> Result<Option<Utf8LossyBson<'a>>> {
+    pub fn value_utf8_lossy(&self) -> Result<RawBson> {
+        match self.value_utf8_lossy_inner()? {
+            Some(v) => Ok(v.into()),
+            None => Ok(self.value()?.to_raw_bson()),
+        }
+    }
+
+    pub(crate) fn value_utf8_lossy_inner(&self) -> Result<Option<Utf8LossyBson<'a>>> {
         Ok(Some(match self.kind {
             ElementType::String => Utf8LossyBson::String(self.read_utf8_lossy()),
             ElementType::JavaScriptCode => Utf8LossyBson::JavaScriptCode(self.read_utf8_lossy()),
@@ -451,4 +458,23 @@ pub(crate) enum Utf8LossyBson<'a> {
 pub(crate) struct Utf8LossyJavaScriptCodeWithScope<'a> {
     pub(crate) code: String,
     pub(crate) scope: &'a RawDocument,
+}
+
+impl<'a> From<Utf8LossyBson<'a>> for RawBson {
+    fn from(value: Utf8LossyBson<'a>) -> Self {
+        match value {
+            Utf8LossyBson::String(s) => RawBson::String(s),
+            Utf8LossyBson::JavaScriptCode(s) => RawBson::JavaScriptCode(s),
+            Utf8LossyBson::JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope {
+                code,
+                scope,
+            }) => RawBson::JavaScriptCodeWithScope(super::RawJavaScriptCodeWithScope {
+                code,
+                scope: scope.to_raw_document_buf(),
+            }),
+            Utf8LossyBson::Symbol(s) => RawBson::Symbol(s),
+            Utf8LossyBson::DbPointer(p) => RawBson::DbPointer(p),
+            Utf8LossyBson::RegularExpression(r) => RawBson::RegularExpression(r),
+        }
+    }
 }
