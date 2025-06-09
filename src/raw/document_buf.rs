@@ -14,7 +14,6 @@ use super::{
     iter::Iter,
     serde::OwnedOrBorrowedRawDocument,
     Error,
-    ErrorKind,
     RawBsonRef,
     RawDocument,
     RawIter,
@@ -34,7 +33,7 @@ mod raw_writer;
 /// the original document without making any additional allocations.
 ///
 /// ```
-/// # use bson::raw::Error;
+/// # use bson::error::Error;
 /// use bson::raw::RawDocumentBuf;
 ///
 /// let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
@@ -86,9 +85,9 @@ impl RawDocumentBuf {
     /// the RawDocument will return Errors where appropriate.
     ///
     /// ```
-    /// # use bson::raw::{RawDocumentBuf, Error};
+    /// # use bson::raw::RawDocumentBuf;
     /// let doc = RawDocumentBuf::from_bytes(b"\x05\0\0\0\0".to_vec())?;
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), bson::error::Error>(())
     /// ```
     pub fn from_bytes(data: Vec<u8>) -> Result<RawDocumentBuf> {
         let _ = RawDocument::from_bytes(data.as_slice())?;
@@ -98,7 +97,6 @@ impl RawDocumentBuf {
     /// Create a [`RawDocumentBuf`] from a [`Document`].
     ///
     /// ```
-    /// # use bson::raw::Error;
     /// use bson::{doc, oid::ObjectId, raw::RawDocumentBuf};
     ///
     /// let document = doc! {
@@ -107,16 +105,11 @@ impl RawDocumentBuf {
     ///     "title": "Moby-Dick",
     /// };
     /// let doc = RawDocumentBuf::from_document(&document)?;
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), bson::error::Error>(())
     /// ```
     pub fn from_document(doc: &Document) -> Result<RawDocumentBuf> {
         let mut data = Vec::new();
-        doc.to_writer(&mut data).map_err(|e| Error {
-            key: None,
-            kind: ErrorKind::MalformedValue {
-                message: e.to_string(),
-            },
-        })?;
+        doc.to_writer(&mut data).map_err(Error::malformed_value)?;
 
         Ok(Self { data })
     }
@@ -125,7 +118,6 @@ impl RawDocumentBuf {
     /// `Result<(&str, RawBson<'_>)>`.
     ///
     /// ```
-    /// # use bson::raw::Error;
     /// use bson::{doc, raw::RawDocumentBuf};
     ///
     /// let doc = RawDocumentBuf::from_document(&doc! { "ferris": true })?;
@@ -135,7 +127,7 @@ impl RawDocumentBuf {
     ///     assert_eq!(key, "ferris");
     ///     assert_eq!(value.as_bool(), Some(true));
     /// }
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), bson::error::Error>(())
     /// ```
     ///
     /// # Note:
@@ -170,12 +162,11 @@ impl RawDocumentBuf {
     /// Return the contained data as a `Vec<u8>`
     ///
     /// ```
-    /// # use bson::raw::Error;
     /// use bson::{doc, raw::RawDocumentBuf};
     ///
     /// let doc = RawDocumentBuf::from_document(&doc!{})?;
     /// assert_eq!(doc.into_bytes(), b"\x05\x00\x00\x00\x00".to_vec());
-    /// # Ok::<(), Error>(())
+    /// # Ok::<(), bson::error::Error>(())
     /// ```
     pub fn into_bytes(self) -> Vec<u8> {
         self.data
@@ -192,7 +183,7 @@ impl RawDocumentBuf {
     /// Values can be any type that can be converted to either borrowed or owned raw bson data; see
     /// the documentation for [BindRawBsonRef] for more details.
     /// ```
-    /// # use bson::raw::Error;
+    /// # use bson::error::Error;
     /// use bson::{doc, raw::{RawBsonRef, RawDocumentBuf}};
     ///
     /// let mut doc = RawDocumentBuf::new();

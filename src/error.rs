@@ -6,27 +6,60 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// An error that can occur in the `bson` crate.
 #[derive(Debug, Error)]
-#[error("Kind: {kind}")]
 #[non_exhaustive]
 pub struct Error {
     /// The kind of error that occurred.
     pub kind: ErrorKind,
+
+    /// The document key associated with the error, if any.
+    pub key: Option<String>,
+
+    /// The array index associated with the error, if any.
+    pub index: Option<usize>,
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(key) = self.key.as_deref() {
+            write!(f, "Error at key \"{key}\": ")?;
+        } else if let Some(index) = self.index {
+            write!(f, "Error at array index {index}: ")?;
+        }
+
+        write!(f, "{}", self.kind)
+    }
 }
 
 /// The types of errors that can occur in the `bson` crate.
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ErrorKind {
+    /// Malformed BSON bytes were encountered.
+    #[error("Malformed BSON: {message}")]
+    #[non_exhaustive]
+    MalformedValue { message: String },
+
+    /// Invalid UTF-8 bytes were encountered.
+    #[error("Invalid UTF-8")]
+    Utf8Encoding,
+
     /// An error occurred when attempting to access a value in a document.
-    #[error("An error occurred when attempting to access a document value for key {key}: {kind}")]
+    #[error("An error occurred when attempting to access a document value: {kind}")]
     #[non_exhaustive]
     ValueAccess {
-        /// The key of the value.
-        key: String,
-
         /// The kind of error that occurred.
         kind: ValueAccessErrorKind,
     },
+}
+
+impl From<ErrorKind> for Error {
+    fn from(kind: ErrorKind) -> Self {
+        Self {
+            kind,
+            key: None,
+            index: None,
+        }
+    }
 }
 
 /// The types of errors that can occur when attempting to access a value in a document.
@@ -55,35 +88,42 @@ pub enum ValueAccessErrorKind {
 }
 
 impl Error {
-    pub(crate) fn value_access_not_present(key: impl Into<String>) -> Self {
-        Self {
-            kind: ErrorKind::ValueAccess {
-                key: key.into(),
-                kind: ValueAccessErrorKind::NotPresent,
-            },
-        }
+    pub(crate) fn with_key(mut self, key: impl Into<String>) -> Self {
+        self.key = Some(key.into());
+        self
     }
 
-    pub(crate) fn value_access_unexpected_type(
-        key: impl Into<String>,
-        actual: ElementType,
-        expected: ElementType,
-    ) -> Self {
-        Self {
-            kind: ErrorKind::ValueAccess {
-                key: key.into(),
-                kind: ValueAccessErrorKind::UnexpectedType { actual, expected },
-            },
-        }
+    pub(crate) fn with_index(mut self, index: usize) -> Self {
+        self.index = Some(index);
+        self
     }
 
-    pub(crate) fn value_access_invalid_bson(key: impl Into<String>, message: String) -> Self {
-        Self {
-            kind: ErrorKind::ValueAccess {
-                key: key.into(),
-                kind: ValueAccessErrorKind::InvalidBson { message },
-            },
+    pub(crate) fn value_access_not_present() -> Self {
+        ErrorKind::ValueAccess {
+            kind: ValueAccessErrorKind::NotPresent,
         }
+        .into()
+    }
+
+    pub(crate) fn value_access_unexpected_type(actual: ElementType, expected: ElementType) -> Self {
+        ErrorKind::ValueAccess {
+            kind: ValueAccessErrorKind::UnexpectedType { actual, expected },
+        }
+        .into()
+    }
+
+    pub(crate) fn value_access_invalid_bson(message: String) -> Self {
+        ErrorKind::ValueAccess {
+            kind: ValueAccessErrorKind::InvalidBson { message },
+        }
+        .into()
+    }
+
+    pub(crate) fn malformed_value(message: impl ToString) -> Self {
+        ErrorKind::MalformedValue {
+            message: message.to_string(),
+        }
+        .into()
     }
 
     #[cfg(test)]

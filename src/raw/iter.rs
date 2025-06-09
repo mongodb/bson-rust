@@ -20,7 +20,6 @@ use crate::{
 use super::{
     bool_from_slice,
     checked_add,
-    error::try_with_key,
     f64_from_slice,
     i32_from_slice,
     i64_from_slice,
@@ -82,7 +81,7 @@ impl<'a> RawIter<'a> {
     fn verify_enough_bytes(&self, start: usize, num_bytes: usize) -> Result<()> {
         let end = checked_add(start, num_bytes)?;
         if self.doc.as_bytes().get(start..end).is_none() {
-            return Err(Error::malformed(format!(
+            return Err(Error::malformed_value(format!(
                 "length exceeds remaining length of buffer: {} vs {}",
                 num_bytes,
                 self.doc.as_bytes().len() - start
@@ -96,7 +95,7 @@ impl<'a> RawIter<'a> {
         let size = i32_from_slice(&self.doc.as_bytes()[starting_at..])? as usize;
 
         if size < MIN_BSON_DOCUMENT_SIZE as usize {
-            return Err(Error::malformed(format!(
+            return Err(Error::malformed_value(format!(
                 "document too small: {} bytes",
                 size
             )));
@@ -105,7 +104,7 @@ impl<'a> RawIter<'a> {
         self.verify_enough_bytes(starting_at, size)?;
 
         if self.doc.as_bytes()[starting_at + size - 1] != 0 {
-            return Err(Error::malformed("not null terminated"));
+            return Err(Error::malformed_value("not null terminated"));
         }
         Ok(size)
     }
@@ -308,7 +307,7 @@ impl<'a> RawElement<'a> {
     }
 
     fn malformed_error(&self, e: impl ToString) -> Error {
-        Error::malformed(e).with_key(self.key)
+        Error::malformed_value(e).with_key(self.key)
     }
 
     pub(crate) fn slice(&self) -> &'a [u8] {
@@ -335,7 +334,7 @@ impl<'a> RawElement<'a> {
         Ok(ObjectId::from_bytes(
             self.doc.as_bytes()[start_at..(start_at + 12)]
                 .try_into()
-                .map_err(|e| Error::malformed(e).with_key(self.key))?,
+                .map_err(|e| Error::malformed_value(e).with_key(self.key))?,
         ))
     }
 }
@@ -344,10 +343,55 @@ impl RawIter<'_> {
     fn get_next_length_at(&self, start_at: usize) -> Result<usize> {
         let len = i32_from_slice(&self.doc.as_bytes()[start_at..])?;
         if len < 0 {
-            Err(Error::malformed("lengths can't be negative"))
+            Err(Error::malformed_value("lengths can't be negative"))
         } else {
             Ok(len as usize)
         }
+    }
+
+    fn get_next_kvp(&mut self, offset: usize) -> Result<(ElementType, usize)> {
+        let element_type = match ElementType::from(self.doc.as_bytes()[self.offset]) {
+            Some(et) => et,
+            None => {
+                return Err(Error::malformed_value(format!(
+                    "invalid tag: {}",
+                    self.doc.as_bytes()[self.offset]
+                )));
+            }
+        };
+
+        let element_size = match element_type {
+            ElementType::Boolean => 1,
+            ElementType::Int32 => 4,
+            ElementType::Int64 => 8,
+            ElementType::Double => 8,
+            ElementType::DateTime => 8,
+            ElementType::Timestamp => 8,
+            ElementType::ObjectId => 12,
+            ElementType::Decimal128 => 16,
+            ElementType::Null => 0,
+            ElementType::Undefined => 0,
+            ElementType::MinKey => 0,
+            ElementType::MaxKey => 0,
+            ElementType::String => read_len(&self.doc.as_bytes()[offset..])?,
+            ElementType::EmbeddedDocument => self.next_document_len(offset)?,
+            ElementType::Array => self.next_document_len(offset)?,
+            ElementType::Binary => self.get_next_length_at(offset)? + 4 + 1,
+            ElementType::RegularExpression => {
+                let pattern = self.doc.read_cstring_at(offset)?;
+                let options = self.doc.read_cstring_at(offset + pattern.len() + 1)?;
+                pattern.len() + 1 + options.len() + 1
+            }
+            ElementType::DbPointer => read_len(&self.doc.as_bytes()[offset..])? + 12,
+            ElementType::Symbol => read_len(&self.doc.as_bytes()[offset..])?,
+            ElementType::JavaScriptCode => read_len(&self.doc.as_bytes()[offset..])?,
+            ElementType::JavaScriptCodeWithScope => self.get_next_length_at(offset)?,
+        };
+
+        self.verify_enough_bytes(offset, element_size)?;
+        self.offset = offset + element_size;
+
+        Ok((element_type, element_size))
     }
 }
 
@@ -363,11 +407,11 @@ impl<'a> Iterator for RawIter<'a> {
                 return None;
             } else {
                 self.valid = false;
-                return Some(Err(Error::malformed("document not null terminated")));
+                return Some(Err(Error::malformed_value("document not null terminated")));
             }
         } else if self.offset >= self.doc.as_bytes().len() {
             self.valid = false;
-            return Some(Err(Error::malformed("iteration overflowed document")));
+            return Some(Err(Error::malformed_value("iteration overflowed document")));
         }
 
         let key = match self.doc.read_cstring_at(self.offset + 1) {
@@ -377,59 +421,9 @@ impl<'a> Iterator for RawIter<'a> {
                 return Some(Err(e));
             }
         };
-
         let offset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
-        let kvp_result = try_with_key(key, || {
-            let element_type = match ElementType::from(self.doc.as_bytes()[self.offset]) {
-                Some(et) => et,
-                None => {
-                    return Err(Error::malformed(format!(
-                        "invalid tag: {}",
-                        self.doc.as_bytes()[self.offset]
-                    ))
-                    .with_key(key))
-                }
-            };
 
-            let element_size = match element_type {
-                ElementType::Boolean => 1,
-                ElementType::Int32 => 4,
-                ElementType::Int64 => 8,
-                ElementType::Double => 8,
-                ElementType::DateTime => 8,
-                ElementType::Timestamp => 8,
-                ElementType::ObjectId => 12,
-                ElementType::Decimal128 => 16,
-                ElementType::Null => 0,
-                ElementType::Undefined => 0,
-                ElementType::MinKey => 0,
-                ElementType::MaxKey => 0,
-                ElementType::String => read_len(&self.doc.as_bytes()[offset..])?,
-                ElementType::EmbeddedDocument => self.next_document_len(offset)?,
-                ElementType::Array => self.next_document_len(offset)?,
-                ElementType::Binary => self.get_next_length_at(offset)? + 4 + 1,
-                ElementType::RegularExpression => {
-                    let pattern = self.doc.read_cstring_at(offset)?;
-                    let options = self.doc.read_cstring_at(offset + pattern.len() + 1)?;
-                    pattern.len() + 1 + options.len() + 1
-                }
-                ElementType::DbPointer => read_len(&self.doc.as_bytes()[offset..])? + 12,
-                ElementType::Symbol => read_len(&self.doc.as_bytes()[offset..])?,
-                ElementType::JavaScriptCode => read_len(&self.doc.as_bytes()[offset..])?,
-                ElementType::JavaScriptCodeWithScope => self.get_next_length_at(offset)?,
-            };
-
-            self.verify_enough_bytes(offset, element_size)?;
-            self.offset = offset + element_size;
-
-            Ok((element_type, element_size))
-        });
-
-        if kvp_result.is_err() {
-            self.valid = false;
-        }
-
-        Some(match kvp_result {
+        Some(match self.get_next_kvp(offset) {
             Ok((kind, size)) => Ok(RawElement {
                 key,
                 kind,
@@ -437,7 +431,10 @@ impl<'a> Iterator for RawIter<'a> {
                 start_at: offset,
                 size,
             }),
-            Err(e) => Err(e),
+            Err(error) => {
+                self.valid = false;
+                Err(error.with_key(key))
+            }
         })
     }
 }

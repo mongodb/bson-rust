@@ -76,9 +76,9 @@ impl From<string::FromUtf8Error> for Error {
     }
 }
 
-impl From<crate::raw::Error> for Error {
-    fn from(value: crate::raw::Error) -> Self {
-        Self::deserialization(value)
+impl From<crate::error::Error> for Error {
+    fn from(error: crate::error::Error) -> Self {
+        Self::deserialization(error.to_string())
     }
 }
 
