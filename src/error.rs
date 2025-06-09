@@ -50,12 +50,27 @@ pub enum ErrorKind {
         /// The kind of error that occurred.
         kind: ValueAccessErrorKind,
     },
+
+    /// A wrapped deserialization error.
+    /// TODO RUST-1406: collapse this
+    #[error("Deserialization error")]
+    DeError(crate::de::Error),
 }
 
 impl From<ErrorKind> for Error {
     fn from(kind: ErrorKind) -> Self {
         Self {
             kind,
+            key: None,
+            index: None,
+        }
+    }
+}
+
+impl From<crate::de::Error> for Error {
+    fn from(value: crate::de::Error) -> Self {
+        Self {
+            kind: ErrorKind::DeError(value),
             key: None,
             index: None,
         }
