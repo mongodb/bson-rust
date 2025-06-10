@@ -24,20 +24,20 @@ version = "1.0"
 members = ["."]
 
 [[bin]]
-name = "deserialize"
-path = "fuzz_targets/deserialize.rs"
+name = "decode"
+path = "fuzz_targets/decode.rs"
 
 [[bin]]
 name = "iterate"
 path = "fuzz_targets/iterate.rs"
 
 [[bin]]
-name = "raw_deserialize"
-path = "fuzz_targets/raw_deserialize.rs"
+name = "raw_decode"
+path = "fuzz_targets/raw_decode.rs"
 
 [[bin]]
-name = "raw_deserialize_utf8_lossy"
-path = "fuzz_targets/raw_deserialize_utf8_lossy.rs"
+name = "raw_decode_utf8_lossy"
+path = "fuzz_targets/raw_decode_utf8_lossy.rs"
 
 [[bin]]
 name = "type_markers"
