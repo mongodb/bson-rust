@@ -34,6 +34,7 @@ use std::io::Read;
 
 use crate::{
     bson::{Bson, Document, Timestamp},
+    raw::MIN_BSON_STRING_SIZE,
     ser::write_i32,
     spec::BinarySubtype,
 };
@@ -46,11 +47,8 @@ use ::serde::{
 
 pub(crate) use self::serde::{convert_unsigned_to_signed_raw, BsonVisitor};
 
-pub(crate) use self::raw::Deserializer as RawDeserializer;
-
 pub(crate) const MAX_BSON_SIZE: i32 = i32::MAX;
 pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
-pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
 pub(crate) const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
 /// Hint provided to the deserializer via `deserialize_newtype_struct` as to the type of thing

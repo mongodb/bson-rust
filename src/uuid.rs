@@ -135,14 +135,9 @@
 #[cfg(test)]
 mod test;
 
-use std::{
-    fmt::{self, Display},
-    str::FromStr,
-};
+use std::fmt::{self, Display};
 
-use serde::{Deserialize, Serialize};
-
-use crate::{de::BsonVisitor, spec::BinarySubtype, Binary, Bson};
+use crate::{spec::BinarySubtype, Binary, Bson};
 
 /// Special type name used in the [`Uuid`] serialization implementation to indicate a BSON
 /// UUID is being serialized or deserialized. The BSON serializers/deserializers will handle this
@@ -227,7 +222,8 @@ impl Uuid {
     }
 }
 
-impl Serialize for Uuid {
+#[cfg(feature = "serde")]
+impl serde::Serialize for Uuid {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -236,12 +232,13 @@ impl Serialize for Uuid {
     }
 }
 
-impl<'de> Deserialize<'de> for Uuid {
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Uuid {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer.deserialize_newtype_struct(UUID_NEWTYPE_NAME, BsonVisitor)? {
+        match deserializer.deserialize_newtype_struct(UUID_NEWTYPE_NAME, crate::de::BsonVisitor)? {
             // Need to support deserializing from generic subtypes for non-BSON formats.
             // When using the BSON deserializer, the newtype name will ensure the subtype is only
             // ever BinarySubtype::Uuid.
@@ -258,6 +255,7 @@ impl<'de> Deserialize<'de> for Uuid {
                 ))
             }
             Bson::String(s) => {
+                use std::str::FromStr as _;
                 let uuid = uuid::Uuid::from_str(s.as_str()).map_err(serde::de::Error::custom)?;
                 Ok(Self::from_external_uuid(uuid))
             }

@@ -38,6 +38,7 @@ impl Decimal128 {
         self.bytes
     }
 
+    #[cfg(feature = "serde")]
     pub(crate) fn deserialize_from_slice<E: serde::de::Error>(
         bytes: &[u8],
     ) -> std::result::Result<Self, E> {
