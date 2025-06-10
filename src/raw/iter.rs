@@ -1,9 +1,9 @@
 use std::convert::TryInto;
 
 use crate::{
-    de::{MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
+    de::MIN_CODE_WITH_SCOPE_SIZE,
     oid::ObjectId,
-    raw::{Error, Result},
+    raw::{Error, Result, MIN_BSON_DOCUMENT_SIZE},
     spec::{BinarySubtype, ElementType},
     Bson,
     DateTime,

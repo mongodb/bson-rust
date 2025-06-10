@@ -6,9 +6,7 @@ use std::{
 use serde::{ser::SerializeMap, Deserialize, Serialize};
 
 use crate::{
-    de::MIN_BSON_DOCUMENT_SIZE,
     error::{Error, Result},
-    raw::{serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
     Bson,
     DateTime,
     JavaScriptCodeWithScope,
@@ -20,6 +18,7 @@ use crate::{
 use super::{
     i32_from_slice,
     iter::Iter,
+    serde::OwnedOrBorrowedRawDocument,
     try_to_str,
     Error as RawError,
     RawArray,
@@ -29,6 +28,8 @@ use super::{
     RawIter,
     RawRegexRef,
     Result as RawResult,
+    MIN_BSON_DOCUMENT_SIZE,
+    RAW_DOCUMENT_NEWTYPE,
 };
 use crate::{oid::ObjectId, spec::ElementType, Document};
 

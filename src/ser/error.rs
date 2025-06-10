@@ -38,6 +38,9 @@ pub enum Error {
         /// The original error.
         source: Box<Error>,
     },
+
+    /// TODO RUST-1406 remove this
+    Crate(Arc<crate::error::Error>),
 }
 
 impl Error {
@@ -68,6 +71,12 @@ impl From<io::Error> for Error {
     }
 }
 
+impl From<crate::error::Error> for Error {
+    fn from(err: crate::error::Error) -> Error {
+        Error::Crate(Arc::new(err))
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -86,6 +95,7 @@ impl fmt::Display for Error {
             ),
             #[cfg(feature = "serde_path_to_error")]
             Error::WithPath { path, source } => write!(fmt, "error at {}: {}", path, source),
+            Error::Crate(inner) => inner.fmt(fmt),
         }
     }
 }
