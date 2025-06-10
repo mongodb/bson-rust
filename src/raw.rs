@@ -124,7 +124,10 @@ pub(crate) mod serde;
 #[cfg(test)]
 mod test;
 
-use std::convert::{TryFrom, TryInto};
+use std::{
+    convert::{TryFrom, TryInto},
+    io::Read,
+};
 
 use crate::error::{Error, ErrorKind, Result};
 
@@ -145,6 +148,7 @@ pub use self::{
 };
 
 pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
+pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
 
 pub(crate) use self::iter::{Utf8LossyBson, Utf8LossyJavaScriptCodeWithScope};
 
@@ -284,4 +288,38 @@ fn usize_try_from_i32(i: i32) -> Result<usize> {
 fn checked_add(lhs: usize, rhs: usize) -> Result<usize> {
     lhs.checked_add(rhs)
         .ok_or_else(|| Error::malformed_value("attempted to add with overflow"))
+}
+
+pub(crate) fn reader_to_vec<R: Read>(mut reader: R) -> Result<Vec<u8>> {
+    let mut buf = [0; 4];
+    reader.read_exact(&mut buf)?;
+    let length = i32::from_le_bytes(buf);
+
+    if length < MIN_BSON_DOCUMENT_SIZE {
+        return Err(Error::malformed_value("document size too small"));
+    }
+
+    let mut bytes = Vec::with_capacity(length as usize);
+    bytes.extend(buf);
+
+    reader.take(length as u64 - 4).read_to_end(&mut bytes)?;
+    Ok(bytes)
+}
+
+pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
+    buf.extend(&(s.len() as i32 + 1).to_le_bytes());
+    buf.extend(s.as_bytes());
+    buf.push(0);
+}
+
+pub(crate) fn write_cstring(buf: &mut Vec<u8>, s: &str) -> Result<()> {
+    if s.contains('\0') {
+        return Err(Error::malformed_value(format!(
+            "string with interior null: {:?}",
+            s
+        )));
+    }
+    buf.extend(s.as_bytes());
+    buf.push(0);
+    Ok(())
 }

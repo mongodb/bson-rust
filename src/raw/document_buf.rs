@@ -5,20 +5,9 @@ use std::{
     ops::Deref,
 };
 
-use serde::{Deserialize, Serialize};
+use crate::{raw::MIN_BSON_DOCUMENT_SIZE, Document};
 
-use crate::{de::MIN_BSON_DOCUMENT_SIZE, Document};
-
-use super::{
-    bson::RawBson,
-    iter::Iter,
-    serde::OwnedOrBorrowedRawDocument,
-    Error,
-    RawBsonRef,
-    RawDocument,
-    RawIter,
-    Result,
-};
+use super::{bson::RawBson, iter::Iter, Error, RawBsonRef, RawDocument, RawIter, Result};
 
 mod raw_writer;
 
@@ -95,7 +84,7 @@ impl RawDocumentBuf {
     }
 
     pub fn from_reader<R: std::io::Read>(reader: R) -> Result<Self> {
-        let buf = crate::de::reader_to_vec(reader)?;
+        let buf = crate::raw::reader_to_vec(reader)?;
         Self::from_bytes(buf)
     }
 
@@ -228,16 +217,18 @@ impl Default for RawDocumentBuf {
     }
 }
 
-impl<'de> Deserialize<'de> for RawDocumentBuf {
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for RawDocumentBuf {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(OwnedOrBorrowedRawDocument::deserialize(deserializer)?.into_owned())
+        Ok(super::serde::OwnedOrBorrowedRawDocument::deserialize(deserializer)?.into_owned())
     }
 }
 
-impl Serialize for RawDocumentBuf {
+#[cfg(feature = "serde")]
+impl serde::Serialize for RawDocumentBuf {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

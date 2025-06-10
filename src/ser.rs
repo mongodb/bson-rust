@@ -43,21 +43,6 @@ use crate::{
     RawDocumentBuf,
 };
 
-pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
-    buf.extend(&(s.len() as i32 + 1).to_le_bytes());
-    buf.extend(s.as_bytes());
-    buf.push(0);
-}
-
-pub(crate) fn write_cstring(buf: &mut Vec<u8>, s: &str) -> Result<()> {
-    if s.contains('\0') {
-        return Err(Error::InvalidCString(s.into()));
-    }
-    buf.extend(s.as_bytes());
-    buf.push(0);
-    Ok(())
-}
-
 #[inline]
 pub(crate) fn write_i32<W: Write + ?Sized>(writer: &mut W, val: i32) -> Result<()> {
     writer

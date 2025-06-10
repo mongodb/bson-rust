@@ -34,21 +34,16 @@ use std::io::Read;
 
 use crate::{
     bson::{Bson, Document, Timestamp},
-    raw::MIN_BSON_STRING_SIZE,
-    ser::write_i32,
+    raw::{reader_to_vec, MIN_BSON_DOCUMENT_SIZE, MIN_BSON_STRING_SIZE},
     spec::BinarySubtype,
 };
 
 #[rustfmt::skip]
-use ::serde::{
-    de::{DeserializeOwned, Error as _},
-    Deserialize,
-};
+use ::serde::{de::DeserializeOwned, Deserialize};
 
 pub(crate) use self::serde::{convert_unsigned_to_signed_raw, BsonVisitor};
 
 pub(crate) const MAX_BSON_SIZE: i32 = i32::MAX;
-pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
 pub(crate) const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
 /// Hint provided to the deserializer via `deserialize_newtype_struct` as to the type of thing
@@ -107,22 +102,6 @@ where
     T: DeserializeOwned,
 {
     from_bson(Bson::Document(doc))
-}
-
-pub(crate) fn reader_to_vec<R: Read>(mut reader: R) -> Result<Vec<u8>> {
-    let mut buf = [0; 4];
-    reader.read_exact(&mut buf)?;
-    let length = i32::from_le_bytes(buf);
-
-    if length < MIN_BSON_DOCUMENT_SIZE {
-        return Err(Error::custom("document size too small"));
-    }
-
-    let mut bytes = Vec::with_capacity(length as usize);
-    write_i32(&mut bytes, length).map_err(Error::custom)?;
-
-    reader.take(length as u64 - 4).read_to_end(&mut bytes)?;
-    Ok(bytes)
 }
 
 /// Deserialize an instance of type `T` from an I/O stream of BSON.

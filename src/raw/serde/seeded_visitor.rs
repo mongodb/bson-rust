@@ -6,8 +6,7 @@ use serde::{
 };
 
 use crate::{
-    raw::RAW_BSON_NEWTYPE,
-    ser::{write_cstring, write_string},
+    raw::{write_cstring, write_string, RAW_BSON_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     RawBson,
     RawBsonRef,

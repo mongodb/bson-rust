@@ -8,8 +8,8 @@ use serde::{
 use crate::{
     base64,
     oid::ObjectId,
-    raw::RAW_DOCUMENT_NEWTYPE,
-    ser::{write_binary, write_cstring, write_i32, write_i64, write_string, Error, Result},
+    raw::{write_cstring, write_string, RAW_DOCUMENT_NEWTYPE},
+    ser::{write_binary, write_i32, write_i64, Error, Result},
     spec::{BinarySubtype, ElementType},
     RawDocument,
     RawJavaScriptCodeWithScopeRef,

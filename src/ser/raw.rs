@@ -10,9 +10,9 @@ use serde::{
 
 use self::value_serializer::{ValueSerializer, ValueType};
 
-use super::{write_binary, write_cstring, write_f64, write_i32, write_i64, write_string};
+use super::{write_binary, write_f64, write_i32, write_i64};
 use crate::{
-    raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{write_cstring, write_string, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     ser::{Error, Result},
     serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::{BinarySubtype, ElementType},
