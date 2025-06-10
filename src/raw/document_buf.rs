@@ -101,13 +101,13 @@ impl RawDocumentBuf {
     /// let doc = RawDocumentBuf::from_document(&document)?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn from_document(doc: &Document) -> Result<RawDocumentBuf> {
+    pub fn from_document(doc: &Document) -> RawDocumentBuf {
         let mut out = RawDocumentBuf::new();
         for (k, v) in doc {
-            let val: RawBson = v.clone().try_into()?;
+            let val: RawBson = v.clone().into();
             out.append(k, val);
         }
-        Ok(out)
+        out
     }
 
     /// Gets an iterator over the elements in the [`RawDocumentBuf`], which yields
@@ -266,10 +266,8 @@ impl TryFrom<RawDocumentBuf> for Document {
     }
 }
 
-impl TryFrom<&Document> for RawDocumentBuf {
-    type Error = Error;
-
-    fn try_from(doc: &Document) -> Result<RawDocumentBuf> {
+impl From<&Document> for RawDocumentBuf {
+    fn from(doc: &Document) -> RawDocumentBuf {
         RawDocumentBuf::from_document(doc)
     }
 }
