@@ -3,8 +3,6 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use serde::{ser::SerializeMap, Deserialize, Serialize};
-
 use crate::{
     error::{Error, Result},
     Bson,
@@ -18,7 +16,6 @@ use crate::{
 use super::{
     i32_from_slice,
     iter::Iter,
-    serde::OwnedOrBorrowedRawDocument,
     try_to_str,
     Error as RawError,
     RawArray,
@@ -29,7 +26,6 @@ use super::{
     RawRegexRef,
     Result as RawResult,
     MIN_BSON_DOCUMENT_SIZE,
-    RAW_DOCUMENT_NEWTYPE,
 };
 use crate::{oid::ObjectId, spec::ElementType, Document};
 
@@ -564,11 +560,13 @@ fn deep_utf8_lossy(src: RawBson) -> RawResult<Bson> {
     }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
+#[cfg(feature = "serde")]
+impl<'de: 'a, 'a> serde::Deserialize<'de> for &'a RawDocument {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
+        use super::serde::OwnedOrBorrowedRawDocument;
         match OwnedOrBorrowedRawDocument::deserialize(deserializer)? {
             OwnedOrBorrowedRawDocument::Borrowed(b) => Ok(b),
             OwnedOrBorrowedRawDocument::Owned(d) => Err(serde::de::Error::custom(format!(
@@ -579,18 +577,20 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
     }
 }
 
-impl Serialize for &RawDocument {
+#[cfg(feature = "serde")]
+impl serde::Serialize for &RawDocument {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         struct KvpSerializer<'a>(&'a RawDocument);
 
-        impl Serialize for KvpSerializer<'_> {
+        impl serde::Serialize for KvpSerializer<'_> {
             fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,
             {
+                use serde::ser::SerializeMap as _;
                 if serializer.is_human_readable() {
                     let mut map = serializer.serialize_map(None)?;
                     for kvp in self.0 {
@@ -603,7 +603,7 @@ impl Serialize for &RawDocument {
                 }
             }
         }
-        serializer.serialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, &KvpSerializer(self))
+        serializer.serialize_newtype_struct(super::RAW_DOCUMENT_NEWTYPE, &KvpSerializer(self))
     }
 }
 

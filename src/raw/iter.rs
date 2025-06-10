@@ -1,9 +1,8 @@
 use std::convert::TryInto;
 
 use crate::{
-    de::MIN_CODE_WITH_SCOPE_SIZE,
     oid::ObjectId,
-    raw::{Error, Result, MIN_BSON_DOCUMENT_SIZE},
+    raw::{Error, Result, MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
     spec::{BinarySubtype, ElementType},
     Bson,
     DateTime,
@@ -210,9 +209,12 @@ impl<'a> RawElement<'a> {
                         .read_cstring_at(self.start_at + pattern.len() + 1)?,
                 })
             }
-            ElementType::Timestamp => RawBsonRef::Timestamp(
-                Timestamp::from_reader(self.slice()).map_err(|e| self.malformed_error(e))?,
-            ),
+            ElementType::Timestamp => RawBsonRef::Timestamp({
+                let bytes: [u8; 8] = self.slice()[0..8]
+                    .try_into()
+                    .map_err(|e| self.malformed_error(e))?;
+                Timestamp::from_le_bytes(bytes)
+            }),
             ElementType::Binary => {
                 let len = self.size.checked_sub(4 + 1).ok_or_else(|| {
                     self.malformed_error(format!("length exceeds maximum: {}", self.size))

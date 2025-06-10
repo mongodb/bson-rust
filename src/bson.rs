@@ -501,7 +501,7 @@ impl Bson {
             Bson::JavaScriptCode(code) => json!({ "$code": code }),
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope }) => json!({
                 "$code": code,
-                "$scope": scope,
+                "$scope": Bson::Document(scope).into_relaxed_extjson(),
             }),
             Bson::Int32(v) => v.into(),
             Bson::Int64(v) => v.into(),
