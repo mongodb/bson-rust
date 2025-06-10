@@ -120,8 +120,11 @@ fn rawdoc_to_doc() {
     };
 
     let doc: crate::Document = rawdoc.clone().try_into().expect("invalid bson");
-    let round_tripped_bytes = crate::to_vec(&doc).expect("serialize should work");
-    assert_eq!(round_tripped_bytes.as_slice(), rawdoc.as_bytes());
+    #[cfg(feature = "serde")]
+    {
+        let round_tripped_bytes = crate::to_vec(&doc).expect("serialize should work");
+        assert_eq!(round_tripped_bytes.as_slice(), rawdoc.as_bytes());
+    }
 
     let mut vec_writer_bytes = vec![];
     doc.to_writer(&mut vec_writer_bytes)
@@ -470,6 +473,7 @@ fn into_bson_conversion() {
     );
 }
 
+#[cfg(feature = "serde")]
 #[test]
 fn fuzz_oom() {
     let bytes: &[u8] = &[
@@ -491,9 +495,14 @@ proptest! {
     #[test]
     fn roundtrip_bson(bson in arbitrary_bson()) {
         let doc = doc! { "bson": bson };
-        let raw = crate::to_vec(&doc);
-        prop_assert!(raw.is_ok());
-        let raw = RawDocumentBuf::from_bytes(raw.unwrap());
+        let mut bytes = vec![];
+        prop_assert!(doc.to_writer(&bytes).is_ok());
+        #[cfg(feature = "serde")]
+        {
+            let raw = crate::to_vec(&doc);
+            prop_assert!(raw.is_ok());
+        }
+        let raw = RawDocumentBuf::from_bytes(bytes);
         prop_assert!(raw.is_ok());
         let raw = raw.unwrap();
         let roundtrip: Result<crate::Document> = raw.try_into();

@@ -33,8 +33,8 @@ pub use self::{
 use std::io::Read;
 
 use crate::{
-    bson::{Bson, Document, Timestamp},
-    raw::{reader_to_vec, MIN_BSON_DOCUMENT_SIZE, MIN_BSON_STRING_SIZE},
+    bson::{Bson, Document},
+    raw::reader_to_vec,
     spec::BinarySubtype,
 };
 
@@ -44,7 +44,6 @@ use ::serde::{de::DeserializeOwned, Deserialize};
 pub(crate) use self::serde::{convert_unsigned_to_signed_raw, BsonVisitor};
 
 pub(crate) const MAX_BSON_SIZE: i32 = i32::MAX;
-pub(crate) const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
 /// Hint provided to the deserializer via `deserialize_newtype_struct` as to the type of thing
 /// being deserialized.
@@ -60,14 +59,6 @@ enum DeserializerHint {
     /// The type being deserialized is raw BSON, meaning no allocations should occur as part of
     /// deserializing and everything should be visited via borrowing or [`Copy`] if possible.
     RawBson,
-}
-
-impl Timestamp {
-    pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
-        let mut bytes = [0; 8];
-        reader.read_exact(&mut bytes)?;
-        Ok(Timestamp::from_le_bytes(bytes))
-    }
 }
 
 /// Deserialize a `T` from the provided [`Bson`] value.
