@@ -4,11 +4,9 @@ use std::{
     iter::FromIterator,
 };
 
-use serde::{Deserialize, Serialize};
-
 use crate::{RawArray, RawBsonRef, RawDocumentBuf};
 
-use super::{document_buf::BindRawBsonRef, serde::OwnedOrBorrowedRawArray, RawArrayIter};
+use super::{document_buf::BindRawBsonRef, RawArrayIter};
 
 /// An owned BSON array value (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON
 /// bytes. This type can be used to construct owned array values, which can be used to append to
@@ -158,16 +156,18 @@ impl<T: BindRawBsonRef> FromIterator<T> for RawArrayBuf {
     }
 }
 
-impl<'de> Deserialize<'de> for RawArrayBuf {
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for RawArrayBuf {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(OwnedOrBorrowedRawArray::deserialize(deserializer)?.into_owned())
+        Ok(super::serde::OwnedOrBorrowedRawArray::deserialize(deserializer)?.into_owned())
     }
 }
 
-impl Serialize for RawArrayBuf {
+#[cfg(feature = "serde")]
+impl serde::Serialize for RawArrayBuf {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

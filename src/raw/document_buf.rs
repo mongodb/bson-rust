@@ -113,10 +113,12 @@ impl RawDocumentBuf {
     /// # Ok::<(), bson::error::Error>(())
     /// ```
     pub fn from_document(doc: &Document) -> Result<RawDocumentBuf> {
-        let mut data = Vec::new();
-        doc.to_writer(&mut data).map_err(Error::malformed_value)?;
-
-        Ok(Self { data })
+        let mut out = RawDocumentBuf::new();
+        for (k, v) in doc {
+            let val: RawBson = v.clone().try_into()?;
+            out.append(k, val);
+        }
+        Ok(out)
     }
 
     /// Gets an iterator over the elements in the [`RawDocumentBuf`], which yields

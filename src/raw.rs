@@ -119,16 +119,14 @@ mod bson_ref;
 mod document;
 mod document_buf;
 mod iter;
+#[cfg(feature = "serde")]
 pub(crate) mod serde;
 #[cfg(test)]
 mod test;
 
 use std::convert::{TryFrom, TryInto};
 
-use crate::{
-    de::MIN_BSON_STRING_SIZE,
-    error::{Error, ErrorKind, Result},
-};
+use crate::error::{Error, ErrorKind, Result};
 
 pub use self::{
     array::{RawArray, RawArrayIter},
@@ -145,6 +143,8 @@ pub use self::{
     document_buf::{BindRawBsonRef, RawDocumentBuf},
     iter::{RawElement, RawIter},
 };
+
+pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
 
 pub(crate) use self::iter::{Utf8LossyBson, Utf8LossyJavaScriptCodeWithScope};
 
