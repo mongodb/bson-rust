@@ -22,7 +22,7 @@
 //! BSON definition
 
 use std::{
-    convert::{TryFrom, TryInto},
+    convert::TryFrom,
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
     ops::Index,
@@ -31,13 +31,7 @@ use std::{
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
-use crate::{
-    base64,
-    oid::{self, ObjectId},
-    spec::{BinarySubtype, ElementType},
-    Binary,
-    Decimal128,
-};
+use crate::{base64, oid, spec::ElementType, Binary, Decimal128};
 
 /// Possible BSON value types.
 #[derive(Clone, Default, PartialEq)]
@@ -501,7 +495,7 @@ impl Bson {
             Bson::JavaScriptCode(code) => json!({ "$code": code }),
             Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope { code, scope }) => json!({
                 "$code": code,
-                "$scope": scope,
+                "$scope": Bson::Document(scope).into_relaxed_extjson(),
             }),
             Bson::Int32(v) => v.into(),
             Bson::Int64(v) => v.into(),
@@ -618,6 +612,7 @@ impl Bson {
     /// This function mainly used for [extended JSON format](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
     // TODO RUST-426: Investigate either removing this from the serde implementation or unifying
     // with the extended JSON implementation.
+    #[cfg(feature = "serde")]
     pub(crate) fn into_extended_document(self, rawbson: bool) -> Document {
         match self {
             Bson::RegularExpression(Regex {
@@ -660,7 +655,7 @@ impl Bson {
                 if rawbson {
                     doc! {
                         "$binary": {
-                            "bytes": Binary { subtype: BinarySubtype::Generic, bytes },
+                            "bytes": Binary { subtype: crate::spec::BinarySubtype::Generic, bytes },
                             "subType": Bson::Int32(tval.into())
                         }
                     }
@@ -727,6 +722,7 @@ impl Bson {
         }
     }
 
+    #[cfg(feature = "serde")]
     pub(crate) fn from_extended_document(doc: Document) -> Bson {
         if doc.len() > 2 {
             return Bson::Document(doc);
@@ -738,7 +734,7 @@ impl Bson {
         match keys.as_slice() {
             ["$oid"] => {
                 if let Ok(oid) = doc.get_str("$oid") {
-                    if let Ok(oid) = ObjectId::parse_str(oid) {
+                    if let Ok(oid) = crate::oid::ObjectId::parse_str(oid) {
                         return Bson::ObjectId(oid);
                     }
                 }

@@ -23,7 +23,7 @@
 //! };
 //!
 //! // See http://bsonspec.org/spec.html for details on the binary encoding of BSON.
-//! let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+//! let doc = RawDocumentBuf::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 //! let elem = doc.get("hi")?.unwrap();
 //!
 //! assert_eq!(
@@ -76,7 +76,7 @@
 //! use bson::raw::RawDocument;
 //!
 //! let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
-//! assert_eq!(RawDocument::from_bytes(bytes)?.get_str("hi")?, "y'all");
+//! assert_eq!(RawDocument::decode_from_bytes(bytes)?.get_str("hi")?, "y'all");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -119,16 +119,17 @@ mod bson_ref;
 mod document;
 mod document_buf;
 mod iter;
+#[cfg(feature = "serde")]
 pub(crate) mod serde;
 #[cfg(test)]
 mod test;
 
-use std::convert::{TryFrom, TryInto};
-
-use crate::{
-    de::MIN_BSON_STRING_SIZE,
-    error::{Error, ErrorKind, Result},
+use std::{
+    convert::{TryFrom, TryInto},
+    io::Read,
 };
+
+use crate::error::{Error, ErrorKind, Result};
 
 pub use self::{
     array::{RawArray, RawArrayIter},
@@ -146,15 +147,23 @@ pub use self::{
     iter::{RawElement, RawIter},
 };
 
+pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
+pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
+pub(crate) const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
+
+#[cfg(feature = "serde")]
 pub(crate) use self::iter::{Utf8LossyBson, Utf8LossyJavaScriptCodeWithScope};
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.
+#[cfg(feature = "serde")]
 pub(crate) const RAW_DOCUMENT_NEWTYPE: &str = "$__private__bson_RawDocument";
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON array.
+#[cfg(feature = "serde")]
 pub(crate) const RAW_ARRAY_NEWTYPE: &str = "$__private__bson_RawArray";
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON value.
+#[cfg(feature = "serde")]
 pub(crate) const RAW_BSON_NEWTYPE: &str = "$__private__bson_RawBson";
 
 /// Given a u8 slice, return an i32 calculated from the first four bytes in
@@ -284,4 +293,38 @@ fn usize_try_from_i32(i: i32) -> Result<usize> {
 fn checked_add(lhs: usize, rhs: usize) -> Result<usize> {
     lhs.checked_add(rhs)
         .ok_or_else(|| Error::malformed_value("attempted to add with overflow"))
+}
+
+pub(crate) fn reader_to_vec<R: Read>(mut reader: R) -> Result<Vec<u8>> {
+    let mut buf = [0; 4];
+    reader.read_exact(&mut buf)?;
+    let length = i32::from_le_bytes(buf);
+
+    if length < MIN_BSON_DOCUMENT_SIZE {
+        return Err(Error::malformed_value("document size too small"));
+    }
+
+    let mut bytes = Vec::with_capacity(length as usize);
+    bytes.extend(buf);
+
+    reader.take(length as u64 - 4).read_to_end(&mut bytes)?;
+    Ok(bytes)
+}
+
+pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
+    buf.extend(&(s.len() as i32 + 1).to_le_bytes());
+    buf.extend(s.as_bytes());
+    buf.push(0);
+}
+
+pub(crate) fn write_cstring(buf: &mut Vec<u8>, s: &str) -> Result<()> {
+    if s.contains('\0') {
+        return Err(Error::malformed_value(format!(
+            "cstring with interior null: {:?}",
+            s
+        )));
+    }
+    buf.extend(s.as_bytes());
+    buf.push(0);
+    Ok(())
 }

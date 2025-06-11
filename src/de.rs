@@ -33,25 +33,20 @@ pub use self::{
 use std::io::Read;
 
 use crate::{
-    bson::{Bson, Document, Timestamp},
-    ser::write_i32,
+    bson::{Bson, Document},
+    raw::reader_to_vec,
     spec::BinarySubtype,
 };
 
 #[rustfmt::skip]
-use ::serde::{
-    de::{DeserializeOwned, Error as _},
-    Deserialize,
-};
+use ::serde::{de::DeserializeOwned, Deserialize};
 
 pub(crate) use self::serde::{convert_unsigned_to_signed_raw, BsonVisitor};
 
+#[cfg(test)]
 pub(crate) use self::raw::Deserializer as RawDeserializer;
 
 pub(crate) const MAX_BSON_SIZE: i32 = i32::MAX;
-pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
-pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
-pub(crate) const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
 /// Hint provided to the deserializer via `deserialize_newtype_struct` as to the type of thing
 /// being deserialized.
@@ -69,21 +64,13 @@ enum DeserializerHint {
     RawBson,
 }
 
-impl Timestamp {
-    pub(crate) fn from_reader<R: Read>(mut reader: R) -> Result<Self> {
-        let mut bytes = [0; 8];
-        reader.read_exact(&mut bytes)?;
-        Ok(Timestamp::from_le_bytes(bytes))
-    }
-}
-
 /// Deserialize a `T` from the provided [`Bson`] value.
 ///
 /// The [`Deserializer`] used by this function presents itself as human readable, whereas the
-/// one used in [`from_slice`] does not. This means that this function may deserialize differently
-/// than [`from_slice`] for types that change their deserialization logic depending on whether
-/// the format is human readable or not.
-pub fn from_bson<T>(bson: Bson) -> Result<T>
+/// one used in [`deserialize_from_slice`] does not. This means that this function may deserialize
+/// differently than [`deserialize_from_slice`] for types that change their deserialization logic
+/// depending on whether the format is human readable or not.
+pub fn deserialize_from_bson<T>(bson: Bson) -> Result<T>
 where
     T: DeserializeOwned,
 {
@@ -101,51 +88,35 @@ where
 /// Deserialize a `T` from the provided [`Document`].
 ///
 /// The [`Deserializer`] used by this function presents itself as human readable, whereas the
-/// one used in [`from_slice`] does not. This means that this function may deserialize differently
-/// than [`from_slice`] for types that change their deserialization logic depending on whether
-/// the format is human readable or not.
-pub fn from_document<T>(doc: Document) -> Result<T>
+/// one used in [`deserialize_from_slice`] does not. This means that this function may deserialize
+/// differently than [`deserialize_from_slice`] for types that change their deserialization logic
+/// depending on whether the format is human readable or not.
+pub fn deserialize_from_document<T>(doc: Document) -> Result<T>
 where
     T: DeserializeOwned,
 {
-    from_bson(Bson::Document(doc))
-}
-
-pub(crate) fn reader_to_vec<R: Read>(mut reader: R) -> Result<Vec<u8>> {
-    let mut buf = [0; 4];
-    reader.read_exact(&mut buf)?;
-    let length = i32::from_le_bytes(buf);
-
-    if length < MIN_BSON_DOCUMENT_SIZE {
-        return Err(Error::custom("document size too small"));
-    }
-
-    let mut bytes = Vec::with_capacity(length as usize);
-    write_i32(&mut bytes, length).map_err(Error::custom)?;
-
-    reader.take(length as u64 - 4).read_to_end(&mut bytes)?;
-    Ok(bytes)
+    deserialize_from_bson(Bson::Document(doc))
 }
 
 /// Deserialize an instance of type `T` from an I/O stream of BSON.
-pub fn from_reader<R, T>(reader: R) -> Result<T>
+pub fn deserialize_from_reader<R, T>(reader: R) -> Result<T>
 where
     T: DeserializeOwned,
     R: Read,
 {
     let bytes = reader_to_vec(reader)?;
-    from_slice(bytes.as_slice())
+    deserialize_from_slice(bytes.as_slice())
 }
 
 /// Deserialize an instance of type `T` from a slice of BSON bytes.
-pub fn from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
+pub fn deserialize_from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    from_raw(raw::Deserializer::new(bytes)?)
+    deserialize_from_raw(raw::Deserializer::new(bytes)?)
 }
 
-pub(crate) fn from_raw<'de, T: Deserialize<'de>>(
+pub(crate) fn deserialize_from_raw<'de, T: Deserialize<'de>>(
     deserializer: raw::Deserializer<'de>,
 ) -> Result<T> {
     #[cfg(feature = "serde_path_to_error")]

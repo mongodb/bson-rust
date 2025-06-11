@@ -43,21 +43,6 @@ use crate::{
     RawDocumentBuf,
 };
 
-pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
-    buf.extend(&(s.len() as i32 + 1).to_le_bytes());
-    buf.extend(s.as_bytes());
-    buf.push(0);
-}
-
-pub(crate) fn write_cstring(buf: &mut Vec<u8>, s: &str) -> Result<()> {
-    if s.contains('\0') {
-        return Err(Error::InvalidCString(s.into()));
-    }
-    buf.extend(s.as_bytes());
-    buf.push(0);
-    Ok(())
-}
-
 #[inline]
 pub(crate) fn write_i32<W: Write + ?Sized>(writer: &mut W, val: i32) -> Result<()> {
     writer
@@ -110,10 +95,10 @@ fn write_binary<W: Write>(mut writer: W, bytes: &[u8], subtype: BinarySubtype) -
 /// Encode a `T` Serializable into a [`Bson`] value.
 ///
 /// The [`Serializer`] used by this function presents itself as human readable, whereas the
-/// one used in [`to_vec`] does not. This means that this function will produce different BSON than
-/// [`to_vec`] for types that change their serialization output depending on whether
-/// the format is human readable or not.
-pub fn to_bson<T>(value: &T) -> Result<Bson>
+/// one used in [`serialize_to_vec`] does not. This means that this function will produce different
+/// BSON than [`serialize_to_vec`] for types that change their serialization output depending on
+/// whether the format is human readable or not.
+pub fn serialize_to_bson<T>(value: &T) -> Result<Bson>
 where
     T: Serialize + ?Sized,
 {
@@ -135,17 +120,17 @@ where
     value.serialize(ser)
 }
 
-/// Encode a `T` Serializable into a BSON [`Document`].
+/// Serialize a `T` Serializable into a BSON [`Document`].
 ///
 /// The [`Serializer`] used by this function presents itself as human readable, whereas the
-/// one used in [`to_vec`] does not. This means that this function will produce different BSON than
-/// [`to_vec`] for types that change their serialization output depending on whether
-/// the format is human readable or not.
-pub fn to_document<T>(value: &T) -> Result<Document>
+/// one used in [`serialize_to_vec`] does not. This means that this function will produce different
+/// BSON than [`serialize_to_vec`] for types that change their serialization output depending on
+/// whether the format is human readable or not.
+pub fn serialize_to_document<T>(value: &T) -> Result<Document>
 where
     T: Serialize + ?Sized,
 {
-    match to_bson(value)? {
+    match serialize_to_bson(value)? {
         Bson::Document(doc) => Ok(doc),
         bson => Err(Error::SerializationError {
             message: format!(
@@ -158,7 +143,7 @@ where
 
 /// Serialize the given `T` as a BSON byte vector.
 #[inline]
-pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
+pub fn serialize_to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize,
 {
@@ -187,14 +172,14 @@ where
 /// }
 ///
 /// let cat = Cat { name: "Garfield".to_string(), age: 43 };
-/// let doc = bson::to_raw_document_buf(&cat)?;
+/// let doc = bson::serialize_to_raw_document_buf(&cat)?;
 /// assert_eq!(doc, rawdoc! { "name": "Garfield", "age": 43 });
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[inline]
-pub fn to_raw_document_buf<T>(value: &T) -> Result<RawDocumentBuf>
+pub fn serialize_to_raw_document_buf<T>(value: &T) -> Result<RawDocumentBuf>
 where
     T: Serialize,
 {
-    RawDocumentBuf::from_bytes(to_vec(value)?).map_err(Error::custom)
+    RawDocumentBuf::decode_from_bytes(serialize_to_vec(value)?).map_err(Error::custom)
 }

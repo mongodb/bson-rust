@@ -45,20 +45,19 @@ fn compare_values(val1: &Bson, val2: &Bson) -> bool {
 }
 
 fuzz_target!(|input: &[u8]| {
-    if let Ok(rawdoc) = RawDocument::from_bytes(&input) {
+    if let Ok(rawdoc) = RawDocument::decode_from_bytes(&input) {
         if let Ok(doc) = Document::try_from(rawdoc) {
             let out = RawDocumentBuf::try_from(&doc).unwrap();
             let out_bytes = out.as_bytes();
             if input != out_bytes {
-                let reserialized = RawDocument::from_bytes(&out_bytes).unwrap();
-                let reserialized_doc = Document::try_from(reserialized).unwrap();
-                // Ensure that the reserialized document is the same as the original document, the
+                let reencoded = RawDocument::decode_from_bytes(&out_bytes).unwrap();
+                let reencoded_doc = Document::try_from(reencoded).unwrap();
+                // Ensure that the re-encoded document is the same as the original document, the
                 // bytes can differ while still resulting in the same Document.
-                if !compare_docs(&doc, &reserialized_doc) {
+                if !compare_docs(&doc, &reencoded_doc) {
                     panic!(
-                        "Reserialized document is not the same as the original document: {:?} != \
-                         {:?}",
-                        doc, reserialized_doc
+                        "Reencoded document is not the same as the original document: {:?} != {:?}",
+                        doc, reencoded_doc
                     );
                 }
             }

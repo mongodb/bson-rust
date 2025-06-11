@@ -1,10 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
-use serde::{Deserialize, Serialize};
-
 use crate::{
     oid::{self, ObjectId},
-    raw::RAW_BSON_NEWTYPE,
     spec::ElementType,
     Binary,
     Bson,
@@ -23,11 +20,7 @@ use crate::{
     Timestamp,
 };
 
-use super::{
-    serde::{bson_visitor::OwnedOrBorrowedRawBsonVisitor, OwnedOrBorrowedRawBson},
-    Error,
-    Result,
-};
+use super::{Error, Result};
 
 /// A BSON value backed by owned raw BSON bytes.
 #[derive(Debug, Clone, PartialEq)]
@@ -424,21 +417,25 @@ impl From<DbPointer> for RawBson {
     }
 }
 
-impl<'de> Deserialize<'de> for RawBson {
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for RawBson {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer
-            .deserialize_newtype_struct(RAW_BSON_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
-        {
+        use super::serde::{bson_visitor::OwnedOrBorrowedRawBsonVisitor, OwnedOrBorrowedRawBson};
+        match deserializer.deserialize_newtype_struct(
+            crate::raw::RAW_BSON_NEWTYPE,
+            OwnedOrBorrowedRawBsonVisitor,
+        )? {
             OwnedOrBorrowedRawBson::Owned(o) => Ok(o),
             OwnedOrBorrowedRawBson::Borrowed(b) => Ok(b.to_raw_bson()),
         }
     }
 }
 
-impl Serialize for RawBson {
+#[cfg(feature = "serde")]
+impl serde::Serialize for RawBson {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -483,18 +480,14 @@ impl TryFrom<RawBson> for Bson {
 }
 
 impl TryFrom<Bson> for RawBson {
-    type Error = Error;
+    type Error = crate::error::Error;
 
-    fn try_from(bson: Bson) -> Result<RawBson> {
+    fn try_from(bson: Bson) -> crate::error::Result<RawBson> {
         Ok(match bson {
             Bson::Double(d) => RawBson::Double(d),
             Bson::String(s) => RawBson::String(s),
-            Bson::Document(doc) => RawBson::Document((&doc).try_into()?),
-            Bson::Array(arr) => RawBson::Array(
-                arr.into_iter()
-                    .map(|b| -> Result<RawBson> { b.try_into() })
-                    .collect::<Result<RawArrayBuf>>()?,
-            ),
+            Bson::Document(doc) => RawBson::Document(doc.try_into()?),
+            Bson::Array(arr) => RawBson::Array(arr.try_into()?),
             Bson::Binary(bin) => RawBson::Binary(bin),
             Bson::ObjectId(id) => RawBson::ObjectId(id),
             Bson::Boolean(b) => RawBson::Boolean(b),
@@ -511,7 +504,7 @@ impl TryFrom<Bson> for RawBson {
             Bson::JavaScriptCodeWithScope(jcws) => {
                 RawBson::JavaScriptCodeWithScope(crate::RawJavaScriptCodeWithScope {
                     code: jcws.code,
-                    scope: (&jcws.scope).try_into()?,
+                    scope: jcws.scope.try_into()?,
                 })
             }
             Bson::Decimal128(d) => RawBson::Decimal128(d),
@@ -531,7 +524,8 @@ pub struct RawJavaScriptCodeWithScope {
     pub scope: RawDocumentBuf,
 }
 
-impl<'de> Deserialize<'de> for RawJavaScriptCodeWithScope {
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for RawJavaScriptCodeWithScope {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -546,7 +540,8 @@ impl<'de> Deserialize<'de> for RawJavaScriptCodeWithScope {
     }
 }
 
-impl Serialize for RawJavaScriptCodeWithScope {
+#[cfg(feature = "serde")]
+impl serde::Serialize for RawJavaScriptCodeWithScope {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

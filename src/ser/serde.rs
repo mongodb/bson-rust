@@ -305,7 +305,8 @@ impl ser::Serializer for Serializer {
                 .serialize(self)?
             {
                 Bson::Binary(b) => {
-                    let doc = Document::from_reader(b.bytes.as_slice()).map_err(Error::custom)?;
+                    let doc =
+                        Document::decode_from_reader(b.bytes.as_slice()).map_err(Error::custom)?;
 
                     if name == RAW_DOCUMENT_NEWTYPE {
                         Ok(Bson::Document(doc))

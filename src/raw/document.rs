@@ -3,12 +3,8 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use serde::{ser::SerializeMap, Deserialize, Serialize};
-
 use crate::{
-    de::MIN_BSON_DOCUMENT_SIZE,
     error::{Error, Result},
-    raw::{serde::OwnedOrBorrowedRawDocument, RAW_DOCUMENT_NEWTYPE},
     Bson,
     DateTime,
     JavaScriptCodeWithScope,
@@ -29,6 +25,7 @@ use super::{
     RawIter,
     RawRegexRef,
     Result as RawResult,
+    MIN_BSON_DOCUMENT_SIZE,
 };
 use crate::{oid::ObjectId, spec::ElementType, Document};
 
@@ -49,7 +46,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// # use bson::error::Error;
 /// use bson::raw::RawDocument;
 ///
-/// let doc = RawDocument::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
+/// let doc = RawDocument::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// let mut iter = doc.into_iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
@@ -66,7 +63,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// ```
 /// use bson::raw::RawDocument;
 ///
-/// let doc = RawDocument::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
+/// let doc = RawDocument::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -92,10 +89,10 @@ impl RawDocument {
     /// ```
     /// use bson::raw::RawDocument;
     ///
-    /// let doc = RawDocument::from_bytes(b"\x05\0\0\0\0")?;
+    /// let doc = RawDocument::decode_from_bytes(b"\x05\0\0\0\0")?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&RawDocument> {
+    pub fn decode_from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&RawDocument> {
         let data = data.as_ref();
 
         if data.len() < 5 {
@@ -135,12 +132,12 @@ impl RawDocument {
     /// use bson::raw::{RawDocument, RawDocumentBuf};
     ///
     /// let data = b"\x05\0\0\0\0";
-    /// let doc_ref = RawDocument::from_bytes(data)?;
+    /// let doc_ref = RawDocument::decode_from_bytes(data)?;
     /// let doc: RawDocumentBuf = doc_ref.to_raw_document_buf();
     /// # Ok::<(), bson::error::Error>(())
     pub fn to_raw_document_buf(&self) -> RawDocumentBuf {
         // unwrap is ok here because we already verified the bytes in `RawDocumentRef::new`
-        RawDocumentBuf::from_bytes(self.data.to_owned()).unwrap()
+        RawDocumentBuf::decode_from_bytes(self.data.to_owned()).unwrap()
     }
 
     /// Gets a reference to the value corresponding to the given key by iterating until the key is
@@ -563,11 +560,13 @@ fn deep_utf8_lossy(src: RawBson) -> RawResult<Bson> {
     }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
+#[cfg(feature = "serde")]
+impl<'de: 'a, 'a> serde::Deserialize<'de> for &'a RawDocument {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
+        use super::serde::OwnedOrBorrowedRawDocument;
         match OwnedOrBorrowedRawDocument::deserialize(deserializer)? {
             OwnedOrBorrowedRawDocument::Borrowed(b) => Ok(b),
             OwnedOrBorrowedRawDocument::Owned(d) => Err(serde::de::Error::custom(format!(
@@ -578,18 +577,20 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawDocument {
     }
 }
 
-impl Serialize for &RawDocument {
+#[cfg(feature = "serde")]
+impl serde::Serialize for &RawDocument {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         struct KvpSerializer<'a>(&'a RawDocument);
 
-        impl Serialize for KvpSerializer<'_> {
+        impl serde::Serialize for KvpSerializer<'_> {
             fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,
             {
+                use serde::ser::SerializeMap as _;
                 if serializer.is_human_readable() {
                     let mut map = serializer.serialize_map(None)?;
                     for kvp in self.0 {
@@ -602,7 +603,7 @@ impl Serialize for &RawDocument {
                 }
             }
         }
-        serializer.serialize_newtype_struct(RAW_DOCUMENT_NEWTYPE, &KvpSerializer(self))
+        serializer.serialize_newtype_struct(super::RAW_DOCUMENT_NEWTYPE, &KvpSerializer(self))
     }
 }
 
@@ -642,6 +643,22 @@ impl TryFrom<&RawDocument> for crate::Document {
             .into_iter()
             .map(|res| res.and_then(|(k, v)| Ok((k.to_owned(), v.try_into()?))))
             .collect()
+    }
+}
+
+impl TryFrom<RawDocumentBuf> for Document {
+    type Error = crate::error::Error;
+
+    fn try_from(raw: RawDocumentBuf) -> Result<Document> {
+        Document::try_from(raw.as_ref())
+    }
+}
+
+impl TryFrom<&RawDocumentBuf> for Document {
+    type Error = crate::error::Error;
+
+    fn try_from(raw: &RawDocumentBuf) -> Result<Document> {
+        Document::try_from(raw.as_ref())
     }
 }
 

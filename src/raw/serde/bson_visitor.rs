@@ -185,12 +185,12 @@ impl OwnedOrBorrowedRawBsonVisitor {
             }
             RAW_DOCUMENT_NEWTYPE => {
                 let bson = map.next_value::<&[u8]>()?;
-                let doc = RawDocument::from_bytes(bson).map_err(SerdeError::custom)?;
+                let doc = RawDocument::decode_from_bytes(bson).map_err(SerdeError::custom)?;
                 RawBsonRef::Document(doc).into()
             }
             RAW_ARRAY_NEWTYPE => {
                 let bson = map.next_value::<&[u8]>()?;
-                let doc = RawDocument::from_bytes(bson).map_err(SerdeError::custom)?;
+                let doc = RawDocument::decode_from_bytes(bson).map_err(SerdeError::custom)?;
                 RawBsonRef::Array(RawArray::from_doc(doc)).into()
             }
             _ => return Ok(MapParse::Aggregate(first_key)),

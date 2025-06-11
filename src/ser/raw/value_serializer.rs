@@ -8,8 +8,8 @@ use serde::{
 use crate::{
     base64,
     oid::ObjectId,
-    raw::RAW_DOCUMENT_NEWTYPE,
-    ser::{write_binary, write_cstring, write_i32, write_i64, write_string, Error, Result},
+    raw::{write_cstring, write_string, RAW_DOCUMENT_NEWTYPE},
+    ser::{write_binary, write_i32, write_i64, Error, Result},
     spec::{BinarySubtype, ElementType},
     RawDocument,
     RawJavaScriptCodeWithScopeRef,
@@ -311,7 +311,7 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
             SerializationStep::CodeWithScopeScope { ref code, raw } if raw => {
                 let raw = RawJavaScriptCodeWithScopeRef {
                     code,
-                    scope: RawDocument::from_bytes(v).map_err(Error::custom)?,
+                    scope: RawDocument::decode_from_bytes(v).map_err(Error::custom)?,
                 };
                 write_i32(&mut self.root_serializer.bytes, raw.len())?;
                 write_string(&mut self.root_serializer.bytes, code);

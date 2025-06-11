@@ -14,9 +14,6 @@ pub enum Error {
     /// A key could not be serialized to a BSON string.
     InvalidDocumentKey(Bson),
 
-    /// An invalid string was specified.
-    InvalidCString(String),
-
     /// A general error that occurred during serialization.
     /// See: <https://docs.rs/serde/1.0.110/serde/ser/trait.Error.html#tymethod.custom>
     #[non_exhaustive]
@@ -38,6 +35,9 @@ pub enum Error {
         /// The original error.
         source: Box<Error>,
     },
+
+    /// TODO RUST-1406 remove this
+    Crate(Arc<crate::error::Error>),
 }
 
 impl Error {
@@ -68,14 +68,17 @@ impl From<io::Error> for Error {
     }
 }
 
+impl From<crate::error::Error> for Error {
+    fn from(err: crate::error::Error) -> Error {
+        Error::Crate(Arc::new(err))
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::Io(inner) => inner.fmt(fmt),
             Error::InvalidDocumentKey(key) => write!(fmt, "Invalid map key type: {}", key),
-            Error::InvalidCString(ref string) => {
-                write!(fmt, "cstrings cannot contain null bytes: {:?}", string)
-            }
             Error::SerializationError { message } => message.fmt(fmt),
             Error::UnsignedIntegerExceededRange(value) => write!(
                 fmt,
@@ -86,6 +89,7 @@ impl fmt::Display for Error {
             ),
             #[cfg(feature = "serde_path_to_error")]
             Error::WithPath { path, source } => write!(fmt, "error at {}: {}", path, source),
+            Error::Crate(inner) => inner.fmt(fmt),
         }
     }
 }

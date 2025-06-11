@@ -18,7 +18,7 @@ use crate::{
     Timestamp,
 };
 
-use serde_json::{json, Value};
+use serde_json::Value;
 
 #[test]
 fn to_json() {
@@ -173,8 +173,10 @@ fn from_impls() {
         Bson::from(vec![1, 2, 3]),
         Bson::Array(vec![Bson::Int32(1), Bson::Int32(2), Bson::Int32(3)])
     );
+    #[cfg(feature = "serde")]
     assert_eq!(
-        Bson::try_from(json!({"_id": {"$oid": oid.to_hex()}, "name": ["bson-rs"]})).unwrap(),
+        Bson::try_from(serde_json::json!({"_id": {"$oid": oid.to_hex()}, "name": ["bson-rs"]}))
+            .unwrap(),
         Bson::Document(doc! {"_id": &oid, "name": ["bson-rs"]})
     );
 
@@ -204,15 +206,18 @@ fn from_impls() {
     assert_eq!(doc! {"x": Some(4)}, doc! {"x": 4});
     assert_eq!(doc! {"x": None::<i32>}, doc! {"x": Bson::Null});
 
-    let db_pointer = Bson::try_from(json!({
-        "$dbPointer": {
-            "$ref": "db.coll",
-            "$id": { "$oid": "507f1f77bcf86cd799439011" },
-        }
-    }))
-    .unwrap();
-    let db_pointer = db_pointer.as_db_pointer().unwrap();
-    assert_eq!(Bson::from(db_pointer), Bson::DbPointer(db_pointer.clone()));
+    #[cfg(feature = "serde")]
+    {
+        let db_pointer = Bson::try_from(serde_json::json!({
+            "$dbPointer": {
+                "$ref": "db.coll",
+                "$id": { "$oid": "507f1f77bcf86cd799439011" },
+            }
+        }))
+        .unwrap();
+        let db_pointer = db_pointer.as_db_pointer().unwrap();
+        assert_eq!(Bson::from(db_pointer), Bson::DbPointer(db_pointer.clone()));
+    }
 }
 
 #[test]

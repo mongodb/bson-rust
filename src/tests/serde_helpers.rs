@@ -3,7 +3,7 @@ use core::str;
 use serde::{de::Visitor, Deserialize, Serialize};
 
 use crate::{
-    from_slice,
+    deserialize_from_slice,
     serde_helpers::{HumanReadable, Utf8LossyDeserialization},
 };
 
@@ -88,7 +88,7 @@ fn human_readable_wrapper() {
         }),
     };
     // use the raw serializer, which is non-human-readable
-    let data_doc = crate::to_raw_document_buf(&data).unwrap();
+    let data_doc = crate::serialize_to_raw_document_buf(&data).unwrap();
     let expected_data_doc = rawdoc! {
         "first": "human readable",
         "outer": "not human readable",
@@ -99,7 +99,7 @@ fn human_readable_wrapper() {
     };
     assert_eq!(data_doc, expected_data_doc);
 
-    let tripped: Data = crate::from_slice(expected_data_doc.as_bytes()).unwrap();
+    let tripped: Data = crate::deserialize_from_slice(expected_data_doc.as_bytes()).unwrap();
     let expected = Data {
         first: HumanReadable(Detector {
             serialized_as: true,
@@ -142,11 +142,13 @@ fn utf8_lossy_wrapper() {
         s2: String,
     }
 
-    from_slice::<NoUtf8Lossy>(&both_strings_invalid_bytes).unwrap_err();
+    deserialize_from_slice::<NoUtf8Lossy>(&both_strings_invalid_bytes).unwrap_err();
 
-    let s = from_slice::<Utf8LossyDeserialization<NoUtf8Lossy>>(&both_strings_invalid_bytes)
-        .unwrap()
-        .0;
+    let s = deserialize_from_slice::<Utf8LossyDeserialization<NoUtf8Lossy>>(
+        &both_strings_invalid_bytes,
+    )
+    .unwrap()
+    .0;
     assert_eq!(s.s1, expected_replacement);
     assert_eq!(s.s2, expected_replacement);
 
@@ -156,16 +158,17 @@ fn utf8_lossy_wrapper() {
         s2: String,
     }
 
-    let s = from_slice::<FirstStringUtf8Lossy>(&first_string_invalid_bytes).unwrap();
+    let s = deserialize_from_slice::<FirstStringUtf8Lossy>(&first_string_invalid_bytes).unwrap();
     assert_eq!(s.s1.0, expected_replacement);
     assert_eq!(&s.s2, ":)");
 
-    from_slice::<FirstStringUtf8Lossy>(&both_strings_invalid_bytes).unwrap_err();
+    deserialize_from_slice::<FirstStringUtf8Lossy>(&both_strings_invalid_bytes).unwrap_err();
 
-    let s =
-        from_slice::<Utf8LossyDeserialization<FirstStringUtf8Lossy>>(&both_strings_invalid_bytes)
-            .unwrap()
-            .0;
+    let s = deserialize_from_slice::<Utf8LossyDeserialization<FirstStringUtf8Lossy>>(
+        &both_strings_invalid_bytes,
+    )
+    .unwrap()
+    .0;
     assert_eq!(s.s1.0, expected_replacement);
     assert_eq!(s.s2, expected_replacement);
 }

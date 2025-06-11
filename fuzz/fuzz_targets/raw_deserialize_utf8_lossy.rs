@@ -1,11 +1,11 @@
 #![no_main]
-#[macro_use] extern crate libfuzzer_sys;
+#[macro_use]
+extern crate libfuzzer_sys;
 extern crate bson;
-use bson::Document;
+use bson::{serde_helpers::Utf8LossyDeserialization, Document};
 
 fuzz_target!(|buf: &[u8]| {
-    if let Ok(doc) = bson::from_slice_utf8_lossy::<Document>(buf) {
-        let mut vec = Vec::with_capacity(buf.len());
-        let _ = doc.to_writer(&mut vec);
+    if let Ok(doc) = bson::deserialize_from_slice::<Utf8LossyDeserialization<Document>>(buf) {
+        let _ = bson::serialize_to_vec(&doc.0);
     }
 });

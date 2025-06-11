@@ -1,21 +1,10 @@
 use std::convert::{TryFrom, TryInto};
 
-use serde::{ser::SerializeStruct, Deserialize, Serialize};
-use serde_bytes::Bytes;
-
-use super::{
-    bson::RawBson,
-    serde::{bson_visitor::OwnedOrBorrowedRawBsonVisitor, OwnedOrBorrowedRawBson},
-    Error,
-    RawArray,
-    RawDocument,
-    Result,
-};
+use super::{bson::RawBson, Error, RawArray, RawDocument, Result};
 use crate::{
-    base64,
-    extjson,
+    //base64,
     oid::{self, ObjectId},
-    raw::{RawJavaScriptCodeWithScope, RAW_BSON_NEWTYPE},
+    raw::RawJavaScriptCodeWithScope,
     spec::{BinarySubtype, ElementType},
     Binary,
     Bson,
@@ -26,6 +15,9 @@ use crate::{
     Regex,
     Timestamp,
 };
+
+#[cfg(feature = "serde")]
+use serde::ser::SerializeStruct as _;
 
 /// A BSON value referencing raw bytes stored elsewhere.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -296,14 +288,17 @@ impl<'a> RawBsonRef<'a> {
     }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for RawBsonRef<'a> {
+#[cfg(feature = "serde")]
+impl<'de: 'a, 'a> serde::Deserialize<'de> for RawBsonRef<'a> {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer
-            .deserialize_newtype_struct(RAW_BSON_NEWTYPE, OwnedOrBorrowedRawBsonVisitor)?
-        {
+        use super::serde::{bson_visitor::OwnedOrBorrowedRawBsonVisitor, OwnedOrBorrowedRawBson};
+        match deserializer.deserialize_newtype_struct(
+            crate::raw::RAW_BSON_NEWTYPE,
+            OwnedOrBorrowedRawBsonVisitor,
+        )? {
             OwnedOrBorrowedRawBson::Borrowed(b) => Ok(b),
             o => Err(serde::de::Error::custom(format!(
                 "RawBson must be deserialized from borrowed content, instead got {:?}",
@@ -313,7 +308,8 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawBsonRef<'a> {
     }
 }
 
-impl Serialize for RawBsonRef<'_> {
+#[cfg(feature = "serde")]
+impl serde::Serialize for RawBsonRef<'_> {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -477,7 +473,8 @@ impl RawBinaryRef<'_> {
     }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for RawBinaryRef<'a> {
+#[cfg(feature = "serde")]
+impl<'de: 'a, 'a> serde::Deserialize<'de> for RawBinaryRef<'a> {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -492,7 +489,8 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawBinaryRef<'a> {
     }
 }
 
-impl Serialize for RawBinaryRef<'_> {
+#[cfg(feature = "serde")]
+impl serde::Serialize for RawBinaryRef<'_> {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -500,7 +498,9 @@ impl Serialize for RawBinaryRef<'_> {
         if let BinarySubtype::Generic = self.subtype {
             serializer.serialize_bytes(self.bytes)
         } else if !serializer.is_human_readable() {
-            #[derive(Serialize)]
+            use serde_bytes::Bytes;
+
+            #[derive(serde::Serialize)]
             struct BorrowedBinary<'a> {
                 bytes: &'a Bytes,
 
@@ -517,8 +517,8 @@ impl Serialize for RawBinaryRef<'_> {
             state.end()
         } else {
             let mut state = serializer.serialize_struct("$binary", 1)?;
-            let body = extjson::models::BinaryBody {
-                base64: base64::encode(self.bytes),
+            let body = crate::extjson::models::BinaryBody {
+                base64: crate::base64::encode(self.bytes),
                 subtype: hex::encode([self.subtype.into()]),
             };
             state.serialize_field("$binary", &body)?;
@@ -555,7 +555,8 @@ pub struct RawRegexRef<'a> {
     pub options: &'a str,
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for RawRegexRef<'a> {
+#[cfg(feature = "serde")]
+impl<'de: 'a, 'a> serde::Deserialize<'de> for RawRegexRef<'a> {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -570,12 +571,13 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawRegexRef<'a> {
     }
 }
 
-impl Serialize for RawRegexRef<'_> {
+#[cfg(feature = "serde")]
+impl serde::Serialize for RawRegexRef<'_> {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        #[derive(Serialize)]
+        #[derive(serde::Serialize)]
         struct BorrowedRegexBody<'a> {
             pattern: &'a str,
             options: &'a str,
@@ -613,7 +615,8 @@ impl RawJavaScriptCodeWithScopeRef<'_> {
     }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for RawJavaScriptCodeWithScopeRef<'a> {
+#[cfg(feature = "serde")]
+impl<'de: 'a, 'a> serde::Deserialize<'de> for RawJavaScriptCodeWithScopeRef<'a> {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -628,7 +631,8 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawJavaScriptCodeWithScopeRef<'a> {
     }
 }
 
-impl Serialize for RawJavaScriptCodeWithScopeRef<'_> {
+#[cfg(feature = "serde")]
+impl serde::Serialize for RawJavaScriptCodeWithScopeRef<'_> {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -653,7 +657,8 @@ pub struct RawDbPointerRef<'a> {
     pub(crate) id: ObjectId,
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for RawDbPointerRef<'a> {
+#[cfg(feature = "serde")]
+impl<'de: 'a, 'a> serde::Deserialize<'de> for RawDbPointerRef<'a> {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -668,12 +673,13 @@ impl<'de: 'a, 'a> Deserialize<'de> for RawDbPointerRef<'a> {
     }
 }
 
-impl Serialize for RawDbPointerRef<'_> {
+#[cfg(feature = "serde")]
+impl serde::Serialize for RawDbPointerRef<'_> {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        #[derive(Serialize)]
+        #[derive(serde::Serialize)]
         struct BorrowedDbPointerBody<'a> {
             #[serde(rename = "$ref")]
             ref_ns: &'a str,

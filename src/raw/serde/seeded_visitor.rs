@@ -6,8 +6,7 @@ use serde::{
 };
 
 use crate::{
-    raw::RAW_BSON_NEWTYPE,
-    ser::{write_cstring, write_string},
+    raw::{write_cstring, write_string, RAW_BSON_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     RawBson,
     RawBsonRef,
@@ -294,7 +293,8 @@ impl<'de> Visitor<'de> for SeededVisitor<'_, 'de> {
                         }
                         RawBsonRef::Undefined => Ok(ElementType::Undefined),
                         RawBsonRef::DateTime(dt) => {
-                            self.buffer.append_bytes(&dt.as_le_bytes());
+                            self.buffer
+                                .append_bytes(&dt.timestamp_millis().to_le_bytes());
                             Ok(ElementType::DateTime)
                         }
                         RawBsonRef::Timestamp(ts) => {

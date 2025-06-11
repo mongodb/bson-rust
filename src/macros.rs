@@ -240,12 +240,12 @@ macro_rules! rawbson {
 
     // Finished with trailing comma.
     (@array [$($elems:expr,)*]) => {
-        <$crate::RawArrayBuf as std::iter::FromIterator::<$crate::RawBson>>::from_iter(vec![$($elems,)*])
+        $crate::RawArrayBuf::from_iter(vec![$($elems,)*]).expect("invalid bson value")
     };
 
     // Finished without trailing comma.
     (@array [$($elems:expr),*]) => {
-        <$crate::RawArrayBuf as std::iter::FromIterator::<$crate::RawBson>>::from_iter(vec![$($elems),*])
+        $crate::RawArrayBuf::from_iter(vec![$($elems),*]).expect("invalid bson value")
     };
 
     // Next element is `null`.
@@ -293,13 +293,13 @@ macro_rules! rawbson {
 
     // Insert the current entry followed by trailing comma.
     (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
-        $object.append(($($key)+), $value);
+        $object.append(($($key)+), $value).expect("invalid bson value");
         $crate::rawbson!(@object $object () ($($rest)*) ($($rest)*));
     };
 
     // Insert the last entry without trailing comma.
     (@object $object:ident [$($key:tt)+] ($value:expr)) => {
-        $object.append(($($key)+), $value);
+        $object.append(($($key)+), $value).expect("invalid bson value");
     };
 
     // Next value is `null`.

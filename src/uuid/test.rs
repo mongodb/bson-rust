@@ -1,16 +1,12 @@
 use crate::{
-    from_document,
-    from_slice,
     spec::BinarySubtype,
     uuid::{Uuid, UuidRepresentation},
     Binary,
     Bson,
-    Document,
 };
-use serde::{Deserialize, Serialize};
-use serde_json::json;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[cfg(feature = "serde")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 struct U {
     uuid: Uuid,
 }
@@ -28,18 +24,20 @@ fn into_bson() {
     assert_eq!(bson, Bson::Binary(binary));
 }
 
+#[cfg(feature = "serde")]
 #[test]
 fn raw_serialization() {
     let u = U { uuid: Uuid::new() };
-    let bytes = crate::to_vec(&u).unwrap();
+    let bytes = crate::serialize_to_vec(&u).unwrap();
 
-    let doc: Document = crate::from_slice(bytes.as_slice()).unwrap();
+    let doc: crate::Document = crate::deserialize_from_slice(bytes.as_slice()).unwrap();
     assert_eq!(doc, doc! { "uuid": u.uuid });
 
-    let u_roundtrip: U = crate::from_slice(bytes.as_slice()).unwrap();
+    let u_roundtrip: U = crate::deserialize_from_slice(bytes.as_slice()).unwrap();
     assert_eq!(u_roundtrip, u);
 }
 
+#[cfg(feature = "serde")]
 #[test]
 fn bson_serialization() {
     let u = U { uuid: Uuid::new() };
@@ -52,24 +50,26 @@ fn bson_serialization() {
 
     assert_eq!(doc! { "uuid": u.uuid }, correct);
 
-    let doc = crate::to_document(&u).unwrap();
+    let doc = crate::serialize_to_document(&u).unwrap();
     assert_eq!(doc, correct);
 
-    let u_roundtrip: U = crate::from_document(doc).unwrap();
+    let u_roundtrip: U = crate::deserialize_from_document(doc).unwrap();
     assert_eq!(u_roundtrip, u);
 }
 
+#[cfg(feature = "serde")]
 #[test]
 fn json() {
     let u = U { uuid: Uuid::new() };
 
     let json = serde_json::to_value(&u).unwrap();
-    assert_eq!(json, json!({ "uuid": u.uuid.to_string() }));
+    assert_eq!(json, serde_json::json!({ "uuid": u.uuid.to_string() }));
 
     let u_roundtrip_json: U = serde_json::from_value(json).unwrap();
     assert_eq!(u_roundtrip_json, u);
 }
 
+#[cfg(feature = "serde")]
 #[test]
 fn wrong_subtype() {
     let generic = doc! {
@@ -78,9 +78,9 @@ fn wrong_subtype() {
             subtype: BinarySubtype::Generic
         }
     };
-    crate::from_document::<U>(generic.clone()).unwrap_err();
-    let generic_bytes = crate::to_vec(&generic).unwrap();
-    crate::from_slice::<U>(&generic_bytes).unwrap_err();
+    crate::deserialize_from_document::<U>(generic.clone()).unwrap_err();
+    let generic_bytes = crate::serialize_to_vec(&generic).unwrap();
+    crate::deserialize_from_slice::<U>(&generic_bytes).unwrap_err();
 
     let old = doc! {
         "uuid": Binary {
@@ -88,9 +88,9 @@ fn wrong_subtype() {
             subtype: BinarySubtype::UuidOld
         }
     };
-    crate::from_document::<U>(old.clone()).unwrap_err();
-    let old_bytes = crate::to_vec(&old).unwrap();
-    crate::from_slice::<U>(&old_bytes).unwrap_err();
+    crate::deserialize_from_document::<U>(old.clone()).unwrap_err();
+    let old_bytes = crate::serialize_to_vec(&old).unwrap();
+    crate::deserialize_from_slice::<U>(&old_bytes).unwrap_err();
 
     let other = doc! {
         "uuid": Binary {
@@ -98,9 +98,9 @@ fn wrong_subtype() {
             subtype: BinarySubtype::UserDefined(100)
         }
     };
-    crate::from_document::<U>(other.clone()).unwrap_err();
-    let other_bytes = crate::to_vec(&other).unwrap();
-    crate::from_slice::<U>(&other_bytes).unwrap_err();
+    crate::deserialize_from_document::<U>(other.clone()).unwrap_err();
+    let other_bytes = crate::serialize_to_vec(&other).unwrap();
+    crate::deserialize_from_slice::<U>(&other_bytes).unwrap_err();
 }
 
 #[test]
@@ -256,9 +256,10 @@ fn interop_1() {
     assert_eq!(d_bson, d_uuid);
 }
 
+#[cfg(feature = "serde")]
 #[test]
 fn deserialize_uuid_from_string() {
-    #[derive(Deserialize)]
+    #[derive(serde::Deserialize)]
     struct UuidWrapper {
         uuid: Uuid,
     }
@@ -266,11 +267,12 @@ fn deserialize_uuid_from_string() {
     let uuid = Uuid::new();
 
     let doc = doc! { "uuid": uuid.to_string() };
-    let wrapper: UuidWrapper = from_document(doc).expect("failed to deserialize document");
+    let wrapper: UuidWrapper =
+        crate::deserialize_from_document(doc).expect("failed to deserialize document");
     assert_eq!(wrapper.uuid, uuid);
 
     let raw_doc = rawdoc! { "uuid": uuid.to_string() };
-    let wrapper: UuidWrapper =
-        from_slice(raw_doc.as_bytes()).expect("failed to deserialize raw document");
+    let wrapper: UuidWrapper = crate::deserialize_from_slice(raw_doc.as_bytes())
+        .expect("failed to deserialize raw document");
     assert_eq!(wrapper.uuid, uuid);
 }

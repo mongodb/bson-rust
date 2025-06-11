@@ -1,5 +1,5 @@
 use crate::{
-    ser::{write_cstring, write_string},
+    raw::{write_cstring, write_string},
     spec::BinarySubtype,
     RawBsonRef,
 };
@@ -13,7 +13,7 @@ impl<'a> RawWriter<'a> {
         Self { data }
     }
 
-    pub(super) fn append(&mut self, key: &str, value: RawBsonRef) -> crate::ser::Result<()> {
+    pub(super) fn append(&mut self, key: &str, value: RawBsonRef) -> crate::error::Result<()> {
         let original_len = self.data.len();
         self.data[original_len - 1] = value.element_type() as u8;
 
