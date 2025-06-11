@@ -57,36 +57,37 @@ fn run_test<T>(expected_value: &T, expected_doc: &Document, description: &str)
 where
     T: Serialize + DeserializeOwned + PartialEq + std::fmt::Debug,
 {
-    let expected_bytes = expected_doc.to_vec();
+    let expected_bytes = expected_doc.encode_to_vec().expect(description);
 
-    let expected_bytes_serde = bson::to_vec(&expected_value).expect(description);
+    let expected_bytes_serde = bson::serialize_to_vec(&expected_value).expect(description);
 
     assert_eq!(expected_bytes_serde, expected_bytes, "{}", description);
 
-    let expected_bytes_from_doc_serde = bson::to_vec(&expected_doc).expect(description);
+    let expected_bytes_from_doc_serde = bson::serialize_to_vec(&expected_doc).expect(description);
     assert_eq!(
         expected_bytes_from_doc_serde, expected_bytes,
         "{}",
         description
     );
 
-    let serialized_doc = bson::to_document(&expected_value).expect(description);
+    let serialized_doc = bson::serialize_to_document(&expected_value).expect(description);
     assert_eq!(&serialized_doc, expected_doc, "{}", description);
     assert_eq!(
         expected_value,
-        &bson::from_document::<T>(serialized_doc).expect(description),
+        &bson::deserialize_from_document::<T>(serialized_doc).expect(description),
         "{}",
         description
     );
 
     assert_eq!(
-        &bson::from_reader::<_, T>(expected_bytes.as_slice()).expect(description),
+        &bson::deserialize_from_reader::<_, T>(expected_bytes.as_slice()).expect(description),
         expected_value,
         "{}",
         description
     );
     assert_eq!(
-        &bson::from_reader::<_, Document>(expected_bytes.as_slice()).expect(description),
+        &bson::deserialize_from_reader::<_, Document>(expected_bytes.as_slice())
+            .expect(description),
         expected_doc,
         "{}",
         description
@@ -101,22 +102,23 @@ fn run_deserialize_test<T>(expected_value: &T, expected_doc: &Document, descript
 where
     T: DeserializeOwned + PartialEq + std::fmt::Debug,
 {
-    let expected_bytes = expected_doc.to_vec();
+    let expected_bytes = expected_doc.encode_to_vec().expect(description);
 
     assert_eq!(
-        &bson::from_document::<T>(expected_doc.clone()).expect(description),
+        &bson::deserialize_from_document::<T>(expected_doc.clone()).expect(description),
         expected_value,
         "{}",
         description
     );
     assert_eq!(
-        &bson::from_reader::<_, T>(expected_bytes.as_slice()).expect(description),
+        &bson::deserialize_from_reader::<_, T>(expected_bytes.as_slice()).expect(description),
         expected_value,
         "{}",
         description
     );
     assert_eq!(
-        &bson::from_reader::<_, Document>(expected_bytes.as_slice()).expect(description),
+        &bson::deserialize_from_reader::<_, Document>(expected_bytes.as_slice())
+            .expect(description),
         expected_doc,
         "{}",
         description
@@ -130,8 +132,8 @@ fn run_raw_round_trip_test<'de, T>(bytes: &'de [u8], description: &str)
 where
     T: Deserialize<'de> + Serialize + std::fmt::Debug,
 {
-    let t: T = bson::from_slice(bytes).expect(description);
-    let vec = bson::to_vec(&t).expect(description);
+    let t: T = bson::deserialize_from_slice(bytes).expect(description);
+    let vec = bson::serialize_to_vec(&t).expect(description);
     assert_eq!(vec.as_slice(), bytes);
 }
 
@@ -438,12 +440,12 @@ fn type_conversion() {
     let doc = doc! {
         "bar": 1_i64
     };
-    let deserialized: Foo = bson::from_document(doc.clone()).unwrap();
+    let deserialized: Foo = bson::deserialize_from_document(doc.clone()).unwrap();
     assert_eq!(deserialized, v);
 
-    let bytes = doc.to_vec();
+    let bytes = doc.encode_to_vec().unwrap();
 
-    let bson_deserialized: Foo = bson::from_reader(bytes.as_slice()).unwrap();
+    let bson_deserialized: Foo = bson::deserialize_from_reader(bytes.as_slice()).unwrap();
     assert_eq!(bson_deserialized, v);
 }
 
@@ -456,11 +458,11 @@ fn missing_errors() {
 
     let doc = doc! {};
 
-    bson::from_document::<Foo>(doc.clone()).unwrap_err();
+    bson::deserialize_from_document::<Foo>(doc.clone()).unwrap_err();
 
-    let bytes = doc.to_vec();
+    let bytes = doc.encode_to_vec().unwrap();
 
-    bson::from_reader::<_, Foo>(bytes.as_slice()).unwrap_err();
+    bson::deserialize_from_reader::<_, Foo>(bytes.as_slice()).unwrap_err();
 }
 
 #[test]
@@ -674,10 +676,12 @@ fn unused_fields_deny() {
         "a": 1,
         "b": 2,
     };
-    bson::from_document::<Foo>(doc.clone()).expect_err("extra fields should cause failure");
+    bson::deserialize_from_document::<Foo>(doc.clone())
+        .expect_err("extra fields should cause failure");
 
-    let bytes = doc.to_vec();
-    bson::from_reader::<_, Foo>(bytes.as_slice()).expect_err("extra fields should cause failure");
+    let bytes = doc.encode_to_vec().unwrap();
+    bson::deserialize_from_reader::<_, Foo>(bytes.as_slice())
+        .expect_err("extra fields should cause failure");
 }
 
 #[test]
@@ -732,7 +736,7 @@ fn raw_doc_buf() {
         d: RawDocumentBuf,
     }
 
-    let bytes = bson::to_vec(&doc! {
+    let bytes = bson::serialize_to_vec(&doc! {
         "d": {
             "a": 12,
             "b": 5.5,
@@ -754,7 +758,7 @@ fn raw_doc() {
         d: &'a RawDocument,
     }
 
-    let bytes = bson::to_vec(&doc! {
+    let bytes = bson::serialize_to_vec(&doc! {
         "d": {
             "a": 12,
             "b": 5.5,
@@ -776,7 +780,7 @@ fn raw_array() {
         d: &'a RawArray,
     }
 
-    let bytes = bson::to_vec(&doc! {
+    let bytes = bson::serialize_to_vec(&doc! {
         "d": [1, true, { "ok": 1 }, [ "sub", "array" ], Uuid::new()]
     })
     .expect("raw_array");
@@ -801,7 +805,7 @@ fn raw_binary() {
         other: RawBinaryRef<'a>,
     }
 
-    let bytes = bson::to_vec(&doc! {
+    let bytes = bson::serialize_to_vec(&doc! {
         "generic": Binary {
             bytes: vec![1, 2, 3, 4, 5],
             subtype: BinarySubtype::Generic,
@@ -829,7 +833,7 @@ fn raw_regex() {
         r: RawRegexRef<'a>,
     }
 
-    let bytes = bson::to_vec(&doc! {
+    let bytes = bson::serialize_to_vec(&doc! {
         "r": Regex {
             pattern: "a[b-c]d".to_string(),
             options: "ab".to_string(),
@@ -848,7 +852,7 @@ fn raw_code_w_scope() {
         r: RawJavaScriptCodeWithScopeRef<'a>,
     }
 
-    let bytes = bson::to_vec(&doc! {
+    let bytes = bson::serialize_to_vec(&doc! {
         "r": JavaScriptCodeWithScope {
             code: "console.log(x)".to_string(),
             scope: doc! { "x": 1 },
@@ -940,7 +944,7 @@ impl AllTypes {
 
         let decimal = {
             let bytes = hex::decode("18000000136400D0070000000000000000000000003A3000").unwrap();
-            let d = Document::from_reader(bytes.as_slice()).unwrap();
+            let d = Document::decode_from_reader(bytes.as_slice()).unwrap();
             match d.get("d") {
                 Some(Bson::Decimal128(d)) => *d,
                 c => panic!("expected decimal128, got {:?}", c),
@@ -1044,7 +1048,7 @@ fn all_raw_types_rmp() {
         regex: RawRegexRef<'a>,
     }
 
-    let doc_bytes = bson::to_vec(&doc! {
+    let doc_bytes = bson::serialize_to_vec(&doc! {
         "bson": "some string",
         "array": [1, 2, 3],
         "binary": Binary { bytes: vec![1, 2, 3], subtype: BinarySubtype::Generic },
@@ -1059,7 +1063,7 @@ fn all_raw_types_rmp() {
         }
     })
     .unwrap();
-    let doc_buf = RawDocumentBuf::from_bytes(doc_bytes).unwrap();
+    let doc_buf = RawDocumentBuf::decode_from_bytes(doc_bytes).unwrap();
     let document = &doc_buf;
     let array = document.get_array("array").unwrap();
 
@@ -1115,7 +1119,7 @@ fn borrowed() {
         "cow": "cow",
         "array": ["borrowed string"],
     };
-    let bson = doc.to_vec();
+    let bson = doc.encode_to_vec().unwrap();
 
     let s = "borrowed string".to_string();
     let ss = "another borrowed string".to_string();
@@ -1132,7 +1136,7 @@ fn borrowed() {
     };
 
     let deserialized: Foo =
-        bson::from_slice(bson.as_slice()).expect("deserialization should succeed");
+        bson::deserialize_from_slice(bson.as_slice()).expect("deserialization should succeed");
     assert_eq!(deserialized, v);
 }
 
@@ -1175,8 +1179,8 @@ fn u2i() {
     let v = TooBig {
         u_64: i64::MAX as u64 + 1,
     };
-    bson::to_document(&v).unwrap_err();
-    bson::to_vec(&v).unwrap_err();
+    bson::serialize_to_document(&v).unwrap_err();
+    bson::serialize_to_vec(&v).unwrap_err();
 }
 
 #[test]
@@ -1258,14 +1262,16 @@ fn owned_raw_types() {
                 RawBson::JavaScriptCodeWithScope(raw_code_w_scope.clone()),
             ),
             ("decimal128", RawBson::Decimal128(d128)),
-        ]),
+        ])
+        .unwrap(),
         array: RawArrayBuf::from_iter([
             RawBson::String("a string".to_string()),
             RawBson::ObjectId(oid),
             RawBson::DateTime(dt),
             RawBson::JavaScriptCodeWithScope(raw_code_w_scope),
             RawBson::Decimal128(d128),
-        ]),
+        ])
+        .unwrap(),
     };
 
     let expected = doc! {
@@ -1307,15 +1313,15 @@ fn hint_cleared() {
         "binary": binary_value.clone()
     };
 
-    let bytes = bson::to_vec(&doc_value).unwrap();
+    let bytes = bson::serialize_to_vec(&doc_value).unwrap();
 
-    let doc = RawDocument::from_bytes(&bytes).unwrap();
+    let doc = RawDocument::decode_from_bytes(&bytes).unwrap();
     let binary = doc.get_binary("binary").unwrap();
 
     let f = Foo { doc, binary };
 
-    let serialized_bytes = bson::to_vec(&f).unwrap();
-    let round_doc: Document = bson::from_slice(&serialized_bytes).unwrap();
+    let serialized_bytes = bson::serialize_to_vec(&f).unwrap();
+    let round_doc: Document = bson::deserialize_from_slice(&serialized_bytes).unwrap();
 
     assert_eq!(round_doc, doc! { "doc": doc_value, "binary": binary_value });
 }
@@ -1323,5 +1329,5 @@ fn hint_cleared() {
 #[test]
 fn invalid_length() {
     // This is a regression test for fuzzer-generated input (RUST-1240).
-    assert!(bson::from_slice::<Document>(&[4, 0, 0, 128, 0, 87]).is_err());
+    assert!(bson::deserialize_from_slice::<Document>(&[4, 0, 0, 128, 0, 87]).is_err());
 }
