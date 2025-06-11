@@ -132,7 +132,7 @@
 //! use std::io::Read;
 //!
 //! let mut bytes = hex::decode("0C0000001069000100000000").unwrap();
-//! let doc = Document::from_reader(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
+//! let doc = Document::decode_from_reader(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
 //!
 //! let doc = doc! {
 //!    "hello": "world",
@@ -200,14 +200,14 @@
 //! // Deserialize the Person struct from the BSON data, automatically
 //! // verifying that the necessary keys are present and that they are of
 //! // the correct types.
-//! let mut person: Person = bson::from_bson(bson_data).unwrap();
+//! let mut person: Person = bson::deserialize_from_bson(bson_data).unwrap();
 //!
 //! // Do things just like with any other Rust data structure.
 //! println!("Redacting {}'s record.", person.name);
 //! person.name = "REDACTED".to_string();
 //!
 //! // Get a serialized version of the input data as a [`Bson`].
-//! let redacted_bson = bson::to_bson(&person).unwrap();
+//! let redacted_bson = bson::serialize_to_bson(&person).unwrap();
 //! ```
 //!
 //! Any types that implement [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize)

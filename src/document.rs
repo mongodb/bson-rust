@@ -690,7 +690,7 @@ impl Document {
     ///
     /// let mut v: Vec<u8> = Vec::new();
     /// let doc = doc! { "x" : 1 };
-    /// doc.to_writer(&mut v)?;
+    /// doc.encode_to_writer(&mut v)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -714,14 +714,14 @@ impl Document {
     ///
     /// let mut v: Vec<u8> = Vec::new();
     /// let doc = doc! { "x" : 1 };
-    /// doc.to_writer(&mut v)?;
+    /// doc.encode_to_writer(&mut v)?;
     ///
     /// // read from mutable reference
     /// let mut reader = Cursor::new(v.clone());
-    /// let doc1 = Document::from_reader(&mut reader)?;
+    /// let doc1 = Document::decode_from_reader(&mut reader)?;
     ///
     /// // read from owned value
-    /// let doc2 = Document::from_reader(Cursor::new(v))?;
+    /// let doc2 = Document::decode_from_reader(Cursor::new(v))?;
     ///
     /// assert_eq!(doc, doc1);
     /// assert_eq!(doc, doc2);

@@ -172,7 +172,7 @@ where
 /// }
 ///
 /// let cat = Cat { name: "Garfield".to_string(), age: 43 };
-/// let doc = bson::to_raw_document_buf(&cat)?;
+/// let doc = bson::serialize_to_raw_document_buf(&cat)?;
 /// assert_eq!(doc, rawdoc! { "name": "Garfield", "age": 43 });
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
