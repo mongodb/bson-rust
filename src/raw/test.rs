@@ -126,7 +126,7 @@ fn rawdoc_to_doc() {
         assert_eq!(round_tripped_bytes.as_slice(), rawdoc.as_bytes());
     }
 
-    let vec_writer_bytes = doc.to_vec();
+    let vec_writer_bytes = doc.to_vec().expect("encode should work");
     assert_eq!(vec_writer_bytes, rawdoc.into_bytes());
 }
 
@@ -494,6 +494,8 @@ proptest! {
     fn roundtrip_bson(bson in arbitrary_bson()) {
         let doc = doc! { "bson": bson };
         let bytes = doc.to_vec();
+        prop_assert!(bytes.is_ok());
+        let bytes = bytes.unwrap();
         #[cfg(feature = "serde")]
         {
             let raw = crate::to_vec(&doc);

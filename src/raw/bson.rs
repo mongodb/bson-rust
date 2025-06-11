@@ -479,17 +479,15 @@ impl TryFrom<RawBson> for Bson {
     }
 }
 
-impl From<Bson> for RawBson {
-    fn from(bson: Bson) -> RawBson {
-        match bson {
+impl TryFrom<Bson> for RawBson {
+    type Error = crate::error::Error;
+
+    fn try_from(bson: Bson) -> crate::error::Result<RawBson> {
+        Ok(match bson {
             Bson::Double(d) => RawBson::Double(d),
             Bson::String(s) => RawBson::String(s),
-            Bson::Document(doc) => RawBson::Document((&doc).into()),
-            Bson::Array(arr) => RawBson::Array(
-                arr.into_iter()
-                    .map(|b| -> RawBson { b.into() })
-                    .collect::<RawArrayBuf>(),
-            ),
+            Bson::Document(doc) => RawBson::Document(doc.try_into()?),
+            Bson::Array(arr) => RawBson::Array(arr.try_into()?),
             Bson::Binary(bin) => RawBson::Binary(bin),
             Bson::ObjectId(id) => RawBson::ObjectId(id),
             Bson::Boolean(b) => RawBson::Boolean(b),
@@ -506,13 +504,13 @@ impl From<Bson> for RawBson {
             Bson::JavaScriptCodeWithScope(jcws) => {
                 RawBson::JavaScriptCodeWithScope(crate::RawJavaScriptCodeWithScope {
                     code: jcws.code,
-                    scope: (&jcws.scope).into(),
+                    scope: jcws.scope.try_into()?,
                 })
             }
             Bson::Decimal128(d) => RawBson::Decimal128(d),
             Bson::MaxKey => RawBson::MaxKey,
             Bson::MinKey => RawBson::MinKey,
-        }
+        })
     }
 }
 

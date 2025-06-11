@@ -156,10 +156,12 @@ fn cstring_null_bytes_error() {
     verify_doc(regex);
 
     fn verify_doc(doc: Document) {
-        let mut vec = Vec::new();
         assert!(matches!(
-            doc.to_writer(&mut vec).unwrap_err().strip_path(),
-            ser::Error::InvalidCString(_)
+            doc.to_vec().unwrap_err(),
+            crate::error::Error {
+                kind: crate::error::ErrorKind::MalformedValue { .. },
+                ..
+            }
         ));
         assert!(matches!(
             to_vec(&doc).unwrap_err().strip_path(),

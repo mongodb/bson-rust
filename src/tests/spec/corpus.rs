@@ -1,6 +1,5 @@
 use std::{
     convert::{TryFrom, TryInto},
-    iter::FromIterator,
     marker::PhantomData,
     str::FromStr,
 };
@@ -199,7 +198,9 @@ fn run_test(test: TestFile) {
                     .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<RawBson>))
                     .expect(&description);
                 let from_slice_owned_vec =
-                    RawDocumentBuf::from_iter([(test_key, owned_raw_bson_field)]).into_bytes();
+                    RawDocumentBuf::from_iter([(test_key, owned_raw_bson_field)])
+                        .expect(&description)
+                        .into_bytes();
 
                 // deserialize the field from raw Bytes into a Bson
                 let deserializer_value =
