@@ -30,10 +30,10 @@ const PACKED_BIT: u8 = 0x10;
 /// }
 ///
 /// let data = Data { vector: Vector::Int8(vec![0, 1, 2]) };
-/// let document = bson::to_document(&data).unwrap();
+/// let document = bson::serialize_to_document(&data).unwrap();
 /// assert_eq!(document.get("vector").unwrap().element_type(), ElementType::Binary);
 ///
-/// let data: Data = bson::from_document(document).unwrap();
+/// let data: Data = bson::deserialize_from_document(document).unwrap();
 /// assert_eq!(data.vector, Vector::Int8(vec![0, 1, 2]));
 /// ```
 ///

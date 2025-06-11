@@ -92,7 +92,7 @@ impl error::Error for Error {}
 ///
 /// # fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 /// let f = Foo { oid: ObjectId::new() };
-/// println!("bson: {}", bson::to_document(&f)?);
+/// println!("bson: {}", bson::serialize_to_document(&f)?);
 /// println!("json: {}", serde_json::to_string(&f)?);
 /// # Ok(())
 /// # }
@@ -127,7 +127,7 @@ impl error::Error for Error {}
 /// }
 /// # fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 /// let f = Foo { oid: ObjectId::new(), oid_as_hex: ObjectId::new() };
-/// println!("bson: {}", bson::to_document(&f)?);
+/// println!("bson: {}", bson::serialize_to_document(&f)?);
 /// println!("json: {}", serde_json::to_string(&f)?);
 /// # Ok(())
 /// # }

@@ -101,7 +101,7 @@
 //!   "as_bson": bson::Uuid::from(foo.as_bson.unwrap()),
 //! };
 //!
-//! assert_eq!(bson::to_document(&foo)?, expected);
+//! assert_eq!(bson::serialize_to_document(&foo)?, expected);
 //! # }
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```

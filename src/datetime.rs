@@ -73,7 +73,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 ///
 /// # fn main() -> bson::ser::Result<()> {
 /// let f = Foo { date_time: bson::DateTime::now(), chrono_datetime: chrono::Utc::now() };
-/// println!("{:?}", bson::to_document(&f)?);
+/// println!("{:?}", bson::serialize_to_document(&f)?);
 /// # Ok(())
 /// # }
 /// ```
@@ -170,7 +170,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 ///   "as_bson": bson::DateTime::from_chrono(dt),
 /// };
 ///
-/// assert_eq!(bson::to_document(&foo)?, expected);
+/// assert_eq!(bson::serialize_to_document(&foo)?, expected);
 /// # }
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```

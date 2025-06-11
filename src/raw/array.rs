@@ -37,9 +37,9 @@ use crate::{
 /// let doc = doc! {
 ///     "x": [1, true, "two", 5.5]
 /// };
-/// let bytes = bson::to_vec(&doc)?;
+/// let bytes = bson::serialize_to_vec(&doc)?;
 ///
-/// let rawdoc = RawDocument::from_bytes(bytes.as_slice())?;
+/// let rawdoc = RawDocument::decode_from_bytes(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
 ///
 /// for v in rawarray {
@@ -59,9 +59,9 @@ use crate::{
 /// let doc = doc! {
 ///     "x": [1, true, "two", 5.5]
 /// };
-/// let bytes = bson::to_vec(&doc)?;
+/// let bytes = doc.encode_to_vec()?;
 ///
-/// let rawdoc = RawDocument::from_bytes(bytes.as_slice())?;
+/// let rawdoc = RawDocument::decode_from_bytes(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
 ///
 /// assert_eq!(rawarray.get_bool(1)?, true);

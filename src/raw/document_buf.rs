@@ -24,7 +24,7 @@ mod raw_writer;
 /// # use bson::error::Error;
 /// use bson::raw::RawDocumentBuf;
 ///
-/// let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// let doc = RawDocumentBuf::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 /// let mut iter = doc.iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
@@ -42,7 +42,7 @@ mod raw_writer;
 /// ```
 /// use bson::raw::RawDocumentBuf;
 ///
-/// let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// let doc = RawDocumentBuf::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -74,7 +74,7 @@ impl RawDocumentBuf {
     ///
     /// ```
     /// # use bson::raw::RawDocumentBuf;
-    /// let doc = RawDocumentBuf::from_bytes(b"\x05\0\0\0\0".to_vec())?;
+    /// let doc = RawDocumentBuf::decode_from_bytes(b"\x05\0\0\0\0".to_vec())?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
     pub fn decode_from_bytes(data: Vec<u8>) -> Result<Self> {
