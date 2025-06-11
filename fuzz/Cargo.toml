@@ -10,6 +10,7 @@ cargo-fuzz = true
 
 [dependencies.bson]
 path = ".."
+features = ["serde"]
 
 [dependencies.libfuzzer-sys]
 version = "0.4.0"
@@ -32,12 +33,12 @@ name = "iterate"
 path = "fuzz_targets/iterate.rs"
 
 [[bin]]
-name = "raw_decode"
-path = "fuzz_targets/raw_decode.rs"
+name = "raw_deserialize"
+path = "fuzz_targets/raw_deserialize.rs"
 
 [[bin]]
-name = "raw_decode_utf8_lossy"
-path = "fuzz_targets/raw_decode_utf8_lossy.rs"
+name = "raw_deserialize_utf8_lossy"
+path = "fuzz_targets/raw_deserialize_utf8_lossy.rs"
 
 [[bin]]
 name = "type_markers"
