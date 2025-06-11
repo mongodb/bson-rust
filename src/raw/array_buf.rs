@@ -1,7 +1,6 @@
 use std::{
     borrow::{Borrow, Cow},
     fmt::Debug,
-    iter::FromIterator,
 };
 
 use crate::{RawArray, RawBsonRef, RawDocumentBuf};
@@ -54,6 +53,18 @@ impl RawArrayBuf {
         }
     }
 
+    pub fn from_iter<B, I>(iter: I) -> crate::error::Result<Self>
+    where
+        B: BindRawBsonRef,
+        I: IntoIterator<Item = B>,
+    {
+        let mut array_buf = RawArrayBuf::new();
+        for item in iter {
+            array_buf.push(item)?;
+        }
+        Ok(array_buf)
+    }
+
     /// Construct a new [`RawArrayBuf`] from the provided [`Vec`] of bytes.
     ///
     /// This involves a traversal of the array to count the values.
@@ -90,9 +101,10 @@ impl RawArrayBuf {
     /// assert!(iter.next().is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn push(&mut self, value: impl BindRawBsonRef) {
-        self.inner.append(self.len.to_string(), value);
+    pub fn push(&mut self, value: impl BindRawBsonRef) -> crate::error::Result<()> {
+        self.inner.append(self.len.to_string(), value)?;
         self.len += 1;
+        Ok(())
     }
 }
 
@@ -146,16 +158,6 @@ impl<'a> From<&'a RawArrayBuf> for Cow<'a, RawArray> {
     }
 }
 
-impl<T: BindRawBsonRef> FromIterator<T> for RawArrayBuf {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut array_buf = RawArrayBuf::new();
-        for item in iter {
-            array_buf.push(item);
-        }
-        array_buf
-    }
-}
-
 #[cfg(feature = "serde")]
 impl<'de> serde::Deserialize<'de> for RawArrayBuf {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
@@ -179,5 +181,26 @@ impl serde::Serialize for RawArrayBuf {
 impl Default for RawArrayBuf {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl TryFrom<&crate::Array> for RawArrayBuf {
+    type Error = crate::error::Error;
+
+    fn try_from(value: &crate::Array) -> Result<Self, Self::Error> {
+        let mut tmp = RawArrayBuf::new();
+        for val in value {
+            let raw: super::RawBson = val.clone().try_into()?;
+            tmp.push(raw)?;
+        }
+        Ok(tmp)
+    }
+}
+
+impl TryFrom<crate::Array> for RawArrayBuf {
+    type Error = crate::error::Error;
+
+    fn try_from(value: crate::Array) -> Result<Self, Self::Error> {
+        Self::try_from(&value)
     }
 }

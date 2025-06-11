@@ -646,6 +646,22 @@ impl TryFrom<&RawDocument> for crate::Document {
     }
 }
 
+impl TryFrom<RawDocumentBuf> for Document {
+    type Error = crate::error::Error;
+
+    fn try_from(raw: RawDocumentBuf) -> Result<Document> {
+        Document::try_from(raw.as_ref())
+    }
+}
+
+impl TryFrom<&RawDocumentBuf> for Document {
+    type Error = crate::error::Error;
+
+    fn try_from(raw: &RawDocumentBuf) -> Result<Document> {
+        Document::try_from(raw.as_ref())
+    }
+}
+
 impl<'a> IntoIterator for &'a RawDocument {
     type IntoIter = Iter<'a>;
     type Item = RawResult<(&'a str, RawBsonRef<'a>)>;
