@@ -92,7 +92,7 @@ impl RawDocument {
     /// let doc = RawDocument::from_bytes(b"\x05\0\0\0\0")?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&RawDocument> {
+    pub fn decode_from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&RawDocument> {
         let data = data.as_ref();
 
         if data.len() < 5 {
@@ -137,7 +137,7 @@ impl RawDocument {
     /// # Ok::<(), bson::error::Error>(())
     pub fn to_raw_document_buf(&self) -> RawDocumentBuf {
         // unwrap is ok here because we already verified the bytes in `RawDocumentRef::new`
-        RawDocumentBuf::from_bytes(self.data.to_owned()).unwrap()
+        RawDocumentBuf::decode_from_bytes(self.data.to_owned()).unwrap()
     }
 
     /// Gets a reference to the value corresponding to the given key by iterating until the key is

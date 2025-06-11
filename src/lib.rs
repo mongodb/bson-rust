@@ -309,8 +309,20 @@ pub use self::{
 #[cfg(feature = "serde")]
 #[doc(inline)]
 pub use self::{
-    de::{from_bson, from_document, from_reader, from_slice, Deserializer},
-    ser::{to_bson, to_document, to_raw_document_buf, to_vec, Serializer},
+    de::{
+        deserialize_from_bson,
+        deserialize_from_document,
+        deserialize_from_reader,
+        deserialize_from_slice,
+        Deserializer,
+    },
+    ser::{
+        serialize_to_bson,
+        serialize_to_document,
+        serialize_to_raw_document_buf,
+        serialize_to_vec,
+        Serializer,
+    },
 };
 
 #[macro_use]

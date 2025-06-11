@@ -77,14 +77,14 @@ impl RawDocumentBuf {
     /// let doc = RawDocumentBuf::from_bytes(b"\x05\0\0\0\0".to_vec())?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn from_bytes(data: Vec<u8>) -> Result<Self> {
-        let _ = RawDocument::from_bytes(data.as_slice())?;
+    pub fn decode_from_bytes(data: Vec<u8>) -> Result<Self> {
+        let _ = RawDocument::decode_from_bytes(data.as_slice())?;
         Ok(Self { data })
     }
 
-    pub fn from_reader<R: std::io::Read>(reader: R) -> Result<Self> {
+    pub fn decode_from_reader<R: std::io::Read>(reader: R) -> Result<Self> {
         let buf = crate::raw::reader_to_vec(reader)?;
-        Self::from_bytes(buf)
+        Self::decode_from_bytes(buf)
     }
 
     pub fn from_iter<S, B, I>(iter: I) -> Result<Self>

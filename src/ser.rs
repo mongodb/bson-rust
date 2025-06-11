@@ -98,7 +98,7 @@ fn write_binary<W: Write>(mut writer: W, bytes: &[u8], subtype: BinarySubtype) -
 /// one used in [`to_vec`] does not. This means that this function will produce different BSON than
 /// [`to_vec`] for types that change their serialization output depending on whether
 /// the format is human readable or not.
-pub fn to_bson<T>(value: &T) -> Result<Bson>
+pub fn serialize_to_bson<T>(value: &T) -> Result<Bson>
 where
     T: Serialize + ?Sized,
 {
@@ -120,17 +120,17 @@ where
     value.serialize(ser)
 }
 
-/// Encode a `T` Serializable into a BSON [`Document`].
+/// Serialize a `T` Serializable into a BSON [`Document`].
 ///
 /// The [`Serializer`] used by this function presents itself as human readable, whereas the
 /// one used in [`to_vec`] does not. This means that this function will produce different BSON than
 /// [`to_vec`] for types that change their serialization output depending on whether
 /// the format is human readable or not.
-pub fn to_document<T>(value: &T) -> Result<Document>
+pub fn serialize_to_document<T>(value: &T) -> Result<Document>
 where
     T: Serialize + ?Sized,
 {
-    match to_bson(value)? {
+    match serialize_to_bson(value)? {
         Bson::Document(doc) => Ok(doc),
         bson => Err(Error::SerializationError {
             message: format!(
@@ -143,7 +143,7 @@ where
 
 /// Serialize the given `T` as a BSON byte vector.
 #[inline]
-pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
+pub fn serialize_to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize,
 {
@@ -177,9 +177,9 @@ where
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[inline]
-pub fn to_raw_document_buf<T>(value: &T) -> Result<RawDocumentBuf>
+pub fn serialize_to_raw_document_buf<T>(value: &T) -> Result<RawDocumentBuf>
 where
     T: Serialize,
 {
-    RawDocumentBuf::from_bytes(to_vec(value)?).map_err(Error::custom)
+    RawDocumentBuf::decode_from_bytes(serialize_to_vec(value)?).map_err(Error::custom)
 }

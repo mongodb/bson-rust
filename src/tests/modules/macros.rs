@@ -87,7 +87,7 @@ fn standard_format() {
 
     assert_eq!(expected, format!("{}", doc));
 
-    assert_eq!(rawdoc.into_bytes(), crate::to_vec(&doc).unwrap());
+    assert_eq!(rawdoc.into_bytes(), crate::serialize_to_vec(&doc).unwrap());
 }
 
 #[test]
@@ -241,7 +241,7 @@ fn recursive_macro() {
         _ => panic!("Null was not inserted correctly."),
     }
 
-    assert_eq!(rawdoc.into_bytes(), crate::to_vec(&doc).unwrap());
+    assert_eq!(rawdoc.into_bytes(), crate::serialize_to_vec(&doc).unwrap());
 }
 
 #[test]
