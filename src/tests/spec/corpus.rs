@@ -133,10 +133,12 @@ fn run_test(test: TestFile) {
                 .expect(&description);
 
         let canonical_owned_raw_bson_from_slice =
-            crate::deserialize_from_slice::<RawBson>(canonical_bson.as_slice()).expect(&description);
+            crate::deserialize_from_slice::<RawBson>(canonical_bson.as_slice())
+                .expect(&description);
 
         let canonical_raw_document_from_slice =
-            crate::deserialize_from_slice::<&RawDocument>(canonical_bson.as_slice()).expect(&description);
+            crate::deserialize_from_slice::<&RawDocument>(canonical_bson.as_slice())
+                .expect(&description);
 
         // These cover the ways to serialize those [`Documents`] back to BSON.
         let mut documenttowriter_documentfromreader_cb = Vec::new();
