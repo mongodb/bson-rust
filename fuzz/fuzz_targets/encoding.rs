@@ -45,12 +45,12 @@ fn compare_values(val1: &Bson, val2: &Bson) -> bool {
 }
 
 fuzz_target!(|input: &[u8]| {
-    if let Ok(rawdoc) = RawDocument::from_bytes(&input) {
+    if let Ok(rawdoc) = RawDocument::decode_from_bytes(&input) {
         if let Ok(doc) = Document::try_from(rawdoc) {
             let out = RawDocumentBuf::try_from(&doc).unwrap();
             let out_bytes = out.as_bytes();
             if input != out_bytes {
-                let reencoded = RawDocument::from_bytes(&out_bytes).unwrap();
+                let reencoded = RawDocument::decode_from_bytes(&out_bytes).unwrap();
                 let reencoded_doc = Document::try_from(reencoded).unwrap();
                 // Ensure that the re-encoded document is the same as the original document, the
                 // bytes can differ while still resulting in the same Document.
