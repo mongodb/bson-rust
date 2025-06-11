@@ -316,7 +316,7 @@ pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
 pub(crate) fn write_cstring(buf: &mut Vec<u8>, s: &str) -> Result<()> {
     if s.contains('\0') {
         return Err(Error::malformed_value(format!(
-            "string with interior null: {:?}",
+            "cstring with interior null: {:?}",
             s
         )));
     }

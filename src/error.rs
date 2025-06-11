@@ -170,4 +170,9 @@ impl Error {
             }
         )
     }
+
+    #[cfg(test)]
+    pub(crate) fn is_malformed_value(&self) -> bool {
+        matches!(self.kind, ErrorKind::MalformedValue { .. },)
+    }
 }
