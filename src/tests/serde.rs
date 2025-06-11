@@ -388,12 +388,6 @@ fn test_byte_vec() {
             doc! { "challenge": (Bson::Binary(Binary { subtype: BinarySubtype::Generic, bytes: x.challenge.to_vec() }))}
         )
     );
-
-    // let mut buf = Vec::new();
-    // b.as_document().unwrap().to_writer(&mut buf).unwrap();
-
-    // let xb = Document::from_reader(&mut Cursor::new(buf)).unwrap();
-    // assert_eq!(b.as_document().unwrap(), &xb);
 }
 
 #[test]

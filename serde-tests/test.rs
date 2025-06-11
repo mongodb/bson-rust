@@ -52,15 +52,12 @@ use bson::{
 ///     - serializing `expected_value` to BSON bytes matches the raw BSON bytes of `expected_doc`
 ///     - deserializing a `T` from the serialized bytes produces `expected_value`
 ///     - deserializing a `Document` from the serialized bytes produces `expected_doc`
-///   - `bson::to_writer` and `Document::to_writer` produce the same result given the same input
+///   - `bson::to_vec` and `Document::to_vec` produce the same result given the same input
 fn run_test<T>(expected_value: &T, expected_doc: &Document, description: &str)
 where
     T: Serialize + DeserializeOwned + PartialEq + std::fmt::Debug,
 {
-    let mut expected_bytes = Vec::new();
-    expected_doc
-        .to_writer(&mut expected_bytes)
-        .expect(description);
+    let expected_bytes = expected_doc.to_vec();
 
     let expected_bytes_serde = bson::to_vec(&expected_value).expect(description);
 
@@ -104,10 +101,7 @@ fn run_deserialize_test<T>(expected_value: &T, expected_doc: &Document, descript
 where
     T: DeserializeOwned + PartialEq + std::fmt::Debug,
 {
-    let mut expected_bytes = Vec::new();
-    expected_doc
-        .to_writer(&mut expected_bytes)
-        .expect(description);
+    let expected_bytes = expected_doc.to_vec();
 
     assert_eq!(
         &bson::from_document::<T>(expected_doc.clone()).expect(description),
@@ -447,8 +441,7 @@ fn type_conversion() {
     let deserialized: Foo = bson::from_document(doc.clone()).unwrap();
     assert_eq!(deserialized, v);
 
-    let mut bytes = Vec::new();
-    doc.to_writer(&mut bytes).unwrap();
+    let bytes = doc.to_vec();
 
     let bson_deserialized: Foo = bson::from_reader(bytes.as_slice()).unwrap();
     assert_eq!(bson_deserialized, v);
@@ -465,8 +458,7 @@ fn missing_errors() {
 
     bson::from_document::<Foo>(doc.clone()).unwrap_err();
 
-    let mut bytes = Vec::new();
-    doc.to_writer(&mut bytes).unwrap();
+    let bytes = doc.to_vec();
 
     bson::from_reader::<_, Foo>(bytes.as_slice()).unwrap_err();
 }
@@ -684,8 +676,7 @@ fn unused_fields_deny() {
     };
     bson::from_document::<Foo>(doc.clone()).expect_err("extra fields should cause failure");
 
-    let mut bytes = Vec::new();
-    doc.to_writer(&mut bytes).unwrap();
+    let bytes = doc.to_vec();
     bson::from_reader::<_, Foo>(bytes.as_slice()).expect_err("extra fields should cause failure");
 }
 
@@ -1124,8 +1115,7 @@ fn borrowed() {
         "cow": "cow",
         "array": ["borrowed string"],
     };
-    let mut bson = Vec::new();
-    doc.to_writer(&mut bson).unwrap();
+    let bson = doc.to_vec();
 
     let s = "borrowed string".to_string();
     let ss = "another borrowed string".to_string();
