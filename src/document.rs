@@ -674,7 +674,7 @@ impl Document {
     }
 
     /// Attempt to encode the [`Document`] into a byte [`Vec`].
-    pub fn to_vec(&self) -> Result<Vec<u8>> {
+    pub fn encode_to_vec(&self) -> Result<Vec<u8>> {
         Ok(crate::RawDocumentBuf::from_document(self)?.into_bytes())
     }
 
@@ -694,7 +694,7 @@ impl Document {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn to_writer<W: Write>(&self, mut writer: W) -> crate::error::Result<()> {
+    pub fn encode_to_writer<W: Write>(&self, mut writer: W) -> crate::error::Result<()> {
         let buf = crate::RawDocumentBuf::from_document(self)?;
         writer.write_all(buf.as_bytes())?;
         Ok(())
@@ -728,8 +728,8 @@ impl Document {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn from_reader<R: Read>(reader: R) -> crate::error::Result<Document> {
-        let raw = crate::raw::RawDocumentBuf::from_reader(reader)?;
+    pub fn decode_from_reader<R: Read>(reader: R) -> crate::error::Result<Document> {
+        let raw = crate::raw::RawDocumentBuf::decode_from_reader(reader)?;
         raw.try_into()
     }
 }

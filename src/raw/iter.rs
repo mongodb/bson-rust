@@ -144,7 +144,7 @@ impl TryInto<Bson> for RawElement<'_> {
 
 impl<'a> RawElement<'a> {
     pub(crate) fn toplevel(bytes: &'a [u8]) -> Result<Self> {
-        let doc = RawDocument::from_bytes(bytes)?;
+        let doc = RawDocument::decode_from_bytes(bytes)?;
         Ok(Self {
             key: "TOPLEVEL",
             kind: ElementType::EmbeddedDocument,
@@ -178,11 +178,11 @@ impl<'a> RawElement<'a> {
             ElementType::Double => RawBsonRef::Double(f64_from_slice(self.slice())?),
             ElementType::String => RawBsonRef::String(self.read_str()?),
             ElementType::EmbeddedDocument => {
-                RawBsonRef::Document(RawDocument::from_bytes(self.slice())?)
+                RawBsonRef::Document(RawDocument::decode_from_bytes(self.slice())?)
             }
-            ElementType::Array => {
-                RawBsonRef::Array(RawArray::from_doc(RawDocument::from_bytes(self.slice())?))
-            }
+            ElementType::Array => RawBsonRef::Array(RawArray::from_doc(
+                RawDocument::decode_from_bytes(self.slice())?,
+            )),
             ElementType::Boolean => RawBsonRef::Boolean(
                 bool_from_slice(self.slice()).map_err(|e| self.malformed_error(e))?,
             ),
@@ -260,7 +260,7 @@ impl<'a> RawElement<'a> {
                 let slice = self.slice();
                 let code = read_lenencode(&slice[4..])?;
                 let scope_start = 4 + 4 + code.len() + 1;
-                let scope = RawDocument::from_bytes(&slice[scope_start..])?;
+                let scope = RawDocument::decode_from_bytes(&slice[scope_start..])?;
 
                 RawBsonRef::JavaScriptCodeWithScope(RawJavaScriptCodeWithScopeRef { code, scope })
             }
@@ -286,7 +286,7 @@ impl<'a> RawElement<'a> {
                 let slice = self.slice();
                 let code = String::from_utf8_lossy(read_lenencode_bytes(&slice[4..])?).into_owned();
                 let scope_start = 4 + 4 + code.len() + 1;
-                let scope = RawDocument::from_bytes(&slice[scope_start..])?;
+                let scope = RawDocument::decode_from_bytes(&slice[scope_start..])?;
 
                 Utf8LossyBson::JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope {
                     code,

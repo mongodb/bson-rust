@@ -311,7 +311,7 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
             SerializationStep::CodeWithScopeScope { ref code, raw } if raw => {
                 let raw = RawJavaScriptCodeWithScopeRef {
                     code,
-                    scope: RawDocument::from_bytes(v).map_err(Error::custom)?,
+                    scope: RawDocument::decode_from_bytes(v).map_err(Error::custom)?,
                 };
                 write_i32(&mut self.root_serializer.bytes, raw.len())?;
                 write_string(&mut self.root_serializer.bytes, code);

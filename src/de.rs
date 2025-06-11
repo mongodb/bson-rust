@@ -70,7 +70,7 @@ enum DeserializerHint {
 /// one used in [`from_slice`] does not. This means that this function may deserialize differently
 /// than [`from_slice`] for types that change their deserialization logic depending on whether
 /// the format is human readable or not.
-pub fn from_bson<T>(bson: Bson) -> Result<T>
+pub fn deserialize_from_bson<T>(bson: Bson) -> Result<T>
 where
     T: DeserializeOwned,
 {
@@ -91,32 +91,32 @@ where
 /// one used in [`from_slice`] does not. This means that this function may deserialize differently
 /// than [`from_slice`] for types that change their deserialization logic depending on whether
 /// the format is human readable or not.
-pub fn from_document<T>(doc: Document) -> Result<T>
+pub fn deserialize_from_document<T>(doc: Document) -> Result<T>
 where
     T: DeserializeOwned,
 {
-    from_bson(Bson::Document(doc))
+    deserialize_from_bson(Bson::Document(doc))
 }
 
 /// Deserialize an instance of type `T` from an I/O stream of BSON.
-pub fn from_reader<R, T>(reader: R) -> Result<T>
+pub fn deserialize_from_reader<R, T>(reader: R) -> Result<T>
 where
     T: DeserializeOwned,
     R: Read,
 {
     let bytes = reader_to_vec(reader)?;
-    from_slice(bytes.as_slice())
+    deserialize_from_slice(bytes.as_slice())
 }
 
 /// Deserialize an instance of type `T` from a slice of BSON bytes.
-pub fn from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
+pub fn deserialize_from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    from_raw(raw::Deserializer::new(bytes)?)
+    deserialize_from_raw(raw::Deserializer::new(bytes)?)
 }
 
-pub(crate) fn from_raw<'de, T: Deserialize<'de>>(
+pub(crate) fn deserialize_from_raw<'de, T: Deserialize<'de>>(
     deserializer: raw::Deserializer<'de>,
 ) -> Result<T> {
     #[cfg(feature = "serde_path_to_error")]

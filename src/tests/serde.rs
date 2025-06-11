@@ -2,9 +2,9 @@
 
 use crate::{
     bson,
+    deserialize_from_bson,
+    deserialize_from_document,
     doc,
-    from_bson,
-    from_document,
     oid::ObjectId,
     serde_helpers,
     serde_helpers::{
@@ -16,10 +16,10 @@ use crate::{
         timestamp_as_u32,
         u32_as_timestamp,
     },
+    serialize_to_document,
     spec::BinarySubtype,
     tests::LOCK,
-    to_bson,
-    to_document,
+    serialize_to_bson,
     Binary,
     Bson,
     DateTime,
@@ -106,13 +106,13 @@ fn test_ser_timestamp() {
         },
     };
 
-    let x = to_bson(&foo).unwrap();
+    let x = serialize_to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! { "ts": Bson::Timestamp(Timestamp { time: 0x0000_000C, increment: 0x0000_000A }) }
     );
 
-    let xfoo: Foo = from_bson(x).unwrap();
+    let xfoo: Foo = deserialize_from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
 
@@ -126,7 +126,7 @@ fn test_de_timestamp() {
         ts: Timestamp,
     }
 
-    let foo: Foo = from_bson(Bson::Document(doc! {
+    let foo: Foo = deserialize_from_bson(Bson::Document(doc! {
         "ts": Bson::Timestamp(Timestamp { time: 0x0000_000C, increment: 0x0000_000A }),
     }))
     .unwrap();
@@ -159,13 +159,13 @@ fn test_ser_regex() {
         regex: regex.clone(),
     };
 
-    let x = to_bson(&foo).unwrap();
+    let x = serialize_to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! { "regex": Bson::RegularExpression(regex) }
     );
 
-    let xfoo: Foo = from_bson(x).unwrap();
+    let xfoo: Foo = deserialize_from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
 
@@ -184,7 +184,7 @@ fn test_de_regex() {
         options: "01".into(),
     };
 
-    let foo: Foo = from_bson(Bson::Document(doc! {
+    let foo: Foo = deserialize_from_bson(Bson::Document(doc! {
         "regex": Bson::RegularExpression(regex.clone()),
     }))
     .unwrap();
@@ -211,13 +211,13 @@ fn test_ser_code_with_scope() {
         code_with_scope: code_with_scope.clone(),
     };
 
-    let x = to_bson(&foo).unwrap();
+    let x = serialize_to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! { "code_with_scope": Bson::JavaScriptCodeWithScope(code_with_scope) }
     );
 
-    let xfoo: Foo = from_bson(x).unwrap();
+    let xfoo: Foo = deserialize_from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
 
@@ -236,7 +236,7 @@ fn test_de_code_with_scope() {
         scope: doc! { "x": 12 },
     };
 
-    let foo: Foo = from_bson(Bson::Document(doc! {
+    let foo: Foo = deserialize_from_bson(Bson::Document(doc! {
         "code_with_scope": Bson::JavaScriptCodeWithScope(code_with_scope.clone()),
     }))
     .unwrap();
@@ -258,13 +258,13 @@ fn test_ser_datetime() {
 
     let foo = Foo { date: now };
 
-    let x = to_bson(&foo).unwrap();
+    let x = serialize_to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! { "date": (Bson::DateTime(now)) }
     );
 
-    let xfoo: Foo = from_bson(x).unwrap();
+    let xfoo: Foo = deserialize_from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
 
@@ -283,13 +283,13 @@ fn test_binary_generic_roundtrip() {
         }),
     };
 
-    let b = to_bson(&x).unwrap();
+    let b = serialize_to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
         &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::Generic, bytes: b"12345abcde".to_vec() })}
     );
 
-    let f = from_bson::<Foo>(b).unwrap();
+    let f = deserialize_from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
 }
 
@@ -308,13 +308,13 @@ fn test_binary_non_generic_roundtrip() {
         }),
     };
 
-    let b = to_bson(&x).unwrap();
+    let b = serialize_to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
         &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::BinaryOld, bytes: b"12345abcde".to_vec() })}
     );
 
-    let f = from_bson::<Foo>(b).unwrap();
+    let f = deserialize_from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
 }
 
@@ -333,13 +333,13 @@ fn test_binary_helper_generic_roundtrip() {
         },
     };
 
-    let b = to_bson(&x).unwrap();
+    let b = serialize_to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
         &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::Generic, bytes: b"12345abcde".to_vec() })}
     );
 
-    let f = from_bson::<Foo>(b).unwrap();
+    let f = deserialize_from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
 }
 
@@ -358,13 +358,13 @@ fn test_binary_helper_non_generic_roundtrip() {
         },
     };
 
-    let b = to_bson(&x).unwrap();
+    let b = serialize_to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
         &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::BinaryOld, bytes: b"12345abcde".to_vec() })}
     );
 
-    let f = from_bson::<Foo>(b).unwrap();
+    let f = deserialize_from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
 }
 
@@ -381,7 +381,7 @@ fn test_byte_vec() {
         challenge: b"18762b98b7c34c25bf9dc3154e4a5ca3",
     };
 
-    let b = to_bson(&x).unwrap();
+    let b = serialize_to_bson(&x).unwrap();
     assert_eq!(
         b,
         Bson::Document(
@@ -403,13 +403,13 @@ fn test_serde_bytes() {
         data: b"12345abcde".to_vec(),
     };
 
-    let b = to_bson(&x).unwrap();
+    let b = serialize_to_bson(&x).unwrap();
     assert_eq!(
         b.as_document().unwrap(),
         &doc! {"data": Bson::Binary(Binary { subtype: BinarySubtype::Generic, bytes: b"12345abcde".to_vec() })}
     );
 
-    let f = from_bson::<Foo>(b).unwrap();
+    let f = deserialize_from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
 }
 
@@ -420,12 +420,12 @@ fn test_serde_newtype_struct() {
     struct Email(String);
 
     let email_1 = Email(String::from("bson@serde.rs"));
-    let b = to_bson(&email_1).unwrap();
+    let b = serialize_to_bson(&email_1).unwrap();
     assert_eq!(b, Bson::String(email_1.0));
 
     let s = String::from("root@localho.st");
     let de = Bson::String(s.clone());
-    let email_2 = from_bson::<Email>(de).unwrap();
+    let email_2 = deserialize_from_bson::<Email>(de).unwrap();
     assert_eq!(email_2, Email(s));
 }
 
@@ -436,12 +436,12 @@ fn test_serde_tuple_struct() {
     struct Name(String, String); // first, last
 
     let name_1 = Name(String::from("Graydon"), String::from("Hoare"));
-    let b = to_bson(&name_1).unwrap();
+    let b = serialize_to_bson(&name_1).unwrap();
     assert_eq!(b, bson!([name_1.0.clone(), name_1.1]));
 
     let (first, last) = (String::from("Donald"), String::from("Knuth"));
     let de = bson!([first.clone(), last.clone()]);
-    let name_2 = from_bson::<Name>(de).unwrap();
+    let name_2 = deserialize_from_bson::<Name>(de).unwrap();
     assert_eq!(name_2, Name(first, last));
 }
 
@@ -457,12 +457,12 @@ fn test_serde_newtype_variant() {
 
     let n = 42;
     let num_1 = Number::Int(n);
-    let b = to_bson(&num_1).unwrap();
+    let b = serialize_to_bson(&num_1).unwrap();
     assert_eq!(b, bson!({ "type": "Int", "value": n }));
 
     let x = 1337.0;
     let de = bson!({ "type": "Float", "value": x });
-    let num_2 = from_bson::<Number>(de).unwrap();
+    let num_2 = deserialize_from_bson::<Number>(de).unwrap();
     assert_eq!(num_2, Number::Float(x));
 }
 
@@ -478,12 +478,12 @@ fn test_serde_tuple_variant() {
     #[allow(clippy::approx_constant)]
     let (x1, y1) = (3.14, -2.71);
     let p1 = Point::TwoDim(x1, y1);
-    let b = to_bson(&p1).unwrap();
+    let b = serialize_to_bson(&p1).unwrap();
     assert_eq!(b, bson!({ "TwoDim": [x1, y1] }));
 
     let (x2, y2, z2) = (0.0, -13.37, 4.2);
     let de = bson!({ "ThreeDim": [x2, y2, z2] });
-    let p2 = from_bson::<Point>(de).unwrap();
+    let p2 = deserialize_from_bson::<Point>(de).unwrap();
     assert_eq!(p2, Point::ThreeDim(x2, y2, z2));
 }
 
@@ -511,13 +511,13 @@ fn test_ser_db_pointer() {
         db_pointer: db_pointer.clone(),
     };
 
-    let x = to_bson(&foo).unwrap();
+    let x = serialize_to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! {"db_pointer": Bson::DbPointer(db_pointer.clone()) }
     );
 
-    let xfoo: Foo = from_bson(x).unwrap();
+    let xfoo: Foo = deserialize_from_bson(x).unwrap();
     assert_eq!(xfoo, foo);
 }
 
@@ -540,7 +540,7 @@ fn test_de_db_pointer() {
     .unwrap();
     let db_pointer = db_pointer.as_db_pointer().unwrap();
 
-    let foo: Foo = from_bson(Bson::Document(
+    let foo: Foo = deserialize_from_bson(Bson::Document(
         doc! {"db_pointer": Bson::DbPointer(db_pointer.clone())},
     ))
     .unwrap();
@@ -571,7 +571,7 @@ fn test_serde_legacy_uuid_1() {
         csharp_legacy: uuid,
     };
 
-    let x = to_bson(&foo).unwrap();
+    let x = serialize_to_bson(&foo).unwrap();
     assert_eq!(
         x.as_document().unwrap(),
         &doc! {
@@ -590,7 +590,7 @@ fn test_serde_legacy_uuid_1() {
         }
     );
 
-    let foo: Foo = from_bson(x).unwrap();
+    let foo: Foo = deserialize_from_bson(x).unwrap();
     assert_eq!(foo.java_legacy, uuid);
     assert_eq!(foo.python_legacy, uuid);
     assert_eq!(foo.csharp_legacy, uuid);
@@ -602,7 +602,7 @@ fn test_de_uuid_extjson_string() {
 
     let uuid_bson_bytes =
         hex::decode("1D000000057800100000000473FFD26444B34C6990E8E7D1DFC035D400").unwrap();
-    let uuid_document = Document::from_reader(uuid_bson_bytes.as_slice()).unwrap();
+    let uuid_document = Document::decode_from_reader(uuid_bson_bytes.as_slice()).unwrap();
     let expected_uuid_bson = Bson::from_extended_document(uuid_document);
 
     let ext_json_uuid = "{\"x\" : { \"$uuid\" : \"73ffd264-44b3-4c69-90e8-e7d1dfc035d4\"}}";
@@ -671,7 +671,7 @@ fn test_unsigned_helpers() {
     }
 
     let a = A { num_1: 1, num_2: 2 };
-    let doc = to_document(&a).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
     assert!(doc.get_i32("num_1").unwrap() == 1);
     assert!(doc.get_i32("num_2").unwrap() == 2);
 
@@ -679,14 +679,14 @@ fn test_unsigned_helpers() {
         num_1: u32::MAX,
         num_2: 1,
     };
-    let doc_result = to_document(&a);
+    let doc_result = serialize_to_document(&a);
     assert!(doc_result.is_err());
 
     let a = A {
         num_1: 1,
         num_2: u64::MAX,
     };
-    let doc_result = to_document(&a);
+    let doc_result = serialize_to_document(&a);
     assert!(doc_result.is_err());
 
     #[derive(Serialize)]
@@ -701,7 +701,7 @@ fn test_unsigned_helpers() {
         num_1: u32::MAX,
         num_2: i64::MAX as u64,
     };
-    let doc = to_document(&b).unwrap();
+    let doc = serialize_to_document(&b).unwrap();
     assert!(doc.get_i64("num_1").unwrap() == u32::MAX as i64);
     assert!(doc.get_i64("num_2").unwrap() == i64::MAX);
 
@@ -709,7 +709,7 @@ fn test_unsigned_helpers() {
         num_1: 1,
         num_2: i64::MAX as u64 + 1,
     };
-    let doc_result = to_document(&b);
+    let doc_result = serialize_to_document(&b);
     assert!(doc_result.is_err());
 
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
@@ -724,11 +724,11 @@ fn test_unsigned_helpers() {
         num_1: 101,
         num_2: 12345,
     };
-    let doc = to_document(&f).unwrap();
+    let doc = serialize_to_document(&f).unwrap();
     assert!((doc.get_f64("num_1").unwrap() - 101.0).abs() < f64::EPSILON);
     assert!((doc.get_f64("num_2").unwrap() - 12345.0).abs() < f64::EPSILON);
 
-    let back: F = from_document(doc).unwrap();
+    let back: F = deserialize_from_document(doc).unwrap();
     assert_eq!(back, f);
 
     let f = F {
@@ -736,14 +736,14 @@ fn test_unsigned_helpers() {
         // f64 cannot represent many large integers exactly, u64::MAX included
         num_2: u64::MAX,
     };
-    let doc_result = to_document(&f);
+    let doc_result = serialize_to_document(&f);
     assert!(doc_result.is_err());
 
     let f = F {
         num_1: 1,
         num_2: u64::MAX - 255,
     };
-    let doc_result = to_document(&f);
+    let doc_result = serialize_to_document(&f);
     assert!(doc_result.is_err());
 }
 
@@ -764,9 +764,9 @@ fn test_datetime_helpers() {
     let a = A {
         date: crate::DateTime::from_time_0_3(date),
     };
-    let doc = to_document(&a).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
     assert_eq!(doc.get_str("date").unwrap(), iso);
-    let a: A = from_document(doc).unwrap();
+    let a: A = deserialize_from_document(doc).unwrap();
     assert_eq!(a.date.to_time_0_3(), date);
 
     #[cfg(feature = "time-0_3")]
@@ -791,9 +791,9 @@ fn test_datetime_helpers() {
         let b: B = serde_json::from_value(json).unwrap();
         let expected = datetime!(2020-06-09 10:58:07.095 UTC);
         assert_eq!(b.date, expected);
-        let doc = to_document(&b).unwrap();
+        let doc = serialize_to_document(&b).unwrap();
         assert_eq!(doc.get_datetime("date").unwrap().to_time_0_3(), expected);
-        let b: B = from_document(doc).unwrap();
+        let b: B = deserialize_from_document(doc).unwrap();
         assert_eq!(b.date, expected);
     }
 
@@ -819,9 +819,9 @@ fn test_datetime_helpers() {
         let expected: chrono::DateTime<chrono::Utc> =
             chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap();
         assert_eq!(b.date, expected);
-        let doc = to_document(&b).unwrap();
+        let doc = serialize_to_document(&b).unwrap();
         assert_eq!(doc.get_datetime("date").unwrap().to_chrono(), expected);
-        let b: B = from_document(doc).unwrap();
+        let b: B = deserialize_from_document(doc).unwrap();
         assert_eq!(b.date, expected);
     }
 
@@ -847,12 +847,12 @@ fn test_datetime_helpers() {
         let expected: Option<chrono::DateTime<chrono::Utc>> =
             Some(chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap());
         assert_eq!(b.date, expected);
-        let doc = to_document(&b).unwrap();
+        let doc = serialize_to_document(&b).unwrap();
         assert_eq!(
             Some(doc.get_datetime("date").unwrap().to_chrono()),
             expected
         );
-        let b: B = from_document(doc).unwrap();
+        let b: B = deserialize_from_document(doc).unwrap();
         assert_eq!(b.date, expected);
     }
 
@@ -872,9 +872,9 @@ fn test_datetime_helpers() {
         let b: B = serde_json::from_value(json).unwrap();
         let expected = None;
         assert_eq!(b.date, expected);
-        let doc = to_document(&b).unwrap();
+        let doc = serialize_to_document(&b).unwrap();
         assert_eq!(None, expected);
-        let b: B = from_document(doc).unwrap();
+        let b: B = deserialize_from_document(doc).unwrap();
         assert_eq!(b.date, expected);
     }
 
@@ -888,9 +888,9 @@ fn test_datetime_helpers() {
     let c = C {
         date: date.to_string(),
     };
-    let doc = to_document(&c).unwrap();
+    let doc = serialize_to_document(&c).unwrap();
     assert!(doc.get_datetime("date").is_ok());
-    let c: C = from_document(doc).unwrap();
+    let c: C = deserialize_from_document(doc).unwrap();
     assert_eq!(c.date.as_str(), date);
 }
 
@@ -908,9 +908,9 @@ fn test_oid_helpers() {
     let a = A {
         oid: oid.to_string(),
     };
-    let doc = to_document(&a).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
     assert_eq!(doc.get_object_id("oid").unwrap(), oid);
-    let a: A = from_document(doc).unwrap();
+    let a: A = deserialize_from_document(doc).unwrap();
     assert_eq!(a.oid, oid.to_string());
 }
 
@@ -928,9 +928,9 @@ fn test_i64_as_bson_datetime() {
     let a = A {
         now: now.timestamp_millis(),
     };
-    let doc = to_document(&a).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
     assert_eq!(doc.get_datetime("now").unwrap(), &now);
-    let a: A = from_document(doc).unwrap();
+    let a: A = deserialize_from_document(doc).unwrap();
     assert_eq!(a.now, now.timestamp_millis());
 }
 
@@ -950,7 +950,7 @@ fn test_uuid_1_helpers() {
 
     let uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
     let a = A { uuid };
-    let doc = to_document(&a).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
     match doc.get("uuid").unwrap() {
         Bson::Binary(bin) => {
             assert_eq!(bin.subtype, BinarySubtype::Uuid);
@@ -958,7 +958,7 @@ fn test_uuid_1_helpers() {
         }
         _ => panic!("expected Bson::Binary"),
     }
-    let a: A = from_document(doc).unwrap();
+    let a: A = deserialize_from_document(doc).unwrap();
     assert_eq!(a.uuid, uuid);
 }
 
@@ -974,11 +974,11 @@ fn test_timestamp_helpers() {
 
     let time = 12345;
     let a = A { time };
-    let doc = to_document(&a).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
     let timestamp = doc.get_timestamp("time").unwrap();
     assert_eq!(timestamp.time, time);
     assert_eq!(timestamp.increment, 0);
-    let a: A = from_document(doc).unwrap();
+    let a: A = deserialize_from_document(doc).unwrap();
     assert_eq!(a.time, time);
 
     #[derive(Deserialize, Serialize)]
@@ -1038,14 +1038,14 @@ fn oid_as_hex_string() {
 
     let oid = ObjectId::new();
     let foo = Foo { oid };
-    let doc = to_document(&foo).unwrap();
+    let doc = serialize_to_document(&foo).unwrap();
     assert_eq!(doc.get_str("oid").unwrap(), oid.to_hex());
 }
 
 #[test]
 fn fuzz_regression_00() {
     let buf: &[u8] = &[227, 0, 35, 4, 2, 0, 255, 255, 255, 127, 255, 255, 255, 47];
-    let _ = crate::from_slice::<Document>(buf);
+    let _ = crate::deserialize_from_slice::<Document>(buf);
 }
 
 #[cfg(feature = "serde_path_to_error")]
@@ -1073,7 +1073,7 @@ mod serde_path_to_error {
                 "value": "hello",
             },
         };
-        let result: Result<Foo, _> = crate::from_document(src);
+        let result: Result<Foo, _> = crate::deserialize_from_document(src);
         assert!(result.is_err());
         match result.unwrap_err() {
             crate::de::Error::WithPath { source: _, path } => {
@@ -1094,7 +1094,7 @@ mod serde_path_to_error {
             },
         }
         .into_bytes();
-        let result: Result<Foo, _> = crate::from_slice(&src);
+        let result: Result<Foo, _> = crate::deserialize_from_slice(&src);
         assert!(result.is_err());
         match result.unwrap_err() {
             crate::de::Error::WithPath { source: _, path } => {
@@ -1110,7 +1110,7 @@ mod serde_path_to_error {
             one: Bar { value: 42 },
             two: Bar { value: u64::MAX },
         };
-        let result = crate::to_bson(&src);
+        let result = crate::serialize_to_bson(&src);
         assert!(result.is_err());
         match result.unwrap_err() {
             crate::ser::Error::WithPath { source: _, path } => {
@@ -1126,7 +1126,7 @@ mod serde_path_to_error {
             one: Bar { value: 42 },
             two: Bar { value: u64::MAX },
         };
-        let result = crate::to_vec(&src);
+        let result = crate::serialize_to_vec(&src);
         assert!(result.is_err());
         match result.unwrap_err() {
             crate::ser::Error::WithPath { source: _, path } => {
