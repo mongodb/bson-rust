@@ -95,9 +95,9 @@ fn write_binary<W: Write>(mut writer: W, bytes: &[u8], subtype: BinarySubtype) -
 /// Encode a `T` Serializable into a [`Bson`] value.
 ///
 /// The [`Serializer`] used by this function presents itself as human readable, whereas the
-/// one used in [`to_vec`] does not. This means that this function will produce different BSON than
-/// [`to_vec`] for types that change their serialization output depending on whether
-/// the format is human readable or not.
+/// one used in [`serialize_to_vec`] does not. This means that this function will produce different
+/// BSON than [`serialize_to_vec`] for types that change their serialization output depending on
+/// whether the format is human readable or not.
 pub fn serialize_to_bson<T>(value: &T) -> Result<Bson>
 where
     T: Serialize + ?Sized,
@@ -123,9 +123,9 @@ where
 /// Serialize a `T` Serializable into a BSON [`Document`].
 ///
 /// The [`Serializer`] used by this function presents itself as human readable, whereas the
-/// one used in [`to_vec`] does not. This means that this function will produce different BSON than
-/// [`to_vec`] for types that change their serialization output depending on whether
-/// the format is human readable or not.
+/// one used in [`serialize_to_vec`] does not. This means that this function will produce different
+/// BSON than [`serialize_to_vec`] for types that change their serialization output depending on
+/// whether the format is human readable or not.
 pub fn serialize_to_document<T>(value: &T) -> Result<Document>
 where
     T: Serialize + ?Sized,
