@@ -29,14 +29,18 @@ fn generate_length_edge_cases(dir: &Path) -> std::io::Result<()> {
     let min_doc = doc! {};
     fs::write(
         target_dir.join("min_doc"),
-        bson::to_vec(&min_doc).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
+        min_doc
+            .encode_to_vec()
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     // Document with length near i32::MAX
     let large_doc = doc! { "a": "b".repeat(i32::MAX as usize / 2) };
     fs::write(
         target_dir.join("large_doc"),
-        bson::to_vec(&large_doc).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
+        large_doc
+            .encode_to_vec()
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     Ok(())
@@ -73,7 +77,9 @@ fn generate_type_marker_cases(dir: &Path) -> std::io::Result<()> {
     };
     fs::write(
         target_dir.join("all_types"),
-        bson::to_vec(&all_types).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
+        all_types
+            .encode_to_vec()
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     Ok(())
@@ -100,7 +106,9 @@ fn generate_string_edge_cases(dir: &Path) -> std::io::Result<()> {
     };
     fs::write(
         target_dir.join("utf8_cases"),
-        bson::to_vec(&utf8_cases).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
+        utf8_cases
+            .encode_to_vec()
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     Ok(())
@@ -124,7 +132,9 @@ fn generate_serialization_cases(dir: &Path) -> std::io::Result<()> {
     }
     fs::write(
         target_dir.join("nested_doc"),
-        bson::to_vec(&nested_doc).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
+        nested_doc
+            .encode_to_vec()
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     // Document with large binary data
@@ -136,7 +146,9 @@ fn generate_serialization_cases(dir: &Path) -> std::io::Result<()> {
     };
     fs::write(
         target_dir.join("large_binary"),
-        bson::to_vec(&large_binary).map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
+        large_binary
+            .encode_to_vec()
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
     Ok(())
