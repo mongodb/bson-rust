@@ -144,6 +144,7 @@ impl TryInto<Bson> for RawElement<'_> {
 
 #[allow(clippy::len_without_is_empty)]
 impl<'a> RawElement<'a> {
+    #[cfg(feature = "serde")]
     pub(crate) fn toplevel(bytes: &'a [u8]) -> Result<Self> {
         let doc = RawDocument::decode_from_bytes(bytes)?;
         Ok(Self {
@@ -154,6 +155,7 @@ impl<'a> RawElement<'a> {
             size: doc.as_bytes().len(),
         })
     }
+
     pub fn len(&self) -> usize {
         self.size
     }

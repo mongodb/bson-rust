@@ -151,15 +151,19 @@ pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one b
 pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
 pub(crate) const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
+#[cfg(feature = "serde")]
 pub(crate) use self::iter::{Utf8LossyBson, Utf8LossyJavaScriptCodeWithScope};
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.
+#[cfg(feature = "serde")]
 pub(crate) const RAW_DOCUMENT_NEWTYPE: &str = "$__private__bson_RawDocument";
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON array.
+#[cfg(feature = "serde")]
 pub(crate) const RAW_ARRAY_NEWTYPE: &str = "$__private__bson_RawArray";
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON value.
+#[cfg(feature = "serde")]
 pub(crate) const RAW_BSON_NEWTYPE: &str = "$__private__bson_RawBson";
 
 /// Given a u8 slice, return an i32 calculated from the first four bytes in
