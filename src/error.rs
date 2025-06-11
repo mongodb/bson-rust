@@ -171,7 +171,7 @@ impl Error {
         )
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "serde"))]
     pub(crate) fn is_malformed_value(&self) -> bool {
         matches!(self.kind, ErrorKind::MalformedValue { .. },)
     }

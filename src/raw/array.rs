@@ -87,6 +87,7 @@ impl RawArray {
         unsafe { &*(doc as *const RawDocument as *const RawArray) }
     }
 
+    #[cfg(feature = "serde")]
     pub(crate) fn as_doc(&self) -> &RawDocument {
         &self.doc
     }

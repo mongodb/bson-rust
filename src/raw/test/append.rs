@@ -23,7 +23,7 @@ fn append_test(
     expected: Document,
     append: impl FnOnce(&mut RawDocumentBuf) -> crate::error::Result<()>,
 ) {
-    let bytes = crate::serialize_to_vec(&expected).unwrap();
+    let bytes = expected.encode_to_vec().unwrap();
     let mut buf = RawDocumentBuf::new();
     assert!(append(&mut buf).is_ok());
     assert_eq!(buf.as_bytes(), bytes);
