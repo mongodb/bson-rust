@@ -49,8 +49,8 @@ name = "string_handling"
 path = "fuzz_targets/string_handling.rs"
 
 [[bin]]
-name = "serialization"
-path = "fuzz_targets/serialization.rs"
+name = "encoding"
+path = "fuzz_targets/encoding.rs"
 
 [[bin]]
 name = "generate_corpus"
