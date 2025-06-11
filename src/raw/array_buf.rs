@@ -53,6 +53,7 @@ impl RawArrayBuf {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_iter<B, I>(iter: I) -> crate::error::Result<Self>
     where
         B: BindRawBsonRef,

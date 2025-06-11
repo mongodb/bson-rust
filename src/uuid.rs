@@ -459,6 +459,7 @@ macro_rules! trait_impls {
             where
                 D: serde::Deserializer<'de>,
             {
+                use serde::Deserialize as _;
                 let uuid = Uuid::deserialize(deserializer)?;
                 Ok(uuid.into())
             }
@@ -471,6 +472,7 @@ macro_rules! trait_impls {
             where
                 S: serde::Serializer,
             {
+                use serde::Serialize as _;
                 let uuid = Uuid::from(*source);
                 uuid.serialize(serializer)
             }

@@ -87,6 +87,7 @@ impl RawDocumentBuf {
         Self::decode_from_bytes(buf)
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_iter<S, B, I>(iter: I) -> Result<Self>
     where
         S: AsRef<str>,
