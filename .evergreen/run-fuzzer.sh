@@ -38,4 +38,4 @@ run_fuzzer "iterate"
 # Run new security-focused targets
 run_fuzzer "type_markers"
 run_fuzzer "string_handling"
-run_fuzzer "serialization"
+run_fuzzer "encoding"
