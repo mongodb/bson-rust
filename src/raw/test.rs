@@ -126,9 +126,7 @@ fn rawdoc_to_doc() {
         assert_eq!(round_tripped_bytes.as_slice(), rawdoc.as_bytes());
     }
 
-    let mut vec_writer_bytes = vec![];
-    doc.to_writer(&mut vec_writer_bytes)
-        .expect("to writer should work");
+    let vec_writer_bytes = doc.to_vec();
     assert_eq!(vec_writer_bytes, rawdoc.into_bytes());
 }
 
@@ -495,8 +493,7 @@ proptest! {
     #[test]
     fn roundtrip_bson(bson in arbitrary_bson()) {
         let doc = doc! { "bson": bson };
-        let mut bytes = vec![];
-        prop_assert!(doc.to_writer(&bytes).is_ok());
+        let bytes = doc.to_vec();
         #[cfg(feature = "serde")]
         {
             let raw = crate::to_vec(&doc);
