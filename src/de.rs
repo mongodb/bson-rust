@@ -67,9 +67,9 @@ enum DeserializerHint {
 /// Deserialize a `T` from the provided [`Bson`] value.
 ///
 /// The [`Deserializer`] used by this function presents itself as human readable, whereas the
-/// one used in [`from_slice`] does not. This means that this function may deserialize differently
-/// than [`from_slice`] for types that change their deserialization logic depending on whether
-/// the format is human readable or not.
+/// one used in [`deserialize_from_slice`] does not. This means that this function may deserialize
+/// differently than [`deserialize_from_slice`] for types that change their deserialization logic
+/// depending on whether the format is human readable or not.
 pub fn deserialize_from_bson<T>(bson: Bson) -> Result<T>
 where
     T: DeserializeOwned,
@@ -88,9 +88,9 @@ where
 /// Deserialize a `T` from the provided [`Document`].
 ///
 /// The [`Deserializer`] used by this function presents itself as human readable, whereas the
-/// one used in [`from_slice`] does not. This means that this function may deserialize differently
-/// than [`from_slice`] for types that change their deserialization logic depending on whether
-/// the format is human readable or not.
+/// one used in [`deserialize_from_slice`] does not. This means that this function may deserialize
+/// differently than [`deserialize_from_slice`] for types that change their deserialization logic
+/// depending on whether the format is human readable or not.
 pub fn deserialize_from_document<T>(doc: Document) -> Result<T>
 where
     T: DeserializeOwned,
