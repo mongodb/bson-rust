@@ -1,9 +1,11 @@
+mod datetime;
 mod uuid;
 
 use thiserror::Error;
 
 use crate::spec::ElementType;
 
+pub use datetime::DateTimeErrorKind;
 pub use uuid::UuidErrorKind;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -38,19 +40,28 @@ impl std::fmt::Display for Error {
 #[derive(Clone, Debug, Error)]
 #[non_exhaustive]
 pub enum ErrorKind {
-    /// An error occurred when converting a BSON type to an external format.
-    #[error("Bad conversion: {message}")]
-    BadConversion { message: String },
+    /// An error related to the [`DateTime`](crate::DateTime) type occurred.
+    #[error("A DateTime-related error occurred: {kind}")]
+    DateTime {
+        /// The kind of error that occurred.
+        kind: DateTimeErrorKind,
+    },
 
     /// An error occurred when attempting to parse a value from an external format to BSON.
     #[error("Invalid value: {message}")]
     #[non_exhaustive]
-    InvalidValue { message: String },
+    InvalidValue {
+        /// A message describing the error.
+        message: String,
+    },
 
     /// Malformed BSON bytes were encountered.
-    #[error("Malformed BSON: {message}")]
+    #[error("Malformed BSON bytes: {message}")]
     #[non_exhaustive]
-    MalformedBytes { message: String },
+    MalformedBytes {
+        /// A message describing the error.
+        message: String,
+    },
 
     /// Invalid UTF-8 bytes were encountered.
     #[error("Invalid UTF-8")]
@@ -163,13 +174,6 @@ impl Error {
 
     pub(crate) fn invalid_value(message: impl ToString) -> Self {
         ErrorKind::InvalidValue {
-            message: message.to_string(),
-        }
-        .into()
-    }
-
-    pub(crate) fn bad_conversion(message: impl ToString) -> Self {
-        ErrorKind::BadConversion {
             message: message.to_string(),
         }
         .into()

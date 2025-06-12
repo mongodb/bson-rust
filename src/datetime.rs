@@ -389,14 +389,14 @@ impl crate::DateTime {
     pub fn try_to_rfc3339_string(self) -> Result<String> {
         self.to_time_0_3()
             .format(&Rfc3339)
-            .map_err(Error::bad_conversion)
+            .map_err(Error::cannot_format_datetime)
     }
 
     /// Convert the given RFC 3339 formatted string to a [`DateTime`], truncating it to millisecond
     /// precision.
     pub fn parse_rfc3339_str(s: impl AsRef<str>) -> Result<Self> {
-        let odt =
-            time::OffsetDateTime::parse(s.as_ref(), &Rfc3339).map_err(Error::invalid_value)?;
+        let odt = time::OffsetDateTime::parse(s.as_ref(), &Rfc3339)
+            .map_err(Error::invalid_datetime_value)?;
         Ok(Self::from_time_0_3(odt))
     }
 
