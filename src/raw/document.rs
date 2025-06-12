@@ -99,17 +99,17 @@ impl RawDocument {
         let data = data.as_ref();
 
         if data.len() < 5 {
-            return Err(Error::malformed_value("document too short"));
+            return Err(Error::malformed_bytes("document too short"));
         }
 
         let length = i32_from_slice(data)?;
 
         if data.len() as i32 != length {
-            return Err(Error::malformed_value("document length incorrect"));
+            return Err(Error::malformed_bytes("document length incorrect"));
         }
 
         if data[data.len() - 1] != 0 {
-            return Err(Error::malformed_value("document not null-terminated"));
+            return Err(Error::malformed_bytes("document not null-terminated"));
         }
 
         Ok(RawDocument::new_unchecked(data))
@@ -500,11 +500,11 @@ impl RawDocument {
         let mut splits = buf.splitn(2, |x| *x == 0);
         let value = splits
             .next()
-            .ok_or_else(|| RawError::malformed_value("no value"))?;
+            .ok_or_else(|| RawError::malformed_bytes("no value"))?;
         if splits.next().is_some() {
             Ok(value)
         } else {
-            Err(RawError::malformed_value("expected null terminator"))
+            Err(RawError::malformed_bytes("expected null terminator"))
         }
     }
 

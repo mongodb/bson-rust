@@ -5,7 +5,7 @@ use crate::spec::ElementType;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// An error that can occur in the `bson` crate.
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error)]
 #[non_exhaustive]
 pub struct Error {
     /// The kind of error that occurred.
@@ -31,13 +31,22 @@ impl std::fmt::Display for Error {
 }
 
 /// The types of errors that can occur in the `bson` crate.
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error)]
 #[non_exhaustive]
 pub enum ErrorKind {
+    /// An error occurred when converting a BSON type to an external format.
+    #[error("Bad conversion: {message}")]
+    BadConversion { message: String },
+
+    /// An error occurred when attempting to parse a value from an external format to BSON.
+    #[error("Invalid value: {message}")]
+    #[non_exhaustive]
+    InvalidValue { message: String },
+
     /// Malformed BSON bytes were encountered.
     #[error("Malformed BSON: {message}")]
     #[non_exhaustive]
-    MalformedValue { message: String },
+    MalformedBytes { message: String },
 
     /// Invalid UTF-8 bytes were encountered.
     #[error("Invalid UTF-8")]
@@ -78,7 +87,7 @@ impl From<crate::de::Error> for Error {
 }
 
 /// The types of errors that can occur when attempting to access a value in a document.
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error)]
 #[non_exhaustive]
 pub enum ValueAccessErrorKind {
     /// No value for the specified key was present in the document.
@@ -134,8 +143,22 @@ impl Error {
         .into()
     }
 
-    pub(crate) fn malformed_value(message: impl ToString) -> Self {
-        ErrorKind::MalformedValue {
+    pub(crate) fn malformed_bytes(message: impl ToString) -> Self {
+        ErrorKind::MalformedBytes {
+            message: message.to_string(),
+        }
+        .into()
+    }
+
+    pub(crate) fn invalid_value(message: impl ToString) -> Self {
+        ErrorKind::InvalidValue {
+            message: message.to_string(),
+        }
+        .into()
+    }
+
+    pub(crate) fn bad_conversion(message: impl ToString) -> Self {
+        ErrorKind::BadConversion {
             message: message.to_string(),
         }
         .into()

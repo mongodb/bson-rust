@@ -114,7 +114,7 @@ impl RawDocumentBuf {
     /// ```
     pub fn from_document(doc: &Document) -> Result<RawDocumentBuf> {
         let mut data = Vec::new();
-        doc.to_writer(&mut data).map_err(Error::malformed_value)?;
+        doc.to_writer(&mut data).map_err(Error::malformed_bytes)?;
 
         Ok(Self { data })
     }

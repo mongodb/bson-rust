@@ -1,20 +1,19 @@
 //! Module containing functionality related to BSON ObjectIds.
 //! For more information, see the documentation for the [`ObjectId`] type.
 
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use std::{convert::TryInto, time::SystemTime};
 use std::{
-    error,
     fmt,
-    result,
     str::FromStr,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use std::{convert::TryInto, time::SystemTime};
-
 use hex::{self, FromHexError};
 use once_cell::sync::Lazy;
 use rand::{random, rng, Rng};
+
+use crate::error::{Error, Result};
 
 const TIMESTAMP_SIZE: usize = 4;
 const PROCESS_ID_SIZE: usize = 5;
@@ -28,49 +27,6 @@ const MAX_U24: usize = 0xFF_FFFF;
 
 static OID_COUNTER: Lazy<AtomicUsize> =
     Lazy::new(|| AtomicUsize::new(rng().random_range(0..=MAX_U24)));
-
-/// Errors that can occur during [`ObjectId`] construction and generation.
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub enum Error {
-    /// An invalid character was found in the provided hex string. Valid characters are: `0...9`,
-    /// `a...f`, or `A...F`.
-    #[non_exhaustive]
-    InvalidHexStringCharacter { c: char, index: usize, hex: String },
-
-    /// An [`ObjectId`]'s hex string representation must be an exactly 12-byte (24-char)
-    /// hexadecimal string.
-    #[non_exhaustive]
-    InvalidHexStringLength { length: usize, hex: String },
-}
-
-/// Alias for Result<T, oid::Error>.
-pub type Result<T> = result::Result<T, Error>;
-
-impl fmt::Display for Error {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::InvalidHexStringCharacter { c, index, hex } => {
-                write!(
-                    fmt,
-                    "invalid character '{}' was found at index {} in the provided hex string: \
-                     \"{}\"",
-                    c, index, hex
-                )
-            }
-            Error::InvalidHexStringLength { length, hex } => {
-                write!(
-                    fmt,
-                    "provided hex string representation must be exactly 12 bytes, instead got: \
-                     \"{}\", length {}",
-                    hex, length
-                )
-            }
-        }
-    }
-}
-
-impl error::Error for Error {}
 
 /// A wrapper around a raw 12-byte ObjectId.
 ///
@@ -198,24 +154,22 @@ impl ObjectId {
     pub fn parse_str(s: impl AsRef<str>) -> Result<ObjectId> {
         let s = s.as_ref();
 
-        let bytes: Vec<u8> = hex::decode(s.as_bytes()).map_err(|e| match e {
-            FromHexError::InvalidHexCharacter { c, index } => Error::InvalidHexStringCharacter {
-                c,
-                index,
-                hex: s.to_string(),
-            },
-            FromHexError::InvalidStringLength | FromHexError::OddLength => {
-                Error::InvalidHexStringLength {
-                    length: s.len(),
-                    hex: s.to_string(),
+        let bytes: Vec<u8> = hex::decode(s.as_bytes()).map_err(|e| {
+            let message = match e {
+                FromHexError::InvalidHexCharacter { c, index } => {
+                    format!("invalid hex character {c} encountered at index {index}")
                 }
-            }
+                FromHexError::InvalidStringLength | FromHexError::OddLength => {
+                    format!("invalid hex string length {}", s.len())
+                }
+            };
+            Error::invalid_value(message)
         })?;
         if bytes.len() != 12 {
-            Err(Error::InvalidHexStringLength {
-                length: s.len(),
-                hex: s.to_string(),
-            })
+            Err(Error::invalid_value(format!(
+                "invalid object ID byte vector length {}",
+                bytes.len()
+            )))
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
             byte_array[..].copy_from_slice(&bytes[..]);

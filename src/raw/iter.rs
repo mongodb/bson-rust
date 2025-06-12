@@ -81,7 +81,7 @@ impl<'a> RawIter<'a> {
     fn verify_enough_bytes(&self, start: usize, num_bytes: usize) -> Result<()> {
         let end = checked_add(start, num_bytes)?;
         if self.doc.as_bytes().get(start..end).is_none() {
-            return Err(Error::malformed_value(format!(
+            return Err(Error::malformed_bytes(format!(
                 "length exceeds remaining length of buffer: {} vs {}",
                 num_bytes,
                 self.doc.as_bytes().len() - start
@@ -95,7 +95,7 @@ impl<'a> RawIter<'a> {
         let size = i32_from_slice(&self.doc.as_bytes()[starting_at..])? as usize;
 
         if size < MIN_BSON_DOCUMENT_SIZE as usize {
-            return Err(Error::malformed_value(format!(
+            return Err(Error::malformed_bytes(format!(
                 "document too small: {} bytes",
                 size
             )));
@@ -104,7 +104,7 @@ impl<'a> RawIter<'a> {
         self.verify_enough_bytes(starting_at, size)?;
 
         if self.doc.as_bytes()[starting_at + size - 1] != 0 {
-            return Err(Error::malformed_value("not null terminated"));
+            return Err(Error::malformed_bytes("not null terminated"));
         }
         Ok(size)
     }
@@ -314,7 +314,7 @@ impl<'a> RawElement<'a> {
     }
 
     fn malformed_error(&self, e: impl ToString) -> Error {
-        Error::malformed_value(e).with_key(self.key)
+        Error::malformed_bytes(e).with_key(self.key)
     }
 
     pub(crate) fn slice(&self) -> &'a [u8] {
@@ -341,7 +341,7 @@ impl<'a> RawElement<'a> {
         Ok(ObjectId::from_bytes(
             self.doc.as_bytes()[start_at..(start_at + 12)]
                 .try_into()
-                .map_err(|e| Error::malformed_value(e).with_key(self.key))?,
+                .map_err(|e| Error::malformed_bytes(e).with_key(self.key))?,
         ))
     }
 }
@@ -350,7 +350,7 @@ impl RawIter<'_> {
     fn get_next_length_at(&self, start_at: usize) -> Result<usize> {
         let len = i32_from_slice(&self.doc.as_bytes()[start_at..])?;
         if len < 0 {
-            Err(Error::malformed_value("lengths can't be negative"))
+            Err(Error::malformed_bytes("lengths can't be negative"))
         } else {
             Ok(len as usize)
         }
@@ -360,7 +360,7 @@ impl RawIter<'_> {
         let element_type = match ElementType::from(self.doc.as_bytes()[self.offset]) {
             Some(et) => et,
             None => {
-                return Err(Error::malformed_value(format!(
+                return Err(Error::malformed_bytes(format!(
                     "invalid tag: {}",
                     self.doc.as_bytes()[self.offset]
                 )));
@@ -414,11 +414,11 @@ impl<'a> Iterator for RawIter<'a> {
                 return None;
             } else {
                 self.valid = false;
-                return Some(Err(Error::malformed_value("document not null terminated")));
+                return Some(Err(Error::malformed_bytes("document not null terminated")));
             }
         } else if self.offset >= self.doc.as_bytes().len() {
             self.valid = false;
-            return Some(Err(Error::malformed_value("iteration overflowed document")));
+            return Some(Err(Error::malformed_bytes("iteration overflowed document")));
         }
 
         let key = match self.doc.read_cstring_at(self.offset + 1) {

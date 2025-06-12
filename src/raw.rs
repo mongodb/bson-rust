@@ -164,7 +164,7 @@ fn f64_from_slice(val: &[u8]) -> Result<f64> {
         .get(0..8)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
-            Error::malformed_value(format!(
+            Error::malformed_bytes(format!(
                 "expected 8 bytes to read double, instead got {}",
                 val.len()
             ))
@@ -179,7 +179,7 @@ fn i32_from_slice(val: &[u8]) -> Result<i32> {
         .get(0..4)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
-            Error::malformed_value(format!(
+            Error::malformed_bytes(format!(
                 "expected 4 bytes to read i32, instead got {}",
                 val.len()
             ))
@@ -194,7 +194,7 @@ fn i64_from_slice(val: &[u8]) -> Result<i64> {
         .get(0..8)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
-            Error::malformed_value(format!(
+            Error::malformed_bytes(format!(
                 "expected 8 bytes to read i64, instead got {}",
                 val.len()
             ))
@@ -207,7 +207,7 @@ fn u8_from_slice(val: &[u8]) -> Result<u8> {
         .get(0..1)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
-            Error::malformed_value(format!(
+            Error::malformed_bytes(format!(
                 "expected 1 byte to read u8, instead got {}",
                 val.len()
             ))
@@ -218,7 +218,7 @@ fn u8_from_slice(val: &[u8]) -> Result<u8> {
 pub(crate) fn bool_from_slice(val: &[u8]) -> Result<bool> {
     let val = u8_from_slice(val)?;
     if val > 1 {
-        return Err(Error::malformed_value(format!(
+        return Err(Error::malformed_bytes(format!(
             "boolean must be stored as 0 or 1, got {}",
             val
         )));
@@ -229,7 +229,7 @@ pub(crate) fn bool_from_slice(val: &[u8]) -> Result<bool> {
 
 fn read_len(buf: &[u8]) -> Result<usize> {
     if buf.len() < 4 {
-        return Err(Error::malformed_value(format!(
+        return Err(Error::malformed_bytes(format!(
             "expected buffer with string to contain at least 4 bytes, but it only has {}",
             buf.len()
         )));
@@ -239,14 +239,14 @@ fn read_len(buf: &[u8]) -> Result<usize> {
     let end = checked_add(usize_try_from_i32(length)?, 4)?;
 
     if end < MIN_BSON_STRING_SIZE as usize {
-        return Err(Error::malformed_value(format!(
+        return Err(Error::malformed_bytes(format!(
             "BSON length encoded string needs to be at least {} bytes, instead got {}",
             MIN_BSON_STRING_SIZE, end
         )));
     }
 
     if buf.len() < end {
-        return Err(Error::malformed_value(format!(
+        return Err(Error::malformed_bytes(format!(
             "expected buffer to contain at least {} bytes, but it only has {}",
             end,
             buf.len()
@@ -254,7 +254,7 @@ fn read_len(buf: &[u8]) -> Result<usize> {
     }
 
     if buf[end - 1] != 0 {
-        return Err(Error::malformed_value(
+        return Err(Error::malformed_bytes(
             "expected string to be null-terminated",
         ));
     }
@@ -278,10 +278,10 @@ fn try_to_str(data: &[u8]) -> Result<&str> {
 }
 
 fn usize_try_from_i32(i: i32) -> Result<usize> {
-    usize::try_from(i).map_err(Error::malformed_value)
+    usize::try_from(i).map_err(Error::malformed_bytes)
 }
 
 fn checked_add(lhs: usize, rhs: usize) -> Result<usize> {
     lhs.checked_add(rhs)
-        .ok_or_else(|| Error::malformed_value("attempted to add with overflow"))
+        .ok_or_else(|| Error::malformed_bytes("attempted to add with overflow"))
 }
