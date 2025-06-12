@@ -1,12 +1,17 @@
 #! Module containing functionality related to BSON binary values.
-
 mod vector;
 
-use crate::{base64, spec::BinarySubtype, Document, RawBinaryRef};
 use std::{
     convert::TryFrom,
-    error,
     fmt::{self, Display},
+};
+
+use crate::{
+    base64,
+    error::{Error, Result},
+    spec::BinarySubtype,
+    Document,
+    RawBinaryRef,
 };
 
 pub use vector::{PackedBitVector, Vector};
@@ -51,9 +56,7 @@ impl Binary {
         input: impl AsRef<str>,
         subtype: impl Into<Option<BinarySubtype>>,
     ) -> Result<Self> {
-        let bytes = base64::decode(input.as_ref()).map_err(|e| Error::DecodingError {
-            message: e.to_string(),
-        })?;
+        let bytes = base64::decode(input.as_ref()).map_err(Error::invalid_value)?;
         let subtype = match subtype.into() {
             Some(s) => s,
             None => BinarySubtype::Generic,
@@ -97,27 +100,3 @@ impl Binary {
         }
     }
 }
-
-/// Possible errors that can arise during [`Binary`] construction.
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub enum Error {
-    /// While trying to decode from base64, an error was returned.
-    DecodingError { message: String },
-
-    /// A [`Vector`]-related error occurred.
-    Vector { message: String },
-}
-
-impl error::Error for Error {}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::DecodingError { message } => fmt.write_str(message),
-            Error::Vector { message } => fmt.write_str(message),
-        }
-    }
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
