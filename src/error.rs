@@ -1,6 +1,10 @@
+mod uuid;
+
 use thiserror::Error;
 
 use crate::spec::ElementType;
+
+pub use uuid::UuidErrorKind;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -51,6 +55,13 @@ pub enum ErrorKind {
     /// Invalid UTF-8 bytes were encountered.
     #[error("Invalid UTF-8")]
     Utf8Encoding,
+
+    /// An error related to the [`Uuid`](crate::uuid::Uuid) type occurred.
+    #[error("A UUID-related error occurred: {kind}")]
+    Uuid {
+        /// The kind of error that occurred.
+        kind: UuidErrorKind,
+    },
 
     /// An error occurred when attempting to access a value in a document.
     #[error("An error occurred when attempting to access a document value: {kind}")]
