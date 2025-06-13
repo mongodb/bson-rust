@@ -25,14 +25,14 @@ use std::convert::{TryFrom, TryInto};
 
 use serde::de::{Error as _, Unexpected};
 
-use crate::{extjson::models, oid, Bson, Document};
+use crate::{extjson::models, Bson, Document};
 
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 /// Error cases that can occur during deserialization from [extended JSON](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
 pub enum Error {
     /// Errors that can occur during OID construction and generation from the input data.
-    InvalidObjectId(oid::Error),
+    InvalidObjectId(crate::error::Error),
 
     /// A general error encountered during deserialization.
     /// See: <https://docs.serde.rs/serde/de/trait.Error.html>
@@ -66,12 +66,6 @@ impl From<serde_json::Error> for Error {
         Self::DeserializationError {
             message: err.to_string(),
         }
-    }
-}
-
-impl From<oid::Error> for Error {
-    fn from(err: oid::Error) -> Self {
-        Self::InvalidObjectId(err)
     }
 }
 

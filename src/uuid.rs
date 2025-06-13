@@ -142,7 +142,13 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::{de::BsonVisitor, spec::BinarySubtype, Binary, Bson};
+use crate::{
+    de::BsonVisitor,
+    error::{Error, Result},
+    spec::BinarySubtype,
+    Binary,
+    Bson,
+};
 
 /// Special type name used in the [`Uuid`] serialization implementation to indicate a BSON
 /// UUID is being serialized or deserialized. The BSON serializers/deserializers will handle this
@@ -189,9 +195,7 @@ impl Uuid {
 
     /// Creates a [`Uuid`] from the provided hex string.
     pub fn parse_str(input: impl AsRef<str>) -> Result<Self> {
-        let uuid = uuid::Uuid::parse_str(input.as_ref()).map_err(|e| Error::InvalidUuidString {
-            message: e.to_string(),
-        })?;
+        let uuid = uuid::Uuid::parse_str(input.as_ref()).map_err(Error::invalid_uuid_string)?;
         Ok(Self::from_external_uuid(uuid))
     }
 
@@ -394,25 +398,23 @@ impl Binary {
     pub fn to_uuid_with_representation(&self, rep: UuidRepresentation) -> Result<Uuid> {
         // If representation is non-standard, then its subtype must be UuidOld
         if rep != UuidRepresentation::Standard && self.subtype != BinarySubtype::UuidOld {
-            return Err(Error::RepresentationMismatch {
-                requested_representation: rep,
-                actual_binary_subtype: self.subtype,
-                expected_binary_subtype: BinarySubtype::UuidOld,
-            });
+            return Err(Error::uuid_representation_mismatch(
+                rep,
+                self.subtype,
+                BinarySubtype::UuidOld,
+            ));
         }
         // If representation is standard, then its subtype must be Uuid
         if rep == UuidRepresentation::Standard && self.subtype != BinarySubtype::Uuid {
-            return Err(Error::RepresentationMismatch {
-                requested_representation: rep,
-                actual_binary_subtype: self.subtype,
-                expected_binary_subtype: BinarySubtype::Uuid,
-            });
+            return Err(Error::uuid_representation_mismatch(
+                rep,
+                self.subtype,
+                BinarySubtype::UuidOld,
+            ));
         }
         // Must be 16 bytes long
         if self.bytes.len() != 16 {
-            return Err(Error::InvalidLength {
-                length: self.bytes.len(),
-            });
+            return Err(Error::invalid_uuid_length(self.bytes.len()));
         }
         let mut buf = [0u8; 16];
         buf.copy_from_slice(&self.bytes);
@@ -479,66 +481,3 @@ macro_rules! trait_impls {
     };
 }
 trait_impls!(feature = "uuid-1", uuid::Uuid);
-
-/// Errors that can occur during [`Uuid`] construction and generation.
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub enum Error {
-    /// Error returned when an invalid string is provided to [`Uuid::parse_str`].
-    #[non_exhaustive]
-    InvalidUuidString { message: String },
-
-    /// Error returned when the representation specified does not match the underlying
-    /// [`crate::Binary`] value in [`crate::Binary::to_uuid_with_representation`].
-    #[non_exhaustive]
-    RepresentationMismatch {
-        /// The subtype that was expected given the requested representation.
-        expected_binary_subtype: BinarySubtype,
-
-        /// The actual subtype of the binary value.
-        actual_binary_subtype: BinarySubtype,
-
-        /// The requested representation.
-        requested_representation: UuidRepresentation,
-    },
-
-    /// Error returned from [`crate::Binary::to_uuid`] if the underling data is not 16 bytes long.
-    #[non_exhaustive]
-    InvalidLength {
-        /// The actual length of the data.
-        length: usize,
-    },
-}
-
-/// Alias for `Result<T, bson::uuid::Error>`.
-pub type Result<T> = std::result::Result<T, Error>;
-
-impl fmt::Display for Error {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::InvalidUuidString { message } => {
-                write!(fmt, "{}", message)
-            }
-            Error::RepresentationMismatch {
-                expected_binary_subtype,
-                actual_binary_subtype,
-                requested_representation,
-            } => {
-                write!(
-                    fmt,
-                    "expected {:?} when converting to UUID with {:?}, isntead got {:?}",
-                    expected_binary_subtype, requested_representation, actual_binary_subtype
-                )
-            }
-            Error::InvalidLength { length } => {
-                write!(
-                    fmt,
-                    "expected UUID to contain 16 bytes, instead got {}",
-                    length
-                )
-            }
-        }
-    }
-}
-
-impl std::error::Error for Error {}
