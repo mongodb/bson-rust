@@ -11,7 +11,7 @@ use crate::{
 #[non_exhaustive]
 pub enum UuidErrorKind {
     /// An invalid string was used to construct a UUID.
-    #[error("Invalid UUID string: {message}")]
+    #[error("{message}")]
     #[non_exhaustive]
     InvalidString {
         /// A message describing the error.
@@ -21,8 +21,8 @@ pub enum UuidErrorKind {
     /// The requested [`UuidRepresentation`] does not match the binary subtype of a [`Binary`]
     /// value.
     #[error(
-        "UUID representation mismatch: expected binary subtype {expected_binary_subtype:?} for \
-         representation {requested_representation:?}, got {actual_binary_subtype:?}"
+        "expected binary subtype {expected_binary_subtype:?} for representation \
+         {requested_representation:?}, got {actual_binary_subtype:?}"
     )]
     #[non_exhaustive]
     RepresentationMismatch {
@@ -37,7 +37,7 @@ pub enum UuidErrorKind {
     },
 
     /// An invalid length of bytes was used to construct a UUID value.
-    #[error("Invalid UUID length: expected 16 bytes, got {length}")]
+    #[error("expected length of 16 bytes, got {length}")]
     #[non_exhaustive]
     InvalidLength {
         /// The actual length of the data.

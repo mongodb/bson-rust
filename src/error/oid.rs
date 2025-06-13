@@ -6,6 +6,7 @@ use crate::error::{Error, ErrorKind};
 /// The kinds of errors that can occur when working with the [`ObjectId`](crate::oid::ObjectId)
 /// type.
 #[derive(Clone, Debug, ThisError)]
+#[non_exhaustive]
 pub enum ObjectIdErrorKind {
     /// An invalid character was found in the provided hex string. Valid characters are: `0...9`,
     /// `a...f`, or `A...F`.
