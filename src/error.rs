@@ -56,14 +56,6 @@ pub enum ErrorKind {
         kind: DateTimeErrorKind,
     },
 
-    /// An error occurred when attempting to parse a value from an external format to BSON.
-    #[error("Invalid value: {message}")]
-    #[non_exhaustive]
-    InvalidValue {
-        /// A message describing the error.
-        message: String,
-    },
-
     /// Malformed BSON bytes were encountered.
     #[error("Malformed BSON bytes: {message}")]
     #[non_exhaustive]
