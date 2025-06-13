@@ -1,12 +1,14 @@
 mod datetime;
+mod oid;
 mod uuid;
+mod value_access;
 
 use thiserror::Error;
 
-use crate::spec::ElementType;
-
 pub use datetime::DateTimeErrorKind;
+pub use oid::ObjectIdErrorKind;
 pub use uuid::UuidErrorKind;
+pub use value_access::ValueAccessErrorKind;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -63,6 +65,13 @@ pub enum ErrorKind {
         message: String,
     },
 
+    /// An error related to the [`ObjectId`](crate::oid::ObjectId) type occurred.
+    #[error("An ObjectId-related error occurred: {kind}")]
+    ObjectId {
+        /// The kind of error that occurred.
+        kind: ObjectIdErrorKind,
+    },
+
     /// Invalid UTF-8 bytes were encountered.
     #[error("Invalid UTF-8")]
     Utf8Encoding,
@@ -108,31 +117,6 @@ impl From<crate::de::Error> for Error {
     }
 }
 
-/// The types of errors that can occur when attempting to access a value in a document.
-#[derive(Clone, Debug, Error)]
-#[non_exhaustive]
-pub enum ValueAccessErrorKind {
-    /// No value for the specified key was present in the document.
-    #[error("The key was not present in the document")]
-    NotPresent,
-
-    /// The type of the value in the document did not match the requested type.
-    #[error("Expected type {expected:?}, got type {actual:?}")]
-    #[non_exhaustive]
-    UnexpectedType {
-        /// The actual type of the value.
-        actual: ElementType,
-
-        /// The expected type of the value.
-        expected: ElementType,
-    },
-
-    /// An error occurred when attempting to parse the document's BSON bytes.
-    #[error("{message}")]
-    #[non_exhaustive]
-    InvalidBson { message: String },
-}
-
 impl Error {
     pub(crate) fn with_key(mut self, key: impl Into<String>) -> Self {
         self.key = Some(key.into());
@@ -142,27 +126,6 @@ impl Error {
     pub(crate) fn with_index(mut self, index: usize) -> Self {
         self.index = Some(index);
         self
-    }
-
-    pub(crate) fn value_access_not_present() -> Self {
-        ErrorKind::ValueAccess {
-            kind: ValueAccessErrorKind::NotPresent,
-        }
-        .into()
-    }
-
-    pub(crate) fn value_access_unexpected_type(actual: ElementType, expected: ElementType) -> Self {
-        ErrorKind::ValueAccess {
-            kind: ValueAccessErrorKind::UnexpectedType { actual, expected },
-        }
-        .into()
-    }
-
-    pub(crate) fn value_access_invalid_bson(message: String) -> Self {
-        ErrorKind::ValueAccess {
-            kind: ValueAccessErrorKind::InvalidBson { message },
-        }
-        .into()
     }
 
     pub(crate) fn malformed_bytes(message: impl ToString) -> Self {
@@ -177,27 +140,5 @@ impl Error {
             message: message.to_string(),
         }
         .into()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn is_value_access_not_present(&self) -> bool {
-        matches!(
-            self.kind,
-            ErrorKind::ValueAccess {
-                kind: ValueAccessErrorKind::NotPresent,
-                ..
-            }
-        )
-    }
-
-    #[cfg(test)]
-    pub(crate) fn is_value_access_unexpected_type(&self) -> bool {
-        matches!(
-            self.kind,
-            ErrorKind::ValueAccess {
-                kind: ValueAccessErrorKind::UnexpectedType { .. },
-                ..
-            }
-        )
     }
 }

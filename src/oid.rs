@@ -9,7 +9,6 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use hex::{self, FromHexError};
 use once_cell::sync::Lazy;
 use rand::{random, rng, Rng};
 
@@ -154,22 +153,10 @@ impl ObjectId {
     pub fn parse_str(s: impl AsRef<str>) -> Result<ObjectId> {
         let s = s.as_ref();
 
-        let bytes: Vec<u8> = hex::decode(s.as_bytes()).map_err(|e| {
-            let message = match e {
-                FromHexError::InvalidHexCharacter { c, index } => {
-                    format!("invalid hex character {c} encountered at index {index}")
-                }
-                FromHexError::InvalidStringLength | FromHexError::OddLength => {
-                    format!("invalid hex string length {}", s.len())
-                }
-            };
-            Error::invalid_value(message)
-        })?;
+        let bytes: Vec<u8> =
+            hex::decode(s.as_bytes()).map_err(|e| Error::from_hex_error(e, s.len()))?;
         if bytes.len() != 12 {
-            Err(Error::invalid_value(format!(
-                "invalid object ID byte vector length {}",
-                bytes.len()
-            )))
+            Err(Error::oid_invalid_length(bytes.len()))
         } else {
             let mut byte_array: [u8; 12] = [0; 12];
             byte_array[..].copy_from_slice(&bytes[..]);

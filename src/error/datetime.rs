@@ -2,6 +2,7 @@ use thiserror::Error as ThisError;
 
 use crate::error::{Error, ErrorKind};
 
+/// The kinds of errors that can occur when working with the [`DateTime`](crate::DateTime) type.
 #[derive(Clone, Debug, ThisError)]
 pub enum DateTimeErrorKind {
     /// The `DateTime` could not be formatted.
