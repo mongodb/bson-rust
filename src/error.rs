@@ -42,6 +42,13 @@ impl std::fmt::Display for Error {
 #[derive(Clone, Debug, Error)]
 #[non_exhaustive]
 pub enum ErrorKind {
+    /// An error related to the [`Binary`](crate::Binary) type occurred.
+    #[error("A Binary-related error occurred: {message}")]
+    Binary {
+        /// A message describing the error.
+        message: String,
+    },
+
     /// An error related to the [`DateTime`](crate::DateTime) type occurred.
     #[error("A DateTime-related error occurred: {kind}")]
     DateTime {
@@ -128,15 +135,15 @@ impl Error {
         self
     }
 
-    pub(crate) fn malformed_bytes(message: impl ToString) -> Self {
-        ErrorKind::MalformedBytes {
+    pub(crate) fn binary(message: impl ToString) -> Self {
+        ErrorKind::Binary {
             message: message.to_string(),
         }
         .into()
     }
 
-    pub(crate) fn invalid_value(message: impl ToString) -> Self {
-        ErrorKind::InvalidValue {
+    pub(crate) fn malformed_bytes(message: impl ToString) -> Self {
+        ErrorKind::MalformedBytes {
             message: message.to_string(),
         }
         .into()

@@ -56,7 +56,7 @@ impl Binary {
         input: impl AsRef<str>,
         subtype: impl Into<Option<BinarySubtype>>,
     ) -> Result<Self> {
-        let bytes = base64::decode(input.as_ref()).map_err(Error::invalid_value)?;
+        let bytes = base64::decode(input.as_ref()).map_err(Error::binary)?;
         let subtype = match subtype.into() {
             Some(s) => s,
             None => BinarySubtype::Generic,

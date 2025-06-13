@@ -93,12 +93,12 @@ impl PackedBitVector {
     pub fn new(vector: Vec<u8>, padding: impl Into<Option<u8>>) -> Result<Self> {
         let padding = padding.into().unwrap_or(0);
         if !(0..8).contains(&padding) {
-            return Err(Error::invalid_value(format!(
-                "padding must be within 0-7 inclusive, got {padding}"
+            return Err(Error::binary(format!(
+                "vector padding must be within 0-7 inclusive, got {padding}"
             )));
         }
         if padding != 0 && vector.is_empty() {
-            return Err(Error::invalid_value(format!(
+            return Err(Error::binary(format!(
                 "cannot specify non-zero padding if the provided vector is empty, got {padding}",
             )));
         }
@@ -114,8 +114,8 @@ impl Vector {
         let bytes = bytes.as_ref();
 
         if bytes.len() < 2 {
-            return Err(Error::invalid_value(format!(
-                "the provided bytes must have a length of at least 2, got {}",
+            return Err(Error::binary(format!(
+                "the provided vector bytes must have a length of at least 2, got {}",
                 bytes.len()
             )));
         }
@@ -123,7 +123,7 @@ impl Vector {
         let d_type = bytes[0];
         let padding = bytes[1];
         if d_type != PACKED_BIT && padding != 0 {
-            return Err(Error::invalid_value(format!(
+            return Err(Error::binary(format!(
                 "padding can only be specified for a packed bit vector (data type {}), got type {}",
                 PACKED_BIT, d_type
             )));
@@ -144,7 +144,7 @@ impl Vector {
                 let mut vector = Vec::new();
                 for chunk in number_bytes.chunks(F32_BYTES) {
                     let bytes: [u8; F32_BYTES] = chunk.try_into().map_err(|_| {
-                        Error::invalid_value(format!(
+                        Error::binary(format!(
                             "f32 vector values must be {} bytes, got {:?}",
                             F32_BYTES, chunk,
                         ))
@@ -157,7 +157,7 @@ impl Vector {
                 let packed_bit_vector = PackedBitVector::new(number_bytes.to_vec(), padding)?;
                 Ok(Self::PackedBit(packed_bit_vector))
             }
-            other => Err(Error::invalid_value(format!(
+            other => Err(Error::binary(format!(
                 "unsupported vector data type: {other}"
             ))),
         }
@@ -222,7 +222,7 @@ impl TryFrom<&Binary> for Vector {
 
     fn try_from(binary: &Binary) -> Result<Self> {
         if binary.subtype != BinarySubtype::Vector {
-            return Err(Error::invalid_value(format!(
+            return Err(Error::binary(format!(
                 "expected vector binary subtype, got {:?}",
                 binary.subtype
             )));
