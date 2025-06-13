@@ -43,7 +43,7 @@ impl Binary {
     /// [`BinarySubtype::Generic`].
     ///
     /// ```rust
-    /// # use bson::{Binary, binary::Result};
+    /// # use bson::{Binary, error::Result};
     /// # fn example() -> Result<()> {
     /// let input = base64::encode("hello");
     /// let binary = Binary::from_base64(input, None)?;

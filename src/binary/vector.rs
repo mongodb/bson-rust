@@ -25,7 +25,7 @@ const PACKED_BIT: u8 = 0x10;
 ///
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
-/// # use bson::{binary::{Result, Vector}, spec::ElementType};
+/// # use bson::{binary::Vector, error::Result, spec::ElementType};
 /// #[derive(Serialize, Deserialize)]
 /// struct Data {
 ///     vector: Vector,
@@ -66,7 +66,7 @@ impl PackedBitVector {
     /// single-bit elements in little-endian format. For example, the following vector:
     ///
     /// ```rust
-    /// # use bson::binary::{Result, PackedBitVector};
+    /// # use bson::{binary::PackedBitVector, error::Result};
     /// # fn main() -> Result<()> {
     /// let packed_bits = vec![238, 224];
     /// let vector = PackedBitVector::new(packed_bits, 0)?;

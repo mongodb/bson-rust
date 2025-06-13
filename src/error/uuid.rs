@@ -18,7 +18,7 @@ pub enum UuidErrorKind {
         message: String,
     },
 
-    /// The requested [`UuidRepresentation`] does not match the binary subtype of a [`Binary`]
+    /// The requested `UuidRepresentation` does not match the binary subtype of a `Binary`
     /// value.
     #[error(
         "expected binary subtype {expected_binary_subtype:?} for representation \
