@@ -2,7 +2,6 @@ use std::convert::{TryFrom, TryInto};
 
 use super::{bson::RawBson, Error, RawArray, RawDocument, Result};
 use crate::{
-    //base64,
     oid::{self, ObjectId},
     raw::RawJavaScriptCodeWithScope,
     spec::{BinarySubtype, ElementType},
