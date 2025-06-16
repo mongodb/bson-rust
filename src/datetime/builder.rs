@@ -174,16 +174,16 @@ impl DateTimeBuilder<Year, Month, Day> {
     ///
     /// Note: You cannot call `build()` before setting at least the year, month and day.
     pub fn build(self) -> Result<DateTime> {
-        let month = time::Month::try_from(self.month.0).map_err(Error::invalid_datetime_value)?;
+        let month = time::Month::try_from(self.month.0).map_err(Error::datetime)?;
         let dt = Date::from_calendar_date(self.year.0, month, self.day.0)
-            .map_err(Error::invalid_datetime_value)?
+            .map_err(Error::datetime)?
             .with_hms_milli(
                 self.hour.unwrap_or(0),
                 self.minute.unwrap_or(0),
                 self.second.unwrap_or(0),
                 self.millisecond.unwrap_or(0),
             )
-            .map_err(Error::invalid_datetime_value)?;
+            .map_err(Error::datetime)?;
         Ok(DateTime::from_time_private(dt.assume_utc()))
     }
 }

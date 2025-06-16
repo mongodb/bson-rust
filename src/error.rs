@@ -1,11 +1,9 @@
-mod datetime;
 mod oid;
 mod uuid;
 mod value_access;
 
 use thiserror::Error;
 
-pub use datetime::DateTimeErrorKind;
 pub use oid::ObjectIdErrorKind;
 pub use uuid::UuidErrorKind;
 pub use value_access::ValueAccessErrorKind;
@@ -50,10 +48,10 @@ pub enum ErrorKind {
     },
 
     /// An error related to the [`DateTime`](crate::DateTime) type occurred.
-    #[error("A DateTime-related error occurred: {kind}")]
+    #[error("A DateTime-related error occurred: {message}")]
     DateTime {
-        /// The kind of error that occurred.
-        kind: DateTimeErrorKind,
+        /// A message describing the error.
+        message: String,
     },
 
     /// Malformed BSON bytes were encountered.
@@ -129,6 +127,13 @@ impl Error {
 
     pub(crate) fn binary(message: impl ToString) -> Self {
         ErrorKind::Binary {
+            message: message.to_string(),
+        }
+        .into()
+    }
+
+    pub(crate) fn datetime(message: impl ToString) -> Self {
+        ErrorKind::DateTime {
             message: message.to_string(),
         }
         .into()
