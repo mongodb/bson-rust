@@ -1,9 +1,11 @@
+mod decimal128;
 mod oid;
 mod uuid;
 mod value_access;
 
 use thiserror::Error;
 
+pub use decimal128::Decimal128ErrorKind;
 pub use oid::ObjectIdErrorKind;
 pub use uuid::UuidErrorKind;
 pub use value_access::ValueAccessErrorKind;
@@ -52,6 +54,13 @@ pub enum ErrorKind {
     DateTime {
         /// A message describing the error.
         message: String,
+    },
+
+    /// An error related to the [`Decimal128`](crate::Decimal128) type occurred.
+    #[error("A Decimal128-related error occurred: {kind}")]
+    Decimal128 {
+        /// The kind of error that occurred.
+        kind: Decimal128ErrorKind,
     },
 
     /// Malformed BSON bytes were encountered.
