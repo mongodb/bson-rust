@@ -116,7 +116,7 @@ impl RawDocumentBuf {
     /// ```
     pub fn from_document(doc: impl Borrow<Document>) -> Result<Self> {
         let mut out = RawDocumentBuf::new();
-        for (k, v) in doc {
+        for (k, v) in doc.borrow() {
             let val: RawBson = v.clone().try_into()?;
             out.append(k, val)?;
         }
@@ -285,7 +285,12 @@ impl TryFrom<Document> for RawDocumentBuf {
     type Error = crate::error::Error;
 
     fn try_from(doc: Document) -> std::result::Result<Self, Self::Error> {
-        Self::try_from(&doc)
+        let mut out = RawDocumentBuf::new();
+        for (k, v) in doc {
+            let val: RawBson = v.try_into()?;
+            out.append(k, val)?;
+        }
+        Ok(out)
     }
 }
 

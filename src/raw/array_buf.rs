@@ -189,12 +189,7 @@ impl TryFrom<&crate::Array> for RawArrayBuf {
     type Error = crate::error::Error;
 
     fn try_from(value: &crate::Array) -> Result<Self, Self::Error> {
-        let mut tmp = RawArrayBuf::new();
-        for val in value {
-            let raw: super::RawBson = val.clone().try_into()?;
-            tmp.push(raw)?;
-        }
-        Ok(tmp)
+        Self::try_from(value.clone())
     }
 }
 
@@ -202,6 +197,11 @@ impl TryFrom<crate::Array> for RawArrayBuf {
     type Error = crate::error::Error;
 
     fn try_from(value: crate::Array) -> Result<Self, Self::Error> {
-        Self::try_from(&value)
+        let mut tmp = RawArrayBuf::new();
+        for val in value {
+            let raw: super::RawBson = val.try_into()?;
+            tmp.push(raw)?;
+        }
+        Ok(tmp)
     }
 }
