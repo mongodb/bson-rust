@@ -114,7 +114,7 @@ impl RawDocumentBuf {
     /// let doc = RawDocumentBuf::from_document(&document)?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn from_document(doc: &Document) -> Result<Self> {
+    pub fn from_document(doc: impl Borrow<Document>) -> Result<Self> {
         let mut out = RawDocumentBuf::new();
         for (k, v) in doc {
             let val: RawBson = v.clone().try_into()?;
