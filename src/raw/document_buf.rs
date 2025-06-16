@@ -222,7 +222,6 @@ impl RawDocumentBuf {
     ) -> crate::error::Result<()> {
         value.bind(|value_ref| {
             raw_writer::RawWriter::new(&mut self.data).append(key.as_ref(), value_ref)
-            //.expect("key should not contain interior null byte")
         })
     }
 }
