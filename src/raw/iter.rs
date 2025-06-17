@@ -1,9 +1,8 @@
 use std::convert::TryInto;
 
 use crate::{
-    de::{MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
     oid::ObjectId,
-    raw::{Error, Result},
+    raw::{Error, Result, MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
     spec::{BinarySubtype, ElementType},
     Bson,
     DateTime,
@@ -144,8 +143,9 @@ impl TryInto<Bson> for RawElement<'_> {
 }
 
 impl<'a> RawElement<'a> {
+    #[cfg(feature = "serde")]
     pub(crate) fn toplevel(bytes: &'a [u8]) -> Result<Self> {
-        let doc = RawDocument::from_bytes(bytes)?;
+        let doc = RawDocument::decode_from_bytes(bytes)?;
         Ok(Self {
             key: "TOPLEVEL",
             kind: ElementType::EmbeddedDocument,
@@ -179,11 +179,11 @@ impl<'a> RawElement<'a> {
             ElementType::Double => RawBsonRef::Double(f64_from_slice(self.slice())?),
             ElementType::String => RawBsonRef::String(self.read_str()?),
             ElementType::EmbeddedDocument => {
-                RawBsonRef::Document(RawDocument::from_bytes(self.slice())?)
+                RawBsonRef::Document(RawDocument::decode_from_bytes(self.slice())?)
             }
-            ElementType::Array => {
-                RawBsonRef::Array(RawArray::from_doc(RawDocument::from_bytes(self.slice())?))
-            }
+            ElementType::Array => RawBsonRef::Array(RawArray::from_doc(
+                RawDocument::decode_from_bytes(self.slice())?,
+            )),
             ElementType::Boolean => RawBsonRef::Boolean(
                 bool_from_slice(self.slice()).map_err(|e| self.malformed_error(e))?,
             ),
@@ -210,9 +210,12 @@ impl<'a> RawElement<'a> {
                         .read_cstring_at(self.start_at + pattern.len() + 1)?,
                 })
             }
-            ElementType::Timestamp => RawBsonRef::Timestamp(
-                Timestamp::from_reader(self.slice()).map_err(|e| self.malformed_error(e))?,
-            ),
+            ElementType::Timestamp => RawBsonRef::Timestamp({
+                let bytes: [u8; 8] = self.slice()[0..8]
+                    .try_into()
+                    .map_err(|e| self.malformed_error(e))?;
+                Timestamp::from_le_bytes(bytes)
+            }),
             ElementType::Binary => {
                 let len = self.size.checked_sub(4 + 1).ok_or_else(|| {
                     self.malformed_error(format!("length exceeds maximum: {}", self.size))
@@ -258,7 +261,7 @@ impl<'a> RawElement<'a> {
                 let slice = self.slice();
                 let code = read_lenencode(&slice[4..])?;
                 let scope_start = 4 + 4 + code.len() + 1;
-                let scope = RawDocument::from_bytes(&slice[scope_start..])?;
+                let scope = RawDocument::decode_from_bytes(&slice[scope_start..])?;
 
                 RawBsonRef::JavaScriptCodeWithScope(RawJavaScriptCodeWithScopeRef { code, scope })
             }
@@ -284,7 +287,7 @@ impl<'a> RawElement<'a> {
                 let slice = self.slice();
                 let code = String::from_utf8_lossy(read_lenencode_bytes(&slice[4..])?).into_owned();
                 let scope_start = 4 + 4 + code.len() + 1;
-                let scope = RawDocument::from_bytes(&slice[scope_start..])?;
+                let scope = RawDocument::decode_from_bytes(&slice[scope_start..])?;
 
                 Utf8LossyBson::JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope {
                     code,

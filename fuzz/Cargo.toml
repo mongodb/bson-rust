@@ -10,6 +10,7 @@ cargo-fuzz = true
 
 [dependencies.bson]
 path = ".."
+features = ["serde"]
 
 [dependencies.libfuzzer-sys]
 version = "0.4.0"
@@ -24,8 +25,8 @@ version = "1.0"
 members = ["."]
 
 [[bin]]
-name = "deserialize"
-path = "fuzz_targets/deserialize.rs"
+name = "decode"
+path = "fuzz_targets/decode.rs"
 
 [[bin]]
 name = "iterate"
@@ -48,8 +49,8 @@ name = "string_handling"
 path = "fuzz_targets/string_handling.rs"
 
 [[bin]]
-name = "serialization"
-path = "fuzz_targets/serialization.rs"
+name = "encoding"
+path = "fuzz_targets/encoding.rs"
 
 [[bin]]
 name = "generate_corpus"

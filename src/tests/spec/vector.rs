@@ -4,11 +4,11 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     binary::{Binary, PackedBitVector, Vector},
-    from_document,
-    from_slice,
+    deserialize_from_document,
+    deserialize_from_slice,
+    serialize_to_document,
+    serialize_to_raw_document_buf,
     spec::BinarySubtype,
-    to_document,
-    to_raw_document_buf,
     Bson,
     Document,
     RawDocumentBuf,
@@ -107,7 +107,7 @@ fn vector_from_numbers(
 // Only return the binary if it represents a valid vector; otherwise, return an error.
 fn binary_from_bytes(bson: &str, test_key: &str, description: &str) -> Result<Binary, String> {
     let bytes = hex::decode(bson).expect(description);
-    let mut test_document = Document::from_reader(bytes.as_slice()).expect(description);
+    let mut test_document = Document::decode_from_reader(bytes.as_slice()).expect(description);
     let bson = test_document.remove(test_key).expect(description);
     let binary = match bson {
         Bson::Binary(binary) => binary,
@@ -187,20 +187,21 @@ fn run_test_file(test_file: TestFile) {
         };
 
         // Serialize for Vector (Document)
-        let serialized_document = to_document(&data).expect(&description);
+        let serialized_document = serialize_to_document(&data).expect(&description);
         assert_eq!(serialized_document, test_document);
 
         // Deserialize for Vector (Document)
-        let deserialized_data: Data = from_document(serialized_document).expect(&description);
+        let deserialized_data: Data =
+            deserialize_from_document(serialized_document).expect(&description);
         assert_eq!(deserialized_data, data);
 
         // Serialize for Vector (RawDocumentBuf)
-        let serialized_raw_document = to_raw_document_buf(&data).expect(&description);
+        let serialized_raw_document = serialize_to_raw_document_buf(&data).expect(&description);
         assert_eq!(serialized_raw_document, test_raw_document);
 
         // Deserialize for Vector (RawDocumentBuf)
         let deserialized_data: Data =
-            from_slice(serialized_raw_document.as_bytes()).expect(&description);
+            deserialize_from_slice(serialized_raw_document.as_bytes()).expect(&description);
         assert_eq!(deserialized_data, data);
     }
 }

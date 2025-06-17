@@ -1,9 +1,6 @@
 use std::{borrow::Cow, convert::TryFrom};
 
-use serde::{ser::SerializeSeq, Deserialize, Serialize};
-
 use super::{
-    serde::OwnedOrBorrowedRawArray,
     Error as RawError,
     RawBinaryRef,
     RawBsonRef,
@@ -15,7 +12,6 @@ use super::{
 use crate::{
     error::{Error, Result},
     oid::ObjectId,
-    raw::RAW_ARRAY_NEWTYPE,
     spec::ElementType,
     Bson,
     DateTime,
@@ -41,9 +37,9 @@ use crate::{
 /// let doc = doc! {
 ///     "x": [1, true, "two", 5.5]
 /// };
-/// let bytes = bson::to_vec(&doc)?;
+/// let bytes = bson::serialize_to_vec(&doc)?;
 ///
-/// let rawdoc = RawDocument::from_bytes(bytes.as_slice())?;
+/// let rawdoc = RawDocument::decode_from_bytes(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
 ///
 /// for v in rawarray {
@@ -63,9 +59,9 @@ use crate::{
 /// let doc = doc! {
 ///     "x": [1, true, "two", 5.5]
 /// };
-/// let bytes = bson::to_vec(&doc)?;
+/// let bytes = doc.encode_to_vec()?;
 ///
-/// let rawdoc = RawDocument::from_bytes(bytes.as_slice())?;
+/// let rawdoc = RawDocument::decode_from_bytes(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
 ///
 /// assert_eq!(rawarray.get_bool(1)?, true);
@@ -91,6 +87,7 @@ impl RawArray {
         unsafe { &*(doc as *const RawDocument as *const RawArray) }
     }
 
+    #[cfg(feature = "serde")]
     pub(crate) fn as_doc(&self) -> &RawDocument {
         &self.doc
     }
@@ -294,11 +291,13 @@ impl<'a> Iterator for RawArrayIter<'a> {
     }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
+#[cfg(feature = "serde")]
+impl<'de: 'a, 'a> serde::Deserialize<'de> for &'a RawArray {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
+        use super::serde::OwnedOrBorrowedRawArray;
         match OwnedOrBorrowedRawArray::deserialize(deserializer)? {
             OwnedOrBorrowedRawArray::Borrowed(b) => Ok(b),
             o => Err(serde::de::Error::custom(format!(
@@ -309,18 +308,20 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
     }
 }
 
-impl Serialize for &RawArray {
+#[cfg(feature = "serde")]
+impl serde::Serialize for &RawArray {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         struct SeqSerializer<'a>(&'a RawArray);
 
-        impl Serialize for SeqSerializer<'_> {
+        impl serde::Serialize for SeqSerializer<'_> {
             fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,
             {
+                use serde::ser::SerializeSeq as _;
                 if serializer.is_human_readable() {
                     let mut seq = serializer.serialize_seq(None)?;
                     for v in self.0 {
@@ -334,6 +335,6 @@ impl Serialize for &RawArray {
             }
         }
 
-        serializer.serialize_newtype_struct(RAW_ARRAY_NEWTYPE, &SeqSerializer(self))
+        serializer.serialize_newtype_struct(crate::raw::RAW_ARRAY_NEWTYPE, &SeqSerializer(self))
     }
 }

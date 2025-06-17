@@ -99,18 +99,18 @@ fn owned_raw_bson() {
     });
 
     let mut doc_buf = RawDocumentBuf::new();
-    doc_buf.append("a", "key");
-    doc_buf.append("number", 12);
-    doc_buf.append("bool", false);
-    doc_buf.append("nu", RawBson::Null);
+    doc_buf.append("a", "key").unwrap();
+    doc_buf.append("number", 12).unwrap();
+    doc_buf.append("bool", false).unwrap();
+    doc_buf.append("nu", RawBson::Null).unwrap();
 
     let mut array_buf = RawArrayBuf::new();
-    array_buf.push(1);
-    array_buf.push("string");
+    array_buf.push(1).unwrap();
+    array_buf.push("string").unwrap();
 
     let mut bson_doc = RawDocumentBuf::new();
-    bson_doc.append("first", true);
-    bson_doc.append("second", "string");
+    bson_doc.append("first", true).unwrap();
+    bson_doc.append("second", "string").unwrap();
 
     let expected = Foo {
         doc_buf,

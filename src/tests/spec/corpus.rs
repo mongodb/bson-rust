@@ -1,6 +1,5 @@
 use std::{
     convert::{TryFrom, TryInto},
-    iter::FromIterator,
     marker::PhantomData,
     str::FromStr,
 };
@@ -111,70 +110,74 @@ fn run_test(test: TestFile) {
 
         // these four cover the four ways to create a [`Document`] from the provided BSON.
         let documentfromreader_cb =
-            Document::from_reader(canonical_bson.as_slice()).expect(&description);
+            Document::decode_from_reader(canonical_bson.as_slice()).expect(&description);
 
         let fromreader_cb: Document =
-            crate::from_reader(canonical_bson.as_slice()).expect(&description);
+            crate::deserialize_from_reader(canonical_bson.as_slice()).expect(&description);
 
         let fromdocument_documentfromreader_cb: Document =
-            crate::from_document(documentfromreader_cb.clone()).expect(&description);
+            crate::deserialize_from_document(documentfromreader_cb.clone()).expect(&description);
 
         let todocument_documentfromreader_cb: Document =
-            crate::to_document(&documentfromreader_cb).expect(&description);
+            crate::serialize_to_document(&documentfromreader_cb).expect(&description);
 
         let canonical_raw_document =
-            RawDocument::from_bytes(canonical_bson.as_slice()).expect(&description);
+            RawDocument::decode_from_bytes(canonical_bson.as_slice()).expect(&description);
         let document_from_raw_document: Document =
             canonical_raw_document.try_into().expect(&description);
 
         let canonical_raw_bson_from_slice =
-            crate::from_slice::<RawBsonRef>(canonical_bson.as_slice())
+            crate::deserialize_from_slice::<RawBsonRef>(canonical_bson.as_slice())
                 .expect(&description)
                 .as_document()
                 .expect(&description);
 
         let canonical_owned_raw_bson_from_slice =
-            crate::from_slice::<RawBson>(canonical_bson.as_slice()).expect(&description);
+            crate::deserialize_from_slice::<RawBson>(canonical_bson.as_slice())
+                .expect(&description);
 
         let canonical_raw_document_from_slice =
-            crate::from_slice::<&RawDocument>(canonical_bson.as_slice()).expect(&description);
+            crate::deserialize_from_slice::<&RawDocument>(canonical_bson.as_slice())
+                .expect(&description);
 
         // These cover the ways to serialize those [`Documents`] back to BSON.
         let mut documenttowriter_documentfromreader_cb = Vec::new();
         documentfromreader_cb
-            .to_writer(&mut documenttowriter_documentfromreader_cb)
+            .encode_to_writer(&mut documenttowriter_documentfromreader_cb)
             .expect(&description);
 
         let mut documenttowriter_fromreader_cb = Vec::new();
         fromreader_cb
-            .to_writer(&mut documenttowriter_fromreader_cb)
+            .encode_to_writer(&mut documenttowriter_fromreader_cb)
             .expect(&description);
 
         let mut documenttowriter_fromdocument_documentfromreader_cb = Vec::new();
         fromdocument_documentfromreader_cb
-            .to_writer(&mut documenttowriter_fromdocument_documentfromreader_cb)
+            .encode_to_writer(&mut documenttowriter_fromdocument_documentfromreader_cb)
             .expect(&description);
 
         let mut documenttowriter_todocument_documentfromreader_cb = Vec::new();
         todocument_documentfromreader_cb
-            .to_writer(&mut documenttowriter_todocument_documentfromreader_cb)
+            .encode_to_writer(&mut documenttowriter_todocument_documentfromreader_cb)
             .expect(&description);
 
         let tovec_documentfromreader_cb =
-            crate::to_vec(&documentfromreader_cb).expect(&description);
+            crate::serialize_to_vec(&documentfromreader_cb).expect(&description);
 
         let mut documenttowriter_document_from_raw_document = Vec::new();
         document_from_raw_document
-            .to_writer(&mut documenttowriter_document_from_raw_document)
+            .encode_to_writer(&mut documenttowriter_document_from_raw_document)
             .expect(&description);
 
         // Serialize the raw versions "back" to BSON also.
-        let tovec_rawdocument = crate::to_vec(&canonical_raw_document).expect(&description);
+        let tovec_rawdocument =
+            crate::serialize_to_vec(&canonical_raw_document).expect(&description);
         let tovec_rawdocument_from_slice =
-            crate::to_vec(&canonical_raw_document_from_slice).expect(&description);
-        let tovec_rawbson = crate::to_vec(&canonical_raw_bson_from_slice).expect(&description);
+            crate::serialize_to_vec(&canonical_raw_document_from_slice).expect(&description);
+        let tovec_rawbson =
+            crate::serialize_to_vec(&canonical_raw_bson_from_slice).expect(&description);
         let tovec_ownedrawbson =
-            crate::to_vec(&canonical_owned_raw_bson_from_slice).expect(&description);
+            crate::serialize_to_vec(&canonical_owned_raw_bson_from_slice).expect(&description);
 
         // test Bson / RawBson field deserialization
         if let Some(ref test_key) = test.test_key {
@@ -199,7 +202,9 @@ fn run_test(test: TestFile) {
                     .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<RawBson>))
                     .expect(&description);
                 let from_slice_owned_vec =
-                    RawDocumentBuf::from_iter([(test_key, owned_raw_bson_field)]).into_bytes();
+                    RawDocumentBuf::from_iter([(test_key, owned_raw_bson_field)])
+                        .expect(&description)
+                        .into_bytes();
 
                 // deserialize the field from raw Bytes into a Bson
                 let deserializer_value =
@@ -234,11 +239,13 @@ fn run_test(test: TestFile) {
                 };
 
                 // convert back into raw BSON for comparison with canonical BSON
-                let from_raw_vec = crate::to_vec(&from_raw_doc).expect(&description);
+                let from_raw_vec = crate::serialize_to_vec(&from_raw_doc).expect(&description);
                 let from_slice_value_vec =
-                    crate::to_vec(&from_slice_value_doc).expect(&description);
-                let from_bson_value_vec = crate::to_vec(&from_value_value_doc).expect(&description);
-                let from_value_raw_vec = crate::to_vec(&from_value_raw_doc).expect(&description);
+                    crate::serialize_to_vec(&from_slice_value_doc).expect(&description);
+                let from_bson_value_vec =
+                    crate::serialize_to_vec(&from_value_value_doc).expect(&description);
+                let from_value_raw_vec =
+                    crate::serialize_to_vec(&from_value_raw_doc).expect(&description);
 
                 assert_eq!(from_raw_vec, canonical_bson, "{}", description);
                 assert_eq!(from_slice_value_vec, canonical_bson, "{}", description);
@@ -343,10 +350,11 @@ fn run_test(test: TestFile) {
         if let Some(db) = valid.degenerate_bson {
             let db = hex::decode(&db).expect(&description);
 
-            let bson_to_native_db = Document::from_reader(db.as_slice()).expect(&description);
+            let bson_to_native_db =
+                Document::decode_from_reader(db.as_slice()).expect(&description);
             let mut native_to_bson_bson_to_native_db = Vec::new();
             bson_to_native_db
-                .to_writer(&mut native_to_bson_bson_to_native_db)
+                .encode_to_writer(&mut native_to_bson_bson_to_native_db)
                 .unwrap();
             assert_eq!(
                 hex::encode(native_to_bson_bson_to_native_db).to_lowercase(),
@@ -356,10 +364,10 @@ fn run_test(test: TestFile) {
             );
 
             let bson_to_native_db_serde: Document =
-                crate::from_reader(db.as_slice()).expect(&description);
+                crate::deserialize_from_reader(db.as_slice()).expect(&description);
             let mut native_to_bson_bson_to_native_db_serde = Vec::new();
             bson_to_native_db_serde
-                .to_writer(&mut native_to_bson_bson_to_native_db_serde)
+                .encode_to_writer(&mut native_to_bson_bson_to_native_db_serde)
                 .unwrap();
             assert_eq!(
                 hex::encode(native_to_bson_bson_to_native_db_serde).to_lowercase(),
@@ -368,13 +376,14 @@ fn run_test(test: TestFile) {
                 description,
             );
 
-            let document_from_raw_document: Document = RawDocument::from_bytes(db.as_slice())
-                .expect(&description)
-                .try_into()
-                .expect(&description);
+            let document_from_raw_document: Document =
+                RawDocument::decode_from_bytes(db.as_slice())
+                    .expect(&description)
+                    .try_into()
+                    .expect(&description);
             let mut documenttowriter_document_from_raw_document = Vec::new();
             document_from_raw_document
-                .to_writer(&mut documenttowriter_document_from_raw_document)
+                .encode_to_writer(&mut documenttowriter_document_from_raw_document)
                 .expect(&description);
             assert_eq!(
                 hex::encode(documenttowriter_document_from_raw_document).to_lowercase(),
@@ -468,7 +477,7 @@ fn run_test(test: TestFile) {
             json_to_native_cej
                 .as_document()
                 .unwrap()
-                .to_writer(&mut native_to_bson_json_to_native_cej)
+                .encode_to_writer(&mut native_to_bson_json_to_native_cej)
                 .unwrap();
 
             assert_eq!(
@@ -503,7 +512,7 @@ fn run_test(test: TestFile) {
                 json_to_native_dej
                     .as_document()
                     .unwrap()
-                    .to_writer(&mut native_to_bson_json_to_native_dej)
+                    .encode_to_writer(&mut native_to_bson_json_to_native_dej)
                     .unwrap();
 
                 assert_eq!(
@@ -540,7 +549,7 @@ fn run_test(test: TestFile) {
         );
         let bson = hex::decode(&decode_error.bson).expect("should decode from hex");
 
-        if let Ok(doc) = RawDocument::from_bytes(bson.as_slice()) {
+        if let Ok(doc) = RawDocument::decode_from_bytes(bson.as_slice()) {
             Document::try_from(doc).expect_err(description.as_str());
         }
 
@@ -551,11 +560,12 @@ fn run_test(test: TestFile) {
             continue;
         }
 
-        Document::from_reader(bson.as_slice()).expect_err(&description);
-        crate::from_reader::<_, Document>(bson.as_slice()).expect_err(description.as_str());
+        Document::decode_from_reader(bson.as_slice()).expect_err(&description);
+        crate::deserialize_from_reader::<_, Document>(bson.as_slice())
+            .expect_err(description.as_str());
 
         if decode_error.description.contains("invalid UTF-8") {
-            RawDocumentBuf::from_reader(bson.as_slice())
+            RawDocumentBuf::decode_from_reader(bson.as_slice())
                 .expect(&description)
                 .to_document_utf8_lossy()
                 .unwrap_or_else(|err| {
@@ -564,7 +574,7 @@ fn run_test(test: TestFile) {
                         description, err
                     )
                 });
-            crate::from_slice::<Utf8LossyDeserialization<Document>>(bson.as_slice())
+            crate::deserialize_from_slice::<Utf8LossyDeserialization<Document>>(bson.as_slice())
                 .expect(&description);
         }
     }
@@ -579,7 +589,7 @@ fn run_test(test: TestFile) {
 
         if let Ok(bson) = Bson::try_from(json.clone()) {
             // if converting to bson succeeds, assert that translating that bson to bytes fails
-            assert!(crate::to_vec(&bson).is_err());
+            assert!(crate::serialize_to_vec(&bson).is_err());
         }
     }
 }

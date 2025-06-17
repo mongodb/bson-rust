@@ -51,9 +51,14 @@ pub enum ErrorKind {
         kind: ValueAccessErrorKind,
     },
 
+    /// A [`std::io::Error`] occurred.
+    #[error("An IO error occurred: {0}")]
+    Io(std::io::Error),
+
     /// A wrapped deserialization error.
     /// TODO RUST-1406: collapse this
-    #[error("Deserialization error")]
+    #[cfg(feature = "serde")]
+    #[error("Deserialization error: {0}")]
     DeError(crate::de::Error),
 }
 
@@ -67,13 +72,16 @@ impl From<ErrorKind> for Error {
     }
 }
 
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        ErrorKind::Io(value).into()
+    }
+}
+
+#[cfg(feature = "serde")]
 impl From<crate::de::Error> for Error {
     fn from(value: crate::de::Error) -> Self {
-        Self {
-            kind: ErrorKind::DeError(value),
-            key: None,
-            index: None,
-        }
+        ErrorKind::DeError(value).into()
     }
 }
 
@@ -161,5 +169,10 @@ impl Error {
                 ..
             }
         )
+    }
+
+    #[cfg(all(test, feature = "serde"))]
+    pub(crate) fn is_malformed_value(&self) -> bool {
+        matches!(self.kind, ErrorKind::MalformedValue { .. },)
     }
 }
