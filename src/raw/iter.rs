@@ -143,7 +143,6 @@ impl TryInto<Bson> for RawElement<'_> {
     }
 }
 
-#[allow(clippy::len_without_is_empty)]
 impl<'a> RawElement<'a> {
     pub(crate) fn toplevel(bytes: &'a [u8]) -> Result<Self> {
         let doc = RawDocument::from_bytes(bytes)?;
@@ -155,7 +154,8 @@ impl<'a> RawElement<'a> {
             size: doc.as_bytes().len(),
         })
     }
-    pub fn len(&self) -> usize {
+
+    pub fn size(&self) -> usize {
         self.size
     }
 
