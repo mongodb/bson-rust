@@ -8,39 +8,38 @@ use crate::error::{Error, ErrorKind};
 pub enum Decimal128ErrorKind {
     /// Empty exponent.
     #[error("empty exponent")]
-    EmptyExponent,
+    #[non_exhaustive]
+    EmptyExponent {},
 
     /// Invalid exponent.
-    #[error("invalid exponent: {message}")]
+    #[error("invalid exponent")]
     #[non_exhaustive]
-    InvalidExponent {
-        /// A message describing the error.
-        message: String,
-    },
+    InvalidExponent {},
 
     /// Invalid coefficient.
-    #[error("invalid coefficient: {message}")]
+    #[error("invalid coefficient")]
     #[non_exhaustive]
-    InvalidCoefficient {
-        /// A message describing the error.
-        message: String,
-    },
+    InvalidCoefficient {},
 
     /// Overflow.
     #[error("overflow")]
-    Overflow,
+    #[non_exhaustive]
+    Overflow {},
 
     /// Underflow.
     #[error("underflow")]
-    Underflow,
+    #[non_exhaustive]
+    Underflow {},
 
     /// Inexact rounding.
     #[error("inexact rounding")]
-    InexactRounding,
+    #[non_exhaustive]
+    InexactRounding {},
 
     /// Unparseable.
     #[error("unparseable")]
-    Unparseable,
+    #[non_exhaustive]
+    Unparseable {},
 }
 
 impl Error {
@@ -53,7 +52,7 @@ impl Error {
         matches!(
             self.kind,
             ErrorKind::Decimal128 {
-                kind: Decimal128ErrorKind::Unparseable,
+                kind: Decimal128ErrorKind::Unparseable {},
             }
         )
     }

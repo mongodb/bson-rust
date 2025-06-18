@@ -11,7 +11,8 @@ use crate::{
 pub enum ValueAccessErrorKind {
     /// No value for the specified key was present in the document.
     #[error("the key was not present in the document")]
-    NotPresent,
+    #[non_exhaustive]
+    NotPresent {},
 
     /// The type of the value in the document did not match the requested type.
     #[error("expected type {expected:?}, got type {actual:?}")]
@@ -25,15 +26,15 @@ pub enum ValueAccessErrorKind {
     },
 
     /// An error occurred when attempting to parse the document's BSON bytes.
-    #[error("{message}")]
+    #[error("invalid BSON bytes")]
     #[non_exhaustive]
-    InvalidBson { message: String },
+    InvalidBson {},
 }
 
 impl Error {
     pub(crate) fn value_access_not_present() -> Self {
         ErrorKind::ValueAccess {
-            kind: ValueAccessErrorKind::NotPresent,
+            kind: ValueAccessErrorKind::NotPresent {},
         }
         .into()
     }
@@ -46,10 +47,10 @@ impl Error {
     }
 
     pub(crate) fn value_access_invalid_bson(message: String) -> Self {
-        ErrorKind::ValueAccess {
-            kind: ValueAccessErrorKind::InvalidBson { message },
-        }
-        .into()
+        Self::from(ErrorKind::ValueAccess {
+            kind: ValueAccessErrorKind::InvalidBson {},
+        })
+        .with_message(message)
     }
 
     #[cfg(test)]
@@ -57,7 +58,7 @@ impl Error {
         matches!(
             self.kind,
             ErrorKind::ValueAccess {
-                kind: ValueAccessErrorKind::NotPresent,
+                kind: ValueAccessErrorKind::NotPresent {},
                 ..
             }
         )

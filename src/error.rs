@@ -19,6 +19,9 @@ pub struct Error {
     /// The kind of error that occurred.
     pub kind: ErrorKind,
 
+    /// An optional message describing the error.
+    pub message: Option<String>,
+
     /// The document key associated with the error, if any.
     pub key: Option<String>,
 
@@ -28,13 +31,19 @@ pub struct Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BSON error")?;
+
         if let Some(key) = self.key.as_deref() {
-            write!(f, "Error at key \"{key}\": ")?;
+            write!(f, " at key \"{key}\"")?;
         } else if let Some(index) = self.index {
-            write!(f, "Error at array index {index}: ")?;
+            write!(f, " at array index {index}")?;
         }
 
-        write!(f, "{}", self.kind)
+        write!(f, ". Kind: {}", self.kind)?;
+        if let Some(ref message) = self.message {
+            write!(f, ". Message: {}", message)?;
+        }
+        write!(f, ".")
     }
 }
 
@@ -43,36 +52,31 @@ impl std::fmt::Display for Error {
 #[non_exhaustive]
 pub enum ErrorKind {
     /// An error related to the [`Binary`](crate::Binary) type occurred.
-    #[error("A Binary-related error occurred: {message}")]
-    Binary {
-        /// A message describing the error.
-        message: String,
-    },
+    #[error("A Binary-related error occurred")]
+    #[non_exhaustive]
+    Binary {},
 
     /// An error related to the [`DateTime`](crate::DateTime) type occurred.
-    #[error("A DateTime-related error occurred: {message}")]
-    DateTime {
-        /// A message describing the error.
-        message: String,
-    },
+    #[error("A DateTime-related error occurred")]
+    #[non_exhaustive]
+    DateTime {},
 
     /// An error related to the [`Decimal128`](crate::Decimal128) type occurred.
     #[error("A Decimal128-related error occurred: {kind}")]
+    #[non_exhaustive]
     Decimal128 {
         /// The kind of error that occurred.
         kind: Decimal128ErrorKind,
     },
 
     /// Malformed BSON bytes were encountered.
-    #[error("Malformed BSON bytes: {message}")]
+    #[error("Malformed BSON bytes")]
     #[non_exhaustive]
-    MalformedBytes {
-        /// A message describing the error.
-        message: String,
-    },
+    MalformedBytes {},
 
     /// An error related to the [`ObjectId`](crate::oid::ObjectId) type occurred.
     #[error("An ObjectId-related error occurred: {kind}")]
+    #[non_exhaustive]
     ObjectId {
         /// The kind of error that occurred.
         kind: ObjectIdErrorKind,
@@ -80,10 +84,12 @@ pub enum ErrorKind {
 
     /// Invalid UTF-8 bytes were encountered.
     #[error("Invalid UTF-8")]
-    Utf8Encoding,
+    #[non_exhaustive]
+    Utf8Encoding {},
 
     /// An error related to the [`Uuid`](crate::uuid::Uuid) type occurred.
     #[error("A UUID-related error occurred: {kind}")]
+    #[non_exhaustive]
     Uuid {
         /// The kind of error that occurred.
         kind: UuidErrorKind,
@@ -109,6 +115,7 @@ impl From<ErrorKind> for Error {
             kind,
             key: None,
             index: None,
+            message: None,
         }
     }
 }
@@ -119,6 +126,7 @@ impl From<crate::de::Error> for Error {
             kind: ErrorKind::DeError(value),
             key: None,
             index: None,
+            message: None,
         }
     }
 }
@@ -134,24 +142,20 @@ impl Error {
         self
     }
 
+    pub(crate) fn with_message(mut self, message: impl ToString) -> Self {
+        self.message = Some(message.to_string());
+        self
+    }
+
     pub(crate) fn binary(message: impl ToString) -> Self {
-        ErrorKind::Binary {
-            message: message.to_string(),
-        }
-        .into()
+        Self::from(ErrorKind::Binary {}).with_message(message)
     }
 
     pub(crate) fn datetime(message: impl ToString) -> Self {
-        ErrorKind::DateTime {
-            message: message.to_string(),
-        }
-        .into()
+        Self::from(ErrorKind::DateTime {}).with_message(message)
     }
 
     pub(crate) fn malformed_bytes(message: impl ToString) -> Self {
-        ErrorKind::MalformedBytes {
-            message: message.to_string(),
-        }
-        .into()
+        Self::from(ErrorKind::MalformedBytes {}).with_message(message)
     }
 }

@@ -11,12 +11,9 @@ use crate::{
 #[non_exhaustive]
 pub enum UuidErrorKind {
     /// An invalid string was used to construct a UUID.
-    #[error("{message}")]
+    #[error("invalid UUID string")]
     #[non_exhaustive]
-    InvalidString {
-        /// A message describing the error.
-        message: String,
-    },
+    InvalidString {},
 
     /// The requested `UuidRepresentation` does not match the binary subtype of a `Binary`
     /// value.
@@ -47,12 +44,10 @@ pub enum UuidErrorKind {
 
 impl Error {
     pub(crate) fn invalid_uuid_string(message: impl ToString) -> Self {
-        ErrorKind::Uuid {
-            kind: UuidErrorKind::InvalidString {
-                message: message.to_string(),
-            },
-        }
-        .into()
+        Self::from(ErrorKind::Uuid {
+            kind: UuidErrorKind::InvalidString {},
+        })
+        .with_message(message)
     }
 
     pub(crate) fn uuid_representation_mismatch(
