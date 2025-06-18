@@ -30,11 +30,12 @@ run_fuzzer() {
 }
 
 # Run existing targets
-run_fuzzer "deserialize"
+run_fuzzer "decode"
 run_fuzzer "raw_deserialize"
+run_fuzzer "raw_deserialize_utf8_lossy"
 run_fuzzer "iterate"
 
 # Run new security-focused targets
 run_fuzzer "type_markers"
 run_fuzzer "string_handling"
-run_fuzzer "serialization"
+run_fuzzer "encoding"

@@ -673,7 +673,12 @@ impl Document {
         }
     }
 
-    /// Attempts to serialize the [`Document`] into a byte stream.
+    /// Attempt to encode the [`Document`] into a byte [`Vec`].
+    pub fn encode_to_vec(&self) -> Result<Vec<u8>> {
+        Ok(crate::RawDocumentBuf::from_document(self)?.into_bytes())
+    }
+
+    /// Attempts to encode the [`Document`] into a byte stream.
     ///
     /// While the method signature indicates an owned writer must be passed in, a mutable reference
     /// may also be passed in due to blanket implementations of [`Write`] provided in the standard
@@ -685,22 +690,17 @@ impl Document {
     ///
     /// let mut v: Vec<u8> = Vec::new();
     /// let doc = doc! { "x" : 1 };
-    /// doc.to_writer(&mut v)?;
+    /// doc.encode_to_writer(&mut v)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn to_writer<W: Write>(&self, mut writer: W) -> crate::ser::Result<()> {
-        let buf = crate::to_vec(self)?;
-        writer.write_all(&buf)?;
+    pub fn encode_to_writer<W: Write>(&self, mut writer: W) -> crate::error::Result<()> {
+        let buf = crate::RawDocumentBuf::from_document(self)?;
+        writer.write_all(buf.as_bytes())?;
         Ok(())
     }
 
-    fn decode<R: Read + ?Sized>(reader: &mut R) -> crate::de::Result<Document> {
-        let buf = crate::de::reader_to_vec(reader)?;
-        crate::de::from_raw(crate::de::RawDeserializer::new(&buf)?)
-    }
-
-    /// Attempts to deserialize a [`Document`] from a byte stream.
+    /// Attempts to decode a [`Document`] from a byte stream.
     ///
     /// While the method signature indicates an owned reader must be passed in, a mutable reference
     /// may also be passed in due to blanket implementations of [`Read`] provided in the standard
@@ -714,22 +714,23 @@ impl Document {
     ///
     /// let mut v: Vec<u8> = Vec::new();
     /// let doc = doc! { "x" : 1 };
-    /// doc.to_writer(&mut v)?;
+    /// doc.encode_to_writer(&mut v)?;
     ///
     /// // read from mutable reference
     /// let mut reader = Cursor::new(v.clone());
-    /// let doc1 = Document::from_reader(&mut reader)?;
+    /// let doc1 = Document::decode_from_reader(&mut reader)?;
     ///
     /// // read from owned value
-    /// let doc2 = Document::from_reader(Cursor::new(v))?;
+    /// let doc2 = Document::decode_from_reader(Cursor::new(v))?;
     ///
     /// assert_eq!(doc, doc1);
     /// assert_eq!(doc, doc2);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn from_reader<R: Read>(mut reader: R) -> crate::de::Result<Document> {
-        Self::decode(&mut reader)
+    pub fn decode_from_reader<R: Read>(reader: R) -> crate::error::Result<Document> {
+        let raw = crate::raw::RawDocumentBuf::decode_from_reader(reader)?;
+        raw.try_into()
     }
 }
 

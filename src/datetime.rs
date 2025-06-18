@@ -72,7 +72,7 @@ use crate::error::{Error, Result};
 ///
 /// # fn main() -> bson::ser::Result<()> {
 /// let f = Foo { date_time: bson::DateTime::now(), chrono_datetime: chrono::Utc::now() };
-/// println!("{:?}", bson::to_document(&f)?);
+/// println!("{:?}", bson::serialize_to_document(&f)?);
 /// # Ok(())
 /// # }
 /// ```
@@ -169,7 +169,7 @@ use crate::error::{Error, Result};
 ///   "as_bson": bson::DateTime::from_chrono(dt),
 /// };
 ///
-/// assert_eq!(bson::to_document(&foo)?, expected);
+/// assert_eq!(bson::serialize_to_document(&foo)?, expected);
 /// # }
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -411,10 +411,6 @@ impl crate::DateTime {
     pub fn saturating_duration_since(self, earlier: Self) -> Duration {
         self.checked_duration_since(earlier)
             .unwrap_or(Duration::ZERO)
-    }
-
-    pub(crate) fn as_le_bytes(&self) -> [u8; 8] {
-        self.0.to_le_bytes()
     }
 }
 

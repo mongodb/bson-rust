@@ -1,24 +1,12 @@
 use std::{
     borrow::{Borrow, Cow},
     convert::TryFrom,
-    iter::FromIterator,
     ops::Deref,
 };
 
-use serde::{Deserialize, Serialize};
+use crate::{raw::MIN_BSON_DOCUMENT_SIZE, Document};
 
-use crate::{de::MIN_BSON_DOCUMENT_SIZE, Document};
-
-use super::{
-    bson::RawBson,
-    iter::Iter,
-    serde::OwnedOrBorrowedRawDocument,
-    Error,
-    RawBsonRef,
-    RawDocument,
-    RawIter,
-    Result,
-};
+use super::{bson::RawBson, iter::Iter, RawBsonRef, RawDocument, RawIter, Result};
 
 mod raw_writer;
 
@@ -36,7 +24,7 @@ mod raw_writer;
 /// # use bson::error::Error;
 /// use bson::raw::RawDocumentBuf;
 ///
-/// let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// let doc = RawDocumentBuf::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 /// let mut iter = doc.iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
@@ -54,7 +42,7 @@ mod raw_writer;
 /// ```
 /// use bson::raw::RawDocumentBuf;
 ///
-/// let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// let doc = RawDocumentBuf::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -86,17 +74,31 @@ impl RawDocumentBuf {
     ///
     /// ```
     /// # use bson::raw::RawDocumentBuf;
-    /// let doc = RawDocumentBuf::from_bytes(b"\x05\0\0\0\0".to_vec())?;
+    /// let doc = RawDocumentBuf::decode_from_bytes(b"\x05\0\0\0\0".to_vec())?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn from_bytes(data: Vec<u8>) -> Result<Self> {
-        let _ = RawDocument::from_bytes(data.as_slice())?;
+    pub fn decode_from_bytes(data: Vec<u8>) -> Result<Self> {
+        let _ = RawDocument::decode_from_bytes(data.as_slice())?;
         Ok(Self { data })
     }
 
-    pub fn from_reader<R: std::io::Read>(reader: R) -> Result<Self> {
-        let buf = crate::de::reader_to_vec(reader)?;
-        Self::from_bytes(buf)
+    pub fn decode_from_reader<R: std::io::Read>(reader: R) -> Result<Self> {
+        let buf = crate::raw::reader_to_vec(reader)?;
+        Self::decode_from_bytes(buf)
+    }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_iter<S, B, I>(iter: I) -> Result<Self>
+    where
+        S: AsRef<str>,
+        B: BindRawBsonRef,
+        I: IntoIterator<Item = (S, B)>,
+    {
+        let mut buf = RawDocumentBuf::new();
+        for (k, v) in iter {
+            buf.append(k, v)?;
+        }
+        Ok(buf)
     }
 
     /// Create a [`RawDocumentBuf`] from a [`Document`].
@@ -112,11 +114,13 @@ impl RawDocumentBuf {
     /// let doc = RawDocumentBuf::from_document(&document)?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn from_document(doc: &Document) -> Result<RawDocumentBuf> {
-        let mut data = Vec::new();
-        doc.to_writer(&mut data).map_err(Error::malformed_bytes)?;
-
-        Ok(Self { data })
+    pub fn from_document(doc: impl Borrow<Document>) -> Result<Self> {
+        let mut out = RawDocumentBuf::new();
+        for (k, v) in doc.borrow() {
+            let val: RawBson = v.clone().try_into()?;
+            out.append(k, val)?;
+        }
+        Ok(out)
     }
 
     /// Gets an iterator over the elements in the [`RawDocumentBuf`], which yields
@@ -211,11 +215,13 @@ impl RawDocumentBuf {
     /// assert_eq!(doc.to_document()?, expected);
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn append(&mut self, key: impl AsRef<str>, value: impl BindRawBsonRef) {
+    pub fn append(
+        &mut self,
+        key: impl AsRef<str>,
+        value: impl BindRawBsonRef,
+    ) -> crate::error::Result<()> {
         value.bind(|value_ref| {
-            raw_writer::RawWriter::new(&mut self.data)
-                .append(key.as_ref(), value_ref)
-                .expect("key should not contain interior null byte")
+            raw_writer::RawWriter::new(&mut self.data).append(key.as_ref(), value_ref)
         })
     }
 }
@@ -226,16 +232,18 @@ impl Default for RawDocumentBuf {
     }
 }
 
-impl<'de> Deserialize<'de> for RawDocumentBuf {
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for RawDocumentBuf {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(OwnedOrBorrowedRawDocument::deserialize(deserializer)?.into_owned())
+        Ok(super::serde::OwnedOrBorrowedRawDocument::deserialize(deserializer)?.into_owned())
     }
 }
 
-impl Serialize for RawDocumentBuf {
+#[cfg(feature = "serde")]
+impl serde::Serialize for RawDocumentBuf {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -265,19 +273,24 @@ impl<'a> From<&'a RawDocumentBuf> for Cow<'a, RawDocument> {
     }
 }
 
-impl TryFrom<RawDocumentBuf> for Document {
-    type Error = Error;
+impl TryFrom<&Document> for RawDocumentBuf {
+    type Error = crate::error::Error;
 
-    fn try_from(raw: RawDocumentBuf) -> Result<Document> {
-        Document::try_from(raw.as_ref())
+    fn try_from(doc: &Document) -> std::result::Result<Self, Self::Error> {
+        RawDocumentBuf::from_document(doc)
     }
 }
 
-impl TryFrom<&Document> for RawDocumentBuf {
-    type Error = Error;
+impl TryFrom<Document> for RawDocumentBuf {
+    type Error = crate::error::Error;
 
-    fn try_from(doc: &Document) -> Result<RawDocumentBuf> {
-        RawDocumentBuf::from_document(doc)
+    fn try_from(doc: Document) -> std::result::Result<Self, Self::Error> {
+        let mut out = RawDocumentBuf::new();
+        for (k, v) in doc {
+            let val: RawBson = v.try_into()?;
+            out.append(k, val)?;
+        }
+        Ok(out)
     }
 }
 
@@ -307,16 +320,6 @@ impl Deref for RawDocumentBuf {
 impl Borrow<RawDocument> for RawDocumentBuf {
     fn borrow(&self) -> &RawDocument {
         self.deref()
-    }
-}
-
-impl<S: AsRef<str>, T: BindRawBsonRef> FromIterator<(S, T)> for RawDocumentBuf {
-    fn from_iter<I: IntoIterator<Item = (S, T)>>(iter: I) -> Self {
-        let mut buf = RawDocumentBuf::new();
-        for (k, v) in iter {
-            buf.append(k, v);
-        }
-        buf
     }
 }
 

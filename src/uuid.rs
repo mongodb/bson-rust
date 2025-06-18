@@ -101,7 +101,7 @@
 //!   "as_bson": bson::Uuid::from(foo.as_bson.unwrap()),
 //! };
 //!
-//! assert_eq!(bson::to_document(&foo)?, expected);
+//! assert_eq!(bson::serialize_to_document(&foo)?, expected);
 //! # }
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
@@ -135,15 +135,9 @@
 #[cfg(test)]
 mod test;
 
-use std::{
-    fmt::{self, Display},
-    str::FromStr,
-};
-
-use serde::{Deserialize, Serialize};
+use std::fmt::{self, Display};
 
 use crate::{
-    de::BsonVisitor,
     error::{Error, Result},
     spec::BinarySubtype,
     Binary,
@@ -154,6 +148,7 @@ use crate::{
 /// UUID is being serialized or deserialized. The BSON serializers/deserializers will handle this
 /// name specially, but other serializers/deserializers will just ignore it and use [`uuid::Uuid`]'s
 /// serde integration.
+#[cfg(feature = "serde")]
 pub(crate) const UUID_NEWTYPE_NAME: &str = "$__bson_private_uuid";
 
 /// A struct modeling a BSON UUID value (i.e. a Binary value with subtype 4).
@@ -231,7 +226,8 @@ impl Uuid {
     }
 }
 
-impl Serialize for Uuid {
+#[cfg(feature = "serde")]
+impl serde::Serialize for Uuid {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -240,12 +236,13 @@ impl Serialize for Uuid {
     }
 }
 
-impl<'de> Deserialize<'de> for Uuid {
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Uuid {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        match deserializer.deserialize_newtype_struct(UUID_NEWTYPE_NAME, BsonVisitor)? {
+        match deserializer.deserialize_newtype_struct(UUID_NEWTYPE_NAME, crate::de::BsonVisitor)? {
             // Need to support deserializing from generic subtypes for non-BSON formats.
             // When using the BSON deserializer, the newtype name will ensure the subtype is only
             // ever BinarySubtype::Uuid.
@@ -262,6 +259,7 @@ impl<'de> Deserialize<'de> for Uuid {
                 ))
             }
             Bson::String(s) => {
+                use std::str::FromStr as _;
                 let uuid = uuid::Uuid::from_str(s.as_str()).map_err(serde::de::Error::custom)?;
                 Ok(Self::from_external_uuid(uuid))
             }
@@ -462,6 +460,7 @@ macro_rules! trait_impls {
             where
                 D: serde::Deserializer<'de>,
             {
+                use serde::Deserialize as _;
                 let uuid = Uuid::deserialize(deserializer)?;
                 Ok(uuid.into())
             }
@@ -474,6 +473,7 @@ macro_rules! trait_impls {
             where
                 S: serde::Serializer,
             {
+                use serde::Serialize as _;
                 let uuid = Uuid::from(*source);
                 uuid.serialize(serializer)
             }

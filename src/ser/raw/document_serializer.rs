@@ -1,8 +1,9 @@
 use serde::{ser::Impossible, Serialize};
 
 use crate::{
-    ser::{write_cstring, write_i32, Error, Result},
-    to_bson,
+    raw::write_cstring,
+    ser::{write_i32, Error, Result},
+    serialize_to_bson,
     Bson,
 };
 
@@ -185,7 +186,7 @@ struct KeySerializer<'a> {
 
 impl KeySerializer<'_> {
     fn invalid_key<T: Serialize>(v: T) -> Error {
-        Error::InvalidDocumentKey(to_bson(&v).unwrap_or(Bson::Null))
+        Error::InvalidDocumentKey(serialize_to_bson(&v).unwrap_or(Bson::Null))
     }
 }
 
@@ -264,7 +265,7 @@ impl serde::Serializer for KeySerializer<'_> {
 
     #[inline]
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
-        write_cstring(&mut self.root_serializer.bytes, v)
+        Ok(write_cstring(&mut self.root_serializer.bytes, v)?)
     }
 
     #[inline]

@@ -103,9 +103,15 @@ pub enum ErrorKind {
         kind: ValueAccessErrorKind,
     },
 
+    /// A [`std::io::Error`] occurred.
+    #[error("An IO error occurred")]
+    #[non_exhaustive]
+    Io {},
+
     /// A wrapped deserialization error.
     /// TODO RUST-1406: collapse this
-    #[error("Deserialization error")]
+    #[cfg(feature = "serde")]
+    #[error("Deserialization error: {0}")]
     DeError(crate::de::Error),
 }
 
@@ -120,14 +126,16 @@ impl From<ErrorKind> for Error {
     }
 }
 
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Error::from(ErrorKind::Io {}).with_message(value)
+    }
+}
+
+#[cfg(feature = "serde")]
 impl From<crate::de::Error> for Error {
     fn from(value: crate::de::Error) -> Self {
-        Self {
-            kind: ErrorKind::DeError(value),
-            key: None,
-            index: None,
-            message: None,
-        }
+        ErrorKind::DeError(value).into()
     }
 }
 
@@ -157,5 +165,10 @@ impl Error {
 
     pub(crate) fn malformed_bytes(message: impl ToString) -> Self {
         Self::from(ErrorKind::MalformedBytes {}).with_message(message)
+    }
+
+    #[cfg(all(test, feature = "serde"))]
+    pub(crate) fn is_malformed_bytes(&self) -> bool {
+        matches!(self.kind, ErrorKind::MalformedBytes { .. },)
     }
 }

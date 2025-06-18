@@ -10,7 +10,6 @@ use crate::{
     base64,
     error::{Error, Result},
     spec::BinarySubtype,
-    Document,
     RawBinaryRef,
 };
 
@@ -64,7 +63,8 @@ impl Binary {
         Ok(Binary { subtype, bytes })
     }
 
-    pub(crate) fn from_extended_doc(doc: &Document) -> Option<Self> {
+    #[cfg(feature = "serde")]
+    pub(crate) fn from_extended_doc(doc: &crate::Document) -> Option<Self> {
         let binary_doc = doc.get_document("$binary").ok()?;
 
         if let Ok(bytes) = binary_doc.get_str("base64") {
