@@ -1,8 +1,10 @@
 //! [BSON Decimal128](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst) data type representation
 
-use std::{convert::TryInto, fmt};
+use std::{convert::TryInto, fmt, num::ParseIntError};
 
 use bitvec::prelude::*;
+
+use crate::error::{Decimal128ErrorKind, Error, Result};
 
 /// Struct representing a BSON Decimal128 type.
 ///
@@ -60,9 +62,9 @@ impl fmt::Display for Decimal128 {
 }
 
 impl std::str::FromStr for Decimal128 {
-    type Err = ParseError;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         Ok(s.parse::<ParsedDecimal128>()?.pack())
     }
 }
@@ -138,10 +140,7 @@ impl Coefficient {
     /// The maximum allowable value of a coefficient.
     const MAX_VALUE: u128 = 9_999_999_999_999_999_999_999_999_999_999_999;
 
-    fn from_bits(
-        src_prefix: &BitSlice<u8, Msb0>,
-        src_suffix: &BitSlice<u8, Msb0>,
-    ) -> Result<Self, ParseError> {
+    fn from_bits(src_prefix: &BitSlice<u8, Msb0>, src_suffix: &BitSlice<u8, Msb0>) -> Result<Self> {
         let mut bytes = [0u8; 16];
         let bits = &mut bytes.view_bits_mut::<Msb0>()[Self::UNUSED_BITS..];
         let prefix_len = src_prefix.len();
@@ -149,7 +148,7 @@ impl Coefficient {
         bits[prefix_len..].copy_from_bitslice(src_suffix);
         let out = Self(bytes);
         if out.value() > Self::MAX_VALUE {
-            Err(ParseError::Overflow)
+            Err(Error::decimal128(Decimal128ErrorKind::Overflow {}))
         } else {
             Ok(out)
         }
@@ -325,46 +324,10 @@ impl fmt::Display for ParsedDecimal128 {
     }
 }
 
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum ParseError {
-    EmptyExponent,
-    InvalidExponent(std::num::ParseIntError),
-    InvalidCoefficient(std::num::ParseIntError),
-    Overflow,
-    Underflow,
-    InexactRounding,
-    Unparseable,
-}
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ParseError::EmptyExponent => write!(f, "empty exponent"),
-            ParseError::InvalidExponent(e) => write!(f, "invalid exponent: {}", e),
-            ParseError::InvalidCoefficient(e) => write!(f, "invalid coefficient: {}", e),
-            ParseError::Overflow => write!(f, "overflow"),
-            ParseError::Underflow => write!(f, "underflow"),
-            ParseError::InexactRounding => write!(f, "inexact rounding"),
-            ParseError::Unparseable => write!(f, "unparseable"),
-        }
-    }
-}
-
-impl std::error::Error for ParseError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            ParseError::InvalidExponent(e) => Some(e),
-            ParseError::InvalidCoefficient(e) => Some(e),
-            _ => None,
-        }
-    }
-}
-
 impl std::str::FromStr for ParsedDecimal128 {
-    type Err = ParseError;
+    type Err = Error;
 
-    fn from_str(mut s: &str) -> Result<Self, Self::Err> {
+    fn from_str(mut s: &str) -> Result<Self> {
         let sign;
         if let Some(rest) = s.strip_prefix(&['-', '+'][..]) {
             sign = s.starts_with('-');
@@ -385,21 +348,28 @@ impl std::str::FromStr for ParsedDecimal128 {
                         decimal_str = finite_str;
                         exp_str = "0";
                     }
-                    Some((_, "")) => return Err(ParseError::EmptyExponent),
+                    Some((_, "")) => {
+                        return Err(Error::decimal128(Decimal128ErrorKind::EmptyExponent {}))
+                    }
                     Some((pre, post)) => {
                         decimal_str = pre;
                         exp_str = post;
                     }
                 }
-                let mut exp = exp_str
-                    .parse::<i16>()
-                    .map_err(ParseError::InvalidExponent)?;
+                let mut exp = exp_str.parse::<i16>().map_err(|e| {
+                    Error::decimal128(Decimal128ErrorKind::InvalidExponent {}).with_message(e)
+                })?;
 
                 // Remove decimal point and adjust exponent
                 let joined_str;
                 if let Some((pre, post)) = decimal_str.split_once('.') {
-                    let exp_adj = post.len().try_into().map_err(|_| ParseError::Underflow)?;
-                    exp = exp.checked_sub(exp_adj).ok_or(ParseError::Underflow)?;
+                    let exp_adj = post
+                        .len()
+                        .try_into()
+                        .map_err(|_| Error::decimal128(Decimal128ErrorKind::Underflow {}))?;
+                    exp = exp
+                        .checked_sub(exp_adj)
+                        .ok_or_else(|| Error::decimal128(Decimal128ErrorKind::Underflow {}))?;
                     joined_str = format!("{}{}", pre, post);
                     decimal_str = &joined_str;
                 }
@@ -415,8 +385,10 @@ impl std::str::FromStr for ParsedDecimal128 {
                         decimal_str = round_decimal_str(decimal_str, Coefficient::MAX_DIGITS)?;
                         let exp_adj = (len - decimal_str.len())
                             .try_into()
-                            .map_err(|_| ParseError::Overflow)?;
-                        exp = exp.checked_add(exp_adj).ok_or(ParseError::Overflow)?;
+                            .map_err(|_| Error::decimal128(Decimal128ErrorKind::Overflow {}))?;
+                        exp = exp
+                            .checked_add(exp_adj)
+                            .ok_or_else(|| Error::decimal128(Decimal128ErrorKind::Overflow {}))?;
                     }
                 }
 
@@ -425,11 +397,11 @@ impl std::str::FromStr for ParsedDecimal128 {
                     if decimal_str != "0" {
                         let delta = (Exponent::TINY - exp)
                             .try_into()
-                            .map_err(|_| ParseError::Overflow)?;
+                            .map_err(|_| Error::decimal128(Decimal128ErrorKind::Overflow {}))?;
                         let new_precision = decimal_str
                             .len()
                             .checked_sub(delta)
-                            .ok_or(ParseError::Underflow)?;
+                            .ok_or_else(|| Error::decimal128(Decimal128ErrorKind::Overflow {}))?;
                         decimal_str = round_decimal_str(decimal_str, new_precision)?;
                     }
                     exp = Exponent::TINY;
@@ -439,14 +411,14 @@ impl std::str::FromStr for ParsedDecimal128 {
                     if decimal_str != "0" {
                         let delta = (exp - Exponent::MAX)
                             .try_into()
-                            .map_err(|_| ParseError::Overflow)?;
+                            .map_err(|_| Error::decimal128(Decimal128ErrorKind::Overflow {}))?;
                         if decimal_str
                             .len()
                             .checked_add(delta)
-                            .ok_or(ParseError::Overflow)?
+                            .ok_or_else(|| Error::decimal128(Decimal128ErrorKind::Overflow {}))?
                             > Coefficient::MAX_DIGITS
                         {
-                            return Err(ParseError::Overflow);
+                            return Err(Error::decimal128(Decimal128ErrorKind::Overflow {}));
                         }
                         padded_str = format!("{}{}", decimal_str, "0".repeat(delta));
                         decimal_str = &padded_str;
@@ -456,9 +428,9 @@ impl std::str::FromStr for ParsedDecimal128 {
 
                 // Assemble the final value
                 let exponent = Exponent::from_native(exp);
-                let coeff: u128 = decimal_str
-                    .parse()
-                    .map_err(ParseError::InvalidCoefficient)?;
+                let coeff: u128 = decimal_str.parse().map_err(|e: ParseIntError| {
+                    Error::decimal128(Decimal128ErrorKind::InvalidCoefficient {}).with_message(e)
+                })?;
                 let coefficient = Coefficient::from_native(coeff);
                 Decimal128Kind::Finite {
                     exponent,
@@ -471,17 +443,13 @@ impl std::str::FromStr for ParsedDecimal128 {
     }
 }
 
-fn round_decimal_str(s: &str, precision: usize) -> Result<&str, ParseError> {
-    // TODO: In 1.80+ there's split_at_checked to make sure the split doesn't
-    // panic if the index doesn't falls at a codepoint boundary, until then
-    // we can check it with s.is_char_boundary(precision)
-    if !s.is_char_boundary(precision) {
-        return Err(ParseError::Unparseable);
-    }
-    let (pre, post) = s.split_at(precision);
+fn round_decimal_str(s: &str, precision: usize) -> Result<&str> {
+    let (pre, post) = s
+        .split_at_checked(precision)
+        .ok_or_else(|| Error::decimal128(Decimal128ErrorKind::Unparseable {}))?;
     // Any nonzero trimmed digits mean it would be an imprecise round.
     if post.chars().any(|c| c != '0') {
-        return Err(ParseError::InexactRounding);
+        return Err(Error::decimal128(Decimal128ErrorKind::InexactRounding {}));
     }
     Ok(pre)
 }

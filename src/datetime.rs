@@ -1,17 +1,12 @@
 //! Module containing functionality related to BSON DateTimes.
 //! For more information, see the documentation for the [`DateTime`] type.
+pub(crate) mod builder;
 
 use std::{
     convert::TryInto,
-    error,
     fmt::{self, Display},
-    result,
     time::{Duration, SystemTime},
 };
-
-pub(crate) mod builder;
-pub use crate::datetime::builder::DateTimeBuilder;
-use time::format_description::well_known::Rfc3339;
 
 #[cfg(feature = "chrono-0_4")]
 use chrono::{LocalResult, TimeZone, Utc};
@@ -20,6 +15,10 @@ use chrono::{LocalResult, TimeZone, Utc};
     any(feature = "chrono-0_4", feature = "time-0_3")
 ))]
 use serde::{Deserialize, Deserializer, Serialize};
+use time::format_description::well_known::Rfc3339;
+
+pub use crate::datetime::builder::DateTimeBuilder;
+use crate::error::{Error, Result};
 
 /// Struct representing a BSON datetime.
 /// Note: BSON datetimes have millisecond precision.
@@ -388,21 +387,13 @@ impl crate::DateTime {
 
     /// Convert this [`DateTime`] to an RFC 3339 formatted string.
     pub fn try_to_rfc3339_string(self) -> Result<String> {
-        self.to_time_0_3()
-            .format(&Rfc3339)
-            .map_err(|e| Error::CannotFormat {
-                message: e.to_string(),
-            })
+        self.to_time_0_3().format(&Rfc3339).map_err(Error::datetime)
     }
 
     /// Convert the given RFC 3339 formatted string to a [`DateTime`], truncating it to millisecond
     /// precision.
     pub fn parse_rfc3339_str(s: impl AsRef<str>) -> Result<Self> {
-        let odt = time::OffsetDateTime::parse(s.as_ref(), &Rfc3339).map_err(|e| {
-            Error::InvalidTimestamp {
-                message: e.to_string(),
-            }
-        })?;
+        let odt = time::OffsetDateTime::parse(s.as_ref(), &Rfc3339).map_err(Error::datetime)?;
         Ok(Self::from_time_0_3(odt))
     }
 
@@ -543,30 +534,3 @@ impl serde_with::SerializeAs<time::OffsetDateTime> for crate::DateTime {
         dt.serialize(serializer)
     }
 }
-
-/// Errors that can occur during [`DateTime`] construction and generation.
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub enum Error {
-    /// Error returned when an invalid datetime format is provided to a conversion method.
-    #[non_exhaustive]
-    InvalidTimestamp { message: String },
-    /// Error returned when a [`DateTime`] cannot be represented in a particular format.
-    #[non_exhaustive]
-    CannotFormat { message: String },
-}
-
-/// Alias for `Result<T, DateTime::Error>`
-pub type Result<T> = result::Result<T, Error>;
-
-impl fmt::Display for Error {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::InvalidTimestamp { message } | Error::CannotFormat { message } => {
-                write!(fmt, "{}", message)
-            }
-        }
-    }
-}
-
-impl error::Error for Error {}

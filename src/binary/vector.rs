@@ -23,7 +23,7 @@ const PACKED_BIT: u8 = 0x10;
 ///
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
-/// # use bson::{binary::{Result, Vector}, spec::ElementType};
+/// # use bson::{binary::Vector, error::Result, spec::ElementType};
 /// #[derive(Serialize, Deserialize)]
 /// struct Data {
 ///     vector: Vector,
@@ -64,7 +64,7 @@ impl PackedBitVector {
     /// single-bit elements in little-endian format. For example, the following vector:
     ///
     /// ```rust
-    /// # use bson::binary::{Result, PackedBitVector};
+    /// # use bson::{binary::PackedBitVector, error::Result};
     /// # fn main() -> Result<()> {
     /// let packed_bits = vec![238, 224];
     /// let vector = PackedBitVector::new(packed_bits, 0)?;
@@ -91,17 +91,14 @@ impl PackedBitVector {
     pub fn new(vector: Vec<u8>, padding: impl Into<Option<u8>>) -> Result<Self> {
         let padding = padding.into().unwrap_or(0);
         if !(0..8).contains(&padding) {
-            return Err(Error::Vector {
-                message: format!("padding must be within 0-7 inclusive, got {}", padding),
-            });
+            return Err(Error::binary(format!(
+                "vector padding must be within 0-7 inclusive, got {padding}"
+            )));
         }
         if padding != 0 && vector.is_empty() {
-            return Err(Error::Vector {
-                message: format!(
-                    "cannot specify non-zero padding if the provided vector is empty, got {}",
-                    padding
-                ),
-            });
+            return Err(Error::binary(format!(
+                "cannot specify non-zero padding if the provided vector is empty, got {padding}",
+            )));
         }
         Ok(Self { vector, padding })
     }
@@ -115,24 +112,19 @@ impl Vector {
         let bytes = bytes.as_ref();
 
         if bytes.len() < 2 {
-            return Err(Error::Vector {
-                message: format!(
-                    "the provided bytes must have a length of at least 2, got {}",
-                    bytes.len()
-                ),
-            });
+            return Err(Error::binary(format!(
+                "the provided vector bytes must have a length of at least 2, got {}",
+                bytes.len()
+            )));
         }
 
         let d_type = bytes[0];
         let padding = bytes[1];
         if d_type != PACKED_BIT && padding != 0 {
-            return Err(Error::Vector {
-                message: format!(
-                    "padding can only be specified for a packed bit vector (data type {}), got \
-                     type {}",
-                    PACKED_BIT, d_type
-                ),
-            });
+            return Err(Error::binary(format!(
+                "padding can only be specified for a packed bit vector (data type {}), got type {}",
+                PACKED_BIT, d_type
+            )));
         }
         let number_bytes = &bytes[2..];
 
@@ -149,11 +141,11 @@ impl Vector {
 
                 let mut vector = Vec::new();
                 for chunk in number_bytes.chunks(F32_BYTES) {
-                    let bytes: [u8; F32_BYTES] = chunk.try_into().map_err(|_| Error::Vector {
-                        message: format!(
+                    let bytes: [u8; F32_BYTES] = chunk.try_into().map_err(|_| {
+                        Error::binary(format!(
                             "f32 vector values must be {} bytes, got {:?}",
                             F32_BYTES, chunk,
-                        ),
+                        ))
                     })?;
                     vector.push(f32::from_le_bytes(bytes));
                 }
@@ -163,9 +155,9 @@ impl Vector {
                 let packed_bit_vector = PackedBitVector::new(number_bytes.to_vec(), padding)?;
                 Ok(Self::PackedBit(packed_bit_vector))
             }
-            other => Err(Error::Vector {
-                message: format!("unsupported vector data type: {}", other),
-            }),
+            other => Err(Error::binary(format!(
+                "unsupported vector data type: {other}"
+            ))),
         }
     }
 
@@ -228,9 +220,10 @@ impl TryFrom<&Binary> for Vector {
 
     fn try_from(binary: &Binary) -> Result<Self> {
         if binary.subtype != BinarySubtype::Vector {
-            return Err(Error::Vector {
-                message: format!("expected vector binary subtype, got {:?}", binary.subtype),
-            });
+            return Err(Error::binary(format!(
+                "expected vector binary subtype, got {:?}",
+                binary.subtype
+            )));
         }
         Self::from_bytes(&binary.bytes)
     }

@@ -100,7 +100,8 @@ pub(crate) struct ObjectId {
 
 impl ObjectId {
     pub(crate) fn parse(self) -> extjson::de::Result<oid::ObjectId> {
-        let oid = oid::ObjectId::parse_str(self.oid.as_str())?;
+        let oid = oid::ObjectId::parse_str(self.oid.as_str())
+            .map_err(extjson::de::Error::InvalidObjectId)?;
         Ok(oid)
     }
 }

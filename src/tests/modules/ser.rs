@@ -169,11 +169,11 @@ fn cstring_null_bytes_error() {
         let result = doc.encode_to_vec();
         assert!(result.is_err(), "unexpected success");
         let err = result.unwrap_err();
-        assert!(err.is_malformed_value(), "unexpected error: {:?}", err);
+        assert!(err.is_malformed_bytes(), "unexpected error: {:?}", err);
         let result = serialize_to_vec(&doc);
         assert!(result.is_err(), "unexpected success");
         match result.unwrap_err().strip_path() {
-            ser::Error::Crate(inner) if inner.is_malformed_value() => (),
+            ser::Error::Crate(inner) if inner.is_malformed_bytes() => (),
             err => panic!("unexpected error: {:?}", err),
         };
     }
