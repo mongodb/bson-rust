@@ -1,10 +1,7 @@
 #! Module containing functionality related to BSON binary values.
 mod vector;
 
-use std::{
-    convert::TryFrom,
-    fmt::{self, Display},
-};
+use std::fmt::{self, Display};
 
 use crate::{
     base64,
@@ -65,6 +62,8 @@ impl Binary {
 
     #[cfg(feature = "serde")]
     pub(crate) fn from_extended_doc(doc: &crate::Document) -> Option<Self> {
+        use std::convert::TryFrom;
+
         let binary_doc = doc.get_document("$binary").ok()?;
 
         if let Ok(bytes) = binary_doc.get_str("base64") {
