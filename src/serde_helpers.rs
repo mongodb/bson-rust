@@ -345,6 +345,8 @@ pub mod chrono_datetime_as_bson_datetime_optional {
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
 /// # use bson::serde_helpers::Rfc3339StringAsBsonDatetime;
+/// # use serde_with::serde_as;
+/// #[serde_as]
 /// #[derive(Serialize, Deserialize)]
 /// struct Event {
 ///     #[serde(as = "Rfc3339StringAsBsonDatetime")]
@@ -381,6 +383,8 @@ impl<'de> DeserializeAs<'de, String> for Rfc3339StringAsBsonDatetime {
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
 /// # use bson::serde_helpers::BsonDatetimeAsRfc3339String;
+/// # use serde_with::serde_as;
+/// #[serde_as]
 /// #[derive(Serialize, Deserialize)]
 /// struct Event {
 ///     #[serde_as(as = "BsonDatetimeAsRfc3339String")]
@@ -420,6 +424,8 @@ impl<'de> DeserializeAs<'de, crate::DateTime> for BsonDatetimeAsRfc3339String {
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
 /// # use bson::serde_helpers::HexStringAsObjectId;
+/// # use serde_with::serde_as;
+/// #[serde_as]
 /// #[derive(Serialize, Deserialize)]
 /// struct Item {
 ///     #[serde_as(as = "HexStringAsObjectId")]
