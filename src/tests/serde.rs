@@ -8,13 +8,13 @@ use crate::{
     oid::ObjectId,
     serde_helpers,
     serde_helpers::{
-        bson_datetime_as_rfc3339_string,
-        hex_string_as_object_id,
         i64_as_bson_datetime,
-        rfc3339_string_as_bson_datetime,
-        serialize_object_id_as_hex_string,
         timestamp_as_u32,
         u32_as_timestamp,
+        BsonDatetimeAsRfc3339String,
+        HexStringAsObjectId,
+        ObjectIdAsHexString,
+        Rfc3339StringAsBsonDatetime,
     },
     spec::BinarySubtype,
     tests::LOCK,
@@ -31,6 +31,7 @@ use crate::{
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use serde_with::serde_as;
 
 use std::{
     collections::BTreeMap,
@@ -759,9 +760,10 @@ fn test_datetime_helpers() {
 
     let _guard = LOCK.run_concurrently();
 
+    #[serde_as]
     #[derive(Deserialize, Serialize)]
     struct A {
-        #[serde(with = "bson_datetime_as_rfc3339_string")]
+        #[serde_as(as = "BsonDatetimeAsRfc3339String")]
         pub date: DateTime,
     }
 
@@ -884,9 +886,10 @@ fn test_datetime_helpers() {
         assert_eq!(b.date, expected);
     }
 
+    #[serde_as]
     #[derive(Deserialize, Serialize)]
     struct C {
-        #[serde(with = "rfc3339_string_as_bson_datetime")]
+        #[serde_as(as = "Rfc3339StringAsBsonDatetime")]
         pub date: String,
     }
 
@@ -904,9 +907,10 @@ fn test_datetime_helpers() {
 fn test_oid_helpers() {
     let _guard = LOCK.run_concurrently();
 
+    #[serde_as]
     #[derive(Serialize, Deserialize)]
     struct A {
-        #[serde(with = "hex_string_as_object_id")]
+        #[serde_as(as = "HexStringAsObjectId")]
         oid: String,
     }
 
@@ -1036,9 +1040,10 @@ fn large_dates() {
 fn oid_as_hex_string() {
     let _guard = LOCK.run_concurrently();
 
+    #[serde_as]
     #[derive(Serialize)]
     struct Foo {
-        #[serde(serialize_with = "serialize_object_id_as_hex_string")]
+        #[serde_as(as = "ObjectIdAsHexString")]
         oid: ObjectId,
     }
 
