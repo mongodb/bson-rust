@@ -349,7 +349,7 @@ pub mod chrono_datetime_as_bson_datetime_optional {
 /// #[serde_as]
 /// #[derive(Serialize, Deserialize)]
 /// struct Event {
-///     #[serde(as = "Rfc3339StringAsBsonDatetime")]
+///     #[serde_as(as = "Rfc3339StringAsBsonDatetime")]
 ///     pub date: String,
 /// }
 /// ```
