@@ -3,7 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use super::{bson::RawBson, Error, RawArray, RawDocument, Result};
 use crate::{
     oid::{self, ObjectId},
-    raw::RawJavaScriptCodeWithScope,
+    raw::{write_cstring, write_string, RawJavaScriptCodeWithScope},
     spec::{BinarySubtype, ElementType},
     Binary,
     Bson,
@@ -301,7 +301,31 @@ impl<'a> RawBsonRef<'a> {
                 }
                 dest.extend(bytes);
             }
-            _ => todo!(),
+            Self::String(s) => write_string(dest, s),
+            Self::Array(raw_array) => dest.extend(raw_array.as_bytes()),
+            Self::Document(raw_document) => dest.extend(raw_document.as_bytes()),
+            Self::Boolean(b) => dest.push(b as u8),
+            Self::RegularExpression(re) => {
+                write_cstring(dest, re.pattern)?;
+                write_cstring(dest, re.options)?;
+            }
+            Self::JavaScriptCode(js) => write_string(dest, js),
+            Self::JavaScriptCodeWithScope(code_w_scope) => {
+                let len = code_w_scope.len();
+                dest.extend(len.to_le_bytes());
+                write_string(dest, code_w_scope.code);
+                dest.extend(code_w_scope.scope.as_bytes());
+            }
+            Self::Timestamp(ts) => dest.extend(ts.to_le_bytes()),
+            Self::ObjectId(oid) => dest.extend(oid.bytes()),
+            Self::DateTime(dt) => dest.extend(dt.timestamp_millis().to_le_bytes()),
+            Self::Symbol(s) => write_string(dest, s),
+            Self::Decimal128(d) => dest.extend(d.bytes()),
+            Self::DbPointer(dbp) => {
+                write_string(dest, dbp.namespace);
+                dest.extend(dbp.id.bytes());
+            }
+            Self::Null | Self::Undefined | Self::MinKey | Self::MaxKey => {}
         })
     }
 }
