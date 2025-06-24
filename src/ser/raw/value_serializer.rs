@@ -213,7 +213,7 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
             SerializationStep::RawBinarySubType { ref bytes } => {
                 let binary = RawBinaryRef {
                     subtype: v.into(),
-                    bytes: &bytes,
+                    bytes,
                 };
                 RawBsonRef::Binary(binary).append_to(&mut self.root_serializer.bytes)?;
                 self.state = SerializationStep::Done;
@@ -296,12 +296,9 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
                 let mut chars: Vec<_> = v.chars().collect();
                 chars.sort_unstable();
 
-                let sorted = chars.into_iter().collect::<String>();
-                RawBsonRef::RegularExpression(crate::RawRegexRef {
-                    pattern: &pattern,
-                    options: &sorted,
-                })
-                .append_to(&mut self.root_serializer.bytes)?;
+                let options = &chars.into_iter().collect::<String>();
+                RawBsonRef::RegularExpression(crate::RawRegexRef { pattern, options })
+                    .append_to(&mut self.root_serializer.bytes)?;
             }
             SerializationStep::Code => {
                 RawBsonRef::JavaScriptCode(v).append_to(&mut self.root_serializer.bytes)?;
