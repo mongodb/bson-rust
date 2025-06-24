@@ -1,6 +1,5 @@
 use crate::{
     raw::{write_cstring, write_string},
-    spec::BinarySubtype,
     RawBsonRef,
 };
 
@@ -20,9 +19,6 @@ impl<'a> RawWriter<'a> {
         write_cstring(self.data, key)?;
 
         match value {
-            RawBsonRef::Int32(i) => {
-                self.data.extend(i.to_le_bytes());
-            }
             RawBsonRef::String(s) => {
                 write_string(self.data, s);
             }
@@ -31,15 +27,6 @@ impl<'a> RawWriter<'a> {
             }
             RawBsonRef::Array(a) => {
                 self.data.extend(a.as_bytes());
-            }
-            RawBsonRef::Binary(b) => {
-                let len = b.len();
-                self.data.extend(len.to_le_bytes());
-                self.data.push(b.subtype.into());
-                if let BinarySubtype::BinaryOld = b.subtype {
-                    self.data.extend((len - 4).to_le_bytes())
-                }
-                self.data.extend(b.bytes);
             }
             RawBsonRef::Boolean(b) => {
                 self.data.push(b as u8);
@@ -53,12 +40,6 @@ impl<'a> RawWriter<'a> {
             }
             RawBsonRef::Decimal128(d) => {
                 self.data.extend(d.bytes());
-            }
-            RawBsonRef::Double(d) => {
-                self.data.extend(d.to_le_bytes());
-            }
-            RawBsonRef::Int64(i) => {
-                self.data.extend(i.to_le_bytes());
             }
             RawBsonRef::RegularExpression(re) => {
                 write_cstring(self.data, re.pattern)?;
@@ -83,6 +64,7 @@ impl<'a> RawWriter<'a> {
                 write_string(self.data, s);
             }
             RawBsonRef::Null | RawBsonRef::Undefined | RawBsonRef::MinKey | RawBsonRef::MaxKey => {}
+            value => value.append_to(self.data)?,
         }
 
         // append trailing null byte

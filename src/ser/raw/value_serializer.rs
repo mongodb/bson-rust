@@ -9,8 +9,10 @@ use crate::{
     base64,
     oid::ObjectId,
     raw::{write_cstring, write_string, RAW_DOCUMENT_NEWTYPE},
-    ser::{write_binary, write_i32, write_i64, Error, Result},
+    ser::{Error, Result},
     spec::{BinarySubtype, ElementType},
+    RawBinaryRef,
+    RawBsonRef,
     RawDocument,
     RawJavaScriptCodeWithScopeRef,
 };
@@ -189,11 +191,11 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
                 Ok(())
             }
             SerializationStep::TimestampIncrement { time } => {
-                let t = u32::try_from(time).map_err(Error::custom)?;
-                let i = u32::try_from(v).map_err(Error::custom)?;
+                let t = RawBsonRef::Int32(u32::try_from(time).map_err(Error::custom)? as i32);
+                let i = RawBsonRef::Int32(u32::try_from(v).map_err(Error::custom)? as i32);
 
-                write_i32(&mut self.root_serializer.bytes, i as i32)?;
-                write_i32(&mut self.root_serializer.bytes, t as i32)?;
+                i.append_to(&mut self.root_serializer.bytes)?;
+                t.append_to(&mut self.root_serializer.bytes)?;
                 Ok(())
             }
             _ => Err(self.invalid_step("i64")),
@@ -204,7 +206,11 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
     fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
         match self.state {
             SerializationStep::RawBinarySubType { ref bytes } => {
-                write_binary(&mut self.root_serializer.bytes, bytes.as_slice(), v.into())?;
+                let binary = RawBinaryRef {
+                    subtype: v.into(),
+                    bytes: &bytes,
+                };
+                RawBsonRef::Binary(binary).append_to(&mut self.root_serializer.bytes)?;
                 self.state = SerializationStep::Done;
                 Ok(())
             }
@@ -245,8 +251,8 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
         match &self.state {
             SerializationStep::DateTimeNumberLong => {
-                let millis: i64 = v.parse().map_err(Error::custom)?;
-                write_i64(&mut self.root_serializer.bytes, millis)?;
+                let millis = RawBsonRef::Int64(v.parse().map_err(Error::custom)?);
+                millis.append_to(&mut self.root_serializer.bytes)?;
             }
             SerializationStep::Oid => {
                 let oid = ObjectId::parse_str(v).map_err(Error::custom)?;
@@ -260,10 +266,9 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
             SerializationStep::BinarySubType { base64 } => {
                 let subtype_byte = hex::decode(v).map_err(Error::custom)?;
                 let subtype: BinarySubtype = subtype_byte[0].into();
-
-                let bytes = base64::decode(base64.as_str()).map_err(Error::custom)?;
-
-                write_binary(&mut self.root_serializer.bytes, bytes.as_slice(), subtype)?;
+                let bytes = &base64::decode(base64.as_str()).map_err(Error::custom)?;
+                let binary = RawBinaryRef { subtype, bytes };
+                RawBsonRef::Binary(binary).append_to(&mut self.root_serializer.bytes)?;
             }
             SerializationStep::Symbol | SerializationStep::DbPointerRef => {
                 write_string(&mut self.root_serializer.bytes, v);
@@ -313,7 +318,7 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
                     code,
                     scope: RawDocument::decode_from_bytes(v).map_err(Error::custom)?,
                 };
-                write_i32(&mut self.root_serializer.bytes, raw.len())?;
+                RawBsonRef::Int32(raw.len()).append_to(&mut self.root_serializer.bytes)?;
                 write_string(&mut self.root_serializer.bytes, code);
                 self.root_serializer.bytes.write_all(v)?;
                 self.state = SerializationStep::Done;
@@ -590,7 +595,7 @@ impl<'a> CodeWithScopeSerializer<'a> {
     #[inline]
     fn start(code: &str, rs: &'a mut Serializer) -> Result<Self> {
         let start = rs.bytes.len();
-        write_i32(&mut rs.bytes, 0)?; // placeholder length
+        RawBsonRef::Int32(0).append_to(&mut rs.bytes)?; // placeholder length
         write_string(&mut rs.bytes, code);
 
         let doc = DocumentSerializer::start(rs)?;

@@ -285,6 +285,25 @@ impl<'a> RawBsonRef<'a> {
             }),
         }
     }
+
+    #[inline]
+    pub(crate) fn append_to(self, dest: &mut Vec<u8>) -> Result<()> {
+        Ok(match self {
+            Self::Int32(val) => dest.extend(val.to_le_bytes()),
+            Self::Int64(val) => dest.extend(val.to_le_bytes()),
+            Self::Double(val) => dest.extend(val.to_le_bytes()),
+            Self::Binary(b @ RawBinaryRef { subtype, bytes }) => {
+                let len = b.len();
+                dest.extend(len.to_le_bytes());
+                dest.push(subtype.into());
+                if let BinarySubtype::BinaryOld = subtype {
+                    dest.extend((len - 4).to_le_bytes())
+                }
+                dest.extend(bytes);
+            }
+            _ => todo!(),
+        })
+    }
 }
 
 #[cfg(feature = "serde")]

@@ -46,8 +46,6 @@ pub(crate) use self::serde::{convert_unsigned_to_signed_raw, BsonVisitor};
 #[cfg(test)]
 pub(crate) use self::raw::Deserializer as RawDeserializer;
 
-pub(crate) const MAX_BSON_SIZE: i32 = i32::MAX;
-
 /// Hint provided to the deserializer via `deserialize_newtype_struct` as to the type of thing
 /// being deserialized.
 #[derive(Debug, Clone, Copy)]

@@ -30,67 +30,14 @@ pub use self::{
     serde::Serializer,
 };
 
-use std::io::Write;
-
 #[rustfmt::skip]
 use ::serde::{ser::Error as SerdeError, Serialize};
 
 use crate::{
     bson::{Bson, Document},
-    de::MAX_BSON_SIZE,
     ser::serde::SerializerOptions,
-    spec::BinarySubtype,
     RawDocumentBuf,
 };
-
-#[inline]
-pub(crate) fn write_i32<W: Write + ?Sized>(writer: &mut W, val: i32) -> Result<()> {
-    writer
-        .write_all(&val.to_le_bytes())
-        .map(|_| ())
-        .map_err(From::from)
-}
-
-#[inline]
-fn write_i64<W: Write + ?Sized>(writer: &mut W, val: i64) -> Result<()> {
-    writer
-        .write_all(&val.to_le_bytes())
-        .map(|_| ())
-        .map_err(From::from)
-}
-
-#[inline]
-fn write_f64<W: Write + ?Sized>(writer: &mut W, val: f64) -> Result<()> {
-    writer
-        .write_all(&val.to_le_bytes())
-        .map(|_| ())
-        .map_err(From::from)
-}
-
-#[inline]
-fn write_binary<W: Write>(mut writer: W, bytes: &[u8], subtype: BinarySubtype) -> Result<()> {
-    let len = if let BinarySubtype::BinaryOld = subtype {
-        bytes.len() + 4
-    } else {
-        bytes.len()
-    };
-
-    if len > MAX_BSON_SIZE as usize {
-        return Err(Error::custom(format!(
-            "binary length {} exceeded maximum size",
-            bytes.len()
-        )));
-    }
-
-    write_i32(&mut writer, len as i32)?;
-    writer.write_all(&[subtype.into()])?;
-
-    if let BinarySubtype::BinaryOld = subtype {
-        write_i32(&mut writer, len as i32 - 4)?;
-    };
-
-    writer.write_all(bytes).map_err(From::from)
-}
 
 /// Encode a `T` Serializable into a [`Bson`] value.
 ///
