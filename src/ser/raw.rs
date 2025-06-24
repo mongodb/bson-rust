@@ -1,8 +1,6 @@
 mod document_serializer;
 mod value_serializer;
 
-use std::io::Write;
-
 use serde::{
     ser::{Error as SerdeError, SerializeMap, SerializeStruct},
     Serialize,
@@ -11,13 +9,15 @@ use serde::{
 use self::value_serializer::{ValueSerializer, ValueType};
 
 use crate::{
-    raw::{write_cstring, write_string, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{write_cstring, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     ser::{Error, Result},
     serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
+    RawArray,
     RawBinaryRef,
     RawBsonRef,
+    RawDocument,
 };
 use document_serializer::DocumentSerializer;
 
@@ -131,9 +131,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Boolean)?;
-        self.bytes.push(v as u8);
-        Ok(())
+        self.serialize_raw(RawBsonRef::Boolean(v))
     }
 
     #[inline]
@@ -200,21 +198,19 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::String)?;
-        write_string(&mut self.bytes, v);
-        Ok(())
+        self.serialize_raw(RawBsonRef::String(v))
     }
 
     #[inline]
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         match self.hint.take() {
             SerializerHint::RawDocument => {
-                self.update_element_type(ElementType::EmbeddedDocument)?;
-                self.bytes.write_all(v)?;
+                self.serialize_raw(RawBsonRef::Document(RawDocument::new_unchecked(v)))?;
             }
             SerializerHint::RawArray => {
-                self.update_element_type(ElementType::Array)?;
-                self.bytes.write_all(v)?;
+                self.serialize_raw(RawBsonRef::Array(RawArray::from_doc(
+                    RawDocument::new_unchecked(v),
+                )))?;
             }
             hint => {
                 let subtype = if matches!(hint, SerializerHint::Uuid) {
@@ -230,8 +226,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_none(self) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Null)?;
-        Ok(())
+        self.serialize_raw(RawBsonRef::Null)
     }
 
     #[inline]
