@@ -143,7 +143,8 @@ use std::{
 use crate::{
     error::{Error, Result},
     spec::BinarySubtype,
-    Binary, Bson,
+    Binary,
+    Bson,
 };
 
 /// Special type name used in the [`Uuid`] serialization implementation to indicate a BSON
