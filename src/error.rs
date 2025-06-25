@@ -27,6 +27,10 @@ pub struct Error {
 
     /// The array index associated with the error, if any.
     pub index: Option<usize>,
+
+    /// The path to a deserialization error, if any.
+    #[cfg(feature = "serde_path_to_error")]
+    pub path: Option<serde_path_to_error::Path>,
 }
 
 impl std::fmt::Display for Error {
@@ -43,6 +47,11 @@ impl std::fmt::Display for Error {
         if let Some(ref message) = self.message {
             write!(f, ". Message: {}", message)?;
         }
+        #[cfg(feature = "serde_path_to_error")]
+        if let Some(ref path) = self.path {
+            write!(f, ". Path: {}", path)?;
+        }
+
         write!(f, ".")
     }
 }
@@ -68,6 +77,18 @@ pub enum ErrorKind {
         /// The kind of error that occurred.
         kind: Decimal128ErrorKind,
     },
+
+    /// A general error occurred during deserialization. This variant is constructed in the
+    /// [`serde::de::Error`] implementation for the [`Error`] type.
+    #[cfg(feature = "serde")]
+    #[error("A deserialization-related error occurred")]
+    #[non_exhaustive]
+    Deserialization {},
+
+    /// The end of the BSON input was reached too soon.
+    #[error("End of stream")]
+    #[non_exhaustive]
+    EndOfStream {},
 
     /// Malformed BSON bytes were encountered.
     #[error("Malformed BSON bytes")]
@@ -103,16 +124,10 @@ pub enum ErrorKind {
         kind: ValueAccessErrorKind,
     },
 
-    /// A [`std::io::Error`] occurred.
+    /// An IO error occurred.
     #[error("An IO error occurred")]
     #[non_exhaustive]
     Io {},
-
-    /// A wrapped deserialization error.
-    /// TODO RUST-1406: collapse this
-    #[cfg(feature = "serde")]
-    #[error("Deserialization error: {0}")]
-    DeError(crate::de::Error),
 }
 
 impl From<ErrorKind> for Error {
@@ -122,6 +137,8 @@ impl From<ErrorKind> for Error {
             key: None,
             index: None,
             message: None,
+            #[cfg(feature = "serde_path_to_error")]
+            path: None,
         }
     }
 }
@@ -133,9 +150,12 @@ impl From<std::io::Error> for Error {
 }
 
 #[cfg(feature = "serde")]
-impl From<crate::de::Error> for Error {
-    fn from(value: crate::de::Error) -> Self {
-        ErrorKind::DeError(value).into()
+impl serde::de::Error for Error {
+    fn custom<T>(message: T) -> Self
+    where
+        T: std::fmt::Display,
+    {
+        Self::from(ErrorKind::Deserialization {}).with_message(message)
     }
 }
 
@@ -155,12 +175,28 @@ impl Error {
         self
     }
 
+    #[cfg(feature = "serde_path_to_error")]
+    pub(crate) fn with_path(error: serde_path_to_error::Error<Self>) -> Self {
+        let path = error.path().clone();
+        let mut error = error.into_inner();
+        error.path = Some(path);
+        error
+    }
+
     pub(crate) fn binary(message: impl ToString) -> Self {
         Self::from(ErrorKind::Binary {}).with_message(message)
     }
 
     pub(crate) fn datetime(message: impl ToString) -> Self {
         Self::from(ErrorKind::DateTime {}).with_message(message)
+    }
+
+    pub(crate) fn deserialization(message: impl ToString) -> Self {
+        Self::from(ErrorKind::Deserialization {}).with_message(message)
+    }
+
+    pub(crate) fn end_of_stream() -> Self {
+        ErrorKind::EndOfStream {}.into()
     }
 
     pub(crate) fn malformed_bytes(message: impl ToString) -> Self {

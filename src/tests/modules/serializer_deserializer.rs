@@ -550,7 +550,7 @@ fn test_serialize_deserialize_document() {
     }
 
     let bad_point = doc! { "x": "one", "y": "two" };
-    let bad_point: Result<Point, crate::de::Error> = deserialize_from_document(bad_point);
+    let bad_point = deserialize_from_document::<Point>(bad_point);
     assert!(bad_point.is_err());
 }
 

@@ -21,19 +21,16 @@
 
 //! Deserializer
 
-mod error;
 mod raw;
 mod serde;
 
-pub use self::{
-    error::{Error, Result},
-    serde::Deserializer,
-};
+pub use self::serde::Deserializer;
 
 use std::io::Read;
 
 use crate::{
     bson::{Bson, Document},
+    error::{Error, Result},
     raw::reader_to_vec,
     spec::BinarySubtype,
 };
