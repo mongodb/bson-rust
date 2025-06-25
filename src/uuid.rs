@@ -135,13 +135,15 @@
 #[cfg(test)]
 mod test;
 
-use std::fmt::{self, Display};
+use std::{
+    fmt::{self, Display},
+    str::FromStr,
+};
 
 use crate::{
     error::{Error, Result},
     spec::BinarySubtype,
-    Binary,
-    Bson,
+    Binary, Bson,
 };
 
 /// Special type name used in the [`Uuid`] serialization implementation to indicate a BSON
@@ -207,6 +209,14 @@ impl Uuid {
 impl Default for Uuid {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl FromStr for Uuid {
+    type Err = Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Self::parse_str(s)
     }
 }
 
