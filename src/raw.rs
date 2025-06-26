@@ -116,6 +116,7 @@ mod array;
 mod array_buf;
 mod bson;
 mod bson_ref;
+mod cstr;
 mod document;
 mod document_buf;
 mod iter;
@@ -142,6 +143,7 @@ pub use self::{
         RawJavaScriptCodeWithScopeRef,
         RawRegexRef,
     },
+    cstr::{assert_valid_cstr, cstr, validate_cstr, CStr, CString, IsValidCStr},
     document::RawDocument,
     document_buf::{BindRawBsonRef, BindValue, RawDocumentBuf},
     iter::{RawElement, RawIter},

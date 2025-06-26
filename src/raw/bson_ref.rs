@@ -3,7 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use super::{bson::RawBson, Error, RawArray, RawDocument, Result};
 use crate::{
     oid::{self, ObjectId},
-    raw::{write_cstring, write_string, RawJavaScriptCodeWithScope},
+    raw::{write_string, CStr, RawJavaScriptCodeWithScope},
     spec::{BinarySubtype, ElementType},
     Binary,
     Bson,
@@ -255,9 +255,10 @@ impl<'a> RawBsonRef<'a> {
             RawBsonRef::Document(d) => RawBson::Document(d.to_owned()),
             RawBsonRef::Boolean(b) => RawBson::Boolean(b),
             RawBsonRef::Null => RawBson::Null,
-            RawBsonRef::RegularExpression(re) => {
-                RawBson::RegularExpression(Regex::new(re.pattern, re.options))
-            }
+            RawBsonRef::RegularExpression(re) => RawBson::RegularExpression(Regex {
+                pattern: re.pattern.into(),
+                options: re.options.into(),
+            }),
             RawBsonRef::JavaScriptCode(c) => RawBson::JavaScriptCode(c.to_owned()),
             RawBsonRef::JavaScriptCodeWithScope(c_w_s) => {
                 RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
@@ -306,8 +307,8 @@ impl<'a> RawBsonRef<'a> {
             Self::Document(raw_document) => dest.extend(raw_document.as_bytes()),
             Self::Boolean(b) => dest.push(b as u8),
             Self::RegularExpression(re) => {
-                write_cstring(dest, re.pattern)?;
-                write_cstring(dest, re.options)?;
+                re.pattern.append_to(dest);
+                re.options.append_to(dest);
             }
             Self::JavaScriptCode(js) => write_string(dest, js),
             Self::JavaScriptCodeWithScope(code_w_scope) => {
@@ -592,7 +593,7 @@ impl<'a> From<&'a Binary> for RawBsonRef<'a> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawRegexRef<'a> {
     /// The regex pattern to match.
-    pub pattern: &'a str,
+    pub pattern: &'a CStr,
 
     /// The options for the regex.
     ///
@@ -601,7 +602,7 @@ pub struct RawRegexRef<'a> {
     /// multiline matching, 'x' for verbose mode, 'l' to make \w, \W, etc. locale dependent,
     /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
     /// unicode.
-    pub options: &'a str,
+    pub options: &'a CStr,
 }
 
 #[cfg(feature = "serde")]

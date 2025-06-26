@@ -204,8 +204,8 @@ impl RawBson {
     pub fn as_regex(&self) -> Option<RawRegexRef<'_>> {
         match self {
             RawBson::RegularExpression(v) => Some(RawRegexRef {
-                pattern: v.pattern.as_str(),
-                options: v.options.as_str(),
+                pattern: v.pattern.as_ref(),
+                options: v.options.as_ref(),
             }),
             _ => None,
         }
@@ -289,8 +289,8 @@ impl RawBson {
             RawBson::Boolean(b) => RawBsonRef::Boolean(*b),
             RawBson::Null => RawBsonRef::Null,
             RawBson::RegularExpression(re) => RawBsonRef::RegularExpression(RawRegexRef {
-                options: re.options.as_str(),
-                pattern: re.pattern.as_str(),
+                options: re.options.as_ref(),
+                pattern: re.pattern.as_ref(),
             }),
             RawBson::JavaScriptCode(c) => RawBsonRef::JavaScriptCode(c.as_str()),
             RawBson::JavaScriptCodeWithScope(code_w_scope) => {

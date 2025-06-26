@@ -31,7 +31,7 @@ use std::{
 use serde_json::{json, Value};
 
 pub use crate::document::Document;
-use crate::{base64, oid, spec::ElementType, Binary, Decimal128};
+use crate::{base64, oid, raw::CString, spec::ElementType, Binary, Decimal128};
 
 /// Possible BSON value types.
 #[derive(Clone, Default, PartialEq)]
@@ -480,14 +480,14 @@ impl Bson {
             Bson::Boolean(v) => json!(v),
             Bson::Null => Value::Null,
             Bson::RegularExpression(Regex { pattern, options }) => {
-                let mut chars: Vec<_> = options.chars().collect();
+                let mut chars: Vec<_> = options.as_str().chars().collect();
                 chars.sort_unstable();
 
                 let options: String = chars.into_iter().collect();
 
                 json!({
                     "$regularExpression": {
-                        "pattern": pattern,
+                        "pattern": pattern.into_string(),
                         "options": options,
                     }
                 })
@@ -1147,7 +1147,7 @@ impl Timestamp {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Regex {
     /// The regex pattern to match.
-    pub pattern: String,
+    pub pattern: CString,
 
     /// The options for the regex.
     ///
@@ -1156,18 +1156,22 @@ pub struct Regex {
     /// multiline matching, 'x' for verbose mode, 'l' to make \w, \W, etc. locale dependent,
     /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
     /// unicode.
-    pub options: String,
+    pub options: CString,
 }
 
 impl Regex {
-    pub(crate) fn new(pattern: impl AsRef<str>, options: impl AsRef<str>) -> Self {
+    #[cfg(test)]
+    pub(crate) fn new(
+        pattern: impl AsRef<str>,
+        options: impl AsRef<str>,
+    ) -> crate::error::Result<Self> {
         let mut chars: Vec<_> = options.as_ref().chars().collect();
         chars.sort_unstable();
         let options: String = chars.into_iter().collect();
-        Self {
-            pattern: pattern.as_ref().to_string(),
-            options,
-        }
+        Ok(Self {
+            pattern: pattern.as_ref().to_string().try_into()?,
+            options: options.try_into()?,
+        })
     }
 }
 
