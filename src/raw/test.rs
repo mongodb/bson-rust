@@ -104,7 +104,7 @@ fn rawdoc_to_doc() {
         "boolean": true,
         "datetime": DateTime::now(),
         "null": RawBson::Null,
-        "regex": Regex { pattern: String::from(r"end\s*$"), options: String::from("i")},
+        "regex": Regex { pattern: cstr!(r"end\s*$").into(), options: cstr!("i").into()},
         "javascript": RawBson::JavaScriptCode(String::from("console.log(console);")),
         "symbol": RawBson::Symbol(String::from("artist-formerly-known-as")),
         "javascript_with_scope": RawJavaScriptCodeWithScope {
@@ -267,7 +267,7 @@ fn null() {
 #[test]
 fn regex() {
     let rawdoc = rawdoc! {
-        "regex": Regex { pattern: String::from(r"end\s*$"), options: String::from("i")},
+        "regex": Regex { pattern: cstr!(r"end\s*$").into(), options: cstr!("i").into()},
     };
     let regex = rawdoc
         .get("regex")
@@ -275,8 +275,8 @@ fn regex() {
         .expect("no key regex")
         .as_regex()
         .expect("was not regex");
-    assert_eq!(regex.pattern, r"end\s*$");
-    assert_eq!(regex.options, "i");
+    assert_eq!(regex.pattern, cstr!(r"end\s*$"));
+    assert_eq!(regex.options, cstr!("i"));
 }
 #[test]
 fn javascript() {
@@ -388,7 +388,7 @@ fn document_iteration() {
         "boolean": true,
         "datetime": DateTime::now(),
         "null": RawBson::Null,
-        "regex": Regex { pattern: String::from(r"end\s*$"), options: String::from("i") },
+        "regex": Regex { pattern: cstr!(r"end\s*$").into(), options: cstr!("i").into() },
         "javascript": RawBson::JavaScriptCode(String::from("console.log(console);")),
         "symbol": RawBson::Symbol(String::from("artist-formerly-known-as")),
         "javascript_with_scope": RawJavaScriptCodeWithScope {

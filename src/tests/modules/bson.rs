@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
     base64,
+    cstr,
     doc,
     oid::ObjectId,
     spec::BinarySubtype,
@@ -76,8 +77,8 @@ fn test_display_timestamp_type() {
 #[test]
 fn test_display_regex_type() {
     let x = Regex {
-        pattern: String::from("pattern"),
-        options: String::from("options"),
+        pattern: cstr!("pattern").into(),
+        options: cstr!("options").into(),
     };
     let output = "/pattern/options";
     assert_eq!(format!("{}", x), output);
@@ -130,12 +131,12 @@ fn from_impls() {
     assert_eq!(Bson::from(false), Bson::Boolean(false));
     assert_eq!(
         Bson::from(Regex {
-            pattern: String::from("\\s+$"),
-            options: String::from("i")
+            pattern: cstr!("\\s+$").into(),
+            options: cstr!("i").into(),
         }),
         Bson::RegularExpression(Regex {
-            pattern: String::from("\\s+$"),
-            options: String::from("i")
+            pattern: cstr!("\\s+$").into(),
+            options: cstr!("i").into(),
         })
     );
     assert_eq!(

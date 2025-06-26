@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use crate::{
     oid::ObjectId,
-    raw::{Error, Result, MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
+    raw::{CStr, Error, Result, MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
     spec::{BinarySubtype, ElementType},
     Bson,
     DateTime,
@@ -50,7 +50,7 @@ impl<'a> Iterator for Iter<'a> {
         match self.inner.next() {
             Some(Ok(elem)) => match elem.value() {
                 Err(e) => Some(Err(e)),
-                Ok(value) => Some(Ok((elem.key, value))),
+                Ok(value) => Some(Ok((elem.key.as_str(), value))),
             },
             Some(Err(e)) => Some(Err(e)),
             None => None,
@@ -111,7 +111,7 @@ impl<'a> RawIter<'a> {
 
 #[derive(Clone)]
 pub struct RawElement<'a> {
-    key: &'a str,
+    key: &'a CStr,
     kind: ElementType,
     doc: &'a RawDocument,
     start_at: usize,
@@ -160,7 +160,7 @@ impl<'a> RawElement<'a> {
     }
 
     pub fn key(&self) -> &'a str {
-        self.key
+        self.key.as_str()
     }
 
     pub fn element_type(&self) -> ElementType {
@@ -305,11 +305,12 @@ impl<'a> RawElement<'a> {
                     String::from_utf8_lossy(self.doc.cstring_bytes_at(self.start_at)?).into_owned();
                 let pattern_len = pattern.len();
                 Utf8LossyBson::RegularExpression(crate::Regex {
-                    pattern,
+                    pattern: pattern.try_into()?,
                     options: String::from_utf8_lossy(
                         self.doc.cstring_bytes_at(self.start_at + pattern_len + 1)?,
                     )
-                    .into_owned(),
+                    .into_owned()
+                    .try_into()?,
                 })
             }
             _ => return Ok(None),
@@ -317,7 +318,7 @@ impl<'a> RawElement<'a> {
     }
 
     fn malformed_error(&self, e: impl ToString) -> Error {
-        Error::malformed_bytes(e).with_key(self.key)
+        Error::malformed_bytes(e).with_key(self.key.as_str())
     }
 
     pub(crate) fn slice(&self) -> &'a [u8] {
@@ -344,7 +345,7 @@ impl<'a> RawElement<'a> {
         Ok(ObjectId::from_bytes(
             self.doc.as_bytes()[start_at..(start_at + 12)]
                 .try_into()
-                .map_err(|e| Error::malformed_bytes(e).with_key(self.key))?,
+                .map_err(|e| Error::malformed_bytes(e).with_key(self.key.as_str()))?,
         ))
     }
 }
@@ -443,7 +444,7 @@ impl<'a> Iterator for RawIter<'a> {
             }),
             Err(error) => {
                 self.valid = false;
-                Err(error.with_key(key))
+                Err(error.with_key(key.as_str()))
             }
         })
     }

@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
     error::{Error, Result},
+    raw::CStr,
     Bson,
     DateTime,
     JavaScriptCodeWithScope,
@@ -505,9 +506,10 @@ impl RawDocument {
         }
     }
 
-    pub(crate) fn read_cstring_at(&self, start_at: usize) -> RawResult<&str> {
+    pub(crate) fn read_cstring_at(&self, start_at: usize) -> RawResult<&CStr> {
         let bytes = self.cstring_bytes_at(start_at)?;
-        try_to_str(bytes)
+        let s = try_to_str(bytes)?;
+        s.try_into()
     }
 
     /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.
