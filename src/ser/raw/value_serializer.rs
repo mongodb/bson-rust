@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, io::Write};
+use std::convert::TryFrom;
 
 use serde::{
     ser::{Error as SerdeError, Impossible, SerializeMap, SerializeStruct},
@@ -8,9 +8,11 @@ use serde::{
 use crate::{
     base64,
     oid::ObjectId,
-    raw::{write_cstring, write_string, RAW_DOCUMENT_NEWTYPE},
-    ser::{write_binary, write_i32, write_i64, Error, Result},
+    raw::{write_string, RAW_DOCUMENT_NEWTYPE},
+    ser::{Error, Result},
     spec::{BinarySubtype, ElementType},
+    RawBinaryRef,
+    RawBsonRef,
     RawDocument,
     RawJavaScriptCodeWithScopeRef,
 };
@@ -48,7 +50,9 @@ enum SerializationStep {
 
     RegEx,
     RegExPattern,
-    RegExOptions,
+    RegExOptions {
+        pattern: String,
+    },
 
     Timestamp,
     TimestampTime,
@@ -58,7 +62,9 @@ enum SerializationStep {
 
     DbPointer,
     DbPointerRef,
-    DbPointerId,
+    DbPointerId {
+        ns: String,
+    },
 
     Code,
 
@@ -189,11 +195,12 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
                 Ok(())
             }
             SerializationStep::TimestampIncrement { time } => {
-                let t = u32::try_from(time).map_err(Error::custom)?;
-                let i = u32::try_from(v).map_err(Error::custom)?;
+                let time = u32::try_from(time).map_err(Error::custom)?;
+                let increment = u32::try_from(v).map_err(Error::custom)?;
 
-                write_i32(&mut self.root_serializer.bytes, i as i32)?;
-                write_i32(&mut self.root_serializer.bytes, t as i32)?;
+                RawBsonRef::Timestamp(crate::Timestamp { time, increment })
+                    .append_to(&mut self.root_serializer.bytes)?;
+
                 Ok(())
             }
             _ => Err(self.invalid_step("i64")),
@@ -204,7 +211,11 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
     fn serialize_u8(self, v: u8) -> Result<Self::Ok> {
         match self.state {
             SerializationStep::RawBinarySubType { ref bytes } => {
-                write_binary(&mut self.root_serializer.bytes, bytes.as_slice(), v.into())?;
+                let binary = RawBinaryRef {
+                    subtype: v.into(),
+                    bytes,
+                };
+                RawBsonRef::Binary(binary).append_to(&mut self.root_serializer.bytes)?;
                 self.state = SerializationStep::Done;
                 Ok(())
             }
@@ -245,12 +256,13 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
         match &self.state {
             SerializationStep::DateTimeNumberLong => {
-                let millis: i64 = v.parse().map_err(Error::custom)?;
-                write_i64(&mut self.root_serializer.bytes, millis)?;
+                let millis = v.parse().map_err(Error::custom)?;
+                RawBsonRef::DateTime(crate::DateTime::from_millis(millis))
+                    .append_to(&mut self.root_serializer.bytes)?;
             }
             SerializationStep::Oid => {
                 let oid = ObjectId::parse_str(v).map_err(Error::custom)?;
-                self.root_serializer.bytes.write_all(&oid.bytes())?;
+                RawBsonRef::ObjectId(oid).append_to(&mut self.root_serializer.bytes)?;
             }
             SerializationStep::BinaryBytes => {
                 self.state = SerializationStep::BinarySubType {
@@ -260,26 +272,36 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
             SerializationStep::BinarySubType { base64 } => {
                 let subtype_byte = hex::decode(v).map_err(Error::custom)?;
                 let subtype: BinarySubtype = subtype_byte[0].into();
-
-                let bytes = base64::decode(base64.as_str()).map_err(Error::custom)?;
-
-                write_binary(&mut self.root_serializer.bytes, bytes.as_slice(), subtype)?;
+                let bytes = &base64::decode(base64.as_str()).map_err(Error::custom)?;
+                let binary = RawBinaryRef { subtype, bytes };
+                RawBsonRef::Binary(binary).append_to(&mut self.root_serializer.bytes)?;
             }
-            SerializationStep::Symbol | SerializationStep::DbPointerRef => {
-                write_string(&mut self.root_serializer.bytes, v);
+            SerializationStep::Symbol => {
+                RawBsonRef::Symbol(v).append_to(&mut self.root_serializer.bytes)?;
+            }
+            SerializationStep::DbPointerRef => {
+                self.state = SerializationStep::DbPointerId { ns: v.to_owned() };
+            }
+            SerializationStep::DbPointerId { ns } => {
+                let id = ObjectId::parse_str(v).map_err(Error::custom)?;
+                RawBsonRef::DbPointer(crate::RawDbPointerRef { namespace: ns, id })
+                    .append_to(&mut self.root_serializer.bytes)?;
             }
             SerializationStep::RegExPattern => {
-                write_cstring(&mut self.root_serializer.bytes, v)?;
+                self.state = SerializationStep::RegExOptions {
+                    pattern: v.to_string(),
+                };
             }
-            SerializationStep::RegExOptions => {
+            SerializationStep::RegExOptions { pattern } => {
                 let mut chars: Vec<_> = v.chars().collect();
                 chars.sort_unstable();
 
-                let sorted = chars.into_iter().collect::<String>();
-                write_cstring(&mut self.root_serializer.bytes, sorted.as_str())?;
+                let options = &chars.into_iter().collect::<String>();
+                RawBsonRef::RegularExpression(crate::RawRegexRef { pattern, options })
+                    .append_to(&mut self.root_serializer.bytes)?;
             }
             SerializationStep::Code => {
-                write_string(&mut self.root_serializer.bytes, v);
+                RawBsonRef::JavaScriptCode(v).append_to(&mut self.root_serializer.bytes)?;
             }
             SerializationStep::CodeWithScopeCode => {
                 self.state = SerializationStep::CodeWithScopeScope {
@@ -301,7 +323,8 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         match self.state {
             SerializationStep::Decimal128Value => {
-                self.root_serializer.bytes.write_all(v)?;
+                let dec = crate::Decimal128::from_bytes(v.try_into().map_err(Error::custom)?);
+                RawBsonRef::Decimal128(dec).append_to(&mut self.root_serializer.bytes)?;
                 Ok(())
             }
             SerializationStep::BinaryBytes => {
@@ -313,9 +336,8 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
                     code,
                     scope: RawDocument::decode_from_bytes(v).map_err(Error::custom)?,
                 };
-                write_i32(&mut self.root_serializer.bytes, raw.len())?;
-                write_string(&mut self.root_serializer.bytes, code);
-                self.root_serializer.bytes.write_all(v)?;
+                RawBsonRef::JavaScriptCodeWithScope(raw)
+                    .append_to(&mut self.root_serializer.bytes)?;
                 self.state = SerializationStep::Done;
                 Ok(())
             }
@@ -476,7 +498,7 @@ impl SerializeStruct for &mut ValueSerializer<'_> {
                 self.state = SerializationStep::BinaryBytes;
                 value.serialize(&mut **self)?;
             }
-            (SerializationStep::BinaryBytes, key) if key == "bytes" || key == "base64" => {
+            (SerializationStep::BinaryBytes, "bytes" | "base64") => {
                 // state is updated in serialize
                 value.serialize(&mut **self)?;
             }
@@ -497,10 +519,10 @@ impl SerializeStruct for &mut ValueSerializer<'_> {
                 value.serialize(&mut **self)?;
             }
             (SerializationStep::RegExPattern, "pattern") => {
+                // state is updated in serialize
                 value.serialize(&mut **self)?;
-                self.state = SerializationStep::RegExOptions;
             }
-            (SerializationStep::RegExOptions, "options") => {
+            (SerializationStep::RegExOptions { .. }, "options") => {
                 value.serialize(&mut **self)?;
                 self.state = SerializationStep::Done;
             }
@@ -521,12 +543,12 @@ impl SerializeStruct for &mut ValueSerializer<'_> {
                 value.serialize(&mut **self)?;
             }
             (SerializationStep::DbPointerRef, "$ref") => {
+                // state is updated in serialize
                 value.serialize(&mut **self)?;
-                self.state = SerializationStep::DbPointerId;
             }
-            (SerializationStep::DbPointerId, "$id") => {
-                self.state = SerializationStep::Oid;
+            (SerializationStep::DbPointerId { .. }, "$oid" | "$id") => {
                 value.serialize(&mut **self)?;
+                self.state = SerializationStep::Done;
             }
             (SerializationStep::Code, "$code") => {
                 value.serialize(&mut **self)?;
@@ -590,7 +612,7 @@ impl<'a> CodeWithScopeSerializer<'a> {
     #[inline]
     fn start(code: &str, rs: &'a mut Serializer) -> Result<Self> {
         let start = rs.bytes.len();
-        write_i32(&mut rs.bytes, 0)?; // placeholder length
+        RawBsonRef::Int32(0).append_to(&mut rs.bytes)?; // placeholder length
         write_string(&mut rs.bytes, code);
 
         let doc = DocumentSerializer::start(rs)?;

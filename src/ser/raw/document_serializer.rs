@@ -2,9 +2,10 @@ use serde::{ser::Impossible, Serialize};
 
 use crate::{
     raw::write_cstring,
-    ser::{write_i32, Error, Result},
+    ser::{Error, Result},
     serialize_to_bson,
     Bson,
+    RawBsonRef,
 };
 
 use super::Serializer;
@@ -23,7 +24,7 @@ pub(crate) struct DocumentSerializer<'a> {
 impl<'a> DocumentSerializer<'a> {
     pub(crate) fn start(rs: &'a mut Serializer) -> crate::ser::Result<Self> {
         let start = rs.bytes.len();
-        write_i32(&mut rs.bytes, 0)?;
+        RawBsonRef::Int32(0).append_to(&mut rs.bytes)?;
         Ok(Self {
             root_serializer: rs,
             num_keys_serialized: 0,
