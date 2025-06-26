@@ -8,6 +8,7 @@ use crate::{
     oid::ObjectId,
     serde_helpers,
     serde_helpers::{
+        chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime,
         i64_as_bson_datetime,
         timestamp_as_u32,
         u32_as_timestamp,
@@ -804,9 +805,9 @@ fn test_datetime_helpers() {
         match element {
             bson::Bson::String(value) => assert_eq!(
                 value, iso,
-                "Expected each element in date_vector to be a RFC 3339 string.",
+                "Expected each element in date_vector to match original.",
             ),
-            _ => panic!("Expected all elements in date_vector to be BSON DateTime."),
+            _ => panic!("Expected all elements in date_vector to be a BSON DateTime."),
         }
     }
 
@@ -862,29 +863,75 @@ fn test_datetime_helpers() {
     #[cfg(feature = "chrono-0_4")]
     {
         use std::str::FromStr;
+
+        #[serde_as]
         #[derive(Deserialize, Serialize)]
         struct B {
-            #[serde(with = "serde_helpers::chrono_datetime_as_bson_datetime")]
+            #[serde_as(as = "ChronoDateTimeAsBsonDateTime")]
             pub date: chrono::DateTime<chrono::Utc>,
+
+            #[serde(skip_serializing_if = "Option::is_none")]
+            #[serde_as(as = "Option<ChronoDateTimeAsBsonDateTime>")]
+            pub date_optional: Option<chrono::DateTime<chrono::Utc>>,
+
+            #[serde_as(as = "Vec<ChronoDateTimeAsBsonDateTime>")]
+            pub date_vector: Vec<chrono::DateTime<chrono::Utc>>,
         }
 
-        let date = r#"
-    {
-        "date": {
-                "$date": {
-                    "$numberLong": "1591700287095"
-                }
-        }
-    }"#;
-        let json: serde_json::Value = serde_json::from_str(date).unwrap();
-        let b: B = serde_json::from_value(json).unwrap();
-        let expected: chrono::DateTime<chrono::Utc> =
+        let date: chrono::DateTime<chrono::Utc> =
             chrono::DateTime::from_str("2020-06-09 10:58:07.095 UTC").unwrap();
-        assert_eq!(b.date, expected);
+        let b: B = B {
+            date: date.clone(),
+            date_optional: None,
+            date_vector: vec![date.clone()],
+        };
+
+        // Serialize the struct to BSON
         let doc = to_document(&b).unwrap();
-        assert_eq!(doc.get_datetime("date").unwrap().to_chrono(), expected);
-        let b: B = from_document(doc).unwrap();
-        assert_eq!(b.date, expected);
+
+        // Validate serialized data
+        assert_eq!(
+            doc.get_datetime("date").unwrap().to_chrono(),
+            date,
+            "Expected serialized date to match original date."
+        );
+
+        assert!(
+            doc.get("date_optional").is_none(),
+            "Expected date_optional to be None."
+        );
+
+        let date_vector = doc
+            .get_array("date_vector")
+            .expect("Expected date_vector to be serialized as BSON array.");
+        for (element, original_date) in date_vector.iter().zip(&vec![date.clone()]) {
+            match element {
+                bson::Bson::DateTime(value) => assert_eq!(
+                    value.to_chrono(),
+                    *original_date,
+                    "Expected each element in date_vector to match original."
+                ),
+                _ => panic!("Expected all elements in date_vector to be a BSON DateTime."),
+            };
+        }
+
+        // Deserialize the BSON back to the struct
+        let b_deserialized: B = from_document(doc).unwrap();
+
+        // Validate deserialized data
+        assert_eq!(
+            b_deserialized.date, date,
+            "Expected date after deserialization to match original."
+        );
+        assert_eq!(
+            b_deserialized.date_optional, None,
+            "Expected date_optional after deserialization to be None."
+        );
+        assert_eq!(
+            b_deserialized.date_vector,
+            vec![date.clone()],
+            "Expected date_vector after deserialization to match original."
+        );
     }
 
     #[cfg(feature = "chrono-0_4")]
@@ -985,7 +1032,7 @@ fn test_datetime_helpers() {
         match element {
             bson::Bson::DateTime(value) => assert_eq!(
                 *value, expected_date,
-                "Expected each element in date_vector to be a BSON DateTime."
+                "Expected each element in date_vector to match original."
             ),
             _ => panic!("Expected each element in date_vector to be a BSON DateTime."),
         }
@@ -1060,9 +1107,9 @@ fn test_oid_helpers() {
         match element {
             bson::Bson::ObjectId(value) => assert_eq!(
                 *value, oid,
-                "Expected each element in oid_vector to be a BSON ObjectId."
+                "Expected each element in oid_vector to match original."
             ),
-            _ => panic!("Expected each element in date_vector to be a BSON ObjectId."),
+            _ => panic!("Expected each element in oid_vector to be a BSON ObjectId."),
         }
     }
 

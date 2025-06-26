@@ -232,7 +232,7 @@
 //! on strings instead, so when using it with BSON, the BSON datetime type is not used. To work
 //! around this, the `chrono-0_4` feature flag can be enabled. This flag exposes a number of
 //! convenient conversions between [`bson::DateTime`](crate::DateTime) and [`chrono::DateTime`],
-//! including the [`serde_helpers::chrono_datetime_as_bson_datetime`]
+//! including the [`serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime`]
 //! serde helper, which can be used to (de)serialize [`chrono::DateTime`]s to/from BSON datetimes,
 //! and the `From<chrono::DateTime>` implementation for [`Bson`], which allows [`chrono::DateTime`]
 //! values to be used in the `doc!` and `bson!` macros.
@@ -254,7 +254,7 @@
 //!
 //!     // serializes as a BSON datetime.
 //!     // this requires the "chrono-0_4" feature flag
-//!     #[serde(with = "bson::serde_helpers::chrono_datetime_as_bson_datetime")]
+//!     #[serde(with = "bson::serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime")]
 //!     chrono_as_bson: chrono::DateTime<chrono::Utc>,
 //! }
 //!

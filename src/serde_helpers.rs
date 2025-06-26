@@ -14,12 +14,6 @@ use crate::{oid::ObjectId, Bson, DateTime};
 
 #[cfg(feature = "chrono-0_4")]
 #[doc(inline)]
-pub use chrono_datetime_as_bson_datetime::{
-    deserialize as deserialize_chrono_datetime_from_bson_datetime,
-    serialize as serialize_chrono_datetime_as_bson_datetime,
-};
-#[cfg(feature = "chrono-0_4")]
-#[doc(inline)]
 pub use chrono_datetime_as_bson_datetime_optional::{
     deserialize as deserialize_chrono_datetime_from_bson_datetime_optional,
     serialize as serialize_chrono_datetime_as_bson_datetime_optional,
@@ -257,40 +251,45 @@ pub mod time_0_3_offsetdatetime_as_bson_datetime {
 /// # #[cfg(feature = "chrono-0_4")]
 /// # {
 /// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::chrono_datetime_as_bson_datetime;
+/// # use bson::serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime;
+/// # use serde_with::serde_as;
+/// #[serde_as]
 /// #[derive(Serialize, Deserialize)]
 /// struct Event {
-///     #[serde(with = "chrono_datetime_as_bson_datetime")]
+///     #[serde_as(as = "ChronoDateTimeAsBsonDateTime")]
 ///     pub date: chrono::DateTime<chrono::Utc>,
 /// }
 /// # }
 /// ```
 #[cfg(feature = "chrono-0_4")]
 #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
-pub mod chrono_datetime_as_bson_datetime {
+pub mod chrono_datetime_and_bson_datetime {
     use crate::DateTime;
     use chrono::Utc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_with::{DeserializeAs, SerializeAs};
     use std::result::Result;
 
-    /// Deserializes a [`chrono::DateTime`] from a [`crate::DateTime`].
-    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<chrono::DateTime<Utc>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let datetime = DateTime::deserialize(deserializer)?;
-        Ok(datetime.to_chrono())
+    pub struct ChronoDateTimeAsBsonDateTime;
+
+    impl SerializeAs<chrono::DateTime<Utc>> for ChronoDateTimeAsBsonDateTime {
+        fn serialize_as<S>(val: &chrono::DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let datetime = DateTime::from_chrono(val.to_owned());
+            datetime.serialize(serializer)
+        }
     }
 
-    /// Serializes a [`chrono::DateTime`] as a [`crate::DateTime`].
-    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
-    pub fn serialize<S: Serializer>(
-        val: &chrono::DateTime<Utc>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        let datetime = DateTime::from_chrono(val.to_owned());
-        datetime.serialize(serializer)
+    impl<'de> DeserializeAs<'de, chrono::DateTime<Utc>> for ChronoDateTimeAsBsonDateTime {
+        fn deserialize_as<D>(deserializer: D) -> Result<chrono::DateTime<Utc>, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            let datetime = DateTime::deserialize(deserializer)?;
+            Ok(datetime.to_chrono())
+        }
     }
 }
 
