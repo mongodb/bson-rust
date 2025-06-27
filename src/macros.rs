@@ -291,19 +291,26 @@ macro_rules! rawbson {
     // Finished.
     (@object $object:ident () () ()) => {};
 
-    // Insert the current entry followed by trailing comma.
-    (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {{
-        let key: &str = ($($key)+).as_ref();
-        let key: &$crate::raw::CStr = key.try_into().expect("invalid key");
-        $object.append(key, $value);
+    // Insert the current entry with followed by trailing comma, with a key literal.
+    (@object $object:ident [$key:literal] ($value:expr) , $($rest:tt)*) => {{
+        $object.append($crate::raw::cstr!($key), $value);
         $crate::rawbson!(@object $object () ($($rest)*) ($($rest)*));
     }};
 
-    // Insert the last entry without trailing comma.
+    // Insert the current entry with followed by trailing comma, with a key expression.
+    (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {{
+        $object.append($($key)+, $value);
+        $crate::rawbson!(@object $object () ($($rest)*) ($($rest)*));
+    }};
+
+    // Insert the last entry without trailing comma, with a key literal.
+    (@object $object:ident [$key:literal] ($value:expr)) => {
+        $object.append($crate::raw::cstr!($key), $value);
+    };
+
+    // Insert the last entry without trailing comma, with a key expression.
     (@object $object:ident [$($key:tt)+] ($value:expr)) => {
-        let key: &str = ($($key)+).as_ref();
-        let key: &$crate::raw::CStr = key.try_into().expect("invalid key");
-        $object.append(key, $value);
+        $object.append($($key)+, $value);
     };
 
     // Next value is `null`.
