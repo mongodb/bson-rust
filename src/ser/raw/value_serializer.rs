@@ -199,7 +199,7 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
                 let increment = u32::try_from(v).map_err(Error::custom)?;
 
                 RawBsonRef::Timestamp(crate::Timestamp { time, increment })
-                    .append_to(&mut self.root_serializer.bytes)?;
+                    .append_to(&mut self.root_serializer.bytes);
 
                 Ok(())
             }
@@ -215,7 +215,7 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
                     subtype: v.into(),
                     bytes,
                 };
-                RawBsonRef::Binary(binary).append_to(&mut self.root_serializer.bytes)?;
+                RawBsonRef::Binary(binary).append_to(&mut self.root_serializer.bytes);
                 self.state = SerializationStep::Done;
                 Ok(())
             }
@@ -258,11 +258,11 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
             SerializationStep::DateTimeNumberLong => {
                 let millis = v.parse().map_err(Error::custom)?;
                 RawBsonRef::DateTime(crate::DateTime::from_millis(millis))
-                    .append_to(&mut self.root_serializer.bytes)?;
+                    .append_to(&mut self.root_serializer.bytes);
             }
             SerializationStep::Oid => {
                 let oid = ObjectId::parse_str(v).map_err(Error::custom)?;
-                RawBsonRef::ObjectId(oid).append_to(&mut self.root_serializer.bytes)?;
+                RawBsonRef::ObjectId(oid).append_to(&mut self.root_serializer.bytes);
             }
             SerializationStep::BinaryBytes => {
                 self.state = SerializationStep::BinarySubType {
@@ -274,10 +274,10 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
                 let subtype: BinarySubtype = subtype_byte[0].into();
                 let bytes = &base64::decode(base64.as_str()).map_err(Error::custom)?;
                 let binary = RawBinaryRef { subtype, bytes };
-                RawBsonRef::Binary(binary).append_to(&mut self.root_serializer.bytes)?;
+                RawBsonRef::Binary(binary).append_to(&mut self.root_serializer.bytes);
             }
             SerializationStep::Symbol => {
-                RawBsonRef::Symbol(v).append_to(&mut self.root_serializer.bytes)?;
+                RawBsonRef::Symbol(v).append_to(&mut self.root_serializer.bytes);
             }
             SerializationStep::DbPointerRef => {
                 self.state = SerializationStep::DbPointerId { ns: v.to_owned() };
@@ -285,7 +285,7 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
             SerializationStep::DbPointerId { ns } => {
                 let id = ObjectId::parse_str(v).map_err(Error::custom)?;
                 RawBsonRef::DbPointer(crate::RawDbPointerRef { namespace: ns, id })
-                    .append_to(&mut self.root_serializer.bytes)?;
+                    .append_to(&mut self.root_serializer.bytes);
             }
             SerializationStep::RegExPattern => {
                 self.state = SerializationStep::RegExOptions {
@@ -301,10 +301,10 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
                     pattern: pattern.as_ref(),
                     options: options.as_str().try_into()?,
                 })
-                .append_to(&mut self.root_serializer.bytes)?;
+                .append_to(&mut self.root_serializer.bytes);
             }
             SerializationStep::Code => {
-                RawBsonRef::JavaScriptCode(v).append_to(&mut self.root_serializer.bytes)?;
+                RawBsonRef::JavaScriptCode(v).append_to(&mut self.root_serializer.bytes);
             }
             SerializationStep::CodeWithScopeCode => {
                 self.state = SerializationStep::CodeWithScopeScope {
@@ -327,7 +327,7 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
         match self.state {
             SerializationStep::Decimal128Value => {
                 let dec = crate::Decimal128::from_bytes(v.try_into().map_err(Error::custom)?);
-                RawBsonRef::Decimal128(dec).append_to(&mut self.root_serializer.bytes)?;
+                RawBsonRef::Decimal128(dec).append_to(&mut self.root_serializer.bytes);
                 Ok(())
             }
             SerializationStep::BinaryBytes => {
@@ -339,8 +339,7 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
                     code,
                     scope: RawDocument::decode_from_bytes(v).map_err(Error::custom)?,
                 };
-                RawBsonRef::JavaScriptCodeWithScope(raw)
-                    .append_to(&mut self.root_serializer.bytes)?;
+                RawBsonRef::JavaScriptCodeWithScope(raw).append_to(&mut self.root_serializer.bytes);
                 self.state = SerializationStep::Done;
                 Ok(())
             }
@@ -448,9 +447,9 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         match self.state {
-            SerializationStep::CodeWithScopeScope { ref code, raw } if !raw => {
-                CodeWithScopeSerializer::start(code.as_str(), self.root_serializer)
-            }
+            SerializationStep::CodeWithScopeScope { ref code, raw } if !raw => Ok(
+                CodeWithScopeSerializer::start(code.as_str(), self.root_serializer),
+            ),
             _ => Err(self.invalid_step("map")),
         }
     }
@@ -613,13 +612,13 @@ pub(crate) struct CodeWithScopeSerializer<'a> {
 
 impl<'a> CodeWithScopeSerializer<'a> {
     #[inline]
-    fn start(code: &str, rs: &'a mut Serializer) -> Result<Self> {
+    fn start(code: &str, rs: &'a mut Serializer) -> Self {
         let start = rs.bytes.len();
-        RawBsonRef::Int32(0).append_to(&mut rs.bytes)?; // placeholder length
+        RawBsonRef::Int32(0).append_to(&mut rs.bytes); // placeholder length
         write_string(&mut rs.bytes, code);
 
-        let doc = DocumentSerializer::start(rs)?;
-        Ok(Self { start, doc })
+        let doc = DocumentSerializer::start(rs);
+        Self { start, doc }
     }
 }
 

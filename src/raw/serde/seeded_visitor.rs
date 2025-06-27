@@ -273,8 +273,7 @@ impl<'de> Visitor<'de> for SeededVisitor<'_, 'de> {
                     // Cases that don't
                     _ => {
                         let bson = bson.as_ref();
-                        bson.append_to(self.buffer.get_owned_buffer())
-                            .map_err(A::Error::custom)?;
+                        bson.append_to(self.buffer.get_owned_buffer());
                         Ok(bson.element_type())
                     }
                 }

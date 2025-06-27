@@ -20,14 +20,14 @@ pub(crate) struct DocumentSerializer<'a> {
 }
 
 impl<'a> DocumentSerializer<'a> {
-    pub(crate) fn start(rs: &'a mut Serializer) -> crate::ser::Result<Self> {
+    pub(crate) fn start(rs: &'a mut Serializer) -> Self {
         let start = rs.bytes.len();
-        RawBsonRef::Int32(0).append_to(&mut rs.bytes)?;
-        Ok(Self {
+        RawBsonRef::Int32(0).append_to(&mut rs.bytes);
+        Self {
             root_serializer: rs,
             num_keys_serialized: 0,
             start,
-        })
+        }
     }
 
     /// Serialize a document key using the provided closure.
