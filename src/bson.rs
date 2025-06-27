@@ -268,6 +268,12 @@ impl From<String> for Bson {
     }
 }
 
+impl From<crate::raw::CString> for Bson {
+    fn from(a: crate::raw::CString) -> Bson {
+        Bson::String(a.into_string())
+    }
+}
+
 impl From<Document> for Bson {
     fn from(a: Document) -> Bson {
         Bson::Document(a)
@@ -619,7 +625,7 @@ impl Bson {
                 ref pattern,
                 ref options,
             }) => {
-                let mut chars: Vec<_> = options.chars().collect();
+                let mut chars: Vec<_> = options.as_str().chars().collect();
                 chars.sort_unstable();
 
                 let options: String = chars.into_iter().collect();
@@ -842,7 +848,9 @@ impl Bson {
                 if let Ok(regex) = doc.get_document("$regularExpression") {
                     if let Ok(pattern) = regex.get_str("pattern") {
                         if let Ok(options) = regex.get_str("options") {
-                            return Bson::RegularExpression(Regex::new(pattern, options));
+                            if let Ok(regex) = Regex::new(pattern, options) {
+                                return Bson::RegularExpression(regex);
+                            }
                         }
                     }
                 }
@@ -1160,7 +1168,6 @@ pub struct Regex {
 }
 
 impl Regex {
-    #[cfg(test)]
     pub(crate) fn new(
         pattern: impl AsRef<str>,
         options: impl AsRef<str>,

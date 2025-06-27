@@ -145,9 +145,11 @@ impl TryInto<Bson> for RawElement<'_> {
 impl<'a> RawElement<'a> {
     #[cfg(feature = "serde")]
     pub(crate) fn toplevel(bytes: &'a [u8]) -> Result<Self> {
+        use crate::raw::cstr;
+
         let doc = RawDocument::decode_from_bytes(bytes)?;
         Ok(Self {
-            key: "TOPLEVEL",
+            key: cstr!("TOPLEVEL"),
             kind: ElementType::EmbeddedDocument,
             doc,
             start_at: 0,

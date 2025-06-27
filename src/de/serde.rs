@@ -442,7 +442,9 @@ impl<'de> Visitor<'de> for BsonVisitor {
 
                 "$regularExpression" => {
                     let re = visitor.next_value::<extjson::models::RegexBody>()?;
-                    return Ok(Bson::RegularExpression(Regex::new(re.pattern, re.options)));
+                    return Ok(Bson::RegularExpression(
+                        Regex::new(re.pattern, re.options).map_err(serde::de::Error::custom)?,
+                    ));
                 }
 
                 "$dbPointer" => {

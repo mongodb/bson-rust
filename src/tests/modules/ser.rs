@@ -11,7 +11,6 @@ use crate::{
     tests::LOCK,
     Bson,
     Document,
-    Regex,
 };
 
 #[test]
@@ -161,12 +160,6 @@ fn cstring_null_bytes_error() {
 
     let doc = doc! { "a": { "\0": "b" } };
     verify_doc(doc);
-
-    let regex = doc! { "regex": Regex { pattern: "\0".into(), options: "a".into() } };
-    verify_doc(regex);
-
-    let regex = doc! { "regex": Regex { pattern: "a".into(), options: "\0".into() } };
-    verify_doc(regex);
 
     fn verify_doc(doc: Document) {
         let result = doc.encode_to_vec();

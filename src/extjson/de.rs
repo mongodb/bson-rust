@@ -55,7 +55,7 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
 
         if obj.contains_key("$regularExpression") {
             let regex: models::Regex = serde_json::from_value(obj.into())?;
-            return Ok(regex.parse().into());
+            return Ok(regex.parse()?.into());
         }
 
         if obj.contains_key("$numberInt") {

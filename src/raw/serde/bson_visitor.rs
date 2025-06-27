@@ -84,14 +84,14 @@ impl OwnedOrBorrowedRawBsonVisitor {
                 match (body.pattern, body.options) {
                     (Cow::Borrowed(p), Cow::Borrowed(o)) => {
                         RawBsonRef::RegularExpression(RawRegexRef {
-                            pattern: p,
-                            options: o,
+                            pattern: p.try_into().map_err(A::Error::custom)?,
+                            options: o.try_into().map_err(A::Error::custom)?,
                         })
                         .into()
                     }
                     (p, o) => RawBson::RegularExpression(Regex {
-                        pattern: p.into_owned(),
-                        options: o.into_owned(),
+                        pattern: p.into_owned().try_into().map_err(A::Error::custom)?,
+                        options: o.into_owned().try_into().map_err(A::Error::custom)?,
                     })
                     .into(),
                 }

@@ -51,7 +51,7 @@ enum SerializationStep {
     RegEx,
     RegExPattern,
     RegExOptions {
-        pattern: String,
+        pattern: crate::raw::CString,
     },
 
     Timestamp,
@@ -289,16 +289,19 @@ impl<'b> serde::Serializer for &'b mut ValueSerializer<'_> {
             }
             SerializationStep::RegExPattern => {
                 self.state = SerializationStep::RegExOptions {
-                    pattern: v.to_string(),
+                    pattern: v.to_string().try_into()?,
                 };
             }
             SerializationStep::RegExOptions { pattern } => {
                 let mut chars: Vec<_> = v.chars().collect();
                 chars.sort_unstable();
 
-                let options = &chars.into_iter().collect::<String>();
-                RawBsonRef::RegularExpression(crate::RawRegexRef { pattern, options })
-                    .append_to(&mut self.root_serializer.bytes)?;
+                let options = chars.into_iter().collect::<String>();
+                RawBsonRef::RegularExpression(crate::RawRegexRef {
+                    pattern: pattern.as_ref(),
+                    options: options.as_str().try_into()?,
+                })
+                .append_to(&mut self.root_serializer.bytes)?;
             }
             SerializationStep::Code => {
                 RawBsonRef::JavaScriptCode(v).append_to(&mut self.root_serializer.bytes)?;

@@ -625,8 +625,8 @@ impl Serialize for Regex {
         S: ser::Serializer,
     {
         let raw = RawRegexRef {
-            pattern: self.pattern.as_str(),
-            options: self.options.as_str(),
+            pattern: self.pattern.as_ref(),
+            options: self.options.as_ref(),
         };
         raw.serialize(serializer)
     }

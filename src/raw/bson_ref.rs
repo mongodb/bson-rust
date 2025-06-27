@@ -255,10 +255,15 @@ impl<'a> RawBsonRef<'a> {
             RawBsonRef::Document(d) => RawBson::Document(d.to_owned()),
             RawBsonRef::Boolean(b) => RawBson::Boolean(b),
             RawBsonRef::Null => RawBson::Null,
-            RawBsonRef::RegularExpression(re) => RawBson::RegularExpression(Regex {
-                pattern: re.pattern.into(),
-                options: re.options.into(),
-            }),
+            RawBsonRef::RegularExpression(re) => {
+                let mut chars: Vec<_> = re.options.as_str().chars().collect();
+                chars.sort_unstable();
+                let options: String = chars.into_iter().collect();
+                RawBson::RegularExpression(Regex {
+                    pattern: re.pattern.into(),
+                    options: super::CString::from_unchecked(options),
+                })
+            }
             RawBsonRef::JavaScriptCode(c) => RawBson::JavaScriptCode(c.to_owned()),
             RawBsonRef::JavaScriptCodeWithScope(c_w_s) => {
                 RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
@@ -629,8 +634,8 @@ impl serde::Serialize for RawRegexRef<'_> {
     {
         #[derive(serde::Serialize)]
         struct BorrowedRegexBody<'a> {
-            pattern: &'a str,
-            options: &'a str,
+            pattern: &'a CStr,
+            options: &'a CStr,
         }
 
         let mut state = serializer.serialize_struct("$regularExpression", 1)?;
