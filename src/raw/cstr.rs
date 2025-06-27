@@ -69,6 +69,12 @@ impl AsRef<CStr> for CStr {
     }
 }
 
+impl AsRef<str> for CStr {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 #[cfg(feature = "serde")]
 impl serde::Serialize for &CStr {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
