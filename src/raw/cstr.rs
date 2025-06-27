@@ -183,3 +183,13 @@ impl std::borrow::Borrow<CStr> for CString {
         self.as_ref()
     }
 }
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for CString {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.data.serialize(serializer)
+    }
+}
