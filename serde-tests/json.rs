@@ -3,7 +3,7 @@ use serde_json::json;
 
 use super::AllTypes;
 
-use bson::{doc, Bson, JavaScriptCodeWithScope, RawArrayBuf, RawBson, RawDocumentBuf};
+use bson::{cstr, doc, Bson, JavaScriptCodeWithScope, RawArrayBuf, RawBson, RawDocumentBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -99,18 +99,18 @@ fn owned_raw_bson() {
     });
 
     let mut doc_buf = RawDocumentBuf::new();
-    doc_buf.append("a", "key").unwrap();
-    doc_buf.append("number", 12).unwrap();
-    doc_buf.append("bool", false).unwrap();
-    doc_buf.append("nu", RawBson::Null).unwrap();
+    doc_buf.append(cstr!("a"), "key");
+    doc_buf.append(cstr!("number"), 12);
+    doc_buf.append(cstr!("bool"), false);
+    doc_buf.append(cstr!("nu"), RawBson::Null);
 
     let mut array_buf = RawArrayBuf::new();
-    array_buf.push(1).unwrap();
-    array_buf.push("string").unwrap();
+    array_buf.push(1);
+    array_buf.push("string");
 
     let mut bson_doc = RawDocumentBuf::new();
-    bson_doc.append("first", true).unwrap();
-    bson_doc.append("second", "string").unwrap();
+    bson_doc.append(cstr!("first"), true);
+    bson_doc.append(cstr!("second"), "string");
 
     let expected = Foo {
         doc_buf,
