@@ -61,7 +61,7 @@ impl<'de> Deserializer<'de> {
     }
 
     fn value(&self) -> Result<RawBsonRef<'de>> {
-        Ok(self.element.value()?)
+        self.element.value()
     }
 
     /// Deserialize the element, using the type of the element along with the
@@ -419,7 +419,7 @@ impl<'de> serde::de::EnumAccess<'de> for DocumentAccess<'de> {
         self.advance()?;
         let elem = match &self.elem {
             Some(e) => e,
-            None => return Err(Error::EndOfStream),
+            None => return Err(Error::end_of_stream()),
         };
         let de: BorrowedStrDeserializer<'_, Error> = BorrowedStrDeserializer::new(elem.key());
         let key = seed.deserialize(de)?;
@@ -1077,7 +1077,7 @@ impl<'de> serde::de::MapAccess<'de> for CodeWithScopeAccess<'de> {
         self.stage = match self.stage {
             CodeWithScopeDeserializationStage::Code => CodeWithScopeDeserializationStage::Scope,
             CodeWithScopeDeserializationStage::Scope => CodeWithScopeDeserializationStage::Done,
-            CodeWithScopeDeserializationStage::Done => return Err(Error::EndOfStream),
+            CodeWithScopeDeserializationStage::Done => return Err(Error::end_of_stream()),
         };
         Ok(value)
     }
@@ -1105,7 +1105,7 @@ impl<'de> serde::de::Deserializer<'de> for &CodeWithScopeAccess<'de> {
                     _ => visitor.visit_map(DocumentAccess::new(scope, self.options.clone())?),
                 }
             }
-            CodeWithScopeDeserializationStage::Done => Err(Error::EndOfStream),
+            CodeWithScopeDeserializationStage::Done => Err(Error::end_of_stream()),
         }
     }
 

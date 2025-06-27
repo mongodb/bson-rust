@@ -21,20 +21,17 @@
 
 //! Serializer
 
-mod error;
 mod raw;
 mod serde;
 
-pub use self::{
-    error::{Error, Result},
-    serde::Serializer,
-};
+pub use self::serde::Serializer;
 
 #[rustfmt::skip]
 use ::serde::{ser::Error as SerdeError, Serialize};
 
 use crate::{
     bson::{Bson, Document},
+    error::{Error, Result},
     ser::serde::SerializerOptions,
     RawDocumentBuf,
 };
@@ -79,12 +76,10 @@ where
 {
     match serialize_to_bson(value)? {
         Bson::Document(doc) => Ok(doc),
-        bson => Err(Error::SerializationError {
-            message: format!(
-                "Could not be serialized to Document, got {:?} instead",
-                bson.element_type()
-            ),
-        }),
+        bson => Err(Error::serialization(format!(
+            "expected to serialize document, got type {:?} instead",
+            bson.element_type()
+        ))),
     }
 }
 

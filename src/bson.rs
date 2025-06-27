@@ -911,6 +911,36 @@ impl Bson {
                 .collect(),
         )
     }
+
+    /// Method for converting a given [`Bson`] value to a [`serde::de::Unexpected`] for error
+    /// reporting.
+    #[cfg(feature = "serde")]
+    pub(crate) fn as_unexpected(&self) -> serde::de::Unexpected {
+        use serde::de::Unexpected;
+        match self {
+            Bson::Array(_) => Unexpected::Seq,
+            Bson::Binary(b) => Unexpected::Bytes(b.bytes.as_slice()),
+            Bson::Boolean(b) => Unexpected::Bool(*b),
+            Bson::DbPointer(_) => Unexpected::Other("dbpointer"),
+            Bson::Document(_) => Unexpected::Map,
+            Bson::Double(f) => Unexpected::Float(*f),
+            Bson::Int32(i) => Unexpected::Signed(*i as i64),
+            Bson::Int64(i) => Unexpected::Signed(*i),
+            Bson::JavaScriptCode(_) => Unexpected::Other("javascript code"),
+            Bson::JavaScriptCodeWithScope(_) => Unexpected::Other("javascript code with scope"),
+            Bson::MaxKey => Unexpected::Other("maxkey"),
+            Bson::MinKey => Unexpected::Other("minkey"),
+            Bson::Null => Unexpected::Unit,
+            Bson::Undefined => Unexpected::Other("undefined"),
+            Bson::ObjectId(_) => Unexpected::Other("objectid"),
+            Bson::RegularExpression(_) => Unexpected::Other("regex"),
+            Bson::String(s) => Unexpected::Str(s.as_str()),
+            Bson::Symbol(_) => Unexpected::Other("symbol"),
+            Bson::Timestamp(_) => Unexpected::Other("timestamp"),
+            Bson::DateTime(_) => Unexpected::Other("datetime"),
+            Bson::Decimal128(_) => Unexpected::Other("decimal128"),
+        }
+    }
 }
 
 /// Value helpers

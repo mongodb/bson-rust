@@ -175,7 +175,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
         match i64::try_from(v) {
             Ok(ivalue) => self.serialize_i64(ivalue),
-            Err(_) => Err(Error::UnsignedIntegerExceededRange(v)),
+            Err(_) => Err(Error::too_large_integer(v)),
         }
     }
 
