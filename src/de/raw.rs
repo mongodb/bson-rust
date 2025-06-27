@@ -1307,14 +1307,14 @@ impl<'de> serde::de::Deserializer<'de> for &mut RegexAccess<'de> {
                 self.stage = RegexDeserializationStage::Options;
                 match &self.re {
                     BsonCow::Borrowed(re) => visitor.visit_borrowed_str(re.pattern.as_str()),
-                    BsonCow::Owned(re) => visitor.visit_str(&re.pattern.as_str()),
+                    BsonCow::Owned(re) => visitor.visit_str(re.pattern.as_str()),
                 }
             }
             RegexDeserializationStage::Options => {
                 self.stage = RegexDeserializationStage::Done;
                 match &self.re {
                     BsonCow::Borrowed(re) => visitor.visit_borrowed_str(re.options.as_str()),
-                    BsonCow::Owned(re) => visitor.visit_str(&re.options.as_str()),
+                    BsonCow::Owned(re) => visitor.visit_str(re.options.as_str()),
                 }
             }
             RegexDeserializationStage::Done => {
