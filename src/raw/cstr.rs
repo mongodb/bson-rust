@@ -105,7 +105,7 @@ pub const fn assert_valid_cstr<T: ValidCStr>() {}
 
 #[macro_export]
 macro_rules! cstr {
-    ($text:expr) => {{
+    ($text:literal) => {{
         const VALIDATED: Option<&$crate::raw::CStr> = $crate::raw::validate_cstr($text);
         const VALID: bool = VALIDATED.is_some();
         $crate::raw::assert_valid_cstr::<$crate::raw::IsValidCStr<VALID>>();
