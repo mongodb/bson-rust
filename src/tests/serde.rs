@@ -1075,12 +1075,8 @@ mod serde_path_to_error {
         };
         let result: Result<Foo, _> = crate::deserialize_from_document(src);
         assert!(result.is_err());
-        match result.unwrap_err().path {
-            Some(path) => {
-                assert_eq!("two.value", path.to_string())
-            }
-            e => panic!("unexpected error: {:?}", e),
-        }
+        let path = result.unwrap_err().path.unwrap();
+        assert_eq!(path.to_string(), "two.value");
     }
 
     #[test]
@@ -1096,12 +1092,8 @@ mod serde_path_to_error {
         .into_bytes();
         let result: Result<Foo, _> = crate::deserialize_from_slice(&src);
         assert!(result.is_err());
-        match result.unwrap_err().path {
-            Some(path) => {
-                assert_eq!("two.value", path.to_string())
-            }
-            e => panic!("unexpected error: {:?}", e),
-        }
+        let path = result.unwrap_err().path.unwrap();
+        assert_eq!(path.to_string(), "two.value");
     }
 
     #[test]
@@ -1112,12 +1104,8 @@ mod serde_path_to_error {
         };
         let result = crate::serialize_to_bson(&src);
         assert!(result.is_err());
-        match result.unwrap_err() {
-            crate::ser::Error::WithPath { source: _, path } => {
-                assert_eq!("two.value", path.to_string())
-            }
-            e => panic!("unexpected error: {:?}", e),
-        }
+        let path = result.unwrap_err().path.unwrap();
+        assert_eq!(path.to_string(), "two.value");
     }
 
     #[test]
@@ -1128,11 +1116,7 @@ mod serde_path_to_error {
         };
         let result = crate::serialize_to_vec(&src);
         assert!(result.is_err());
-        match result.unwrap_err() {
-            crate::ser::Error::WithPath { source: _, path } => {
-                assert_eq!("two.value", path.to_string())
-            }
-            e => panic!("unexpected error: {:?}", e),
-        }
+        let path = result.unwrap_err().path.unwrap();
+        assert_eq!(path.to_string(), "two.value");
     }
 }

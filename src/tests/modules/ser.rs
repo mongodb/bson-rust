@@ -4,8 +4,8 @@ use assert_matches::assert_matches;
 
 use crate::{
     deserialize_from_bson,
+    error::ErrorKind,
     oid::ObjectId,
-    ser,
     serialize_to_bson,
     serialize_to_vec,
     tests::LOCK,
@@ -119,8 +119,8 @@ fn uint64_u2i() {
     let deser_min: u64 = deserialize_from_bson(obj_min).unwrap();
     assert_eq!(deser_min, u64::MIN);
 
-    let err: ser::Error = serialize_to_bson(&u64::MAX).unwrap_err().strip_path();
-    assert_matches!(err, ser::Error::UnsignedIntegerExceededRange(u64::MAX));
+    let error = serialize_to_bson(&u64::MAX).unwrap_err();
+    assert_matches!(error.kind, ErrorKind::TooLargeInteger { n: u64::MAX });
 }
 
 #[test]
@@ -172,9 +172,6 @@ fn cstring_null_bytes_error() {
         assert!(err.is_malformed_bytes(), "unexpected error: {:?}", err);
         let result = serialize_to_vec(&doc);
         assert!(result.is_err(), "unexpected success");
-        match result.unwrap_err().strip_path() {
-            ser::Error::Crate(inner) if inner.is_malformed_bytes() => (),
-            err => panic!("unexpected error: {:?}", err),
-        };
+        assert!(result.unwrap_err().is_malformed_bytes());
     }
 }

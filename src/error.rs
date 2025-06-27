@@ -103,6 +103,17 @@ pub enum ErrorKind {
         kind: ObjectIdErrorKind,
     },
 
+    /// A general error occurred during serialization. This variant is constructed in the
+    /// [`serde::ser::Error`] implementation for the [`Error`] type.
+    #[cfg(feature = "serde")]
+    #[error("A serialization error occurred")]
+    #[non_exhaustive]
+    Serialization {},
+
+    #[error("Integer {n} cannot fit into BSON")]
+    #[non_exhaustive]
+    TooLargeInteger { n: u64 },
+
     /// Invalid UTF-8 bytes were encountered.
     #[error("Invalid UTF-8")]
     #[non_exhaustive]
@@ -155,7 +166,17 @@ impl serde::de::Error for Error {
     where
         T: std::fmt::Display,
     {
-        Self::from(ErrorKind::Deserialization {}).with_message(message)
+        Self::deserialization(message)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::ser::Error for Error {
+    fn custom<T>(message: T) -> Self
+    where
+        T: std::fmt::Display,
+    {
+        Self::serialization(message)
     }
 }
 
@@ -191,6 +212,17 @@ impl Error {
         Self::from(ErrorKind::DateTime {}).with_message(message)
     }
 
+    #[cfg(feature = "serde")]
+    pub(crate) fn serialization(message: impl ToString) -> Self {
+        Self::from(ErrorKind::Serialization {}).with_message(message)
+    }
+
+    #[cfg(feature = "serde")]
+    pub(crate) fn invalid_key_type(key: impl AsRef<str>) -> Self {
+        Self::serialization(format!("invalid document key type: {}", key.as_ref()))
+    }
+
+    #[cfg(feature = "serde")]
     pub(crate) fn deserialization(message: impl ToString) -> Self {
         Self::from(ErrorKind::Deserialization {}).with_message(message)
     }
@@ -206,5 +238,9 @@ impl Error {
     #[cfg(all(test, feature = "serde"))]
     pub(crate) fn is_malformed_bytes(&self) -> bool {
         matches!(self.kind, ErrorKind::MalformedBytes { .. },)
+    }
+
+    pub(crate) fn too_large_integer(n: u64) -> Self {
+        Self::from(ErrorKind::TooLargeInteger { n })
     }
 }

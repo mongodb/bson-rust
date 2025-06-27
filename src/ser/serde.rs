@@ -15,6 +15,7 @@ use crate::{
     base64,
     bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
+    error::{Error, Result},
     extjson,
     oid::ObjectId,
     raw::{RawDbPointerRef, RawRegexRef, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
@@ -25,11 +26,11 @@ use crate::{
     Decimal128,
 };
 
-use super::{to_bson_with_options, Error};
+use super::to_bson_with_options;
 
 impl Serialize for ObjectId {
     #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::ser::Serializer,
     {
@@ -41,7 +42,7 @@ impl Serialize for ObjectId {
 
 impl Serialize for Document {
     #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
@@ -55,7 +56,7 @@ impl Serialize for Document {
 
 impl Serialize for Bson {
     #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
@@ -193,7 +194,7 @@ impl ser::Serializer for Serializer {
 
         match i64::try_from(value) {
             Ok(ivalue) => Ok(Bson::Int64(ivalue)),
-            Err(_) => Err(Error::UnsignedIntegerExceededRange(value)),
+            Err(_) => Err(Error::too_large_integer(value)),
         }
     }
 
@@ -525,10 +526,10 @@ impl SerializeMap for MapSerializer {
     type Ok = Bson;
     type Error = Error;
 
-    fn serialize_key<T: ?Sized + Serialize>(&mut self, key: &T) -> crate::ser::Result<()> {
+    fn serialize_key<T: ?Sized + Serialize>(&mut self, key: &T) -> Result<()> {
         self.next_key = match to_bson_with_options(&key, self.options.clone())? {
             Bson::String(s) => Some(s),
-            other => return Err(Error::InvalidDocumentKey(other)),
+            other => return Err(Error::invalid_key_type(other.element_type().name())),
         };
         Ok(())
     }
@@ -603,7 +604,7 @@ impl SerializeStructVariant for StructVariantSerializer {
 
 impl Serialize for Timestamp {
     #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
@@ -619,7 +620,7 @@ impl Serialize for Timestamp {
 
 impl Serialize for Regex {
     #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
@@ -633,7 +634,7 @@ impl Serialize for Regex {
 
 impl Serialize for JavaScriptCodeWithScope {
     #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
@@ -646,7 +647,7 @@ impl Serialize for JavaScriptCodeWithScope {
 
 impl Serialize for Binary {
     #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
@@ -666,7 +667,7 @@ impl Serialize for Binary {
 
 impl Serialize for Decimal128 {
     #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
@@ -683,7 +684,7 @@ impl Serialize for Decimal128 {
 
 impl Serialize for DateTime {
     #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
@@ -696,7 +697,7 @@ impl Serialize for DateTime {
 
 impl Serialize for DbPointer {
     #[inline]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
