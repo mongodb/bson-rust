@@ -825,24 +825,12 @@ fn test_datetime_helpers() {
         let date_vector = doc
             .get_array("date_vector")
             .expect("Expected serialized date_vector to be a BSON array.");
-        for element in date_vector {
-            match element {
-                bson::Bson::String(value) => assert_eq!(
-                    value, iso,
-                    "Expected each serialized element in date_vector to match original.",
-                ),
-                _ => {
-                    panic!("Expected all elements in serialized date_vector to be a BSON String.")
-                }
-            }
-        }
-
-        // let expected_date_vector: Vec<Bson> = a
-        //     .date_vector
-        //     .iter()
-        //     .map(|dt| Bson::String(dt.try_to_rfc3339_string().unwrap()))
-        //     .collect();
-        // assert_eq!(date_vector, &expected_date_vector);
+        let expected_date_vector: Vec<Bson> = a
+            .date_vector
+            .iter()
+            .map(|dt| Bson::String(dt.try_to_rfc3339_string().unwrap()))
+            .collect();
+        assert_eq!(date_vector, &expected_date_vector);
 
         // Deserialize the BSON back to the struct
         let a_deserialized: A = from_document(doc).unwrap();
@@ -973,7 +961,7 @@ fn test_datetime_helpers() {
         let date_vector = doc
             .get_array("date_vector")
             .expect("Expected serialized date_vector to be a BSON array.");
-        for (element, original_date) in date_vector.iter().zip(&vec![date.clone()]) {
+        for (element, original_date) in date_vector.iter().zip(&vec![date]) {
             match element {
                 bson::Bson::DateTime(value) => assert_eq!(
                     value.to_chrono(),
