@@ -4,7 +4,10 @@ use std::{
     ops::Deref,
 };
 
-use crate::{raw::MIN_BSON_DOCUMENT_SIZE, Document};
+use crate::{
+    raw::{CStr, MIN_BSON_DOCUMENT_SIZE},
+    Document,
+};
 
 use super::{bson::RawBson, iter::Iter, RawBsonRef, RawDocument, RawIter, Result};
 
@@ -87,20 +90,6 @@ impl RawDocumentBuf {
         Self::decode_from_bytes(buf)
     }
 
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_iter<S, B, I>(iter: I) -> Result<Self>
-    where
-        S: AsRef<str>,
-        B: BindRawBsonRef,
-        I: IntoIterator<Item = (S, B)>,
-    {
-        let mut buf = RawDocumentBuf::new();
-        for (k, v) in iter {
-            buf.append(k, v)?;
-        }
-        Ok(buf)
-    }
-
     /// Create a [`RawDocumentBuf`] from a [`Document`].
     ///
     /// ```
@@ -117,8 +106,9 @@ impl RawDocumentBuf {
     pub fn from_document(doc: impl Borrow<Document>) -> Result<Self> {
         let mut out = RawDocumentBuf::new();
         for (k, v) in doc.borrow() {
+            let k: &CStr = k.as_str().try_into()?;
             let val: RawBson = v.clone().try_into()?;
-            out.append(k, val)?;
+            out.append(k, val);
         }
         Ok(out)
     }
@@ -215,14 +205,19 @@ impl RawDocumentBuf {
     /// assert_eq!(doc.to_document()?, expected);
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn append(
-        &mut self,
-        key: impl AsRef<str>,
-        value: impl BindRawBsonRef,
-    ) -> crate::error::Result<()> {
-        let key = key.as_ref().try_into()?;
-        Ok(value
-            .bind(|value_ref| raw_writer::RawWriter::new(&mut self.data).append(key, value_ref)))
+    pub fn append(&mut self, key: impl AsRef<CStr>, value: impl BindRawBsonRef) {
+        let key = key.as_ref();
+        value.bind(|value_ref| raw_writer::RawWriter::new(&mut self.data).append(key, value_ref));
+    }
+}
+
+impl<K: AsRef<CStr>, B: BindRawBsonRef> FromIterator<(K, B)> for RawDocumentBuf {
+    fn from_iter<T: IntoIterator<Item = (K, B)>>(iter: T) -> Self {
+        let mut buf = RawDocumentBuf::new();
+        for (k, v) in iter {
+            buf.append(k, v);
+        }
+        buf
     }
 }
 
@@ -287,8 +282,9 @@ impl TryFrom<Document> for RawDocumentBuf {
     fn try_from(doc: Document) -> std::result::Result<Self, Self::Error> {
         let mut out = RawDocumentBuf::new();
         for (k, v) in doc {
+            let k: &CStr = k.as_str().try_into()?;
             let val: RawBson = v.try_into()?;
-            out.append(k, val)?;
+            out.append(k, val);
         }
         Ok(out)
     }

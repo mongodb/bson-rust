@@ -261,7 +261,7 @@ impl<'a> RawBsonRef<'a> {
                 let options: String = chars.into_iter().collect();
                 RawBson::RegularExpression(Regex {
                     pattern: re.pattern.into(),
-                    options: super::CString::from_unchecked(options),
+                    options: super::CString::from_string_unchecked(options),
                 })
             }
             RawBsonRef::JavaScriptCode(c) => RawBson::JavaScriptCode(c.to_owned()),
