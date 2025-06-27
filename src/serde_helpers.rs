@@ -488,8 +488,8 @@ pub mod date_time {
     }
 }
 
-/// Contains functions to `serialize` a `i64` integer as [`DateTime`] and
-/// `deserialize` a `i64` integer from [`DateTime`].
+/// Contains functions to `serialize` a `i64` integer as [`crate::DateTime`] and
+/// `deserialize` a `i64` integer from [`crate::DateTime`].
 ///
 /// ### The i64 should represent seconds `(DateTime::timestamp_millis(..))`.
 ///
