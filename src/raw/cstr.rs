@@ -39,13 +39,17 @@ impl CStr {
         self.as_str().len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.as_str().is_empty()
+    }
+
     pub(crate) fn append_to(&self, buf: &mut Vec<u8>) {
         buf.extend(&self.data);
         buf.push(0);
     }
 }
 
-impl<'a, 'b> PartialEq<&'b CStr> for &'a CStr {
+impl PartialEq<&CStr> for &CStr {
     fn eq(&self, other: &&CStr) -> bool {
         self.as_str() == other.as_str()
     }
