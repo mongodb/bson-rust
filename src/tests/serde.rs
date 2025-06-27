@@ -784,7 +784,7 @@ fn test_datetime_helpers() {
         let iso = "1996-12-20T00:39:57Z";
         let date = DateTime::parse_rfc3339_str(iso).unwrap();
         let a = A {
-            date: date,
+            date,
             date_optional_empty: None,
             date_optional_none: None,
             date_optional_some: Some(date),
@@ -836,6 +836,13 @@ fn test_datetime_helpers() {
                 }
             }
         }
+
+        // let expected_date_vector: Vec<Bson> = a
+        //     .date_vector
+        //     .iter()
+        //     .map(|dt| Bson::String(dt.try_to_rfc3339_string().unwrap()))
+        //     .collect();
+        // assert_eq!(date_vector, &expected_date_vector);
 
         // Deserialize the BSON back to the struct
         let a_deserialized: A = from_document(doc).unwrap();
@@ -924,7 +931,7 @@ fn test_datetime_helpers() {
         let iso = "1996-12-20T00:39:57Z";
         let date: chrono::DateTime<chrono::Utc> = chrono::DateTime::from_str(iso).unwrap();
         let b: B = B {
-            date: date,
+            date,
             date_optional_empty: None,
             date_optional_none: None,
             date_optional_some: Some(date),
