@@ -2,12 +2,13 @@
 
 use crate::{
     bson,
+    cstr,
     deserialize_from_bson,
     deserialize_from_document,
     doc,
     oid::ObjectId,
-    serde_helpers,
     serde_helpers::{
+        self,
         bson_datetime_as_rfc3339_string,
         hex_string_as_object_id,
         i64_as_bson_datetime,
@@ -151,8 +152,8 @@ fn test_ser_regex() {
     }
 
     let regex = Regex {
-        pattern: "12".into(),
-        options: "01".into(),
+        pattern: cstr!("12").into(),
+        options: cstr!("01").into(),
     };
 
     let foo = Foo {
@@ -180,8 +181,8 @@ fn test_de_regex() {
     }
 
     let regex = Regex {
-        pattern: "12".into(),
-        options: "01".into(),
+        pattern: cstr!("12").into(),
+        options: cstr!("01").into(),
     };
 
     let foo: Foo = deserialize_from_bson(Bson::Document(doc! {

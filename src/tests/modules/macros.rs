@@ -78,7 +78,7 @@ fn standard_format() {
             },
             "bool": true,
             "null": null,
-            "regexp": Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() },
+            "regexp": Regex { pattern: cstr!("s[ao]d").into(), options: cstr!("i").into() },
             "with_wrapped_parens": (-20),
             "code": RawBson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
             "i32": 12,

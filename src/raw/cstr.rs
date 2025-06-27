@@ -51,16 +51,28 @@ impl<'a, 'b> PartialEq<&'b CStr> for &'a CStr {
     }
 }
 
+impl std::borrow::ToOwned for CStr {
+    type Owned = CString;
+
+    fn to_owned(&self) -> Self::Owned {
+        self.into()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for &CStr {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_str().serialize(serializer)
+    }
+}
+
 #[diagnostic::on_unimplemented(message = "the string literal contains a zero byte")]
 pub trait ValidCStr {}
 pub struct IsValidCStr<const VALID: bool>;
 impl ValidCStr for IsValidCStr<true> {}
-
-#[derive(Clone, Eq, PartialEq, Hash)]
-#[repr(transparent)]
-pub struct CString {
-    data: String,
-}
 
 pub const fn validate_cstr(text: &str) -> Option<&CStr> {
     let bytes = text.as_bytes();
@@ -86,6 +98,12 @@ macro_rules! cstr {
 }
 pub use cstr;
 
+#[derive(Clone, Eq, PartialEq, Hash)]
+#[repr(transparent)]
+pub struct CString {
+    data: String,
+}
+
 impl TryFrom<String> for CString {
     type Error = Error;
 
@@ -95,7 +113,20 @@ impl TryFrom<String> for CString {
     }
 }
 
+impl TryFrom<&str> for CString {
+    type Error = Error;
+
+    fn try_from(data: &str) -> Result<Self> {
+        let cs: &CStr = data.try_into()?;
+        Ok(cs.into())
+    }
+}
+
 impl CString {
+    pub(crate) fn from_unchecked(data: String) -> Self {
+        Self { data }
+    }
+
     pub fn into_string(self) -> String {
         self.data
     }
@@ -128,5 +159,11 @@ impl std::fmt::Debug for CString {
 impl std::fmt::Display for CString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.data.fmt(f)
+    }
+}
+
+impl std::borrow::Borrow<CStr> for CString {
+    fn borrow(&self) -> &CStr {
+        self.as_ref()
     }
 }
