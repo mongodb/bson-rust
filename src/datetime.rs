@@ -121,6 +121,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 /// # {
 /// use serde::{Serialize, Deserialize};
 /// use serde_with::serde_as;
+/// use bson::serde_helpers::date_time::BsonDateTimeAsRfc3339String
+/// use bson::serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime
 ///
 /// #[serde_as]
 /// #[derive(Serialize, Deserialize)]
@@ -133,11 +135,11 @@ use serde::{Deserialize, Deserializer, Serialize};
 ///
 ///     // serializes as a BSON datetime.
 ///     // this requires the "chrono-0_4" feature flag
-///     #[serde(with = "bson::serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime")]
+///     #[serde_as(as = "ChronoDateTimeAsBsonDateTime")]
 ///     chrono_as_bson: chrono::DateTime<chrono::Utc>,
 ///
 ///     // serializes as an RFC 3339 / ISO-8601 string.
-///     #[serde_as(as = "bson::serde_helpers::BsonDateTimeAsRfc3339String")]
+///     #[serde_as(as = "BsonDateTimeAsRfc3339String")]
 ///     bson_as_string: bson::DateTime,
 /// }
 /// # }

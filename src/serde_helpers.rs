@@ -107,6 +107,7 @@ pub mod object_id {
     /// # use serde::{Serialize, Deserialize};
     /// # use bson::serde_helpers::object_id::ObjectIdAsHexString;
     /// # use serde_with::serde_as;
+    /// # use bson::oid::ObjectId;
     /// #[serde_as]
     /// #[derive(Serialize, Deserialize)]
     /// struct Item {
