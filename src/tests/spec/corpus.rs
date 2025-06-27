@@ -201,10 +201,9 @@ fn run_test(test: TestFile) {
                 let owned_raw_bson_field = deserializer_raw
                     .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<RawBson>))
                     .expect(&description);
+                let test_key_cstr: &crate::raw::CStr = test_key.as_str().try_into().unwrap();
                 let from_slice_owned_vec =
-                    RawDocumentBuf::from_iter([(test_key, owned_raw_bson_field)])
-                        .expect(&description)
-                        .into_bytes();
+                    RawDocumentBuf::from_iter([(test_key_cstr, owned_raw_bson_field)]).into_bytes();
 
                 // deserialize the field from raw Bytes into a Bson
                 let deserializer_value =

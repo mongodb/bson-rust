@@ -59,6 +59,12 @@ impl std::borrow::ToOwned for CStr {
     }
 }
 
+impl AsRef<CStr> for CStr {
+    fn as_ref(&self) -> &CStr {
+        self
+    }
+}
+
 #[cfg(feature = "serde")]
 impl serde::Serialize for &CStr {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -123,7 +129,7 @@ impl TryFrom<&str> for CString {
 }
 
 impl CString {
-    pub(crate) fn from_unchecked(data: String) -> Self {
+    pub(crate) fn from_string_unchecked(data: String) -> Self {
         Self { data }
     }
 

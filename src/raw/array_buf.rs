@@ -53,19 +53,6 @@ impl RawArrayBuf {
         }
     }
 
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_iter<B, I>(iter: I) -> crate::error::Result<Self>
-    where
-        B: BindRawBsonRef,
-        I: IntoIterator<Item = B>,
-    {
-        let mut array_buf = RawArrayBuf::new();
-        for item in iter {
-            array_buf.push(item)?;
-        }
-        Ok(array_buf)
-    }
-
     /// Construct a new [`RawArrayBuf`] from the provided [`Vec`] of bytes.
     ///
     /// This involves a traversal of the array to count the values.
@@ -102,10 +89,22 @@ impl RawArrayBuf {
     /// assert!(iter.next().is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn push(&mut self, value: impl BindRawBsonRef) -> crate::error::Result<()> {
-        self.inner.append(self.len.to_string(), value)?;
+    pub fn push(&mut self, value: impl BindRawBsonRef) {
+        self.inner.append(
+            super::CString::from_string_unchecked(self.len.to_string()),
+            value,
+        );
         self.len += 1;
-        Ok(())
+    }
+}
+
+impl<B: BindRawBsonRef> FromIterator<B> for RawArrayBuf {
+    fn from_iter<T: IntoIterator<Item = B>>(iter: T) -> Self {
+        let mut array_buf = RawArrayBuf::new();
+        for item in iter {
+            array_buf.push(item);
+        }
+        array_buf
     }
 }
 
@@ -200,7 +199,7 @@ impl TryFrom<crate::Array> for RawArrayBuf {
         let mut tmp = RawArrayBuf::new();
         for val in value {
             let raw: super::RawBson = val.try_into()?;
-            tmp.push(raw)?;
+            tmp.push(raw);
         }
         Ok(tmp)
     }

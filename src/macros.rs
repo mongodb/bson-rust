@@ -240,12 +240,12 @@ macro_rules! rawbson {
 
     // Finished with trailing comma.
     (@array [$($elems:expr,)*]) => {
-        $crate::RawArrayBuf::from_iter(vec![$($elems,)*]).expect("invalid bson value")
+        $crate::RawArrayBuf::from_iter(vec![$($elems,)*])
     };
 
     // Finished without trailing comma.
     (@array [$($elems:expr),*]) => {
-        $crate::RawArrayBuf::from_iter(vec![$($elems),*]).expect("invalid bson value")
+        $crate::RawArrayBuf::from_iter(vec![$($elems),*])
     };
 
     // Next element is `null`.
@@ -292,14 +292,18 @@ macro_rules! rawbson {
     (@object $object:ident () () ()) => {};
 
     // Insert the current entry followed by trailing comma.
-    (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
-        $object.append(($($key)+), $value).expect("invalid bson value");
+    (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {{
+        let key: &str = ($($key)+).as_ref();
+        let key: &$crate::raw::CStr = key.try_into().expect("invalid key");
+        $object.append(key, $value);
         $crate::rawbson!(@object $object () ($($rest)*) ($($rest)*));
-    };
+    }};
 
     // Insert the last entry without trailing comma.
     (@object $object:ident [$($key:tt)+] ($value:expr)) => {
-        $object.append(($($key)+), $value).expect("invalid bson value");
+        let key: &str = ($($key)+).as_ref();
+        let key: &$crate::raw::CStr = key.try_into().expect("invalid key");
+        $object.append(key, $value);
     };
 
     // Next value is `null`.
