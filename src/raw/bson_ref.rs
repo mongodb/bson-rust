@@ -293,7 +293,7 @@ impl<'a> RawBsonRef<'a> {
     }
 
     #[inline]
-    pub(crate) fn append_to(self, dest: &mut Vec<u8>) -> Result<()> {
+    pub(crate) fn append_to(self, dest: &mut Vec<u8>) {
         match self {
             Self::Int32(val) => dest.extend(val.to_le_bytes()),
             Self::Int64(val) => dest.extend(val.to_le_bytes()),
@@ -333,7 +333,6 @@ impl<'a> RawBsonRef<'a> {
             }
             Self::Null | Self::Undefined | Self::MinKey | Self::MaxKey => {}
         }
-        Ok(())
     }
 }
 

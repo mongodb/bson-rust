@@ -9,7 +9,7 @@ use serde::{
 use self::value_serializer::{ValueSerializer, ValueType};
 
 use crate::{
-    raw::{write_cstring, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{write_cstring, CStr, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     ser::{Error, Result},
     serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::{BinarySubtype, ElementType},
@@ -108,7 +108,7 @@ impl Serializer {
 
     fn serialize_raw(&mut self, v: RawBsonRef) -> Result<()> {
         self.update_element_type(v.element_type())?;
-        v.append_to(&mut self.bytes)?;
+        v.append_to(&mut self.bytes);
         Ok(())
     }
 }
@@ -290,7 +290,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         T: serde::Serialize + ?Sized,
     {
         self.update_element_type(ElementType::EmbeddedDocument)?;
-        let mut d = DocumentSerializer::start(&mut *self)?;
+        let mut d = DocumentSerializer::start(&mut *self);
         d.serialize_entry(variant, value)?;
         d.end_doc()?;
         Ok(())
@@ -299,7 +299,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     #[inline]
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         self.update_element_type(ElementType::Array)?;
-        DocumentSerializer::start(&mut *self)
+        Ok(DocumentSerializer::start(&mut *self))
     }
 
     #[inline]
@@ -325,13 +325,17 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
         self.update_element_type(ElementType::EmbeddedDocument)?;
-        VariantSerializer::start(&mut *self, variant, VariantInnerType::Tuple)
+        Ok(VariantSerializer::start(
+            &mut *self,
+            variant.try_into()?,
+            VariantInnerType::Tuple,
+        ))
     }
 
     #[inline]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         self.update_element_type(ElementType::EmbeddedDocument)?;
-        DocumentSerializer::start(&mut *self)
+        Ok(DocumentSerializer::start(&mut *self))
     }
 
     #[inline]
@@ -360,7 +364,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         )?;
         match value_type {
             Some(vt) => Ok(StructSerializer::Value(ValueSerializer::new(self, vt))),
-            None => Ok(StructSerializer::Document(DocumentSerializer::start(self)?)),
+            None => Ok(StructSerializer::Document(DocumentSerializer::start(self))),
         }
     }
 
@@ -373,7 +377,11 @@ impl<'a> serde::Serializer for &'a mut Serializer {
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
         self.update_element_type(ElementType::EmbeddedDocument)?;
-        VariantSerializer::start(&mut *self, variant, VariantInnerType::Struct)
+        Ok(VariantSerializer::start(
+            &mut *self,
+            variant.try_into()?,
+            VariantInnerType::Struct,
+        ))
     }
 }
 
@@ -431,32 +439,28 @@ pub(crate) struct VariantSerializer<'a> {
 }
 
 impl<'a> VariantSerializer<'a> {
-    fn start(
-        rs: &'a mut Serializer,
-        variant: &'static str,
-        inner_type: VariantInnerType,
-    ) -> Result<Self> {
+    fn start(rs: &'a mut Serializer, variant: &'static CStr, inner_type: VariantInnerType) -> Self {
         let doc_start = rs.bytes.len();
         // write placeholder length for document, will be updated at end
         static ZERO: RawBsonRef = RawBsonRef::Int32(0);
-        ZERO.append_to(&mut rs.bytes)?;
+        ZERO.append_to(&mut rs.bytes);
 
         let inner = match inner_type {
             VariantInnerType::Struct => ElementType::EmbeddedDocument,
             VariantInnerType::Tuple => ElementType::Array,
         };
         rs.bytes.push(inner as u8);
-        write_cstring(&mut rs.bytes, variant)?;
+        variant.append_to(&mut rs.bytes);
         let inner_start = rs.bytes.len();
         // write placeholder length for inner, will be updated at end
-        ZERO.append_to(&mut rs.bytes)?;
+        ZERO.append_to(&mut rs.bytes);
 
-        Ok(Self {
+        Self {
             root_serializer: rs,
             num_elements_serialized: 0,
             doc_start,
             inner_start,
-        })
+        }
     }
 
     #[inline]

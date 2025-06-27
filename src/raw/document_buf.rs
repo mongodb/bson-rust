@@ -220,9 +220,9 @@ impl RawDocumentBuf {
         key: impl AsRef<str>,
         value: impl BindRawBsonRef,
     ) -> crate::error::Result<()> {
-        value.bind(|value_ref| {
-            raw_writer::RawWriter::new(&mut self.data).append(key.as_ref(), value_ref)
-        })
+        let key = key.as_ref().try_into()?;
+        Ok(value
+            .bind(|value_ref| raw_writer::RawWriter::new(&mut self.data).append(key, value_ref)))
     }
 }
 
