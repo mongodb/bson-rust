@@ -406,7 +406,7 @@ pub mod date_time {
     ///
     /// ```rust
     /// # use serde::{Serialize, Deserialize};
-    /// # use bson::serde_helpers::BsonDateTimeAsRfc3339String;
+    /// # use bson::serde_helpers::date_time::BsonDateTimeAsRfc3339String;
     /// # use serde_with::serde_as;
     /// #[serde_as]
     /// #[derive(Serialize, Deserialize)]
@@ -451,7 +451,7 @@ pub mod date_time {
     ///
     /// ```rust
     /// # use serde::{Serialize, Deserialize};
-    /// # use bson::serde_helpers::Rfc3339StringAsBsonDateTime;
+    /// # use bson::serde_helpers::date_time::Rfc3339StringAsBsonDateTime;
     /// # use serde_with::serde_as;
     /// #[serde_as]
     /// #[derive(Serialize, Deserialize)]

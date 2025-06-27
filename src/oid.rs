@@ -107,7 +107,7 @@ impl error::Error for Error {}
 /// The `bson` crate provides a number of useful helpers for serializing and deserializing
 /// various types to and from different formats. For example, to serialize an
 /// [`ObjectId`] as a hex string, you can use
-/// [`crate::serde_helpers::ObjectIdAsHexString`].
+/// [`crate::serde_helpers::object_id::ObjectIdAsHexString`].
 /// Check out the [`crate::serde_helpers`] module documentation for a list of all of the helpers
 /// offered by the crate.
 ///
@@ -116,6 +116,7 @@ impl error::Error for Error {}
 /// use serde::{Serialize, Deserialize};
 /// use serde_with::serde_as;
 /// use bson::oid::ObjectId;
+/// use bson::serde_helpers::object_id::ObjectIdAsHexString;
 ///
 /// #[serde_as]
 /// #[derive(Serialize, Deserialize)]
@@ -124,7 +125,7 @@ impl error::Error for Error {}
 ///     oid: ObjectId,
 ///
 ///     // Serializes as a hex string in all formats
-///     #[serde_as(as = "bson::serde_helpers::ObjectIdAsHexString")]
+///     #[serde_as(as = "ObjectIdAsHexString")]
 ///     oid_as_hex: ObjectId,
 /// }
 /// # fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {

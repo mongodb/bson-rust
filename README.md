@@ -236,7 +236,9 @@ used in the `doc!` and `bson!` macros.
 e.g.
 ``` rust
 use serde::{Serialize, Deserialize};
+use serde_with::serde_as;
 
+#[serde_as]
 #[derive(Serialize, Deserialize)]
 struct Foo {
     // serializes as a BSON datetime.
@@ -247,7 +249,7 @@ struct Foo {
 
     // serializes as a BSON datetime.
     // this requires the "chrono-0_4" feature flag
-    #[serde(with = "bson::serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime")]
+    #[serde_as(as = "bson::serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime")]
     chrono_as_bson: chrono::DateTime<chrono::Utc>,
 }
 
