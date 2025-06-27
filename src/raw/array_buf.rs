@@ -65,14 +65,14 @@ impl RawArrayBuf {
     ///
     /// ```
     /// # use bson::error::Error;
-    /// use bson::raw::{RawArrayBuf, RawDocumentBuf};
+    /// use bson::raw::{cstr, RawArrayBuf, RawDocumentBuf};
     ///
     /// let mut array = RawArrayBuf::new();
     /// array.push("a string");
     /// array.push(12_i32);
     ///
     /// let mut doc = RawDocumentBuf::new();
-    /// doc.append("a key", "a value");
+    /// doc.append(cstr!("a key"), "a value");
     /// array.push(doc.clone());
     ///
     /// let mut iter = array.into_iter();

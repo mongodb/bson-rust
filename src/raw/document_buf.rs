@@ -183,17 +183,17 @@ impl RawDocumentBuf {
     /// the documentation for [BindRawBsonRef] for more details.
     /// ```
     /// # use bson::error::Error;
-    /// use bson::{doc, raw::{RawBsonRef, RawDocumentBuf}};
+    /// use bson::{doc, raw::{cstr, RawBsonRef, RawDocumentBuf}};
     ///
     /// let mut doc = RawDocumentBuf::new();
     /// // `&str` and `i32` both convert to `RawBsonRef`
-    /// doc.append("a string", "some string");
-    /// doc.append("an integer", 12_i32);
+    /// doc.append(cstr!("a string"), "some string");
+    /// doc.append(cstr!("an integer"), 12_i32);
     ///
     /// let mut subdoc = RawDocumentBuf::new();
-    /// subdoc.append("a key", true);
-    /// doc.append("a borrowed document", &subdoc);
-    /// doc.append("an owned document", subdoc);
+    /// subdoc.append(cstr!("a key"), true);
+    /// doc.append(cstr!("a borrowed document"), &subdoc);
+    /// doc.append(cstr!("an owned document"), subdoc);
     ///
     /// let expected = doc! {
     ///     "a string": "some string",
