@@ -110,9 +110,13 @@ pub enum ErrorKind {
     #[non_exhaustive]
     Serialization {},
 
-    #[error("Integer {n} cannot fit into BSON")]
+    /// An unsigned integer could not fit into a BSON integer type.
+    #[error("Unsigned integer {n} cannot fit into BSON")]
     #[non_exhaustive]
-    TooLargeInteger { n: u64 },
+    TooLargeUnsignedInteger {
+        /// The too-large unsigned integer.
+        n: u64,
+    },
 
     /// Invalid UTF-8 bytes were encountered.
     #[error("Invalid UTF-8")]
@@ -243,6 +247,6 @@ impl Error {
 
     #[cfg(feature = "serde")]
     pub(crate) fn too_large_integer(n: u64) -> Self {
-        Self::from(ErrorKind::TooLargeInteger { n })
+        Self::from(ErrorKind::TooLargeUnsignedInteger { n })
     }
 }

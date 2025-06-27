@@ -120,7 +120,10 @@ fn uint64_u2i() {
     assert_eq!(deser_min, u64::MIN);
 
     let error = serialize_to_bson(&u64::MAX).unwrap_err();
-    assert_matches!(error.kind, ErrorKind::TooLargeInteger { n: u64::MAX });
+    assert_matches!(
+        error.kind,
+        ErrorKind::TooLargeUnsignedInteger { n: u64::MAX }
+    );
 }
 
 #[test]
