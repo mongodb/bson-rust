@@ -79,7 +79,7 @@ pub enum ErrorKind {
     },
 
     /// A general error occurred during deserialization. This variant is constructed in the
-    /// [`serde::de::Error`] implementation for the [`Error`] type.
+    /// [`serde::de::Error`] implementation for the [`Error`](struct@Error) type.
     #[cfg(feature = "serde")]
     #[error("A deserialization-related error occurred")]
     #[non_exhaustive]
@@ -104,7 +104,7 @@ pub enum ErrorKind {
     },
 
     /// A general error occurred during serialization. This variant is constructed in the
-    /// [`serde::ser::Error`] implementation for the [`Error`] type.
+    /// [`serde::ser::Error`] implementation for the [`Error`](struct@Error) type.
     #[cfg(feature = "serde")]
     #[error("A serialization error occurred")]
     #[non_exhaustive]
@@ -227,6 +227,7 @@ impl Error {
         Self::from(ErrorKind::Deserialization {}).with_message(message)
     }
 
+    #[cfg(feature = "serde")]
     pub(crate) fn end_of_stream() -> Self {
         ErrorKind::EndOfStream {}.into()
     }
@@ -240,6 +241,7 @@ impl Error {
         matches!(self.kind, ErrorKind::MalformedBytes { .. },)
     }
 
+    #[cfg(feature = "serde")]
     pub(crate) fn too_large_integer(n: u64) -> Self {
         Self::from(ErrorKind::TooLargeInteger { n })
     }

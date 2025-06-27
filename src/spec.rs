@@ -149,6 +149,7 @@ impl ElementType {
         })
     }
 
+    #[cfg(feature = "serde")]
     pub(crate) fn name(&self) -> &'static str {
         match self {
             Self::Double => "double",

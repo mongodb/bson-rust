@@ -614,11 +614,7 @@ impl Deserializer {
         }
     }
 
-    fn deserialize_next<'de, V>(
-        mut self,
-        visitor: V,
-        hint: DeserializerHint,
-    ) -> std::result::Result<V::Value, crate::de::Error>
+    fn deserialize_next<'de, V>(mut self, visitor: V, hint: DeserializerHint) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
     {
@@ -706,7 +702,7 @@ macro_rules! forward_to_deserialize {
 }
 
 impl<'de> de::Deserializer<'de> for Deserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
     #[allow(deprecated)]
     fn is_human_readable(&self) -> bool {
@@ -714,7 +710,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     }
 
     #[inline]
-    fn deserialize_any<V>(self, visitor: V) -> crate::de::Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -780,7 +776,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         let (variant, value) = match iter.next() {
             Some(v) => v,
             None => {
-                return Err(crate::de::Error::invalid_value(
+                return Err(Error::invalid_value(
                     Unexpected::Other("empty document"),
                     &"variant name",
                 ))
@@ -789,7 +785,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
 
         // enums are encoded in json as maps with a single key:value pair
         match iter.next() {
-            Some((k, _)) => Err(crate::de::Error::invalid_value(
+            Some((k, _)) => Err(Error::invalid_value(
                 Unexpected::Map,
                 &format!("expected map with a single key, got extra key \"{}\"", k).as_str(),
             )),
@@ -804,11 +800,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     }
 
     #[inline]
-    fn deserialize_newtype_struct<V>(
-        mut self,
-        name: &'static str,
-        visitor: V,
-    ) -> crate::de::Result<V::Value>
+    fn deserialize_newtype_struct<V>(mut self, name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -881,9 +873,9 @@ struct EnumDeserializer {
 }
 
 impl<'de> EnumAccess<'de> for EnumDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
     type Variant = VariantDeserializer;
-    fn variant_seed<V>(self, seed: V) -> crate::de::Result<(V::Value, Self::Variant)>
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
     where
         V: DeserializeSeed<'de>,
     {
@@ -899,9 +891,9 @@ struct VariantDeserializer {
 }
 
 impl<'de> VariantAccess<'de> for VariantDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
-    fn unit_variant(mut self) -> crate::de::Result<()> {
+    fn unit_variant(mut self) -> Result<()> {
         match self.val.take() {
             None => Ok(()),
             Some(val) => {
@@ -955,7 +947,7 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
                 };
                 de.deserialize_any(visitor)
             }
-            ref other => Err(crate::de::Error::invalid_type(
+            ref other => Err(Error::invalid_type(
                 other.as_unexpected(),
                 &"expected a struct",
             )),
@@ -970,10 +962,10 @@ struct SeqDeserializer {
 }
 
 impl<'de> de::Deserializer<'de> for SeqDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
     #[inline]
-    fn deserialize_any<V>(self, visitor: V) -> crate::de::Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -1017,9 +1009,9 @@ impl<'de> de::Deserializer<'de> for SeqDeserializer {
 }
 
 impl<'de> SeqAccess<'de> for SeqDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
-    fn next_element_seed<T>(&mut self, seed: T) -> crate::de::Result<Option<T::Value>>
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
     where
         T: DeserializeSeed<'de>,
     {
@@ -1061,9 +1053,9 @@ impl MapDeserializer {
 }
 
 impl<'de> MapAccess<'de> for MapDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
-    fn next_key_seed<K>(&mut self, seed: K) -> crate::de::Result<Option<K::Value>>
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
         K: DeserializeSeed<'de>,
     {
@@ -1082,7 +1074,7 @@ impl<'de> MapAccess<'de> for MapDeserializer {
         }
     }
 
-    fn next_value_seed<V>(&mut self, seed: V) -> crate::de::Result<V::Value>
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: DeserializeSeed<'de>,
     {
@@ -1097,10 +1089,10 @@ impl<'de> MapAccess<'de> for MapDeserializer {
 }
 
 impl<'de> de::Deserializer<'de> for MapDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
     #[inline]
-    fn deserialize_any<V>(self, visitor: V) -> crate::de::Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
