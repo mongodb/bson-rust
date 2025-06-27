@@ -1,8 +1,6 @@
 mod document_serializer;
 mod value_serializer;
 
-use std::io::Write;
-
 use serde::{
     ser::{Error as SerdeError, SerializeMap, SerializeStruct},
     Serialize,
@@ -10,13 +8,16 @@ use serde::{
 
 use self::value_serializer::{ValueSerializer, ValueType};
 
-use super::{write_binary, write_cstring, write_f64, write_i32, write_i64, write_string};
 use crate::{
-    raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{write_cstring, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     ser::{Error, Result},
     serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
+    RawArray,
+    RawBinaryRef,
+    RawBsonRef,
+    RawDocument,
 };
 use document_serializer::DocumentSerializer;
 
@@ -104,6 +105,12 @@ impl Serializer {
         let portion = &mut self.bytes[at..at + 4];
         portion.copy_from_slice(&with.to_le_bytes());
     }
+
+    fn serialize_raw(&mut self, v: RawBsonRef) -> Result<()> {
+        self.update_element_type(v.element_type())?;
+        v.append_to(&mut self.bytes)?;
+        Ok(())
+    }
 }
 
 impl<'a> serde::Serializer for &'a mut Serializer {
@@ -124,9 +131,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Boolean)?;
-        self.bytes.push(v as u8);
-        Ok(())
+        self.serialize_raw(RawBsonRef::Boolean(v))
     }
 
     #[inline]
@@ -141,16 +146,12 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_i32(self, v: i32) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Int32)?;
-        write_i32(&mut self.bytes, v)?;
-        Ok(())
+        self.serialize_raw(RawBsonRef::Int32(v))
     }
 
     #[inline]
     fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Int64)?;
-        write_i64(&mut self.bytes, v)?;
-        Ok(())
+        self.serialize_raw(RawBsonRef::Int64(v))
     }
 
     #[inline]
@@ -185,8 +186,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_f64(self, v: f64) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Double)?;
-        write_f64(&mut self.bytes, v)
+        self.serialize_raw(RawBsonRef::Double(v))
     }
 
     #[inline]
@@ -198,32 +198,27 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::String)?;
-        write_string(&mut self.bytes, v);
-        Ok(())
+        self.serialize_raw(RawBsonRef::String(v))
     }
 
     #[inline]
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         match self.hint.take() {
             SerializerHint::RawDocument => {
-                self.update_element_type(ElementType::EmbeddedDocument)?;
-                self.bytes.write_all(v)?;
+                self.serialize_raw(RawBsonRef::Document(RawDocument::new_unchecked(v)))?;
             }
             SerializerHint::RawArray => {
-                self.update_element_type(ElementType::Array)?;
-                self.bytes.write_all(v)?;
+                self.serialize_raw(RawBsonRef::Array(RawArray::from_doc(
+                    RawDocument::new_unchecked(v),
+                )))?;
             }
             hint => {
-                self.update_element_type(ElementType::Binary)?;
-
                 let subtype = if matches!(hint, SerializerHint::Uuid) {
                     BinarySubtype::Uuid
                 } else {
                     BinarySubtype::Generic
                 };
-
-                write_binary(&mut self.bytes, v, subtype)?;
+                self.serialize_raw(RawBsonRef::Binary(RawBinaryRef { subtype, bytes: v }))?;
             }
         };
         Ok(())
@@ -231,8 +226,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
 
     #[inline]
     fn serialize_none(self) -> Result<Self::Ok> {
-        self.update_element_type(ElementType::Null)?;
-        Ok(())
+        self.serialize_raw(RawBsonRef::Null)
     }
 
     #[inline]
@@ -444,7 +438,8 @@ impl<'a> VariantSerializer<'a> {
     ) -> Result<Self> {
         let doc_start = rs.bytes.len();
         // write placeholder length for document, will be updated at end
-        write_i32(&mut rs.bytes, 0)?;
+        static ZERO: RawBsonRef = RawBsonRef::Int32(0);
+        ZERO.append_to(&mut rs.bytes)?;
 
         let inner = match inner_type {
             VariantInnerType::Struct => ElementType::EmbeddedDocument,
@@ -454,7 +449,7 @@ impl<'a> VariantSerializer<'a> {
         write_cstring(&mut rs.bytes, variant)?;
         let inner_start = rs.bytes.len();
         // write placeholder length for inner, will be updated at end
-        write_i32(&mut rs.bytes, 0)?;
+        ZERO.append_to(&mut rs.bytes)?;
 
         Ok(Self {
             root_serializer: rs,

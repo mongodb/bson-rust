@@ -856,7 +856,8 @@ where
 ///
 /// This wrapper type has no impact on serialization. Serializing a `Utf8LossyDeserialization<T>`
 /// will call the `serialize` method for the wrapped `T`.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Default)]
+#[repr(transparent)]
 pub struct Utf8LossyDeserialization<T>(pub T);
 
 pub(crate) const UTF8_LOSSY_NEWTYPE: &str = "$__bson_private_utf8_lossy";
@@ -889,5 +890,50 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for Utf8LossyDeserialization<T> 
             }
         }
         deserializer.deserialize_newtype_struct(UTF8_LOSSY_NEWTYPE, V(PhantomData))
+    }
+}
+
+impl<T: std::fmt::Display> std::fmt::Display for Utf8LossyDeserialization<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<T> From<T> for Utf8LossyDeserialization<T> {
+    fn from(value: T) -> Self {
+        Self(value)
+    }
+}
+
+impl<T> Deref for Utf8LossyDeserialization<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for Utf8LossyDeserialization<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T, R> AsRef<R> for Utf8LossyDeserialization<T>
+where
+    R: ?Sized,
+    <Utf8LossyDeserialization<T> as Deref>::Target: AsRef<R>,
+{
+    fn as_ref(&self) -> &R {
+        self.deref().as_ref()
+    }
+}
+
+impl<T, R: ?Sized> AsMut<R> for Utf8LossyDeserialization<T>
+where
+    <Utf8LossyDeserialization<T> as Deref>::Target: AsMut<R>,
+{
+    fn as_mut(&mut self) -> &mut R {
+        self.deref_mut().as_mut()
     }
 }

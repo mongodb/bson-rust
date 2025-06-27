@@ -23,14 +23,14 @@
 //! };
 //!
 //! // See http://bsonspec.org/spec.html for details on the binary encoding of BSON.
-//! let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+//! let doc = RawDocumentBuf::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 //! let elem = doc.get("hi")?.unwrap();
 //!
 //! assert_eq!(
 //!   elem.as_str(),
 //!   Some("y'all"),
 //! );
-//! # Ok::<(), bson::raw::Error>(())
+//! # Ok::<(), bson::error::Error>(())
 //! ```
 //!
 //! ### [`crate::Document`] interop
@@ -76,7 +76,7 @@
 //! use bson::raw::RawDocument;
 //!
 //! let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
-//! assert_eq!(RawDocument::from_bytes(bytes)?.get_str("hi")?, "y'all");
+//! assert_eq!(RawDocument::decode_from_bytes(bytes)?.get_str("hi")?, "y'all");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -109,7 +109,7 @@
 //! let (key, value): (&str, RawBsonRef) = doc_iter.next().unwrap()?;
 //! assert_eq!(key, "year");
 //! assert_eq!(value.as_str(), Some("2021"));
-//! # Ok::<(), bson::raw::Error>(())
+//! # Ok::<(), bson::error::Error>(())
 //! ```
 
 mod array;
@@ -118,15 +118,18 @@ mod bson;
 mod bson_ref;
 mod document;
 mod document_buf;
-mod error;
 mod iter;
+#[cfg(feature = "serde")]
 pub(crate) mod serde;
 #[cfg(test)]
 mod test;
 
-use std::convert::{TryFrom, TryInto};
+use std::{
+    convert::{TryFrom, TryInto},
+    io::Read,
+};
 
-use crate::de::MIN_BSON_STRING_SIZE;
+use crate::error::{Error, ErrorKind, Result};
 
 pub use self::{
     array::{RawArray, RawArrayIter},
@@ -141,19 +144,26 @@ pub use self::{
     },
     document::RawDocument,
     document_buf::{BindRawBsonRef, RawDocumentBuf},
-    error::{Error, ErrorKind, Result, ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
     iter::{RawElement, RawIter},
 };
 
+pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
+pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
+pub(crate) const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
+
+#[cfg(feature = "serde")]
 pub(crate) use self::iter::{Utf8LossyBson, Utf8LossyJavaScriptCodeWithScope};
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.
+#[cfg(feature = "serde")]
 pub(crate) const RAW_DOCUMENT_NEWTYPE: &str = "$__private__bson_RawDocument";
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON array.
+#[cfg(feature = "serde")]
 pub(crate) const RAW_ARRAY_NEWTYPE: &str = "$__private__bson_RawArray";
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON value.
+#[cfg(feature = "serde")]
 pub(crate) const RAW_BSON_NEWTYPE: &str = "$__private__bson_RawBson";
 
 /// Given a u8 slice, return an i32 calculated from the first four bytes in
@@ -163,7 +173,7 @@ fn f64_from_slice(val: &[u8]) -> Result<f64> {
         .get(0..8)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
-            Error::malformed(format!(
+            Error::malformed_bytes(format!(
                 "expected 8 bytes to read double, instead got {}",
                 val.len()
             ))
@@ -178,7 +188,7 @@ fn i32_from_slice(val: &[u8]) -> Result<i32> {
         .get(0..4)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
-            Error::malformed(format!(
+            Error::malformed_bytes(format!(
                 "expected 4 bytes to read i32, instead got {}",
                 val.len()
             ))
@@ -193,7 +203,7 @@ fn i64_from_slice(val: &[u8]) -> Result<i64> {
         .get(0..8)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
-            Error::malformed(format!(
+            Error::malformed_bytes(format!(
                 "expected 8 bytes to read i64, instead got {}",
                 val.len()
             ))
@@ -206,7 +216,7 @@ fn u8_from_slice(val: &[u8]) -> Result<u8> {
         .get(0..1)
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| {
-            Error::malformed(format!(
+            Error::malformed_bytes(format!(
                 "expected 1 byte to read u8, instead got {}",
                 val.len()
             ))
@@ -217,7 +227,7 @@ fn u8_from_slice(val: &[u8]) -> Result<u8> {
 pub(crate) fn bool_from_slice(val: &[u8]) -> Result<bool> {
     let val = u8_from_slice(val)?;
     if val > 1 {
-        return Err(Error::malformed(format!(
+        return Err(Error::malformed_bytes(format!(
             "boolean must be stored as 0 or 1, got {}",
             val
         )));
@@ -228,7 +238,7 @@ pub(crate) fn bool_from_slice(val: &[u8]) -> Result<bool> {
 
 fn read_len(buf: &[u8]) -> Result<usize> {
     if buf.len() < 4 {
-        return Err(Error::malformed(format!(
+        return Err(Error::malformed_bytes(format!(
             "expected buffer with string to contain at least 4 bytes, but it only has {}",
             buf.len()
         )));
@@ -238,14 +248,14 @@ fn read_len(buf: &[u8]) -> Result<usize> {
     let end = checked_add(usize_try_from_i32(length)?, 4)?;
 
     if end < MIN_BSON_STRING_SIZE as usize {
-        return Err(Error::malformed(format!(
+        return Err(Error::malformed_bytes(format!(
             "BSON length encoded string needs to be at least {} bytes, instead got {}",
             MIN_BSON_STRING_SIZE, end
         )));
     }
 
     if buf.len() < end {
-        return Err(Error::malformed(format!(
+        return Err(Error::malformed_bytes(format!(
             "expected buffer to contain at least {} bytes, but it only has {}",
             end,
             buf.len()
@@ -253,7 +263,9 @@ fn read_len(buf: &[u8]) -> Result<usize> {
     }
 
     if buf[end - 1] != 0 {
-        return Err(Error::malformed("expected string to be null-terminated"));
+        return Err(Error::malformed_bytes(
+            "expected string to be null-terminated",
+        ));
     }
 
     Ok(length as usize + 4)
@@ -271,14 +283,48 @@ fn read_lenencode(buf: &[u8]) -> Result<&str> {
 }
 
 fn try_to_str(data: &[u8]) -> Result<&str> {
-    std::str::from_utf8(data).map_err(|e| Error::new(ErrorKind::Utf8EncodingError(e)))
+    simdutf8::basic::from_utf8(data).map_err(|_| ErrorKind::Utf8Encoding {}.into())
 }
 
 fn usize_try_from_i32(i: i32) -> Result<usize> {
-    usize::try_from(i).map_err(Error::malformed)
+    usize::try_from(i).map_err(Error::malformed_bytes)
 }
 
 fn checked_add(lhs: usize, rhs: usize) -> Result<usize> {
     lhs.checked_add(rhs)
-        .ok_or_else(|| Error::malformed("attempted to add with overflow"))
+        .ok_or_else(|| Error::malformed_bytes("attempted to add with overflow"))
+}
+
+pub(crate) fn reader_to_vec<R: Read>(mut reader: R) -> Result<Vec<u8>> {
+    let mut buf = [0; 4];
+    reader.read_exact(&mut buf)?;
+    let length = i32::from_le_bytes(buf);
+
+    if length < MIN_BSON_DOCUMENT_SIZE {
+        return Err(Error::malformed_bytes("document size too small"));
+    }
+
+    let mut bytes = Vec::with_capacity(length as usize);
+    bytes.extend(buf);
+
+    reader.take(length as u64 - 4).read_to_end(&mut bytes)?;
+    Ok(bytes)
+}
+
+pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
+    buf.extend(&(s.len() as i32 + 1).to_le_bytes());
+    buf.extend(s.as_bytes());
+    buf.push(0);
+}
+
+pub(crate) fn write_cstring(buf: &mut Vec<u8>, s: &str) -> Result<()> {
+    if s.contains('\0') {
+        return Err(Error::malformed_bytes(format!(
+            "cstring with interior null: {:?}",
+            s
+        )));
+    }
+    buf.extend(s.as_bytes());
+    buf.push(0);
+    Ok(())
 }

@@ -1,6 +1,11 @@
-use super::*;
 use std::convert::TryFrom;
+
 use time::Date;
+
+use crate::{
+    datetime::DateTime,
+    error::{Error, Result},
+};
 
 /// Builder for constructing a BSON [`DateTime`]
 pub struct DateTimeBuilder<Y = NoYear, M = NoMonth, D = NoDay> {
@@ -169,19 +174,16 @@ impl DateTimeBuilder<Year, Month, Day> {
     ///
     /// Note: You cannot call `build()` before setting at least the year, month and day.
     pub fn build(self) -> Result<DateTime> {
-        let err = |e: time::error::ComponentRange| Error::InvalidTimestamp {
-            message: e.to_string(),
-        };
-        let month = time::Month::try_from(self.month.0).map_err(err)?;
+        let month = time::Month::try_from(self.month.0).map_err(Error::datetime)?;
         let dt = Date::from_calendar_date(self.year.0, month, self.day.0)
-            .map_err(err)?
+            .map_err(Error::datetime)?
             .with_hms_milli(
                 self.hour.unwrap_or(0),
                 self.minute.unwrap_or(0),
                 self.second.unwrap_or(0),
                 self.millisecond.unwrap_or(0),
             )
-            .map_err(err)?;
+            .map_err(Error::datetime)?;
         Ok(DateTime::from_time_private(dt.assume_utc()))
     }
 }

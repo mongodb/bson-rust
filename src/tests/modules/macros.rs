@@ -46,29 +46,6 @@ fn standard_format() {
         "date": Bson::DateTime(crate::DateTime::from_time_0_3(date)),
     };
 
-    let rawdoc = rawdoc! {
-        "float": 2.4,
-        "string": "hello",
-        "array": ["testing", 1, true, [1, 2]],
-        "doc": {
-            "fish": "in",
-            "a": "barrel",
-            "!": 1,
-        },
-        "bool": true,
-        "null": null,
-        "regexp": Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() },
-        "with_wrapped_parens": (-20),
-        "code": RawBson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
-        "i32": 12,
-        "i64": -55,
-        "timestamp": Timestamp { time: 0, increment: 229_999_444 },
-        "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
-        "encrypted": Binary { subtype: BinarySubtype::Encrypted, bytes: "secret".to_owned().into_bytes() },
-        "_id": id,
-        "date": crate::DateTime::from_time_0_3(date),
-    };
-
     let ts_nanos = date.unix_timestamp_nanos();
     let ts_millis = ts_nanos - (ts_nanos % 1_000_000);
     let date_trunc = time::OffsetDateTime::from_unix_timestamp_nanos(ts_millis).unwrap();
@@ -87,7 +64,32 @@ fn standard_format() {
 
     assert_eq!(expected, format!("{}", doc));
 
-    assert_eq!(rawdoc.into_bytes(), crate::to_vec(&doc).unwrap());
+    #[cfg(feature = "serde")]
+    {
+        let rawdoc = rawdoc! {
+            "float": 2.4,
+            "string": "hello",
+            "array": ["testing", 1, true, [1, 2]],
+            "doc": {
+                "fish": "in",
+                "a": "barrel",
+                "!": 1,
+            },
+            "bool": true,
+            "null": null,
+            "regexp": Regex { pattern: "s[ao]d".to_owned(), options: "i".to_owned() },
+            "with_wrapped_parens": (-20),
+            "code": RawBson::JavaScriptCode("function(x) { return x._id; }".to_owned()),
+            "i32": 12,
+            "i64": -55,
+            "timestamp": Timestamp { time: 0, increment: 229_999_444 },
+            "binary": Binary { subtype: BinarySubtype::Md5, bytes: "thingies".to_owned().into_bytes() },
+            "encrypted": Binary { subtype: BinarySubtype::Encrypted, bytes: "secret".to_owned().into_bytes() },
+            "_id": id,
+            "date": crate::DateTime::from_time_0_3(date),
+        };
+        assert_eq!(rawdoc.into_bytes(), crate::serialize_to_vec(&doc).unwrap());
+    }
 }
 
 #[test]
@@ -123,24 +125,6 @@ fn recursive_macro() {
         ],
         "e": { "single": "test" },
         "n": (Bson::Null),
-    };
-    let rawdoc = rawdoc! {
-        "a": "foo",
-        "b": {
-            "bar": {
-                "harbor": ["seal", false],
-                "jelly": 42.0,
-            },
-            "grape": 27,
-        },
-        "c": [-7],
-        "d": [
-            {
-                "apple": "ripe",
-            }
-        ],
-        "e": { "single": "test" },
-        "n": (RawBson::Null),
     };
 
     match doc.get("a") {
@@ -241,7 +225,28 @@ fn recursive_macro() {
         _ => panic!("Null was not inserted correctly."),
     }
 
-    assert_eq!(rawdoc.into_bytes(), crate::to_vec(&doc).unwrap());
+    #[cfg(feature = "serde")]
+    {
+        let rawdoc = rawdoc! {
+            "a": "foo",
+            "b": {
+                "bar": {
+                    "harbor": ["seal", false],
+                    "jelly": 42.0,
+                },
+                "grape": 27,
+            },
+            "c": [-7],
+            "d": [
+                {
+                    "apple": "ripe",
+                }
+            ],
+            "e": { "single": "test" },
+            "n": (RawBson::Null),
+        };
+        assert_eq!(rawdoc.into_bytes(), crate::serialize_to_vec(&doc).unwrap());
+    }
 }
 
 #[test]

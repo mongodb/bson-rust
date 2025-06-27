@@ -6,18 +6,19 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    de::from_document,
+    de::deserialize_from_document,
     doc,
     oid::ObjectId,
     ser::Error,
+    serialize_to_document,
     spec::BinarySubtype,
     tests::LOCK,
-    to_document,
     Binary,
     Bson,
     Decimal128,
     Document,
     JavaScriptCodeWithScope,
+    RawDocumentBuf,
     Regex,
     Timestamp,
 };
@@ -34,11 +35,11 @@ fn test_serialize_deserialize_floating_point() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -54,11 +55,11 @@ fn test_serialize_deserialize_utf8_string() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -67,14 +68,16 @@ fn test_encode_decode_utf8_string_invalid() {
     let bytes = b"\x80\xae".to_vec();
     let src = unsafe { String::from_utf8_unchecked(bytes) };
 
-    let doc = doc! { "key": src };
+    let doc = doc! { "key": &src, "subdoc": { "subkey": &src } };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
-    let expected = doc! { "key": "��" };
-    #[allow(deprecated)]
-    let decoded = Document::from_reader_utf8_lossy(&mut Cursor::new(buf)).unwrap();
+    let expected = doc! { "key": "��", "subdoc": { "subkey": "��" } };
+    let decoded = RawDocumentBuf::decode_from_reader(&mut Cursor::new(buf))
+        .unwrap()
+        .to_document_utf8_lossy()
+        .unwrap();
     assert_eq!(decoded, expected);
 }
 
@@ -90,11 +93,11 @@ fn test_serialize_deserialize_array() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -110,11 +113,11 @@ fn test_serialize_deserialize() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -127,11 +130,11 @@ fn test_serialize_deserialize_boolean() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -144,11 +147,11 @@ fn test_serialize_deserialize_null() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -164,11 +167,11 @@ fn test_serialize_deserialize_regexp() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -181,11 +184,11 @@ fn test_serialize_deserialize_javascript_code() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -203,11 +206,11 @@ fn test_serialize_deserialize_javascript_code_with_scope() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -220,11 +223,11 @@ fn test_serialize_deserialize_i32() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -239,11 +242,11 @@ fn test_serialize_deserialize_i64() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -261,11 +264,11 @@ fn test_serialize_deserialize_timestamp() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -283,11 +286,11 @@ fn test_serialize_binary_generic() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -302,11 +305,11 @@ fn test_serialize_deserialize_object_id() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -331,11 +334,11 @@ fn test_serialize_utc_date_time() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -350,11 +353,11 @@ fn test_serialize_deserialize_symbol() {
     let doc = doc! { "key": symbol };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -372,7 +375,7 @@ fn test_deserialize_utc_date_time_overflows() {
     raw.write_all(&raw0).unwrap();
     raw.write_all(&[0]).unwrap();
 
-    let deserialized = Document::from_reader(&mut Cursor::new(raw)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(raw)).unwrap();
 
     let expected = doc! { "A": crate::DateTime::from_time_0_3(time::OffsetDateTime::from_unix_timestamp(1_530_492_218).unwrap() + time::Duration::nanoseconds(999 * 1_000_000))};
     assert_eq!(deserialized, expected);
@@ -383,7 +386,7 @@ fn test_deserialize_invalid_utf8_string_issue64() {
     let _guard = LOCK.run_concurrently();
     let buffer = b"\x13\x00\x00\x00\x02\x01\x00\x00\x00\x00\x00\x00\x00foo\x00\x13\x05\x00\x00\x00";
 
-    assert!(Document::from_reader(&mut Cursor::new(buffer)).is_err());
+    assert!(Document::decode_from_reader(&mut Cursor::new(buffer)).is_err());
 }
 
 #[test]
@@ -391,7 +394,7 @@ fn test_deserialize_multiply_overflows_issue64() {
     let _guard = LOCK.run_concurrently();
     let buffer = b"*\xc9*\xc9\t\x00\x00\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\xca\x01\t\x00\x00\x01\x10";
 
-    assert!(Document::from_reader(&mut Cursor::new(&buffer[..])).is_err());
+    assert!(Document::decode_from_reader(&mut Cursor::new(&buffer[..])).is_err());
 }
 
 #[test]
@@ -407,11 +410,11 @@ fn test_serialize_deserialize_decimal128() {
     let doc = doc! { "key": val };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -421,7 +424,7 @@ fn test_illegal_size() {
     let buffer = [
         0x06, 0xcc, 0xf9, 0x0a, 0x05, 0x00, 0x00, 0x03, 0x00, 0xff, 0xff,
     ];
-    assert!(Document::from_reader(&mut Cursor::new(&buffer[..])).is_err());
+    assert!(Document::decode_from_reader(&mut Cursor::new(&buffer[..])).is_err());
 }
 
 #[test]
@@ -433,11 +436,11 @@ fn test_serialize_deserialize_undefined() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -450,11 +453,11 @@ fn test_serialize_deserialize_min_key() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -467,11 +470,11 @@ fn test_serialize_deserialize_max_key() {
     let doc = doc! {"key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -493,11 +496,11 @@ fn test_serialize_deserialize_db_pointer() {
     let doc = doc! { "key": src };
 
     let mut buf = Vec::new();
-    doc.to_writer(&mut buf).unwrap();
+    doc.encode_to_writer(&mut buf).unwrap();
 
     assert_eq!(buf, dst);
 
-    let deserialized = Document::from_reader(&mut Cursor::new(buf)).unwrap();
+    let deserialized = Document::decode_from_reader(&mut Cursor::new(buf)).unwrap();
     assert_eq!(deserialized, doc);
 }
 
@@ -512,10 +515,10 @@ fn test_serialize_deserialize_document() {
     }
     let src = Point { x: 1, y: 2 };
 
-    let doc = to_document(&src).unwrap();
+    let doc = serialize_to_document(&src).unwrap();
     assert_eq!(doc, doc! { "x": 1, "y": 2 });
 
-    let point: Point = from_document(doc).unwrap();
+    let point: Point = deserialize_from_document(doc).unwrap();
     assert_eq!(src, point);
 
     #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -528,17 +531,17 @@ fn test_serialize_deserialize_document() {
         p2: Point { x: 1, y: 1 },
     };
 
-    let doc = to_document(&src).unwrap();
+    let doc = serialize_to_document(&src).unwrap();
     assert_eq!(
         doc,
         doc! { "p1": { "x": 0, "y": 0 }, "p2": { "x": 1, "y": 1 } }
     );
 
-    let line: Line = from_document(doc).unwrap();
+    let line: Line = deserialize_from_document(doc).unwrap();
     assert_eq!(src, line);
 
     let x = 1;
-    let err = to_document(&x).unwrap_err();
+    let err = serialize_to_document(&x).unwrap_err();
     match err {
         Error::SerializationError { message } => {
             assert!(message.contains("Could not be serialized to Document"));
@@ -547,7 +550,7 @@ fn test_serialize_deserialize_document() {
     }
 
     let bad_point = doc! { "x": "one", "y": "two" };
-    let bad_point: Result<Point, crate::de::Error> = from_document(bad_point);
+    let bad_point: Result<Point, crate::de::Error> = deserialize_from_document(bad_point);
     assert!(bad_point.is_err());
 }
 
@@ -556,7 +559,7 @@ fn test_serialize_deserialize_document() {
 fn test_deserialize_invalid_array_length() {
     let _guard = LOCK.run_concurrently();
     let buffer = b"\n\x00\x00\x00\x04\x00\x00\x00\x00\x00";
-    Document::from_reader(&mut std::io::Cursor::new(buffer))
+    Document::decode_from_reader(&mut std::io::Cursor::new(buffer))
         .expect_err("expected deserialization to fail");
 }
 
@@ -565,10 +568,10 @@ fn test_deserialize_invalid_array_length() {
 fn test_deserialize_invalid_old_binary_length() {
     let _guard = LOCK.run_concurrently();
     let buffer = b"\x0F\x00\x00\x00\x05\x00\x00\x00\x00\x00\x02\xFC\xFF\xFF\xFF";
-    Document::from_reader(&mut std::io::Cursor::new(buffer))
+    Document::decode_from_reader(&mut std::io::Cursor::new(buffer))
         .expect_err("expected deserialization to fail");
 
     let buffer = b".\x00\x00\x00\x05\x01\x00\x00\x00\x00\x00\x02\xfc\xff\xff\xff\xff\xff\xff\xff\x00\x00*\x00h\x0e\x10++\x00h\x0e++\x00\x00\t\x00\x00\x00\x00\x00*\x0e\x10++";
-    Document::from_reader(&mut std::io::Cursor::new(buffer))
+    Document::decode_from_reader(&mut std::io::Cursor::new(buffer))
         .expect_err("expected deserialization to fail");
 }

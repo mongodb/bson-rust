@@ -1,17 +1,12 @@
 //! Module containing functionality related to BSON DateTimes.
 //! For more information, see the documentation for the [`DateTime`] type.
+pub(crate) mod builder;
 
 use std::{
     convert::TryInto,
-    error,
     fmt::{self, Display},
-    result,
     time::{Duration, SystemTime},
 };
-
-pub(crate) mod builder;
-pub use crate::datetime::builder::DateTimeBuilder;
-use time::format_description::well_known::Rfc3339;
 
 #[cfg(feature = "chrono-0_4")]
 use chrono::{LocalResult, TimeZone, Utc};
@@ -20,6 +15,10 @@ use chrono::{LocalResult, TimeZone, Utc};
     any(feature = "chrono-0_4", feature = "time-0_3")
 ))]
 use serde::{Deserialize, Deserializer, Serialize};
+use time::format_description::well_known::Rfc3339;
+
+pub use crate::datetime::builder::DateTimeBuilder;
+use crate::error::{Error, Result};
 
 /// Struct representing a BSON datetime.
 /// Note: BSON datetimes have millisecond precision.
@@ -73,7 +72,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 ///
 /// # fn main() -> bson::ser::Result<()> {
 /// let f = Foo { date_time: bson::DateTime::now(), chrono_datetime: chrono::Utc::now() };
-/// println!("{:?}", bson::to_document(&f)?);
+/// println!("{:?}", bson::serialize_to_document(&f)?);
 /// # Ok(())
 /// # }
 /// ```
@@ -175,10 +174,18 @@ use serde::{Deserialize, Deserializer, Serialize};
 ///   "as_bson": bson::DateTime::from_chrono(dt),
 /// };
 ///
-/// assert_eq!(bson::to_document(&foo)?, expected);
+/// assert_eq!(bson::serialize_to_document(&foo)?, expected);
 /// # }
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
+///
+/// ## Large Dates
+/// The range of dates supported by `DateTime` is defined by [`DateTime::MIN`] and
+/// [`DateTime::MAX`]. However, some utilities for constructing and converting `DateTimes`, such as
+/// interop with the [`time::OffsetDateTime`] type and with RFC 3339 strings, are bounded by the
+/// [`time`] crate's supported date range. The `large_dates` feature can be enabled to expand this
+/// range, which enables the
+/// [`large-dates` feature for `time`](https://docs.rs/time/latest/time/#feature-flags).
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 pub struct DateTime(i64);
 
@@ -383,30 +390,15 @@ impl crate::DateTime {
         }
     }
 
-    #[deprecated(since = "2.3.0", note = "Use try_to_rfc3339_string instead.")]
-    /// Convert this [`DateTime`] to an RFC 3339 formatted string.  Panics if it could not be
-    /// represented in that format.
-    pub fn to_rfc3339_string(self) -> String {
-        self.try_to_rfc3339_string().unwrap()
-    }
-
     /// Convert this [`DateTime`] to an RFC 3339 formatted string.
     pub fn try_to_rfc3339_string(self) -> Result<String> {
-        self.to_time_0_3()
-            .format(&Rfc3339)
-            .map_err(|e| Error::CannotFormat {
-                message: e.to_string(),
-            })
+        self.to_time_0_3().format(&Rfc3339).map_err(Error::datetime)
     }
 
     /// Convert the given RFC 3339 formatted string to a [`DateTime`], truncating it to millisecond
     /// precision.
     pub fn parse_rfc3339_str(s: impl AsRef<str>) -> Result<Self> {
-        let odt = time::OffsetDateTime::parse(s.as_ref(), &Rfc3339).map_err(|e| {
-            Error::InvalidTimestamp {
-                message: e.to_string(),
-            }
-        })?;
+        let odt = time::OffsetDateTime::parse(s.as_ref(), &Rfc3339).map_err(Error::datetime)?;
         Ok(Self::from_time_0_3(odt))
     }
 
@@ -424,10 +416,6 @@ impl crate::DateTime {
     pub fn saturating_duration_since(self, earlier: Self) -> Duration {
         self.checked_duration_since(earlier)
             .unwrap_or(Duration::ZERO)
-    }
-
-    pub(crate) fn as_le_bytes(&self) -> [u8; 8] {
-        self.0.to_le_bytes()
     }
 }
 
@@ -551,30 +539,3 @@ impl serde_with::SerializeAs<time::OffsetDateTime> for crate::DateTime {
         dt.serialize(serializer)
     }
 }
-
-/// Errors that can occur during [`DateTime`] construction and generation.
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub enum Error {
-    /// Error returned when an invalid datetime format is provided to a conversion method.
-    #[non_exhaustive]
-    InvalidTimestamp { message: String },
-    /// Error returned when a [`DateTime`] cannot be represented in a particular format.
-    #[non_exhaustive]
-    CannotFormat { message: String },
-}
-
-/// Alias for `Result<T, DateTime::Error>`
-pub type Result<T> = result::Result<T, Error>;
-
-impl fmt::Display for Error {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::InvalidTimestamp { message } | Error::CannotFormat { message } => {
-                write!(fmt, "{}", message)
-            }
-        }
-    }
-}
-
-impl error::Error for Error {}

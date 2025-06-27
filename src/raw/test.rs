@@ -5,7 +5,6 @@ use super::*;
 use crate::{
     doc,
     oid::ObjectId,
-    raw::error::ValueAccessErrorKind,
     spec::BinarySubtype,
     Binary,
     Bson,
@@ -17,13 +16,11 @@ use crate::{
 
 #[test]
 fn test_decimal128_doesnt_panic_on_bad_codepoint_boundary() {
-    use crate::decimal128::ParseError;
     use std::str::FromStr;
     // idx 34 (Coefficient::MAX_DIGITS) on this string isn't a valid codepoint boundary
-    assert!(matches!(
-        Decimal128::from_str("111111111111111111111111111111111❤"),
-        Err(ParseError::Unparseable)
-    ))
+    assert!(Decimal128::from_str("111111111111111111111111111111111❤")
+        .unwrap_err()
+        .is_decimal128_unparseable());
 }
 
 #[test]
@@ -121,12 +118,13 @@ fn rawdoc_to_doc() {
     };
 
     let doc: crate::Document = rawdoc.clone().try_into().expect("invalid bson");
-    let round_tripped_bytes = crate::to_vec(&doc).expect("serialize should work");
-    assert_eq!(round_tripped_bytes.as_slice(), rawdoc.as_bytes());
+    #[cfg(feature = "serde")]
+    {
+        let round_tripped_bytes = crate::serialize_to_vec(&doc).expect("serialize should work");
+        assert_eq!(round_tripped_bytes.as_slice(), rawdoc.as_bytes());
+    }
 
-    let mut vec_writer_bytes = vec![];
-    doc.to_writer(&mut vec_writer_bytes)
-        .expect("to writer should work");
+    let vec_writer_bytes = doc.encode_to_vec().expect("encode should work");
     assert_eq!(vec_writer_bytes, rawdoc.into_bytes());
 }
 
@@ -183,12 +181,9 @@ fn array() {
         .expect("no key array")
         .as_array()
         .expect("result was not an array");
-    assert_eq!(array.get_str(0), Ok("binary"));
-    assert_eq!(array.get_str(3), Ok("notation"));
-    assert_eq!(
-        array.get_str(4).unwrap_err().kind,
-        ValueAccessErrorKind::NotPresent
-    );
+    assert_eq!(array.get_str(0).unwrap(), "binary");
+    assert_eq!(array.get_str(3).unwrap(), "notation");
+    assert!(array.get_str(4).unwrap_err().is_value_access_not_present());
 }
 
 #[test]
@@ -434,7 +429,7 @@ fn into_bson_conversion() {
         "binary": Binary { subtype: BinarySubtype::Generic, bytes: vec![1u8, 2, 3] },
         "boolean": false,
     };
-    let rawbson = RawBsonRef::Document(RawDocument::from_bytes(rawdoc.as_bytes()).unwrap());
+    let rawbson = RawBsonRef::Document(RawDocument::decode_from_bytes(rawdoc.as_bytes()).unwrap());
     let b: Bson = rawbson.try_into().expect("invalid bson");
     let doc = b.as_document().expect("not a document");
     assert_eq!(*doc.get("f64").expect("f64 not found"), Bson::Double(2.5));
@@ -474,12 +469,13 @@ fn into_bson_conversion() {
     );
 }
 
+#[cfg(feature = "serde")]
 #[test]
 fn fuzz_oom() {
     let bytes: &[u8] = &[
         17, 0, 0, 0, 11, 36, 100, 97, 116, 101, 0, 111, 112, 101, 0, 4, 0,
     ];
-    let _ = crate::from_slice::<crate::Document>(bytes);
+    let _ = crate::deserialize_from_slice::<crate::Document>(bytes);
 }
 
 use props::arbitrary_bson;
@@ -489,15 +485,21 @@ use std::convert::TryInto;
 proptest! {
     #[test]
     fn no_crashes(s: Vec<u8>) {
-        let _ = RawDocumentBuf::from_bytes(s);
+        let _ = RawDocumentBuf::decode_from_bytes(s);
     }
 
     #[test]
     fn roundtrip_bson(bson in arbitrary_bson()) {
         let doc = doc! { "bson": bson };
-        let raw = crate::to_vec(&doc);
-        prop_assert!(raw.is_ok());
-        let raw = RawDocumentBuf::from_bytes(raw.unwrap());
+        let bytes = doc.encode_to_vec();
+        prop_assert!(bytes.is_ok());
+        let bytes = bytes.unwrap();
+        #[cfg(feature = "serde")]
+        {
+            let raw = crate::serialize_to_vec(&doc);
+            prop_assert!(raw.is_ok());
+        }
+        let raw = RawDocumentBuf::decode_from_bytes(bytes);
         prop_assert!(raw.is_ok());
         let raw = raw.unwrap();
         let roundtrip: Result<crate::Document> = raw.try_into();

@@ -67,6 +67,7 @@
 //! | `serde_with-3` | Enable [`serde_with`](https://docs.rs/serde_with/3.x) 3.x integrations for [`DateTime`] and [`Uuid`]. | no      |
 //! | `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_err/latest).  This is an unstable feature and any breaking changes to `serde_path_to_error` may affect usage of it via this feature. | no |
 //! | `compat-3-0-0` | Required for future compatibility if default features are disabled. | no |
+//! | `large_dates` | Increase the supported year range for some `bson::DateTime` utilities from +/-9,999 (inclusive) to +/-999,999 (inclusive). Note that enabling this feature can impact performance and introduce parsing ambiguities. | no |
 //!
 //! ## BSON values
 //!
@@ -131,7 +132,7 @@
 //! use std::io::Read;
 //!
 //! let mut bytes = hex::decode("0C0000001069000100000000").unwrap();
-//! let doc = Document::from_reader(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
+//! let doc = Document::decode_from_reader(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
 //!
 //! let doc = doc! {
 //!    "hello": "world",
@@ -199,14 +200,14 @@
 //! // Deserialize the Person struct from the BSON data, automatically
 //! // verifying that the necessary keys are present and that they are of
 //! // the correct types.
-//! let mut person: Person = bson::from_bson(bson_data).unwrap();
+//! let mut person: Person = bson::deserialize_from_bson(bson_data).unwrap();
 //!
 //! // Do things just like with any other Rust data structure.
 //! println!("Redacting {}'s record.", person.name);
 //! person.name = "REDACTED".to_string();
 //!
 //! // Get a serialized version of the input data as a [`Bson`].
-//! let redacted_bson = bson::to_bson(&person).unwrap();
+//! let redacted_bson = bson::serialize_to_bson(&person).unwrap();
 //! ```
 //!
 //! Any types that implement [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize)
@@ -290,7 +291,6 @@ pub use self::{
     binary::Binary,
     bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
-    de::{from_bson, from_document, from_reader, from_slice, Deserializer},
     decimal128::Decimal128,
     raw::{
         RawArray,
@@ -305,12 +305,27 @@ pub use self::{
         RawJavaScriptCodeWithScopeRef,
         RawRegexRef,
     },
-    ser::{to_bson, to_document, to_raw_document_buf, to_vec, Serializer},
     uuid::{Uuid, UuidRepresentation},
 };
 
-#[allow(deprecated)]
-pub use self::de::{from_reader_utf8_lossy, from_slice_utf8_lossy};
+#[cfg(feature = "serde")]
+#[doc(inline)]
+pub use self::{
+    de::{
+        deserialize_from_bson,
+        deserialize_from_document,
+        deserialize_from_reader,
+        deserialize_from_slice,
+        Deserializer,
+    },
+    ser::{
+        serialize_to_bson,
+        serialize_to_document,
+        serialize_to_raw_document_buf,
+        serialize_to_vec,
+        Serializer,
+    },
+};
 
 #[macro_use]
 mod macros;
@@ -318,13 +333,18 @@ mod base64;
 pub mod binary;
 mod bson;
 pub mod datetime;
+#[cfg(feature = "serde")]
 pub mod de;
 pub mod decimal128;
 pub mod document;
+pub mod error;
+#[cfg(feature = "serde")]
 pub mod extjson;
 pub mod oid;
 pub mod raw;
+#[cfg(feature = "serde")]
 pub mod ser;
+#[cfg(feature = "serde")]
 pub mod serde_helpers;
 pub mod spec;
 pub mod uuid;

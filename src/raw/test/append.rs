@@ -1,5 +1,3 @@
-use std::iter::FromIterator;
-
 use crate::{
     oid::ObjectId,
     raw::RawJavaScriptCodeWithScope,
@@ -21,10 +19,13 @@ use crate::{
 
 use pretty_assertions::assert_eq;
 
-fn append_test(expected: Document, append: impl FnOnce(&mut RawDocumentBuf)) {
-    let bytes = crate::to_vec(&expected).unwrap();
+fn append_test(
+    expected: Document,
+    append: impl FnOnce(&mut RawDocumentBuf) -> crate::error::Result<()>,
+) {
+    let bytes = expected.encode_to_vec().unwrap();
     let mut buf = RawDocumentBuf::new();
-    append(&mut buf);
+    assert!(append(&mut buf).is_ok());
     assert_eq!(buf.as_bytes(), bytes);
 }
 
@@ -36,9 +37,10 @@ fn i32() {
         "c": 0_i32
     };
     append_test(expected, |doc| {
-        doc.append("a", -1_i32);
-        doc.append("b", 123_i32);
-        doc.append("c", 0_i32);
+        doc.append("a", -1_i32)?;
+        doc.append("b", 123_i32)?;
+        doc.append("c", 0_i32)?;
+        Ok(())
     });
 }
 
@@ -50,9 +52,10 @@ fn i64() {
         "c": 0_i64
     };
     append_test(expected, |doc| {
-        doc.append("a", -1_i64);
-        doc.append("b", 123_i64);
-        doc.append("c", 0_i64);
+        doc.append("a", -1_i64)?;
+        doc.append("b", 123_i64)?;
+        doc.append("c", 0_i64)?;
+        Ok(())
     });
 }
 
@@ -65,10 +68,11 @@ fn str() {
         "last": "the lazy sheep dog",
     };
     append_test(expected, |doc| {
-        doc.append("first", "the quick");
-        doc.append("second", "brown fox");
-        doc.append("third", "jumped over");
-        doc.append("last", "the lazy sheep dog");
+        doc.append("first", "the quick")?;
+        doc.append("second", "brown fox")?;
+        doc.append("third", "jumped over")?;
+        doc.append("last", "the lazy sheep dog")?;
+        Ok(())
     });
 }
 
@@ -82,11 +86,12 @@ fn double() {
         "inf": f64::INFINITY,
     };
     append_test(expected, |doc| {
-        doc.append("positive", 12.5);
-        doc.append("0", 0.0);
-        doc.append("negative", -123.24);
-        doc.append("nan", f64::NAN);
-        doc.append("inf", f64::INFINITY);
+        doc.append("positive", 12.5)?;
+        doc.append("0", 0.0)?;
+        doc.append("negative", -123.24)?;
+        doc.append("nan", f64::NAN)?;
+        doc.append("inf", f64::INFINITY)?;
+        Ok(())
     });
 }
 
@@ -97,8 +102,9 @@ fn boolean() {
         "false": false,
     };
     append_test(expected, |doc| {
-        doc.append("true", true);
-        doc.append("false", false);
+        doc.append("true", true)?;
+        doc.append("false", false)?;
+        Ok(())
     });
 }
 
@@ -107,9 +113,7 @@ fn null() {
     let expected = doc! {
         "null": null,
     };
-    append_test(expected, |doc| {
-        doc.append("null", RawBson::Null);
-    });
+    append_test(expected, |doc| doc.append("null", RawBson::Null));
 }
 
 #[test]
@@ -122,11 +126,12 @@ fn document() {
         }
     };
     append_test(expected, |doc| {
-        doc.append("empty", RawDocumentBuf::new());
+        doc.append("empty", RawDocumentBuf::new())?;
         let mut buf = RawDocumentBuf::new();
-        buf.append("a", 1_i32);
-        buf.append("b", true);
-        doc.append("subdoc", buf);
+        buf.append("a", 1_i32)?;
+        buf.append("b", true)?;
+        doc.append("subdoc", buf)?;
+        Ok(())
     });
 }
 
@@ -142,15 +147,16 @@ fn array() {
         ]
     };
     append_test(expected, |doc| {
-        doc.append("empty", RawArrayBuf::new());
+        doc.append("empty", RawArrayBuf::new())?;
         let mut buf = RawArrayBuf::new();
-        buf.push(true);
-        buf.push("string");
+        buf.push(true)?;
+        buf.push("string")?;
         let mut subdoc = RawDocumentBuf::new();
-        subdoc.append("a", "subdoc");
-        buf.push(subdoc);
-        buf.push(123_i32);
-        doc.append("array", buf);
+        subdoc.append("a", "subdoc")?;
+        buf.push(subdoc)?;
+        buf.push(123_i32)?;
+        doc.append("array", buf)?;
+        Ok(())
     });
 }
 
@@ -176,8 +182,9 @@ fn datetime() {
     };
 
     append_test(expected, |doc| {
-        doc.append("now", dt);
-        doc.append("old", old);
+        doc.append("now", dt)?;
+        doc.append("old", old)?;
+        Ok(())
     });
 }
 
@@ -192,9 +199,7 @@ fn timestamp() {
         "ts": ts,
     };
 
-    append_test(expected, |doc| {
-        doc.append("ts", ts);
-    });
+    append_test(expected, |doc| doc.append("ts", ts));
 }
 
 #[test]
@@ -217,8 +222,9 @@ fn binary() {
     };
 
     append_test(expected, |doc| {
-        doc.append("generic", bin);
-        doc.append("binary_old", old);
+        doc.append("generic", bin)?;
+        doc.append("binary_old", old)?;
+        Ok(())
     });
 }
 
@@ -230,8 +236,9 @@ fn min_max_key() {
     };
 
     append_test(expected, |doc| {
-        doc.append("min", RawBson::MinKey);
-        doc.append("max", RawBson::MaxKey);
+        doc.append("min", RawBson::MinKey)?;
+        doc.append("max", RawBson::MaxKey)?;
+        Ok(())
     });
 }
 
@@ -241,9 +248,7 @@ fn undefined() {
         "undefined": Bson::Undefined,
     };
 
-    append_test(expected, |doc| {
-        doc.append("undefined", RawBson::Undefined);
-    });
+    append_test(expected, |doc| doc.append("undefined", RawBson::Undefined));
 }
 
 #[test]
@@ -253,7 +258,7 @@ fn regex() {
     };
 
     append_test(expected, |doc| {
-        doc.append("regex", Regex::new("some pattern", "abc"));
+        doc.append("regex", Regex::new("some pattern", "abc"))
     });
 }
 
@@ -270,18 +275,19 @@ fn code() {
     };
 
     append_test(expected, |doc| {
-        doc.append("code", RawBson::JavaScriptCode("some code".to_string()));
+        doc.append("code", RawBson::JavaScriptCode("some code".to_string()))?;
 
         let mut scope = RawDocumentBuf::new();
-        scope.append("a", 1_i32);
-        scope.append("b", true);
+        scope.append("a", 1_i32)?;
+        scope.append("b", true)?;
         doc.append(
             "code_w_scope",
             RawJavaScriptCodeWithScope {
                 code: "some code".to_string(),
                 scope,
             },
-        );
+        )?;
+        Ok(())
     });
 }
 
@@ -292,7 +298,7 @@ fn symbol() {
     };
 
     append_test(expected, |doc| {
-        doc.append("symbol", RawBson::Symbol("symbol".to_string()));
+        doc.append("symbol", RawBson::Symbol("symbol".to_string()))
     });
 }
 
@@ -316,7 +322,7 @@ fn dbpointer() {
                 namespace: "ns".to_string(),
                 id,
             }),
-        );
+        )
     });
 }
 
@@ -327,9 +333,7 @@ fn decimal128() {
         "decimal": decimal
     };
 
-    append_test(expected, |doc| {
-        doc.append("decimal", decimal);
-    });
+    append_test(expected, |doc| doc.append("decimal", decimal));
 }
 
 #[test]
@@ -348,33 +352,34 @@ fn general() {
     };
 
     append_test(expected, |doc| {
-        doc.append("a", true);
-        doc.append("second key", 123.4);
-        doc.append("third", 15_i64);
-        doc.append("32", -100101_i32);
+        doc.append("a", true)?;
+        doc.append("second key", 123.4)?;
+        doc.append("third", 15_i64)?;
+        doc.append("32", -100101_i32)?;
 
         let mut subdoc = RawDocumentBuf::new();
-        subdoc.append("a", "subkey");
+        subdoc.append("a", "subkey")?;
 
         let mut subsubdoc = RawDocumentBuf::new();
-        subsubdoc.append("subdoc", dt);
-        subdoc.append("another", subsubdoc);
-        doc.append("subdoc", subdoc);
+        subsubdoc.append("subdoc", dt)?;
+        subdoc.append("another", subsubdoc)?;
+        doc.append("subdoc", subdoc)?;
 
         let mut array = RawArrayBuf::new();
-        array.push(1_i64);
-        array.push(true);
+        array.push(1_i64)?;
+        array.push(true)?;
 
         let mut array_subdoc = RawDocumentBuf::new();
-        array_subdoc.append("doc", 23_i64);
-        array.push(array_subdoc);
+        array_subdoc.append("doc", 23_i64)?;
+        array.push(array_subdoc)?;
 
         let mut sub_array = RawArrayBuf::new();
-        sub_array.push("another");
-        sub_array.push("array");
-        array.push(sub_array);
+        sub_array.push("another")?;
+        sub_array.push("array")?;
+        array.push(sub_array)?;
 
-        doc.append("array", array);
+        doc.append("array", array)?;
+        Ok(())
     });
 }
 
@@ -383,17 +388,24 @@ fn from_iter() {
     let doc_buf = RawDocumentBuf::from_iter([
         (
             "array",
-            RawBson::Array(RawArrayBuf::from_iter([
-                RawBson::Boolean(true),
-                RawBson::Document(RawDocumentBuf::from_iter([
-                    ("ok", RawBson::Boolean(false)),
-                    ("other", RawBson::String("hello".to_string())),
-                ])),
-            ])),
+            RawBson::Array(
+                RawArrayBuf::from_iter([
+                    RawBson::Boolean(true),
+                    RawBson::Document(
+                        RawDocumentBuf::from_iter([
+                            ("ok", RawBson::Boolean(false)),
+                            ("other", RawBson::String("hello".to_string())),
+                        ])
+                        .unwrap(),
+                    ),
+                ])
+                .unwrap(),
+            ),
         ),
         ("bool", RawBson::Boolean(true)),
         ("string", RawBson::String("some string".to_string())),
-    ]);
+    ])
+    .unwrap();
 
     let doc = doc! {
         "array": [
@@ -408,24 +420,22 @@ fn from_iter() {
     };
 
     let expected = doc! { "expected": doc };
-    append_test(expected, |doc| {
-        doc.append("expected", doc_buf);
-    });
+    append_test(expected, |doc| doc.append("expected", doc_buf));
 }
 
 #[test]
 fn array_buf() {
     let mut arr_buf = RawArrayBuf::new();
-    arr_buf.push(true);
+    arr_buf.push(true).unwrap();
 
     let mut doc_buf = RawDocumentBuf::new();
-    doc_buf.append("x", 3_i32);
-    doc_buf.append("string", "string");
-    arr_buf.push(doc_buf);
+    doc_buf.append("x", 3_i32).unwrap();
+    doc_buf.append("string", "string").unwrap();
+    arr_buf.push(doc_buf).unwrap();
 
     let mut sub_arr = RawArrayBuf::new();
-    sub_arr.push("a string");
-    arr_buf.push(sub_arr);
+    sub_arr.push("a string").unwrap();
+    arr_buf.push(sub_arr).unwrap();
 
     let arr = rawbson!([
         true,

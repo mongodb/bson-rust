@@ -1,21 +1,17 @@
 use std::{borrow::Cow, convert::TryFrom};
 
-use serde::{ser::SerializeSeq, Deserialize, Serialize};
-
 use super::{
-    error::{ValueAccessError, ValueAccessErrorKind, ValueAccessResult},
-    serde::OwnedOrBorrowedRawArray,
-    Error,
+    Error as RawError,
     RawBinaryRef,
     RawBsonRef,
     RawDocument,
     RawIter,
     RawRegexRef,
-    Result,
+    Result as RawResult,
 };
 use crate::{
+    error::{Error, Result},
     oid::ObjectId,
-    raw::RAW_ARRAY_NEWTYPE,
     spec::ElementType,
     Bson,
     DateTime,
@@ -41,9 +37,9 @@ use crate::{
 /// let doc = doc! {
 ///     "x": [1, true, "two", 5.5]
 /// };
-/// let bytes = bson::to_vec(&doc)?;
+/// let bytes = bson::serialize_to_vec(&doc)?;
 ///
-/// let rawdoc = RawDocument::from_bytes(bytes.as_slice())?;
+/// let rawdoc = RawDocument::decode_from_bytes(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
 ///
 /// for v in rawarray {
@@ -58,15 +54,14 @@ use crate::{
 /// requires iterating through the array from the beginning to find the requested index.
 ///
 /// ```
-/// # use bson::raw::{ValueAccessError};
 /// use bson::{doc, raw::RawDocument};
 ///
 /// let doc = doc! {
 ///     "x": [1, true, "two", 5.5]
 /// };
-/// let bytes = bson::to_vec(&doc)?;
+/// let bytes = doc.encode_to_vec()?;
 ///
-/// let rawdoc = RawDocument::from_bytes(bytes.as_slice())?;
+/// let rawdoc = RawDocument::decode_from_bytes(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
 ///
 /// assert_eq!(rawarray.get_bool(1)?, true);
@@ -92,6 +87,7 @@ impl RawArray {
         unsafe { &*(doc as *const RawDocument as *const RawArray) }
     }
 
+    #[cfg(feature = "serde")]
     pub(crate) fn as_doc(&self) -> &RawDocument {
         &self.doc
     }
@@ -104,7 +100,7 @@ impl RawArray {
     }
 
     /// Gets a reference to the value at the given index.
-    pub fn get(&self, index: usize) -> Result<Option<RawBsonRef<'_>>> {
+    pub fn get(&self, index: usize) -> RawResult<Option<RawBsonRef<'_>>> {
         self.into_iter().nth(index).transpose()
     }
 
@@ -113,44 +109,36 @@ impl RawArray {
         index: usize,
         expected_type: ElementType,
         f: impl FnOnce(RawBsonRef<'a>) -> Option<T>,
-    ) -> ValueAccessResult<T> {
+    ) -> Result<T> {
         let bson = self
             .get(index)
-            .map_err(|e| ValueAccessError {
-                key: index.to_string(),
-                kind: ValueAccessErrorKind::InvalidBson(e),
-            })?
-            .ok_or(ValueAccessError {
-                key: index.to_string(),
-                kind: ValueAccessErrorKind::NotPresent,
-            })?;
+            .map_err(|e| Error::value_access_invalid_bson(format!("{:?}", e)))?
+            .ok_or_else(Error::value_access_not_present)
+            .map_err(|e| e.with_index(index))?;
         match f(bson) {
             Some(t) => Ok(t),
-            None => Err(ValueAccessError {
-                key: index.to_string(),
-                kind: ValueAccessErrorKind::UnexpectedType {
-                    expected: expected_type,
-                    actual: bson.element_type(),
-                },
-            }),
+            None => Err(
+                Error::value_access_unexpected_type(bson.element_type(), expected_type)
+                    .with_index(index),
+            ),
         }
     }
 
     /// Gets the BSON double at the given index or returns an error if the value at that index isn't
     /// a double.
-    pub fn get_f64(&self, index: usize) -> ValueAccessResult<f64> {
+    pub fn get_f64(&self, index: usize) -> Result<f64> {
         self.get_with(index, ElementType::Double, RawBsonRef::as_f64)
     }
 
     /// Gets a reference to the string at the given index or returns an error if the
     /// value at that index isn't a string.
-    pub fn get_str(&self, index: usize) -> ValueAccessResult<&str> {
+    pub fn get_str(&self, index: usize) -> Result<&str> {
         self.get_with(index, ElementType::String, RawBsonRef::as_str)
     }
 
     /// Gets a reference to the document at the given index or returns an error if the
     /// value at that index isn't a document.
-    pub fn get_document(&self, index: usize) -> ValueAccessResult<&RawDocument> {
+    pub fn get_document(&self, index: usize) -> Result<&RawDocument> {
         self.get_with(
             index,
             ElementType::EmbeddedDocument,
@@ -160,55 +148,55 @@ impl RawArray {
 
     /// Gets a reference to the array at the given index or returns an error if the
     /// value at that index isn't a array.
-    pub fn get_array(&self, index: usize) -> ValueAccessResult<&RawArray> {
+    pub fn get_array(&self, index: usize) -> Result<&RawArray> {
         self.get_with(index, ElementType::Array, RawBsonRef::as_array)
     }
 
     /// Gets a reference to the BSON binary value at the given index or returns an error if the
     /// value at that index isn't a binary.
-    pub fn get_binary(&self, index: usize) -> ValueAccessResult<RawBinaryRef<'_>> {
+    pub fn get_binary(&self, index: usize) -> Result<RawBinaryRef<'_>> {
         self.get_with(index, ElementType::Binary, RawBsonRef::as_binary)
     }
 
     /// Gets the ObjectId at the given index or returns an error if the value at that index isn't an
     /// ObjectId.
-    pub fn get_object_id(&self, index: usize) -> ValueAccessResult<ObjectId> {
+    pub fn get_object_id(&self, index: usize) -> Result<ObjectId> {
         self.get_with(index, ElementType::ObjectId, RawBsonRef::as_object_id)
     }
 
     /// Gets the boolean at the given index or returns an error if the value at that index isn't a
     /// boolean.
-    pub fn get_bool(&self, index: usize) -> ValueAccessResult<bool> {
+    pub fn get_bool(&self, index: usize) -> Result<bool> {
         self.get_with(index, ElementType::Boolean, RawBsonRef::as_bool)
     }
 
     /// Gets the DateTime at the given index or returns an error if the value at that index isn't a
     /// DateTime.
-    pub fn get_datetime(&self, index: usize) -> ValueAccessResult<DateTime> {
+    pub fn get_datetime(&self, index: usize) -> Result<DateTime> {
         self.get_with(index, ElementType::DateTime, RawBsonRef::as_datetime)
     }
 
     /// Gets a reference to the BSON regex at the given index or returns an error if the
     /// value at that index isn't a regex.
-    pub fn get_regex(&self, index: usize) -> ValueAccessResult<RawRegexRef<'_>> {
+    pub fn get_regex(&self, index: usize) -> Result<RawRegexRef<'_>> {
         self.get_with(index, ElementType::RegularExpression, RawBsonRef::as_regex)
     }
 
     /// Gets a reference to the BSON timestamp at the given index or returns an error if the
     /// value at that index isn't a timestamp.
-    pub fn get_timestamp(&self, index: usize) -> ValueAccessResult<Timestamp> {
+    pub fn get_timestamp(&self, index: usize) -> Result<Timestamp> {
         self.get_with(index, ElementType::Timestamp, RawBsonRef::as_timestamp)
     }
 
     /// Gets the BSON int32 at the given index or returns an error if the value at that index isn't
     /// a 32-bit integer.
-    pub fn get_i32(&self, index: usize) -> ValueAccessResult<i32> {
+    pub fn get_i32(&self, index: usize) -> Result<i32> {
         self.get_with(index, ElementType::Int32, RawBsonRef::as_i32)
     }
 
     /// Gets BSON int64 at the given index or returns an error if the value at that index isn't a
     /// 64-bit integer.
-    pub fn get_i64(&self, index: usize) -> ValueAccessResult<i64> {
+    pub fn get_i64(&self, index: usize) -> Result<i64> {
         self.get_with(index, ElementType::Int64, RawBsonRef::as_i64)
     }
 
@@ -221,6 +209,20 @@ impl RawArray {
     pub fn is_empty(&self) -> bool {
         self.doc.is_empty()
     }
+
+    /// Gets an iterator over the elements in the [`RawArray`],
+    /// which yields `Result<RawElement<'_>>` values. These hold a
+    /// reference to the underlying array but do not explicitly
+    /// resolve the values.
+    ///
+    /// This iterator, which underpins the implementation of the
+    /// default iterator, produces `RawElement` objects that hold a
+    /// view onto the array but do not parse out or construct
+    /// values until the `.value()` or `.try_into()` methods are
+    /// called.
+    pub fn iter_elements(&self) -> RawIter {
+        RawIter::new(&self.doc)
+    }
 }
 
 impl std::fmt::Debug for RawArray {
@@ -232,9 +234,9 @@ impl std::fmt::Debug for RawArray {
 }
 
 impl TryFrom<&RawArray> for Vec<Bson> {
-    type Error = Error;
+    type Error = RawError;
 
-    fn try_from(arr: &RawArray) -> Result<Vec<Bson>> {
+    fn try_from(arr: &RawArray) -> RawResult<Vec<Bson>> {
         arr.into_iter()
             .map(|result| {
                 let rawbson = result?;
@@ -260,7 +262,7 @@ impl<'a> From<&'a RawArray> for Cow<'a, RawArray> {
 
 impl<'a> IntoIterator for &'a RawArray {
     type IntoIter = RawArrayIter<'a>;
-    type Item = Result<RawBsonRef<'a>>;
+    type Item = RawResult<RawBsonRef<'a>>;
 
     fn into_iter(self) -> RawArrayIter<'a> {
         RawArrayIter {
@@ -275,9 +277,9 @@ pub struct RawArrayIter<'a> {
 }
 
 impl<'a> Iterator for RawArrayIter<'a> {
-    type Item = Result<RawBsonRef<'a>>;
+    type Item = RawResult<RawBsonRef<'a>>;
 
-    fn next(&mut self) -> Option<Result<RawBsonRef<'a>>> {
+    fn next(&mut self) -> Option<RawResult<RawBsonRef<'a>>> {
         match self.inner.next() {
             Some(Ok(elem)) => match elem.value() {
                 Ok(value) => Some(Ok(value)),
@@ -289,11 +291,13 @@ impl<'a> Iterator for RawArrayIter<'a> {
     }
 }
 
-impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
+#[cfg(feature = "serde")]
+impl<'de: 'a, 'a> serde::Deserialize<'de> for &'a RawArray {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
+        use super::serde::OwnedOrBorrowedRawArray;
         match OwnedOrBorrowedRawArray::deserialize(deserializer)? {
             OwnedOrBorrowedRawArray::Borrowed(b) => Ok(b),
             o => Err(serde::de::Error::custom(format!(
@@ -304,18 +308,20 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawArray {
     }
 }
 
-impl Serialize for &RawArray {
+#[cfg(feature = "serde")]
+impl serde::Serialize for &RawArray {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         struct SeqSerializer<'a>(&'a RawArray);
 
-        impl Serialize for SeqSerializer<'_> {
+        impl serde::Serialize for SeqSerializer<'_> {
             fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,
             {
+                use serde::ser::SerializeSeq as _;
                 if serializer.is_human_readable() {
                     let mut seq = serializer.serialize_seq(None)?;
                     for v in self.0 {
@@ -329,6 +335,6 @@ impl Serialize for &RawArray {
             }
         }
 
-        serializer.serialize_newtype_struct(RAW_ARRAY_NEWTYPE, &SeqSerializer(self))
+        serializer.serialize_newtype_struct(crate::raw::RAW_ARRAY_NEWTYPE, &SeqSerializer(self))
     }
 }

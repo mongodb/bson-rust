@@ -1,9 +1,11 @@
 use serde::{ser::Impossible, Serialize};
 
 use crate::{
-    ser::{write_cstring, write_i32, Error, Result},
-    to_bson,
+    raw::write_cstring,
+    ser::{Error, Result},
+    serialize_to_bson,
     Bson,
+    RawBsonRef,
 };
 
 use super::Serializer;
@@ -22,7 +24,7 @@ pub(crate) struct DocumentSerializer<'a> {
 impl<'a> DocumentSerializer<'a> {
     pub(crate) fn start(rs: &'a mut Serializer) -> crate::ser::Result<Self> {
         let start = rs.bytes.len();
-        write_i32(&mut rs.bytes, 0)?;
+        RawBsonRef::Int32(0).append_to(&mut rs.bytes)?;
         Ok(Self {
             root_serializer: rs,
             num_keys_serialized: 0,
@@ -185,7 +187,7 @@ struct KeySerializer<'a> {
 
 impl KeySerializer<'_> {
     fn invalid_key<T: Serialize>(v: T) -> Error {
-        Error::InvalidDocumentKey(to_bson(&v).unwrap_or(Bson::Null))
+        Error::InvalidDocumentKey(serialize_to_bson(&v).unwrap_or(Bson::Null))
     }
 }
 
@@ -264,7 +266,7 @@ impl serde::Serializer for KeySerializer<'_> {
 
     #[inline]
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
-        write_cstring(&mut self.root_serializer.bytes, v)
+        Ok(write_cstring(&mut self.root_serializer.bytes, v)?)
     }
 
     #[inline]
