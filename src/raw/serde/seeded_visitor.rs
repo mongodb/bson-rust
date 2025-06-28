@@ -119,9 +119,10 @@ impl<'a, 'de> SeededVisitor<'a, 'de> {
 
     /// Appends a cstring to the buffer. Returns an error if the given string contains a null byte.
     fn append_cstring(&mut self, key: &str) -> Result<(), String> {
-        Ok(crate::raw::CStr::from_str(key)
+        crate::raw::CStr::from_str(key)
             .map_err(|e| e.to_string())?
-            .append_to(self.buffer.get_owned_buffer()))
+            .append_to(self.buffer.get_owned_buffer());
+        Ok(())
     }
 
     /// Appends a string and its length to the buffer.
