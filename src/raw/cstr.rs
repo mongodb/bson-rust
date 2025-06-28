@@ -24,6 +24,12 @@ impl<'a> TryFrom<&'a str> for &'a CStr {
 }
 
 impl CStr {
+    // Convenience shorthand for making the types of TryFrom line up
+    #[cfg(feature = "serde")]
+    pub(crate) fn from_str(value: &str) -> Result<&CStr> {
+        value.try_into()
+    }
+
     const fn from_str_unchecked(value: &str) -> &Self {
         // Safety: the conversion is safe because CStr is repr(transparent), and the deref is safe
         // because the pointer came from a safe reference.
