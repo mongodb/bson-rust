@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
     error::{Error, Result},
+    raw::CStr,
     Bson,
     DateTime,
     JavaScriptCodeWithScope,
@@ -387,18 +388,18 @@ impl RawDocument {
     /// the key corresponds to a value which isn't a regex.
     ///
     /// ```
-    /// use bson::{rawdoc, Regex};
+    /// use bson::{rawdoc, Regex, raw::cstr};
     ///
     /// let doc = rawdoc! {
     ///     "regex": Regex {
-    ///         pattern: r"end\s*$".into(),
-    ///         options: "i".into(),
+    ///         pattern: cstr!(r"end\s*$").into(),
+    ///         options: cstr!("i").into(),
     ///     },
     ///     "bool": true,
     /// };
     ///
-    /// assert_eq!(doc.get_regex("regex")?.pattern, r"end\s*$");
-    /// assert_eq!(doc.get_regex("regex")?.options, "i");
+    /// assert_eq!(doc.get_regex("regex")?.pattern, cstr!(r"end\s*$"));
+    /// assert_eq!(doc.get_regex("regex")?.options, cstr!("i"));
     /// assert!(doc.get_regex("bool").is_err());
     /// assert!(doc.get_regex("unknown").is_err());
     /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -505,9 +506,10 @@ impl RawDocument {
         }
     }
 
-    pub(crate) fn read_cstring_at(&self, start_at: usize) -> RawResult<&str> {
+    pub(crate) fn read_cstring_at(&self, start_at: usize) -> RawResult<&CStr> {
         let bytes = self.cstring_bytes_at(start_at)?;
-        try_to_str(bytes)
+        let s = try_to_str(bytes)?;
+        s.try_into()
     }
 
     /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.

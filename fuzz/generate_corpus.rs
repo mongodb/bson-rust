@@ -1,4 +1,4 @@
-use bson::{doc, Bson, Decimal128};
+use bson::{cstr, doc, Bson, Decimal128};
 use std::{
     fs,
     io::{Error, ErrorKind},
@@ -64,7 +64,7 @@ fn generate_type_marker_cases(dir: &Path) -> std::io::Result<()> {
         "bool": true,
         "date": bson::DateTime::now(),
         "null": Bson::Null,
-        "regex": Bson::RegularExpression(bson::Regex { pattern: "pattern".into(), options: "i".into() }),
+        "regex": Bson::RegularExpression(bson::Regex { pattern: cstr!("pattern").into(), options: cstr!("i").into() }),
         "int32": 123i32,
         "timestamp": bson::Timestamp { time: 12345, increment: 1 },
         "int64": 123i64,

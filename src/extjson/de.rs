@@ -37,6 +37,10 @@ pub enum Error {
     /// A general error encountered during deserialization.
     /// See: <https://docs.serde.rs/serde/de/trait.Error.html>
     DeserializationError { message: String },
+
+    /// A generic crate error.
+    // TODO RUST-1406 collapse this
+    CrateError(crate::error::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -44,6 +48,7 @@ impl std::fmt::Display for Error {
         match *self {
             Self::InvalidObjectId(ref err) => err.fmt(fmt),
             Self::DeserializationError { ref message } => message.fmt(fmt),
+            Self::CrateError(ref err) => err.fmt(fmt),
         }
     }
 }
@@ -69,6 +74,12 @@ impl From<serde_json::Error> for Error {
     }
 }
 
+impl From<crate::error::Error> for Error {
+    fn from(value: crate::error::Error) -> Self {
+        Self::CrateError(value)
+    }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// This converts from the input JSON object as if it were [MongoDB Extended JSON v2](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
@@ -88,7 +99,7 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
 
         if obj.contains_key("$regularExpression") {
             let regex: models::Regex = serde_json::from_value(obj.into())?;
-            return Ok(regex.parse().into());
+            return Ok(regex.parse()?.into());
         }
 
         if obj.contains_key("$numberInt") {
