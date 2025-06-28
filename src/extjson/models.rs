@@ -123,7 +123,7 @@ pub(crate) struct RegexBody {
 
 impl Regex {
     pub(crate) fn parse(self) -> crate::error::Result<crate::Regex> {
-        crate::Regex::new(self.body.pattern, self.body.options)
+        crate::Regex::from_strings(self.body.pattern, self.body.options)
     }
 }
 

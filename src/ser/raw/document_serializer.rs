@@ -2,7 +2,6 @@ use serde::{ser::Impossible, Serialize};
 
 use crate::{
     error::{Error, Result},
-    raw::write_cstring,
     RawBsonRef,
 };
 
@@ -258,7 +257,8 @@ impl serde::Serializer for KeySerializer<'_> {
 
     #[inline]
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
-        write_cstring(&mut self.root_serializer.bytes, v)
+        crate::raw::CStr::from_str(v)?.append_to(&mut self.root_serializer.bytes);
+        Ok(())
     }
 
     #[inline]

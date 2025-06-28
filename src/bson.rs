@@ -848,7 +848,7 @@ impl Bson {
                 if let Ok(regex) = doc.get_document("$regularExpression") {
                     if let Ok(pattern) = regex.get_str("pattern") {
                         if let Ok(options) = regex.get_str("options") {
-                            if let Ok(regex) = Regex::new(pattern, options) {
+                            if let Ok(regex) = Regex::from_strings(pattern, options) {
                                 return Bson::RegularExpression(regex);
                             }
                         }
@@ -1168,7 +1168,8 @@ pub struct Regex {
 }
 
 impl Regex {
-    pub(crate) fn new(
+    #[cfg(feature = "serde")]
+    pub(crate) fn from_strings(
         pattern: impl AsRef<str>,
         options: impl AsRef<str>,
     ) -> crate::error::Result<Self> {

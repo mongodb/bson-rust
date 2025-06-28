@@ -243,11 +243,14 @@ fn undefined() {
 #[test]
 fn regex() {
     let expected = doc! {
-        "regex": Regex::new("some pattern", "abc").unwrap(),
+        "regex": Regex::from_strings("some pattern", "abc").unwrap(),
     };
 
     append_test(expected, |doc| {
-        doc.append(cstr!("regex"), Regex::new("some pattern", "abc").unwrap())
+        doc.append(
+            cstr!("regex"),
+            Regex::from_strings("some pattern", "abc").unwrap(),
+        )
     });
 }
 

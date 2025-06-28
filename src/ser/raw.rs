@@ -9,7 +9,7 @@ use serde::{
 use self::value_serializer::{ValueSerializer, ValueType};
 
 use crate::{
-    raw::{write_cstring, CStr, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{CStr, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     ser::{Error, Result},
     serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::{BinarySubtype, ElementType},
@@ -469,7 +469,7 @@ impl<'a> VariantSerializer<'a> {
         T: Serialize + ?Sized,
     {
         self.root_serializer.reserve_element_type();
-        write_cstring(&mut self.root_serializer.bytes, k)?;
+        CStr::from_str(k)?.append_to(&mut self.root_serializer.bytes);
         v.serialize(&mut *self.root_serializer)?;
 
         self.num_elements_serialized += 1;
