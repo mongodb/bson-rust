@@ -11,7 +11,7 @@ use serde::de::{
     DeserializeSeed,
     Deserializer as _,
     EnumAccess,
-    Error,
+    Error as _,
     MapAccess,
     SeqAccess,
     Unexpected,
@@ -24,6 +24,7 @@ use crate::{
     bson::{Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     document::{Document, IntoIter},
+    error::{Error, Result},
     oid::ObjectId,
     raw::{RawBsonRef, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     serde_helpers::HUMAN_READABLE_NEWTYPE,
@@ -71,7 +72,7 @@ impl<'de> Visitor<'de> for ObjectIdVisitor {
     }
 
     #[inline]
-    fn visit_map<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>
+    fn visit_map<V>(self, mut visitor: V) -> std::result::Result<Self::Value, V::Error>
     where
         V: MapAccess<'de>,
     {
@@ -82,7 +83,7 @@ impl<'de> Visitor<'de> for ObjectIdVisitor {
                     "expected map containing extended-JSON formatted ObjectId, instead found {}",
                     bson
                 );
-                Err(de::Error::custom(err))
+                Err(serde::de::Error::custom(err))
             }
         }
     }
@@ -103,7 +104,7 @@ impl<'de> Deserialize<'de> for ObjectId {
 
 impl<'de> Deserialize<'de> for Document {
     /// Deserialize this value given this [`Deserializer`].
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
@@ -112,7 +113,7 @@ impl<'de> Deserialize<'de> for Document {
                 Ok(doc)
             } else {
                 let err = format!("expected document, found extended JSON data type: {}", bson);
-                Err(de::Error::invalid_type(Unexpected::Map, &&err[..]))
+                Err(serde::de::Error::invalid_type(Unexpected::Map, &&err[..]))
             }
         })
     }
@@ -120,7 +121,7 @@ impl<'de> Deserialize<'de> for Document {
 
 impl<'de> Deserialize<'de> for Bson {
     #[inline]
-    fn deserialize<D>(deserializer: D) -> Result<Bson, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Bson, D::Error>
     where
         D: de::Deserializer<'de>,
     {
@@ -136,102 +137,102 @@ impl<'de> Visitor<'de> for BsonVisitor {
     }
 
     #[inline]
-    fn visit_bool<E>(self, value: bool) -> Result<Bson, E>
+    fn visit_bool<E>(self, value: bool) -> std::result::Result<Bson, E>
     where
-        E: Error,
+        E: serde::de::Error,
     {
         Ok(Bson::Boolean(value))
     }
 
     #[inline]
-    fn visit_i8<E>(self, value: i8) -> Result<Bson, E>
+    fn visit_i8<E>(self, value: i8) -> std::result::Result<Bson, E>
     where
-        E: Error,
+        E: serde::de::Error,
     {
         Ok(Bson::Int32(value as i32))
     }
 
     #[inline]
-    fn visit_u8<E>(self, value: u8) -> Result<Bson, E>
+    fn visit_u8<E>(self, value: u8) -> std::result::Result<Bson, E>
     where
-        E: Error,
+        E: serde::de::Error,
     {
         convert_unsigned_to_signed(value as u64)
     }
 
     #[inline]
-    fn visit_i16<E>(self, value: i16) -> Result<Bson, E>
+    fn visit_i16<E>(self, value: i16) -> std::result::Result<Bson, E>
     where
-        E: Error,
+        E: serde::de::Error,
     {
         Ok(Bson::Int32(value as i32))
     }
 
     #[inline]
-    fn visit_u16<E>(self, value: u16) -> Result<Bson, E>
+    fn visit_u16<E>(self, value: u16) -> std::result::Result<Bson, E>
     where
-        E: Error,
+        E: serde::de::Error,
     {
         convert_unsigned_to_signed(value as u64)
     }
 
     #[inline]
-    fn visit_i32<E>(self, value: i32) -> Result<Bson, E>
+    fn visit_i32<E>(self, value: i32) -> std::result::Result<Bson, E>
     where
-        E: Error,
+        E: serde::de::Error,
     {
         Ok(Bson::Int32(value))
     }
 
     #[inline]
-    fn visit_u32<E>(self, value: u32) -> Result<Bson, E>
+    fn visit_u32<E>(self, value: u32) -> std::result::Result<Bson, E>
     where
-        E: Error,
+        E: serde::de::Error,
     {
         convert_unsigned_to_signed(value as u64)
     }
 
     #[inline]
-    fn visit_i64<E>(self, value: i64) -> Result<Bson, E>
+    fn visit_i64<E>(self, value: i64) -> std::result::Result<Bson, E>
     where
-        E: Error,
+        E: serde::de::Error,
     {
         Ok(Bson::Int64(value))
     }
 
     #[inline]
-    fn visit_u64<E>(self, value: u64) -> Result<Bson, E>
+    fn visit_u64<E>(self, value: u64) -> std::result::Result<Bson, E>
     where
-        E: Error,
+        E: serde::de::Error,
     {
         convert_unsigned_to_signed(value)
     }
 
     #[inline]
-    fn visit_f64<E>(self, value: f64) -> Result<Bson, E> {
+    fn visit_f64<E>(self, value: f64) -> std::result::Result<Bson, E> {
         Ok(Bson::Double(value))
     }
 
     #[inline]
-    fn visit_str<E>(self, value: &str) -> Result<Bson, E>
+    fn visit_str<E>(self, value: &str) -> std::result::Result<Bson, E>
     where
-        E: de::Error,
+        E: serde::de::Error,
     {
         self.visit_string(String::from(value))
     }
 
     #[inline]
-    fn visit_string<E>(self, value: String) -> Result<Bson, E> {
+    fn visit_string<E>(self, value: String) -> std::result::Result<Bson, E> {
         Ok(Bson::String(value))
     }
 
     #[inline]
-    fn visit_none<E>(self) -> Result<Bson, E> {
+    fn visit_none<E>(self) -> std::result::Result<Bson, E> {
         Ok(Bson::Null)
     }
 
     #[inline]
-    fn visit_some<D>(self, deserializer: D) -> Result<Bson, D::Error>
+    fn visit_some<D>(self, deserializer: D) -> std::result::Result<Bson, D::Error>
     where
         D: de::Deserializer<'de>,
     {
@@ -239,12 +240,12 @@ impl<'de> Visitor<'de> for BsonVisitor {
     }
 
     #[inline]
-    fn visit_unit<E>(self) -> Result<Bson, E> {
+    fn visit_unit<E>(self) -> std::result::Result<Bson, E> {
         Ok(Bson::Null)
     }
 
     #[inline]
-    fn visit_seq<V>(self, mut visitor: V) -> Result<Bson, V::Error>
+    fn visit_seq<V>(self, mut visitor: V) -> std::result::Result<Bson, V::Error>
     where
         V: SeqAccess<'de>,
     {
@@ -257,7 +258,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
         Ok(Bson::Array(values))
     }
 
-    fn visit_map<V>(self, mut visitor: V) -> Result<Bson, V::Error>
+    fn visit_map<V>(self, mut visitor: V) -> std::result::Result<Bson, V::Error>
     where
         V: MapAccess<'de>,
     {
@@ -274,7 +275,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                     }
 
                     impl<'a, 'de: 'a> Deserialize<'de> for BytesOrHex<'a> {
-                        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                        fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
                         where
                             D: serde::Deserializer<'de>,
                         {
@@ -287,9 +288,12 @@ impl<'de> Visitor<'de> for BsonVisitor {
                                     write!(formatter, "hexstring or byte array")
                                 }
 
-                                fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                                fn visit_str<E>(
+                                    self,
+                                    v: &str,
+                                ) -> std::result::Result<Self::Value, E>
                                 where
-                                    E: Error,
+                                    E: serde::de::Error,
                                 {
                                     Ok(BytesOrHex::Hex(Cow::Owned(v.to_string())))
                                 }
@@ -297,18 +301,23 @@ impl<'de> Visitor<'de> for BsonVisitor {
                                 fn visit_borrowed_str<E>(
                                     self,
                                     v: &'de str,
-                                ) -> Result<Self::Value, E>
+                                ) -> std::result::Result<Self::Value, E>
                                 where
-                                    E: Error,
+                                    E: serde::de::Error,
                                 {
                                     Ok(BytesOrHex::Hex(Cow::Borrowed(v)))
                                 }
 
-                                fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+                                fn visit_bytes<E>(
+                                    self,
+                                    v: &[u8],
+                                ) -> std::result::Result<Self::Value, E>
                                 where
-                                    E: Error,
+                                    E: serde::de::Error,
                                 {
-                                    Ok(BytesOrHex::Bytes(v.try_into().map_err(Error::custom)?))
+                                    Ok(BytesOrHex::Bytes(
+                                        v.try_into().map_err(serde::de::Error::custom)?,
+                                    ))
                                 }
                             }
 
@@ -377,7 +386,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                     return Ok(Bson::Binary(
                         extjson::models::Binary { body: v }
                             .parse()
-                            .map_err(Error::custom)?,
+                            .map_err(serde::de::Error::custom)?,
                     ));
                 }
 
@@ -385,7 +394,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                     let v: String = visitor.next_value()?;
                     let uuid = extjson::models::Uuid { value: v }
                         .parse()
-                        .map_err(Error::custom)?;
+                        .map_err(serde::de::Error::custom)?;
                     return Ok(Bson::Binary(uuid));
                 }
 
@@ -399,7 +408,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                                 scope,
                             }));
                         } else {
-                            return Err(Error::unknown_field(key.as_str(), &["$scope"]));
+                            return Err(serde::de::Error::unknown_field(key.as_str(), &["$scope"]));
                         }
                     } else {
                         return Ok(Bson::JavaScriptCode(code));
@@ -416,10 +425,10 @@ impl<'de> Visitor<'de> for BsonVisitor {
                                 scope,
                             }));
                         } else {
-                            return Err(Error::unknown_field(key.as_str(), &["$code"]));
+                            return Err(serde::de::Error::unknown_field(key.as_str(), &["$code"]));
                         }
                     } else {
-                        return Err(Error::missing_field("$code"));
+                        return Err(serde::de::Error::missing_field("$code"));
                     }
                 }
 
@@ -439,7 +448,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                 "$dbPointer" => {
                     let dbp = visitor.next_value::<extjson::models::DbPointerBody>()?;
                     return Ok(Bson::DbPointer(DbPointer {
-                        id: dbp.id.parse().map_err(Error::custom)?,
+                        id: dbp.id.parse().map_err(serde::de::Error::custom)?,
                         namespace: dbp.ref_ns,
                     }));
                 }
@@ -449,7 +458,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
                     return Ok(Bson::DateTime(
                         extjson::models::DateTime { body: dt }
                             .parse()
-                            .map_err(Error::custom)?,
+                            .map_err(serde::de::Error::custom)?,
                     ));
                 }
 
@@ -457,21 +466,21 @@ impl<'de> Visitor<'de> for BsonVisitor {
                     let i = visitor.next_value::<u8>()?;
                     return extjson::models::MaxKey { value: i }
                         .parse()
-                        .map_err(Error::custom);
+                        .map_err(serde::de::Error::custom);
                 }
 
                 "$minKey" => {
                     let i = visitor.next_value::<u8>()?;
                     return extjson::models::MinKey { value: i }
                         .parse()
-                        .map_err(Error::custom);
+                        .map_err(serde::de::Error::custom);
                 }
 
                 "$undefined" => {
                     let b = visitor.next_value::<bool>()?;
                     return extjson::models::Undefined { value: b }
                         .parse()
-                        .map_err(Error::custom);
+                        .map_err(serde::de::Error::custom);
                 }
 
                 "$numberDecimal" => {
@@ -504,9 +513,9 @@ impl<'de> Visitor<'de> for BsonVisitor {
     }
 
     #[inline]
-    fn visit_bytes<E>(self, v: &[u8]) -> Result<Bson, E>
+    fn visit_bytes<E>(self, v: &[u8]) -> std::result::Result<Bson, E>
     where
-        E: Error,
+        E: serde::de::Error,
     {
         Ok(Bson::Binary(Binary {
             subtype: BinarySubtype::Generic,
@@ -515,9 +524,9 @@ impl<'de> Visitor<'de> for BsonVisitor {
     }
 
     #[inline]
-    fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Bson, E>
+    fn visit_byte_buf<E>(self, v: Vec<u8>) -> std::result::Result<Bson, E>
     where
-        E: Error,
+        E: serde::de::Error,
     {
         Ok(Bson::Binary(Binary {
             subtype: BinarySubtype::Generic,
@@ -526,7 +535,7 @@ impl<'de> Visitor<'de> for BsonVisitor {
     }
 
     #[inline]
-    fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    fn visit_newtype_struct<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -539,35 +548,37 @@ enum BsonInteger {
     Int64(i64),
 }
 
-fn _convert_unsigned<E: Error>(value: u64) -> Result<BsonInteger, E> {
+fn convert_unsigned<E: serde::de::Error>(value: u64) -> std::result::Result<BsonInteger, E> {
     if let Ok(int32) = i32::try_from(value) {
         Ok(BsonInteger::Int32(int32))
     } else if let Ok(int64) = i64::try_from(value) {
         Ok(BsonInteger::Int64(int64))
     } else {
-        Err(Error::custom(format!(
+        Err(serde::de::Error::custom(format!(
             "cannot represent {} as a signed number",
             value
         )))
     }
 }
 
-fn convert_unsigned_to_signed<E>(value: u64) -> Result<Bson, E>
+fn convert_unsigned_to_signed<E>(value: u64) -> std::result::Result<Bson, E>
 where
-    E: Error,
+    E: serde::de::Error,
 {
-    let bi = _convert_unsigned(value)?;
+    let bi = convert_unsigned(value)?;
     match bi {
         BsonInteger::Int32(i) => Ok(Bson::Int32(i)),
         BsonInteger::Int64(i) => Ok(Bson::Int64(i)),
     }
 }
 
-pub(crate) fn convert_unsigned_to_signed_raw<'a, E>(value: u64) -> Result<RawBsonRef<'a>, E>
+pub(crate) fn convert_unsigned_to_signed_raw<'a, E>(
+    value: u64,
+) -> std::result::Result<RawBsonRef<'a>, E>
 where
-    E: Error,
+    E: serde::de::Error,
 {
-    let bi = _convert_unsigned(value)?;
+    let bi = convert_unsigned(value)?;
     match bi {
         BsonInteger::Int32(i) => Ok(RawBsonRef::Int32(i)),
         BsonInteger::Int64(i) => Ok(RawBsonRef::Int64(i)),
@@ -603,17 +614,13 @@ impl Deserializer {
         }
     }
 
-    fn deserialize_next<'de, V>(
-        mut self,
-        visitor: V,
-        hint: DeserializerHint,
-    ) -> Result<V::Value, crate::de::Error>
+    fn deserialize_next<'de, V>(mut self, visitor: V, hint: DeserializerHint) -> Result<V::Value>
     where
         V: serde::de::Visitor<'de>,
     {
         let value = match self.value.take() {
             Some(value) => value,
-            None => return Err(crate::de::Error::EndOfStream),
+            None => return Err(Error::end_of_stream()),
         };
 
         let is_rawbson = matches!(hint, DeserializerHint::RawBson);
@@ -621,7 +628,7 @@ impl Deserializer {
         if let DeserializerHint::BinarySubtype(expected_subtype) = hint {
             if let Bson::Binary(ref binary) = value {
                 if binary.subtype != expected_subtype {
-                    return Err(Error::custom(format!(
+                    return Err(serde::de::Error::custom(format!(
                         "expected Binary with subtype {:?}, instead got subtype {:?}",
                         expected_subtype, binary.subtype
                     )));
@@ -695,7 +702,7 @@ macro_rules! forward_to_deserialize {
 }
 
 impl<'de> de::Deserializer<'de> for Deserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
     #[allow(deprecated)]
     fn is_human_readable(&self) -> bool {
@@ -703,7 +710,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     }
 
     #[inline]
-    fn deserialize_any<V>(self, visitor: V) -> crate::de::Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -711,7 +718,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     }
 
     #[inline]
-    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_bytes<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
@@ -724,14 +731,14 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     }
 
     #[inline]
-    fn deserialize_option<V>(self, visitor: V) -> crate::de::Result<V::Value>
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
         match self.value {
             Some(Bson::Null) => visitor.visit_none(),
             Some(_) => visitor.visit_some(self),
-            None => Err(crate::de::Error::EndOfStream),
+            None => Err(Error::end_of_stream()),
         }
     }
 
@@ -741,7 +748,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         _name: &str,
         _variants: &'static [&'static str],
         visitor: V,
-    ) -> crate::de::Result<V::Value>
+    ) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -757,13 +764,10 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 });
             }
             Some(v) => {
-                return Err(crate::de::Error::invalid_type(
-                    v.as_unexpected(),
-                    &"expected an enum",
-                ));
+                return Err(Error::invalid_type(v.as_unexpected(), &"expected an enum"));
             }
             None => {
-                return Err(crate::de::Error::EndOfStream);
+                return Err(Error::end_of_stream());
             }
         };
 
@@ -772,7 +776,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         let (variant, value) = match iter.next() {
             Some(v) => v,
             None => {
-                return Err(crate::de::Error::invalid_value(
+                return Err(Error::invalid_value(
                     Unexpected::Other("empty document"),
                     &"variant name",
                 ))
@@ -781,7 +785,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
 
         // enums are encoded in json as maps with a single key:value pair
         match iter.next() {
-            Some((k, _)) => Err(crate::de::Error::invalid_value(
+            Some((k, _)) => Err(Error::invalid_value(
                 Unexpected::Map,
                 &format!("expected map with a single key, got extra key \"{}\"", k).as_str(),
             )),
@@ -796,11 +800,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     }
 
     #[inline]
-    fn deserialize_newtype_struct<V>(
-        mut self,
-        name: &'static str,
-        visitor: V,
-    ) -> crate::de::Result<V::Value>
+    fn deserialize_newtype_struct<V>(mut self, name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -873,9 +873,9 @@ struct EnumDeserializer {
 }
 
 impl<'de> EnumAccess<'de> for EnumDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
     type Variant = VariantDeserializer;
-    fn variant_seed<V>(self, seed: V) -> crate::de::Result<(V::Value, Self::Variant)>
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
     where
         V: DeserializeSeed<'de>,
     {
@@ -891,9 +891,9 @@ struct VariantDeserializer {
 }
 
 impl<'de> VariantAccess<'de> for VariantDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
-    fn unit_variant(mut self) -> crate::de::Result<()> {
+    fn unit_variant(mut self) -> Result<()> {
         match self.val.take() {
             None => Ok(()),
             Some(val) => {
@@ -902,22 +902,22 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
         }
     }
 
-    fn newtype_variant_seed<T>(mut self, seed: T) -> crate::de::Result<T::Value>
+    fn newtype_variant_seed<T>(mut self, seed: T) -> Result<T::Value>
     where
         T: DeserializeSeed<'de>,
     {
         let dec = Deserializer::new_with_options(
-            self.val.take().ok_or(crate::de::Error::EndOfStream)?,
+            self.val.take().ok_or_else(Error::end_of_stream)?,
             self.options,
         );
         seed.deserialize(dec)
     }
 
-    fn tuple_variant<V>(mut self, _len: usize, visitor: V) -> crate::de::Result<V::Value>
+    fn tuple_variant<V>(mut self, _len: usize, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        match self.val.take().ok_or(crate::de::Error::EndOfStream)? {
+        match self.val.take().ok_or_else(Error::end_of_stream)? {
             Bson::Array(fields) => {
                 let de = SeqDeserializer {
                     len: fields.len(),
@@ -926,22 +926,18 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
                 };
                 de.deserialize_any(visitor)
             }
-            other => Err(crate::de::Error::invalid_type(
+            other => Err(Error::invalid_type(
                 other.as_unexpected(),
                 &"expected a tuple",
             )),
         }
     }
 
-    fn struct_variant<V>(
-        mut self,
-        _fields: &'static [&'static str],
-        visitor: V,
-    ) -> crate::de::Result<V::Value>
+    fn struct_variant<V>(mut self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        match self.val.take().ok_or(crate::de::Error::EndOfStream)? {
+        match self.val.take().ok_or_else(Error::end_of_stream)? {
             Bson::Document(fields) => {
                 let de = MapDeserializer {
                     len: fields.len(),
@@ -951,7 +947,7 @@ impl<'de> VariantAccess<'de> for VariantDeserializer {
                 };
                 de.deserialize_any(visitor)
             }
-            ref other => Err(crate::de::Error::invalid_type(
+            ref other => Err(Error::invalid_type(
                 other.as_unexpected(),
                 &"expected a struct",
             )),
@@ -966,10 +962,10 @@ struct SeqDeserializer {
 }
 
 impl<'de> de::Deserializer<'de> for SeqDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
     #[inline]
-    fn deserialize_any<V>(self, visitor: V) -> crate::de::Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -1013,9 +1009,9 @@ impl<'de> de::Deserializer<'de> for SeqDeserializer {
 }
 
 impl<'de> SeqAccess<'de> for SeqDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
-    fn next_element_seed<T>(&mut self, seed: T) -> crate::de::Result<Option<T::Value>>
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
     where
         T: DeserializeSeed<'de>,
     {
@@ -1057,9 +1053,9 @@ impl MapDeserializer {
 }
 
 impl<'de> MapAccess<'de> for MapDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
-    fn next_key_seed<K>(&mut self, seed: K) -> crate::de::Result<Option<K::Value>>
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
         K: DeserializeSeed<'de>,
     {
@@ -1078,11 +1074,11 @@ impl<'de> MapAccess<'de> for MapDeserializer {
         }
     }
 
-    fn next_value_seed<V>(&mut self, seed: V) -> crate::de::Result<V::Value>
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: DeserializeSeed<'de>,
     {
-        let value = self.value.take().ok_or(crate::de::Error::EndOfStream)?;
+        let value = self.value.take().ok_or_else(Error::end_of_stream)?;
         let de = Deserializer::new_with_options(value, self.options.clone());
         seed.deserialize(de)
     }
@@ -1093,10 +1089,10 @@ impl<'de> MapAccess<'de> for MapDeserializer {
 }
 
 impl<'de> de::Deserializer<'de> for MapDeserializer {
-    type Error = crate::de::Error;
+    type Error = Error;
 
     #[inline]
-    fn deserialize_any<V>(self, visitor: V) -> crate::de::Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -1136,49 +1132,51 @@ impl<'de> de::Deserializer<'de> for MapDeserializer {
 }
 
 impl<'de> Deserialize<'de> for Timestamp {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::Timestamp(timestamp) => Ok(timestamp),
-            _ => Err(D::Error::custom("expecting Timestamp")),
+            _ => Err(serde::de::Error::custom("expecting Timestamp")),
         }
     }
 }
 
 impl<'de> Deserialize<'de> for Regex {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::RegularExpression(regex) => Ok(regex),
-            _ => Err(D::Error::custom("expecting Regex")),
+            _ => Err(serde::de::Error::custom("expecting Regex")),
         }
     }
 }
 
 impl<'de> Deserialize<'de> for JavaScriptCodeWithScope {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::JavaScriptCodeWithScope(code_with_scope) => Ok(code_with_scope),
-            _ => Err(D::Error::custom("expecting JavaScriptCodeWithScope")),
+            _ => Err(serde::de::Error::custom(
+                "expecting JavaScriptCodeWithScope",
+            )),
         }
     }
 }
 
 impl<'de> Deserialize<'de> for Binary {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::Binary(binary) => Ok(binary),
-            d => Err(D::Error::custom(format!(
+            d => Err(serde::de::Error::custom(format!(
                 "expecting Binary but got {:?} instead",
                 d
             ))),
@@ -1187,13 +1185,13 @@ impl<'de> Deserialize<'de> for Binary {
 }
 
 impl<'de> Deserialize<'de> for Decimal128 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::Decimal128(d128) => Ok(d128),
-            o => Err(D::Error::custom(format!(
+            o => Err(serde::de::Error::custom(format!(
                 "expecting Decimal128, got {:?}",
                 o
             ))),
@@ -1202,25 +1200,25 @@ impl<'de> Deserialize<'de> for Decimal128 {
 }
 
 impl<'de> Deserialize<'de> for DateTime {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::DateTime(dt) => Ok(dt),
-            _ => Err(D::Error::custom("expecting DateTime")),
+            _ => Err(serde::de::Error::custom("expecting DateTime")),
         }
     }
 }
 
 impl<'de> Deserialize<'de> for DbPointer {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
         match Bson::deserialize(deserializer)? {
             Bson::DbPointer(db_pointer) => Ok(db_pointer),
-            _ => Err(D::Error::custom("expecting DbPointer")),
+            _ => Err(serde::de::Error::custom("expecting DbPointer")),
         }
     }
 }

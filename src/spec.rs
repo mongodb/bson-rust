@@ -148,6 +148,33 @@ impl ElementType {
             _ => return None,
         })
     }
+
+    #[cfg(feature = "serde")]
+    pub(crate) fn name(&self) -> &'static str {
+        match self {
+            Self::Double => "double",
+            Self::String => "string",
+            Self::EmbeddedDocument => "document",
+            Self::Array => "array",
+            Self::Binary => "binary",
+            Self::Undefined => "undefined",
+            Self::ObjectId => "object ID",
+            Self::Boolean => "boolean",
+            Self::DateTime => "datetime",
+            Self::Null => "null",
+            Self::RegularExpression => "regular expression",
+            Self::DbPointer => "DB pointer",
+            Self::JavaScriptCode => "javascript code",
+            Self::Symbol => "symbol",
+            Self::JavaScriptCodeWithScope => "javascript code with scope",
+            Self::Int32 => "int32",
+            Self::Timestamp => "timestamp",
+            Self::Int64 => "int64",
+            Self::Decimal128 => "decimal128",
+            Self::MaxKey => "max key",
+            Self::MinKey => "min key",
+        }
+    }
 }
 
 /// The available binary subtypes, plus a user-defined slot.
