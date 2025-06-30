@@ -245,6 +245,7 @@
 //! use serde::{Serialize, Deserialize};
 //! use serde_with::serde_as;
 //! use bson::doc;
+//! use bson::serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime;
 //!
 //! #[serde_as]
 //! #[derive(Serialize, Deserialize)]
@@ -257,7 +258,7 @@
 //!
 //!     // serializes as a BSON datetime.
 //!     // this requires the "chrono-0_4" feature flag
-//!     #[serde_as(as = "bson::serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime")]
+//!     #[serde_as(as = "ChronoDateTimeAsBsonDateTime")]
 //!     chrono_as_bson: chrono::DateTime<chrono::Utc>,
 //! }
 //!
