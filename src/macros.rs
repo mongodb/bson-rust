@@ -441,7 +441,7 @@ macro_rules! my_serde_conv {
                 where
                     S: Serializer,
                 {
-                    let y = $ser(x);
+                    let y = $ser(x).map_err(serde::ser::Error::custom)?;
                     Serialize::serialize(&y, serializer)
                 }
 

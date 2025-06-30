@@ -117,11 +117,11 @@ pub mod object_id {
         /// }
         pub ObjectIdAsHexString,
         ObjectId,
-        |oid: &ObjectId| -> String {
-            oid.to_hex()
+        |oid: &ObjectId| -> Result<String, String> {
+            Ok(oid.to_hex())
         },
         |hex: String| -> Result<ObjectId, String> {
-            ObjectId::parse_str(&hex).map_err(|e| format!("Invalid ObjectId: {}", e))
+            ObjectId::parse_str(&hex).map_err(|e| format!("Invalid ObjectId string: {}", e))
         }
     );
 
@@ -141,8 +141,8 @@ pub mod object_id {
         /// ```
         pub HexStringAsObjectId,
         String,
-        |hex: &String| -> ObjectId {
-            ObjectId::parse_str(hex).unwrap()
+        |hex: &String| -> Result<ObjectId, String> {
+            ObjectId::parse_str(hex).map_err(|e| format!("Invalid ObjectId string: {}", e))
         },
         |oid: ObjectId| -> Result<String, String> {
             Ok(oid.to_hex())
