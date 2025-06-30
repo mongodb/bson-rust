@@ -121,7 +121,7 @@ pub mod object_id {
             Ok(oid.to_hex())
         },
         |hex: String| -> Result<ObjectId, String> {
-            ObjectId::parse_str(&hex).map_err(|e| format!("Invalid ObjectId string: {}", e))
+            ObjectId::parse_str(&hex).map_err(|e| format!("Invalid ObjectId string, {}: {}", hex, e))
         }
     );
 
@@ -142,7 +142,7 @@ pub mod object_id {
         pub HexStringAsObjectId,
         String,
         |hex: &String| -> Result<ObjectId, String> {
-            ObjectId::parse_str(hex).map_err(|e| format!("Invalid ObjectId string: {}", e))
+            ObjectId::parse_str(hex).map_err(|e| format!("Invalid ObjectId string, {}: {}", hex, e))
         },
         |oid: ObjectId| -> Result<String, String> {
             Ok(oid.to_hex())
