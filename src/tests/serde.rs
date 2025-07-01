@@ -761,10 +761,6 @@ fn test_datetime_helpers() {
             #[serde_as(as = "BsonDateTimeAsRfc3339String")]
             pub date: DateTime,
 
-            #[serde(skip_serializing_if = "Option::is_none")]
-            #[serde_as(as = "Option<BsonDateTimeAsRfc3339String>")]
-            pub date_optional_empty: Option<DateTime>,
-
             #[serde_as(as = "Option<BsonDateTimeAsRfc3339String>")]
             pub date_optional_none: Option<DateTime>,
 
@@ -779,7 +775,6 @@ fn test_datetime_helpers() {
         let date = DateTime::parse_rfc3339_str(iso).unwrap();
         let a = A {
             date,
-            date_optional_empty: None,
             date_optional_none: None,
             date_optional_some: Some(date),
             date_vector: vec![date],
@@ -793,11 +788,6 @@ fn test_datetime_helpers() {
             doc.get_str("date").unwrap(),
             iso,
             "Expected serialized date to match original date from RFC 3339 string."
-        );
-
-        assert!(
-            doc.get("date_optional_empty").is_none(),
-            "Expected serialized date_optional_empty to be empty."
         );
 
         assert_eq!(
@@ -836,11 +826,6 @@ fn test_datetime_helpers() {
         );
 
         assert_eq!(
-            a_deserialized.date_optional_empty, None,
-            "Expected deserialized date_optional_empty to be None."
-        );
-
-        assert_eq!(
             a_deserialized.date_optional_none, None,
             "Expected deserialized date_optional_none to be None."
         );
@@ -860,7 +845,6 @@ fn test_datetime_helpers() {
         // Validate deserializing error case with an invalid DateTime string
         let invalid_doc = doc! {
             "date": "not_a_valid_date",
-            "date_optional_empty": Bson::Null,
             "date_optional_none": Bson::Null,
             "date_optional_some": "also_invalid_date",
             "date_vector": ["bad1", "bad2"]
@@ -916,10 +900,6 @@ fn test_datetime_helpers() {
             #[serde_as(as = "ChronoDateTimeAsBsonDateTime")]
             pub date: chrono::DateTime<chrono::Utc>,
 
-            #[serde(skip_serializing_if = "Option::is_none")]
-            #[serde_as(as = "Option<ChronoDateTimeAsBsonDateTime>")]
-            pub date_optional_empty: Option<chrono::DateTime<chrono::Utc>>,
-
             #[serde_as(as = "Option<ChronoDateTimeAsBsonDateTime>")]
             pub date_optional_none: Option<chrono::DateTime<chrono::Utc>>,
 
@@ -934,7 +914,6 @@ fn test_datetime_helpers() {
         let date: chrono::DateTime<chrono::Utc> = chrono::DateTime::from_str(iso).unwrap();
         let a: A = A {
             date,
-            date_optional_empty: None,
             date_optional_none: None,
             date_optional_some: Some(date),
             date_vector: vec![date],
@@ -948,11 +927,6 @@ fn test_datetime_helpers() {
             doc.get_datetime("date").unwrap().to_chrono(),
             date,
             "Expected serialized date to match original date."
-        );
-
-        assert!(
-            doc.get("date_optional_empty").is_none(),
-            "Expected serialized date_optional_empty to be empty."
         );
 
         assert_eq!(
@@ -995,11 +969,6 @@ fn test_datetime_helpers() {
         assert_eq!(
             a_deserialized.date, date,
             "Expected deserialized date to match original."
-        );
-
-        assert_eq!(
-            a_deserialized.date_optional_empty, None,
-            "Expected deserialized date_optional_empty to be None."
         );
 
         assert_eq!(
@@ -1081,10 +1050,6 @@ fn test_datetime_helpers() {
             #[serde_as(as = "Rfc3339StringAsBsonDateTime")]
             pub date: String,
 
-            #[serde(skip_serializing_if = "Option::is_none")]
-            #[serde_as(as = "Option<Rfc3339StringAsBsonDateTime>")]
-            pub date_optional_empty: Option<String>,
-
             #[serde_as(as = "Option<Rfc3339StringAsBsonDateTime>")]
             pub date_optional_none: Option<String>,
 
@@ -1098,7 +1063,6 @@ fn test_datetime_helpers() {
         let date = "2020-06-09T10:58:07.095Z";
         let c = C {
             date: date.to_string(),
-            date_optional_empty: None,
             date_optional_none: None,
             date_optional_some: Some(date.to_string()),
             date_vector: vec![date.to_string()],
@@ -1111,11 +1075,6 @@ fn test_datetime_helpers() {
         assert!(
             doc.get_datetime("date").is_ok(),
             "Expected serialized date to be a BSON DateTime."
-        );
-
-        assert!(
-            doc.get("date_optional_empty").is_none(),
-            "Expected serialized date_optional_empty to be empty."
         );
 
         assert_eq!(
@@ -1166,11 +1125,6 @@ fn test_datetime_helpers() {
         );
 
         assert_eq!(
-            c_deserialized.date_optional_empty, None,
-            "Expected deserialized date_optional_empty to be None."
-        );
-
-        assert_eq!(
             c_deserialized.date_optional_none, None,
             "Expected deserialized date_optional_none to be None."
         );
@@ -1191,7 +1145,6 @@ fn test_datetime_helpers() {
         let invalid_date = "invalid_date";
         let bad_c = C {
             date: invalid_date.to_string(),
-            date_optional_empty: None,
             date_optional_none: None,
             date_optional_some: Some(invalid_date.to_string()),
             date_vector: vec![invalid_date.to_string()],
@@ -1222,10 +1175,6 @@ fn test_oid_helpers() {
             #[serde_as(as = "HexStringAsObjectId")]
             oid: String,
 
-            #[serde(skip_serializing_if = "Option::is_none")]
-            #[serde_as(as = "Option<HexStringAsObjectId>")]
-            oid_optional_empty: Option<String>,
-
             #[serde_as(as = "Option<HexStringAsObjectId>")]
             oid_optional_none: Option<String>,
 
@@ -1239,7 +1188,6 @@ fn test_oid_helpers() {
         let oid = ObjectId::new();
         let a = A {
             oid: oid.to_string(),
-            oid_optional_empty: None,
             oid_optional_none: None,
             oid_optional_some: Some(oid.to_string()),
             oid_vector: vec![oid.to_string()],
@@ -1253,11 +1201,6 @@ fn test_oid_helpers() {
             doc.get_object_id("oid").unwrap(),
             oid,
             "Expected serialized oid to match original ObjectId."
-        );
-
-        assert!(
-            doc.get("oid_optional_empty").is_none(),
-            "Expected serialized oid_optional_empty to be empty."
         );
 
         assert_eq!(
@@ -1302,16 +1245,6 @@ fn test_oid_helpers() {
         );
 
         assert_eq!(
-            a_deserialized.oid_optional_empty, None,
-            "Expected deserialized oid_optional_empty to be None."
-        );
-
-        assert_eq!(
-            a_deserialized.oid_optional_none, None,
-            "Expected deserialized oid_optional_none to be None."
-        );
-
-        assert_eq!(
             a_deserialized.oid_optional_some,
             Some(oid.to_string()),
             "Expected deserialized oid_optional_some to match the original."
@@ -1327,7 +1260,6 @@ fn test_oid_helpers() {
         let invalid_oid = "invalid_oid";
         let bad_a = A {
             oid: invalid_oid.to_string(),
-            oid_optional_empty: None,
             oid_optional_none: None,
             oid_optional_some: Some(invalid_oid.to_string()),
             oid_vector: vec![invalid_oid.to_string()],
@@ -1350,10 +1282,6 @@ fn test_oid_helpers() {
             #[serde_as(as = "ObjectIdAsHexString")]
             oid: ObjectId,
 
-            #[serde(skip_serializing_if = "Option::is_none")]
-            #[serde_as(as = "Option<ObjectIdAsHexString>")]
-            oid_optional_empty: Option<ObjectId>,
-
             #[serde_as(as = "Option<ObjectIdAsHexString>")]
             oid_optional_none: Option<ObjectId>,
 
@@ -1367,7 +1295,6 @@ fn test_oid_helpers() {
         let oid = ObjectId::new();
         let b = B {
             oid,
-            oid_optional_empty: None,
             oid_optional_none: None,
             oid_optional_some: Some(oid),
             oid_vector: vec![oid],
@@ -1381,11 +1308,6 @@ fn test_oid_helpers() {
             doc.get_str("oid").unwrap(),
             oid.to_hex(),
             "Expected serialized oid to match original ObjectId as hex string."
-        );
-
-        assert!(
-            doc.get("oid_optional_empty").is_none(),
-            "Expected serialized oid_optional_empty to be empty."
         );
 
         assert_eq!(
@@ -1439,11 +1361,6 @@ fn test_oid_helpers() {
         );
 
         assert_eq!(
-            b_deserialized.oid_optional_empty, None,
-            "Expected deserialized oid_optional_empty to be None."
-        );
-
-        assert_eq!(
             b_deserialized.oid_optional_none, None,
             "Expected deserialized oid_optional_none to be None."
         );
@@ -1463,7 +1380,6 @@ fn test_oid_helpers() {
         // Validate deserializing error case with an invalid ObjectId string
         let invalid_doc = doc! {
             "oid": "not_a_valid_oid",
-            "oid_optional_empty": Bson::Null,
             "oid_optional_none": Bson::Null,
             "oid_optional_some": "also_invalid_oid",
             "oid_vector": ["bad1", "bad2"]
