@@ -110,9 +110,9 @@ use crate::error::{Error, Result};
 /// The `bson` crate provides a number of useful helpers for serializing and deserializing
 /// various datetime types to and from different formats. For example, to serialize a
 /// [`chrono::DateTime`] as a BSON datetime, you can use
-/// [`crate::serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime`].
+/// [`crate::serde_helpers::bson_datetime::FromChronoDateTime`].
 /// Similarly, to serialize a BSON [`DateTime`] to a string, you can use
-/// [`crate::serde_helpers::date_time::BsonDateTimeAsRfc3339String`]. Check out the
+/// [`crate::serde_helpers::bson_datetime::AsRfc3339String`]. Check out the
 /// [`crate::serde_helpers`] module documentation for a list of all of the helpers offered by the
 /// crate.
 ///
@@ -121,8 +121,7 @@ use crate::error::{Error, Result};
 /// # {
 /// use serde::{Serialize, Deserialize};
 /// use serde_with::serde_as;
-/// use bson::serde_helpers::date_time::BsonDateTimeAsRfc3339String;
-/// use bson::serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime;
+/// use bson::serde_helpers::bson_datetime;
 ///
 /// #[serde_as]
 /// #[derive(Serialize, Deserialize)]
@@ -135,11 +134,11 @@ use crate::error::{Error, Result};
 ///
 ///     // serializes as a BSON datetime.
 ///     // this requires the "chrono-0_4" feature flag
-///     #[serde_as(as = "ChronoDateTimeAsBsonDateTime")]
+///     #[serde_as(as = "bson_datetime::FromChronoDateTime")]
 ///     chrono_as_bson: chrono::DateTime<chrono::Utc>,
 ///
 ///     // serializes as an RFC 3339 / ISO-8601 string.
-///     #[serde_as(as = "BsonDateTimeAsRfc3339String")]
+///     #[serde_as(as = "bson_datetime::AsRfc3339String")]
 ///     bson_as_string: bson::DateTime,
 /// }
 /// # }

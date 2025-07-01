@@ -250,7 +250,7 @@ struct Foo {
 
     // serializes as a BSON datetime.
     // this requires the "chrono-0_4" feature flag
-    #[serde_as(as = "bson::serde_helpers::chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime")]
+    #[serde_as(as = "bson::serde_helpers::bson_datetime::FromChronoDateTime")]
     chrono_as_bson: chrono::DateTime<chrono::Utc>,
 }
 

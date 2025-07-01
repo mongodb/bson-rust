@@ -8,10 +8,9 @@ use crate::{
     oid::ObjectId,
     serde_helpers::{
         self,
-        chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime,
-        date_time::{BsonDateTimeAsRfc3339String, Rfc3339StringAsBsonDateTime},
+        bson_datetime,
         i64_as_bson_datetime,
-        object_id::{HexStringAsObjectId, ObjectIdAsHexString},
+        object_id,
         timestamp_as_u32,
         u32_as_timestamp,
     },
@@ -758,16 +757,16 @@ fn test_datetime_helpers() {
         #[serde_as]
         #[derive(Deserialize, Serialize, Debug)]
         struct A {
-            #[serde_as(as = "BsonDateTimeAsRfc3339String")]
+            #[serde_as(as = "bson_datetime::AsRfc3339String")]
             pub date: DateTime,
 
-            #[serde_as(as = "Option<BsonDateTimeAsRfc3339String>")]
+            #[serde_as(as = "Option<bson_datetime::AsRfc3339String>")]
             pub date_optional_none: Option<DateTime>,
 
-            #[serde_as(as = "Option<BsonDateTimeAsRfc3339String>")]
+            #[serde_as(as = "Option<bson_datetime::AsRfc3339String>")]
             pub date_optional_some: Option<DateTime>,
 
-            #[serde_as(as = "Vec<BsonDateTimeAsRfc3339String>")]
+            #[serde_as(as = "Vec<bson_datetime::AsRfc3339String>")]
             pub date_vector: Vec<DateTime>,
         }
 
@@ -897,16 +896,16 @@ fn test_datetime_helpers() {
         #[serde_as]
         #[derive(Deserialize, Serialize)]
         struct A {
-            #[serde_as(as = "ChronoDateTimeAsBsonDateTime")]
+            #[serde_as(as = "bson_datetime::FromChronoDateTime")]
             pub date: chrono::DateTime<chrono::Utc>,
 
-            #[serde_as(as = "Option<ChronoDateTimeAsBsonDateTime>")]
+            #[serde_as(as = "Option<bson_datetime::FromChronoDateTime>")]
             pub date_optional_none: Option<chrono::DateTime<chrono::Utc>>,
 
-            #[serde_as(as = "Option<ChronoDateTimeAsBsonDateTime>")]
+            #[serde_as(as = "Option<bson_datetime::FromChronoDateTime>")]
             pub date_optional_some: Option<chrono::DateTime<chrono::Utc>>,
 
-            #[serde_as(as = "Vec<ChronoDateTimeAsBsonDateTime>")]
+            #[serde_as(as = "Vec<bson_datetime::FromChronoDateTime>")]
             pub date_vector: Vec<chrono::DateTime<chrono::Utc>>,
         }
 
@@ -994,16 +993,16 @@ fn test_datetime_helpers() {
         #[serde_as]
         #[derive(Deserialize, Serialize)]
         struct C {
-            #[serde_as(as = "Rfc3339StringAsBsonDateTime")]
+            #[serde_as(as = "bson_datetime::FromRfc3339String")]
             pub date: String,
 
-            #[serde_as(as = "Option<Rfc3339StringAsBsonDateTime>")]
+            #[serde_as(as = "Option<bson_datetime::FromRfc3339String>")]
             pub date_optional_none: Option<String>,
 
-            #[serde_as(as = "Option<Rfc3339StringAsBsonDateTime>")]
+            #[serde_as(as = "Option<bson_datetime::FromRfc3339String>")]
             pub date_optional_some: Option<String>,
 
-            #[serde_as(as = "Vec<Rfc3339StringAsBsonDateTime>")]
+            #[serde_as(as = "Vec<bson_datetime::FromRfc3339String>")]
             pub date_vector: Vec<String>,
         }
 
@@ -1119,16 +1118,16 @@ fn test_oid_helpers() {
         #[serde_as]
         #[derive(Serialize, Deserialize)]
         struct A {
-            #[serde_as(as = "HexStringAsObjectId")]
+            #[serde_as(as = "object_id::FromHexString")]
             oid: String,
 
-            #[serde_as(as = "Option<HexStringAsObjectId>")]
+            #[serde_as(as = "Option<object_id::FromHexString>")]
             oid_optional_none: Option<String>,
 
-            #[serde_as(as = "Option<HexStringAsObjectId>")]
+            #[serde_as(as = "Option<object_id::FromHexString>")]
             oid_optional_some: Option<String>,
 
-            #[serde_as(as = "Vec<HexStringAsObjectId>")]
+            #[serde_as(as = "Vec<object_id::FromHexString>")]
             oid_vector: Vec<String>,
         }
 
@@ -1226,16 +1225,16 @@ fn test_oid_helpers() {
         #[serde_as]
         #[derive(Serialize, Deserialize, Debug)]
         struct B {
-            #[serde_as(as = "ObjectIdAsHexString")]
+            #[serde_as(as = "object_id::AsHexString")]
             oid: ObjectId,
 
-            #[serde_as(as = "Option<ObjectIdAsHexString>")]
+            #[serde_as(as = "Option<object_id::AsHexString>")]
             oid_optional_none: Option<ObjectId>,
 
-            #[serde_as(as = "Option<ObjectIdAsHexString>")]
+            #[serde_as(as = "Option<object_id::AsHexString>")]
             oid_optional_some: Option<ObjectId>,
 
-            #[serde_as(as = "Vec<ObjectIdAsHexString>")]
+            #[serde_as(as = "Vec<object_id::AsHexString>")]
             oid_vector: Vec<ObjectId>,
         }
 
