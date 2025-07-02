@@ -177,7 +177,7 @@ impl RawDocumentBuf {
     /// It is a user error to append the same key more than once to the same document, and it may
     /// result in errors when communicating with MongoDB.
     ///
-    /// If the provided key contains an interior null byte, this method will panic.
+    /// Keys can be a [`&CStr`](crate::raw::CStr) or [`CString`](crate::raw::CString).
     ///
     /// Values can be any type that can be converted to either borrowed or owned raw bson data; see
     /// the documentation for [BindRawBsonRef] for more details.

@@ -2,7 +2,11 @@ use core::str;
 
 use crate::error::{Error, Result};
 
-// A BSON-spec cstring: Zero or more UTF-8 encoded characters, excluding the null byte.
+/// A borrowed BSON-spec cstring: Zero or more UTF-8 encoded characters, excluding the nul byte.
+/// Most conveniently constructed via the [`cstr!`](crate::raw::cstr) macro.
+///
+/// Unlike [`std::ffi::CStr`], this is required to be valid UTF-8, and does not include the nul
+/// terminator in the buffer.
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct CStr {
@@ -36,15 +40,18 @@ impl CStr {
         unsafe { &*(value.as_bytes() as *const [u8] as *const CStr) }
     }
 
+    /// View the buffer as a Rust `&str`.
     pub fn as_str(&self) -> &str {
         // Safety: the only way to constrct a CStr is from a valid &str.
         unsafe { str::from_utf8_unchecked(&self.data) }
     }
 
+    /// The length in bytes of the buffer.
     pub fn len(&self) -> usize {
         self.as_str().len()
     }
 
+    /// Whether the buffer contains zero bytes.
     pub fn is_empty(&self) -> bool {
         self.as_str().is_empty()
     }
@@ -91,11 +98,15 @@ impl serde::Serialize for &CStr {
     }
 }
 
+#[doc(hidden)]
 #[diagnostic::on_unimplemented(message = "the string literal contains a zero byte")]
 pub trait ValidCStr {}
+#[doc(hidden)]
 pub struct IsValidCStr<const VALID: bool>;
+#[doc(hidden)]
 impl ValidCStr for IsValidCStr<true> {}
 
+#[doc(hidden)]
 pub const fn validate_cstr(text: &str) -> Option<&CStr> {
     let bytes = text.as_bytes();
     let mut i = 0;
@@ -107,8 +118,20 @@ pub const fn validate_cstr(text: &str) -> Option<&CStr> {
     }
     Some(CStr::from_str_unchecked(text))
 }
+#[doc(hidden)]
 pub const fn assert_valid_cstr<T: ValidCStr>() {}
 
+/// Construct a `'static &CStr`.  The validitiy will be verified at compile-time.
+/// ```
+/// # use bson::raw::{CStr, cstr};
+/// // A valid literal:
+/// let key: &CStr = cstr!("hello");
+/// ```
+/// ```compile_fail
+/// # use bson::raw::{CStr, cstr};
+/// // An invalid literal will not compile:
+/// let key: &CStr = cstr!("hel\0lo");
+/// ```
 #[macro_export]
 macro_rules! cstr {
     ($text:literal) => {{
@@ -120,6 +143,11 @@ macro_rules! cstr {
 }
 pub use cstr;
 
+/// An owned BSON-spec cstring: Zero or more UTF-8 encoded characters, excluding the nul byte.
+/// `CString` is to `CStr` as [`String`] is to [`prim@str`].
+///
+/// Like `CStr`, this differs from [`std::ffi::CString`] in that it is required to be valid UTF-8,
+/// and does not include the nul terminator in the buffer.
 #[derive(Clone, Eq, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct CString {
@@ -149,10 +177,12 @@ impl CString {
         Self { data }
     }
 
+    /// Consume `self` to return the underlying `String`.
     pub fn into_string(self) -> String {
         self.data
     }
 
+    /// View the buffer as a Rust `&str`.
     pub fn as_str(&self) -> &str {
         self.as_ref().as_str()
     }
