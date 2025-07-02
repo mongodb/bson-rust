@@ -245,7 +245,7 @@
 //! use serde::{Serialize, Deserialize};
 //! use serde_with::serde_as;
 //! use bson::doc;
-//! use bson::serde_helpers::bson_datetime::FromChronoDateTime;
+//! use bson::serde_helpers::bson_datetime;
 //!
 //! #[serde_as]
 //! #[derive(Serialize, Deserialize)]
