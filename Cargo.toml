@@ -33,7 +33,7 @@ exclude = [
 ]
 
 [features]
-default = ["compat-3-0-0", "chrono-0_4", "serde_with-3", "serde"]
+default = ["compat-3-0-0"]
 compat-3-0-0 = []
 # if enabled, include API for interfacing with chrono 0.4
 chrono-0_4 = ["dep:chrono"]
