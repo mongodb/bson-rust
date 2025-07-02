@@ -229,7 +229,7 @@ provides a `DateTime` type, but its `Serialize` and `Deserialize` implementation
 instead, so when using it with BSON, the BSON datetime type is not used. To work around this, the
 `chrono-0_4` feature flag can be enabled. This flag exposes a number of convenient conversions
 between `bson::DateTime` and `chrono::DateTime`, including the
-[`chrono_datetime_and_bson_datetime::ChronoDateTimeAsBsonDateTime`](https://docs.rs/bson/latest/bson/serde_helpers/chrono_datetime_and_bson_datetime/struct.ChronoDateTimeAsBsonDateTime/index.html)
+[`bson_datetime::FromChronoDateTime`](https://docs.rs/bson/latest/bson/serde_helpers/bson_datetime/struct.FromChronoDateTime/index.html)
 serde helper, which can be used to (de)serialize `chrono::DateTime`s to/from BSON datetimes, and the
 `From<chrono::DateTime>` implementation for `Bson`, which allows `chrono::DateTime` values to be
 used in the `doc!` and `bson!` macros.
