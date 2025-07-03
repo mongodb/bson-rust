@@ -432,3 +432,61 @@ macro_rules! rawdoc {
         object
     }};
 }
+
+/// Like [`serde_with::serde_conv!`], but with additional functionality:
+/// 1. Supports attaching documentation (`///`) and other attributes to the generated struct
+/// 2. Allows serializers that return a [`Result`]`, enabling error handling during serialization
+///
+/// This macro generates a `SerializeAs`/`DeserializeAs` implementation for a given type,
+/// with optional struct-level attributes like `#[derive(...)]` or `/// doc comments`.
+macro_rules! serde_conv_doc {
+    ($(#[$meta:meta])* $vis:vis $m:ident, $t:ty, $ser:expr, $de:expr) => {
+        #[allow(non_camel_case_types)]
+        $(#[$meta])*
+        $vis struct $m;
+
+        // Prevent clippy lints triggering because of the template here
+        // https://github.com/jonasbb/serde_with/pull/320
+        // https://github.com/jonasbb/serde_with/pull/729
+        #[allow(clippy::all)]
+        const _:() = {
+            impl $m {
+                $vis fn serialize<S>(x: &$t, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                    S: Serializer,
+                {
+                    let y = $ser(x).map_err(serde::ser::Error::custom)?;
+                    Serialize::serialize(&y, serializer)
+                }
+
+                $vis fn deserialize<'de, D>(deserializer: D) -> Result<$t, D::Error>
+                where
+                    D: Deserializer<'de>,
+                {
+                    let y = Deserialize::deserialize(deserializer)?;
+                    $de(y).map_err(serde::de::Error::custom)
+                }
+            }
+
+            impl SerializeAs<$t> for $m {
+                fn serialize_as<S>(x: &$t, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                    S: Serializer,
+                {
+                    Self::serialize(x, serializer)
+                }
+            }
+
+            impl<'de> DeserializeAs<'de, $t> for $m {
+                fn deserialize_as<D>(deserializer: D) -> Result<$t, D::Error>
+                where
+                    D: Deserializer<'de>,
+                {
+                    Self::deserialize(deserializer)
+                }
+            }
+        };
+    };
+}
+
+pub(crate) use serde_conv_doc;
