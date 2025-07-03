@@ -422,10 +422,25 @@ macro_rules! rawdoc {
     }};
 }
 
-/// Same as [`serde_with::serde_conv!`], but with support for rustdoc documentation for the struct.
-#[macro_export]
-macro_rules! my_serde_conv {
-    ($(#[$meta:meta])* $m:ident, $t:ty, $ser:expr, $de:expr) => {$crate::serde_conv!(pub(self) $m, $t, $ser, $de);};
+/// Like [`serde_with::serde_conv!`], but with additional functionality:
+/// 1. Supports attaching documentation (`///`) and other attributes to the generated struct
+/// 2. serializers that may fail, by wrapping the output in a [`Result`]`
+///
+/// This macro generates a `SerializeAs`/`DeserializeAs` implementation for a given type,
+/// with optional struct-level attributes like `#[derive(...)]` or `/// doc comments`.
+///
+/// # Example
+/// ```
+/// serde_conv_doc!(
+///     /// Custom serialization for `MyType`.
+///     #[derive(Debug, Clone)]
+///     pub MyTypeSerdeConv,
+///     MyType,
+///     |x| Ok(x.to_string()),
+///     |s: String| Ok(MyType::from_str(&s)?)
+/// );
+/// ```
+macro_rules! serde_conv_doc {
     ($(#[$meta:meta])* $vis:vis $m:ident, $t:ty, $ser:expr, $de:expr) => {
         #[allow(non_camel_case_types)]
         $(#[$meta])*
@@ -474,3 +489,5 @@ macro_rules! my_serde_conv {
         };
     };
 }
+
+pub(crate) use serde_conv_doc;

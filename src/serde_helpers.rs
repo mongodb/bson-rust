@@ -91,11 +91,11 @@ pub fn serialize_u64_as_i64<S: Serializer>(val: &u64, serializer: S) -> Result<S
 
 #[cfg(feature = "serde_with-3")]
 pub mod object_id {
-    use crate::oid::ObjectId;
+    use crate::{macros::serde_conv_doc, oid::ObjectId};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
 
-    my_serde_conv!(
+    serde_conv_doc!(
         /// Contains functions to serialize an ObjectId as a hex string and deserialize an
         /// ObjectId from a hex string
         /// ```rust
@@ -123,7 +123,7 @@ pub mod object_id {
         }
     );
 
-    my_serde_conv!(
+    serde_conv_doc!(
         /// Contains functions to serialize a hex string as an ObjectId and deserialize a
         /// hex string from an ObjectId
         /// ```rust
