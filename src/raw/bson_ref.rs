@@ -3,7 +3,7 @@ use std::convert::{TryFrom, TryInto};
 use super::{bson::RawBson, Error, RawArray, RawDocument, Result};
 use crate::{
     oid::{self, ObjectId},
-    raw::{write_cstring, write_string, RawJavaScriptCodeWithScope},
+    raw::{write_string, CStr, RawJavaScriptCodeWithScope},
     spec::{BinarySubtype, ElementType},
     Binary,
     Bson,
@@ -256,7 +256,13 @@ impl<'a> RawBsonRef<'a> {
             RawBsonRef::Boolean(b) => RawBson::Boolean(b),
             RawBsonRef::Null => RawBson::Null,
             RawBsonRef::RegularExpression(re) => {
-                RawBson::RegularExpression(Regex::new(re.pattern, re.options))
+                let mut chars: Vec<_> = re.options.as_str().chars().collect();
+                chars.sort_unstable();
+                let options: String = chars.into_iter().collect();
+                RawBson::RegularExpression(Regex {
+                    pattern: re.pattern.into(),
+                    options: super::CString::from_string_unchecked(options),
+                })
             }
             RawBsonRef::JavaScriptCode(c) => RawBson::JavaScriptCode(c.to_owned()),
             RawBsonRef::JavaScriptCodeWithScope(c_w_s) => {
@@ -287,7 +293,7 @@ impl<'a> RawBsonRef<'a> {
     }
 
     #[inline]
-    pub(crate) fn append_to(self, dest: &mut Vec<u8>) -> Result<()> {
+    pub(crate) fn append_to(self, dest: &mut Vec<u8>) {
         match self {
             Self::Int32(val) => dest.extend(val.to_le_bytes()),
             Self::Int64(val) => dest.extend(val.to_le_bytes()),
@@ -306,8 +312,8 @@ impl<'a> RawBsonRef<'a> {
             Self::Document(raw_document) => dest.extend(raw_document.as_bytes()),
             Self::Boolean(b) => dest.push(b as u8),
             Self::RegularExpression(re) => {
-                write_cstring(dest, re.pattern)?;
-                write_cstring(dest, re.options)?;
+                re.pattern.append_to(dest);
+                re.options.append_to(dest);
             }
             Self::JavaScriptCode(js) => write_string(dest, js),
             Self::JavaScriptCodeWithScope(code_w_scope) => {
@@ -327,7 +333,6 @@ impl<'a> RawBsonRef<'a> {
             }
             Self::Null | Self::Undefined | Self::MinKey | Self::MaxKey => {}
         }
-        Ok(())
     }
 }
 
@@ -592,7 +597,7 @@ impl<'a> From<&'a Binary> for RawBsonRef<'a> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawRegexRef<'a> {
     /// The regex pattern to match.
-    pub pattern: &'a str,
+    pub pattern: &'a CStr,
 
     /// The options for the regex.
     ///
@@ -601,7 +606,7 @@ pub struct RawRegexRef<'a> {
     /// multiline matching, 'x' for verbose mode, 'l' to make \w, \W, etc. locale dependent,
     /// 's' for dotall mode ('.' matches everything), and 'u' to make \w, \W, etc. match
     /// unicode.
-    pub options: &'a str,
+    pub options: &'a CStr,
 }
 
 #[cfg(feature = "serde")]
@@ -628,8 +633,8 @@ impl serde::Serialize for RawRegexRef<'_> {
     {
         #[derive(serde::Serialize)]
         struct BorrowedRegexBody<'a> {
-            pattern: &'a str,
-            options: &'a str,
+            pattern: &'a CStr,
+            options: &'a CStr,
         }
 
         let mut state = serializer.serialize_struct("$regularExpression", 1)?;

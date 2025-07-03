@@ -6,7 +6,7 @@ use serde::{
 };
 
 use crate::{
-    raw::{write_cstring, write_string, RAW_BSON_NEWTYPE},
+    raw::{write_string, RAW_BSON_NEWTYPE},
     spec::{BinarySubtype, ElementType},
     RawBson,
     RawBsonRef,
@@ -119,7 +119,10 @@ impl<'a, 'de> SeededVisitor<'a, 'de> {
 
     /// Appends a cstring to the buffer. Returns an error if the given string contains a null byte.
     fn append_cstring(&mut self, key: &str) -> Result<(), String> {
-        write_cstring(self.buffer.get_owned_buffer(), key).map_err(|e| e.to_string())
+        crate::raw::CStr::from_str(key)
+            .map_err(|e| e.to_string())?
+            .append_to(self.buffer.get_owned_buffer());
+        Ok(())
     }
 
     /// Appends a string and its length to the buffer.
@@ -273,8 +276,7 @@ impl<'de> Visitor<'de> for SeededVisitor<'_, 'de> {
                     // Cases that don't
                     _ => {
                         let bson = bson.as_ref();
-                        bson.append_to(self.buffer.get_owned_buffer())
-                            .map_err(A::Error::custom)?;
+                        bson.append_to(self.buffer.get_owned_buffer());
                         Ok(bson.element_type())
                     }
                 }

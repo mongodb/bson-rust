@@ -22,7 +22,7 @@ pub(crate) fn arbitrary_bson() -> impl Strategy<Value = Bson> {
         any::<i32>().prop_map(Bson::Int32),
         any::<i64>().prop_map(Bson::Int64),
         any::<(String, String)>().prop_map(|(pattern, options)| {
-            Bson::RegularExpression(Regex::new(pattern, options))
+            Bson::RegularExpression(Regex::from_strings(pattern, options).unwrap())
         }),
         any::<[u8; 12]>().prop_map(|bytes| Bson::ObjectId(crate::oid::ObjectId::from_bytes(bytes))),
         (arbitrary_binary_subtype(), any::<Vec<u8>>()).prop_map(|(subtype, bytes)| {

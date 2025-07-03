@@ -2,6 +2,7 @@
 
 use crate::{
     bson,
+    cstr,
     deserialize_from_bson,
     deserialize_from_document,
     doc,
@@ -150,8 +151,8 @@ fn test_ser_regex() {
     }
 
     let regex = Regex {
-        pattern: "12".into(),
-        options: "01".into(),
+        pattern: cstr!("12").into(),
+        options: cstr!("01").into(),
     };
 
     let foo = Foo {
@@ -179,8 +180,8 @@ fn test_de_regex() {
     }
 
     let regex = Regex {
-        pattern: "12".into(),
-        options: "01".into(),
+        pattern: cstr!("12").into(),
+        options: cstr!("01").into(),
     };
 
     let foo: Foo = deserialize_from_bson(Bson::Document(doc! {

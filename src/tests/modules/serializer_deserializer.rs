@@ -6,6 +6,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    cstr,
     de::deserialize_from_document,
     doc,
     oid::ObjectId,
@@ -158,8 +159,8 @@ fn test_serialize_deserialize_null() {
 fn test_serialize_deserialize_regexp() {
     let _guard = LOCK.run_concurrently();
     let src = Bson::RegularExpression(Regex {
-        pattern: "1".to_owned(),
-        options: "2".to_owned(),
+        pattern: cstr!("1").to_owned(),
+        options: cstr!("2").to_owned(),
     });
     let dst = vec![14, 0, 0, 0, 11, 107, 101, 121, 0, 49, 0, 50, 0, 0];
 

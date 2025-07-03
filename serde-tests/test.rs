@@ -18,6 +18,7 @@ use std::{
 };
 
 use bson::{
+    cstr,
     doc,
     oid::ObjectId,
     spec::BinarySubtype,
@@ -835,8 +836,8 @@ fn raw_regex() {
 
     let bytes = bson::serialize_to_vec(&doc! {
         "r": Regex {
-            pattern: "a[b-c]d".to_string(),
-            options: "ab".to_string(),
+            pattern: cstr!("a[b-c]d").into(),
+            options: cstr!("ab").into(),
         },
     })
     .expect("raw_regex");
@@ -927,8 +928,8 @@ impl AllTypes {
         };
         let date = DateTime::now();
         let regex = Regex {
-            pattern: "hello".to_string(),
-            options: "x".to_string(),
+            pattern: cstr!("hello").into(),
+            options: cstr!("x").into(),
         };
         let timestamp = Timestamp {
             time: 123,
@@ -1058,8 +1059,8 @@ fn all_raw_types_rmp() {
             scope: doc! { "x": 1 },
         },
         "regex": Regex {
-            pattern: "pattern".to_string(),
-            options: "opt".to_string()
+            pattern: cstr!("pattern").into(),
+            options: cstr!("opt").into()
         }
     })
     .unwrap();
@@ -1254,24 +1255,22 @@ fn owned_raw_types() {
 
     let f = Foo {
         subdoc: RawDocumentBuf::from_iter([
-            ("a key", RawBson::String("a value".to_string())),
-            ("an objectid", RawBson::ObjectId(oid)),
-            ("a date", RawBson::DateTime(dt)),
+            (cstr!("a key"), RawBson::String("a value".to_string())),
+            (cstr!("an objectid"), RawBson::ObjectId(oid)),
+            (cstr!("a date"), RawBson::DateTime(dt)),
             (
-                "code_w_scope",
+                cstr!("code_w_scope"),
                 RawBson::JavaScriptCodeWithScope(raw_code_w_scope.clone()),
             ),
-            ("decimal128", RawBson::Decimal128(d128)),
-        ])
-        .unwrap(),
+            (cstr!("decimal128"), RawBson::Decimal128(d128)),
+        ]),
         array: RawArrayBuf::from_iter([
             RawBson::String("a string".to_string()),
             RawBson::ObjectId(oid),
             RawBson::DateTime(dt),
             RawBson::JavaScriptCodeWithScope(raw_code_w_scope),
             RawBson::Decimal128(d128),
-        ])
-        .unwrap(),
+        ]),
     };
 
     let expected = doc! {

@@ -1306,15 +1306,15 @@ impl<'de> serde::de::Deserializer<'de> for &mut RegexAccess<'de> {
             RegexDeserializationStage::Pattern => {
                 self.stage = RegexDeserializationStage::Options;
                 match &self.re {
-                    BsonCow::Borrowed(re) => visitor.visit_borrowed_str(re.pattern),
-                    BsonCow::Owned(re) => visitor.visit_str(&re.pattern),
+                    BsonCow::Borrowed(re) => visitor.visit_borrowed_str(re.pattern.as_str()),
+                    BsonCow::Owned(re) => visitor.visit_str(re.pattern.as_str()),
                 }
             }
             RegexDeserializationStage::Options => {
                 self.stage = RegexDeserializationStage::Done;
                 match &self.re {
-                    BsonCow::Borrowed(re) => visitor.visit_borrowed_str(re.options),
-                    BsonCow::Owned(re) => visitor.visit_str(&re.options),
+                    BsonCow::Borrowed(re) => visitor.visit_borrowed_str(re.options.as_str()),
+                    BsonCow::Owned(re) => visitor.visit_str(re.options.as_str()),
                 }
             }
             RegexDeserializationStage::Done => {
