@@ -424,7 +424,7 @@ macro_rules! rawdoc {
 
 /// Like [`serde_with::serde_conv!`], but with additional functionality:
 /// 1. Supports attaching documentation (`///`) and other attributes to the generated struct
-/// 2. serializers that may fail, by wrapping the output in a [`Result`]`
+/// 2. Allows serializers that return a [`Result`]`, enabling error handling during serialization
 ///
 /// This macro generates a `SerializeAs`/`DeserializeAs` implementation for a given type,
 /// with optional struct-level attributes like `#[derive(...)]` or `/// doc comments`.
