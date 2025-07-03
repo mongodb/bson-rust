@@ -4,7 +4,8 @@ use crate::error::{Error, Result};
 
 #[allow(rustdoc::invalid_rust_codeblocks)]
 /// A borrowed BSON-spec cstring: Zero or more UTF-8 encoded characters, excluding the nul byte.
-/// Most conveniently constructed via the [`cstr!`](crate::raw::cstr) macro.
+/// Can be constructed at compile-time via the [`cstr!`](crate::raw::cstr) macro or at run-time via
+/// the [`TryFrom`] impl.
 ///
 /// Unlike [`std::ffi::CStr`], this is required to be valid UTF-8, and does not include the nul
 /// terminator in the buffer:
@@ -169,7 +170,8 @@ macro_rules! cstr {
 pub use cstr;
 
 /// An owned BSON-spec cstring: Zero or more UTF-8 encoded characters, excluding the nul byte.
-/// `CString` is to `CStr` as [`String`] is to [`prim@str`].
+/// `CString` is to `CStr` as [`String`] is to [`prim@str`].  Can be constructed from a [`CStr`] via
+/// [`ToOwned`]/[`Into`] or from a [`String`] or [`prim@str`] via [`TryFrom`].
 ///
 /// Like `CStr`, this differs from [`std::ffi::CString`] in that it is required to be valid UTF-8,
 /// and does not include the nul terminator in the buffer.
