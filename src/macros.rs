@@ -428,18 +428,6 @@ macro_rules! rawdoc {
 ///
 /// This macro generates a `SerializeAs`/`DeserializeAs` implementation for a given type,
 /// with optional struct-level attributes like `#[derive(...)]` or `/// doc comments`.
-///
-/// # Example
-/// ```
-/// serde_conv_doc!(
-///     /// Custom serialization for `MyType`.
-///     #[derive(Debug, Clone)]
-///     pub MyTypeSerdeConv,
-///     MyType,
-///     |x| Ok(x.to_string()),
-///     |s: String| Ok(MyType::from_str(&s)?)
-/// );
-/// ```
 macro_rules! serde_conv_doc {
     ($(#[$meta:meta])* $vis:vis $m:ident, $t:ty, $ser:expr, $de:expr) => {
         #[allow(non_camel_case_types)]
