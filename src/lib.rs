@@ -68,6 +68,7 @@
 //! | `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_err/latest).  This is an unstable feature and any breaking changes to `serde_path_to_error` may affect usage of it via this feature. | no |
 //! | `compat-3-0-0` | Required for future compatibility if default features are disabled. | no |
 //! | `large_dates` | Increase the supported year range for some `bson::DateTime` utilities from +/-9,999 (inclusive) to +/-999,999 (inclusive). Note that enabling this feature can impact performance and introduce parsing ambiguities. | no |
+//! | `serde_json-1` | Enable support for v1.x of the [`serde_json`](https://docs.rs/serde_json/1.x) crate in the public API. | no |
 //!
 //! ## BSON values
 //!

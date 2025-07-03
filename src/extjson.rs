@@ -88,5 +88,6 @@
 //! println!("{}", canonical_extjson); // { "x": { "$numberInt": "5" }, "_id": { "$oid": <hexstring> } }
 //! ```
 
+#[cfg(feature = "serde_json-1")]
 pub mod de;
 pub(crate) mod models;
