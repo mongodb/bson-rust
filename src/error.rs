@@ -1,3 +1,5 @@
+//! Contains the error-related types for the `bson` crate.
+
 mod decimal128;
 mod oid;
 mod uuid;
