@@ -23,7 +23,7 @@ use crate::error::{Error, Result};
 /// ```
 /// ```compile_fail
 /// # use bson::raw::cstr;
-/// // &str accepts embedded nil characters:
+/// // bson::raw::CStr does not:
 /// let invalid: &bson::raw::CStr = cstr!("foo\0bar");  // will not compile
 /// ```
 #[derive(Debug)]
