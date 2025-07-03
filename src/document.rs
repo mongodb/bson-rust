@@ -685,7 +685,7 @@ impl Document {
     /// library.
     ///
     /// ```
-    /// # fn main() -> bson::ser::Result<()> {
+    /// # fn main() -> bson::error::Result<()> {
     /// use bson::doc;
     ///
     /// let mut v: Vec<u8> = Vec::new();

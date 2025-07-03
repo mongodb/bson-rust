@@ -1,13 +1,20 @@
 //! A module defining serde models for the extended JSON representations of the various BSON types.
 
 use serde::{
-    de::{Error, Unexpected},
+    de::{Error as _, Unexpected},
     Deserialize,
     Serialize,
 };
 use std::borrow::Cow;
 
-use crate::{base64, extjson, oid, raw::serde::CowStr, spec::BinarySubtype, Bson};
+use crate::{
+    base64,
+    error::{Error, Result},
+    oid,
+    raw::serde::CowStr,
+    spec::BinarySubtype,
+    Bson,
+};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -17,14 +24,10 @@ pub(crate) struct Int32 {
 }
 
 impl Int32 {
-    pub(crate) fn parse(self) -> extjson::de::Result<i32> {
-        let i: i32 = self.value.parse().map_err(|_| {
-            extjson::de::Error::invalid_value(
-                Unexpected::Str(self.value.as_str()),
-                &"i32 as a string",
-            )
-        })?;
-        Ok(i)
+    pub(crate) fn parse(self) -> Result<i32> {
+        self.value.parse().map_err(|_| {
+            Error::invalid_value(Unexpected::Str(self.value.as_str()), &"i32 as a string")
+        })
     }
 }
 
@@ -36,14 +39,10 @@ pub(crate) struct Int64 {
 }
 
 impl Int64 {
-    pub(crate) fn parse(self) -> extjson::de::Result<i64> {
-        let i: i64 = self.value.parse().map_err(|_| {
-            extjson::de::Error::invalid_value(
-                Unexpected::Str(self.value.as_str()),
-                &"i64 as a string",
-            )
-        })?;
-        Ok(i)
+    pub(crate) fn parse(self) -> Result<i64> {
+        self.value.parse().map_err(|_| {
+            Error::invalid_value(Unexpected::Str(self.value.as_str()), &"i64 as a string")
+        })
     }
 }
 
@@ -55,20 +54,14 @@ pub(crate) struct Double {
 }
 
 impl Double {
-    pub(crate) fn parse(self) -> extjson::de::Result<f64> {
+    pub(crate) fn parse(self) -> Result<f64> {
         match self.value.as_str() {
             "Infinity" => Ok(f64::INFINITY),
             "-Infinity" => Ok(f64::NEG_INFINITY),
             "NaN" => Ok(f64::NAN),
-            other => {
-                let d: f64 = other.parse().map_err(|_| {
-                    extjson::de::Error::invalid_value(
-                        Unexpected::Str(other),
-                        &"bson double as string",
-                    )
-                })?;
-                Ok(d)
-            }
+            other => other.parse().map_err(|_| {
+                Error::invalid_value(Unexpected::Str(other), &"bson double as string")
+            }),
         }
     }
 }
@@ -81,12 +74,9 @@ pub(crate) struct Decimal128 {
 }
 
 impl Decimal128 {
-    pub(crate) fn parse(self) -> extjson::de::Result<crate::Decimal128> {
+    pub(crate) fn parse(self) -> Result<crate::Decimal128> {
         self.value.parse().map_err(|_| {
-            extjson::de::Error::invalid_value(
-                Unexpected::Str(&self.value),
-                &"bson decimal128 as string",
-            )
+            Error::invalid_value(Unexpected::Str(&self.value), &"bson decimal128 as string")
         })
     }
 }
@@ -99,10 +89,8 @@ pub(crate) struct ObjectId {
 }
 
 impl ObjectId {
-    pub(crate) fn parse(self) -> extjson::de::Result<oid::ObjectId> {
-        let oid = oid::ObjectId::parse_str(self.oid.as_str())
-            .map_err(extjson::de::Error::InvalidObjectId)?;
-        Ok(oid)
+    pub(crate) fn parse(self) -> Result<oid::ObjectId> {
+        oid::ObjectId::parse_str(self.oid.as_str())
     }
 }
 
@@ -156,16 +144,16 @@ pub(crate) struct BinaryBody {
 }
 
 impl Binary {
-    pub(crate) fn parse(self) -> extjson::de::Result<crate::Binary> {
+    pub(crate) fn parse(self) -> Result<crate::Binary> {
         let bytes = base64::decode(self.body.base64.as_str()).map_err(|_| {
-            extjson::de::Error::invalid_value(
+            Error::invalid_value(
                 Unexpected::Str(self.body.base64.as_str()),
                 &"base64 encoded bytes",
             )
         })?;
 
         let subtype = hex::decode(self.body.subtype.as_str()).map_err(|_| {
-            extjson::de::Error::invalid_value(
+            Error::invalid_value(
                 Unexpected::Str(self.body.subtype.as_str()),
                 &"hexadecimal number as a string",
             )
@@ -177,7 +165,7 @@ impl Binary {
                 subtype: subtype[0].into(),
             })
         } else {
-            Err(extjson::de::Error::invalid_value(
+            Err(Error::invalid_value(
                 Unexpected::Bytes(subtype.as_slice()),
                 &"one byte subtype",
             ))
@@ -193,9 +181,9 @@ pub(crate) struct Uuid {
 }
 
 impl Uuid {
-    pub(crate) fn parse(self) -> extjson::de::Result<crate::Binary> {
+    pub(crate) fn parse(self) -> Result<crate::Binary> {
         let uuid = uuid::Uuid::parse_str(&self.value).map_err(|_| {
-            extjson::de::Error::invalid_value(
+            Error::invalid_value(
                 Unexpected::Str(&self.value),
                 &"$uuid value does not follow RFC 4122 format regarding length and hyphens",
             )
@@ -269,7 +257,7 @@ impl DateTimeBody {
 }
 
 impl DateTime {
-    pub(crate) fn parse(self) -> extjson::de::Result<crate::DateTime> {
+    pub(crate) fn parse(self) -> Result<crate::DateTime> {
         match self.body {
             DateTimeBody::Canonical(date) => {
                 let date = date.parse()?;
@@ -277,7 +265,7 @@ impl DateTime {
             }
             DateTimeBody::Relaxed(date) => {
                 let datetime = crate::DateTime::parse_rfc3339_str(date.as_str()).map_err(|_| {
-                    extjson::de::Error::invalid_value(
+                    Error::invalid_value(
                         Unexpected::Str(date.as_str()),
                         &"rfc3339 formatted utc datetime",
                     )
@@ -297,11 +285,11 @@ pub(crate) struct MinKey {
 }
 
 impl MinKey {
-    pub(crate) fn parse(self) -> extjson::de::Result<Bson> {
+    pub(crate) fn parse(self) -> Result<Bson> {
         if self.value == 1 {
             Ok(Bson::MinKey)
         } else {
-            Err(extjson::de::Error::invalid_value(
+            Err(Error::invalid_value(
                 Unexpected::Unsigned(self.value as u64),
                 &"value of $minKey should always be 1",
             ))
@@ -317,11 +305,11 @@ pub(crate) struct MaxKey {
 }
 
 impl MaxKey {
-    pub(crate) fn parse(self) -> extjson::de::Result<Bson> {
+    pub(crate) fn parse(self) -> Result<Bson> {
         if self.value == 1 {
             Ok(Bson::MaxKey)
         } else {
-            Err(extjson::de::Error::invalid_value(
+            Err(Error::invalid_value(
                 Unexpected::Unsigned(self.value as u64),
                 &"value of $maxKey should always be 1",
             ))
@@ -347,7 +335,7 @@ pub(crate) struct DbPointerBody {
 }
 
 impl DbPointer {
-    pub(crate) fn parse(self) -> extjson::de::Result<crate::DbPointer> {
+    pub(crate) fn parse(self) -> Result<crate::DbPointer> {
         Ok(crate::DbPointer {
             namespace: self.body.ref_ns,
             id: self.body.id.parse()?,
@@ -363,11 +351,11 @@ pub(crate) struct Undefined {
 }
 
 impl Undefined {
-    pub(crate) fn parse(self) -> extjson::de::Result<Bson> {
+    pub(crate) fn parse(self) -> Result<Bson> {
         if self.value {
             Ok(Bson::Undefined)
         } else {
-            Err(extjson::de::Error::invalid_value(
+            Err(Error::invalid_value(
                 Unexpected::Bool(false),
                 &"$undefined should always be true",
             ))

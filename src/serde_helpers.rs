@@ -113,7 +113,6 @@ pub mod object_id {
         /// }
         /// # }
         /// ```
-
         pub AsHexString,
         ObjectId,
         |oid: &ObjectId| -> Result<String, String> {
@@ -293,12 +292,12 @@ pub mod bson_datetime {
     /// # #[cfg(feature = "serde_with-3")]
     /// {
     /// # use serde::{Serialize, Deserialize};
-    /// # use bson::serde_helpers::bson_datetime::AsRfc3339String;
+    /// # use bson::serde_helpers::bson_datetime;
     /// # use serde_with::serde_as;
     /// #[serde_as]
     /// #[derive(Serialize, Deserialize)]
     /// struct Event {
-    ///     #[serde_as(as = "AsRfc3339String")]
+    ///     #[serde_as(as = "bson_datetime::AsRfc3339String")]
     ///     pub date: bson::DateTime,
     /// }
     /// # }
@@ -341,12 +340,12 @@ pub mod bson_datetime {
     /// # #[cfg(feature = "serde_with-3")]
     /// {
     /// # use serde::{Serialize, Deserialize};
-    /// # use bson::serde_helpers::bson_datetime::FromRfc3339String;
+    /// # use bson::serde_helpers::bson_datetime;
     /// # use serde_with::serde_as;
     /// #[serde_as]
     /// #[derive(Serialize, Deserialize)]
     /// struct Event {
-    ///     #[serde_as(as = "FromRfc3339String")]
+    ///     #[serde_as(as = "bson_datetime::FromRfc3339String")]
     ///     pub date: String,
     /// }
     /// # }

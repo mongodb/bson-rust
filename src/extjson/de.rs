@@ -25,51 +25,18 @@ use std::convert::{TryFrom, TryInto};
 
 use serde::de::{Error as _, Unexpected};
 
-use crate::{extjson::models, Bson, Document};
-
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-/// Error cases that can occur during deserialization from [extended JSON](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
-pub enum Error {
-    /// Errors that can occur during OID construction and generation from the input data.
-    InvalidObjectId(crate::error::Error),
-
-    /// A general error encountered during deserialization.
-    /// See: <https://docs.serde.rs/serde/de/trait.Error.html>
-    DeserializationError { message: String },
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match *self {
-            Self::InvalidObjectId(ref err) => err.fmt(fmt),
-            Self::DeserializationError { ref message } => message.fmt(fmt),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
-
-impl serde::de::Error for Error {
-    fn custom<T>(msg: T) -> Self
-    where
-        T: std::fmt::Display,
-    {
-        Self::DeserializationError {
-            message: format!("{}", msg),
-        }
-    }
-}
+use crate::{
+    error::{Error, Result},
+    extjson::models,
+    Bson,
+    Document,
+};
 
 impl From<serde_json::Error> for Error {
-    fn from(err: serde_json::Error) -> Self {
-        Self::DeserializationError {
-            message: err.to_string(),
-        }
+    fn from(error: serde_json::Error) -> Self {
+        Self::deserialization(error)
     }
 }
-
-pub type Result<T> = std::result::Result<T, Error>;
 
 /// This converts from the input JSON object as if it were [MongoDB Extended JSON v2](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
 impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {

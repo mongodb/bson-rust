@@ -70,7 +70,7 @@ use crate::error::{Error, Result};
 ///     chrono_datetime: chrono::DateTime<chrono::Utc>,
 /// }
 ///
-/// # fn main() -> bson::ser::Result<()> {
+/// # fn main() -> bson::error::Result<()> {
 /// let f = Foo { date_time: bson::DateTime::now(), chrono_datetime: chrono::Utc::now() };
 /// println!("{:?}", bson::serialize_to_document(&f)?);
 /// # Ok(())

@@ -218,7 +218,7 @@
 //! When serializing values that cannot be represented in BSON, or deserialzing from BSON that does
 //! not match the format expected by the type, the default error will only report the specific field
 //! that failed. To aid debugging, enabling the `serde_path_to_error` feature will
-//! [augment errors](crate::de::Error::WithPath) with the full field path from root object to
+//! [augment errors](crate::error::Error::path) with the full field path from root object to
 //! failing field.  This feature does incur a small CPU and memory overhead during (de)serialization
 //! and should be enabled with care in performance-sensitive environments.
 //!
@@ -245,7 +245,7 @@
 //! use serde::{Serialize, Deserialize};
 //! use serde_with::serde_as;
 //! use bson::doc;
-//! use bson::serde_helpers::bson_datetime::FromChronoDateTime;
+//! use bson::serde_helpers::bson_datetime;
 //!
 //! #[serde_as]
 //! #[derive(Serialize, Deserialize)]

@@ -325,52 +325,77 @@ impl Borrow<RawDocument> for RawDocumentBuf {
 
 /// Types that can be consumed to produce raw bson references valid for a limited lifetime.
 /// Conceptually a union between `T: Into<RawBson>` and `T: Into<RawBsonRef>`; if your type
-/// implements `Into<RawBsonRef>` it will automatically implement this, but if it only
-/// implements `Into<RawBson>` it will need to manually define the trivial impl.
-pub trait BindRawBsonRef {
+/// implements `Into<RawBsonRef>` it will automatically implement this, but if it
+/// implements `Into<RawBson>` it will need to also define an impl of `BindRawBsonRef`:
+/// ```
+/// # use bson::raw::{BindRawBsonRef, BindValue, RawBson};
+/// # struct MyType;
+/// # impl Into<RawBson> for MyType {
+/// #  fn into(self: Self) -> RawBson { todo!() }
+/// # }
+/// impl BindRawBsonRef for MyType {
+///   type Target = BindValue<Self>;
+/// }
+/// ```
+pub trait BindRawBsonRef: Sized {
+    type Target: BindHelper<Target = Self>;
+
     fn bind<F, R>(self, f: F) -> R
     where
-        F: for<'a> FnOnce(RawBsonRef<'a>) -> R;
+        F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
+    {
+        <Self::Target as BindHelper>::bind(self, f)
+    }
 }
 
-impl<'a, T: Into<RawBsonRef<'a>>> BindRawBsonRef for T {
-    fn bind<F, R>(self, f: F) -> R
+#[doc(hidden)]
+pub trait BindHelper {
+    type Target;
+    fn bind<F, R>(target: Self::Target, f: F) -> R
     where
-        F: for<'b> FnOnce(RawBsonRef<'b>) -> R,
+        F: for<'b> FnOnce(RawBsonRef<'b>) -> R;
+}
+
+/// A struct to use as the `Target` of a [`BindRawBsonRef`] impl for custom types.
+pub struct BindValue<A>(std::marker::PhantomData<A>);
+#[doc(hidden)]
+pub struct BindRef<A>(std::marker::PhantomData<A>);
+
+impl<A: Into<RawBson>> BindHelper for BindValue<A> {
+    type Target = A;
+
+    fn bind<F, R>(target: Self::Target, f: F) -> R
+    where
+        F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
     {
-        f(self.into())
+        f(target.into().as_raw_bson_ref())
     }
+}
+
+impl<'a, A: Into<RawBsonRef<'a>> + 'a> BindHelper for BindRef<A> {
+    type Target = A;
+
+    fn bind<F, R>(target: Self::Target, f: F) -> R
+    where
+        F: for<'b> FnOnce(RawBsonRef<'a>) -> R,
+    {
+        f(target.into())
+    }
+}
+
+impl<'a, T: Into<RawBsonRef<'a>> + 'a> BindRawBsonRef for T {
+    type Target = BindRef<T>;
 }
 
 impl BindRawBsonRef for RawBson {
-    fn bind<F, R>(self, f: F) -> R
-    where
-        F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
-    {
-        f(self.as_raw_bson_ref())
-    }
-}
-
-impl BindRawBsonRef for &RawBson {
-    fn bind<F, R>(self, f: F) -> R
-    where
-        F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
-    {
-        f(self.as_raw_bson_ref())
-    }
+    type Target = BindValue<Self>;
 }
 
 macro_rules! raw_bson_from_impls {
     ($($t:ty),+$(,)?) => {
         $(
             impl BindRawBsonRef for $t {
-                fn bind<F, R>(self, f: F) -> R
-                where
-                    F: for<'a> FnOnce(RawBsonRef<'a>) -> R,
-                {
-                    let tmp: RawBson = self.into();
-                    f(tmp.as_raw_bson_ref())
-                }
+                type Target = BindValue<Self>;
             }
         )+
     };
