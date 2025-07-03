@@ -2,11 +2,30 @@ use core::str;
 
 use crate::error::{Error, Result};
 
+#[allow(rustdoc::invalid_rust_codeblocks)]
 /// A borrowed BSON-spec cstring: Zero or more UTF-8 encoded characters, excluding the nul byte.
 /// Most conveniently constructed via the [`cstr!`](crate::raw::cstr) macro.
 ///
 /// Unlike [`std::ffi::CStr`], this is required to be valid UTF-8, and does not include the nul
-/// terminator in the buffer.
+/// terminator in the buffer:
+/// ```
+/// // std::ffi::CStr accepts invalid UTF-8:
+/// let invalid: &std::ffi::CStr = c"\xc3\x28";
+/// ```
+/// ```compile_fail
+/// # use bson::raw::cstr;
+/// // bson::raw::CStr does not:
+/// let invalid: &bson::raw::CStr = cstr!("\xc3\x28");  // will not compile
+/// ```
+/// ```
+/// // &str accepts embedded nil characters:
+/// let invalid: &str = "foo\0bar";
+/// ```
+/// ```compile_fail
+/// # use bson::raw::cstr;
+/// // &str accepts embedded nil characters:
+/// let invalid: &bson::raw::CStr = cstr!("foo\0bar");  // will not compile
+/// ```
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct CStr {
@@ -121,6 +140,7 @@ pub const fn validate_cstr(text: &str) -> Option<&CStr> {
 #[doc(hidden)]
 pub const fn assert_valid_cstr<T: ValidCStr>() {}
 
+#[allow(rustdoc::invalid_rust_codeblocks)]
 /// Construct a `'static &CStr`.  The validitiy will be verified at compile-time.
 /// ```
 /// # use bson::raw::{CStr, cstr};
@@ -129,7 +149,12 @@ pub const fn assert_valid_cstr<T: ValidCStr>() {}
 /// ```
 /// ```compile_fail
 /// # use bson::raw::{CStr, cstr};
-/// // An invalid literal will not compile:
+/// // A literal with invalid UTF-8 will not compile:
+/// let key: &CStr = cstr!("\xc3\x28");
+/// ```
+/// ```compile_fail
+/// # use bson::raw::{CStr, cstr};
+/// // A literal with an embedded nil will not compile:
 /// let key: &CStr = cstr!("hel\0lo");
 /// ```
 #[macro_export]
