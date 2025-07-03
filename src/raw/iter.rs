@@ -289,6 +289,9 @@ impl<'a> RawElement<'a> {
                 let slice = self.slice();
                 let code = String::from_utf8_lossy(read_lenencode_bytes(&slice[4..])?).into_owned();
                 let scope_start = 4 + 4 + code.len() + 1;
+                if scope_start >= slice.len() {
+                    return Err(self.malformed_error("code with scope length overrun"));
+                }
                 let scope = RawDocument::decode_from_bytes(&slice[scope_start..])?;
 
                 Utf8LossyBson::JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope {
