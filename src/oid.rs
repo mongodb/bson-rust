@@ -62,22 +62,25 @@ static OID_COUNTER: Lazy<AtomicUsize> =
 /// The `bson` crate provides a number of useful helpers for serializing and deserializing
 /// various types to and from different formats. For example, to serialize an
 /// [`ObjectId`] as a hex string, you can use
-/// [`crate::serde_helpers::serialize_object_id_as_hex_string`].
+/// [`crate::serde_helpers::object_id::AsHexString`].
 /// Check out the [`crate::serde_helpers`] module documentation for a list of all of the helpers
 /// offered by the crate.
 ///
 /// e.g.
 /// ```rust
 /// use serde::{Serialize, Deserialize};
+/// use serde_with::serde_as;
 /// use bson::oid::ObjectId;
+/// use bson::serde_helpers::object_id;
 ///
+/// #[serde_as]
 /// #[derive(Serialize, Deserialize)]
 /// struct Foo {
 ///     // Serializes as a BSON ObjectId or extJSON in non-BSON formats
 ///     oid: ObjectId,
 ///
 ///     // Serializes as a hex string in all formats
-///     #[serde(serialize_with = "bson::serde_helpers::serialize_object_id_as_hex_string")]
+///     #[serde_as(as = "object_id::AsHexString")]
 ///     oid_as_hex: ObjectId,
 /// }
 /// # fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
