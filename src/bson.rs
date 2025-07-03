@@ -21,9 +21,6 @@
 
 //! BSON definition
 
-#[cfg(feature = "serde_json-1")]
-mod json;
-
 use std::{
     convert::TryFrom,
     fmt::{self, Debug, Display, Formatter},
