@@ -91,90 +91,64 @@ pub fn serialize_u64_as_i64<S: Serializer>(val: &u64, serializer: S) -> Result<S
 
 #[cfg(feature = "serde_with-3")]
 pub mod object_id {
-    use crate::oid::ObjectId;
-    use serde::{ser, Deserialize, Deserializer, Serialize, Serializer};
+    use crate::{macros::serde_conv_doc, oid::ObjectId};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
 
-    /// Contains functions to serialize an ObjectId as a hex string and deserialize an
-    /// ObjectId from a hex string
-    /// ```rust
-    /// # #[cfg(feature = "serde_with-3")]
-    /// {
-    /// # use serde::{Serialize, Deserialize};
-    /// # use bson::serde_helpers::object_id;
-    /// # use serde_with::serde_as;
-    /// # use bson::oid::ObjectId;
-    /// #[serde_as]
-    /// #[derive(Serialize, Deserialize)]
-    /// struct Item {
-    ///     #[serde_as(as = "object_id::AsHexString")]
-    ///     pub id: ObjectId,
-    /// }
-    /// # }
-    /// ```
-    pub struct AsHexString;
-
-    impl SerializeAs<ObjectId> for AsHexString {
-        fn serialize_as<S>(val: &ObjectId, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            val.to_hex().serialize(serializer)
+    serde_conv_doc!(
+        /// Contains functions to serialize an ObjectId as a hex string and deserialize an
+        /// ObjectId from a hex string
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::serde_helpers::object_id;
+        /// # use serde_with::serde_as;
+        /// # use bson::oid::ObjectId;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "object_id::AsHexString")]
+        ///     pub id: ObjectId,
+        /// }
+        /// # }
+        /// ```
+        pub AsHexString,
+        ObjectId,
+        |oid: &ObjectId| -> Result<String, String> {
+            Ok(oid.to_hex())
+        },
+        |hex: String| -> Result<ObjectId, String> {
+            ObjectId::parse_str(&hex).map_err(|e| format!("Invalid ObjectId string, {}: {}", hex, e))
         }
-    }
+    );
 
-    impl<'de> DeserializeAs<'de, ObjectId> for AsHexString {
-        fn deserialize_as<D>(deserializer: D) -> Result<ObjectId, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let hex_string = String::deserialize(deserializer)?;
-            ObjectId::parse_str(&hex_string).map_err(serde::de::Error::custom)
+    serde_conv_doc!(
+        /// Contains functions to serialize a hex string as an ObjectId and deserialize a
+        /// hex string from an ObjectId
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::serde_helpers::object_id;
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "object_id::FromHexString")]
+        ///     pub id: String,
+        /// }
+        /// # }
+        /// ```
+        pub FromHexString,
+        String,
+        |hex: &String| -> Result<ObjectId, String> {
+            ObjectId::parse_str(hex).map_err(|e| format!("Invalid ObjectId string, {}: {}", hex, e))
+        },
+        |oid: ObjectId| -> Result<String, String> {
+            Ok(oid.to_hex())
         }
-    }
-
-    /// Contains functions to serialize a hex string as an ObjectId and deserialize a
-    /// hex string from an ObjectId
-    /// ```rust
-    /// # #[cfg(feature = "serde_with-3")]
-    /// {
-    /// # use serde::{Serialize, Deserialize};
-    /// # use bson::serde_helpers::object_id;
-    /// # use serde_with::serde_as;
-    /// #[serde_as]
-    /// #[derive(Serialize, Deserialize)]
-    /// struct Item {
-    ///     #[serde_as(as = "object_id::FromHexString")]
-    ///     pub id: String,
-    /// }
-    /// # }
-    /// ```
-    pub struct FromHexString;
-
-    impl SerializeAs<String> for FromHexString {
-        fn serialize_as<S>(val: &String, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            match ObjectId::parse_str(val) {
-                Ok(oid) => oid.serialize(serializer),
-                Err(e) => Err(ser::Error::custom(format!(
-                    "cannot convert {} to ObjectId: {}",
-                    val, e
-                ))),
-            }
-        }
-    }
-
-    impl<'de> DeserializeAs<'de, String> for FromHexString {
-        fn deserialize_as<D>(deserializer: D) -> Result<String, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let object_id = ObjectId::deserialize(deserializer)?;
-            Ok(object_id.to_hex())
-        }
-    }
+    );
 }
 
 /// Contains functions to serialize a u32 as an f64 (BSON double) and deserialize a
