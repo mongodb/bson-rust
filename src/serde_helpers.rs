@@ -278,147 +278,106 @@ pub mod time_0_3_offsetdatetime_as_bson_datetime {
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod bson_datetime {
-    use crate::{Bson, DateTime};
+    use crate::{macros::serde_conv_doc, DateTime};
     use chrono::Utc;
-    use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
     use std::result::Result;
 
-    /// Contains functions to serialize a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted
-    /// string and deserialize a [`crate::DateTime`] from an RFC 3339 (ISO 8601) formatted
-    /// string.
-    ///
-    /// ```rust
-    /// # #[cfg(feature = "serde_with-3")]
-    /// {
-    /// # use serde::{Serialize, Deserialize};
-    /// # use bson::serde_helpers::bson_datetime;
-    /// # use serde_with::serde_as;
-    /// #[serde_as]
-    /// #[derive(Serialize, Deserialize)]
-    /// struct Event {
-    ///     #[serde_as(as = "bson_datetime::AsRfc3339String")]
-    ///     pub date: bson::DateTime,
-    /// }
-    /// # }
-    /// ```
-    pub struct AsRfc3339String;
-
-    impl SerializeAs<crate::DateTime> for AsRfc3339String {
-        fn serialize_as<S>(val: &crate::DateTime, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            let formatted = val.try_to_rfc3339_string().map_err(|e| {
-                ser::Error::custom(format!("cannot format {} as RFC 3339: {}", val, e))
-            })?;
-            serializer.serialize_str(&formatted)
-        }
-    }
-
-    impl<'de> DeserializeAs<'de, crate::DateTime> for AsRfc3339String {
-        fn deserialize_as<D>(deserializer: D) -> Result<crate::DateTime, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let iso = String::deserialize(deserializer)?;
-            let date = crate::DateTime::parse_rfc3339_str(&iso).map_err(|e| {
-                de::Error::custom(format!(
-                    "cannot parse RFC 3339 datetime from \"{}\": {}",
-                    iso, e
-                ))
-            })?;
-            Ok(date)
-        }
-    }
-
-    /// Contains functions to serialize an RFC 3339 (ISO 8601) formatted string as a
-    /// [`crate::DateTime`] and deserialize an RFC 3339 (ISO 8601) formatted string from a
-    /// [`crate::DateTime`].
-    ///
-    /// ```rust
-    /// # #[cfg(feature = "serde_with-3")]
-    /// {
-    /// # use serde::{Serialize, Deserialize};
-    /// # use bson::serde_helpers::bson_datetime;
-    /// # use serde_with::serde_as;
-    /// #[serde_as]
-    /// #[derive(Serialize, Deserialize)]
-    /// struct Event {
-    ///     #[serde_as(as = "bson_datetime::FromRfc3339String")]
-    ///     pub date: String,
-    /// }
-    /// # }
-    /// ```
-    pub struct FromRfc3339String;
-
-    impl SerializeAs<String> for FromRfc3339String {
-        fn serialize_as<S>(val: &String, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            let date = DateTime::parse_rfc3339_str(val).map_err(|e| {
-                ser::Error::custom(format!("cannot convert {} to DateTime: {}", val, e))
-            })?;
-            Bson::DateTime(date).serialize(serializer)
-        }
-    }
-
-    impl<'de> DeserializeAs<'de, String> for FromRfc3339String {
-        fn deserialize_as<D>(deserializer: D) -> Result<String, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let date = DateTime::deserialize(deserializer)?;
+    serde_conv_doc!(
+        /// Contains functions to serialize a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted
+        /// string and deserialize a [`crate::DateTime`] from an RFC 3339 (ISO 8601) formatted
+        /// string.
+        ///
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::serde_helpers::bson_datetime;
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Event {
+        ///     #[serde_as(as = "bson_datetime::AsRfc3339String")]
+        ///     pub date: bson::DateTime,
+        /// }
+        /// # }
+        /// ```
+        pub AsRfc3339String,
+        DateTime,
+        |date: &DateTime| -> Result<String, String> {
             date.try_to_rfc3339_string().map_err(|e| {
-                de::Error::custom(format!("cannot format {} as RFC 3339: {}", date, e))
+                format!("Cannot format DateTime {} as String: {}", date, e)
+            })
+        },
+        |string: String| -> Result<DateTime, String> {
+            DateTime::parse_rfc3339_str(&string).map_err(|e| format!("Cannot format String {} as DateTime: {}", string, e))
+        }
+    );
+
+    serde_conv_doc!(
+        /// Contains functions to serialize an RFC 3339 (ISO 8601) formatted string as a
+        /// [`crate::DateTime`] and deserialize an RFC 3339 (ISO 8601) formatted string from a
+        /// [`crate::DateTime`].
+        ///
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::serde_helpers::bson_datetime;
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Event {
+        ///     #[serde_as(as = "bson_datetime::FromRfc3339String")]
+        ///     pub date: String,
+        /// }
+        /// # }
+        /// ```
+        pub FromRfc3339String,
+        String,
+        |string: &String| -> Result<DateTime, String> {
+            DateTime::parse_rfc3339_str(string).map_err(|e| format!("Cannot format String {} as DateTime: {}", string, e))
+        },
+        |date: DateTime| -> Result<String, String> {
+            date.try_to_rfc3339_string().map_err(|e| {
+                format!("Cannot format DateTime {} as String: {}", date, e)
             })
         }
-    }
+    );
 
-    #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
-    #[cfg_attr(
-        docsrs,
-        doc(cfg(all(feature = "chrono-0_4", feature = "serde_with-3")))
-    )]
-    /// Contains functions to serialize a [`chrono::DateTime`] as a [`crate::DateTime`] and
-    /// deserialize a [`chrono::DateTime`] from a [`crate::DateTime`].
-    ///
-    /// ```rust
-    /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
-    /// # {
-    /// # use serde::{Serialize, Deserialize};
-    /// # use bson::serde_helpers::bson_datetime;
-    /// # use serde_with::serde_as;
-    /// #[serde_as]
-    /// #[derive(Serialize, Deserialize)]
-    /// struct Event {
-    ///     #[serde_as(as = "bson_datetime::FromChronoDateTime")]
-    ///     pub date: chrono::DateTime<chrono::Utc>,
-    /// }
-    /// # }
-    /// ```
-    pub struct FromChronoDateTime;
-
-    impl SerializeAs<chrono::DateTime<Utc>> for FromChronoDateTime {
-        fn serialize_as<S>(val: &chrono::DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            let datetime = DateTime::from_chrono(val.to_owned());
-            datetime.serialize(serializer)
+    serde_conv_doc!(
+        #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
+        #[cfg_attr(
+            docsrs,
+            doc(cfg(all(feature = "chrono-0_4", feature = "serde_with-3")))
+        )]
+        /// Contains functions to serialize a [`chrono::DateTime`] as a [`crate::DateTime`] and
+        /// deserialize a [`chrono::DateTime`] from a [`crate::DateTime`].
+        ///
+        /// ```rust
+        /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
+        /// # {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::serde_helpers::bson_datetime;
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Event {
+        ///     #[serde_as(as = "bson_datetime::FromChronoDateTime")]
+        ///     pub date: chrono::DateTime<chrono::Utc>,
+        /// }
+        /// # }
+        /// ```
+        pub FromChronoDateTime,
+        chrono::DateTime<Utc>,
+        |chrono_date: &chrono::DateTime<Utc>| -> Result<DateTime, String> {
+            Ok(DateTime::from_chrono(chrono_date.to_owned()))
+        },
+        |bson_date: DateTime| -> Result<chrono::DateTime<Utc>, String> {
+            Ok(bson_date.to_chrono())
         }
-    }
-
-    impl<'de> DeserializeAs<'de, chrono::DateTime<Utc>> for FromChronoDateTime {
-        fn deserialize_as<D>(deserializer: D) -> Result<chrono::DateTime<Utc>, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let datetime = DateTime::deserialize(deserializer)?;
-            Ok(datetime.to_chrono())
-        }
-    }
+    );
 }
 
 /// Contains functions to `serialize` a `i64` integer as [`crate::DateTime`] and
