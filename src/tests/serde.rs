@@ -7,14 +7,7 @@ use crate::{
     deserialize_from_document,
     doc,
     oid::ObjectId,
-    serde_helpers::{
-        self,
-        bson_datetime,
-        i64_as_bson_datetime,
-        object_id,
-        timestamp_as_u32,
-        u32_as_timestamp,
-    },
+    serde_helpers::{self, bson_datetime, object_id, timestamp_as_u32, u32_as_timestamp},
     serialize_to_bson,
     serialize_to_document,
     spec::BinarySubtype,
@@ -31,6 +24,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_with::serde_as;
+use time::OffsetDateTime;
 
 use std::{
     collections::BTreeMap,
@@ -749,8 +743,6 @@ fn test_unsigned_helpers() {
 
 #[test]
 fn test_datetime_helpers() {
-    use time::{format_description::well_known::Rfc3339, OffsetDateTime};
-
     let _guard = LOCK.run_concurrently();
 
     #[cfg(feature = "serde_with-3")]
@@ -863,34 +855,6 @@ fn test_datetime_helpers() {
             "Expected error message to mention BSON error: {}",
             err_string
         );
-    }
-
-    #[cfg(feature = "time-0_3")]
-    {
-        use time::macros::datetime;
-
-        #[derive(Deserialize, Serialize)]
-        struct B {
-            #[serde(with = "serde_helpers::time_0_3_offsetdatetime_as_bson_datetime")]
-            pub date: time::OffsetDateTime,
-        }
-
-        let date = r#"
-    {
-        "date": {
-                "$date": {
-                    "$numberLong": "1591700287095"
-                }
-        }
-    }"#;
-        let json: serde_json::Value = serde_json::from_str(date).unwrap();
-        let b: B = serde_json::from_value(json).unwrap();
-        let expected = datetime!(2020-06-09 10:58:07.095 UTC);
-        assert_eq!(b.date, expected);
-        let doc = serialize_to_document(&b).unwrap();
-        assert_eq!(doc.get_datetime("date").unwrap().to_time_0_3(), expected);
-        let b: B = deserialize_from_document(doc).unwrap();
-        assert_eq!(b.date, expected);
     }
 
     #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
@@ -1008,20 +972,21 @@ fn test_datetime_helpers() {
             pub date_vector: Vec<String>,
         }
 
-        let date = "2020-06-09T10:58:07.095Z";
+        let date = DateTime::now();
         let c = C {
-            date: date.to_string(),
+            date: date.try_to_rfc3339_string().unwrap(),
             date_optional_none: None,
-            date_optional_some: Some(date.to_string()),
-            date_vector: vec![date.to_string()],
+            date_optional_some: Some(date.try_to_rfc3339_string().unwrap()),
+            date_vector: vec![date.try_to_rfc3339_string().unwrap()],
         };
 
         // Serialize the struct to BSON
         let doc = serialize_to_document(&c).unwrap();
 
         // Validate serialized data
-        assert!(
-            doc.get_datetime("date").is_ok(),
+        assert_eq!(
+            *doc.get_datetime("date").unwrap(),
+            date,
             "Expected serialized date to be a BSON DateTime."
         );
 
@@ -1031,19 +996,14 @@ fn test_datetime_helpers() {
             "Expected serialized date_optional_none to be None."
         );
 
-        let expected_date = DateTime::from_time_0_3(
-            OffsetDateTime::parse(date, &Rfc3339)
-                .expect("Failed to parse date string into DateTime."),
-        );
-
         match doc.get("date_optional_some") {
             Some(Bson::DateTime(value)) => {
                 assert_eq!(
-                    *value, expected_date,
+                    *value, date,
                     "Expected serialized date_optional_some to match original."
                 )
             }
-            _ => panic!("Expected serialized date_optional_some to be a BSON String."),
+            _ => panic!("Expected serialized date_optional_some to be a BSON DateTime."),
         }
 
         let date_vector = doc
@@ -1065,7 +1025,7 @@ fn test_datetime_helpers() {
         // Validate deserialized data
         assert_eq!(
             c_deserialized.date,
-            date.to_string(),
+            date.try_to_rfc3339_string().unwrap(),
             "Expected deserialized date to match original."
         );
 
@@ -1076,13 +1036,13 @@ fn test_datetime_helpers() {
 
         assert_eq!(
             c_deserialized.date_optional_some,
-            Some(date.to_string()),
+            Some(date.try_to_rfc3339_string().unwrap()),
             "Expected deserialized date_optional_some to match original."
         );
 
         assert_eq!(
             c_deserialized.date_vector,
-            vec![date.to_string()],
+            vec![date.try_to_rfc3339_string().unwrap()],
             "Expected deserialized date_vector to match original."
         );
 
@@ -1104,6 +1064,193 @@ fn test_datetime_helpers() {
             err_string.contains("BSON error"),
             "Expected error message to mention BSON error: {}",
             err_string
+        );
+    }
+
+    #[cfg(feature = "serde_with-3")]
+    {
+        #[serde_as]
+        #[derive(Serialize, Deserialize)]
+        struct A {
+            #[serde_as(as = "bson_datetime::FromI64")]
+            date: i64,
+
+            #[serde_as(as = "Option<bson_datetime::FromI64>")]
+            date_optional_none: Option<i64>,
+
+            #[serde_as(as = "Option<bson_datetime::FromI64>")]
+            date_optional_some: Option<i64>,
+
+            #[serde_as(as = "Vec<bson_datetime::FromI64>")]
+            date_vector: Vec<i64>,
+        }
+
+        let date = DateTime::now();
+        let a = A {
+            date: date.timestamp_millis(),
+            date_optional_none: None,
+            date_optional_some: Some(date.timestamp_millis()),
+            date_vector: vec![date.timestamp_millis()],
+        };
+
+        // Serialize the struct to BSON
+        let doc = serialize_to_document(&a).unwrap();
+
+        // Validate serialized data
+        assert_eq!(
+            doc.get_datetime("date").unwrap(),
+            &date,
+            "Expected serialized date to match original date."
+        );
+
+        assert_eq!(
+            doc.get("date_optional_none"),
+            Some(&Bson::Null),
+            "Expected serialized date_optional_none to be None."
+        );
+
+        match doc.get("date_optional_some") {
+            Some(Bson::DateTime(value)) => {
+                assert_eq!(
+                    *value, date,
+                    "Expected serialized date_optional_some to match original."
+                )
+            }
+            _ => panic!("Expected serialized date_optional_some to be a BSON DateTime."),
+        }
+
+        let date_vector = doc
+            .get_array("date_vector")
+            .expect("Expected serialized date_vector to be a BSON array.");
+        let expected_date_vector: Vec<Bson> = a
+            .date_vector
+            .into_iter()
+            .map(|dt| Bson::DateTime(DateTime::from_millis(dt)))
+            .collect();
+        assert_eq!(
+            date_vector, &expected_date_vector,
+            "Expected each serialized element in date_vector match the original."
+        );
+
+        // Deserialize the BSON back to the struct
+        let a_deserialized: A = deserialize_from_document(doc).unwrap();
+
+        // Validate deserialized data
+        assert_eq!(
+            a_deserialized.date,
+            date.timestamp_millis(),
+            "Expected deserialized date to match original."
+        );
+
+        assert_eq!(
+            a_deserialized.date_optional_none, None,
+            "Expected deserialized date_optional_none to be None."
+        );
+
+        assert_eq!(
+            a_deserialized.date_optional_some,
+            Some(date.timestamp_millis()),
+            "Expected deserialized date_optional_some to match original."
+        );
+
+        assert_eq!(
+            a_deserialized.date_vector,
+            vec![date.timestamp_millis()],
+            "Expected deserialized date_vector to match original."
+        );
+    }
+
+    #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
+    {
+        #[serde_as]
+        #[derive(Deserialize, Serialize)]
+        struct A {
+            #[serde_as(as = "bson_datetime::FromTime03OffsetDateTime")]
+            pub date: OffsetDateTime,
+
+            #[serde_as(as = "Option<bson_datetime::FromTime03OffsetDateTime>")]
+            pub date_optional_none: Option<OffsetDateTime>,
+
+            #[serde_as(as = "Option<bson_datetime::FromTime03OffsetDateTime>")]
+            pub date_optional_some: Option<OffsetDateTime>,
+
+            #[serde_as(as = "Vec<bson_datetime::FromTime03OffsetDateTime>")]
+            pub date_vector: Vec<OffsetDateTime>,
+        }
+
+        let date = DateTime::now();
+        let a: A = A {
+            date: date.to_time_0_3(),
+            date_optional_none: None,
+            date_optional_some: Some(date.to_time_0_3()),
+            date_vector: vec![date.to_time_0_3()],
+        };
+
+        // Serialize the struct to BSON
+        let doc = serialize_to_document(&a).unwrap();
+
+        // Validate serialized data
+        assert_eq!(
+            doc.get_datetime("date").unwrap(),
+            &date,
+            "Expected serialized date to match original date."
+        );
+
+        assert_eq!(
+            doc.get("date_optional_none"),
+            Some(&Bson::Null),
+            "Expected serialized date_optional_none to be None."
+        );
+
+        match doc.get("date_optional_some") {
+            Some(Bson::DateTime(value)) => {
+                assert_eq!(
+                    *value, date,
+                    "Expected serialized date_optional_some to match original."
+                )
+            }
+            _ => panic!("Expected serialized date_optional_some to be a BSON DateTime."),
+        }
+
+        let date_vector = doc
+            .get_array("date_vector")
+            .expect("Expected serialized date_vector to be a BSON array.");
+        let expected_date_vector: Vec<Bson> = a
+            .date_vector
+            .into_iter()
+            .map(|dt| Bson::DateTime(dt.into()))
+            .collect();
+        assert_eq!(
+            date_vector, &expected_date_vector,
+            "Expected each serialized element in date_vector to be a BSON DateTime matching the \
+             original."
+        );
+
+        // Deserialize the BSON back to the struct
+        let a_deserialized: A = deserialize_from_document(doc).unwrap();
+
+        // Validate deserialized data
+        assert_eq!(
+            a_deserialized.date,
+            date.to_time_0_3(),
+            "Expected deserialized date to match original."
+        );
+
+        assert_eq!(
+            a_deserialized.date_optional_none, None,
+            "Expected deserialized date_optional_none to be None."
+        );
+
+        assert_eq!(
+            a_deserialized.date_optional_some,
+            Some(date.to_time_0_3()),
+            "Expected deserialized date_optional_some to match the original."
+        );
+
+        assert_eq!(
+            a_deserialized.date_vector,
+            vec![date.to_time_0_3()],
+            "Expected deserialized date_vector to match original."
         );
     }
 }
@@ -1332,26 +1479,6 @@ fn test_oid_helpers() {
             err_string
         );
     }
-}
-
-#[test]
-fn test_i64_as_bson_datetime() {
-    let _guard = LOCK.run_concurrently();
-
-    #[derive(Serialize, Deserialize)]
-    struct A {
-        #[serde(with = "i64_as_bson_datetime")]
-        now: i64,
-    }
-
-    let now = DateTime::now();
-    let a = A {
-        now: now.timestamp_millis(),
-    };
-    let doc = serialize_to_document(&a).unwrap();
-    assert_eq!(doc.get_datetime("now").unwrap(), &now);
-    let a: A = deserialize_from_document(doc).unwrap();
-    assert_eq!(a.now, now.timestamp_millis());
 }
 
 #[test]
