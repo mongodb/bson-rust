@@ -122,15 +122,15 @@ impl std::hash::Hash for CStr {
     }
 }
 
-impl PartialOrd for CStr {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.as_str().partial_cmp(other.as_str())
-    }
-}
-
 impl Ord for CStr {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.as_str().cmp(other.as_str())
+    }
+}
+
+impl PartialOrd for CStr {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -160,9 +160,9 @@ impl AsRef<str> for CStr {
     }
 }
 
-impl<'a> Into<&'a str> for &'a CStr {
-    fn into(self) -> &'a str {
-        self.as_str()
+impl<'a> From<&'a CStr> for &'a str {
+    fn from(value: &'a CStr) -> Self {
+        value.as_str()
     }
 }
 
@@ -287,9 +287,9 @@ impl AsRef<CStr> for CString {
     }
 }
 
-impl Into<String> for CString {
-    fn into(self) -> String {
-        self.into_string()
+impl From<CString> for String {
+    fn from(value: CString) -> Self {
+        value.into_string()
     }
 }
 
