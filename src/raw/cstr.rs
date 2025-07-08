@@ -76,6 +76,16 @@ impl CStr {
         self.as_str().is_empty()
     }
 
+    /// Returns the lowercase equivalent of this as a new [`CString`].
+    pub fn to_lowercase(&self) -> CString {
+        CString::from_string_unchecked(self.as_str().to_lowercase())
+    }
+
+    /// Returns the uppercase equivalent of this as a new [`CString`].
+    pub fn to_uppercase(&self) -> CString {
+        CString::from_string_unchecked(self.as_str().to_uppercase())
+    }
+
     pub(crate) fn append_to(&self, buf: &mut Vec<u8>) {
         buf.extend(&self.data);
         buf.push(0);
@@ -124,6 +134,12 @@ impl Ord for CStr {
     }
 }
 
+impl std::fmt::Display for CStr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.as_str().fmt(f)
+    }
+}
+
 impl std::borrow::ToOwned for CStr {
     type Owned = CString;
 
@@ -140,6 +156,12 @@ impl AsRef<CStr> for CStr {
 
 impl AsRef<str> for CStr {
     fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl<'a> Into<&'a str> for &'a CStr {
+    fn into(self) -> &'a str {
         self.as_str()
     }
 }
@@ -265,6 +287,26 @@ impl AsRef<CStr> for CString {
     }
 }
 
+impl Into<String> for CString {
+    fn into(self) -> String {
+        self.into_string()
+    }
+}
+
+impl std::ops::Deref for CString {
+    type Target = CStr;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl std::borrow::Borrow<CStr> for CString {
+    fn borrow(&self) -> &CStr {
+        self.as_ref()
+    }
+}
+
 impl std::fmt::Debug for CString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.data.fmt(f)
@@ -274,12 +316,6 @@ impl std::fmt::Debug for CString {
 impl std::fmt::Display for CString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.data.fmt(f)
-    }
-}
-
-impl std::borrow::Borrow<CStr> for CString {
-    fn borrow(&self) -> &CStr {
-        self.as_ref()
     }
 }
 
