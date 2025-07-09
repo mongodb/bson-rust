@@ -7,7 +7,7 @@ use crate::{
     deserialize_from_document,
     doc,
     oid::ObjectId,
-    serde_helpers::{self, bson_datetime, object_id, u32},
+    serde_helpers::{self, bson_datetime, f64, object_id, u32},
     serialize_to_bson,
     serialize_to_document,
     spec::BinarySubtype,
@@ -704,40 +704,6 @@ fn test_unsigned_helpers() {
         num_2: i64::MAX as u64 + 1,
     };
     let doc_result = serialize_to_document(&b);
-    assert!(doc_result.is_err());
-
-    #[derive(Deserialize, Serialize, Debug, PartialEq)]
-    struct F {
-        #[serde(with = "serde_helpers::u32_as_f64")]
-        num_1: u32,
-        #[serde(with = "serde_helpers::u64_as_f64")]
-        num_2: u64,
-    }
-
-    let f = F {
-        num_1: 101,
-        num_2: 12345,
-    };
-    let doc = serialize_to_document(&f).unwrap();
-    assert!((doc.get_f64("num_1").unwrap() - 101.0).abs() < f64::EPSILON);
-    assert!((doc.get_f64("num_2").unwrap() - 12345.0).abs() < f64::EPSILON);
-
-    let back: F = deserialize_from_document(doc).unwrap();
-    assert_eq!(back, f);
-
-    let f = F {
-        num_1: 1,
-        // f64 cannot represent many large integers exactly, u64::MAX included
-        num_2: u64::MAX,
-    };
-    let doc_result = serialize_to_document(&f);
-    assert!(doc_result.is_err());
-
-    let f = F {
-        num_1: 1,
-        num_2: u64::MAX - 255,
-    };
-    let doc_result = serialize_to_document(&f);
     assert!(doc_result.is_err());
 }
 
@@ -1619,7 +1585,7 @@ fn test_u32_helpers() {
         );
         let err_string = format!("{:?}", result.unwrap_err());
         assert!(
-            err_string.contains("Cannot format Timestamp with a non-zero increment to u32"),
+            err_string.contains("Cannot convert Timestamp with a non-zero increment to u32"),
             "Expected error message to mention non-zero increment: {}",
             err_string
         );
@@ -1737,9 +1703,199 @@ fn test_u32_helpers() {
         );
         let err_string = format!("{:?}", result.unwrap_err());
         assert!(
-            err_string.contains("Cannot format Timestamp with a non-zero increment to u32"),
+            err_string.contains("Cannot convert Timestamp with a non-zero increment to u32"),
             "Expected error message to mention non-zero increment: {}",
             err_string
+        );
+    }
+}
+
+#[test]
+fn test_f64_helpers() {
+    #[cfg(feature = "serde_with-3")]
+    {
+        #[serde_as]
+        #[derive(Deserialize, Serialize, Debug)]
+        struct A {
+            #[serde_as(as = "f64::FromU64")]
+            pub value: u64,
+
+            #[serde_as(as = "Option<f64::FromU64>")]
+            pub value_optional_none: Option<u64>,
+
+            #[serde_as(as = "Option<f64::FromU64>")]
+            pub value_optional_some: Option<u64>,
+
+            #[serde_as(as = "Vec<f64::FromU64>")]
+            pub value_vector: Vec<u64>,
+        }
+
+        let value = 12345;
+        let a = A {
+            value,
+            value_optional_none: None,
+            value_optional_some: Some(value),
+            value_vector: vec![value],
+        };
+
+        // Serialize the struct to BSON
+        let doc = serialize_to_document(&a).unwrap();
+
+        // Validate serialized data
+        assert_eq!(
+            doc.get("value"),
+            Some(&Bson::Double(value as f64)),
+            "Expected serialized value to match the original."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_none"),
+            Some(&Bson::Null),
+            "Expected serialized value_optional_none to be None."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_some"),
+            Some(&Bson::Double(value as f64)),
+            "Expected serialized value_optional_some to match original time."
+        );
+
+        let value_vector = doc
+            .get_array("value_vector")
+            .expect("Expected serialized value_vector to be a BSON array.");
+        let expected_value_vector: Vec<Bson> = vec![Bson::Double(value as f64)];
+
+        assert_eq!(
+            value_vector, &expected_value_vector,
+            "Expected each serialized element in value_vector to match the original."
+        );
+
+        // Deserialize the BSON back to the struct
+        let a_deserialized: A = deserialize_from_document(doc).unwrap();
+
+        // Validate deserialized data
+        assert_eq!(
+            a_deserialized.value, value,
+            "Expected deserialized value to match the original."
+        );
+
+        assert_eq!(
+            a_deserialized.value_optional_none, None,
+            "Expected deserialized val_optional_none to be None."
+        );
+
+        assert_eq!(
+            a_deserialized.value_optional_some,
+            Some(value),
+            "Expected deserialized val_optional_some to match the original."
+        );
+
+        assert_eq!(
+            a_deserialized.value_vector,
+            vec![value],
+            "Expected deserialized val_vector to match the original."
+        );
+
+        // Validate serializing error case with u64 over size limit
+        let invalid_value_for_serializing = u64::MAX;
+        let bad_a: A = A {
+            value: invalid_value_for_serializing,
+            value_optional_none: None,
+            value_optional_some: Some(invalid_value_for_serializing),
+            value_vector: vec![invalid_value_for_serializing],
+        };
+        let result = serialize_to_document(&bad_a);
+        assert!(
+            result.is_err(),
+            "Serialization should fail for u64::MAX since it can't be exactly represented as f64"
+        );
+        let err_string = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_string.contains("Cannot convert u64"),
+            "Expected error message to mention failed u64 to f64 conversion, got: {}",
+            err_string
+        );
+
+        #[serde_as]
+        #[derive(Deserialize, Serialize, Debug)]
+        struct B {
+            #[serde_as(as = "f64::FromU32")]
+            pub value: u32,
+
+            #[serde_as(as = "Option<f64::FromU32>")]
+            pub value_optional_none: Option<u32>,
+
+            #[serde_as(as = "Option<f64::FromU32>")]
+            pub value_optional_some: Option<u32>,
+
+            #[serde_as(as = "Vec<f64::FromU32>")]
+            pub value_vector: Vec<u32>,
+        }
+
+        let value = 12345;
+        let b = B {
+            value,
+            value_optional_none: None,
+            value_optional_some: Some(value),
+            value_vector: vec![value],
+        };
+
+        // Serialize the struct to BSON
+        let doc = serialize_to_document(&b).unwrap();
+
+        // Validate serialized data
+        assert_eq!(
+            doc.get("value"),
+            Some(&Bson::Double(value as f64)),
+            "Expected serialized value to match the original."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_none"),
+            Some(&Bson::Null),
+            "Expected serialized value_optional_none to be None."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_some"),
+            Some(&Bson::Double(value as f64)),
+            "Expected serialized value_optional_some to match original time."
+        );
+
+        let value_vector = doc
+            .get_array("value_vector")
+            .expect("Expected serialized value_vector to be a BSON array.");
+        let expected_value_vector: Vec<Bson> = vec![Bson::Double(value as f64)];
+
+        assert_eq!(
+            value_vector, &expected_value_vector,
+            "Expected each serialized element in value_vector to match the original."
+        );
+
+        // Deserialize the BSON back to the struct
+        let b_deserialized: B = deserialize_from_document(doc).unwrap();
+
+        // Validate deserialized data
+        assert_eq!(
+            b_deserialized.value, value,
+            "Expected deserialized value to match the original."
+        );
+
+        assert_eq!(
+            b_deserialized.value_optional_none, None,
+            "Expected deserialized val_optional_none to be None."
+        );
+
+        assert_eq!(
+            b_deserialized.value_optional_some,
+            Some(value),
+            "Expected deserialized val_optional_some to match the original."
+        );
+
+        assert_eq!(
+            b_deserialized.value_vector,
+            vec![value],
+            "Expected deserialized val_vector to match the original."
         );
     }
 }
