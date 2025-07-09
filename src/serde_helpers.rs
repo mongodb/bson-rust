@@ -10,11 +10,6 @@ use std::{
 use serde::{de::Visitor, ser, Deserialize, Serialize, Serializer};
 
 #[doc(inline)]
-pub use timestamp_as_u32::{
-    deserialize as deserialize_timestamp_from_u32,
-    serialize as serialize_timestamp_as_u32,
-};
-#[doc(inline)]
 pub use u32_as_f64::{deserialize as deserialize_u32_from_f64, serialize as serialize_u32_as_f64};
 #[doc(inline)]
 pub use u32_as_timestamp::{
@@ -89,7 +84,7 @@ pub mod object_id {
         /// ObjectId from a hex string
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
-        /// {
+        /// # {
         /// # use serde::{Serialize, Deserialize};
         /// # use bson::serde_helpers::object_id;
         /// # use serde_with::serde_as;
@@ -117,7 +112,7 @@ pub mod object_id {
         /// hex string from an ObjectId
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
-        /// {
+        /// # {
         /// # use serde::{Serialize, Deserialize};
         /// # use bson::serde_helpers::object_id;
         /// # use serde_with::serde_as;
@@ -237,7 +232,7 @@ pub mod bson_datetime {
         ///
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
-        /// {
+        /// # {
         /// # use serde::{Serialize, Deserialize};
         /// # use bson::serde_helpers::bson_datetime;
         /// # use serde_with::serde_as;
@@ -268,7 +263,7 @@ pub mod bson_datetime {
         ///
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
-        /// {
+        /// # {
         /// # use serde::{Serialize, Deserialize};
         /// # use bson::serde_helpers::bson_datetime;
         /// # use serde_with::serde_as;
@@ -326,21 +321,21 @@ pub mod bson_datetime {
     );
 
     serde_conv_doc!(
-        /// Contains functions to `serialize` a `i64` integer as [`crate::DateTime`] and
-        /// `deserialize` a `i64` integer from [`crate::DateTime`].
+        /// Contains functions to serialize a `i64` integer as [`crate::DateTime`] and
+        /// deserialize a `i64` integer from [`crate::DateTime`].
         ///
         /// ### The i64 should represent seconds `(DateTime::timestamp_millis(..))`.
         ///
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
-        /// {
+        /// # {
         /// # use serde::{Serialize, Deserialize};
         /// # use bson::serde_helpers::bson_datetime;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
-        ///     #[serde(with = "bson_datetime::FromI64")]
+        ///     #[serde_as(as = "bson_datetime::FromI64")]
         ///     pub now: i64,
         /// }
         /// # }
@@ -368,7 +363,7 @@ pub mod bson_datetime {
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde(with = "bson_datetime::FromTime03OffsetDatetime")]
+        ///     #[serde_as(as = "bson_datetime::FromTime03OffsetDatetime")]
         ///     pub date: time::OffsetDateTime,
         /// }
         /// # }
@@ -380,6 +375,78 @@ pub mod bson_datetime {
         },
         |date: DateTime| -> Result<time::OffsetDateTime, String> {
             Ok(date.to_time_0_3())
+        }
+    );
+}
+
+#[cfg(feature = "serde_with-3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
+pub mod u32 {
+    use crate::{macros::serde_conv_doc, Timestamp};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_with::{DeserializeAs, SerializeAs};
+    use std::result::Result;
+
+    serde_conv_doc!(
+        /// Contains functions to serialize a [`bson::Timestamp`] as a `u32` and deserialize a [`bson::Timestamp`]
+        /// from a `u32`. The `u32` should represent seconds since the Unix epoch. Serialization will return an
+        /// error if the Timestamp has a non-zero increment.
+        ///
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// # {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::{serde_helpers::u32, Timestamp};
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "u32::FromTimestamp")]
+        ///     pub timestamp: Timestamp,
+        /// }
+        /// # }
+        /// ```
+        pub FromTimestamp,
+        Timestamp,
+        |ts: &Timestamp| -> Result<u32, String> {
+            if ts.increment != 0 {
+                return Err(format!("Cannot format Timestamp with a non-zero increment to u32: {:?}", ts));
+            }
+            Ok(ts.time)
+        },
+        |val: u32| -> Result<Timestamp, String> {
+            Ok(Timestamp { time: val, increment: 0 })
+        }
+    );
+
+    serde_conv_doc!(
+        /// Contains functions to serialize a `u32` as a [`bson::Timestamp`] and deserialize a `u32` from a
+        /// [`bson::Timestamp`]. The `u32` should represent seconds since the Unix epoch.
+        ///
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// # {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::serde_helpers::u32;
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Event {
+        ///     #[serde_as(as = "u32_as_timestamp")]
+        ///     pub time: u32,
+        /// }
+        /// # }
+        /// ```
+        pub AsTimestamp,
+        u32,
+        |val: &u32| -> Result<Timestamp, String> {
+            Ok(Timestamp { time: *val, increment: 0 })
+        },
+        |ts: Timestamp| -> Result<u32, String> {
+            if ts.increment != 0 {
+                return Err(format!("Cannot format Timestamp with a non-zero increment to u32: {:?}", ts));
+            }
+            Ok(ts.time)
         }
     );
 }
@@ -579,45 +646,6 @@ pub mod u32_as_timestamp {
     {
         let timestamp = Timestamp::deserialize(deserializer)?;
         Ok(timestamp.time)
-    }
-}
-
-/// Contains functions to serialize a bson::Timestamp as a u32 and deserialize a bson::Timestamp
-/// from a u32. The u32 should represent seconds since the Unix epoch. Serialization will return an
-/// error if the Timestamp has a non-zero increment.
-///
-/// ```rust
-/// # use serde::{Serialize, Deserialize};
-/// # use bson::{serde_helpers::timestamp_as_u32, Timestamp};
-/// #[derive(Serialize, Deserialize)]
-/// struct Item {
-///     #[serde(with = "timestamp_as_u32")]
-///     pub timestamp: Timestamp,
-/// }
-/// ```
-pub mod timestamp_as_u32 {
-    use crate::Timestamp;
-    use serde::{ser, Deserialize, Deserializer, Serializer};
-    use std::result::Result;
-
-    /// Serializes a bson::Timestamp as a u32. Returns an error if the conversion is lossy (i.e. the
-    /// Timestamp has a non-zero increment).
-    pub fn serialize<S: Serializer>(val: &Timestamp, serializer: S) -> Result<S::Ok, S::Error> {
-        if val.increment != 0 {
-            return Err(ser::Error::custom(
-                "Cannot convert Timestamp with a non-zero increment to u32",
-            ));
-        }
-        serializer.serialize_u32(val.time)
-    }
-
-    /// Deserializes a bson::Timestamp from a u32.
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Timestamp, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let time = u32::deserialize(deserializer)?;
-        Ok(Timestamp { time, increment: 0 })
     }
 }
 
