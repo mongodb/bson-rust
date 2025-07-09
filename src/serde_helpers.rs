@@ -9,11 +9,6 @@ use std::{
 
 use serde::{de::Visitor, ser, Deserialize, Serialize, Serializer};
 
-#[doc(inline)]
-pub use u32_as_timestamp::{
-    deserialize as deserialize_u32_from_timestamp,
-    serialize as serialize_u32_as_timestamp,
-};
 #[cfg(feature = "uuid-1")]
 #[doc(inline)]
 pub use uuid_1_as_binary::{
@@ -606,43 +601,6 @@ pub mod uuid_1_as_c_sharp_legacy_binary {
         uuid::Uuid,
         UuidRepresentation::CSharpLegacy
     );
-}
-
-// TODO: delete this!
-/// Contains functions to serialize a u32 as a bson::Timestamp and deserialize a u32 from a
-/// bson::Timestamp. The u32 should represent seconds since the Unix epoch.
-///
-/// ```rust
-/// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::u32_as_timestamp;
-/// #[derive(Serialize, Deserialize)]
-/// struct Event {
-///     #[serde(with = "u32_as_timestamp")]
-///     pub time: u32,
-/// }
-/// ```
-pub mod u32_as_timestamp {
-    use crate::{Bson, Timestamp};
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::result::Result;
-
-    /// Serializes a u32 as a bson::Timestamp.
-    pub fn serialize<S: Serializer>(val: &u32, serializer: S) -> Result<S::Ok, S::Error> {
-        let timestamp = Bson::Timestamp(Timestamp {
-            time: *val,
-            increment: 0,
-        });
-        timestamp.serialize(serializer)
-    }
-
-    /// Deserializes a u32 from a bson::Timestamp.
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let timestamp = Timestamp::deserialize(deserializer)?;
-        Ok(timestamp.time)
-    }
 }
 
 /// Wrapping a type in `HumanReadable` signals to the BSON serde integration that it and all
