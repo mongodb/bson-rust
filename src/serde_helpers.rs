@@ -295,7 +295,7 @@ pub mod bson_datetime {
 
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
-pub mod u32 {
+pub mod timestamp {
     use crate::{macros::serde_conv_doc, Timestamp};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
@@ -310,17 +310,17 @@ pub mod u32 {
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::u32, Timestamp};
+        /// # use bson::{serde_helpers::timestamp, Timestamp};
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
-        ///     #[serde_as(as = "u32::FromTimestamp")]
+        ///     #[serde_as(as = "timestamp::AsU32")]
         ///     pub timestamp: Timestamp,
         /// }
         /// # }
         /// ```
-        pub FromTimestamp,
+        pub AsU32,
         Timestamp,
         |ts: &Timestamp| -> Result<u32, String> {
             if ts.increment != 0 {
@@ -333,7 +333,6 @@ pub mod u32 {
         }
     );
 
-    // TODO: fix the import, change to mod timestamp
     serde_conv_doc!(
         /// Contains functions to serialize a `u32` as a [`bson::Timestamp`] and deserialize a `u32` from a
         /// [`bson::Timestamp`]. The `u32` should represent seconds since the Unix epoch.
@@ -342,17 +341,17 @@ pub mod u32 {
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::u32;
+        /// # use bson::serde_helpers::timestamp;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "u32_as_timestamp")]
+        ///     #[serde_as(as = "timestamp::FromU32")]
         ///     pub time: u32,
         /// }
         /// # }
         /// ```
-        pub AsTimestamp,
+        pub FromU32,
         u32,
         |val: &u32| -> Result<Timestamp, String> {
             Ok(Timestamp { time: *val, increment: 0 })
@@ -365,8 +364,6 @@ pub mod u32 {
         }
     );
 }
-
-// TODO: change u32 -> timestamp (reverse all the text)
 
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
