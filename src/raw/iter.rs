@@ -44,13 +44,13 @@ impl<'a> Iter<'a> {
 }
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = Result<(&'a str, RawBsonRef<'a>)>;
+    type Item = Result<(&'a CStr, RawBsonRef<'a>)>;
 
-    fn next(&mut self) -> Option<Result<(&'a str, RawBsonRef<'a>)>> {
+    fn next(&mut self) -> Option<Result<(&'a CStr, RawBsonRef<'a>)>> {
         match self.inner.next() {
             Some(Ok(elem)) => match elem.value() {
                 Err(e) => Some(Err(e)),
-                Ok(value) => Some(Ok((elem.key.as_str(), value))),
+                Ok(value) => Some(Ok((elem.key, value))),
             },
             Some(Err(e)) => Some(Err(e)),
             None => None,
@@ -161,8 +161,8 @@ impl<'a> RawElement<'a> {
         self.size
     }
 
-    pub fn key(&self) -> &'a str {
-        self.key.as_str()
+    pub fn key(&self) -> &'a CStr {
+        self.key
     }
 
     pub fn element_type(&self) -> ElementType {
