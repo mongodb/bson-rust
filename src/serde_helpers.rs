@@ -1,13 +1,12 @@
 //! Collection of helper functions for serializing to and deserializing from BSON using Serde
 
 use std::{
-    convert::TryFrom,
     marker::PhantomData,
     ops::{Deref, DerefMut},
     result::Result,
 };
 
-use serde::{de::Visitor, ser, Deserialize, Serialize, Serializer};
+use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 #[cfg(feature = "uuid-1")]
 #[doc(inline)]
@@ -34,36 +33,8 @@ pub use uuid_1_as_python_legacy_binary::{
     serialize as serialize_uuid_1_as_python_legacy_binary,
 };
 
-/// Attempts to serialize a u32 as an i32. Errors if an exact conversion is not possible.
-pub fn serialize_u32_as_i32<S: Serializer>(val: &u32, serializer: S) -> Result<S::Ok, S::Error> {
-    match i32::try_from(*val) {
-        Ok(val) => serializer.serialize_i32(val),
-        Err(_) => Err(ser::Error::custom(format!("cannot convert {} to i32", val))),
-    }
-}
-
-/// Serializes a u32 as an i64.
-pub fn serialize_u32_as_i64<S: Serializer>(val: &u32, serializer: S) -> Result<S::Ok, S::Error> {
-    serializer.serialize_i64(*val as i64)
-}
-
-/// Attempts to serialize a u64 as an i32. Errors if an exact conversion is not possible.
-pub fn serialize_u64_as_i32<S: Serializer>(val: &u64, serializer: S) -> Result<S::Ok, S::Error> {
-    match i32::try_from(*val) {
-        Ok(val) => serializer.serialize_i32(val),
-        Err(_) => Err(ser::Error::custom(format!("cannot convert {} to i32", val))),
-    }
-}
-
-/// Attempts to serialize a u64 as an i64. Errors if an exact conversion is not possible.
-pub fn serialize_u64_as_i64<S: Serializer>(val: &u64, serializer: S) -> Result<S::Ok, S::Error> {
-    match i64::try_from(*val) {
-        Ok(val) => serializer.serialize_i64(val),
-        Err(_) => Err(ser::Error::custom(format!("cannot convert {} to i64", val))),
-    }
-}
-
 #[cfg(feature = "serde_with-3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod object_id {
     use crate::{macros::serde_conv_doc, oid::ObjectId};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -437,6 +408,136 @@ pub mod f64 {
             } else {
                 Err(format!("Cannot convert f64 (BSON double) {} to u32", val))
             }
+        }
+    );
+}
+
+#[cfg(feature = "serde_with-3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
+pub mod u32 {
+    use crate::macros::serde_conv_doc;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_with::{DeserializeAs, SerializeAs};
+    use std::result::Result;
+
+    serde_conv_doc!(
+        /// Contains functions to serialize a `u32` as a `i32` and deserialize a `u32`
+        /// from a `i32`. Errors if an exact conversion is not possible.
+        ///
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// # {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::{serde_helpers::u32};
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "u32::AsI32")]
+        ///     pub value: u32,
+        /// }
+        /// # }
+        /// ```
+        pub AsI32,
+        u32,
+        |value: &u32| -> Result<i32, String> {
+            i32::try_from(*value).map_err(|e| format!("Cannot convert u32 {} to i32: {}", value, e))
+        },
+        |value: i32| -> Result<u32, String> {
+            u32::try_from(value).map_err(|e| format!("Cannot convert i32 {} to u32: {}", value, e))
+        }
+    );
+
+    serde_conv_doc!(
+        /// Contains functions to serialize a `u32` as a `i64` and deserialize a `u32`
+        /// from a `i64`. Errors if an exact conversion is not possible.
+        ///
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// # {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::{serde_helpers::u32};
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "u32::AsI64")]
+        ///     pub value: u32,
+        /// }
+        /// # }
+        /// ```
+        pub AsI64,
+        u32,
+        |value: &u32| -> Result<i64, String> {
+            Ok(*value as i64)
+        },
+        |value: i64| -> Result<u32, String> {
+            u32::try_from(value).map_err(|e| format!("Cannot convert i64 {} to u32: {}", value, e))
+        }
+    );
+}
+
+#[cfg(feature = "serde_with-3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
+pub mod u64 {
+    use crate::macros::serde_conv_doc;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_with::{DeserializeAs, SerializeAs};
+    use std::result::Result;
+
+    serde_conv_doc!(
+        /// Contains functions to serialize a `u64` as a `i32` and deserialize a `u64`
+        /// from a `i32`. Errors if an exact conversion is not possible.
+        ///
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// # {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::{serde_helpers::u64};
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "u64::AsI32")]
+        ///     pub value: u64,
+        /// }
+        /// # }
+        /// ```
+        pub AsI32,
+        u64,
+        |value: &u64| -> Result<i32, String> {
+            i32::try_from(*value).map_err(|e| format!("Cannot convert u64 {} to i32: {}", value, e))
+        },
+        |value: i32| -> Result<u64, String> {
+            u64::try_from(value).map_err(|e| format!("Cannot convert i32 {} to u64: {}", value, e))
+        }
+    );
+
+    serde_conv_doc!(
+        /// Contains functions to serialize a `u64` as a `i64` and deserialize a `u64`
+        /// from a `i64`. Errors if an exact conversion is not possible.
+        ///
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// # {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::{serde_helpers::u64};
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "u64::AsI64")]
+        ///     pub value: u64,
+        /// }
+        /// # }
+        /// ```
+        pub AsI64,
+        u64,
+        |value: &u64| -> Result<i64, String> {
+            i64::try_from(*value).map_err(|e| format!("Cannot convert u64 {} to i64: {}", value, e))
+        },
+        |value: i64| -> Result<u64, String> {
+            u64::try_from(value).map_err(|e| format!("Cannot convert i64 {} to u64: {}", value, e))
         }
     );
 }

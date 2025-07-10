@@ -7,7 +7,7 @@ use crate::{
     deserialize_from_document,
     doc,
     oid::ObjectId,
-    serde_helpers::{self, bson_datetime, f64, object_id, timestamp},
+    serde_helpers::{self, bson_datetime, f64, object_id, timestamp, u32, u64},
     serialize_to_bson,
     serialize_to_document,
     spec::BinarySubtype,
@@ -656,55 +656,401 @@ fn test_serialize_deserialize_unsigned_numbers() {
 fn test_unsigned_helpers() {
     let _guard = LOCK.run_concurrently();
 
-    #[derive(Serialize)]
-    struct A {
-        #[serde(serialize_with = "serde_helpers::serialize_u32_as_i32")]
-        num_1: u32,
-        #[serde(serialize_with = "serde_helpers::serialize_u64_as_i32")]
-        num_2: u64,
+    #[cfg(feature = "serde_with-3")]
+    {
+        #[serde_as]
+        #[derive(Deserialize, Serialize, PartialEq, Debug)]
+        struct A {
+            #[serde_as(as = "u32::AsI32")]
+            value: u32,
+
+            #[serde_as(as = "Option<u32::AsI32>")]
+            value_optional_none: Option<u32>,
+
+            #[serde_as(as = "Option<u32::AsI32>")]
+            value_optional_some: Option<u32>,
+
+            #[serde_as(as = "Vec<u32::AsI32>")]
+            value_vector: Vec<u32>,
+        }
+
+        let value = 1;
+        let a = A {
+            value,
+            value_optional_none: None,
+            value_optional_some: Some(value),
+            value_vector: vec![value],
+        };
+
+        // Serialize the struct to BSON
+        let doc = serialize_to_document(&a).unwrap();
+
+        // Validate serialized data
+        assert_eq!(
+            doc.get_i32("value").unwrap(),
+            value as i32,
+            "Expected serialized value to match original."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_none"),
+            Some(&Bson::Null),
+            "Expected serialized value_optional_none to be None."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_some"),
+            Some(&Bson::Int32(value as i32)),
+            "Expected serialized value_optional_some to match original."
+        );
+
+        let value_vector = doc
+            .get_array("value_vector")
+            .expect("Expected serialized value_vector to be a BSON array.");
+        let expected_value_vector: Vec<Bson> = vec![Bson::Int32(value as i32)];
+        assert_eq!(
+            value_vector, &expected_value_vector,
+            "Expected each serialized element in value_vector to match the original."
+        );
+
+        // Validate deserialized data
+        let a_deserialized: A = deserialize_from_document(doc).unwrap();
+        assert_eq!(
+            a_deserialized, a,
+            "Round-trip failed: deserialized struct did not match original."
+        );
+
+        // Validate serialization fails because u32::MAX is too large to fit in i32
+        let invalid_value_for_serializing = u32::MAX;
+        let bad_a: A = A {
+            value: invalid_value_for_serializing,
+            value_optional_none: None,
+            value_optional_some: Some(invalid_value_for_serializing),
+            value_vector: vec![invalid_value_for_serializing],
+        };
+        let result = serialize_to_document(&bad_a);
+        assert!(
+            result.is_err(),
+            "Serialization should fail for u32::MAX since it can't be exactly represented as i32"
+        );
+        let err_string = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_string.contains("Cannot convert u32"),
+            "Expected error message to mention failed u32 to i32 conversion, got: {}",
+            err_string
+        );
+
+        // Validate deserialization fails for i32::MIN because negative values can't be converted to
+        // u32
+        let invalid_value_for_deserializing = i32::MIN;
+        let bad_a = doc! {
+            "value": invalid_value_for_deserializing,
+            "value_optional_none": Bson::Null,
+            "value_optional_some": Some(invalid_value_for_deserializing),
+            "value_vector": [invalid_value_for_deserializing],
+        };
+        let result: Result<A, _> = deserialize_from_document(bad_a);
+        assert!(
+            result.is_err(),
+            "Deserialization should fail for i32::MIN since it can't be exactly represented as u32"
+        );
+        let err_string = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_string.contains("Cannot convert i32"),
+            "Expected error message to mention failed i32 to u32 conversion, got: {}",
+            err_string
+        );
+
+        #[serde_as]
+        #[derive(Deserialize, Serialize, PartialEq, Debug)]
+        struct B {
+            #[serde_as(as = "u32::AsI64")]
+            value: u32,
+
+            #[serde_as(as = "Option<u32::AsI64>")]
+            value_optional_none: Option<u32>,
+
+            #[serde_as(as = "Option<u32::AsI64>")]
+            value_optional_some: Option<u32>,
+
+            #[serde_as(as = "Vec<u32::AsI64>")]
+            value_vector: Vec<u32>,
+        }
+
+        let value = u32::MAX;
+        let b = B {
+            value,
+            value_optional_none: None,
+            value_optional_some: Some(value),
+            value_vector: vec![value],
+        };
+
+        // Serialize the struct to BSON
+        let doc = serialize_to_document(&b).unwrap();
+
+        // Validate serialized data
+        assert_eq!(
+            doc.get_i64("value").unwrap(),
+            value as i64,
+            "Expected serialized value to match original."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_none"),
+            Some(&Bson::Null),
+            "Expected serialized value_optional_none to be None."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_some"),
+            Some(&Bson::Int64(value as i64)),
+            "Expected serialized value_optional_some to match original."
+        );
+
+        let value_vector = doc
+            .get_array("value_vector")
+            .expect("Expected serialized value_vector to be a BSON array.");
+        let expected_value_vector: Vec<Bson> = vec![Bson::Int64(value as i64)];
+        assert_eq!(
+            value_vector, &expected_value_vector,
+            "Expected each serialized element in value_vector to match the original."
+        );
+
+        // Validate deserialized data
+        let b_deserialized: B = deserialize_from_document(doc).unwrap();
+        assert_eq!(
+            b_deserialized, b,
+            "Round-trip failed: deserialized struct did not match original."
+        );
+
+        // Validate deserialization fails for i64::MIN because negative values can't be converted to
+        // u32
+        let invalid_value_for_deserializing = i64::MIN;
+        let bad_b = doc! {
+            "value": invalid_value_for_deserializing,
+            "value_optional_none": Bson::Null,
+            "value_optional_some": Some(invalid_value_for_deserializing),
+            "value_vector": [invalid_value_for_deserializing],
+        };
+        let result: Result<B, _> = deserialize_from_document(bad_b);
+        assert!(
+            result.is_err(),
+            "Deserialization should fail for i64::MIN since it can't be exactly represented as u32"
+        );
+        let err_string = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_string.contains("Cannot convert i64"),
+            "Expected error message to mention failed i64 to u32 conversion, got: {}",
+            err_string
+        );
+
+        #[serde_as]
+        #[derive(Deserialize, Serialize, PartialEq, Debug)]
+        struct C {
+            #[serde_as(as = "u64::AsI32")]
+            value: u64,
+
+            #[serde_as(as = "Option<u64::AsI32>")]
+            value_optional_none: Option<u64>,
+
+            #[serde_as(as = "Option<u64::AsI32>")]
+            value_optional_some: Option<u64>,
+
+            #[serde_as(as = "Vec<u64::AsI32>")]
+            value_vector: Vec<u64>,
+        }
+
+        let value = 1;
+        let c = C {
+            value,
+            value_optional_none: None,
+            value_optional_some: Some(value),
+            value_vector: vec![value],
+        };
+
+        // Serialize the struct to BSON
+        let doc = serialize_to_document(&c).unwrap();
+
+        // Validate serialized data
+        assert_eq!(
+            doc.get_i32("value").unwrap(),
+            value as i32,
+            "Expected serialized value to match original."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_none"),
+            Some(&Bson::Null),
+            "Expected serialized value_optional_none to be None."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_some"),
+            Some(&Bson::Int32(value as i32)),
+            "Expected serialized value_optional_some to match original."
+        );
+
+        let value_vector = doc
+            .get_array("value_vector")
+            .expect("Expected serialized value_vector to be a BSON array.");
+        let expected_value_vector: Vec<Bson> = vec![Bson::Int32(value as i32)];
+        assert_eq!(
+            value_vector, &expected_value_vector,
+            "Expected each serialized element in value_vector to match the original."
+        );
+
+        // Validate deserialized data
+        let c_deserialized: C = deserialize_from_document(doc).unwrap();
+        assert_eq!(
+            c_deserialized, c,
+            "Round-trip failed: deserialized struct did not match original."
+        );
+
+        // Validate serialization fails because i32::MAX + 1 is too large to fit in i32
+        let invalid_value_for_serializing = i32::MAX as u64 + 1;
+        let bad_c: C = C {
+            value: invalid_value_for_serializing,
+            value_optional_none: None,
+            value_optional_some: Some(invalid_value_for_serializing),
+            value_vector: vec![invalid_value_for_serializing],
+        };
+        let result = serialize_to_document(&bad_c);
+        assert!(
+            result.is_err(),
+            "Serialization should fail for u64::MAX since it can't be exactly represented as i32"
+        );
+        let err_string = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_string.contains("Cannot convert u64"),
+            "Expected error message to mention failed u64 to i32 conversion, got: {}",
+            err_string
+        );
+
+        // Validate deserialization fails for i32::MIN because negative values can't be converted to
+        // u64
+        let invalid_value_for_deserializing = i32::MIN;
+        let bad_c = doc! {
+            "value": invalid_value_for_deserializing,
+            "value_optional_none": Bson::Null,
+            "value_optional_some": Some(invalid_value_for_deserializing),
+            "value_vector": [invalid_value_for_deserializing],
+        };
+        let result: Result<C, _> = deserialize_from_document(bad_c);
+        assert!(
+            result.is_err(),
+            "Deserialization should fail for i32::MIN since it can't be exactly represented as u64"
+        );
+        let err_string = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_string.contains("Cannot convert i32"),
+            "Expected error message to mention failed i32 to u64 conversion, got: {}",
+            err_string
+        );
+
+        #[serde_as]
+        #[derive(Deserialize, Serialize, PartialEq, Debug)]
+        struct D {
+            #[serde_as(as = "u64::AsI64")]
+            value: u64,
+
+            #[serde_as(as = "Option<u64::AsI64>")]
+            value_optional_none: Option<u64>,
+
+            #[serde_as(as = "Option<u64::AsI64>")]
+            value_optional_some: Option<u64>,
+
+            #[serde_as(as = "Vec<u64::AsI64>")]
+            value_vector: Vec<u64>,
+        }
+
+        let value = i64::MAX as u64;
+        let d = D {
+            value,
+            value_optional_none: None,
+            value_optional_some: Some(value),
+            value_vector: vec![value],
+        };
+
+        // Serialize the struct to BSON
+        let doc = serialize_to_document(&d).unwrap();
+
+        // Validate serialized data
+        assert_eq!(
+            doc.get_i64("value").unwrap(),
+            value as i64,
+            "Expected serialized value to match original."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_none"),
+            Some(&Bson::Null),
+            "Expected serialized value_optional_none to be None."
+        );
+
+        assert_eq!(
+            doc.get("value_optional_some"),
+            Some(&Bson::Int64(value as i64)),
+            "Expected serialized value_optional_some to match original."
+        );
+
+        let value_vector = doc
+            .get_array("value_vector")
+            .expect("Expected serialized value_vector to be a BSON array.");
+        let expected_value_vector: Vec<Bson> = vec![Bson::Int64(value as i64)];
+        assert_eq!(
+            value_vector, &expected_value_vector,
+            "Expected each serialized element in value_vector to match the original."
+        );
+
+        // Validate deserialized data
+        let d_deserialized: D = deserialize_from_document(doc).unwrap();
+        assert_eq!(
+            d_deserialized, d,
+            "Round-trip failed: deserialized struct did not match original."
+        );
+
+        // Validate serialization fails because i64::MAX + 1 is too large to fit in i64
+        let invalid_value_for_serializing = i64::MAX as u64 + 1;
+        let bad_d: D = D {
+            value: invalid_value_for_serializing,
+            value_optional_none: None,
+            value_optional_some: Some(invalid_value_for_serializing),
+            value_vector: vec![invalid_value_for_serializing],
+        };
+        let result = serialize_to_document(&bad_d);
+        assert!(
+            result.is_err(),
+            "Serialization should fail for (i64::MAX as u64) + 1 since it can't be exactly \
+             represented as i64"
+        );
+        let err_string = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_string.contains("Cannot convert u64"),
+            "Expected error message to mention failed u64 to i64 conversion, got: {}",
+            err_string
+        );
+
+        // Validate deserialization fails for i64::MIN because negative values can't be converted to
+        // u64
+        let invalid_value_for_deserializing = i64::MIN;
+        let bad_d = doc! {
+            "value": invalid_value_for_deserializing,
+            "value_optional_none": Bson::Null,
+            "value_optional_some": Some(invalid_value_for_deserializing),
+            "value_vector": [invalid_value_for_deserializing],
+        };
+        let result: Result<D, _> = deserialize_from_document(bad_d);
+        assert!(
+            result.is_err(),
+            "Deserialization should fail for i64::MIN since it can't be exactly represented as u64"
+        );
+        let err_string = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_string.contains("Cannot convert i64"),
+            "Expected error message to mention failed i64 to u64 conversion, got: {}",
+            err_string
+        );
     }
-
-    let a = A { num_1: 1, num_2: 2 };
-    let doc = serialize_to_document(&a).unwrap();
-    assert!(doc.get_i32("num_1").unwrap() == 1);
-    assert!(doc.get_i32("num_2").unwrap() == 2);
-
-    let a = A {
-        num_1: u32::MAX,
-        num_2: 1,
-    };
-    let doc_result = serialize_to_document(&a);
-    assert!(doc_result.is_err());
-
-    let a = A {
-        num_1: 1,
-        num_2: u64::MAX,
-    };
-    let doc_result = serialize_to_document(&a);
-    assert!(doc_result.is_err());
-
-    #[derive(Serialize)]
-    struct B {
-        #[serde(serialize_with = "serde_helpers::serialize_u32_as_i64")]
-        num_1: u32,
-        #[serde(serialize_with = "serde_helpers::serialize_u64_as_i64")]
-        num_2: u64,
-    }
-
-    let b = B {
-        num_1: u32::MAX,
-        num_2: i64::MAX as u64,
-    };
-    let doc = serialize_to_document(&b).unwrap();
-    assert!(doc.get_i64("num_1").unwrap() == u32::MAX as i64);
-    assert!(doc.get_i64("num_2").unwrap() == i64::MAX);
-
-    let b = B {
-        num_1: 1,
-        num_2: i64::MAX as u64 + 1,
-    };
-    let doc_result = serialize_to_document(&b);
-    assert!(doc_result.is_err());
 }
 
 #[test]
@@ -1757,7 +2103,7 @@ fn test_f64_helpers() {
         assert_eq!(
             doc.get("value_optional_some"),
             Some(&Bson::Double(value as f64)),
-            "Expected serialized value_optional_some to match original time."
+            "Expected serialized value_optional_some to match original."
         );
 
         let value_vector = doc
@@ -1765,7 +2111,6 @@ fn test_f64_helpers() {
             .expect("Expected serialized value_vector to be a BSON array.");
         let expected_value_vector: Vec<Bson> = vec![Bson::Double(value as f64)];
         // TODO: check whether this can be applied to other converters
-
         assert_eq!(
             value_vector, &expected_value_vector,
             "Expected each serialized element in value_vector to match the original."
@@ -1860,7 +2205,7 @@ fn test_f64_helpers() {
         assert_eq!(
             doc.get("value_optional_some"),
             Some(&Bson::Double(value as f64)),
-            "Expected serialized value_optional_some to match original time."
+            "Expected serialized value_optional_some to match original."
         );
 
         let value_vector = doc
