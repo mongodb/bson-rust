@@ -7,7 +7,7 @@ use crate::{
     deserialize_from_document,
     doc,
     oid::ObjectId,
-    serde_helpers::{self, bson_datetime, f64, object_id, timestamp, u32, u64},
+    serde_helpers::{self, bson_datetime, object_id, u32, u64},
     serialize_to_bson,
     serialize_to_document,
     spec::BinarySubtype,
@@ -1830,16 +1830,16 @@ fn test_timestamp_helpers() {
         #[serde_as]
         #[derive(Deserialize, Serialize)]
         struct B {
-            #[serde_as(as = "timestamp::AsU32")]
+            #[serde_as(as = "u32::FromTimestamp")]
             pub timestamp: Timestamp,
 
-            #[serde_as(as = "Option<timestamp::AsU32>")]
+            #[serde_as(as = "Option<u32::FromTimestamp>")]
             pub timestamp_optional_none: Option<Timestamp>,
 
-            #[serde_as(as = "Option<timestamp::AsU32>")]
+            #[serde_as(as = "Option<u32::FromTimestamp>")]
             pub timestamp_optional_some: Option<Timestamp>,
 
-            #[serde_as(as = "Vec<timestamp::AsU32>")]
+            #[serde_as(as = "Vec<u32::FromTimestamp>")]
             pub timestamp_vector: Vec<Timestamp>,
         }
 
@@ -1939,16 +1939,16 @@ fn test_timestamp_helpers() {
         #[serde_as]
         #[derive(Deserialize, Serialize, Debug)]
         struct A {
-            #[serde_as(as = "timestamp::FromU32")]
+            #[serde_as(as = "u32::AsTimestamp")]
             pub time: u32,
 
-            #[serde_as(as = "Option<timestamp::FromU32>")]
+            #[serde_as(as = "Option<u32::AsTimestamp>")]
             pub time_optional_none: Option<u32>,
 
-            #[serde_as(as = "Option<timestamp::FromU32>")]
+            #[serde_as(as = "Option<u32::AsTimestamp>")]
             pub time_optional_some: Option<u32>,
 
-            #[serde_as(as = "Vec<timestamp::FromU32>")]
+            #[serde_as(as = "Vec<u32::AsTimestamp>")]
             pub time_vector: Vec<u32>,
         }
 
@@ -2063,16 +2063,16 @@ fn test_f64_helpers() {
         #[serde_as]
         #[derive(Deserialize, Serialize, Debug)]
         struct A {
-            #[serde_as(as = "f64::FromU64")]
+            #[serde_as(as = "u64::AsF64")]
             pub value: u64,
 
-            #[serde_as(as = "Option<f64::FromU64>")]
+            #[serde_as(as = "Option<u64::AsF64>")]
             pub value_optional_none: Option<u64>,
 
-            #[serde_as(as = "Option<f64::FromU64>")]
+            #[serde_as(as = "Option<u64::AsF64>")]
             pub value_optional_some: Option<u64>,
 
-            #[serde_as(as = "Vec<f64::FromU64>")]
+            #[serde_as(as = "Vec<u64::AsF64>")]
             pub value_vector: Vec<u64>,
         }
 
@@ -2165,16 +2165,16 @@ fn test_f64_helpers() {
         #[serde_as]
         #[derive(Deserialize, Serialize, Debug)]
         struct B {
-            #[serde_as(as = "f64::FromU32")]
+            #[serde_as(as = "u32::AsF64")]
             pub value: u32,
 
-            #[serde_as(as = "Option<f64::FromU32>")]
+            #[serde_as(as = "Option<u32::AsF64>")]
             pub value_optional_none: Option<u32>,
 
-            #[serde_as(as = "Option<f64::FromU32>")]
+            #[serde_as(as = "Option<u32::AsF64>")]
             pub value_optional_some: Option<u32>,
 
-            #[serde_as(as = "Vec<f64::FromU32>")]
+            #[serde_as(as = "Vec<u32::AsF64>")]
             pub value_vector: Vec<u32>,
         }
 
