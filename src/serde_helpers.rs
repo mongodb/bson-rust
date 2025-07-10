@@ -261,7 +261,7 @@ pub mod bson_datetime {
 
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
-pub mod timestamp {
+pub mod u32 {
     use crate::{macros::serde_conv_doc, Timestamp};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
@@ -276,17 +276,17 @@ pub mod timestamp {
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::timestamp, Timestamp};
+        /// # use bson::{serde_helpers::u32, Timestamp};
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
-        ///     #[serde_as(as = "timestamp::AsU32")]
+        ///     #[serde_as(as = "u32::FromTimestamp")]
         ///     pub timestamp: Timestamp,
         /// }
         /// # }
         /// ```
-        pub AsU32,
+        pub FromTimestamp,
         Timestamp,
         |ts: &Timestamp| -> Result<u32, String> {
             if ts.increment != 0 {
@@ -307,17 +307,17 @@ pub mod timestamp {
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::timestamp;
+        /// # use bson::serde_helpers::u32;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "timestamp::FromU32")]
+        ///     #[serde_as(as = "u32::AsTimestamp")]
         ///     pub time: u32,
         /// }
         /// # }
         /// ```
-        pub FromU32,
+        pub AsTimestamp,
         u32,
         |val: &u32| -> Result<Timestamp, String> {
             Ok(Timestamp { time: *val, increment: 0 })
@@ -327,53 +327,6 @@ pub mod timestamp {
                 return Err(format!("Cannot convert Timestamp with a non-zero increment to u32: {:?}", ts));
             }
             Ok(ts.time)
-        }
-    );
-}
-
-#[cfg(feature = "serde_with-3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
-pub mod f64 {
-    use crate::macros::serde_conv_doc;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_with::{DeserializeAs, SerializeAs};
-    use std::result::Result;
-
-    serde_conv_doc!(
-        /// Contains functions to serialize a `u64` as an `f64` (BSON double) and deserialize a
-        /// `u64` from an `f64` (BSON double).
-        ///
-        /// Deserialization errors if an exact conversion is not possible.
-        ///
-        /// ```rust
-        /// # #[cfg(feature = "serde_with-3")]
-        /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::f64;
-        /// # use serde_with::serde_as;
-        /// #[serde_as]
-        /// #[derive(Serialize, Deserialize)]
-        /// struct FileInfo {
-        ///     #[serde_as(as = "f64::FromU64")]
-        ///     pub size_bytes: u64,
-        /// }
-        /// # }
-        /// ```
-        pub FromU64,
-        u64,
-        |val: &u64| -> Result<f64, String> {
-            if val < &u64::MAX && *val == *val as f64 as u64 {
-                Ok(*val as f64)
-            } else {
-                Err(format!("Cannot convert u64 {} to f64 (BSON double)", val))
-            }
-        },
-        |val: f64| -> Result<u64, String> {
-            if (val - val as u64 as f64).abs() <= f64::EPSILON {
-               Ok(val as u64)
-            } else {
-                Err(format!("Cannot convert f64 (BSON double) {} to u64", val))
-            }
         }
     );
 
@@ -387,17 +340,17 @@ pub mod f64 {
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::f64;
+        /// # use bson::serde_helpers::u32;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct FileInfo {
-        ///     #[serde_as(as = "f64::fromU32")]
+        ///     #[serde_as(as = "u32::AsF64")]
         ///     pub size_bytes: u32,
         /// }
         /// # }
         /// ```
-        pub FromU32,
+        pub AsF64,
         u32,
         |val: &u32| -> Result<f64, String> {
             Ok(*val as f64)
@@ -410,15 +363,6 @@ pub mod f64 {
             }
         }
     );
-}
-
-#[cfg(feature = "serde_with-3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
-pub mod u32 {
-    use crate::macros::serde_conv_doc;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_with::{DeserializeAs, SerializeAs};
-    use std::result::Result;
 
     serde_conv_doc!(
         /// Contains functions to serialize a `u32` as a `i32` and deserialize a `u32`
@@ -484,6 +428,44 @@ pub mod u64 {
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
     use std::result::Result;
+
+    serde_conv_doc!(
+        /// Contains functions to serialize a `u64` as an `f64` (BSON double) and deserialize a
+        /// `u64` from an `f64` (BSON double).
+        ///
+        /// Deserialization errors if an exact conversion is not possible.
+        ///
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// # {
+        /// # use serde::{Serialize, Deserialize};
+        /// # use bson::serde_helpers::u64;
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct FileInfo {
+        ///     #[serde_as(as = "u64::AsF64")]
+        ///     pub size_bytes: u64,
+        /// }
+        /// # }
+        /// ```
+        pub AsF64,
+        u64,
+        |val: &u64| -> Result<f64, String> {
+            if val < &u64::MAX && *val == *val as f64 as u64 {
+                Ok(*val as f64)
+            } else {
+                Err(format!("Cannot convert u64 {} to f64 (BSON double)", val))
+            }
+        },
+        |val: f64| -> Result<u64, String> {
+            if (val - val as u64 as f64).abs() <= f64::EPSILON {
+               Ok(val as u64)
+            } else {
+                Err(format!("Cannot convert f64 (BSON double) {} to u64", val))
+            }
+        }
+    );
 
     serde_conv_doc!(
         /// Contains functions to serialize a `u64` as a `i32` and deserialize a `u64`
