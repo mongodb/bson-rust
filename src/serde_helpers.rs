@@ -272,7 +272,7 @@ pub mod bson_datetime {
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::FromTime03OffsetDatetime")]
+        ///     #[serde_as(as = "bson_datetime::FromTime03OffsetDatetTime")]
         ///     pub date: time::OffsetDateTime,
         /// }
         /// # }
