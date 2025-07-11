@@ -10,12 +10,6 @@ use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 #[cfg(feature = "uuid-1")]
 #[doc(inline)]
-pub use uuid_1_as_binary::{
-    deserialize as deserialize_uuid_1_from_binary,
-    serialize as serialize_uuid_1_as_binary,
-};
-#[cfg(feature = "uuid-1")]
-#[doc(inline)]
 pub use uuid_1_as_c_sharp_legacy_binary::{
     deserialize as deserialize_uuid_1_from_c_sharp_legacy_binary,
     serialize as serialize_uuid_1_as_c_sharp_legacy_binary,
@@ -222,8 +216,8 @@ pub mod bson_datetime {
         /// ```
         pub FromI64,
         i64,
-        |val: &i64| -> Result<DateTime, String> {
-            Ok(DateTime::from_millis(*val))
+        |value: &i64| -> Result<DateTime, String> {
+            Ok(DateTime::from_millis(*value))
         },
         |date: DateTime| -> Result<i64, String> {
             Ok(date.timestamp_millis())
@@ -250,8 +244,8 @@ pub mod bson_datetime {
         /// ```
         pub FromTime03OffsetDateTime,
         time::OffsetDateTime,
-        |val: &time::OffsetDateTime| -> Result<DateTime, String> {
-            Ok(DateTime::from_time_0_3(*val))
+        |value: &time::OffsetDateTime| -> Result<DateTime, String> {
+            Ok(DateTime::from_time_0_3(*value))
         },
         |date: DateTime| -> Result<time::OffsetDateTime, String> {
             Ok(date.to_time_0_3())
@@ -288,14 +282,14 @@ pub mod u32 {
         /// ```
         pub FromTimestamp,
         Timestamp,
-        |ts: &Timestamp| -> Result<u32, String> {
-            if ts.increment != 0 {
-                return Err(format!("Cannot convert Timestamp with a non-zero increment to u32: {:?}", ts));
+        |timestamp: &Timestamp| -> Result<u32, String> {
+            if timestamp.increment != 0 {
+                return Err(format!("Cannot convert Timestamp with a non-zero increment to u32: {:?}", timestamp));
             }
-            Ok(ts.time)
+            Ok(timestamp.time)
         },
-        |val: u32| -> Result<Timestamp, String> {
-            Ok(Timestamp { time: val, increment: 0 })
+        |value: u32| -> Result<Timestamp, String> {
+            Ok(Timestamp { time: value, increment: 0 })
         }
     );
 
@@ -319,14 +313,14 @@ pub mod u32 {
         /// ```
         pub AsTimestamp,
         u32,
-        |val: &u32| -> Result<Timestamp, String> {
-            Ok(Timestamp { time: *val, increment: 0 })
+        |value: &u32| -> Result<Timestamp, String> {
+            Ok(Timestamp { time: *value, increment: 0 })
         },
-        |ts: Timestamp| -> Result<u32, String> {
-            if ts.increment != 0 {
-                return Err(format!("Cannot convert Timestamp with a non-zero increment to u32: {:?}", ts));
+        |timestamp: Timestamp| -> Result<u32, String> {
+            if timestamp.increment != 0 {
+                return Err(format!("Cannot convert Timestamp with a non-zero increment to u32: {:?}", timestamp));
             }
-            Ok(ts.time)
+            Ok(timestamp.time)
         }
     );
 
@@ -352,14 +346,14 @@ pub mod u32 {
         /// ```
         pub AsF64,
         u32,
-        |val: &u32| -> Result<f64, String> {
-            Ok(*val as f64)
+        |value: &u32| -> Result<f64, String> {
+            Ok(*value as f64)
         },
-        |val: f64| -> Result<u32, String> {
-            if (val - val as u32 as f64).abs() <= f64::EPSILON {
-                Ok(val as u32)
+        |value: f64| -> Result<u32, String> {
+            if (value - value as u32 as f64).abs() <= f64::EPSILON {
+                Ok(value as u32)
             } else {
-                Err(format!("Cannot convert f64 (BSON double) {} to u32", val))
+                Err(format!("Cannot convert f64 (BSON double) {} to u32", value))
             }
         }
     );
@@ -451,18 +445,18 @@ pub mod u64 {
         /// ```
         pub AsF64,
         u64,
-        |val: &u64| -> Result<f64, String> {
-            if val < &u64::MAX && *val == *val as f64 as u64 {
-                Ok(*val as f64)
+        |value: &u64| -> Result<f64, String> {
+            if value < &u64::MAX && *value == *value as f64 as u64 {
+                Ok(*value as f64)
             } else {
-                Err(format!("Cannot convert u64 {} to f64 (BSON double)", val))
+                Err(format!("Cannot convert u64 {} to f64 (BSON double)", value))
             }
         },
-        |val: f64| -> Result<u64, String> {
-            if (val - val as u64 as f64).abs() <= f64::EPSILON {
-               Ok(val as u64)
+        |value: f64| -> Result<u64, String> {
+            if (value - value as u64 as f64).abs() <= f64::EPSILON {
+               Ok(value as u64)
             } else {
-                Err(format!("Cannot convert f64 (BSON double) {} to u64", val))
+                Err(format!("Cannot convert f64 (BSON double) {} to u64", value))
             }
         }
     );
@@ -524,6 +518,45 @@ pub mod u64 {
     );
 }
 
+#[cfg(all(feature = "serde_with-3", feature = "uuid-1"))]
+#[cfg_attr(docsrs, doc(cfg(all(feature = "serde_with-3", feature = "uuid-1"))))]
+pub mod uuid_1 {
+    use crate::macros::serde_conv_doc;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_with::{DeserializeAs, SerializeAs};
+    use std::result::Result;
+    use uuid::Uuid;
+
+    serde_conv_doc!(
+        /// Contains functions to serialize a [`uuid::Uuid`] as a [`crate::Binary`] and deserialize a
+        /// [`uuid::Uuid`] from a [`crate::Binary`].
+        ///
+        /// ```rust
+        /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
+        /// # {
+        /// use serde::{Serialize, Deserialize};
+        /// use uuid::Uuid;
+        /// use bson::serde_helpers::uuid_1;
+        /// # use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde(with = "uuid_1::AsBinary")]
+        ///     pub id: Uuid,
+        /// }
+        /// # }
+        /// ```
+        pub AsBinary,
+        Uuid,
+        |uuid: &Uuid| -> Result<crate::uuid::Uuid, String> {
+            Ok(crate::uuid::Uuid::from(*uuid))
+        },
+        |bson_uuid: crate::uuid::Uuid| -> Result<Uuid, String> {
+            Ok(bson_uuid.into())
+        }
+    );
+}
+
 #[allow(unused_macros)]
 macro_rules! as_binary_mod {
     ($feat:meta, $uu:path) => {
@@ -547,29 +580,6 @@ macro_rules! as_binary_mod {
             Ok(bson_uuid.into())
         }
     };
-}
-
-/// Contains functions to serialize a [`uuid::Uuid`] as a [`crate::Binary`] and deserialize a
-/// [`uuid::Uuid`] from a [`crate::Binary`].
-///
-/// ```rust
-/// # #[cfg(feature = "uuid-1")]
-/// # {
-/// use serde::{Serialize, Deserialize};
-/// use uuid::Uuid;
-/// use bson::serde_helpers::uuid_1_as_binary;
-///
-/// #[derive(Serialize, Deserialize)]
-/// struct Item {
-///     #[serde(with = "uuid_1_as_binary")]
-///     pub id: Uuid,
-/// }
-/// # }
-/// ```
-#[cfg(feature = "uuid-1")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
-pub mod uuid_1_as_binary {
-    as_binary_mod!(cfg(feature = "uuid-1"), uuid::Uuid);
 }
 
 #[allow(unused_macros)]

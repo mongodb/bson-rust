@@ -1794,31 +1794,81 @@ fn test_oid_helpers() {
 }
 
 #[test]
-#[cfg(feature = "uuid-1")]
+#[cfg(all(feature = "serde_with-3", feature = "uuid-1"))]
 fn test_uuid_1_helpers() {
-    use serde_helpers::uuid_1_as_binary;
+    use serde_helpers::uuid_1;
     use uuid::Uuid;
 
     let _guard = LOCK.run_concurrently();
 
-    #[derive(Serialize, Deserialize)]
+    #[serde_as]
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct A {
-        #[serde(with = "uuid_1_as_binary")]
+        #[serde_as(as = "uuid_1::AsBinary")]
         uuid: Uuid,
+
+        #[serde_as(as = "Option<uuid_1::AsBinary>")]
+        uuid_optional_none: Option<Uuid>,
+
+        #[serde_as(as = "Option<uuid_1::AsBinary>")]
+        uuid_optional_some: Option<Uuid>,
+
+        #[serde_as(as = "Vec<uuid_1::AsBinary>")]
+        uuid_vector: Vec<Uuid>,
     }
 
     let uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
-    let a = A { uuid };
+    let a: A = A {
+        uuid,
+        uuid_optional_none: None,
+        uuid_optional_some: Some(uuid),
+        uuid_vector: vec![uuid],
+    };
+
+    // Serialize the struct to BSON
     let doc = serialize_to_document(&a).unwrap();
+
+    // Validate serialized data
     match doc.get("uuid").unwrap() {
         Bson::Binary(bin) => {
             assert_eq!(bin.subtype, BinarySubtype::Uuid);
             assert_eq!(bin.bytes, uuid.as_bytes());
         }
-        _ => panic!("expected Bson::Binary"),
+        _ => panic!("Expected serialized uuid to match original as Bson::Binary"),
     }
-    let a: A = deserialize_from_document(doc).unwrap();
-    assert_eq!(a.uuid, uuid);
+
+    assert_eq!(
+        doc.get("uuid_optional_none"),
+        Some(&Bson::Null),
+        "Expected serialized uuid_optional_none to be None."
+    );
+
+    match doc.get("uuid_optional_some") {
+        Some(Bson::Binary(bin)) => {
+            assert_eq!(bin.subtype, BinarySubtype::Uuid);
+            assert_eq!(bin.bytes, uuid.as_bytes());
+        }
+        _ => panic!("Expected serialized uuid_optional_some to be Bson::Binary."),
+    }
+
+    let uuid_vector = doc
+        .get_array("uuid_vector")
+        .expect("Expected serialized uuid_vector to be a BSON array.");
+    let expected_uuid_vector: Vec<Bson> = vec![Bson::Binary(Binary {
+        subtype: BinarySubtype::Uuid,
+        bytes: uuid.as_bytes().to_vec(),
+    })];
+    assert_eq!(
+        uuid_vector, &expected_uuid_vector,
+        "Expected each serialized element in uuid_vector to match the original."
+    );
+
+    // Validate deserialized data
+    let a_deserialized: A = deserialize_from_document(doc).unwrap();
+    assert_eq!(
+        a_deserialized, a,
+        "Deserialized struct does not match original."
+    );
 }
 
 #[test]
