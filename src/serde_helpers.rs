@@ -1,13 +1,19 @@
 //! Collection of helper functions for serializing to and deserializing from BSON using Serde
 
+use crate::{oid::ObjectId, Binary, DateTime, Timestamp};
+use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
     result::Result,
 };
+use uuid::Uuid;
 
-use serde::{de::Visitor, Deserialize, Serialize, Serializer};
-
+/// Type converters for serializing and deserializing [`ObjectId`] using [`serde_with::serde_as`].
+///
+/// ## Available converters
+/// - [`object_id::AsHexString`] — serializes an [`ObjectId`] as a hex string.
+/// - [`object_id::FromHexString`] — serializes a hex string as an [`ObjectId`].
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod object_id {
@@ -16,15 +22,13 @@ pub mod object_id {
     use serde_with::{DeserializeAs, SerializeAs};
 
     serde_conv_doc!(
-        /// Contains functions to serialize an ObjectId as a hex string and deserialize an
-        /// ObjectId from a hex string
+        /// Serializes an [`ObjectId`] as a hex string and deserializes an [`ObjectId`] from a hex string.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::object_id;
-        /// # use serde_with::serde_as;
-        /// # use bson::oid::ObjectId;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::{serde_helpers::object_id, oid::ObjectId};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -44,14 +48,13 @@ pub mod object_id {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a hex string as an ObjectId and deserialize a
-        /// hex string from an ObjectId
+        /// Serializes a hex string as an [`ObjectId`] and deserializes a hex string from an [`ObjectId`].
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::object_id;
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::serde_helpers::object_id;
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -71,30 +74,37 @@ pub mod object_id {
     );
 }
 
+/// Type converters for serializing and deserializing [`DateTime`] using [`serde_with::serde_as`].
+///
+/// ## Available converters
+/// - [`datetime::AsRfc3339String`] — serializes a [`DateTime`] as a RFC 3339 string.
+/// - [`datetime::FromRfc3339String`] — serializes a RFC 3339 string as a [`DateTime`].
+/// - [`datetime::FromChronoDateTime`] — serializes a [`chrono::DateTime`] as a [`DateTime`].
+/// - [`datetime::FromI64`] — serializes a `i64` as a [`DateTime`].
+/// - [`datetime::FromTime03OffsetDateTime`] — serializes a [`time::OffsetDateTime`] as a
+///   [`DateTime`].
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
-pub mod bson_datetime {
+pub mod datetime {
     use crate::{macros::serde_conv_doc, DateTime};
     use chrono::Utc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
 
     serde_conv_doc!(
-        /// Contains functions to serialize a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted
-        /// string and deserialize a [`crate::DateTime`] from an RFC 3339 (ISO 8601) formatted
-        /// string.
-        ///
+        /// Serializes a [`DateTime`] as an RFC 3339 (ISO 8601) formatted string and deserializes
+        /// a [`DateTime`] from an RFC 3339 (ISO 8601) formatted string.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::{serde_helpers::datetime, DateTime};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::AsRfc3339String")]
-        ///     pub date: bson::DateTime,
+        ///     #[serde_as(as = "datetime::AsRfc3339String")]
+        ///     pub date: DateTime,
         /// }
         /// # }
         /// ```
@@ -111,20 +121,18 @@ pub mod bson_datetime {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize an RFC 3339 (ISO 8601) formatted string as a
-        /// [`crate::DateTime`] and deserialize an RFC 3339 (ISO 8601) formatted string from a
-        /// [`crate::DateTime`].
-        ///
+        /// Serializes an RFC 3339 (ISO 8601) formatted string as a [`DateTime`] and deserializes an
+        /// RFC 3339 (ISO 8601) formatted string from a [`DateTime`].
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::serde_helpers::datetime;
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::FromRfc3339String")]
+        ///     #[serde_as(as = "datetime::FromRfc3339String")]
         ///     pub date: String,
         /// }
         /// # }
@@ -142,24 +150,20 @@ pub mod bson_datetime {
     );
 
     serde_conv_doc!(
-        #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
-        #[cfg_attr(
-            docsrs,
-            doc(cfg(all(feature = "chrono-0_4", feature = "serde_with-3")))
-        )]
-        /// Contains functions to serialize a [`chrono::DateTime`] as a [`crate::DateTime`] and
-        /// deserialize a [`chrono::DateTime`] from a [`crate::DateTime`].
-        ///
+        #[cfg(feature = "chrono-0_4")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
+        /// Serializes a [`chrono::DateTime`] as a [`DateTime`] and deserializes a [`chrono::DateTime`]
+        /// from a [`DateTime`].
         /// ```rust
         /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::serde_helpers::datetime;
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::FromChronoDateTime")]
+        ///     #[serde_as(as = "datetime::FromChronoDateTime")]
         ///     pub date: chrono::DateTime<chrono::Utc>,
         /// }
         /// # }
@@ -175,21 +179,19 @@ pub mod bson_datetime {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `i64` integer as [`crate::DateTime`] and
-        /// deserialize a `i64` integer from [`crate::DateTime`].
+        /// Serializes a `i64` integer as [`DateTime`] and deserializes a `i64` integer from [`DateTime`].
         ///
-        /// ### The i64 should represent seconds `(DateTime::timestamp_millis(..))`.
-        ///
+        /// The `i64` should represent seconds `(DateTime::timestamp_millis(..))`.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::serde_helpers::datetime;
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
-        ///     #[serde_as(as = "bson_datetime::FromI64")]
+        ///     #[serde_as(as = "datetime::FromI64")]
         ///     pub now: i64,
         /// }
         /// # }
@@ -205,19 +207,18 @@ pub mod bson_datetime {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a [`time::OffsetDateTime`] as a [`crate::DateTime`] and
-        /// deserialize a [`time::OffsetDateTime`] from a [`crate::DateTime`].
-        ///
+        /// Serializes a [`time::OffsetDateTime`] as a [`DateTime`] and deserializes a
+        /// [`time::OffsetDateTime`] from a [`DateTime`].
         /// ```rust
         /// # #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::serde_helpers::datetime;
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::FromTime03OffsetDatetTime")]
+        ///     #[serde_as(as = "datetime::FromTime03OffsetDatetTime")]
         ///     pub date: time::OffsetDateTime,
         /// }
         /// # }
@@ -233,6 +234,14 @@ pub mod bson_datetime {
     );
 }
 
+/// Type converters for serializing and deserializing `u32` using [`serde_with::serde_as`].
+///
+/// ## Available converters
+/// - [`u32::FromTimestamp`] — serializes a [`Timestamp`] as a `u32`.
+/// - [`u32::AsTimestamp`] — serializes a `u32` as a [`Timestamp`].
+/// - [`u32::AsF64`] — serializes a `u32` as a `f64`.
+/// - [`u32::AsI32`] — serializes a `u32` as a `i32`.
+/// - [`u32::AsI64`] — serializes a `u32` as a `i64`.
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod u32 {
@@ -241,16 +250,17 @@ pub mod u32 {
     use serde_with::{DeserializeAs, SerializeAs};
 
     serde_conv_doc!(
-        /// Contains functions to serialize a [`bson::Timestamp`] as a `u32` and deserialize a [`bson::Timestamp`]
-        /// from a `u32`. The `u32` should represent seconds since the Unix epoch. Serialization will return an
-        /// error if the Timestamp has a non-zero increment.
+        /// Serializes a [`Timestamp`] as a `u32` and deserializes a [`Timestamp`] from a `u32`.
         ///
+        /// The `u32` should represent seconds since the Unix epoch.
+        ///
+        /// Serialization errors if the Timestamp has a non-zero increment.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::u32, Timestamp};
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::{serde_helpers::u32, Timestamp};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -273,15 +283,17 @@ pub mod u32 {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u32` as a [`bson::Timestamp`] and deserialize a `u32` from a
-        /// [`bson::Timestamp`]. The `u32` should represent seconds since the Unix epoch.
+        /// Serializes a `u32` as a [`Timestamp`] and deserializes a `u32` from a [`Timestamp`].
         ///
+        /// The `u32` should represent seconds since the Unix epoch.
+        ///
+        /// Deserialization errors if the Timestamp has a non-zero increment.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::u32;
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::serde_helpers::u32;
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
@@ -304,17 +316,15 @@ pub mod u32 {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u32` as an `f64` (BSON double) and deserialize a
-        /// `u32` from an `f64` (BSON double).
+        /// Serializes a `u32` as an `f64` and deserializes a `u32` from an `f64`.
         ///
-        /// Deserialization errors if an exact conversion is not possible.
-        ///
+        /// Errors if an exact conversion is not possible.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::u32;
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::serde_helpers::u32;
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct FileInfo {
@@ -332,21 +342,21 @@ pub mod u32 {
             if (value - value as u32 as f64).abs() <= f64::EPSILON {
                 Ok(value as u32)
             } else {
-                Err(format!("Cannot convert f64 (BSON double) {} to u32", value))
+                Err(format!("Cannot convert f64 {} to u32", value))
             }
         }
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u32` as a `i32` and deserialize a `u32`
-        /// from a `i32`. Errors if an exact conversion is not possible.
+        /// Serializes a `u32` as an `i32` and deserializes a `u32` from an `i32`.
         ///
+        /// Errors if an exact conversion is not possible.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::u32};
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::{serde_helpers::u32};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -366,15 +376,15 @@ pub mod u32 {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u32` as a `i64` and deserialize a `u32`
-        /// from a `i64`. Errors if an exact conversion is not possible.
+        /// Serializes a `u32` as an `i64` and deserializes a `u32` from an `i64`.
         ///
+        /// Errors if an exact conversion is not possible.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::u32};
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::{serde_helpers::u32};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -394,6 +404,12 @@ pub mod u32 {
     );
 }
 
+/// Type converters for serializing and deserializing `u64` using [`serde_with::serde_as`].
+///
+/// ## Available converters
+/// - [`u64::AsF64`] — serializes a `u64` as a `f64`.
+/// - [`u64::AsI32`] — serializes a `u64` as a `i32`.
+/// - [`u64::AsI64`] — serializes a `u64` as a `i64`.
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod u64 {
@@ -402,17 +418,15 @@ pub mod u64 {
     use serde_with::{DeserializeAs, SerializeAs};
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u64` as an `f64` (BSON double) and deserialize a
-        /// `u64` from an `f64` (BSON double).
+        /// Serializes a `u64` as an `f64` and deserializes a `u64` from an `f64`.
         ///
         /// Deserialization errors if an exact conversion is not possible.
-        ///
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::u64;
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::serde_helpers::u64;
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct FileInfo {
@@ -427,28 +441,28 @@ pub mod u64 {
             if value < &u64::MAX && *value == *value as f64 as u64 {
                 Ok(*value as f64)
             } else {
-                Err(format!("Cannot convert u64 {} to f64 (BSON double)", value))
+                Err(format!("Cannot convert u64 {} to f64", value))
             }
         },
         |value: f64| -> Result<u64, String> {
             if (value - value as u64 as f64).abs() <= f64::EPSILON {
                Ok(value as u64)
             } else {
-                Err(format!("Cannot convert f64 (BSON double) {} to u64", value))
+                Err(format!("Cannot convert f64 {} to u64", value))
             }
         }
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u64` as a `i32` and deserialize a `u64`
-        /// from a `i32`. Errors if an exact conversion is not possible.
+        /// Serializes a `u64` as an `i32` and deserializes a `u64` from an `i32`.
         ///
+        /// Errors if an exact conversion is not possible.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::u64};
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::{serde_helpers::u64};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -468,15 +482,15 @@ pub mod u64 {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u64` as a `i64` and deserialize a `u64`
-        /// from a `i64`. Errors if an exact conversion is not possible.
+        /// Serializes a `u64` as an `i64` and deserializes a `u64` from an `i64`.
         ///
+        /// Errors if an exact conversion is not possible.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::u64};
-        /// # use serde_with::serde_as;
+        /// use serde::{Serialize, Deserialize};
+        /// use bson::{serde_helpers::u64};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -496,18 +510,26 @@ pub mod u64 {
     );
 }
 
+/// Type converters for serializing and deserializing [`Uuid`] using [`serde_with::serde_as`].
+///
+/// ## Available converters
+/// - [`uuid_1::AsBinary`] — serializes a [`Uuid`] as a [`Binary`].
+/// - [`uuid_1::AsCSharpLegacyBinary`] — serializes a [`Uuid`] as a [`Binary`] in the legacy C#
+///   driver UUID format.
+/// - [`uuid_1::AsJavaLegacyBinary`] — serializes a [`Uuid`] as a [`Binary`] in the legacy Java
+///   driver UUID format.
+/// - [`uuid_1::AsPythonLegacyBinary`] — serializes a [`Uuid`] as a [`Binary`] in the legacy Python
+///   driver UUID format.
 #[cfg(all(feature = "serde_with-3", feature = "uuid-1"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "serde_with-3", feature = "uuid-1"))))]
 pub mod uuid_1 {
-    use crate::macros::serde_conv_doc;
+    use crate::{macros::serde_conv_doc, Binary};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
     use uuid::Uuid;
 
     serde_conv_doc!(
-        /// Contains functions to serialize a [`uuid::Uuid`] as a [`crate::Binary`] and deserialize a
-        /// [`uuid::Uuid`] from a [`crate::Binary`].
-        ///
+        /// Serializes a [`Uuid`] as a [`Binary`] and deserializes a [`Uuid`] from a [`Binary`].
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
@@ -534,10 +556,8 @@ pub mod uuid_1 {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy C# driver
-        /// UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy C# driver
-        /// format.
-        ///
+        /// Serializes a [`Uuid`] to a [`Binary`] in the legacy C# driver UUID format and
+        /// deserializes [`Uuid`] from a [`Binary`] in the legacy C# driver format.
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
@@ -571,17 +591,15 @@ pub mod uuid_1 {
     );
 
     serde_conv_doc!(
-        /// /// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy
-        /// Java driver UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy
-        /// Java driver format.
-        ///
+        /// Serializes a [`Uuid`] to a [`Binary`] in the legacy Java driver UUID format and
+        /// deserializes [`Uuid`] from a [`Binary`] in the legacy Java driver format.
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
         /// use serde::{Serialize, Deserialize};
         /// use uuid::Uuid;
         /// use bson::serde_helpers::uuid_1;
-        /// # use serde_with::serde_as;
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -608,17 +626,15 @@ pub mod uuid_1 {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy Python
-        /// driver UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy Python
-        /// driver format.
-        ///
+        /// Serializes a [`Uuid`] to a [`Binary`] in the legacy Python driver UUID format and
+        /// deserializes [`Uuid`] from a [`Binary`] in the legacy Python driver format.
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
         /// use serde::{Serialize, Deserialize};
         /// use uuid::Uuid;
         /// use bson::serde_helpers::uuid_1;
-        /// # use serde_with::serde_as;
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
