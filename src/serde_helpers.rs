@@ -26,8 +26,8 @@ pub mod object_id {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::{serde_helpers::object_id, oid::ObjectId};
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -52,8 +52,8 @@ pub mod object_id {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::serde_helpers::object_id;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -97,8 +97,8 @@ pub mod datetime {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::{serde_helpers::datetime, DateTime};
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -126,8 +126,8 @@ pub mod datetime {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -157,8 +157,8 @@ pub mod datetime {
         /// ```rust
         /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -185,8 +185,8 @@ pub mod datetime {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -212,8 +212,8 @@ pub mod datetime {
         /// ```rust
         /// # #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -258,8 +258,8 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::{serde_helpers::u32, Timestamp};
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -291,8 +291,8 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::serde_helpers::u32;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -322,8 +322,8 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::serde_helpers::u32;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -354,8 +354,8 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::{serde_helpers::u32};
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -382,8 +382,8 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::{serde_helpers::u32};
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -424,8 +424,8 @@ pub mod u64 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::serde_helpers::u64;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -460,8 +460,8 @@ pub mod u64 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::{serde_helpers::u64};
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -488,8 +488,8 @@ pub mod u64 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use serde::{Serialize, Deserialize};
         /// use bson::{serde_helpers::u64};
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
@@ -533,10 +533,10 @@ pub mod uuid_1 {
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
-        /// use serde::{Serialize, Deserialize};
-        /// use uuid::Uuid;
         /// use bson::serde_helpers::uuid_1;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
+        /// use uuid::Uuid;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -561,10 +561,10 @@ pub mod uuid_1 {
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
-        /// use serde::{Serialize, Deserialize};
-        /// use uuid::Uuid;
         /// use bson::serde_helpers::uuid_1;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
+        /// use uuid::Uuid;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -596,10 +596,10 @@ pub mod uuid_1 {
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
-        /// use serde::{Serialize, Deserialize};
-        /// use uuid::Uuid;
         /// use bson::serde_helpers::uuid_1;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
+        /// use uuid::Uuid;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -631,10 +631,10 @@ pub mod uuid_1 {
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
-        /// use serde::{Serialize, Deserialize};
-        /// use uuid::Uuid;
         /// use bson::serde_helpers::uuid_1;
+        /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
+        /// use uuid::Uuid;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
