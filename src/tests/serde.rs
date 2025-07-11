@@ -24,12 +24,11 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_with::serde_as;
-use time::OffsetDateTime;
-
 use std::{
     collections::BTreeMap,
     convert::{TryFrom, TryInto},
 };
+use time::OffsetDateTime;
 
 #[test]
 fn test_ser_vec() {
@@ -665,11 +664,7 @@ fn test_oid_helpers() {
         let oid_vector = doc
             .get_array("oid_vector")
             .expect("Expected serialized oid_vector to be a BSON array.");
-        let expected_oid_vector: Vec<Bson> = a
-            .oid_vector
-            .into_iter()
-            .map(|oid| Bson::ObjectId(ObjectId::parse_str(oid).unwrap()))
-            .collect();
+        let expected_oid_vector: Vec<Bson> = vec![Bson::ObjectId(oid)];
         assert_eq!(
             oid_vector, &expected_oid_vector,
             "Expected each serialized element in oid_vector match the original."
@@ -773,11 +768,7 @@ fn test_oid_helpers() {
         let oid_vector = doc
             .get_array("oid_vector")
             .expect("Expected serialized oid_vector to be a BSON array.");
-        let expected_oid_vector: Vec<Bson> = b
-            .oid_vector
-            .into_iter()
-            .map(|oid| Bson::String(oid.to_hex()))
-            .collect();
+        let expected_oid_vector: Vec<Bson> = vec![Bson::String(oid.to_hex())];
         assert_eq!(
             oid_vector, &expected_oid_vector,
             "Expected each serialized element in oid_vector match the original."
@@ -890,11 +881,8 @@ fn test_bson_datetime_helpers() {
         let date_vector = doc
             .get_array("date_vector")
             .expect("Expected serialized date_vector to be a BSON array.");
-        let expected_date_vector: Vec<Bson> = a
-            .date_vector
-            .iter()
-            .map(|dt| Bson::String(dt.try_to_rfc3339_string().unwrap()))
-            .collect();
+        let expected_date_vector: Vec<Bson> =
+            vec![Bson::String(date.try_to_rfc3339_string().unwrap())];
         assert_eq!(
             date_vector, &expected_date_vector,
             "Expected each serialized element in date_vector to match the original."
@@ -998,11 +986,7 @@ fn test_bson_datetime_helpers() {
         let date_vector = doc
             .get_array("date_vector")
             .expect("Expected serialized date_vector to be a BSON array.");
-        let expected_date_vector: Vec<Bson> = b
-            .date_vector
-            .into_iter()
-            .map(|dt| Bson::DateTime(DateTime::from_millis(dt)))
-            .collect();
+        let expected_date_vector: Vec<Bson> = vec![Bson::DateTime(date)];
         assert_eq!(
             date_vector, &expected_date_vector,
             "Expected each serialized element in date_vector match the original."
@@ -1088,11 +1072,7 @@ fn test_bson_datetime_helpers() {
         let date_vector = doc
             .get_array("date_vector")
             .expect("Expected serialized date_vector to be a BSON array.");
-        let expected_date_vector: Vec<Bson> = c
-            .date_vector
-            .into_iter()
-            .map(|dt| Bson::DateTime(DateTime::parse_rfc3339_str(dt).unwrap()))
-            .collect();
+        let expected_date_vector: Vec<Bson> = vec![Bson::DateTime(date)];
         assert_eq!(
             date_vector, &expected_date_vector,
             "Expected each serialized element in date_vector match the original."
@@ -1205,11 +1185,7 @@ fn test_bson_datetime_helpers() {
         let date_vector = doc
             .get_array("date_vector")
             .expect("Expected serialized date_vector to be a BSON array.");
-        let expected_date_vector: Vec<Bson> = a
-            .date_vector
-            .into_iter()
-            .map(|dt| Bson::DateTime(dt.into()))
-            .collect();
+        let expected_date_vector: Vec<Bson> = vec![Bson::DateTime(date.into())];
         assert_eq!(
             date_vector, &expected_date_vector,
             "Expected each serialized element in date_vector to be a BSON DateTime matching the \
@@ -1298,11 +1274,7 @@ fn test_bson_datetime_helpers() {
         let date_vector = doc
             .get_array("date_vector")
             .expect("Expected serialized date_vector to be a BSON array.");
-        let expected_date_vector: Vec<Bson> = a
-            .date_vector
-            .into_iter()
-            .map(|dt| Bson::DateTime(dt.into()))
-            .collect();
+        let expected_date_vector: Vec<Bson> = vec![Bson::DateTime(date)];
         assert_eq!(
             date_vector, &expected_date_vector,
             "Expected each serialized element in date_vector to be a BSON DateTime matching the \
@@ -1394,11 +1366,7 @@ fn test_u32_helpers() {
         let timestamp_vector = doc
             .get_array("timestamp_vector")
             .expect("Expected serialized timestamp_vector to be a BSON array.");
-        let expected_timestamp_vector: Vec<Bson> = a
-            .timestamp_vector
-            .iter()
-            .map(|ts| Bson::Int64(ts.time as i64))
-            .collect();
+        let expected_timestamp_vector: Vec<Bson> = vec![Bson::Int64(time as i64)];
         assert_eq!(
             timestamp_vector, &expected_timestamp_vector,
             "Expected each serialized element in timestamp_vector to match the original."
@@ -1507,16 +1475,8 @@ fn test_u32_helpers() {
         let time_vector = doc
             .get_array("time_vector")
             .expect("Expected serialized time_vector to be a BSON array.");
-        let expected_time_vector: Vec<Bson> = b
-            .time_vector
-            .iter()
-            .map(|val| {
-                Bson::Timestamp(Timestamp {
-                    time: *val,
-                    increment: 0,
-                })
-            })
-            .collect();
+        let expected_time_vector: Vec<Bson> =
+            vec![Bson::Timestamp(Timestamp { time, increment: 0 })];
         assert_eq!(
             time_vector, &expected_time_vector,
             "Expected each serialized element in time_vector to match the original."
@@ -1621,7 +1581,6 @@ fn test_u32_helpers() {
             .get_array("value_vector")
             .expect("Expected serialized value_vector to be a BSON array.");
         let expected_value_vector: Vec<Bson> = vec![Bson::Double(value as f64)];
-
         assert_eq!(
             value_vector, &expected_value_vector,
             "Expected each serialized element in value_vector to match the original."
@@ -1897,7 +1856,6 @@ fn test_u64_helpers() {
             .get_array("value_vector")
             .expect("Expected serialized value_vector to be a BSON array.");
         let expected_value_vector: Vec<Bson> = vec![Bson::Double(value as f64)];
-        // TODO: check whether this can be applied to other converters
         assert_eq!(
             value_vector, &expected_value_vector,
             "Expected each serialized element in value_vector to match the original."
