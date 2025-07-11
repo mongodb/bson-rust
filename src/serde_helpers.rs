@@ -78,7 +78,6 @@ pub mod bson_datetime {
     use chrono::Utc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
-    use std::result::Result;
 
     serde_conv_doc!(
         /// Contains functions to serialize a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted
@@ -240,7 +239,6 @@ pub mod u32 {
     use crate::{macros::serde_conv_doc, Timestamp};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
-    use std::result::Result;
 
     serde_conv_doc!(
         /// Contains functions to serialize a [`bson::Timestamp`] as a `u32` and deserialize a [`bson::Timestamp`]
@@ -402,7 +400,6 @@ pub mod u64 {
     use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
-    use std::result::Result;
 
     serde_conv_doc!(
         /// Contains functions to serialize a `u64` as an `f64` (BSON double) and deserialize a
@@ -505,7 +502,6 @@ pub mod uuid_1 {
     use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
-    use std::result::Result;
     use uuid::Uuid;
 
     serde_conv_doc!(
