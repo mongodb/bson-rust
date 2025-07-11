@@ -649,17 +649,11 @@ fn test_oid_helpers() {
             "Expected serialized oid_optional_none to be None."
         );
 
-        match doc.get("oid_optional_some") {
-            Some(Bson::ObjectId(value)) => {
-                assert_eq!(
-                    *value, oid,
-                    "Expected serialized oid_optional_some to match original ObjectId."
-                )
-            }
-            _ => {
-                panic!("Expected serialized oid_optional_some to be a BSON ObjectId.")
-            }
-        }
+        assert_eq!(
+            doc.get("oid_optional_some"),
+            Some(&Bson::ObjectId(oid)),
+            "Expected serialized oid_optional_some to match original."
+        );
 
         let oid_vector = doc
             .get_array("oid_vector")
@@ -737,18 +731,11 @@ fn test_oid_helpers() {
             "Expected serialized oid_optional_none to be None."
         );
 
-        match doc.get("oid_optional_some") {
-            Some(Bson::String(value)) => {
-                assert_eq!(
-                    *value,
-                    oid.to_hex(),
-                    "Expected serialized oid_optional_some to match original ObjectId."
-                )
-            }
-            _ => {
-                panic!("Expected serialized oid_optional_some to be a BSON String.")
-            }
-        }
+        assert_eq!(
+            doc.get("oid_optional_some"),
+            Some(&Bson::String(oid.to_hex())),
+            "Expected serialized oid_optional_some to match original."
+        );
 
         let oid_vector = doc
             .get_array("oid_vector")
@@ -834,15 +821,11 @@ fn test_datetime_helpers() {
             "Expected serialized date_optional_none to be None."
         );
 
-        match doc.get("date_optional_some") {
-            Some(Bson::String(value)) => {
-                assert_eq!(
-                    value, iso,
-                    "Expected serialized date_optional_some to match original date."
-                )
-            }
-            _ => panic!("Expected serialized date_optional_some to be a BSON String."),
-        }
+        assert_eq!(
+            doc.get("date_optional_some"),
+            Some(&Bson::String(iso.to_string())),
+            "Expected serialized date_optional_some to match original."
+        );
 
         let date_vector = doc
             .get_array("date_vector")
@@ -920,15 +903,11 @@ fn test_datetime_helpers() {
             "Expected serialized date_optional_none to be None."
         );
 
-        match doc.get("date_optional_some") {
-            Some(Bson::DateTime(value)) => {
-                assert_eq!(
-                    *value, date,
-                    "Expected serialized date_optional_some to match original."
-                )
-            }
-            _ => panic!("Expected serialized date_optional_some to be a BSON DateTime."),
-        }
+        assert_eq!(
+            doc.get("date_optional_some"),
+            Some(&Bson::DateTime(date)),
+            "Expected serialized date_optional_some to match original."
+        );
 
         let date_vector = doc
             .get_array("date_vector")
@@ -986,15 +965,11 @@ fn test_datetime_helpers() {
             "Expected serialized date_optional_none to be None."
         );
 
-        match doc.get("date_optional_some") {
-            Some(Bson::DateTime(value)) => {
-                assert_eq!(
-                    *value, date,
-                    "Expected serialized date_optional_some to match original."
-                )
-            }
-            _ => panic!("Expected serialized date_optional_some to be a BSON DateTime."),
-        }
+        assert_eq!(
+            doc.get("date_optional_some"),
+            Some(&Bson::DateTime(date)),
+            "Expected serialized date_optional_some to match original."
+        );
 
         let date_vector = doc
             .get_array("date_vector")
@@ -1078,16 +1053,11 @@ fn test_datetime_helpers() {
             "Expected serialized date_optional_none to be None."
         );
 
-        match doc.get("date_optional_some") {
-            Some(Bson::DateTime(value)) => {
-                assert_eq!(
-                    *value,
-                    DateTime::from_chrono(date),
-                    "Expected serialized date_optional_some to match original."
-                )
-            }
-            _ => panic!("Expected serialized date_optional_some to be a BSON DateTime."),
-        }
+        assert_eq!(
+            doc.get("date_optional_some"),
+            Some(&Bson::DateTime(DateTime::from_chrono(date))),
+            "Expected serialized date_optional_some to match original."
+        );
 
         let date_vector = doc
             .get_array("date_vector")
@@ -1149,15 +1119,11 @@ fn test_datetime_helpers() {
             "Expected serialized date_optional_none to be None."
         );
 
-        match doc.get("date_optional_some") {
-            Some(Bson::DateTime(value)) => {
-                assert_eq!(
-                    *value, date,
-                    "Expected serialized date_optional_some to match original."
-                )
-            }
-            _ => panic!("Expected serialized date_optional_some to be a BSON DateTime."),
-        }
+        assert_eq!(
+            doc.get("date_optional_some"),
+            Some(&Bson::DateTime(date)),
+            "Expected serialized date_optional_some to match original."
+        );
 
         let date_vector = doc
             .get_array("date_vector")
@@ -1310,16 +1276,11 @@ fn test_u32_helpers() {
             "Expected serialized time_optional_none to be None."
         );
 
-        match doc.get("time_optional_some") {
-            Some(Bson::Timestamp(ts)) => {
-                assert_eq!(
-                    *ts,
-                    Timestamp { time, increment: 0 },
-                    "Expected serialized time_optional_some to match original time."
-                )
-            }
-            _ => panic!("Expected serialized time_optional_some to be a BSON Timestamp."),
-        }
+        assert_eq!(
+            doc.get("time_optional_some"),
+            Some(&Bson::Timestamp(Timestamp { time, increment: 0 })),
+            "Expected serialized time_optional_some to match original."
+        );
 
         let time_vector = doc
             .get_array("time_vector")
