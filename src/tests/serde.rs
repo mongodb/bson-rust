@@ -983,16 +983,16 @@ fn test_datetime_helpers() {
         #[serde_as]
         #[derive(Deserialize, Serialize, Debug, PartialEq)]
         struct A {
-            #[serde_as(as = "datetime::FromChronoDateTime")]
+            #[serde_as(as = "datetime::FromChrono04DateTime")]
             pub date: chrono::DateTime<chrono::Utc>,
 
-            #[serde_as(as = "Option<datetime::FromChronoDateTime>")]
+            #[serde_as(as = "Option<datetime::FromChrono04DateTime>")]
             pub date_optional_none: Option<chrono::DateTime<chrono::Utc>>,
 
-            #[serde_as(as = "Option<datetime::FromChronoDateTime>")]
+            #[serde_as(as = "Option<datetime::FromChrono04DateTime>")]
             pub date_optional_some: Option<chrono::DateTime<chrono::Utc>>,
 
-            #[serde_as(as = "Vec<datetime::FromChronoDateTime>")]
+            #[serde_as(as = "Vec<datetime::FromChrono04DateTime>")]
             pub date_vector: Vec<chrono::DateTime<chrono::Utc>>,
         }
 

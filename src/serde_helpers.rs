@@ -223,11 +223,13 @@ pub mod u64_as_f64 {
 /// [`serde_with::serde_as`].
 ///
 /// ## Available converters
-/// - [`datetime::AsRfc3339String`] — serializes a [`crate::DateTime`] as a RFC 3339 string.
-/// - [`datetime::FromRfc3339String`] — serializes a RFC 3339 string as a [`crate::DateTime`].
-/// - [`datetime::FromChronoDateTime`] — serializes a [`chrono::DateTime`] as a [`crate::DateTime`].
-/// - [`datetime::FromI64`] — serializes a `i64` as a [`crate::DateTime`].
-/// - [`datetime::FromTime03OffsetDateTime`] — serializes a [`time::OffsetDateTime`] as a
+/// - [`datetime::AsRfc3339String`] — converts a [`crate::DateTime`] to and from an RFC 3339 string.
+/// - [`datetime::FromRfc3339String`] — converts a RFC 3339 string to and from a
+///   [`crate::DateTime`].
+/// - [`datetime::FromChrono04DateTime`] — converts a [`chrono::DateTime`] to and from a
+///   [`crate::DateTime`].
+/// - [`datetime::FromI64`] — converts an `i64` to and from a [`crate::DateTime`].
+/// - [`datetime::FromTime03OffsetDateTime`] — converts a [`time::OffsetDateTime`] to and from a
 ///   [`crate::DateTime`].
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
@@ -239,8 +241,7 @@ pub mod datetime {
     use std::result::Result;
 
     serde_conv_doc!(
-        /// Serializes a [`DateTime`] as an RFC 3339 (ISO 8601) formatted string and deserializes
-        /// a [`DateTime`] from an RFC 3339 (ISO 8601) formatted string.
+        /// Converts a [`DateTime`] to and from an RFC 3339 (ISO 8601) formatted string.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -268,8 +269,7 @@ pub mod datetime {
     );
 
     serde_conv_doc!(
-        /// Serializes an RFC 3339 (ISO 8601) formatted string as a [`DateTime`] and deserializes an
-        /// RFC 3339 (ISO 8601) formatted string from a [`DateTime`].
+        /// Converts an RFC 3339 (ISO 8601) formatted string to and from a [`DateTime`].
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -298,8 +298,7 @@ pub mod datetime {
     serde_conv_doc!(
         #[cfg(feature = "chrono-0_4")]
         #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
-        /// Serializes a [`chrono::DateTime`] as a [`DateTime`] and deserializes a [`chrono::DateTime`]
-        /// from a [`DateTime`].
+        /// Converts a [`chrono::DateTime`] to and from a [`DateTime`].
         /// ```rust
         /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
         /// # {
@@ -309,12 +308,12 @@ pub mod datetime {
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "datetime::FromChronoDateTime")]
+        ///     #[serde_as(as = "datetime::FromChrono04DateTime")]
         ///     pub date: chrono::DateTime<chrono::Utc>,
         /// }
         /// # }
         /// ```
-        pub FromChronoDateTime,
+        pub FromChrono04DateTime,
         chrono::DateTime<Utc>,
         |chrono_date: &chrono::DateTime<Utc>| -> Result<DateTime, String> {
             Ok(DateTime::from_chrono(*chrono_date))
@@ -325,9 +324,9 @@ pub mod datetime {
     );
 
     serde_conv_doc!(
-        /// Serializes a `i64` integer as [`DateTime`] and deserializes a `i64` integer from [`DateTime`].
+        /// Converts an `i64` integer to and from a [`DateTime`].
         ///
-        /// The `i64` should represent seconds `(DateTime::timestamp_millis(..))`.
+        /// The `i64` should represent milliseconds. See [`DateTime::from_millis`] for more details.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -355,8 +354,7 @@ pub mod datetime {
     serde_conv_doc!(
         #[cfg(feature = "time-0_3")]
         #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
-        /// Serializes a [`time::OffsetDateTime`] as a [`DateTime`] and deserializes a
-        /// [`time::OffsetDateTime`] from a [`DateTime`].
+        /// Converts a [`time::OffsetDateTime`] to and from a [`DateTime`].
         /// ```rust
         /// # #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
         /// # {
