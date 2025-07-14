@@ -353,6 +353,8 @@ pub mod datetime {
     );
 
     serde_conv_doc!(
+        #[cfg(feature = "time-0_3")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
         /// Serializes a [`time::OffsetDateTime`] as a [`DateTime`] and deserializes a
         /// [`time::OffsetDateTime`] from a [`DateTime`].
         /// ```rust
