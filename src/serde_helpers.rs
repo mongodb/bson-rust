@@ -240,7 +240,7 @@ pub mod datetime {
     use std::result::Result;
 
     serde_conv_doc!(
-        /// /// Serializes a [`DateTime`] as an RFC 3339 (ISO 8601) formatted string and deserializes
+        /// Serializes a [`DateTime`] as an RFC 3339 (ISO 8601) formatted string and deserializes
         /// a [`DateTime`] from an RFC 3339 (ISO 8601) formatted string.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
