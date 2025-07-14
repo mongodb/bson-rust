@@ -1,12 +1,12 @@
 //! Collection of helper functions for serializing to and deserializing from BSON using Serde
 
+use crate::DateTime;
+use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
     result::Result,
 };
-
-use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
@@ -71,6 +71,15 @@ pub mod object_id {
     );
 }
 
+/// Type converters for serializing and deserializing [`DateTime`] using [`serde_with::serde_as`].
+///
+/// ## Available converters
+/// - [`datetime::AsRfc3339String`] — serializes a [`DateTime`] as a RFC 3339 string.
+/// - [`datetime::FromRfc3339String`] — serializes a RFC 3339 string as a [`DateTime`].
+/// - [`datetime::FromChronoDateTime`] — serializes a [`chrono::DateTime`] as a [`DateTime`].
+/// - [`datetime::FromI64`] — serializes a `i64` as a [`DateTime`].
+/// - [`datetime::FromTime03OffsetDateTime`] — serializes a [`time::OffsetDateTime`] as a
+///   [`DateTime`].
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod datetime {
@@ -81,21 +90,19 @@ pub mod datetime {
     use std::result::Result;
 
     serde_conv_doc!(
-        /// Contains functions to serialize a [`crate::DateTime`] as an RFC 3339 (ISO 8601) formatted
-        /// string and deserialize a [`crate::DateTime`] from an RFC 3339 (ISO 8601) formatted
-        /// string.
-        ///
+        /// Serializes a [`DateTime`] as an RFC 3339 (ISO 8601) formatted string and deserializes
+        /// a [`DateTime`] from an RFC 3339 (ISO 8601) formatted string.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::datetime;
-        /// # use serde_with::serde_as;
+        /// use bson::{serde_helpers::datetime, DateTime};
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
         ///     #[serde_as(as = "datetime::AsRfc3339String")]
-        ///     pub date: bson::DateTime,
+        ///     pub date: DateTime,
         /// }
         /// # }
         /// ```
@@ -103,25 +110,23 @@ pub mod datetime {
         DateTime,
         |date: &DateTime| -> Result<String, String> {
             date.try_to_rfc3339_string().map_err(|e| {
-                format!("Cannot format DateTime {} as String: {}", date, e)
+                format!("Cannot format DateTime {} as RFC 3339 string: {}", date, e)
             })
         },
         |string: String| -> Result<DateTime, String> {
-            DateTime::parse_rfc3339_str(&string).map_err(|e| format!("Cannot format String {} as DateTime: {}", string, e))
+            DateTime::parse_rfc3339_str(&string).map_err(|e| format!("Cannot format RFC 3339 string {} as DateTime: {}", string, e))
         }
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize an RFC 3339 (ISO 8601) formatted string as a
-        /// [`crate::DateTime`] and deserialize an RFC 3339 (ISO 8601) formatted string from a
-        /// [`crate::DateTime`].
-        ///
+        /// Serializes an RFC 3339 (ISO 8601) formatted string as a [`DateTime`] and deserializes an
+        /// RFC 3339 (ISO 8601) formatted string from a [`DateTime`].
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::datetime;
-        /// # use serde_with::serde_as;
+        /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
@@ -129,34 +134,29 @@ pub mod datetime {
         ///     pub date: String,
         /// }
         /// # }
-        /// ```
         pub FromRfc3339String,
         String,
         |string: &String| -> Result<DateTime, String> {
-            DateTime::parse_rfc3339_str(string).map_err(|e| format!("Cannot format String {} as DateTime: {}", string, e))
+            DateTime::parse_rfc3339_str(string).map_err(|e| format!("Cannot format RFC 3339 string {} as DateTime: {}", string, e))
         },
         |date: DateTime| -> Result<String, String> {
             date.try_to_rfc3339_string().map_err(|e| {
-                format!("Cannot format DateTime {} as String: {}", date, e)
+                format!("Cannot format DateTime {} as RFC 3339 string: {}", date, e)
             })
         }
     );
 
     serde_conv_doc!(
-        #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
-        #[cfg_attr(
-            docsrs,
-            doc(cfg(all(feature = "chrono-0_4", feature = "serde_with-3")))
-        )]
-        /// Contains functions to serialize a [`chrono::DateTime`] as a [`crate::DateTime`] and
-        /// deserialize a [`chrono::DateTime`] from a [`crate::DateTime`].
-        ///
+        #[cfg(feature = "chrono-0_4")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
+        /// Serializes a [`chrono::DateTime`] as a [`DateTime`] and deserializes a [`chrono::DateTime`]
+        /// from a [`DateTime`].
         /// ```rust
         /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::datetime;
-        /// # use serde_with::serde_as;
+        /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
@@ -176,17 +176,15 @@ pub mod datetime {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `i64` integer as [`crate::DateTime`] and
-        /// deserialize a `i64` integer from [`crate::DateTime`].
+        /// Serializes a `i64` integer as [`DateTime`] and deserializes a `i64` integer from [`DateTime`].
         ///
-        /// ### The i64 should represent seconds `(DateTime::timestamp_millis(..))`.
-        ///
+        /// The `i64` should represent seconds `(DateTime::timestamp_millis(..))`.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::datetime;
-        /// # use serde_with::serde_as;
+        /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -206,19 +204,18 @@ pub mod datetime {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a [`time::OffsetDateTime`] as a [`crate::DateTime`] and
-        /// deserialize a [`time::OffsetDateTime`] from a [`crate::DateTime`].
-        ///
+        /// Serializes a [`time::OffsetDateTime`] as a [`DateTime`] and deserializes a
+        /// [`time::OffsetDateTime`] from a [`DateTime`].
         /// ```rust
         /// # #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::datetime;
-        /// # use serde_with::serde_as;
+        /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "datetime::FromTime03OffsetDatetTime")]
+        ///     #[serde_as(as = "datetime::FromTime03OffsetDateTime")]
         ///     pub date: time::OffsetDateTime,
         /// }
         /// # }
