@@ -1,13 +1,13 @@
 //! Collection of helper functions for serializing to and deserializing from BSON using Serde
 
+use crate::DateTime;
+use serde::{de::Visitor, ser, Deserialize, Serialize, Serializer};
 use std::{
     convert::TryFrom,
     marker::PhantomData,
     ops::{Deref, DerefMut},
     result::Result,
 };
-
-use serde::{de::Visitor, ser, Deserialize, Serialize, Serializer};
 
 #[doc(inline)]
 pub use timestamp_as_u32::{
