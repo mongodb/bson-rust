@@ -1,6 +1,4 @@
 //! Collection of helper functions for serializing to and deserializing from BSON using Serde
-
-use crate::DateTime;
 use serde::{de::Visitor, ser, Deserialize, Serialize, Serializer};
 use std::{
     convert::TryFrom,
@@ -221,15 +219,16 @@ pub mod u64_as_f64 {
     }
 }
 
-/// Type converters for serializing and deserializing [`DateTime`] using [`serde_with::serde_as`].
+/// Type converters for serializing and deserializing [`crate::DateTime`] using
+/// [`serde_with::serde_as`].
 ///
 /// ## Available converters
-/// - [`datetime::AsRfc3339String`] — serializes a [`DateTime`] as a RFC 3339 string.
-/// - [`datetime::FromRfc3339String`] — serializes a RFC 3339 string as a [`DateTime`].
-/// - [`datetime::FromChronoDateTime`] — serializes a [`chrono::DateTime`] as a [`DateTime`].
-/// - [`datetime::FromI64`] — serializes a `i64` as a [`DateTime`].
+/// - [`datetime::AsRfc3339String`] — serializes a [`crate::DateTime`] as a RFC 3339 string.
+/// - [`datetime::FromRfc3339String`] — serializes a RFC 3339 string as a [`crate::DateTime`].
+/// - [`datetime::FromChronoDateTime`] — serializes a [`chrono::DateTime`] as a [`crate::DateTime`].
+/// - [`datetime::FromI64`] — serializes a `i64` as a [`crate::DateTime`].
 /// - [`datetime::FromTime03OffsetDateTime`] — serializes a [`time::OffsetDateTime`] as a
-///   [`DateTime`].
+///   [`crate::DateTime`].
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod datetime {
