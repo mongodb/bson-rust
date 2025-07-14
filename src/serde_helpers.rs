@@ -318,7 +318,7 @@ pub mod datetime {
         pub FromChronoDateTime,
         chrono::DateTime<Utc>,
         |chrono_date: &chrono::DateTime<Utc>| -> Result<DateTime, String> {
-            Ok(DateTime::from_chrono(chrono_date.to_owned()))
+            Ok(DateTime::from_chrono(*chrono_date))
         },
         |bson_date: DateTime| -> Result<chrono::DateTime<Utc>, String> {
             Ok(bson_date.to_chrono())
