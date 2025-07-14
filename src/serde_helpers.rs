@@ -1,5 +1,5 @@
 //! Collection of helper functions for serializing to and deserializing from BSON using Serde
-use serde::{de::Visitor, Deserialize, Serialize, Serializer};
+use serde::{de::Visitor, ser, Deserialize, Serialize, Serializer};
 use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -118,8 +118,7 @@ pub mod datetime {
     );
 
     serde_conv_doc!(
-        /// Serializes an RFC 3339 (ISO 8601) formatted string as a [`DateTime`] and deserializes an
-        /// RFC 3339 (ISO 8601) formatted string from a [`DateTime`].
+        /// Converts an RFC 3339 (ISO 8601) formatted string to and from a [`DateTime`].
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -146,38 +145,9 @@ pub mod datetime {
     );
 
     serde_conv_doc!(
-        #[cfg(feature = "chrono-0_4")]
-        #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
-        /// Serializes a [`chrono::DateTime`] as a [`DateTime`] and deserializes a [`chrono::DateTime`]
-        /// from a [`DateTime`].
-        /// ```rust
-        /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
-        /// # {
-        /// use bson::serde_helpers::datetime;
-        /// use serde::{Serialize, Deserialize};
-        /// use serde_with::serde_as;
-        /// #[serde_as]
-        /// #[derive(Serialize, Deserialize)]
-        /// struct Event {
-        ///     #[serde_as(as = "datetime::FromChronoDateTime")]
-        ///     pub date: chrono::DateTime<chrono::Utc>,
-        /// }
-        /// # }
-        /// ```
-        pub FromChronoDateTime,
-        chrono::DateTime<Utc>,
-        |chrono_date: &chrono::DateTime<Utc>| -> Result<DateTime, String> {
-            Ok(DateTime::from_chrono(*chrono_date))
-        },
-        |bson_date: DateTime| -> Result<chrono::DateTime<Utc>, String> {
-            Ok(bson_date.to_chrono())
-        }
-    );
-
-    serde_conv_doc!(
-        /// Serializes a `i64` integer as [`DateTime`] and deserializes a `i64` integer from [`DateTime`].
+        /// Converts an `i64` integer to and from a [`DateTime`].
         ///
-        /// The `i64` should represent seconds `(DateTime::timestamp_millis(..))`.
+        /// The `i64` should represent milliseconds. See [`DateTime::from_millis`] for more details.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -203,10 +173,37 @@ pub mod datetime {
     );
 
     serde_conv_doc!(
+        #[cfg(feature = "chrono-0_4")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
+        /// Converts a [`chrono::DateTime`] to and from a [`DateTime`].
+        /// ```rust
+        /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
+        /// # {
+        /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Event {
+        ///     #[serde_as(as = "datetime::FromChrono04DateTime")]
+        ///     pub date: chrono::DateTime<chrono::Utc>,
+        /// }
+        /// # }
+        /// ```
+        pub FromChrono04DateTime,
+        chrono::DateTime<Utc>,
+        |chrono_date: &chrono::DateTime<Utc>| -> Result<DateTime, String> {
+            Ok(DateTime::from_chrono(*chrono_date))
+        },
+        |bson_date: DateTime| -> Result<chrono::DateTime<Utc>, String> {
+            Ok(bson_date.to_chrono())
+        }
+    );
+
+    serde_conv_doc!(
         #[cfg(feature = "time-0_3")]
         #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
-        /// Serializes a [`time::OffsetDateTime`] as a [`DateTime`] and deserializes a
-        /// [`time::OffsetDateTime`] from a [`DateTime`].
+        /// Converts a [`time::OffsetDateTime`] to and from a [`DateTime`].
         /// ```rust
         /// # #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
         /// # {
