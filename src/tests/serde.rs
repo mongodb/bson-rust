@@ -20,7 +20,6 @@ use crate::{
     Serializer,
     Timestamp,
 };
-use time::OffsetDateTime;
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -743,6 +742,8 @@ fn test_unsigned_helpers() {
 
 #[test]
 fn test_datetime_helpers() {
+    use time::OffsetDateTime;
+
     let _guard = LOCK.run_concurrently();
 
     #[cfg(feature = "serde_with-3")]
