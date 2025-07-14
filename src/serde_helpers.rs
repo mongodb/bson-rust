@@ -218,7 +218,7 @@ pub mod datetime {
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "datetime::FromTime03OffsetDatetTime")]
+        ///     #[serde_as(as = "datetime::FromTime03OffsetDateTime")]
         ///     pub date: time::OffsetDateTime,
         /// }
         /// # }
