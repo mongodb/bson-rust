@@ -1059,16 +1059,16 @@ fn test_datetime_time03_offset_datetime_helper() {
     #[serde_as]
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct A {
-        #[serde_as(as = "datetime::FromTime03OffsetDateTime")]
+        #[serde_as(as = "datetime::FromTimeOffsetDateTime")]
         pub date: OffsetDateTime,
 
-        #[serde_as(as = "Option<datetime::FromTime03OffsetDateTime>")]
+        #[serde_as(as = "Option<datetime::FromTimeOffsetDateTime>")]
         pub date_optional_none: Option<OffsetDateTime>,
 
-        #[serde_as(as = "Option<datetime::FromTime03OffsetDateTime>")]
+        #[serde_as(as = "Option<datetime::FromTimeOffsetDateTime>")]
         pub date_optional_some: Option<OffsetDateTime>,
 
-        #[serde_as(as = "Vec<datetime::FromTime03OffsetDateTime>")]
+        #[serde_as(as = "Vec<datetime::FromTimeOffsetDateTime>")]
         pub date_vector: Vec<OffsetDateTime>,
     }
 

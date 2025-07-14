@@ -229,7 +229,7 @@ pub mod u64_as_f64 {
 /// - [`datetime::FromI64`] — converts an `i64` to and from a [`crate::DateTime`].
 /// - [`datetime::FromChrono04DateTime`] — converts a [`chrono::DateTime`] to and from a
 ///   [`crate::DateTime`].
-/// - [`datetime::FromTime03OffsetDateTime`] — converts a [`time::OffsetDateTime`] to and from a
+/// - [`datetime::FromTimeOffsetDateTime`] — converts a [`time::OffsetDateTime`] to and from a
 ///   [`crate::DateTime`].
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
@@ -364,12 +364,12 @@ pub mod datetime {
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "datetime::FromTime03OffsetDateTime")]
+        ///     #[serde_as(as = "datetime::FromTimeOffsetDateTime")]
         ///     pub date: time::OffsetDateTime,
         /// }
         /// # }
         /// ```
-        pub FromTime03OffsetDateTime,
+        pub FromTimeOffsetDateTime,
         time::OffsetDateTime,
         |value: &time::OffsetDateTime| -> Result<DateTime, String> {
             Ok(DateTime::from_time_0_3(*value))
