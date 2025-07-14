@@ -7,7 +7,7 @@ use crate::{
     deserialize_from_document,
     doc,
     oid::ObjectId,
-    serde_helpers::{datetime, object_id, u32, u64, uuid_1},
+    serde_helpers::{self, datetime, object_id, u32, u64},
     serialize_to_bson,
     serialize_to_document,
     spec::BinarySubtype,
@@ -24,7 +24,6 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_with::serde_as;
-use time::OffsetDateTime;
 
 use std::{
     collections::BTreeMap,
@@ -540,6 +539,54 @@ fn test_de_db_pointer() {
     .unwrap();
 
     assert_eq!(foo.db_pointer, db_pointer.clone());
+}
+
+#[cfg(feature = "uuid-1")]
+#[test]
+fn test_serde_legacy_uuid_1() {
+    use uuid::Uuid;
+
+    let _guard = LOCK.run_concurrently();
+
+    #[derive(Serialize, Deserialize)]
+    struct Foo {
+        #[serde(with = "serde_helpers::uuid_1_as_java_legacy_binary")]
+        java_legacy: Uuid,
+        #[serde(with = "serde_helpers::uuid_1_as_python_legacy_binary")]
+        python_legacy: Uuid,
+        #[serde(with = "serde_helpers::uuid_1_as_c_sharp_legacy_binary")]
+        csharp_legacy: Uuid,
+    }
+    let uuid = Uuid::parse_str("00112233445566778899AABBCCDDEEFF").unwrap();
+    let foo = Foo {
+        java_legacy: uuid,
+        python_legacy: uuid,
+        csharp_legacy: uuid,
+    };
+
+    let x = serialize_to_bson(&foo).unwrap();
+    assert_eq!(
+        x.as_document().unwrap(),
+        &doc! {
+            "java_legacy": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("7766554433221100FFEEDDCCBBAA9988").unwrap(),
+            }),
+            "python_legacy": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("00112233445566778899AABBCCDDEEFF").unwrap(),
+            }),
+            "csharp_legacy": Bson::Binary(Binary{
+                subtype:BinarySubtype::UuidOld,
+                bytes: hex::decode("33221100554477668899AABBCCDDEEFF").unwrap(),
+            })
+        }
+    );
+
+    let foo: Foo = deserialize_from_bson(x).unwrap();
+    assert_eq!(foo.java_legacy, uuid);
+    assert_eq!(foo.python_legacy, uuid);
+    assert_eq!(foo.csharp_legacy, uuid);
 }
 
 #[test]
@@ -1955,304 +2002,34 @@ fn test_u64_helpers() {
     }
 }
 
-#[cfg(all(feature = "serde_with-3", feature = "uuid-1"))]
 #[test]
+#[cfg(feature = "uuid-1")]
 fn test_uuid_1_helpers() {
-    use crate::uuid::UuidRepresentation;
+    use serde_helpers::uuid_1_as_binary;
     use uuid::Uuid;
 
     let _guard = LOCK.run_concurrently();
 
-    fn assert_binary_match(
-        actual: &Bson,
-        uuid: &Uuid,
-        expected_subtype: BinarySubtype,
-        uuid_representation: UuidRepresentation,
-    ) {
-        match actual {
-            Bson::Binary(Binary { subtype, bytes }) => {
-                assert_eq!(
-                    subtype, &expected_subtype,
-                    "Expected subtype {:?}, but got {:?}",
-                    expected_subtype, subtype
-                );
-                let expected_bytes = {
-                    let uuid: crate::Uuid = crate::uuid::Uuid::from(*uuid);
-                    crate::Binary::from_uuid_with_representation(uuid, uuid_representation).bytes
-                };
-                assert_eq!(
-                    bytes, &expected_bytes,
-                    "Serialized binary bytes did not match for representation {:?}",
-                    uuid_representation
-                );
-            }
-            other => panic!("Expected Bson::Binary, got {:?}", other),
-        }
-    }
+    #[derive(Serialize, Deserialize)]
 
-    #[serde_as]
-    #[derive(Serialize, Deserialize, Debug, PartialEq)]
     struct A {
-        #[serde_as(as = "uuid_1::AsBinary")]
+        #[serde(with = "uuid_1_as_binary")]
         uuid: Uuid,
-
-        #[serde_as(as = "Option<uuid_1::AsBinary>")]
-        uuid_optional_none: Option<Uuid>,
-
-        #[serde_as(as = "Option<uuid_1::AsBinary>")]
-        uuid_optional_some: Option<Uuid>,
-
-        #[serde_as(as = "Vec<uuid_1::AsBinary>")]
-        uuid_vector: Vec<Uuid>,
     }
 
     let uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
-    let a: A = A {
-        uuid,
-        uuid_optional_none: None,
-        uuid_optional_some: Some(uuid),
-        uuid_vector: vec![uuid],
-    };
+    let a = A { uuid };
 
-    // Serialize the struct to BSON
     let doc = serialize_to_document(&a).unwrap();
-
-    // Validate serialized data
-    assert_binary_match(
-        doc.get("uuid").unwrap(),
-        &uuid,
-        BinarySubtype::Uuid,
-        UuidRepresentation::Standard,
-    );
-
-    assert_eq!(
-        doc.get("uuid_optional_none"),
-        Some(&Bson::Null),
-        "Expected serialized uuid_optional_none to be None."
-    );
-
-    assert_binary_match(
-        doc.get("uuid_optional_some").unwrap(),
-        &uuid,
-        BinarySubtype::Uuid,
-        UuidRepresentation::Standard,
-    );
-
-    let uuid_vector = doc
-        .get_array("uuid_vector")
-        .expect("Expected serialized uuid_vector to be a BSON array.");
-    assert_eq!(uuid_vector.len(), 1);
-    assert_binary_match(
-        &uuid_vector[0],
-        &uuid,
-        BinarySubtype::Uuid,
-        UuidRepresentation::Standard,
-    );
-
-    // Validate deserialized data
-    let a_deserialized: A = deserialize_from_document(doc).unwrap();
-    assert_eq!(
-        a_deserialized, a,
-        "Deserialized struct does not match original."
-    );
-
-    #[serde_as]
-    #[derive(Serialize, Deserialize, Debug, PartialEq)]
-    struct B {
-        #[serde_as(as = "uuid_1::AsCSharpLegacyBinary")]
-        uuid: Uuid,
-
-        #[serde_as(as = "Option<uuid_1::AsCSharpLegacyBinary>")]
-        uuid_optional_none: Option<Uuid>,
-
-        #[serde_as(as = "Option<uuid_1::AsCSharpLegacyBinary>")]
-        uuid_optional_some: Option<Uuid>,
-
-        #[serde_as(as = "Vec<uuid_1::AsCSharpLegacyBinary>")]
-        uuid_vector: Vec<Uuid>,
+    match doc.get("uuid").unwrap() {
+        Bson::Binary(bin) => {
+            assert_eq!(bin.subtype, BinarySubtype::Uuid);
+            assert_eq!(bin.bytes, uuid.as_bytes());
+        }
+        _ => panic!("expected Bson::Binary"),
     }
-
-    let uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
-    let b: B = B {
-        uuid,
-        uuid_optional_none: None,
-        uuid_optional_some: Some(uuid),
-        uuid_vector: vec![uuid],
-    };
-
-    // Serialize the struct to BSON
-    let doc = serialize_to_document(&b).unwrap();
-
-    // Validate serialized data
-    assert_binary_match(
-        doc.get("uuid").unwrap(),
-        &uuid,
-        BinarySubtype::UuidOld,
-        UuidRepresentation::CSharpLegacy,
-    );
-
-    assert_eq!(
-        doc.get("uuid_optional_none"),
-        Some(&Bson::Null),
-        "Expected serialized uuid_optional_none to be None."
-    );
-
-    assert_binary_match(
-        doc.get("uuid_optional_some").unwrap(),
-        &uuid,
-        BinarySubtype::UuidOld,
-        UuidRepresentation::CSharpLegacy,
-    );
-
-    let uuid_vector = doc
-        .get_array("uuid_vector")
-        .expect("Expected uuid_vector to be a BSON array");
-    assert_eq!(uuid_vector.len(), 1);
-    assert_binary_match(
-        &uuid_vector[0],
-        &uuid,
-        BinarySubtype::UuidOld,
-        UuidRepresentation::CSharpLegacy,
-    );
-
-    // Validate deserialized data
-    let b_deserialized: B = deserialize_from_document(doc).unwrap();
-    assert_eq!(
-        b_deserialized, b,
-        "Deserialized struct does not match original."
-    );
-
-    #[serde_as]
-    #[derive(Serialize, Deserialize, Debug, PartialEq)]
-    struct C {
-        #[serde_as(as = "uuid_1::AsJavaLegacyBinary")]
-        uuid: Uuid,
-
-        #[serde_as(as = "Option<uuid_1::AsJavaLegacyBinary>")]
-        uuid_optional_none: Option<Uuid>,
-
-        #[serde_as(as = "Option<uuid_1::AsJavaLegacyBinary>")]
-        uuid_optional_some: Option<Uuid>,
-
-        #[serde_as(as = "Vec<uuid_1::AsJavaLegacyBinary>")]
-        uuid_vector: Vec<Uuid>,
-    }
-
-    let uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
-    let c: C = C {
-        uuid,
-        uuid_optional_none: None,
-        uuid_optional_some: Some(uuid),
-        uuid_vector: vec![uuid],
-    };
-
-    // Serialize the struct to BSON
-    let doc = serialize_to_document(&c).unwrap();
-
-    // Validate serialized data
-    assert_binary_match(
-        doc.get("uuid").unwrap(),
-        &uuid,
-        BinarySubtype::UuidOld,
-        UuidRepresentation::JavaLegacy,
-    );
-
-    assert_eq!(
-        doc.get("uuid_optional_none"),
-        Some(&Bson::Null),
-        "Expected serialized uuid_optional_none to be None."
-    );
-
-    assert_binary_match(
-        doc.get("uuid_optional_some").unwrap(),
-        &uuid,
-        BinarySubtype::UuidOld,
-        UuidRepresentation::JavaLegacy,
-    );
-
-    let uuid_vector = doc
-        .get_array("uuid_vector")
-        .expect("Expected uuid_vector to be a BSON array");
-    assert_eq!(uuid_vector.len(), 1);
-    assert_binary_match(
-        &uuid_vector[0],
-        &uuid,
-        BinarySubtype::UuidOld,
-        UuidRepresentation::JavaLegacy,
-    );
-
-    // Validate deserialized data
-    let c_deserialized: C = deserialize_from_document(doc).unwrap();
-    assert_eq!(
-        c_deserialized, c,
-        "Deserialized struct does not match original."
-    );
-
-    #[serde_as]
-    #[derive(Serialize, Deserialize, Debug, PartialEq)]
-    struct D {
-        #[serde_as(as = "uuid_1::AsPythonLegacyBinary")]
-        uuid: Uuid,
-
-        #[serde_as(as = "Option<uuid_1::AsPythonLegacyBinary>")]
-        uuid_optional_none: Option<Uuid>,
-
-        #[serde_as(as = "Option<uuid_1::AsPythonLegacyBinary>")]
-        uuid_optional_some: Option<Uuid>,
-
-        #[serde_as(as = "Vec<uuid_1::AsPythonLegacyBinary>")]
-        uuid_vector: Vec<Uuid>,
-    }
-
-    let uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
-    let d: D = D {
-        uuid,
-        uuid_optional_none: None,
-        uuid_optional_some: Some(uuid),
-        uuid_vector: vec![uuid],
-    };
-
-    // Serialize the struct to BSON
-    let doc = serialize_to_document(&d).unwrap();
-
-    // Validate serialized data
-    assert_binary_match(
-        doc.get("uuid").unwrap(),
-        &uuid,
-        BinarySubtype::UuidOld,
-        UuidRepresentation::PythonLegacy,
-    );
-
-    assert_eq!(
-        doc.get("uuid_optional_none"),
-        Some(&Bson::Null),
-        "Expected serialized uuid_optional_none to be None."
-    );
-
-    assert_binary_match(
-        doc.get("uuid_optional_some").unwrap(),
-        &uuid,
-        BinarySubtype::UuidOld,
-        UuidRepresentation::PythonLegacy,
-    );
-
-    let uuid_vector = doc
-        .get_array("uuid_vector")
-        .expect("Expected uuid_vector to be a BSON array");
-    assert_eq!(uuid_vector.len(), 1);
-    assert_binary_match(
-        &uuid_vector[0],
-        &uuid,
-        BinarySubtype::UuidOld,
-        UuidRepresentation::PythonLegacy,
-    );
-
-    // Validate deserialized data
-    let d_deserialized: D = deserialize_from_document(doc).unwrap();
-    assert_eq!(
-        d_deserialized, d,
-        "Deserialized struct does not match original."
-    );
+    let a: A = deserialize_from_document(doc).unwrap();
+    assert_eq!(a.uuid, uuid);
 }
 
 #[test]

@@ -1,9 +1,34 @@
 //! Collection of helper functions for serializing to and deserializing from BSON using Serde
-use serde::{de::Visitor, ser, Deserialize, Serialize, Serializer};
+use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
     result::Result,
+};
+
+#[cfg(feature = "uuid-1")]
+#[doc(inline)]
+pub use uuid_1_as_binary::{
+    deserialize as deserialize_uuid_1_from_binary,
+    serialize as serialize_uuid_1_as_binary,
+};
+#[cfg(feature = "uuid-1")]
+#[doc(inline)]
+pub use uuid_1_as_c_sharp_legacy_binary::{
+    deserialize as deserialize_uuid_1_from_c_sharp_legacy_binary,
+    serialize as serialize_uuid_1_as_c_sharp_legacy_binary,
+};
+#[cfg(feature = "uuid-1")]
+#[doc(inline)]
+pub use uuid_1_as_java_legacy_binary::{
+    deserialize as deserialize_uuid_1_from_java_legacy_binary,
+    serialize as serialize_uuid_1_as_java_legacy_binary,
+};
+#[cfg(feature = "uuid-1")]
+#[doc(inline)]
+pub use uuid_1_as_python_legacy_binary::{
+    deserialize as deserialize_uuid_1_from_python_legacy_binary,
+    serialize as serialize_uuid_1_as_python_legacy_binary,
 };
 
 #[cfg(feature = "serde_with-3")]
@@ -73,8 +98,7 @@ pub mod object_id {
 /// [`serde_with::serde_as`].
 ///
 /// ## Available converters
-/// - [`datetime::AsRfc3339String`] — converts a [`crate::DateTime`] to and from an RFC 3339
-/// string.
+/// - [`datetime::AsRfc3339String`] — converts a [`crate::DateTime`] to and from an RFC 3339 string.
 /// - [`datetime::FromRfc3339String`] — converts a RFC 3339 string to and from a
 ///   [`crate::DateTime`].
 /// - [`datetime::FromI64`] — converts an `i64` to and from a [`crate::DateTime`].
@@ -511,156 +535,6 @@ pub mod u64 {
     );
 }
 
-#[cfg(all(feature = "serde_with-3", feature = "uuid-1"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "serde_with-3", feature = "uuid-1"))))]
-pub mod uuid_1 {
-    use crate::macros::serde_conv_doc;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_with::{DeserializeAs, SerializeAs};
-    use std::result::Result;
-    use uuid::Uuid;
-
-    serde_conv_doc!(
-        /// Contains functions to serialize a [`uuid::Uuid`] as a [`crate::Binary`] and deserialize a
-        /// [`uuid::Uuid`] from a [`crate::Binary`].
-        ///
-        /// ```rust
-        /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
-        /// # {
-        /// use serde::{Serialize, Deserialize};
-        /// use uuid::Uuid;
-        /// use bson::serde_helpers::uuid_1;
-        /// use serde_with::serde_as;
-        /// #[serde_as]
-        /// #[derive(Serialize, Deserialize)]
-        /// struct Item {
-        ///     #[serde_as(as = "uuid_1::AsBinary")]
-        ///     pub id: Uuid,
-        /// }
-        /// # }
-        /// ```
-        pub AsBinary,
-        Uuid,
-        |uuid: &Uuid| -> Result<crate::uuid::Uuid, String> {
-            Ok(crate::uuid::Uuid::from(*uuid))
-        },
-        |bson_uuid: crate::uuid::Uuid| -> Result<Uuid, String> {
-            Ok(bson_uuid.into())
-        }
-    );
-
-    serde_conv_doc!(
-        /// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy C# driver
-        /// UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy C# driver
-        /// format.
-        ///
-        /// ```rust
-        /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
-        /// # {
-        /// use serde::{Serialize, Deserialize};
-        /// use uuid::Uuid;
-        /// use bson::serde_helpers::uuid_1;
-        /// use serde_with::serde_as;
-        /// #[serde_as]
-        /// #[derive(Serialize, Deserialize)]
-        /// struct Item {
-        ///     #[serde_as(as = "uuid_1::AsCSharpLegacyBinary")]
-        ///     pub id: Uuid,
-        /// }
-        /// # }
-        /// ```
-        pub AsCSharpLegacyBinary,
-        Uuid,
-        |uuid: &Uuid| -> Result<crate::Binary, String> {
-            let inner = crate::uuid::Uuid::from(*uuid);
-            Ok(crate::Binary::from_uuid_with_representation(
-                inner,
-                crate::uuid::UuidRepresentation::CSharpLegacy,
-            ))
-        },
-        |binary: crate::Binary| -> Result<Uuid, String> {
-            let inner = binary
-                .to_uuid_with_representation(crate::uuid::UuidRepresentation::CSharpLegacy)
-                .map_err(|e| e.to_string())?;
-            Ok(inner.into())
-        }
-    );
-
-    serde_conv_doc!(
-        /// /// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy
-        /// Java driver UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy
-        /// Java driver format.
-        ///
-        /// ```rust
-        /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
-        /// # {
-        /// use serde::{Serialize, Deserialize};
-        /// use uuid::Uuid;
-        /// use bson::serde_helpers::uuid_1;
-        /// # use serde_with::serde_as;
-        /// #[serde_as]
-        /// #[derive(Serialize, Deserialize)]
-        /// struct Item {
-        ///     #[serde_as(as = "uuid_1::AsJavaLegacyBinary")]
-        ///     pub id: Uuid,
-        /// }
-        /// # }
-        /// ```
-        pub AsJavaLegacyBinary,
-        Uuid,
-        |uuid: &Uuid| -> Result<crate::Binary, String> {
-            let inner = crate::uuid::Uuid::from(*uuid);
-            Ok(crate::Binary::from_uuid_with_representation(
-                inner,
-                crate::uuid::UuidRepresentation::JavaLegacy,
-            ))
-        },
-        |binary: crate::Binary| -> Result<Uuid, String> {
-            let inner = binary
-                .to_uuid_with_representation(crate::uuid::UuidRepresentation::JavaLegacy)
-                .map_err(|e| e.to_string())?;
-            Ok(inner.into())
-        }
-    );
-
-    serde_conv_doc!(
-        /// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy Python
-        /// driver UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy Python
-        /// driver format.
-        ///
-        /// ```rust
-        /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
-        /// # {
-        /// use serde::{Serialize, Deserialize};
-        /// use uuid::Uuid;
-        /// use bson::serde_helpers::uuid_1;
-        /// # use serde_with::serde_as;
-        /// #[serde_as]
-        /// #[derive(Serialize, Deserialize)]
-        /// struct Item {
-        ///     #[serde_as(as = "uuid_1::AsPythonLegacyBinary")]
-        ///     pub id: Uuid,
-        /// }
-        /// # }
-        /// ```
-        pub AsPythonLegacyBinary,
-        Uuid,
-        |uuid: &Uuid| -> Result<crate::Binary, String> {
-            let inner = crate::uuid::Uuid::from(*uuid);
-            Ok(crate::Binary::from_uuid_with_representation(
-                inner,
-                crate::uuid::UuidRepresentation::PythonLegacy,
-            ))
-        },
-        |binary: crate::Binary| -> Result<Uuid, String> {
-            let inner = binary
-                .to_uuid_with_representation(crate::uuid::UuidRepresentation::PythonLegacy)
-                .map_err(|e| e.to_string())?;
-            Ok(inner.into())
-        }
-    );
-}
-
 #[allow(unused_macros)]
 macro_rules! as_binary_mod {
     ($feat:meta, $uu:path) => {
@@ -684,6 +558,29 @@ macro_rules! as_binary_mod {
             Ok(bson_uuid.into())
         }
     };
+}
+
+/// Contains functions to serialize a [`uuid::Uuid`] as a [`crate::Binary`] and deserialize a
+/// [`uuid::Uuid`] from a [`crate::Binary`].
+///
+/// ```rust
+/// # #[cfg(feature = "uuid-1")]
+/// # {
+/// use serde::{Serialize, Deserialize};
+/// use uuid::Uuid;
+/// use bson::serde_helpers::uuid_1_as_binary;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Item {
+///     #[serde(with = "uuid_1_as_binary")]
+///     pub id: Uuid,
+/// }
+/// # }
+/// ```
+#[cfg(feature = "uuid-1")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
+pub mod uuid_1_as_binary {
+    as_binary_mod!(cfg(feature = "uuid-1"), uuid::Uuid);
 }
 
 #[allow(unused_macros)]
@@ -714,6 +611,90 @@ macro_rules! as_legacy_binary_mod {
             Ok(uuid.into())
         }
     };
+}
+
+/// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy
+/// Java driver UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy
+/// Java driver format.
+///
+/// ```rust
+/// #[cfg(feature = "uuid-1")]
+/// # {
+/// use serde::{Serialize, Deserialize};
+/// use uuid::Uuid;
+/// use bson::serde_helpers::uuid_1_as_java_legacy_binary;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Item {
+///     #[serde(with = "uuid_1_as_java_legacy_binary")]
+///     pub id: Uuid,
+/// }
+/// # }
+/// ```
+#[cfg(feature = "uuid-1")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
+pub mod uuid_1_as_java_legacy_binary {
+    as_legacy_binary_mod!(
+        cfg(feature = "uuid-1"),
+        uuid::Uuid,
+        UuidRepresentation::JavaLegacy
+    );
+}
+
+/// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy Python
+/// driver UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy Python
+/// driver format.
+///
+/// ```rust
+/// # #[cfg(feature = "uuid-1")]
+/// # {
+/// use serde::{Serialize, Deserialize};
+/// use uuid::Uuid;
+/// use bson::serde_helpers::uuid_1_as_python_legacy_binary;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Item {
+///     #[serde(with = "uuid_1_as_python_legacy_binary")]
+///     pub id: Uuid,
+/// }
+/// # }
+/// ```
+#[cfg(feature = "uuid-1")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
+pub mod uuid_1_as_python_legacy_binary {
+    as_legacy_binary_mod!(
+        cfg(feature = "uuid-1"),
+        uuid::Uuid,
+        UuidRepresentation::PythonLegacy
+    );
+}
+
+/// Contains functions to serialize a [`uuid::Uuid`] to a [`crate::Binary`] in the legacy C# driver
+/// UUID format and deserialize [`uuid::Uuid`] from a [`crate::Binary`] in the legacy C# driver
+/// format.
+///
+/// ```rust
+/// # #[cfg(feature = "uuid-1")]
+/// # {
+/// use serde::{Serialize, Deserialize};
+/// use uuid::Uuid;
+/// use bson::serde_helpers::uuid_1_as_c_sharp_legacy_binary;
+///
+/// #[derive(Serialize, Deserialize)]
+/// struct Item {
+///     #[serde(with = "uuid_1_as_c_sharp_legacy_binary")]
+///     pub id: Uuid,
+/// }
+/// # }
+/// ```
+#[cfg(feature = "uuid-1")]
+#[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
+pub mod uuid_1_as_c_sharp_legacy_binary {
+    as_legacy_binary_mod!(
+        cfg(feature = "uuid-1"),
+        uuid::Uuid,
+        UuidRepresentation::CSharpLegacy
+    );
 }
 
 /// Wrapping a type in `HumanReadable` signals to the BSON serde integration that it and all

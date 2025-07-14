@@ -19,13 +19,12 @@
 //! e.g.
 //!
 //! ``` rust
-//! # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
+//! # #[cfg(feature = "uuid-1")]
 //! # {
 //! # use uuid as uuid;
 //! use serde::{Serialize, Deserialize};
 //! use bson::doc;
 //!
-//! #[serde_as]
 //! #[derive(Serialize, Deserialize)]
 //! struct Foo {
 //!     /// serializes as a String or subtype 0 BSON binary, depending
@@ -36,8 +35,8 @@
 //!     bson_uuid: bson::Uuid,
 //!
 //!     /// serializes as a BSON binary with subtype 4 when either is used.
-//!     /// this requires the "uuid-1" and "serde_with-3" feature flags
-//!     #[serde_as(as = "bson::serde_helpers::uuid_1::AsBinary")]
+//!     /// this requires the "uuid-1" feature flag
+//!     #[serde(with = "bson::serde_helpers::uuid_1_as_binary")]
 //!     uuid_as_bson: uuid::Uuid,
 //! }
 //! # };
