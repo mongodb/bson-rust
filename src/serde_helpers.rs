@@ -231,6 +231,14 @@ pub mod datetime {
     );
 }
 
+/// Type converters for serializing and deserializing `u32` using [`serde_with::serde_as`].
+///
+/// ## Available converters
+/// - [`u32::FromTimestamp`] — converts a [`Timestamp`] to and from a `u32`.
+/// - [`u32::AsTimestamp`] — converts a `u32` to and from a [`Timestamp`].
+/// - [`u32::AsF64`] — converts a `u32` to and from an `f64`.
+/// - [`u32::AsI32`] — converts a `u32` to and from an `i32`.
+/// - [`u32::AsI64`] — converts a `u32` to and from an `i64`.
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod u32 {
@@ -240,8 +248,11 @@ pub mod u32 {
     use std::result::Result;
 
     serde_conv_doc!(
-        /// Serializes a [`DateTime`] as an RFC 3339 (ISO 8601) formatted string and deserializes
-        /// a [`DateTime`] from an RFC 3339 (ISO 8601) formatted string.
+        /// Converts a [`Timestamp`] to and from a `u32`.
+        ///
+        /// The `u32` should represent seconds since the Unix epoch.
+        ///
+        /// Serialization errors if the Timestamp has a non-zero increment.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -270,9 +281,11 @@ pub mod u32 {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u32` as a [`bson::Timestamp`] and deserialize a `u32` from a
-        /// [`bson::Timestamp`]. The `u32` should represent seconds since the Unix epoch.
+        /// Converts a `u32` to and from a [`Timestamp`].
         ///
+        /// The `u32` should represent seconds since the Unix epoch.
+        ///
+        /// Deserialization errors if the Timestamp has a non-zero increment.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -301,8 +314,7 @@ pub mod u32 {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u32` as an `f64` (BSON double) and deserialize a
-        /// `u32` from an `f64` (BSON double).
+        /// Converts a `u32` to and from an `f64`.
         ///
         /// Deserialization errors if an exact conversion is not possible.
         ///
@@ -329,15 +341,15 @@ pub mod u32 {
             if (value - value as u32 as f64).abs() <= f64::EPSILON {
                 Ok(value as u32)
             } else {
-                Err(format!("Cannot convert f64 (BSON double) {} to u32", value))
+                Err(format!("Cannot convert f64 {} to u32", value))
             }
         }
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u32` as a `i32` and deserialize a `u32`
-        /// from a `i32`. Errors if an exact conversion is not possible.
+        /// Converts a `u32` to and from an `i32`.
         ///
+        /// Errors if an exact conversion is not possible.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -363,9 +375,9 @@ pub mod u32 {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u32` as a `i64` and deserialize a `u32`
-        /// from a `i64`. Errors if an exact conversion is not possible.
+        /// Converts a `u32` to and from an `i64`.
         ///
+        /// Deserialization errors if an exact conversion is not possible.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -391,6 +403,12 @@ pub mod u32 {
     );
 }
 
+/// Type converters for serializing and deserializing `u64` using [`serde_with::serde_as`].
+///
+/// ## Available converters
+/// - [`u64::AsF64`] — converts a `u64` to and from an `f64`.
+/// - [`u64::AsI32`] — converts a `u64` to and from an `i32`.
+/// - [`u64::AsI64`] — converts a `u64` to and from an `i64`.
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod u64 {
@@ -400,10 +418,9 @@ pub mod u64 {
     use std::result::Result;
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u64` as an `f64` (BSON double) and deserialize a
-        /// `u64` from an `f64` (BSON double).
+        /// Converts a `u64` to and from an `f64`.
         ///
-        /// Deserialization errors if an exact conversion is not possible.
+        /// Errors if an exact conversion is not possible.
         ///
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
@@ -425,22 +442,22 @@ pub mod u64 {
             if value < &u64::MAX && *value == *value as f64 as u64 {
                 Ok(*value as f64)
             } else {
-                Err(format!("Cannot convert u64 {} to f64 (BSON double)", value))
+                Err(format!("Cannot convert u64 {} to f64", value))
             }
         },
         |value: f64| -> Result<u64, String> {
             if (value - value as u64 as f64).abs() <= f64::EPSILON {
                Ok(value as u64)
             } else {
-                Err(format!("Cannot convert f64 (BSON double) {} to u64", value))
+                Err(format!("Cannot convert f64 {} to u64", value))
             }
         }
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u64` as a `i32` and deserialize a `u64`
-        /// from a `i32`. Errors if an exact conversion is not possible.
+        /// Converts a `u64` to and from an `i32`.
         ///
+        /// Errors if an exact conversion is not possible.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -466,9 +483,9 @@ pub mod u64 {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a `u64` as a `i64` and deserialize a `u64`
-        /// from a `i64`. Errors if an exact conversion is not possible.
+        /// Converts a `u64` to and from an `i64`.
         ///
+        /// Errors if an exact conversion is not possible.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
