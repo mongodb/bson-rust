@@ -73,7 +73,7 @@ pub mod object_id {
 
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
-pub mod bson_datetime {
+pub mod datetime {
     use crate::{macros::serde_conv_doc, DateTime};
     use chrono::Utc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -89,12 +89,12 @@ pub mod bson_datetime {
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
+        /// # use bson::serde_helpers::datetime;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::AsRfc3339String")]
+        ///     #[serde_as(as = "datetime::AsRfc3339String")]
         ///     pub date: bson::DateTime,
         /// }
         /// # }
@@ -120,12 +120,12 @@ pub mod bson_datetime {
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
+        /// # use bson::serde_helpers::datetime;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::FromRfc3339String")]
+        ///     #[serde_as(as = "datetime::FromRfc3339String")]
         ///     pub date: String,
         /// }
         /// # }
@@ -155,12 +155,12 @@ pub mod bson_datetime {
         /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
         /// # {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
+        /// # use bson::serde_helpers::datetime;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::FromChronoDateTime")]
+        ///     #[serde_as(as = "datetime::FromChronoDateTime")]
         ///     pub date: chrono::DateTime<chrono::Utc>,
         /// }
         /// # }
@@ -185,12 +185,12 @@ pub mod bson_datetime {
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
+        /// # use bson::serde_helpers::datetime;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
-        ///     #[serde_as(as = "bson_datetime::FromI64")]
+        ///     #[serde_as(as = "datetime::FromI64")]
         ///     pub now: i64,
         /// }
         /// # }
@@ -213,12 +213,12 @@ pub mod bson_datetime {
         /// # #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
         /// # {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
+        /// # use bson::serde_helpers::datetime;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::FromTime03OffsetDatetTime")]
+        ///     #[serde_as(as = "datetime::FromTime03OffsetDatetTime")]
         ///     pub date: time::OffsetDateTime,
         /// }
         /// # }
