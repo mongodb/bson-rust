@@ -832,6 +832,8 @@ fn test_oid_helpers() {
 
 #[test]
 fn test_datetime_helpers() {
+    use time::OffsetDateTime;
+
     let _guard = LOCK.run_concurrently();
 
     #[cfg(feature = "serde_with-3")]
@@ -1434,7 +1436,7 @@ fn test_u32_helpers() {
         );
 
         #[serde_as]
-        #[derive(Deserialize, Serialize, Debug)]
+        #[derive(Deserialize, Serialize, PartialEq, Debug)]
         struct C {
             #[serde_as(as = "u32::AsF64")]
             pub value: u32,
@@ -1489,30 +1491,11 @@ fn test_u32_helpers() {
             "Expected each serialized element in value_vector to match the original."
         );
 
-        // Deserialize the BSON back to the struct
-        let c_deserialized: C = deserialize_from_document(doc).unwrap();
-
         // Validate deserialized data
+        let c_deserialized: C = deserialize_from_document(doc).unwrap();
         assert_eq!(
-            c_deserialized.value, value,
-            "Expected deserialized value to match the original."
-        );
-
-        assert_eq!(
-            c_deserialized.value_optional_none, None,
-            "Expected deserialized val_optional_none to be None."
-        );
-
-        assert_eq!(
-            c_deserialized.value_optional_some,
-            Some(value),
-            "Expected deserialized val_optional_some to match the original."
-        );
-
-        assert_eq!(
-            c_deserialized.value_vector,
-            vec![value],
-            "Expected deserialized val_vector to match the original."
+            c_deserialized, c,
+            "Deserialized struct does not match original."
         );
 
         #[serde_as]

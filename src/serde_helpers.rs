@@ -1,6 +1,4 @@
 //! Collection of helper functions for serializing to and deserializing from BSON using Serde
-
-use crate::DateTime;
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 use std::{
     marker::PhantomData,
@@ -71,15 +69,16 @@ pub mod object_id {
     );
 }
 
-/// Type converters for serializing and deserializing [`DateTime`] using [`serde_with::serde_as`].
+/// Type converters for serializing and deserializing [`crate::DateTime`] using
+/// [`serde_with::serde_as`].
 ///
 /// ## Available converters
-/// - [`datetime::AsRfc3339String`] — serializes a [`DateTime`] as a RFC 3339 string.
-/// - [`datetime::FromRfc3339String`] — serializes a RFC 3339 string as a [`DateTime`].
-/// - [`datetime::FromChronoDateTime`] — serializes a [`chrono::DateTime`] as a [`DateTime`].
-/// - [`datetime::FromI64`] — serializes a `i64` as a [`DateTime`].
+/// - [`datetime::AsRfc3339String`] — serializes a [`crate::DateTime`] as a RFC 3339 string.
+/// - [`datetime::FromRfc3339String`] — serializes a RFC 3339 string as a [`crate::DateTime`].
+/// - [`datetime::FromChronoDateTime`] — serializes a [`chrono::DateTime`] as a [`crate::DateTime`].
+/// - [`datetime::FromI64`] — serializes a `i64` as a [`crate::DateTime`].
 /// - [`datetime::FromTime03OffsetDateTime`] — serializes a [`time::OffsetDateTime`] as a
-///   [`DateTime`].
+///   [`crate::DateTime`].
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod datetime {
@@ -204,6 +203,8 @@ pub mod datetime {
     );
 
     serde_conv_doc!(
+        #[cfg(feature = "time-0_3")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
         /// Serializes a [`time::OffsetDateTime`] as a [`DateTime`] and deserializes a
         /// [`time::OffsetDateTime`] from a [`DateTime`].
         /// ```rust
@@ -240,16 +241,14 @@ pub mod u32 {
     use std::result::Result;
 
     serde_conv_doc!(
-        /// Contains functions to serialize a [`bson::Timestamp`] as a `u32` and deserialize a [`bson::Timestamp`]
-        /// from a `u32`. The `u32` should represent seconds since the Unix epoch. Serialization will return an
-        /// error if the Timestamp has a non-zero increment.
-        ///
+        /// Serializes a [`DateTime`] as an RFC 3339 (ISO 8601) formatted string and deserializes
+        /// a [`DateTime`] from an RFC 3339 (ISO 8601) formatted string.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::u32, Timestamp};
-        /// # use serde_with::serde_as;
+        /// use bson::{serde_helpers::datetime, DateTime};
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
