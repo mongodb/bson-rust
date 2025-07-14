@@ -221,49 +221,6 @@ pub mod u64_as_f64 {
     }
 }
 
-/// Contains functions to serialize a [`time::OffsetDateTime`] as a [`crate::DateTime`] and
-/// deserialize a [`time::OffsetDateTime`] from a [`crate::DateTime`].
-///
-/// ```rust
-/// # #[cfg(feature = "time-0_3")]
-/// # {
-/// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::time_0_3_offsetdatetime_as_datetime;
-/// #[derive(Serialize, Deserialize)]
-/// struct Event {
-///     #[serde(with = "time_0_3_offsetdatetime_as_datetime")]
-///     pub date: time::OffsetDateTime,
-/// }
-/// # }
-/// ```
-#[cfg(feature = "time-0_3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
-pub mod time_0_3_offsetdatetime_as_datetime {
-    use crate::DateTime;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::result::Result;
-
-    /// Deserializes a [`time::OffsetDateTime`] from a [`crate::DateTime`].
-    #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<time::OffsetDateTime, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let datetime = DateTime::deserialize(deserializer)?;
-        Ok(datetime.to_time_0_3())
-    }
-
-    /// Serializes a [`time::OffsetDateTime`] as a [`crate::DateTime`].
-    #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
-    pub fn serialize<S: Serializer>(
-        val: &time::OffsetDateTime,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        let datetime = DateTime::from_time_0_3(val.to_owned());
-        datetime.serialize(serializer)
-    }
-}
-
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod datetime {
@@ -367,40 +324,61 @@ pub mod datetime {
             Ok(bson_date.to_chrono())
         }
     );
-}
 
-/// Contains functions to `serialize` a `i64` integer as [`crate::DateTime`] and
-/// `deserialize` a `i64` integer from [`crate::DateTime`].
-///
-/// ### The i64 should represent seconds `(DateTime::timestamp_millis(..))`.
-///
-/// ```rust
-/// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::i64_as_datetime;
-/// #[derive(Serialize, Deserialize)]
-/// struct Item {
-///     #[serde(with = "i64_as_datetime")]
-///     pub now: i64,
-/// }
-/// ```
-pub mod i64_as_datetime {
-    use crate::DateTime;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    serde_conv_doc!(
+        /// Serializes a `i64` integer as [`DateTime`] and deserializes a `i64` integer from [`DateTime`].
+        ///
+        /// The `i64` should represent seconds `(DateTime::timestamp_millis(..))`.
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// # {
+        /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "datetime::FromI64")]
+        ///     pub now: i64,
+        /// }
+        /// # }
+        /// ```
+        pub FromI64,
+        i64,
+        |value: &i64| -> Result<DateTime, String> {
+            Ok(DateTime::from_millis(*value))
+        },
+        |date: DateTime| -> Result<i64, String> {
+            Ok(date.timestamp_millis())
+        }
+    );
 
-    /// Deserializes a i64 integer from a DateTime.
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<i64, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let date: DateTime = DateTime::deserialize(deserializer)?;
-        Ok(date.timestamp_millis())
-    }
-
-    /// Serializes a i64 integer as a DateTime.
-    pub fn serialize<S: Serializer>(val: &i64, serializer: S) -> Result<S::Ok, S::Error> {
-        let date_time = DateTime::from_millis(*val);
-        date_time.serialize(serializer)
-    }
+    serde_conv_doc!(
+        /// Serializes a [`time::OffsetDateTime`] as a [`DateTime`] and deserializes a
+        /// [`time::OffsetDateTime`] from a [`DateTime`].
+        /// ```rust
+        /// # #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
+        /// # {
+        /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Event {
+        ///     #[serde_as(as = "datetime::FromTime03OffsetDateTime")]
+        ///     pub date: time::OffsetDateTime,
+        /// }
+        /// # }
+        /// ```
+        pub FromTime03OffsetDateTime,
+        time::OffsetDateTime,
+        |value: &time::OffsetDateTime| -> Result<DateTime, String> {
+            Ok(DateTime::from_time_0_3(*value))
+        },
+        |date: DateTime| -> Result<time::OffsetDateTime, String> {
+            Ok(date.to_time_0_3())
+        }
+    );
 }
 
 #[allow(unused_macros)]
