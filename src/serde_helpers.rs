@@ -10,17 +10,6 @@ use std::{
 use serde::{de::Visitor, ser, Deserialize, Serialize, Serializer};
 
 #[doc(inline)]
-pub use i64_as_bson_datetime::{
-    deserialize as deserialize_i64_from_bson_datetime,
-    serialize as serialize_i64_as_bson_datetime,
-};
-#[cfg(feature = "time-0_3")]
-#[doc(inline)]
-pub use time_0_3_offsetdatetime_as_bson_datetime::{
-    deserialize as deserialize_time_0_3_offsetdatetime_from_bson_datetime,
-    serialize as serialize_time_0_3_offsetdatetime_as_bson_datetime,
-};
-#[doc(inline)]
 pub use timestamp_as_u32::{
     deserialize as deserialize_timestamp_from_u32,
     serialize as serialize_timestamp_as_u32,
@@ -239,17 +228,17 @@ pub mod u64_as_f64 {
 /// # #[cfg(feature = "time-0_3")]
 /// # {
 /// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::time_0_3_offsetdatetime_as_bson_datetime;
+/// # use bson::serde_helpers::time_0_3_offsetdatetime_as_datetime;
 /// #[derive(Serialize, Deserialize)]
 /// struct Event {
-///     #[serde(with = "time_0_3_offsetdatetime_as_bson_datetime")]
+///     #[serde(with = "time_0_3_offsetdatetime_as_datetime")]
 ///     pub date: time::OffsetDateTime,
 /// }
 /// # }
 /// ```
 #[cfg(feature = "time-0_3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
-pub mod time_0_3_offsetdatetime_as_bson_datetime {
+pub mod time_0_3_offsetdatetime_as_datetime {
     use crate::DateTime;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::result::Result;
@@ -277,7 +266,7 @@ pub mod time_0_3_offsetdatetime_as_bson_datetime {
 
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
-pub mod bson_datetime {
+pub mod datetime {
     use crate::{macros::serde_conv_doc, DateTime};
     use chrono::Utc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -293,12 +282,12 @@ pub mod bson_datetime {
         /// # #[cfg(feature = "serde_with-3")]
         /// {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
+        /// # use bson::serde_helpers::datetime;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::AsRfc3339String")]
+        ///     #[serde_as(as = "datetime::AsRfc3339String")]
         ///     pub date: bson::DateTime,
         /// }
         /// # }
@@ -324,12 +313,12 @@ pub mod bson_datetime {
         /// # #[cfg(feature = "serde_with-3")]
         /// {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
+        /// # use bson::serde_helpers::datetime;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::FromRfc3339String")]
+        ///     #[serde_as(as = "datetime::FromRfc3339String")]
         ///     pub date: String,
         /// }
         /// # }
@@ -359,12 +348,12 @@ pub mod bson_datetime {
         /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
         /// # {
         /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::bson_datetime;
+        /// # use bson::serde_helpers::datetime;
         /// # use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "bson_datetime::FromChronoDateTime")]
+        ///     #[serde_as(as = "datetime::FromChronoDateTime")]
         ///     pub date: chrono::DateTime<chrono::Utc>,
         /// }
         /// # }
@@ -387,14 +376,14 @@ pub mod bson_datetime {
 ///
 /// ```rust
 /// # use serde::{Serialize, Deserialize};
-/// # use bson::serde_helpers::i64_as_bson_datetime;
+/// # use bson::serde_helpers::i64_as_datetime;
 /// #[derive(Serialize, Deserialize)]
 /// struct Item {
-///     #[serde(with = "i64_as_bson_datetime")]
+///     #[serde(with = "i64_as_datetime")]
 ///     pub now: i64,
 /// }
 /// ```
-pub mod i64_as_bson_datetime {
+pub mod i64_as_datetime {
     use crate::DateTime;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 

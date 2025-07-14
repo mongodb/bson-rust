@@ -9,8 +9,8 @@ use crate::{
     oid::ObjectId,
     serde_helpers::{
         self,
-        bson_datetime,
-        i64_as_bson_datetime,
+        datetime,
+        i64_as_datetime,
         object_id,
         timestamp_as_u32,
         u32_as_timestamp,
@@ -758,16 +758,16 @@ fn test_datetime_helpers() {
         #[serde_as]
         #[derive(Deserialize, Serialize, Debug)]
         struct A {
-            #[serde_as(as = "bson_datetime::AsRfc3339String")]
+            #[serde_as(as = "datetime::AsRfc3339String")]
             pub date: DateTime,
 
-            #[serde_as(as = "Option<bson_datetime::AsRfc3339String>")]
+            #[serde_as(as = "Option<datetime::AsRfc3339String>")]
             pub date_optional_none: Option<DateTime>,
 
-            #[serde_as(as = "Option<bson_datetime::AsRfc3339String>")]
+            #[serde_as(as = "Option<datetime::AsRfc3339String>")]
             pub date_optional_some: Option<DateTime>,
 
-            #[serde_as(as = "Vec<bson_datetime::AsRfc3339String>")]
+            #[serde_as(as = "Vec<datetime::AsRfc3339String>")]
             pub date_vector: Vec<DateTime>,
         }
 
@@ -871,7 +871,7 @@ fn test_datetime_helpers() {
 
         #[derive(Deserialize, Serialize)]
         struct B {
-            #[serde(with = "serde_helpers::time_0_3_offsetdatetime_as_bson_datetime")]
+            #[serde(with = "serde_helpers::time_0_3_offsetdatetime_as_datetime")]
             pub date: time::OffsetDateTime,
         }
 
@@ -900,16 +900,16 @@ fn test_datetime_helpers() {
         #[serde_as]
         #[derive(Deserialize, Serialize)]
         struct A {
-            #[serde_as(as = "bson_datetime::FromChronoDateTime")]
+            #[serde_as(as = "datetime::FromChronoDateTime")]
             pub date: chrono::DateTime<chrono::Utc>,
 
-            #[serde_as(as = "Option<bson_datetime::FromChronoDateTime>")]
+            #[serde_as(as = "Option<datetime::FromChronoDateTime>")]
             pub date_optional_none: Option<chrono::DateTime<chrono::Utc>>,
 
-            #[serde_as(as = "Option<bson_datetime::FromChronoDateTime>")]
+            #[serde_as(as = "Option<datetime::FromChronoDateTime>")]
             pub date_optional_some: Option<chrono::DateTime<chrono::Utc>>,
 
-            #[serde_as(as = "Vec<bson_datetime::FromChronoDateTime>")]
+            #[serde_as(as = "Vec<datetime::FromChronoDateTime>")]
             pub date_vector: Vec<chrono::DateTime<chrono::Utc>>,
         }
 
@@ -995,16 +995,16 @@ fn test_datetime_helpers() {
         #[serde_as]
         #[derive(Deserialize, Serialize)]
         struct C {
-            #[serde_as(as = "bson_datetime::FromRfc3339String")]
+            #[serde_as(as = "datetime::FromRfc3339String")]
             pub date: String,
 
-            #[serde_as(as = "Option<bson_datetime::FromRfc3339String>")]
+            #[serde_as(as = "Option<datetime::FromRfc3339String>")]
             pub date_optional_none: Option<String>,
 
-            #[serde_as(as = "Option<bson_datetime::FromRfc3339String>")]
+            #[serde_as(as = "Option<datetime::FromRfc3339String>")]
             pub date_optional_some: Option<String>,
 
-            #[serde_as(as = "Vec<bson_datetime::FromRfc3339String>")]
+            #[serde_as(as = "Vec<datetime::FromRfc3339String>")]
             pub date_vector: Vec<String>,
         }
 
@@ -1335,12 +1335,12 @@ fn test_oid_helpers() {
 }
 
 #[test]
-fn test_i64_as_bson_datetime() {
+fn test_i64_as_datetime() {
     let _guard = LOCK.run_concurrently();
 
     #[derive(Serialize, Deserialize)]
     struct A {
-        #[serde(with = "i64_as_bson_datetime")]
+        #[serde(with = "i64_as_datetime")]
         now: i64,
     }
 
