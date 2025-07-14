@@ -296,11 +296,11 @@ pub mod datetime {
         DateTime,
         |date: &DateTime| -> Result<String, String> {
             date.try_to_rfc3339_string().map_err(|e| {
-                format!("Cannot format DateTime {} as String: {}", date, e)
+                format!("Cannot format DateTime {} as RFC 3339 string: {}", date, e)
             })
         },
         |string: String| -> Result<DateTime, String> {
-            DateTime::parse_rfc3339_str(&string).map_err(|e| format!("Cannot format String {} as DateTime: {}", string, e))
+            DateTime::parse_rfc3339_str(&string).map_err(|e| format!("Cannot format RFC 3339 string {} as DateTime: {}", string, e))
         }
     );
 
@@ -326,11 +326,11 @@ pub mod datetime {
         pub FromRfc3339String,
         String,
         |string: &String| -> Result<DateTime, String> {
-            DateTime::parse_rfc3339_str(string).map_err(|e| format!("Cannot format String {} as DateTime: {}", string, e))
+            DateTime::parse_rfc3339_str(string).map_err(|e| format!("Cannot format RFC 3339 string {} as DateTime: {}", string, e))
         },
         |date: DateTime| -> Result<String, String> {
             date.try_to_rfc3339_string().map_err(|e| {
-                format!("Cannot format DateTime {} as String: {}", date, e)
+                format!("Cannot format DateTime {} as RFC 3339 string: {}", date, e)
             })
         }
     );
