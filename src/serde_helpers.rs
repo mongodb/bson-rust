@@ -277,9 +277,9 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::u32;
-        /// # use serde_with::serde_as;
+        /// use bson::serde_helpers::u32;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
@@ -310,9 +310,9 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::u32;
-        /// # use serde_with::serde_as;
+        /// use bson::serde_helpers::u32;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct FileInfo {
@@ -342,9 +342,9 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::u32};
-        /// # use serde_with::serde_as;
+        /// use bson::{serde_helpers::u32};
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -370,9 +370,9 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::u32};
-        /// # use serde_with::serde_as;
+        /// use bson::{serde_helpers::u32};
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -409,9 +409,9 @@ pub mod u64 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::u64;
-        /// # use serde_with::serde_as;
+        /// use bson::serde_helpers::u64;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct FileInfo {
@@ -445,9 +445,9 @@ pub mod u64 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::u64};
-        /// # use serde_with::serde_as;
+        /// use bson::{serde_helpers::u64};
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -473,9 +473,9 @@ pub mod u64 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::{serde_helpers::u64};
-        /// # use serde_with::serde_as;
+        /// use bson::{serde_helpers::u64};
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
