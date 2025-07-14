@@ -73,11 +73,14 @@ pub mod object_id {
 /// [`serde_with::serde_as`].
 ///
 /// ## Available converters
-/// - [`datetime::AsRfc3339String`] — serializes a [`crate::DateTime`] as a RFC 3339 string.
-/// - [`datetime::FromRfc3339String`] — serializes a RFC 3339 string as a [`crate::DateTime`].
-/// - [`datetime::FromChronoDateTime`] — serializes a [`chrono::DateTime`] as a [`crate::DateTime`].
-/// - [`datetime::FromI64`] — serializes a `i64` as a [`crate::DateTime`].
-/// - [`datetime::FromTime03OffsetDateTime`] — serializes a [`time::OffsetDateTime`] as a
+/// - [`datetime::AsRfc3339String`] — converts a [`crate::DateTime`] to and from an RFC 3339
+/// string.
+/// - [`datetime::FromRfc3339String`] — converts a RFC 3339 string to and from a
+///   [`crate::DateTime`].
+/// - [`datetime::FromI64`] — converts an `i64` to and from a [`crate::DateTime`].
+/// - [`datetime::FromChrono04DateTime`] — converts a [`chrono::DateTime`] to and from a
+///   [`crate::DateTime`].
+/// - [`datetime::FromTime03OffsetDateTime`] — converts a [`time::OffsetDateTime`] to and from a
 ///   [`crate::DateTime`].
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
@@ -89,8 +92,7 @@ pub mod datetime {
     use std::result::Result;
 
     serde_conv_doc!(
-        /// Serializes a [`DateTime`] as an RFC 3339 (ISO 8601) formatted string and deserializes
-        /// a [`DateTime`] from an RFC 3339 (ISO 8601) formatted string.
+        /// Converts a [`DateTime`] to and from an RFC 3339 (ISO 8601) formatted string.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
