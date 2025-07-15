@@ -10,8 +10,8 @@ use std::{
 /// [`serde_with::serde_as`].
 ///
 /// ## Available converters
-/// - [`object_id::AsHexString`] — converts an [`crate::ObjectId`] to and from a hex string.
-/// - [`object_id::FromHexString`] — converts a hex string to and from an [`crate::ObjectId`].
+/// - [`object_id::AsHexString`] — converts an [`crate::oid::ObjectId`] to and from a hex string.
+/// - [`object_id::FromHexString`] — converts a hex string to and from an [`crate::oid::ObjectId`].
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod object_id {
