@@ -7,7 +7,6 @@ use std::{
 };
 
 /// Type converters for serializing and deserializing [`ObjectId`] using [`serde_with::serde_as`].
-///
 /// ## Available converters
 /// - [`object_id::AsHexString`] — serializes an [`ObjectId`] as a hex string.
 /// - [`object_id::FromHexString`] — serializes a hex string as an [`ObjectId`].
