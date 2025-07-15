@@ -203,8 +203,8 @@ pub mod datetime {
         #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
         /// Converts a [`chrono::DateTime`] to and from a [`DateTime`].
         /// ```rust
-        /// #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
-        /// {
+        /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
+        /// # {
         /// use bson::serde_helpers::datetime;
         /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
@@ -214,7 +214,7 @@ pub mod datetime {
         ///     #[serde_as(as = "datetime::FromChrono04DateTime")]
         ///     pub date: chrono::DateTime<chrono::Utc>,
         /// }
-        /// }
+        /// # }
         /// ```
         pub FromChrono04DateTime,
         chrono::DateTime<Utc>,
@@ -231,8 +231,8 @@ pub mod datetime {
         #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
         /// Converts a [`time::OffsetDateTime`] to and from a [`DateTime`].
         /// ```rust
-        /// #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
-        /// {
+        /// # #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
+        /// # {
         /// use bson::serde_helpers::datetime;
         /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
@@ -242,7 +242,7 @@ pub mod datetime {
         ///     #[serde_as(as = "datetime::FromTime03OffsetDateTime")]
         ///     pub date: time::OffsetDateTime,
         /// }
-        /// }
+        /// # }
         /// ```
         pub FromTime03OffsetDateTime,
         time::OffsetDateTime,
