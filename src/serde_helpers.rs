@@ -10,8 +10,8 @@ use std::{
 /// [`serde_with::serde_as`].
 ///
 /// ## Available converters
-/// - [`object_id::AsHexString`] — serializes an [`crate::oid::ObjectId`] as a hex string.
-/// - [`object_id::FromHexString`] — serializes a hex string as an [`crate::oid::ObjectId`].
+/// - [`object_id::AsHexString`] — converts an [`crate::ObjectId`] to and from a hex string.
+/// - [`object_id::FromHexString`] — converts a hex string to and from an [`crate::ObjectId`].
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod object_id {
@@ -318,7 +318,7 @@ pub mod u32 {
     serde_conv_doc!(
         /// Converts a `u32` to and from an `f64`.
         ///
-        /// Errors if an exact conversion is not possible.
+        /// Deserialization errors if an exact conversion is not possible.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -378,7 +378,7 @@ pub mod u32 {
     serde_conv_doc!(
         /// Converts a `u32` to and from an `i64`.
         ///
-        /// Errors if an exact conversion is not possible.
+        /// Deserialization errors if an exact conversion is not possible.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
