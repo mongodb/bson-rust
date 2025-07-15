@@ -1,13 +1,10 @@
 //! Collection of helper functions for serializing to and deserializing from BSON using Serde
-
-use crate::{oid::ObjectId, Binary, DateTime, Timestamp};
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
     result::Result,
 };
-use uuid::Uuid;
 
 /// Type converters for serializing and deserializing [`ObjectId`] using [`serde_with::serde_as`].
 ///
@@ -22,7 +19,7 @@ pub mod object_id {
     use serde_with::{DeserializeAs, SerializeAs};
 
     serde_conv_doc!(
-        /// Serializes an [`ObjectId`] as a hex string and deserializes an [`ObjectId`] from a hex string.
+        /// Converts an [`ObjectId`] to and from a hex string.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -48,7 +45,7 @@ pub mod object_id {
     );
 
     serde_conv_doc!(
-        /// Serializes a hex string as an [`ObjectId`] and deserializes a hex string from an [`ObjectId`].
+        /// Converts a hex string to and from an [`ObjectId`].
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
@@ -76,10 +73,8 @@ pub mod object_id {
 
 /// Type converters for serializing and deserializing [`crate::DateTime`] using
 /// [`serde_with::serde_as`].
-///
 /// ## Available converters
-/// - [`datetime::AsRfc3339String`] — converts a [`crate::DateTime`] to and from an RFC 3339
-/// string.
+/// - [`datetime::AsRfc3339String`] — converts a [`crate::DateTime`] to and from an RFC 3339 string.
 /// - [`datetime::FromRfc3339String`] — converts a RFC 3339 string to and from a
 ///   [`crate::DateTime`].
 /// - [`datetime::FromI64`] — converts an `i64` to and from a [`crate::DateTime`].
@@ -180,8 +175,8 @@ pub mod datetime {
         }
     );
 
+    #[cfg(feature = "chrono-0_4")]
     serde_conv_doc!(
-        #[cfg(feature = "chrono-0_4")]
         #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
         /// Converts a [`chrono::DateTime`] to and from a [`DateTime`].
         /// ```rust
@@ -208,8 +203,8 @@ pub mod datetime {
         }
     );
 
+    #[cfg(feature = "time-0_3")]
     serde_conv_doc!(
-        #[cfg(feature = "time-0_3")]
         #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
         /// Converts a [`time::OffsetDateTime`] to and from a [`DateTime`].
         /// ```rust
@@ -238,10 +233,9 @@ pub mod datetime {
 }
 
 /// Type converters for serializing and deserializing `u32` using [`serde_with::serde_as`].
-///
 /// ## Available converters
-/// - [`u32::FromTimestamp`] — converts a [`Timestamp`] to and from a `u32`.
-/// - [`u32::AsTimestamp`] — converts a `u32` to and from a [`Timestamp`].
+/// - [`u32::FromTimestamp`] — converts a [`crate::Timestamp`] to and from a `u32`.
+/// - [`u32::AsTimestamp`] — converts a `u32` to and from a [`crate::Timestamp`].
 /// - [`u32::AsF64`] — converts a `u32` to and from an `f64`.
 /// - [`u32::AsI32`] — converts a `u32` to and from an `i32`.
 /// - [`u32::AsI64`] — converts a `u32` to and from an `i64`.
@@ -408,7 +402,6 @@ pub mod u32 {
 }
 
 /// Type converters for serializing and deserializing `u64` using [`serde_with::serde_as`].
-///
 /// ## Available converters
 /// - [`u64::AsF64`] — converts a `u64` to and from an `f64`.
 /// - [`u64::AsI32`] — converts a `u64` to and from an `i32`.
