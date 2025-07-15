@@ -1033,7 +1033,7 @@ fn test_datetime_time03_offset_datetime_helper() {
 
 #[test]
 #[cfg(feature = "serde_with-3")]
-fn test_u32_helpers() {
+fn test_u32_timestamp_helpers() {
     let _guard = LOCK.run_concurrently();
 
     #[serde_as]
@@ -1206,10 +1206,16 @@ fn test_u32_helpers() {
         "Expected error message to mention non-zero increment: {}",
         err_string
     );
+}
+
+#[test]
+#[cfg(feature = "serde_with-3")]
+fn test_u32_f64_helper() {
+    let _guard = LOCK.run_concurrently();
 
     #[serde_as]
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
-    struct C {
+    struct A {
         #[serde_as(as = "u32::AsF64")]
         pub value: u32,
 
@@ -1224,7 +1230,7 @@ fn test_u32_helpers() {
     }
 
     let value = 12345;
-    let c = C {
+    let a = A {
         value,
         value_optional_none: None,
         value_optional_some: Some(value),
@@ -1232,7 +1238,7 @@ fn test_u32_helpers() {
     };
 
     // Serialize the struct to BSON
-    let doc = serialize_to_document(&c).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
 
     // Validate serialized data
     assert_eq!(
@@ -1263,15 +1269,21 @@ fn test_u32_helpers() {
     );
 
     // Validate deserialized data
-    let c_deserialized: C = deserialize_from_document(doc).unwrap();
+    let a_deserialized: A = deserialize_from_document(doc).unwrap();
     assert_eq!(
-        c_deserialized, c,
+        a_deserialized, a,
         "Deserialized struct does not match original."
     );
+}
+
+#[test]
+#[cfg(feature = "serde_with-3")]
+fn test_u32_i32_helper() {
+    let _guard = LOCK.run_concurrently();
 
     #[serde_as]
     #[derive(Deserialize, Serialize, PartialEq, Debug)]
-    struct D {
+    struct A {
         #[serde_as(as = "u32::AsI32")]
         value: u32,
 
@@ -1286,7 +1298,7 @@ fn test_u32_helpers() {
     }
 
     let value = 1;
-    let d = D {
+    let a = A {
         value,
         value_optional_none: None,
         value_optional_some: Some(value),
@@ -1294,7 +1306,7 @@ fn test_u32_helpers() {
     };
 
     // Serialize the struct to BSON
-    let doc = serialize_to_document(&d).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
 
     // Validate serialized data
     assert_eq!(
@@ -1325,21 +1337,21 @@ fn test_u32_helpers() {
     );
 
     // Validate deserialized data
-    let d_deserialized: D = deserialize_from_document(doc).unwrap();
+    let a_deserialized: A = deserialize_from_document(doc).unwrap();
     assert_eq!(
-        d_deserialized, d,
+        a_deserialized, a,
         "Deserialized struct does not match original."
     );
 
     // Validate serialization fails because u32::MAX is too large to fit in i32
     let invalid_value_for_serializing = u32::MAX;
-    let bad_d: D = D {
+    let bad_a: A = A {
         value: invalid_value_for_serializing,
         value_optional_none: None,
         value_optional_some: Some(invalid_value_for_serializing),
         value_vector: vec![invalid_value_for_serializing],
     };
-    let result = serialize_to_document(&bad_d);
+    let result = serialize_to_document(&bad_a);
     assert!(
         result.is_err(),
         "Serialization should fail for u32::MAX since it can't be exactly represented as i32"
@@ -1354,13 +1366,13 @@ fn test_u32_helpers() {
     // Validate deserialization fails for i32::MIN because negative values can't be converted to
     // u32
     let invalid_value_for_deserializing = i32::MIN;
-    let bad_d = doc! {
+    let bad_a = doc! {
         "value": invalid_value_for_deserializing,
         "value_optional_none": Bson::Null,
         "value_optional_some": Some(invalid_value_for_deserializing),
         "value_vector": [invalid_value_for_deserializing],
     };
-    let result: Result<D, _> = deserialize_from_document(bad_d);
+    let result: Result<A, _> = deserialize_from_document(bad_a);
     assert!(
         result.is_err(),
         "Deserialization should fail for i32::MIN since it can't be exactly represented as u32"
@@ -1371,10 +1383,16 @@ fn test_u32_helpers() {
         "Expected error message to mention failed i32 to u32 conversion, got: {}",
         err_string
     );
+}
+
+#[test]
+#[cfg(feature = "serde_with-3")]
+fn test_u32_i64_helper() {
+    let _guard = LOCK.run_concurrently();
 
     #[serde_as]
     #[derive(Deserialize, Serialize, PartialEq, Debug)]
-    struct E {
+    struct A {
         #[serde_as(as = "u32::AsI64")]
         value: u32,
 
@@ -1389,7 +1407,7 @@ fn test_u32_helpers() {
     }
 
     let value = u32::MAX;
-    let e = E {
+    let a = A {
         value,
         value_optional_none: None,
         value_optional_some: Some(value),
@@ -1397,7 +1415,7 @@ fn test_u32_helpers() {
     };
 
     // Serialize the struct to BSON
-    let doc = serialize_to_document(&e).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
 
     // Validate serialized data
     assert_eq!(
@@ -1428,22 +1446,22 @@ fn test_u32_helpers() {
     );
 
     // Validate deserialized data
-    let e_deserialized: E = deserialize_from_document(doc).unwrap();
+    let a_deserialized: A = deserialize_from_document(doc).unwrap();
     assert_eq!(
-        e_deserialized, e,
+        a_deserialized, a,
         "Round-trip failed: deserialized struct did not match original."
     );
 
     // Validate deserialization fails for i64::MIN because negative values can't be converted to
     // u32
     let invalid_value_for_deserializing = i64::MIN;
-    let bad_e = doc! {
+    let bad_a = doc! {
         "value": invalid_value_for_deserializing,
         "value_optional_none": Bson::Null,
         "value_optional_some": Some(invalid_value_for_deserializing),
         "value_vector": [invalid_value_for_deserializing],
     };
-    let result: Result<E, _> = deserialize_from_document(bad_e);
+    let result: Result<A, _> = deserialize_from_document(bad_a);
     assert!(
         result.is_err(),
         "Deserialization should fail for i64::MIN since it can't be exactly represented as u32"
@@ -1458,7 +1476,7 @@ fn test_u32_helpers() {
 
 #[test]
 #[cfg(feature = "serde_with-3")]
-fn test_u64_helpers() {
+fn test_u64_f64_helper() {
     let _guard = LOCK.run_concurrently();
 
     #[serde_as]
@@ -1543,10 +1561,16 @@ fn test_u64_helpers() {
         "Expected error message to mention failed u64 to f64 conversion, got: {}",
         err_string
     );
+}
+
+#[test]
+#[cfg(feature = "serde_with-3")]
+fn test_u64_i32_helper() {
+    let _guard = LOCK.run_concurrently();
 
     #[serde_as]
     #[derive(Deserialize, Serialize, PartialEq, Debug)]
-    struct B {
+    struct A {
         #[serde_as(as = "u64::AsI32")]
         value: u64,
 
@@ -1561,7 +1585,7 @@ fn test_u64_helpers() {
     }
 
     let value = 1;
-    let b = B {
+    let a = A {
         value,
         value_optional_none: None,
         value_optional_some: Some(value),
@@ -1569,7 +1593,7 @@ fn test_u64_helpers() {
     };
 
     // Serialize the struct to BSON
-    let doc = serialize_to_document(&b).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
 
     // Validate serialized data
     assert_eq!(
@@ -1600,21 +1624,21 @@ fn test_u64_helpers() {
     );
 
     // Validate deserialized data
-    let b_deserialized: B = deserialize_from_document(doc).unwrap();
+    let a_deserialized: A = deserialize_from_document(doc).unwrap();
     assert_eq!(
-        b_deserialized, b,
+        a_deserialized, a,
         "Round-trip failed: deserialized struct did not match original."
     );
 
     // Validate serialization fails because i32::MAX + 1 is too large to fit in i32
     let invalid_value_for_serializing = i32::MAX as u64 + 1;
-    let bad_b: B = B {
+    let bad_a: A = A {
         value: invalid_value_for_serializing,
         value_optional_none: None,
         value_optional_some: Some(invalid_value_for_serializing),
         value_vector: vec![invalid_value_for_serializing],
     };
-    let result = serialize_to_document(&bad_b);
+    let result = serialize_to_document(&bad_a);
     assert!(
         result.is_err(),
         "Serialization should fail for u64::MAX since it can't be exactly represented as i32"
@@ -1629,13 +1653,13 @@ fn test_u64_helpers() {
     // Validate deserialization fails for i32::MIN because negative values can't be converted to
     // u64
     let invalid_value_for_deserializing = i32::MIN;
-    let bad_b = doc! {
+    let bad_a = doc! {
         "value": invalid_value_for_deserializing,
         "value_optional_none": Bson::Null,
         "value_optional_some": Some(invalid_value_for_deserializing),
         "value_vector": [invalid_value_for_deserializing],
     };
-    let result: Result<B, _> = deserialize_from_document(bad_b);
+    let result: Result<A, _> = deserialize_from_document(bad_a);
     assert!(
         result.is_err(),
         "Deserialization should fail for i32::MIN since it can't be exactly represented as u64"
@@ -1646,10 +1670,15 @@ fn test_u64_helpers() {
         "Expected error message to mention failed i32 to u64 conversion, got: {}",
         err_string
     );
+}
 
+#[test]
+#[cfg(feature = "serde_with-3")]
+fn test_u64_i64_helper() {
+    let _guard = LOCK.run_concurrently();
     #[serde_as]
     #[derive(Deserialize, Serialize, PartialEq, Debug)]
-    struct C {
+    struct A {
         #[serde_as(as = "u64::AsI64")]
         value: u64,
 
@@ -1664,7 +1693,7 @@ fn test_u64_helpers() {
     }
 
     let value = i64::MAX as u64;
-    let c = C {
+    let a = A {
         value,
         value_optional_none: None,
         value_optional_some: Some(value),
@@ -1672,7 +1701,7 @@ fn test_u64_helpers() {
     };
 
     // Serialize the struct to BSON
-    let doc = serialize_to_document(&c).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
 
     // Validate serialized data
     assert_eq!(
@@ -1703,21 +1732,21 @@ fn test_u64_helpers() {
     );
 
     // Validate deserialized data
-    let c_deserialized: C = deserialize_from_document(doc).unwrap();
+    let a_deserialized: A = deserialize_from_document(doc).unwrap();
     assert_eq!(
-        c_deserialized, c,
+        a_deserialized, a,
         "Round-trip failed: deserialized struct did not match original."
     );
 
     // Validate serialization fails because i64::MAX + 1 is too large to fit in i64
     let invalid_value_for_serializing = i64::MAX as u64 + 1;
-    let bad_c: C = C {
+    let bad_a: A = A {
         value: invalid_value_for_serializing,
         value_optional_none: None,
         value_optional_some: Some(invalid_value_for_serializing),
         value_vector: vec![invalid_value_for_serializing],
     };
-    let result = serialize_to_document(&bad_c);
+    let result = serialize_to_document(&bad_a);
     assert!(
         result.is_err(),
         "Serialization should fail for (i64::MAX as u64) + 1 since it can't be exactly \
@@ -1733,13 +1762,13 @@ fn test_u64_helpers() {
     // Validate deserialization fails for i64::MIN because negative values can't be converted to
     // u64
     let invalid_value_for_deserializing = i64::MIN;
-    let bad_c = doc! {
+    let bad_a = doc! {
         "value": invalid_value_for_deserializing,
         "value_optional_none": Bson::Null,
         "value_optional_some": Some(invalid_value_for_deserializing),
         "value_vector": [invalid_value_for_deserializing],
     };
-    let result: Result<C, _> = deserialize_from_document(bad_c);
+    let result: Result<A, _> = deserialize_from_document(bad_a);
     assert!(
         result.is_err(),
         "Deserialization should fail for i64::MIN since it can't be exactly represented as u64"
