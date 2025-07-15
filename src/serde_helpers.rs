@@ -6,10 +6,12 @@ use std::{
     result::Result,
 };
 
-/// Type converters for serializing and deserializing [`ObjectId`] using [`serde_with::serde_as`].
+/// Type converters for serializing and deserializing [`crate::oid::ObjectId`] using
+/// [`serde_with::serde_as`].
+///
 /// ## Available converters
-/// - [`object_id::AsHexString`] — serializes an [`ObjectId`] as a hex string.
-/// - [`object_id::FromHexString`] — serializes a hex string as an [`ObjectId`].
+/// - [`object_id::AsHexString`] — serializes an [`crate::oid::ObjectId`] as a hex string.
+/// - [`object_id::FromHexString`] — serializes a hex string as an [`crate::oid::ObjectId`].
 #[cfg(feature = "serde_with-3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod object_id {
@@ -72,6 +74,7 @@ pub mod object_id {
 
 /// Type converters for serializing and deserializing [`crate::DateTime`] using
 /// [`serde_with::serde_as`].
+///
 /// ## Available converters
 /// - [`datetime::AsRfc3339String`] — converts a [`crate::DateTime`] to and from an RFC 3339 string.
 /// - [`datetime::FromRfc3339String`] — converts a RFC 3339 string to and from a
@@ -232,6 +235,7 @@ pub mod datetime {
 }
 
 /// Type converters for serializing and deserializing `u32` using [`serde_with::serde_as`].
+///
 /// ## Available converters
 /// - [`u32::FromTimestamp`] — converts a [`crate::Timestamp`] to and from a `u32`.
 /// - [`u32::AsTimestamp`] — converts a `u32` to and from a [`crate::Timestamp`].
@@ -401,6 +405,7 @@ pub mod u32 {
 }
 
 /// Type converters for serializing and deserializing `u64` using [`serde_with::serde_as`].
+///
 /// ## Available converters
 /// - [`u64::AsF64`] — converts a `u64` to and from an `f64`.
 /// - [`u64::AsI32`] — converts a `u64` to and from an `i32`.
@@ -506,16 +511,17 @@ pub mod u64 {
     );
 }
 
-/// Type converters for serializing and deserializing [`Uuid`] using [`serde_with::serde_as`].
+/// Type converters for serializing and deserializing [`crate::Uuid`] using
+/// [`serde_with::serde_as`].
 ///
 /// ## Available converters
-/// - [`uuid_1::AsBinary`] — serializes a [`Uuid`] as a [`Binary`].
-/// - [`uuid_1::AsCSharpLegacyBinary`] — serializes a [`Uuid`] as a [`Binary`] in the legacy C#
-///   driver UUID format.
-/// - [`uuid_1::AsJavaLegacyBinary`] — serializes a [`Uuid`] as a [`Binary`] in the legacy Java
-///   driver UUID format.
-/// - [`uuid_1::AsPythonLegacyBinary`] — serializes a [`Uuid`] as a [`Binary`] in the legacy Python
-///   driver UUID format.
+/// - [`uuid_1::AsBinary`] — serializes a [`crate::Uuid`] as a [`crate::Binary`].
+/// - [`uuid_1::AsCSharpLegacyBinary`] — serializes a [`crate::Uuid`] as a [`crate::Binary`] in the
+///   legacy C# driver UUID format.
+/// - [`uuid_1::AsJavaLegacyBinary`] — serializes a [`crate::Uuid`] as a [`crate::Binary`] in the
+///   legacy Java driver UUID format.
+/// - [`uuid_1::AsPythonLegacyBinary`] — serializes a [`crate::Uuid`] as a [`crate::Binary`] in the
+///   legacy Python driver UUID format.
 #[cfg(all(feature = "serde_with-3", feature = "uuid-1"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "serde_with-3", feature = "uuid-1"))))]
 pub mod uuid_1 {
