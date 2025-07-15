@@ -113,7 +113,7 @@ use crate::error::{Error, Result};
 ///
 /// > **Note:** All helpers in this module require use of the [`#[serde_as]`](https://docs.rs/serde_with/latest/serde_with/attr.serde_as.html)
 /// > attribute on the struct. This enables the enhanced serialization behavior provided by
-/// > `serde_with`.
+/// > `serde_with-3`.
 ///
 /// For example, to serialize a [`chrono::DateTime`] as a BSON datetime, you can use
 /// [`crate::serde_helpers::datetime::FromChrono04DateTime`].
@@ -156,7 +156,7 @@ use crate::error::{Error, Result};
 /// # {
 /// use serde::{Deserialize, Serialize};
 /// use serde_with::serde_as;
-/// use bson::doc;
+/// use bson::{doc, serde_helpers::datetime};
 ///
 /// #[serde_as]
 /// #[derive(Deserialize, Serialize, PartialEq, Debug)]

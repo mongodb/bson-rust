@@ -324,8 +324,8 @@ pub mod datetime {
     );
 
     #[cfg(feature = "chrono-0_4")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     serde_conv_doc!(
-        #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
         /// Converts a [`chrono::DateTime`] to and from a [`DateTime`].
         /// ```rust
         /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
@@ -352,8 +352,8 @@ pub mod datetime {
     );
 
     #[cfg(feature = "time-0_3")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
     serde_conv_doc!(
-        #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
         /// Converts a [`time::OffsetDateTime`] to and from a [`DateTime`].
         /// ```rust
         /// # #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
