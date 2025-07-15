@@ -443,7 +443,6 @@ pub mod u64 {
         /// Converts a `u64` to and from an `f64`.
         ///
         /// Errors if an exact conversion is not possible.
-        ///
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
