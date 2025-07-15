@@ -1804,7 +1804,6 @@ fn test_oid_helpers() {
         }
 
         let oid = ObjectId::new();
-
         let a = A {
             oid: oid.to_string(),
             oid_optional_none: None,
@@ -1995,7 +1994,6 @@ fn test_oid_helpers() {
             "oid_vector": ["bad1", "bad2"]
         };
         let result: Result<B, _> = deserialize_from_document(invalid_doc);
-
         assert!(
             result.is_err(),
             "Deserialization should fail for invalid ObjectId strings"
@@ -2018,7 +2016,6 @@ fn test_uuid_1_helpers() {
     let _guard = LOCK.run_concurrently();
 
     #[derive(Serialize, Deserialize)]
-
     struct A {
         #[serde(with = "uuid_1_as_binary")]
         uuid: Uuid,
@@ -2026,7 +2023,6 @@ fn test_uuid_1_helpers() {
 
     let uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
     let a = A { uuid };
-
     let doc = serialize_to_document(&a).unwrap();
     match doc.get("uuid").unwrap() {
         Bson::Binary(bin) => {
