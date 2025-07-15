@@ -32,7 +32,8 @@ pub use uuid_1_as_python_legacy_binary::{
 };
 
 /// Type converters for serializing and deserializing [`crate::ObjectId`] using
-/// [`serde_with::serde_as`]. ## Available converters
+/// [`serde_with::serde_as`].
+/// ## Available converters
 /// - [`object_id::AsHexString`] — converts an [`crate::ObjectId`] to and from a hex string.
 /// - [`object_id::FromHexString`] — converts a hex string to and from an [`crate::ObjectId`].
 #[cfg(feature = "serde_with-3")]
