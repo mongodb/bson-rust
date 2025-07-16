@@ -1039,92 +1039,6 @@ fn test_u32_timestamp_helpers() {
     #[serde_as]
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct A {
-        #[serde_as(as = "u32::FromTimestamp")]
-        pub timestamp: Timestamp,
-
-        #[serde_as(as = "Option<u32::FromTimestamp>")]
-        pub timestamp_optional_none: Option<Timestamp>,
-
-        #[serde_as(as = "Option<u32::FromTimestamp>")]
-        pub timestamp_optional_some: Option<Timestamp>,
-
-        #[serde_as(as = "Vec<u32::FromTimestamp>")]
-        pub timestamp_vector: Vec<Timestamp>,
-    }
-
-    let time = 12345;
-    let timestamp = Timestamp { time, increment: 0 };
-    let a = A {
-        timestamp,
-        timestamp_optional_none: None,
-        timestamp_optional_some: Some(timestamp),
-        timestamp_vector: vec![timestamp],
-    };
-
-    // Serialize the struct to BSON
-    let doc = serialize_to_document(&a).unwrap();
-
-    // Validate serialized data
-    assert_eq!(
-        doc.get("timestamp").unwrap(),
-        &Bson::Int64(time as i64),
-        "Expected serialized time to match the original."
-    );
-
-    assert_eq!(
-        doc.get("timestamp_optional_none"),
-        Some(&Bson::Null),
-        "Expected serialized timestamp_optional_none to be None."
-    );
-
-    assert_eq!(
-        doc.get("timestamp_optional_some"),
-        Some(&Bson::Int64(time as i64)),
-        "Expected serialized timestamp_optional_some to match original time."
-    );
-
-    let timestamp_vector = doc
-        .get_array("timestamp_vector")
-        .expect("Expected serialized timestamp_vector to be a BSON array.");
-    let expected_timestamp_vector: Vec<Bson> = vec![Bson::Int64(time as i64)];
-    assert_eq!(
-        timestamp_vector, &expected_timestamp_vector,
-        "Expected each serialized element in timestamp_vector to match the original."
-    );
-
-    // Validate deserialized data
-    let a_deserialized: A = deserialize_from_document(doc).unwrap();
-    assert_eq!(
-        a_deserialized, a,
-        "Deserialized struct does not match original."
-    );
-
-    // Validate serializing error case with an invalid Timestamp
-    let invalid_timestamp_for_serializing = Timestamp {
-        time: 0,
-        increment: 2,
-    };
-    let bad_a: A = A {
-        timestamp: invalid_timestamp_for_serializing,
-        timestamp_optional_none: None,
-        timestamp_optional_some: Some(invalid_timestamp_for_serializing),
-        timestamp_vector: vec![invalid_timestamp_for_serializing],
-    };
-    let result = serialize_to_document(&bad_a);
-    assert!(
-        result.is_err(),
-        "Serialization should fail for Timestamp with increment != 0"
-    );
-    let err_string = format!("{:?}", result.unwrap_err());
-    assert!(
-        err_string.contains("Cannot convert Timestamp with a non-zero increment to u32"),
-        "Expected error message to mention non-zero increment: {}",
-        err_string
-    );
-
-    #[serde_as]
-    #[derive(Deserialize, Serialize, Debug, PartialEq)]
-    struct B {
         #[serde_as(as = "u32::AsTimestamp")]
         pub time: u32,
 
@@ -1139,7 +1053,7 @@ fn test_u32_timestamp_helpers() {
     }
 
     let time = 12345;
-    let b = B {
+    let a = A {
         time,
         time_optional_none: None,
         time_optional_some: Some(time),
@@ -1147,7 +1061,7 @@ fn test_u32_timestamp_helpers() {
     };
 
     // Serialize the struct to BSON
-    let doc = serialize_to_document(&b).unwrap();
+    let doc = serialize_to_document(&a).unwrap();
 
     // Validate serialized data
     assert_eq!(
@@ -1178,9 +1092,9 @@ fn test_u32_timestamp_helpers() {
     );
 
     // Validate deserialized data
-    let b_deserialized: B = deserialize_from_document(doc).unwrap();
+    let a_deserialized: A = deserialize_from_document(doc).unwrap();
     assert_eq!(
-        b_deserialized, b,
+        a_deserialized, a,
         "Deserialized struct does not match original."
     );
 
@@ -1195,10 +1109,96 @@ fn test_u32_timestamp_helpers() {
         "time_optional_some": Some(invalid_timestamp_for_deserializing),
         "time_vector": [invalid_timestamp_for_deserializing]
     };
-    let result: Result<B, _> = deserialize_from_document(invalid_doc);
+    let result: Result<A, _> = deserialize_from_document(invalid_doc);
     assert!(
         result.is_err(),
         "Deserialization should fail for Timestamp with increment != 0"
+    );
+    let err_string = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_string.contains("Cannot convert Timestamp with a non-zero increment to u32"),
+        "Expected error message to mention non-zero increment: {}",
+        err_string
+    );
+
+    #[serde_as]
+    #[derive(Deserialize, Serialize, Debug, PartialEq)]
+    struct B {
+        #[serde_as(as = "u32::FromTimestamp")]
+        pub timestamp: Timestamp,
+
+        #[serde_as(as = "Option<u32::FromTimestamp>")]
+        pub timestamp_optional_none: Option<Timestamp>,
+
+        #[serde_as(as = "Option<u32::FromTimestamp>")]
+        pub timestamp_optional_some: Option<Timestamp>,
+
+        #[serde_as(as = "Vec<u32::FromTimestamp>")]
+        pub timestamp_vector: Vec<Timestamp>,
+    }
+
+    let time = 12345;
+    let timestamp = Timestamp { time, increment: 0 };
+    let b = B {
+        timestamp,
+        timestamp_optional_none: None,
+        timestamp_optional_some: Some(timestamp),
+        timestamp_vector: vec![timestamp],
+    };
+
+    // Serialize the struct to BSON
+    let doc = serialize_to_document(&b).unwrap();
+
+    // Validate serialized data
+    assert_eq!(
+        doc.get("timestamp").unwrap(),
+        &Bson::Int64(time as i64),
+        "Expected serialized time to match the original."
+    );
+
+    assert_eq!(
+        doc.get("timestamp_optional_none"),
+        Some(&Bson::Null),
+        "Expected serialized timestamp_optional_none to be None."
+    );
+
+    assert_eq!(
+        doc.get("timestamp_optional_some"),
+        Some(&Bson::Int64(time as i64)),
+        "Expected serialized timestamp_optional_some to match original time."
+    );
+
+    let timestamp_vector = doc
+        .get_array("timestamp_vector")
+        .expect("Expected serialized timestamp_vector to be a BSON array.");
+    let expected_timestamp_vector: Vec<Bson> = vec![Bson::Int64(time as i64)];
+    assert_eq!(
+        timestamp_vector, &expected_timestamp_vector,
+        "Expected each serialized element in timestamp_vector to match the original."
+    );
+
+    // Validate deserialized data
+    let b_deserialized: B = deserialize_from_document(doc).unwrap();
+    assert_eq!(
+        b_deserialized, b,
+        "Deserialized struct does not match original."
+    );
+
+    // Validate serializing error case with an invalid Timestamp
+    let invalid_timestamp_for_serializing = Timestamp {
+        time: 0,
+        increment: 2,
+    };
+    let bad_b: B = B {
+        timestamp: invalid_timestamp_for_serializing,
+        timestamp_optional_none: None,
+        timestamp_optional_some: Some(invalid_timestamp_for_serializing),
+        timestamp_vector: vec![invalid_timestamp_for_serializing],
+    };
+    let result = serialize_to_document(&bad_b);
+    assert!(
+        result.is_err(),
+        "Serialization should fail for Timestamp with increment != 0"
     );
     let err_string = format!("{:?}", result.unwrap_err());
     assert!(

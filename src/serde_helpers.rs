@@ -256,8 +256,8 @@ pub mod datetime {
 /// Type converters for serializing and deserializing `u32` using [`serde_with::serde_as`].
 ///
 /// ## Available converters
-/// - [`u32::FromTimestamp`] — converts a [`crate::Timestamp`] to and from a `u32`.
 /// - [`u32::AsTimestamp`] — converts a `u32` to and from a [`crate::Timestamp`].
+/// - [`u32::FromTimestamp`] — converts a [`crate::Timestamp`] to and from a `u32`.
 /// - [`u32::AsF64`] — converts a `u32` to and from an `f64`.
 /// - [`u32::AsI32`] — converts a `u32` to and from an `i32`.
 /// - [`u32::AsI64`] — converts a `u32` to and from an `i64`.
@@ -267,39 +267,6 @@ pub mod u32 {
     use crate::{macros::serde_conv_doc, Timestamp};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
-
-    serde_conv_doc!(
-        /// Converts a [`Timestamp`] to and from a `u32`.
-        ///
-        /// The `u32` should represent seconds since the Unix epoch.
-        ///
-        /// Serialization errors if the Timestamp has a non-zero increment.
-        /// ```rust
-        /// # #[cfg(feature = "serde_with-3")]
-        /// # {
-        /// use bson::{serde_helpers::datetime, DateTime};
-        /// use serde::{Serialize, Deserialize};
-        /// use serde_with::serde_as;
-        /// #[serde_as]
-        /// #[derive(Serialize, Deserialize)]
-        /// struct Item {
-        ///     #[serde_as(as = "u32::FromTimestamp")]
-        ///     pub timestamp: Timestamp,
-        /// }
-        /// # }
-        /// ```
-        pub FromTimestamp,
-        Timestamp,
-        |timestamp: &Timestamp| -> Result<u32, String> {
-            if timestamp.increment != 0 {
-                return Err(format!("Cannot convert Timestamp with a non-zero increment to u32: {:?}", timestamp));
-            }
-            Ok(timestamp.time)
-        },
-        |value: u32| -> Result<Timestamp, String> {
-            Ok(Timestamp { time: value, increment: 0 })
-        }
-    );
 
     serde_conv_doc!(
         /// Converts a `u32` to and from a [`Timestamp`].
@@ -331,6 +298,39 @@ pub mod u32 {
                 return Err(format!("Cannot convert Timestamp with a non-zero increment to u32: {:?}", timestamp));
             }
             Ok(timestamp.time)
+        }
+    );
+
+    serde_conv_doc!(
+        /// Converts a [`Timestamp`] to and from a `u32`.
+        ///
+        /// The `u32` should represent seconds since the Unix epoch.
+        ///
+        /// Serialization errors if the Timestamp has a non-zero increment.
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// # {
+        /// use bson::{serde_helpers::datetime, DateTime};
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "u32::FromTimestamp")]
+        ///     pub timestamp: Timestamp,
+        /// }
+        /// # }
+        /// ```
+        pub FromTimestamp,
+        Timestamp,
+        |timestamp: &Timestamp| -> Result<u32, String> {
+            if timestamp.increment != 0 {
+                return Err(format!("Cannot convert Timestamp with a non-zero increment to u32: {:?}", timestamp));
+            }
+            Ok(timestamp.time)
+        },
+        |value: u32| -> Result<Timestamp, String> {
+            Ok(Timestamp { time: value, increment: 0 })
         }
     );
 
