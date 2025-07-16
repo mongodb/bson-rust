@@ -356,7 +356,9 @@ impl std::str::FromStr for ParsedDecimal128 {
                         exp_str = post;
                     }
                 }
-                let mut exp = exp_str.parse::<i16>().map_err(|e| {
+                // Initially parse the exponent as an i128 to handle corner cases with zero
+                // coefficients and very large exponents.
+                let mut wide_exp = exp_str.parse::<i128>().map_err(|e| {
                     Error::decimal128(Decimal128ErrorKind::InvalidExponent {}).with_message(e)
                 })?;
 
@@ -367,7 +369,7 @@ impl std::str::FromStr for ParsedDecimal128 {
                         .len()
                         .try_into()
                         .map_err(|_| Error::decimal128(Decimal128ErrorKind::Underflow {}))?;
-                    exp = exp
+                    wide_exp = wide_exp
                         .checked_sub(exp_adj)
                         .ok_or_else(|| Error::decimal128(Decimal128ErrorKind::Underflow {}))?;
                     joined_str = format!("{}{}", pre, post);
@@ -386,16 +388,17 @@ impl std::str::FromStr for ParsedDecimal128 {
                         let exp_adj = (len - decimal_str.len())
                             .try_into()
                             .map_err(|_| Error::decimal128(Decimal128ErrorKind::Overflow {}))?;
-                        exp = exp
+                        wide_exp = wide_exp
                             .checked_add(exp_adj)
                             .ok_or_else(|| Error::decimal128(Decimal128ErrorKind::Overflow {}))?;
                     }
                 }
 
                 // Check exponent limits
-                if exp < Exponent::TINY {
+                const TINY: i128 = Exponent::TINY as i128;
+                if wide_exp < TINY {
                     if decimal_str != "0" {
-                        let delta = (Exponent::TINY - exp)
+                        let delta = (TINY - wide_exp)
                             .try_into()
                             .map_err(|_| Error::decimal128(Decimal128ErrorKind::Overflow {}))?;
                         let new_precision = decimal_str
@@ -404,12 +407,13 @@ impl std::str::FromStr for ParsedDecimal128 {
                             .ok_or_else(|| Error::decimal128(Decimal128ErrorKind::Overflow {}))?;
                         decimal_str = round_decimal_str(decimal_str, new_precision)?;
                     }
-                    exp = Exponent::TINY;
+                    wide_exp = Exponent::TINY.into();
                 }
                 let padded_str;
-                if exp > Exponent::MAX {
+                const MAX: i128 = Exponent::MAX as i128;
+                if wide_exp > MAX {
                     if decimal_str != "0" {
-                        let delta = (exp - Exponent::MAX)
+                        let delta = (wide_exp - MAX)
                             .try_into()
                             .map_err(|_| Error::decimal128(Decimal128ErrorKind::Overflow {}))?;
                         if decimal_str
@@ -423,10 +427,13 @@ impl std::str::FromStr for ParsedDecimal128 {
                         padded_str = format!("{}{}", decimal_str, "0".repeat(delta));
                         decimal_str = &padded_str;
                     }
-                    exp = Exponent::MAX;
+                    wide_exp = Exponent::MAX.into();
                 }
 
                 // Assemble the final value
+                let exp: i16 = wide_exp
+                    .try_into()
+                    .map_err(|_| Error::decimal128(Decimal128ErrorKind::Overflow {}))?;
                 let exponent = Exponent::from_native(exp);
                 let coeff: u128 = decimal_str.parse().map_err(|e: ParseIntError| {
                     Error::decimal128(Decimal128ErrorKind::InvalidCoefficient {}).with_message(e)
