@@ -1529,7 +1529,6 @@ fn test_u64_f64_helper() {
         .get_array("value_vector")
         .expect("Expected serialized value_vector to be a BSON array.");
     let expected_value_vector: Vec<Bson> = vec![Bson::Double(value as f64)];
-    // TODO: check whether this can be applied to other converters
     assert_eq!(
         value_vector, &expected_value_vector,
         "Expected each serialized element in value_vector to match the original."

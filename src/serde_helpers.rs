@@ -95,6 +95,7 @@ pub mod object_id {
 
 /// Type converters for serializing and deserializing [`crate::DateTime`] using
 /// [`serde_with::serde_as`].
+///
 /// ## Available converters
 /// - [`datetime::AsRfc3339String`] — converts a [`crate::DateTime`] to and from an RFC 3339 string.
 /// - [`datetime::FromRfc3339String`] — converts a RFC 3339 string to and from a
@@ -254,6 +255,7 @@ pub mod datetime {
 }
 
 /// Type converters for serializing and deserializing `u32` using [`serde_with::serde_as`].
+///
 /// ## Available converters
 /// - [`u32::FromTimestamp`] — converts a [`crate::Timestamp`] to and from a `u32`.
 /// - [`u32::AsTimestamp`] — converts a `u32` to and from a [`crate::Timestamp`].
@@ -277,7 +279,7 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use bson::{serde_helpers::datetime, DateTime};
+        /// use bson::{serde_helpers::u32, Timestamp};
         /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
@@ -424,6 +426,7 @@ pub mod u32 {
 }
 
 /// Type converters for serializing and deserializing `u64` using [`serde_with::serde_as`].
+///
 /// ## Available converters
 /// - [`u64::AsF64`] — converts a `u64` to and from an `f64`.
 /// - [`u64::AsI32`] — converts a `u64` to and from an `i32`.
