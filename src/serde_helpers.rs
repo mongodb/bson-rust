@@ -31,11 +31,6 @@ pub use uuid_1_as_python_legacy_binary::{
     serialize as serialize_uuid_1_as_python_legacy_binary,
 };
 
-/// Serializes a u32 as an i64.
-pub fn serialize_u32_as_i64<S: Serializer>(val: &u32, serializer: S) -> Result<S::Ok, S::Error> {
-    serializer.serialize_i64(*val as i64)
-}
-
 #[cfg(feature = "serde_with-3")]
 pub mod object_id {
     use crate::{macros::serde_conv_doc, oid::ObjectId};
