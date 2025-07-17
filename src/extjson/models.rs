@@ -7,7 +7,6 @@ use serde::{
     Deserialize,
     Serialize,
 };
-use serde_with::serde_as;
 use std::borrow::Cow;
 
 use crate::{
@@ -15,7 +14,6 @@ use crate::{
     error::{Error, Result},
     oid,
     raw::serde::CowStr,
-    serde_helpers::u32,
     spec::BinarySubtype,
     Bson,
 };
@@ -219,14 +217,13 @@ pub(crate) struct Timestamp {
     body: TimestampBody,
 }
 
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct TimestampBody {
-    #[serde_as(as = "u32::AsI64")]
+    #[serde(serialize_with = "crate::serde_helpers::serialize_u32_as_i64")]
     pub(crate) t: u32,
 
-    #[serde_as(as = "u32::AsI64")]
+    #[serde(serialize_with = "crate::serde_helpers::serialize_u32_as_i64")]
     pub(crate) i: u32,
 }
 
