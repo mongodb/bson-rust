@@ -219,8 +219,8 @@ pub(crate) struct Timestamp {
     body: TimestampBody,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
 #[serde_as]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct TimestampBody {
     #[serde_as(as = "u32::AsI64")]
