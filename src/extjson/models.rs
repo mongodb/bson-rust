@@ -1,7 +1,5 @@
 //! A module defining serde models for the extended JSON representations of the various BSON types.
 
-#![cfg_attr(not(feature = "serde_json-1"), allow(unused))]
-
 use serde::{
     de::{Error as _, Unexpected},
     Deserialize,
@@ -200,7 +198,6 @@ impl Uuid {
     }
 }
 
-#[cfg(feature = "serde_json-1")]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct JavaScriptCodeWithScope {

@@ -161,7 +161,7 @@ impl RawDocument {
     pub fn get(&self, key: impl AsRef<str>) -> RawResult<Option<RawBsonRef<'_>>> {
         for elem in RawIter::new(self) {
             let elem = elem?;
-            if key.as_ref() == elem.key().as_str() {
+            if key.as_ref() == elem.key() {
                 return Ok(Some(elem.try_into()?));
             }
         }
@@ -524,7 +524,7 @@ impl RawDocument {
         for elem in self.iter_elements() {
             let elem = elem?;
             let value = deep_utf8_lossy(elem.value_utf8_lossy()?)?;
-            out.insert(elem.key().as_str(), value);
+            out.insert(elem.key(), value);
         }
         Ok(out)
     }
@@ -543,10 +543,7 @@ fn deep_utf8_lossy(src: RawBson) -> RawResult<Bson> {
             let mut tmp = doc! {};
             for elem in doc.iter_elements() {
                 let elem = elem?;
-                tmp.insert(
-                    elem.key().as_str(),
-                    deep_utf8_lossy(elem.value_utf8_lossy()?)?,
-                );
+                tmp.insert(elem.key(), deep_utf8_lossy(elem.value_utf8_lossy()?)?);
             }
             Ok(Bson::Document(tmp))
         }
@@ -554,10 +551,7 @@ fn deep_utf8_lossy(src: RawBson) -> RawResult<Bson> {
             let mut tmp = doc! {};
             for elem in scope.iter_elements() {
                 let elem = elem?;
-                tmp.insert(
-                    elem.key().as_str(),
-                    deep_utf8_lossy(elem.value_utf8_lossy()?)?,
-                );
+                tmp.insert(elem.key(), deep_utf8_lossy(elem.value_utf8_lossy()?)?);
             }
             Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
                 code,
@@ -603,7 +597,7 @@ impl serde::Serialize for &RawDocument {
                     let mut map = serializer.serialize_map(None)?;
                     for kvp in self.0 {
                         let (k, v) = kvp.map_err(serde::ser::Error::custom)?;
-                        map.serialize_entry(k.as_str(), &v)?;
+                        map.serialize_entry(k, &v)?;
                     }
                     map.end()
                 } else {
@@ -649,7 +643,7 @@ impl TryFrom<&RawDocument> for crate::Document {
     fn try_from(rawdoc: &RawDocument) -> RawResult<Document> {
         rawdoc
             .into_iter()
-            .map(|res| res.and_then(|(k, v)| Ok((k.as_str().to_owned(), v.try_into()?))))
+            .map(|res| res.and_then(|(k, v)| Ok((k.to_owned(), v.try_into()?))))
             .collect()
     }
 }
@@ -672,7 +666,7 @@ impl TryFrom<&RawDocumentBuf> for Document {
 
 impl<'a> IntoIterator for &'a RawDocument {
     type IntoIter = Iter<'a>;
-    type Item = RawResult<(&'a CStr, RawBsonRef<'a>)>;
+    type Item = RawResult<(&'a str, RawBsonRef<'a>)>;
 
     fn into_iter(self) -> Iter<'a> {
         self.iter()

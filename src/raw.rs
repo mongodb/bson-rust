@@ -88,8 +88,6 @@
 //! ```rust
 //! use bson::{
 //!    raw::{
-//!        cstr,
-//!        CStr,
 //!        RawBsonRef,
 //!        RawDocumentBuf,
 //!    },
@@ -104,12 +102,12 @@
 //! let doc = RawDocumentBuf::from_document(&original_doc)?;
 //! let mut doc_iter = doc.iter();
 //!
-//! let (key, value): (&CStr, RawBsonRef) = doc_iter.next().unwrap()?;
-//! assert_eq!(key, cstr!("crate"));
+//! let (key, value): (&str, RawBsonRef) = doc_iter.next().unwrap()?;
+//! assert_eq!(key, "crate");
 //! assert_eq!(value.as_str(), Some("bson"));
 //!
-//! let (key, value): (&CStr, RawBsonRef) = doc_iter.next().unwrap()?;
-//! assert_eq!(key, cstr!("year"));
+//! let (key, value): (&str, RawBsonRef) = doc_iter.next().unwrap()?;
+//! assert_eq!(key, "year");
 //! assert_eq!(value.as_str(), Some("2021"));
 //! # Ok::<(), bson::error::Error>(())
 //! ```

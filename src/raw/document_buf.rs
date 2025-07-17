@@ -292,7 +292,7 @@ impl TryFrom<Document> for RawDocumentBuf {
 
 impl<'a> IntoIterator for &'a RawDocumentBuf {
     type IntoIter = Iter<'a>;
-    type Item = Result<(&'a CStr, RawBsonRef<'a>)>;
+    type Item = Result<(&'a str, RawBsonRef<'a>)>;
 
     fn into_iter(self) -> Iter<'a> {
         self.iter()

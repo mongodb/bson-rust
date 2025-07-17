@@ -27,7 +27,7 @@ use crate::error::{Error, Result};
 /// // bson::raw::CStr does not:
 /// let invalid: &bson::raw::CStr = cstr!("foo\0bar");  // will not compile
 /// ```
-#[derive(Debug, Eq)]
+#[derive(Debug)]
 #[repr(transparent)]
 pub struct CStr {
     data: [u8],
@@ -76,67 +76,15 @@ impl CStr {
         self.as_str().is_empty()
     }
 
-    /// Returns the lowercase equivalent of this as a new [`CString`].
-    pub fn to_lowercase(&self) -> CString {
-        CString::from_string_unchecked(self.as_str().to_lowercase())
-    }
-
-    /// Returns the uppercase equivalent of this as a new [`CString`].
-    pub fn to_uppercase(&self) -> CString {
-        CString::from_string_unchecked(self.as_str().to_uppercase())
-    }
-
     pub(crate) fn append_to(&self, buf: &mut Vec<u8>) {
         buf.extend(&self.data);
         buf.push(0);
     }
 }
 
-impl PartialEq for CStr {
-    fn eq(&self, other: &CStr) -> bool {
+impl PartialEq<&CStr> for &CStr {
+    fn eq(&self, other: &&CStr) -> bool {
         self.as_str() == other.as_str()
-    }
-}
-
-impl PartialEq<str> for CStr {
-    fn eq(&self, other: &str) -> bool {
-        self.as_str() == other
-    }
-}
-
-impl PartialEq<CString> for CStr {
-    fn eq(&self, other: &CString) -> bool {
-        self.as_str() == other.as_str()
-    }
-}
-
-impl PartialEq<String> for CStr {
-    fn eq(&self, other: &String) -> bool {
-        self.as_str() == other.as_str()
-    }
-}
-
-impl std::hash::Hash for CStr {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.as_str().hash(state);
-    }
-}
-
-impl Ord for CStr {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.as_str().cmp(other.as_str())
-    }
-}
-
-impl PartialOrd for CStr {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl std::fmt::Display for CStr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.as_str().fmt(f)
     }
 }
 
@@ -157,12 +105,6 @@ impl AsRef<CStr> for CStr {
 impl AsRef<str> for CStr {
     fn as_ref(&self) -> &str {
         self.as_str()
-    }
-}
-
-impl<'a> From<&'a CStr> for &'a str {
-    fn from(value: &'a CStr) -> Self {
-        value.as_str()
     }
 }
 
@@ -233,7 +175,7 @@ pub use cstr;
 ///
 /// Like `CStr`, this differs from [`std::ffi::CString`] in that it is required to be valid UTF-8,
 /// and does not include the nul terminator in the buffer.
-#[derive(Clone, Eq)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct CString {
     data: String,
@@ -287,26 +229,6 @@ impl AsRef<CStr> for CString {
     }
 }
 
-impl From<CString> for String {
-    fn from(value: CString) -> Self {
-        value.into_string()
-    }
-}
-
-impl std::ops::Deref for CString {
-    type Target = CStr;
-
-    fn deref(&self) -> &Self::Target {
-        self.as_ref()
-    }
-}
-
-impl std::borrow::Borrow<CStr> for CString {
-    fn borrow(&self) -> &CStr {
-        self.as_ref()
-    }
-}
-
 impl std::fmt::Debug for CString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.data.fmt(f)
@@ -319,33 +241,9 @@ impl std::fmt::Display for CString {
     }
 }
 
-impl PartialEq for CString {
-    fn eq(&self, other: &Self) -> bool {
-        self.data == other.data
-    }
-}
-
-impl PartialEq<CStr> for CString {
-    fn eq(&self, other: &CStr) -> bool {
-        self.data.as_str() == other.as_str()
-    }
-}
-
-impl PartialEq<String> for CString {
-    fn eq(&self, other: &String) -> bool {
-        &self.data == other
-    }
-}
-
-impl PartialEq<str> for CString {
-    fn eq(&self, other: &str) -> bool {
-        self.data.as_str() == other
-    }
-}
-
-impl std::hash::Hash for CString {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.data.hash(state);
+impl std::borrow::Borrow<CStr> for CString {
+    fn borrow(&self) -> &CStr {
+        self.as_ref()
     }
 }
 

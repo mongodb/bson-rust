@@ -19,8 +19,9 @@ use crate::{
     Timestamp,
 };
 
+use serde_json::Value;
+
 #[test]
-#[cfg(feature = "serde_json-1")]
 fn to_json() {
     let _guard = LOCK.run_concurrently();
     let mut doc = Document::new();
@@ -31,7 +32,7 @@ fn to_json() {
     doc.insert("first", Bson::Int32(1));
     doc.insert("second", Bson::String("foo".to_owned()));
     doc.insert("alphanumeric", Bson::String("bar".to_owned()));
-    let data: serde_json::Value = Bson::Document(doc).into();
+    let data: Value = Bson::Document(doc).into();
 
     assert!(data.is_object());
     let obj = data.as_object().unwrap();

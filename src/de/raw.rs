@@ -363,7 +363,7 @@ impl<'de> serde::de::MapAccess<'de> for DocumentAccess<'de> {
         match &self.elem {
             None => Ok(None),
             Some(elem) => seed
-                .deserialize(BorrowedStrDeserializer::new(elem.key().as_str()))
+                .deserialize(BorrowedStrDeserializer::new(elem.key()))
                 .map(Some),
         }
     }
@@ -421,8 +421,7 @@ impl<'de> serde::de::EnumAccess<'de> for DocumentAccess<'de> {
             Some(e) => e,
             None => return Err(Error::end_of_stream()),
         };
-        let de: BorrowedStrDeserializer<'_, Error> =
-            BorrowedStrDeserializer::new(elem.key().as_str());
+        let de: BorrowedStrDeserializer<'_, Error> = BorrowedStrDeserializer::new(elem.key());
         let key = seed.deserialize(de)?;
         Ok((key, self))
     }

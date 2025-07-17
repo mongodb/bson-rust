@@ -404,7 +404,7 @@ fn document_iteration() {
     assert_eq!(
         rawdoc
             .into_iter()
-            .collect::<Result<Vec<(_, _)>>>()
+            .collect::<Result<Vec<(&str, _)>>>()
             .expect("collecting iterated doc")
             .len(),
         17
