@@ -254,17 +254,13 @@ pub mod datetime {
     );
 }
 
-/// Type converters for serializing and deserializing `u32` using [`serde_with::serde_as`].
+/// Type converters for serializing and deserializing `crate::Timestamp` using
+/// [`serde_with::serde_as`].
 ///
 /// ## Available converters
-/// - [`u32::FromTimestamp`] — converts a [`crate::Timestamp`] to and from a `u32`.
-/// - [`u32::AsTimestamp`] — converts a `u32` to and from a [`crate::Timestamp`].
-/// - [`u32::AsF64`] — converts a `u32` to and from an `f64`.
-/// - [`u32::AsI32`] — converts a `u32` to and from an `i32`.
-/// - [`u32::AsI64`] — converts a `u32` to and from an `i64`.
-#[cfg(feature = "serde_with-3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
-pub mod u32 {
+/// - [`timestamp::AsU32`] — converts a [`crate::Timestamp`] to and from a `u32`.
+/// - [`timestamp::FromU32`] — converts a `u32` to and from a [`crate::Timestamp`].
+pub mod timestamp {
     use crate::{macros::serde_conv_doc, Timestamp};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
@@ -279,18 +275,18 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use bson::{serde_helpers::u32, Timestamp};
+        /// use bson::{serde_helpers::timestamp, Timestamp};
         /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
-        ///     #[serde_as(as = "u32::FromTimestamp")]
+        ///     #[serde_as(as = "timestamp::AsU32")]
         ///     pub timestamp: Timestamp,
         /// }
         /// # }
         /// ```
-        pub FromTimestamp,
+        pub AsU32,
         Timestamp,
         |timestamp: &Timestamp| -> Result<u32, String> {
             if timestamp.increment != 0 {
@@ -312,18 +308,18 @@ pub mod u32 {
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use bson::serde_helpers::u32;
+        /// use bson::serde_helpers::timestamp;
         /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Event {
-        ///     #[serde_as(as = "u32::AsTimestamp")]
+        ///     #[serde_as(as = "timestamp::FromU32")]
         ///     pub time: u32,
         /// }
         /// # }
         /// ```
-        pub AsTimestamp,
+        pub FromU32,
         u32,
         |value: &u32| -> Result<Timestamp, String> {
             Ok(Timestamp { time: *value, increment: 0 })
@@ -335,6 +331,21 @@ pub mod u32 {
             Ok(timestamp.time)
         }
     );
+}
+
+/// Type converters for serializing and deserializing `u32` using [`serde_with::serde_as`].
+///
+/// ## Available converters
+/// - [`u32::AsF64`] — converts a `u32` to and from an `f64`.
+/// - [`u32::AsI32`] — converts a `u32` to and from an `i32`.
+/// - [`u32::AsI64`] — converts a `u32` to and from an `i64`.
+#[cfg(feature = "serde_with-3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
+pub mod u32 {
+    use crate::macros::serde_conv_doc;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_with::{DeserializeAs, SerializeAs};
+    use std::result::Result;
 
     serde_conv_doc!(
         /// Converts a `u32` to and from an `f64`.
