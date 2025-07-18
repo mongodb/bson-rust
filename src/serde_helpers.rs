@@ -260,6 +260,8 @@ pub mod datetime {
 /// ## Available converters
 /// - [`timestamp::AsU32`] — converts a [`crate::Timestamp`] to and from a `u32`.
 /// - [`timestamp::FromU32`] — converts a `u32` to and from a [`crate::Timestamp`].
+#[cfg(feature = "serde_with-3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod timestamp {
     use crate::{macros::serde_conv_doc, Timestamp};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
