@@ -6,8 +6,9 @@ use serde::{
     de::{Error as _, Unexpected},
     Deserialize,
     Serialize,
+    Serializer,
 };
-use std::borrow::Cow;
+use std::{borrow::Cow, result::Result as StdResult};
 
 use crate::{
     base64,
@@ -217,13 +218,18 @@ pub(crate) struct Timestamp {
     body: TimestampBody,
 }
 
+/// Serializes a u32 as an i64.
+fn serialize_u32_as_i64<S: Serializer>(val: &u32, serializer: S) -> StdResult<S::Ok, S::Error> {
+    serializer.serialize_i64(*val as i64)
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct TimestampBody {
-    #[serde(serialize_with = "crate::serde_helpers::serialize_u32_as_i64")]
+    #[serde(serialize_with = "serialize_u32_as_i64")]
     pub(crate) t: u32,
 
-    #[serde(serialize_with = "crate::serde_helpers::serialize_u32_as_i64")]
+    #[serde(serialize_with = "serialize_u32_as_i64")]
     pub(crate) i: u32,
 }
 
