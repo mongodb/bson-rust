@@ -368,7 +368,7 @@ pub mod u32 {
         pub AsF64,
         u32,
         |value: &u32| -> Result<f64, String> {
-            Ok(*value as f64)
+            Ok(f64::from(*value))
         },
         |value: f64| -> Result<u32, String> {
             if (value - value as u32 as f64).abs() <= f64::EPSILON {
@@ -428,7 +428,7 @@ pub mod u32 {
         pub AsI64,
         u32,
         |value: &u32| -> Result<i64, String> {
-            Ok(*value as i64)
+            Ok(i64::from(*value))
         },
         |value: i64| -> Result<u32, String> {
             u32::try_from(value).map_err(|e| format!("Cannot convert i64 {} to u32: {}", value, e))
