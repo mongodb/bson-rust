@@ -31,22 +31,27 @@ pub use uuid_1_as_python_legacy_binary::{
     serialize as serialize_uuid_1_as_python_legacy_binary,
 };
 
+/// Type converters for serializing and deserializing [`crate::oid::ObjectId`] using
+/// [`serde_with::serde_as`].
+///
+/// ## Available converters
+/// - [`object_id::AsHexString`] — converts an [`crate::oid::ObjectId`] to and from a hex string.
+/// - [`object_id::FromHexString`] — converts a hex string to and from an [`crate::oid::ObjectId`].
 #[cfg(feature = "serde_with-3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod object_id {
     use crate::{macros::serde_conv_doc, oid::ObjectId};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
 
     serde_conv_doc!(
-        /// Contains functions to serialize an ObjectId as a hex string and deserialize an
-        /// ObjectId from a hex string
+        /// Converts an [`ObjectId`] to and from a hex string.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
-        /// {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::object_id;
-        /// # use serde_with::serde_as;
-        /// # use bson::oid::ObjectId;
+        /// # {
+        /// use bson::{serde_helpers::object_id, oid::ObjectId};
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
@@ -66,14 +71,13 @@ pub mod object_id {
     );
 
     serde_conv_doc!(
-        /// Contains functions to serialize a hex string as an ObjectId and deserialize a
-        /// hex string from an ObjectId
+        /// Converts a hex string to and from an [`ObjectId`].
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
-        /// {
-        /// # use serde::{Serialize, Deserialize};
-        /// # use bson::serde_helpers::object_id;
-        /// # use serde_with::serde_as;
+        /// # {
+        /// use bson::serde_helpers::object_id;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {

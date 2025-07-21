@@ -653,6 +653,175 @@ fn test_serialize_deserialize_unsigned_numbers() {
 
 #[test]
 #[cfg(feature = "serde_with-3")]
+fn test_oid_helpers() {
+    let _guard = LOCK.run_concurrently();
+
+    #[serde_as]
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    struct A {
+        #[serde_as(as = "object_id::AsHexString")]
+        oid: ObjectId,
+
+        #[serde_as(as = "Option<object_id::AsHexString>")]
+        oid_optional_none: Option<ObjectId>,
+
+        #[serde_as(as = "Option<object_id::AsHexString>")]
+        oid_optional_some: Option<ObjectId>,
+
+        #[serde_as(as = "Vec<object_id::AsHexString>")]
+        oid_vector: Vec<ObjectId>,
+    }
+
+    let oid = ObjectId::new();
+    let a = A {
+        oid,
+        oid_optional_none: None,
+        oid_optional_some: Some(oid),
+        oid_vector: vec![oid],
+    };
+
+    // Serialize the struct to BSON
+    let doc = serialize_to_document(&a).unwrap();
+
+    // Validate serialized data
+    assert_eq!(
+        doc.get_str("oid").unwrap(),
+        oid.to_hex(),
+        "Expected serialized oid to match original ObjectId as hex string."
+    );
+
+    assert_eq!(
+        doc.get("oid_optional_none"),
+        Some(&Bson::Null),
+        "Expected serialized oid_optional_none to be None."
+    );
+
+    assert_eq!(
+        doc.get("oid_optional_some"),
+        Some(&Bson::String(oid.to_hex())),
+        "Expected serialized oid_optional_some to match original."
+    );
+
+    let oid_vector = doc
+        .get_array("oid_vector")
+        .expect("Expected serialized oid_vector to be a BSON array.");
+    let expected_oid_vector: Vec<Bson> = vec![Bson::String(oid.to_hex())];
+    assert_eq!(
+        oid_vector, &expected_oid_vector,
+        "Expected each serialized element in oid_vector match the original."
+    );
+
+    // Validate deserialized data
+    let a_deserialized: A = deserialize_from_document(doc).unwrap();
+    assert_eq!(
+        a_deserialized, a,
+        "Deserialized struct does not match original."
+    );
+
+    // Validate deserializing error case with an invalid ObjectId string
+    let invalid_doc = doc! {
+        "oid": "not_a_valid_oid",
+        "oid_optional_none": Bson::Null,
+        "oid_optional_some": "also_invalid_oid",
+        "oid_vector": ["bad1", "bad2"]
+    };
+    let result: Result<A, _> = deserialize_from_document(invalid_doc);
+    assert!(
+        result.is_err(),
+        "Deserialization should fail for invalid ObjectId strings"
+    );
+    let err_string = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_string.contains("BSON error"),
+        "Expected error message to mention BSON error: {}",
+        err_string
+    );
+
+    #[serde_as]
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    struct B {
+        #[serde_as(as = "object_id::FromHexString")]
+        oid: String,
+
+        #[serde_as(as = "Option<object_id::FromHexString>")]
+        oid_optional_none: Option<String>,
+
+        #[serde_as(as = "Option<object_id::FromHexString>")]
+        oid_optional_some: Option<String>,
+
+        #[serde_as(as = "Vec<object_id::FromHexString>")]
+        oid_vector: Vec<String>,
+    }
+
+    let oid = ObjectId::new();
+    let b = B {
+        oid: oid.to_string(),
+        oid_optional_none: None,
+        oid_optional_some: Some(oid.to_string()),
+        oid_vector: vec![oid.to_string()],
+    };
+
+    // Serialize the struct to BSON
+    let doc = serialize_to_document(&b).unwrap();
+
+    // Validate serialized data
+    assert_eq!(
+        doc.get_object_id("oid").unwrap(),
+        oid,
+        "Expected serialized oid to match original ObjectId."
+    );
+
+    assert_eq!(
+        doc.get("oid_optional_none"),
+        Some(&Bson::Null),
+        "Expected serialized oid_optional_none to be None."
+    );
+
+    assert_eq!(
+        doc.get("oid_optional_some"),
+        Some(&Bson::ObjectId(oid)),
+        "Expected serialized oid_optional_some to match original."
+    );
+
+    let oid_vector = doc
+        .get_array("oid_vector")
+        .expect("Expected serialized oid_vector to be a BSON array.");
+    let expected_oid_vector: Vec<Bson> = vec![Bson::ObjectId(oid)];
+    assert_eq!(
+        oid_vector, &expected_oid_vector,
+        "Expected each serialized element in oid_vector match the original."
+    );
+
+    // Validate deserialized data
+    let b_deserialized: B = deserialize_from_document(doc).unwrap();
+    assert_eq!(
+        b_deserialized, b,
+        "Deserialized struct does not match original."
+    );
+
+    // Validate serializing error case with an invalid ObjectId string
+    let invalid_oid = "invalid_oid";
+    let bad_b = B {
+        oid: invalid_oid.to_string(),
+        oid_optional_none: None,
+        oid_optional_some: Some(invalid_oid.to_string()),
+        oid_vector: vec![invalid_oid.to_string()],
+    };
+    let result = serialize_to_document(&bad_b);
+    assert!(
+        result.is_err(),
+        "Serialization should fail for invalid ObjectId strings"
+    );
+    let err_string = format!("{:?}", result.unwrap_err());
+    assert!(
+        err_string.contains("BSON error"),
+        "Expected error message to mention BSON error: {}",
+        err_string
+    );
+}
+
+#[test]
+#[cfg(feature = "serde_with-3")]
 fn test_datetime_rfc3339_string_helpers() {
     let _guard = LOCK.run_concurrently();
 
@@ -1282,7 +1451,7 @@ fn test_u32_i32_helper() {
     let _guard = LOCK.run_concurrently();
 
     #[serde_as]
-    #[derive(Deserialize, Serialize, PartialEq, Debug)]
+    #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct A {
         #[serde_as(as = "u32::AsI32")]
         value: u32,
@@ -1391,7 +1560,7 @@ fn test_u32_i64_helper() {
     let _guard = LOCK.run_concurrently();
 
     #[serde_as]
-    #[derive(Deserialize, Serialize, PartialEq, Debug)]
+    #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct A {
         #[serde_as(as = "u32::AsI64")]
         value: u32,
@@ -1568,7 +1737,7 @@ fn test_u64_i32_helper() {
     let _guard = LOCK.run_concurrently();
 
     #[serde_as]
-    #[derive(Deserialize, Serialize, PartialEq, Debug)]
+    #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct A {
         #[serde_as(as = "u64::AsI32")]
         value: u64,
@@ -1676,7 +1845,7 @@ fn test_u64_i32_helper() {
 fn test_u64_i64_helper() {
     let _guard = LOCK.run_concurrently();
     #[serde_as]
-    #[derive(Deserialize, Serialize, PartialEq, Debug)]
+    #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct A {
         #[serde_as(as = "u64::AsI64")]
         value: u64,
@@ -1778,232 +1947,6 @@ fn test_u64_i64_helper() {
         "Expected error message to mention failed i64 to u64 conversion, got: {}",
         err_string
     );
-}
-
-#[test]
-fn test_oid_helpers() {
-    let _guard = LOCK.run_concurrently();
-
-    #[cfg(feature = "serde_with-3")]
-    {
-        #[serde_as]
-        #[derive(Serialize, Deserialize)]
-        struct A {
-            #[serde_as(as = "object_id::FromHexString")]
-            oid: String,
-
-            #[serde_as(as = "Option<object_id::FromHexString>")]
-            oid_optional_none: Option<String>,
-
-            #[serde_as(as = "Option<object_id::FromHexString>")]
-            oid_optional_some: Option<String>,
-
-            #[serde_as(as = "Vec<object_id::FromHexString>")]
-            oid_vector: Vec<String>,
-        }
-
-        let oid = ObjectId::new();
-        let a = A {
-            oid: oid.to_string(),
-            oid_optional_none: None,
-            oid_optional_some: Some(oid.to_string()),
-            oid_vector: vec![oid.to_string()],
-        };
-
-        // Serialize the struct to BSON
-        let doc = serialize_to_document(&a).unwrap();
-
-        // Validate serialized data
-        assert_eq!(
-            doc.get_object_id("oid").unwrap(),
-            oid,
-            "Expected serialized oid to match original ObjectId."
-        );
-
-        assert_eq!(
-            doc.get("oid_optional_none"),
-            Some(&Bson::Null),
-            "Expected serialized oid_optional_none to be None."
-        );
-
-        match doc.get("oid_optional_some") {
-            Some(Bson::ObjectId(value)) => {
-                assert_eq!(
-                    *value, oid,
-                    "Expected serialized oid_optional_some to match original ObjectId."
-                )
-            }
-            _ => {
-                panic!("Expected serialized oid_optional_some to be a BSON ObjectId.")
-            }
-        }
-
-        let oid_vector = doc
-            .get_array("oid_vector")
-            .expect("Expected serialized oid_vector to be a BSON array.");
-        let expected_oid_vector: Vec<Bson> = a
-            .oid_vector
-            .into_iter()
-            .map(|oid| Bson::ObjectId(ObjectId::parse_str(oid).unwrap()))
-            .collect();
-        assert_eq!(
-            oid_vector, &expected_oid_vector,
-            "Expected each serialized element in oid_vector match the original."
-        );
-
-        // Deserialize the BSON back to the struct
-        let a_deserialized: A = deserialize_from_document(doc).unwrap();
-
-        // Validate deserialized data
-        assert_eq!(
-            a_deserialized.oid,
-            oid.to_string(),
-            "Expected deserialized oid to match the original."
-        );
-
-        assert_eq!(
-            a_deserialized.oid_optional_some,
-            Some(oid.to_string()),
-            "Expected deserialized oid_optional_some to match the original."
-        );
-
-        assert_eq!(
-            a_deserialized.oid_vector,
-            vec![oid.to_string()],
-            "Expected deserialized oid_vector to match the original."
-        );
-
-        // Validate serializing error case with an invalid ObjectId string
-        let invalid_oid = "invalid_oid";
-        let bad_a = A {
-            oid: invalid_oid.to_string(),
-            oid_optional_none: None,
-            oid_optional_some: Some(invalid_oid.to_string()),
-            oid_vector: vec![invalid_oid.to_string()],
-        };
-        let result = serialize_to_document(&bad_a);
-        assert!(
-            result.is_err(),
-            "Deserialization should fail for invalid ObjectId strings"
-        );
-        let err_string = format!("{:?}", result.unwrap_err());
-        assert!(
-            err_string.contains("BSON error"),
-            "Expected error message to mention BSON error: {}",
-            err_string
-        );
-
-        #[serde_as]
-        #[derive(Serialize, Deserialize, Debug)]
-        struct B {
-            #[serde_as(as = "object_id::AsHexString")]
-            oid: ObjectId,
-
-            #[serde_as(as = "Option<object_id::AsHexString>")]
-            oid_optional_none: Option<ObjectId>,
-
-            #[serde_as(as = "Option<object_id::AsHexString>")]
-            oid_optional_some: Option<ObjectId>,
-
-            #[serde_as(as = "Vec<object_id::AsHexString>")]
-            oid_vector: Vec<ObjectId>,
-        }
-
-        let oid = ObjectId::new();
-        let b = B {
-            oid,
-            oid_optional_none: None,
-            oid_optional_some: Some(oid),
-            oid_vector: vec![oid],
-        };
-
-        // Serialize the struct to BSON
-        let doc = serialize_to_document(&b).unwrap();
-
-        // Validate serialized data
-        assert_eq!(
-            doc.get_str("oid").unwrap(),
-            oid.to_hex(),
-            "Expected serialized oid to match original ObjectId as hex string."
-        );
-
-        assert_eq!(
-            doc.get("oid_optional_none"),
-            Some(&Bson::Null),
-            "Expected serialized oid_optional_none to be None."
-        );
-
-        match doc.get("oid_optional_some") {
-            Some(Bson::String(value)) => {
-                assert_eq!(
-                    *value,
-                    oid.to_hex(),
-                    "Expected serialized oid_optional_some to match original ObjectId."
-                )
-            }
-            _ => {
-                panic!("Expected serialized oid_optional_some to be a BSON String.")
-            }
-        }
-
-        let oid_vector = doc
-            .get_array("oid_vector")
-            .expect("Expected serialized oid_vector to be a BSON array.");
-        let expected_oid_vector: Vec<Bson> = b
-            .oid_vector
-            .into_iter()
-            .map(|oid| Bson::String(oid.to_hex()))
-            .collect();
-        assert_eq!(
-            oid_vector, &expected_oid_vector,
-            "Expected each serialized element in oid_vector match the original."
-        );
-
-        // Deserialize the BSON back to the struct
-        let b_deserialized: B = deserialize_from_document(doc).unwrap();
-
-        // Validate deserialized data
-        assert_eq!(
-            b_deserialized.oid, oid,
-            "Expected deserialized oid to match the original."
-        );
-
-        assert_eq!(
-            b_deserialized.oid_optional_none, None,
-            "Expected deserialized oid_optional_none to be None."
-        );
-
-        assert_eq!(
-            b_deserialized.oid_optional_some,
-            Some(oid),
-            "Expected deserialized oid_optional_some to match the original."
-        );
-
-        assert_eq!(
-            b_deserialized.oid_vector,
-            vec![oid],
-            "Expected deserialized oid_vector to match the original.."
-        );
-
-        // Validate deserializing error case with an invalid ObjectId string
-        let invalid_doc = doc! {
-            "oid": "not_a_valid_oid",
-            "oid_optional_none": Bson::Null,
-            "oid_optional_some": "also_invalid_oid",
-            "oid_vector": ["bad1", "bad2"]
-        };
-        let result: Result<B, _> = deserialize_from_document(invalid_doc);
-        assert!(
-            result.is_err(),
-            "Deserialization should fail for invalid ObjectId strings"
-        );
-        let err_string = format!("{:?}", result.unwrap_err());
-        assert!(
-            err_string.contains("BSON error"),
-            "Expected error message to mention BSON error: {}",
-            err_string
-        );
-    }
 }
 
 #[test]
