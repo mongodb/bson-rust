@@ -68,6 +68,7 @@
 //! | `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_err/latest).  This is an unstable feature and any breaking changes to `serde_path_to_error` may affect usage of it via this feature. | no |
 //! | `compat-3-0-0` | Required for future compatibility if default features are disabled. | no |
 //! | `large_dates` | Increase the supported year range for some `bson::DateTime` utilities from +/-9,999 (inclusive) to +/-999,999 (inclusive). Note that enabling this feature can impact performance and introduce parsing ambiguities. | no |
+//! | `serde_json-1` | Enable support for v1.x of the [`serde_json`](https://docs.rs/serde_json/1.x) crate in the public API. | no |
 //!
 //! ## BSON values
 //!
@@ -222,6 +223,94 @@
 //! failing field.  This feature does incur a small CPU and memory overhead during (de)serialization
 //! and should be enabled with care in performance-sensitive environments.
 //!
+//! ## Working with Extended JSON
+//!
+//! MongoDB Extended JSON (extJSON) is a format of JSON that allows for the encoding
+//! of BSON type information. Normal JSON cannot unambiguously represent all BSON types losslessly,
+//! so an extension was designed to include conventions for representing those types.
+//!
+//! For example, a BSON binary is represented by the following format:
+//! ```text
+//! {
+//!    "$binary": {
+//!        "base64": <base64 encoded payload as a string>,
+//!        "subType": <subtype as a one or two character hex string>,
+//!    }
+//! }
+//! ```
+//! For more information on extJSON and the complete list of translations, see the [official MongoDB documentation](https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/).
+//!
+//! All MongoDB drivers and BSON libraries interpret and produce extJSON, so it can serve as a
+//! useful tool for communicating between applications where raw BSON bytes cannot be used (e.g. via
+//! JSON REST APIs). It's also useful for representing BSON data as a string.
+//!
+//! ### Canonical and Relaxed Modes
+//!
+//! There are two modes of extJSON: "Canonical" and "Relaxed". They are the same except for the
+//! following differences:
+//!   - In relaxed mode, all BSON numbers are represented by the JSON number type, rather than the
+//!     object notation.
+//!   - In relaxed mode, the string in the datetime object notation is RFC 3339 (ISO-8601) formatted
+//!     (if the date is after 1970).
+//!
+//! e.g.
+//! ```rust
+//! # use bson::bson;
+//! let doc = bson!({ "x": 5, "d": bson::DateTime::now() });
+//!
+//! println!("relaxed: {}", doc.clone().into_relaxed_extjson());
+//! // relaxed: "{"x":5,"d":{"$date":"2020-06-01T22:19:13.075Z"}}"
+//!
+//! println!("canonical: {}", doc.into_canonical_extjson());
+//! // canonical: {"x":{"$numberInt":"5"},"d":{"$date":{"$numberLong":"1591050020711"}}}
+//! ```
+//!
+//! Canonical mode is useful when BSON values need to be round tripped without losing any type
+//! information. Relaxed mode is more useful when debugging or logging BSON data.
+//!
+//! ### Deserializing from Extended JSON
+//!
+//! Extended JSON can be deserialized into a [`Bson`] value using the
+//! [`TryFrom`](https://docs.rs/bson/latest/bson/enum.Bson.html#impl-TryFrom%3CValue%3E-for-Bson)
+//! implementation for [`serde_json::Value`]. This implementation accepts both canonical and relaxed
+//! extJSON, and the two modes can be mixed within a single representation.
+//!
+//! e.g.
+//! ```rust
+//! # use bson::Bson;
+//! # use serde_json::json;
+//! # use std::convert::{TryFrom, TryInto};
+//! let json_doc = json!({ "x": 5i32, "y": { "$numberInt": "5" }, "z": { "subdoc": "hello" } });
+//! let bson: Bson = json_doc.try_into().unwrap(); // Bson::Document(...)
+//!
+//! let json_date = json!({ "$date": { "$numberLong": "1590972160292" } });
+//! let bson_date: Bson = json_date.try_into().unwrap(); // Bson::DateTime(...)
+//!
+//! let invalid_ext_json = json!({ "$numberLong": 5 });
+//! Bson::try_from(invalid_ext_json).expect_err("5 should be a string");
+//! ```
+//!
+//! ### Serializing to Extended JSON
+//!
+//! A [`Bson`] value can be serialized into extJSON using the [`Bson::into_relaxed_extjson`] and
+//! [`Bson::into_canonical_extjson`] methods. The `Into<serde_json::Value>` implementation for
+//! [`Bson`] produces relaxed extJSON.
+//!
+//! e.g.
+//! ```rust
+//! # use bson::{bson, oid};
+//! let doc = bson!({ "x": 5i32, "_id": oid::ObjectId::new() });
+//!
+//! let relaxed_extjson: serde_json::Value = doc.clone().into();
+//! println!("{}", relaxed_extjson); // { "x": 5, "_id": { "$oid": <hexstring> } }
+//!
+//! let relaxed_extjson = doc.clone().into_relaxed_extjson();
+//! println!("{}", relaxed_extjson); // { "x": 5, "_id": { "$oid": <hexstring> } }
+//!
+//! let canonical_extjson = doc.into_canonical_extjson();
+//! println!("{}", canonical_extjson); // { "x": { "$numberInt": "5" }, "_id": { "$oid": <hexstring> } }
+//! ```
+//!
 //! ## Working with datetimes
 //!
 //! The BSON format includes a datetime type, which is modeled in this crate by the
@@ -340,7 +429,7 @@ pub mod decimal128;
 pub mod document;
 pub mod error;
 #[cfg(feature = "serde")]
-pub mod extjson;
+mod extjson;
 pub mod oid;
 pub mod raw;
 #[cfg(feature = "serde")]
