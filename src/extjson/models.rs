@@ -1,19 +1,20 @@
 //! A module defining serde models for the extended JSON representations of the various BSON types.
 
+#![cfg_attr(not(feature = "serde_json-1"), allow(unused))]
+
 use serde::{
     de::{Error as _, Unexpected},
     Deserialize,
     Serialize,
+    Serializer,
 };
-use serde_with::serde_as;
-use std::borrow::Cow;
+use std::{borrow::Cow, result::Result as StdResult};
 
 use crate::{
     base64,
     error::{Error, Result},
     oid,
     raw::serde::CowStr,
-    serde_helpers::u32,
     spec::BinarySubtype,
     Bson,
 };
@@ -198,6 +199,7 @@ impl Uuid {
     }
 }
 
+#[cfg(feature = "serde_json-1")]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct JavaScriptCodeWithScope {
@@ -216,14 +218,18 @@ pub(crate) struct Timestamp {
     body: TimestampBody,
 }
 
+/// Serializes a u32 as an i64.
+fn serialize_u32_as_i64<S: Serializer>(val: &u32, serializer: S) -> StdResult<S::Ok, S::Error> {
+    serializer.serialize_i64(*val as i64)
+}
+
 #[derive(Serialize, Deserialize, Debug)]
-#[serde_as]
 #[serde(deny_unknown_fields)]
 pub(crate) struct TimestampBody {
-    #[serde_as(as = "u32::AsI64")]
+    #[serde(serialize_with = "serialize_u32_as_i64")]
     pub(crate) t: u32,
 
-    #[serde_as(as = "u32::AsI64")]
+    #[serde(serialize_with = "serialize_u32_as_i64")]
     pub(crate) i: u32,
 }
 

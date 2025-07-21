@@ -7,7 +7,7 @@ use crate::{
     deserialize_from_document,
     doc,
     oid::ObjectId,
-    serde_helpers::{self, datetime, object_id, u32, u64},
+    serde_helpers::{self, datetime, object_id, timestamp, u32, u64},
     serialize_to_bson,
     serialize_to_document,
     spec::BinarySubtype,
@@ -1202,22 +1202,22 @@ fn test_datetime_time03_offset_datetime_helper() {
 
 #[test]
 #[cfg(feature = "serde_with-3")]
-fn test_u32_timestamp_helpers() {
+fn test_timestamp_u32_helpers() {
     let _guard = LOCK.run_concurrently();
 
     #[serde_as]
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct A {
-        #[serde_as(as = "u32::FromTimestamp")]
+        #[serde_as(as = "timestamp::AsU32")]
         pub timestamp: Timestamp,
 
-        #[serde_as(as = "Option<u32::FromTimestamp>")]
+        #[serde_as(as = "Option<timestamp::AsU32>")]
         pub timestamp_optional_none: Option<Timestamp>,
 
-        #[serde_as(as = "Option<u32::FromTimestamp>")]
+        #[serde_as(as = "Option<timestamp::AsU32>")]
         pub timestamp_optional_some: Option<Timestamp>,
 
-        #[serde_as(as = "Vec<u32::FromTimestamp>")]
+        #[serde_as(as = "Vec<timestamp::AsU32>")]
         pub timestamp_vector: Vec<Timestamp>,
     }
 
@@ -1294,16 +1294,16 @@ fn test_u32_timestamp_helpers() {
     #[serde_as]
     #[derive(Deserialize, Serialize, Debug, PartialEq)]
     struct B {
-        #[serde_as(as = "u32::AsTimestamp")]
+        #[serde_as(as = "timestamp::FromU32")]
         pub time: u32,
 
-        #[serde_as(as = "Option<u32::AsTimestamp>")]
+        #[serde_as(as = "Option<timestamp::FromU32>")]
         pub time_optional_none: Option<u32>,
 
-        #[serde_as(as = "Option<u32::AsTimestamp>")]
+        #[serde_as(as = "Option<timestamp::FromU32>")]
         pub time_optional_some: Option<u32>,
 
-        #[serde_as(as = "Vec<u32::AsTimestamp>")]
+        #[serde_as(as = "Vec<timestamp::FromU32>")]
         pub time_vector: Vec<u32>,
     }
 
@@ -1698,7 +1698,6 @@ fn test_u64_f64_helper() {
         .get_array("value_vector")
         .expect("Expected serialized value_vector to be a BSON array.");
     let expected_value_vector: Vec<Bson> = vec![Bson::Double(value as f64)];
-    // TODO: check whether this can be applied to other converters
     assert_eq!(
         value_vector, &expected_value_vector,
         "Expected each serialized element in value_vector to match the original."

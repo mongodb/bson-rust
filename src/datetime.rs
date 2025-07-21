@@ -108,16 +108,21 @@ use crate::error::{Error, Result};
 ///
 /// ### `serde_helpers`
 /// The `bson` crate provides a number of useful helpers for serializing and deserializing
-/// various datetime types to and from different formats. For example, to serialize a
-/// [`chrono::DateTime`] as a BSON datetime, you can use
+/// various datetime types to and from different formats using the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
+/// crate.
+///
+/// > **Note:** All helpers in this module require use of the [`#[serde_as]`](https://docs.rs/serde_with/latest/serde_with/attr.serde_as.html)
+/// > attribute on the struct. This enables the enhanced serialization behavior provided by
+/// > `serde_with-3`.
+///
+/// For example, to serialize a [`chrono::DateTime`] as a BSON datetime, you can use
 /// [`crate::serde_helpers::datetime::FromChrono04DateTime`].
 /// Similarly, to serialize a BSON [`DateTime`] to a string, you can use
 /// [`crate::serde_helpers::datetime::AsRfc3339String`]. Check out the
-/// [`crate::serde_helpers`] module documentation for a list of all of the helpers offered by the
-/// crate.
-///
+/// [`crate::serde_helpers`] module documentation for a list of all of the helpers
+/// offered by the crate.
 /// ```rust
-/// # #[cfg(feature = "chrono-0_4")]
+/// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
 /// # {
 /// use serde::{Serialize, Deserialize};
 /// use serde_with::serde_as;
@@ -138,29 +143,26 @@ use crate::error::{Error, Result};
 ///     chrono_as_bson: chrono::DateTime<chrono::Utc>,
 ///
 ///     // serializes as an RFC 3339 / ISO-8601 string.
+///     // this requires the "serde_with-3" feature flag
 ///     #[serde_as(as = "datetime::AsRfc3339String")]
 ///     bson_as_string: bson::DateTime,
 /// }
 /// # }
 /// ```
-/// ### The `serde_with-3` feature flag
-///
-/// The `serde_with-3` feature can be enabled to support more ergonomic serde attributes for
-/// (de)serializing [`chrono::DateTime`] from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
-/// crate. The main benefit of this compared to the regular `serde_helpers` is that `serde_with-3`
-/// can handle nested [`chrono::DateTime`] values (e.g. in [`Option`]), whereas the former only
-/// works on fields that are exactly [`chrono::DateTime`].
+/// The main benefit of using the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/) crate
+/// is that it can handle nested [`chrono::DateTime`] values (e.g. in [`Option`] or [`Vec`]).
 /// ```
 /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
 /// # {
 /// use serde::{Deserialize, Serialize};
-/// use bson::doc;
+/// use serde_with::serde_as;
+/// use bson::{doc, serde_helpers::datetime};
 ///
-/// #[serde_with::serde_as]
+/// #[serde_as]
 /// #[derive(Deserialize, Serialize, PartialEq, Debug)]
 /// struct Foo {
-///   /// Serializes as a BSON datetime rather than using [`chrono::DateTime`]'s serialization
-///   #[serde_as(as = "Option<bson::DateTime>")]
+///   /// serializes as a BSON datetime rather than using [`chrono::DateTime`]'s serialization
+///   #[serde_as(as = "Option<datetime::FromChrono04DateTime>")]
 ///   as_bson: Option<chrono::DateTime<chrono::Utc>>,
 /// }
 ///
