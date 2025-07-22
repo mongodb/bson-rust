@@ -22,8 +22,10 @@
 //! # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
 //! # {
 //! # use uuid as uuid;
-//! use serde::{Serialize, Deserialize};
 //! use bson::doc;
+//! use serde::{Serialize, Deserialize};
+//! use serde_with::serde_as;
+//!
 //!
 //! #[serde_as]
 //! #[derive(Serialize, Deserialize)]
