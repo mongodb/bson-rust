@@ -535,13 +535,13 @@ pub mod u64 {
 #[cfg(all(feature = "serde_with-3", feature = "uuid-1"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "serde_with-3", feature = "uuid-1"))))]
 pub mod uuid_1 {
-    use crate::{macros::serde_conv_doc, Binary};
+    use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
     use uuid::Uuid;
 
     serde_conv_doc!(
-        /// Serializes a [`Uuid`] as a [`Binary`] and deserializes a [`Uuid`] from a [`Binary`].
+        /// Serializes a [`Uuid`] as a [`crate::Binary`] and deserializes a [`Uuid`] from a [`crate::Binary`].
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
@@ -568,8 +568,8 @@ pub mod uuid_1 {
     );
 
     serde_conv_doc!(
-        /// Serializes a [`Uuid`] to a [`Binary`] in the legacy C# driver UUID format and
-        /// deserializes [`Uuid`] from a [`Binary`] in the legacy C# driver format.
+        /// Serializes a [`Uuid`] to a [`crate::Binary`] in the legacy C# driver UUID format and
+        /// deserializes [`Uuid`] from a [`crate::Binary`] in the legacy C# driver format.
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
@@ -603,8 +603,8 @@ pub mod uuid_1 {
     );
 
     serde_conv_doc!(
-        /// Serializes a [`Uuid`] to a [`Binary`] in the legacy Java driver UUID format and
-        /// deserializes [`Uuid`] from a [`Binary`] in the legacy Java driver format.
+        /// Serializes a [`Uuid`] to a [`crate::Binary`] in the legacy Java driver UUID format and
+        /// deserializes [`Uuid`] from a [`crate::Binary`] in the legacy Java driver format.
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
@@ -638,8 +638,8 @@ pub mod uuid_1 {
     );
 
     serde_conv_doc!(
-        /// Serializes a [`Uuid`] to a [`Binary`] in the legacy Python driver UUID format and
-        /// deserializes [`Uuid`] from a [`Binary`] in the legacy Python driver format.
+        /// Serializes a [`Uuid`] to a [`crate::Binary`] in the legacy Python driver UUID format and
+        /// deserializes [`Uuid`] from a [`crate::Binary`] in the legacy Python driver format.
         /// ```rust
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
