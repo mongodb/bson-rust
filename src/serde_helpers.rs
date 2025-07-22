@@ -244,7 +244,6 @@ pub mod timestamp {
     use crate::{macros::serde_conv_doc, Timestamp};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
-    use std::result::Result;
 
     serde_conv_doc!(
         /// Converts a [`Timestamp`] to and from a `u32`.
@@ -427,7 +426,6 @@ pub mod u64 {
     use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use serde_with::{DeserializeAs, SerializeAs};
-    use std::result::Result;
 
     serde_conv_doc!(
         /// Converts a `u64` to and from an `f64`.
