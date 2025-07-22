@@ -133,7 +133,7 @@ impl TryFrom<RawElement<'_>> for RawBson {
     type Error = Error;
 
     fn try_from(element: RawElement<'_>) -> Result<Self> {
-        Ok(element.value()?.to_raw_bson())
+        Ok(element.value()?.into())
     }
 }
 
@@ -141,7 +141,7 @@ impl TryFrom<RawElement<'_>> for Bson {
     type Error = Error;
 
     fn try_from(element: RawElement<'_>) -> Result<Self> {
-        element.value()?.to_raw_bson().try_into()
+        element.value()?.try_into()
     }
 }
 
@@ -283,7 +283,7 @@ impl<'a> RawElement<'a> {
     pub fn value_utf8_lossy(&self) -> Result<RawBson> {
         match self.value_utf8_lossy_inner()? {
             Some(v) => Ok(v.into()),
-            None => Ok(self.value()?.to_raw_bson()),
+            None => Ok(self.value()?.into()),
         }
     }
 
