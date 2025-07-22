@@ -246,52 +246,6 @@ impl<'a> RawBsonRef<'a> {
         }
     }
 
-    /// Convert this [`RawBsonRef`] to the equivalent [`RawBson`].
-    pub fn to_raw_bson(self) -> RawBson {
-        match self {
-            RawBsonRef::Double(d) => RawBson::Double(d),
-            RawBsonRef::String(s) => RawBson::String(s.to_string()),
-            RawBsonRef::Array(a) => RawBson::Array(a.to_owned()),
-            RawBsonRef::Document(d) => RawBson::Document(d.to_owned()),
-            RawBsonRef::Boolean(b) => RawBson::Boolean(b),
-            RawBsonRef::Null => RawBson::Null,
-            RawBsonRef::RegularExpression(re) => {
-                let mut chars: Vec<_> = re.options.as_str().chars().collect();
-                chars.sort_unstable();
-                let options: String = chars.into_iter().collect();
-                RawBson::RegularExpression(Regex {
-                    pattern: re.pattern.into(),
-                    options: super::CString::from_string_unchecked(options),
-                })
-            }
-            RawBsonRef::JavaScriptCode(c) => RawBson::JavaScriptCode(c.to_owned()),
-            RawBsonRef::JavaScriptCodeWithScope(c_w_s) => {
-                RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
-                    code: c_w_s.code.to_string(),
-                    scope: c_w_s.scope.to_owned(),
-                })
-            }
-            RawBsonRef::Int32(i) => RawBson::Int32(i),
-            RawBsonRef::Int64(i) => RawBson::Int64(i),
-            RawBsonRef::Timestamp(t) => RawBson::Timestamp(t),
-            RawBsonRef::Binary(b) => RawBson::Binary(Binary {
-                bytes: b.bytes.to_vec(),
-                subtype: b.subtype,
-            }),
-            RawBsonRef::ObjectId(o) => RawBson::ObjectId(o),
-            RawBsonRef::DateTime(dt) => RawBson::DateTime(dt),
-            RawBsonRef::Symbol(s) => RawBson::Symbol(s.to_string()),
-            RawBsonRef::Decimal128(d) => RawBson::Decimal128(d),
-            RawBsonRef::Undefined => RawBson::Undefined,
-            RawBsonRef::MaxKey => RawBson::MaxKey,
-            RawBsonRef::MinKey => RawBson::MinKey,
-            RawBsonRef::DbPointer(d) => RawBson::DbPointer(DbPointer {
-                namespace: d.namespace.to_string(),
-                id: d.id,
-            }),
-        }
-    }
-
     #[inline]
     pub(crate) fn append_to(self, dest: &mut Vec<u8>) {
         match self {
@@ -332,6 +286,53 @@ impl<'a> RawBsonRef<'a> {
                 dest.extend(dbp.id.bytes());
             }
             Self::Null | Self::Undefined | Self::MinKey | Self::MaxKey => {}
+        }
+    }
+}
+
+impl<'a> From<RawBsonRef<'a>> for RawBson {
+    fn from(value: RawBsonRef<'a>) -> Self {
+        match value {
+            RawBsonRef::Double(d) => RawBson::Double(d),
+            RawBsonRef::String(s) => RawBson::String(s.to_string()),
+            RawBsonRef::Array(a) => RawBson::Array(a.to_owned()),
+            RawBsonRef::Document(d) => RawBson::Document(d.to_owned()),
+            RawBsonRef::Boolean(b) => RawBson::Boolean(b),
+            RawBsonRef::Null => RawBson::Null,
+            RawBsonRef::RegularExpression(re) => {
+                let mut chars: Vec<_> = re.options.as_str().chars().collect();
+                chars.sort_unstable();
+                let options: String = chars.into_iter().collect();
+                RawBson::RegularExpression(Regex {
+                    pattern: re.pattern.into(),
+                    options: super::CString::from_string_unchecked(options),
+                })
+            }
+            RawBsonRef::JavaScriptCode(c) => RawBson::JavaScriptCode(c.to_owned()),
+            RawBsonRef::JavaScriptCodeWithScope(c_w_s) => {
+                RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope {
+                    code: c_w_s.code.to_string(),
+                    scope: c_w_s.scope.to_owned(),
+                })
+            }
+            RawBsonRef::Int32(i) => RawBson::Int32(i),
+            RawBsonRef::Int64(i) => RawBson::Int64(i),
+            RawBsonRef::Timestamp(t) => RawBson::Timestamp(t),
+            RawBsonRef::Binary(b) => RawBson::Binary(Binary {
+                bytes: b.bytes.to_vec(),
+                subtype: b.subtype,
+            }),
+            RawBsonRef::ObjectId(o) => RawBson::ObjectId(o),
+            RawBsonRef::DateTime(dt) => RawBson::DateTime(dt),
+            RawBsonRef::Symbol(s) => RawBson::Symbol(s.to_string()),
+            RawBsonRef::Decimal128(d) => RawBson::Decimal128(d),
+            RawBsonRef::Undefined => RawBson::Undefined,
+            RawBsonRef::MaxKey => RawBson::MaxKey,
+            RawBsonRef::MinKey => RawBson::MinKey,
+            RawBsonRef::DbPointer(d) => RawBson::DbPointer(DbPointer {
+                namespace: d.namespace.to_string(),
+                id: d.id,
+            }),
         }
     }
 }
@@ -412,7 +413,7 @@ impl<'a> TryFrom<RawBsonRef<'a>> for Bson {
     type Error = Error;
 
     fn try_from(rawbson: RawBsonRef<'a>) -> Result<Bson> {
-        rawbson.to_raw_bson().try_into()
+        RawBson::from(rawbson).try_into()
     }
 }
 
