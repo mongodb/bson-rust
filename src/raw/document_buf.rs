@@ -99,7 +99,7 @@ impl RawDocumentBuf {
     ///
     /// ```
     /// # use bson::raw::RawDocumentBuf;
-    /// let doc = RawDocumentBuf::decode_from_bytes(b"\x05\0\0\0\0".to_vec())?;
+    /// let doc = RawDocumentBuf::decode_from_reader(b"\x05\0\0\0\0".as_slice())?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
     pub fn decode_from_reader<R: std::io::Read>(reader: R) -> Result<Self> {
