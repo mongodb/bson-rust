@@ -429,7 +429,7 @@ impl<'de> serde::Deserialize<'de> for RawBson {
             OwnedOrBorrowedRawBsonVisitor,
         )? {
             OwnedOrBorrowedRawBson::Owned(o) => Ok(o),
-            OwnedOrBorrowedRawBson::Borrowed(b) => Ok(b.to_raw_bson()),
+            OwnedOrBorrowedRawBson::Borrowed(b) => Ok(b.into()),
         }
     }
 }

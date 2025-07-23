@@ -396,6 +396,7 @@ pub use self::{
         RawJavaScriptCodeWithScopeRef,
         RawRegexRef,
     },
+    utf8_lossy::Utf8Lossy,
     uuid::{Uuid, UuidRepresentation},
 };
 
@@ -439,6 +440,7 @@ pub mod ser;
 #[cfg(feature = "serde")]
 pub mod serde_helpers;
 pub mod spec;
+mod utf8_lossy;
 pub mod uuid;
 
 #[cfg(test)]
