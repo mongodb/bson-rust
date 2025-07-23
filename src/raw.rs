@@ -35,9 +35,10 @@
 //!
 //! ### [`crate::Document`] interop
 //!
-//! A [`RawDocument`] can be created from a [`crate::Document`]. Internally, this
-//! serializes the [`crate::Document`] to a `Vec<u8>`, and then includes those bytes in the
-//! [`RawDocument`].
+//! A [`RawDocument`] can be created from a [`crate::Document`] via its [`TryFrom`] impl.  This
+//! encodes the `Document` as a byte buffer, and then returns those bytes as a `RawDocument`;
+//! this will fail if the `Document` contains values not allowed in encoded BSON (such as embedded
+//! nul bytes in string keys).
 //!
 //! ```rust
 //! use bson::{
@@ -51,7 +52,7 @@
 //!    }
 //! };
 //!
-//! let raw = RawDocumentBuf::from_document(&document)?;
+//! let raw = RawDocumentBuf::try_from(&document)?;
 //! let value = raw
 //!     .get_document("goodbye")?
 //!     .get_str("cruel")?;
@@ -62,6 +63,12 @@
 //! );
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
+//!
+//! Conversion in the other direction, from [`crate::Document`] to [`RawDocument`], can also be done
+//! via [`TryFrom`].  This will fail if the byte buffer in the `RawDocument` contains invalid BSON.
+//!
+//! The other types in this module ([`RawDocumentBuf`], [`RawBson`], [`RawBsonRef`], [`RawArray`],
+//! [`RawArrayBuf`]) all have similar pairs of [`TryFrom`] conversion impls defined.
 //!
 //! ### Reference type ([`RawDocument`])
 //!
@@ -101,7 +108,7 @@
 //!     "year": "2021",
 //! };
 //!
-//! let doc = RawDocumentBuf::from_document(&original_doc)?;
+//! let doc = RawDocumentBuf::try_from(&original_doc)?;
 //! let mut doc_iter = doc.iter();
 //!
 //! let (key, value): (&CStr, RawBsonRef) = doc_iter.next().unwrap()?;

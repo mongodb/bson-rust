@@ -96,7 +96,7 @@ impl RawDocumentBuf {
     /// ```
     /// use bson::{doc, raw::RawDocumentBuf};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! { "ferris": true })?;
+    /// let doc = RawDocumentBuf::try_from(&doc! { "ferris": true })?;
     ///
     /// for element in doc.iter() {
     ///     let (key, value) = element?;
@@ -140,7 +140,7 @@ impl RawDocumentBuf {
     /// ```
     /// use bson::{doc, raw::RawDocumentBuf};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc!{})?;
+    /// let doc = RawDocumentBuf::try_from(&doc!{})?;
     /// assert_eq!(doc.into_bytes(), b"\x05\x00\x00\x00\x00".to_vec());
     /// # Ok::<(), bson::error::Error>(())
     /// ```
@@ -160,7 +160,7 @@ impl RawDocumentBuf {
     /// the documentation for [BindRawBsonRef] for more details.
     /// ```
     /// # use bson::error::Error;
-    /// use bson::{doc, raw::{cstr, RawBsonRef, RawDocumentBuf}};
+    /// use bson::{Document, doc, raw::{cstr, RawBsonRef, RawDocumentBuf}};
     ///
     /// let mut doc = RawDocumentBuf::new();
     /// // `&str` and `i32` both convert to `RawBsonRef`
@@ -179,7 +179,7 @@ impl RawDocumentBuf {
     ///     "an owned document": { "a key": true },
     /// };
     ///
-    /// assert_eq!(doc.to_document()?, expected);
+    /// assert_eq!(Document::try_from(doc)?, expected);
     /// # Ok::<(), Error>(())
     /// ```
     pub fn append(&mut self, key: impl AsRef<CStr>, value: impl BindRawBsonRef) {
