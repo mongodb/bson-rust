@@ -127,20 +127,6 @@ impl RawDocument {
         unsafe { &*(data.as_ref() as *const [u8] as *const RawDocument) }
     }
 
-    /// Creates a new [`RawDocumentBuf`] with an owned copy of the BSON bytes.
-    ///
-    /// ```
-    /// use bson::raw::{RawDocument, RawDocumentBuf};
-    ///
-    /// let data = b"\x05\0\0\0\0";
-    /// let doc_ref = RawDocument::decode_from_bytes(data)?;
-    /// let doc: RawDocumentBuf = doc_ref.to_raw_document_buf();
-    /// # Ok::<(), bson::error::Error>(())
-    pub fn to_raw_document_buf(&self) -> RawDocumentBuf {
-        // unwrap is ok here because we already verified the bytes in `RawDocumentRef::new`
-        RawDocumentBuf::decode_from_bytes(self.data.to_owned()).unwrap()
-    }
-
     /// Gets a reference to the value corresponding to the given key by iterating until the key is
     /// found.
     ///
@@ -633,7 +619,8 @@ impl ToOwned for RawDocument {
     type Owned = RawDocumentBuf;
 
     fn to_owned(&self) -> Self::Owned {
-        self.to_raw_document_buf()
+        // unwrap is ok here because we already verified the bytes in `RawDocumentRef::new`
+        RawDocumentBuf::decode_from_bytes(self.data.to_owned()).unwrap()
     }
 }
 

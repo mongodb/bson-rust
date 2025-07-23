@@ -489,7 +489,7 @@ impl<'a> From<Utf8LossyBson<'a>> for RawBson {
                 scope,
             }) => RawBson::JavaScriptCodeWithScope(super::RawJavaScriptCodeWithScope {
                 code,
-                scope: scope.to_raw_document_buf(),
+                scope: scope.to_owned(),
             }),
             Utf8LossyBson::Symbol(s) => RawBson::Symbol(s),
             Utf8LossyBson::DbPointer(p) => RawBson::DbPointer(p),

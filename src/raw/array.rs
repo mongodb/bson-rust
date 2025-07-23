@@ -96,7 +96,7 @@ impl RawArray {
     ///
     /// This involves a traversal of the array to count the values.
     pub fn to_raw_array_buf(&self) -> RawArrayBuf {
-        RawArrayBuf::from_raw_document_buf(self.doc.to_raw_document_buf())
+        RawArrayBuf::from_raw_document_buf(self.doc.to_owned())
     }
 
     /// Gets a reference to the value at the given index.
