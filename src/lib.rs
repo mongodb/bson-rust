@@ -375,6 +375,7 @@
 #![allow(clippy::cognitive_complexity, clippy::derive_partial_eq_without_eq)]
 #![doc(html_root_url = "https://docs.rs/bson/2.6.0")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![warn(missing_docs)]
 
 #[doc(inline)]
 pub use self::{

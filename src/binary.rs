@@ -1,4 +1,5 @@
-#! Module containing functionality related to BSON binary values.
+//! Contains functionality related to BSON binary values.
+
 mod vector;
 
 use std::fmt::{self, Display};

@@ -85,6 +85,23 @@ impl RawDocumentBuf {
         Ok(Self { data })
     }
 
+    /// Constructs a new [`RawDocumentBuf`], validating _only_ the
+    /// following invariants:
+    ///   * `data` is at least five bytes long (the minimum for a valid BSON document)
+    ///   * the initial four bytes of `data` accurately represent the length of the bytes as
+    ///     required by the BSON spec.
+    ///   * the last byte of `data` is a 0
+    ///
+    /// Note that the internal structure of the bytes representing the
+    /// BSON elements is _not_ validated at all by this method. If the
+    /// bytes do not conform to the BSON spec, then method calls on
+    /// the RawDocument will return Errors where appropriate.
+    ///
+    /// ```
+    /// # use bson::raw::RawDocumentBuf;
+    /// let doc = RawDocumentBuf::decode_from_bytes(b"\x05\0\0\0\0".to_vec())?;
+    /// # Ok::<(), bson::error::Error>(())
+    /// ```
     pub fn decode_from_reader<R: std::io::Read>(reader: R) -> Result<Self> {
         let buf = crate::raw::reader_to_vec(reader)?;
         Self::decode_from_bytes(buf)
@@ -333,6 +350,7 @@ impl Borrow<RawDocument> for RawDocumentBuf {
 ///   type Target = BindValue<Self>;
 /// }
 /// ```
+#[allow(missing_docs)]
 pub trait BindRawBsonRef: Sized {
     type Target: BindHelper<Target = Self>;
 

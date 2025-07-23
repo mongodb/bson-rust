@@ -449,6 +449,7 @@ macro_rules! serde_conv_doc {
         // https://github.com/jonasbb/serde_with/pull/320
         // https://github.com/jonasbb/serde_with/pull/729
         #[allow(clippy::all)]
+        #[allow(missing_docs)]
         const _:() = {
             impl $m {
                 $vis fn serialize<S>(x: &$t, serializer: S) -> Result<S::Ok, S::Error>

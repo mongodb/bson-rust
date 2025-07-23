@@ -12,6 +12,7 @@ pub use oid::ObjectIdErrorKind;
 pub use uuid::UuidErrorKind;
 pub use value_access::ValueAccessErrorKind;
 
+/// The result type for all methods that can return an error in the `bson` crate.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// An error that can occur in the `bson` crate.
