@@ -521,16 +521,16 @@ pub mod u64 {
     );
 }
 
-/// Type converters for serializing and deserializing [`crate::Uuid`] using
+/// Type converters for serializing and deserializing [`uuid::Uuid`] using
 /// [`serde_with::serde_as`].
 ///
 /// ## Available converters
-/// - [`uuid_1::AsBinary`] — serializes a [`crate::Uuid`] as a [`crate::Binary`].
-/// - [`uuid_1::AsCSharpLegacyBinary`] — serializes a [`crate::Uuid`] as a [`crate::Binary`] in the
+/// - [`uuid_1::AsBinary`] — serializes a [`uuid::Uuid`] as a [`crate::Binary`].
+/// - [`uuid_1::AsCSharpLegacyBinary`] — serializes a [`uuid::Uuid`] as a [`crate::Binary`] in the
 ///   legacy C# driver UUID format.
-/// - [`uuid_1::AsJavaLegacyBinary`] — serializes a [`crate::Uuid`] as a [`crate::Binary`] in the
+/// - [`uuid_1::AsJavaLegacyBinary`] — serializes a [`uuid::Uuid`] as a [`crate::Binary`] in the
 ///   legacy Java driver UUID format.
-/// - [`uuid_1::AsPythonLegacyBinary`] — serializes a [`crate::Uuid`] as a [`crate::Binary`] in the
+/// - [`uuid_1::AsPythonLegacyBinary`] — serializes a [`uuid::Uuid`] as a [`crate::Binary`] in the
 ///   legacy Python driver UUID format.
 #[cfg(all(feature = "serde_with-3", feature = "uuid-1"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "serde_with-3", feature = "uuid-1"))))]
