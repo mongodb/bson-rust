@@ -395,7 +395,6 @@ impl From<oid::ObjectId> for Bson {
 }
 
 #[cfg(feature = "time-0_3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
 impl From<time::OffsetDateTime> for Bson {
     fn from(a: time::OffsetDateTime) -> Bson {
         Bson::DateTime(crate::DateTime::from(a))
@@ -403,7 +402,6 @@ impl From<time::OffsetDateTime> for Bson {
 }
 
 #[cfg(feature = "chrono-0_4")]
-#[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
 impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for Bson {
     fn from(a: chrono::DateTime<T>) -> Bson {
         Bson::DateTime(crate::DateTime::from(a))
@@ -411,7 +409,6 @@ impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for Bson {
 }
 
 #[cfg(feature = "uuid-1")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
 impl From<uuid::Uuid> for Bson {
     fn from(uuid: uuid::Uuid) -> Self {
         Bson::Binary(uuid.into())

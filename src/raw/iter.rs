@@ -109,9 +109,9 @@ impl<'a> RawIter<'a> {
     }
 }
 
-/// A view into a value contained in a [`RawDocument`] or [`RawDocumentBuf`]. The underlying bytes
-/// of the element are not parsed or validated; call [`RawElement::value`] or one of the `TryFrom`
-/// implementations to convert the element into a BSON value.
+/// A view into a value contained in a [`RawDocument`] or [`RawDocumentBuf`](crate::RawDocumentBuf).
+/// The underlying bytes of the element are not parsed or validated; call [`RawElement::value`] or
+/// one of the `TryFrom` implementations to convert the element into a BSON value.
 #[derive(Clone)]
 pub struct RawElement<'a> {
     key: &'a CStr,
