@@ -11,7 +11,7 @@ use std::ops::{Deref, DerefMut};
 /// `TryFrom`; any invalid UTF-8 sequences contained in strings in the source buffer will be
 /// replaced with the Unicode replacement character.
 ///
-/// If the `serde` feature is enabled, this type will also cause the same lossy conversion to apply
+/// If the `serde` feature is enabled, this type will also cause the same lossy decoding to apply
 /// to any strings contained in a wrapped deserializable type when deserializing from BSON bytes.
 /// This wrapper has no effect on serialization behavior.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Default)]
