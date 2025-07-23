@@ -175,7 +175,7 @@ fn run_test_file(test_file: TestFile) {
 
         // From<Vector> for RawBson
         let raw_document = rawdoc! { "vector": &test_vector };
-        let test_raw_document = RawDocumentBuf::from_document(&test_document).expect(&description);
+        let test_raw_document = RawDocumentBuf::try_from(&test_document).expect(&description);
         assert_eq!(raw_document, test_raw_document);
 
         #[derive(Debug, Deserialize, PartialEq, Serialize)]

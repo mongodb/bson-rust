@@ -107,29 +107,6 @@ impl RawDocumentBuf {
         Self::decode_from_bytes(buf)
     }
 
-    /// Create a [`RawDocumentBuf`] from a [`Document`].
-    ///
-    /// ```
-    /// use bson::{doc, oid::ObjectId, raw::RawDocumentBuf};
-    ///
-    /// let document = doc! {
-    ///     "_id": ObjectId::new(),
-    ///     "name": "Herman Melville",
-    ///     "title": "Moby-Dick",
-    /// };
-    /// let doc = RawDocumentBuf::from_document(&document)?;
-    /// # Ok::<(), bson::error::Error>(())
-    /// ```
-    pub fn from_document(doc: impl Borrow<Document>) -> Result<Self> {
-        let mut out = RawDocumentBuf::new();
-        for (k, v) in doc.borrow() {
-            let k: &CStr = k.as_str().try_into()?;
-            let val: RawBson = v.clone().try_into()?;
-            out.append(k, val);
-        }
-        Ok(out)
-    }
-
     /// Gets an iterator over the elements in the [`RawDocumentBuf`], which yields
     /// `Result<(&str, RawBson<'_>)>`.
     ///
@@ -289,7 +266,13 @@ impl TryFrom<&Document> for RawDocumentBuf {
     type Error = crate::error::Error;
 
     fn try_from(doc: &Document) -> std::result::Result<Self, Self::Error> {
-        RawDocumentBuf::from_document(doc)
+        let mut out = RawDocumentBuf::new();
+        for (k, v) in doc {
+            let k: &CStr = k.as_str().try_into()?;
+            let val: RawBson = v.clone().try_into()?;
+            out.append(k, val);
+        }
+        Ok(out)
     }
 }
 
