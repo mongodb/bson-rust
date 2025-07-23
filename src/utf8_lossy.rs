@@ -7,9 +7,9 @@ use std::ops::{Deref, DerefMut};
 
 /// Wrapper type for lossily decoding embedded strings with invalid UTF-8 sequences.
 ///
-/// A [`RawDocument`] or [`RawDocumentBuf`] can be converted into a `Utf8Lossy<Document>` via
-/// `TryFrom`; any invalid UTF-8 sequences contained in strings in the source buffer will be
-/// replaced with the Unicode replacement character.
+/// A [`RawDocument`](crate::RawDocument) or [`RawDocumentBuf`](crate::RawDocumentBuf) can be
+/// converted into a `Utf8Lossy<Document>` via `TryFrom`; any invalid UTF-8 sequences contained in
+/// strings in the source buffer will be replaced with the Unicode replacement character.
 ///
 /// If the `serde` feature is enabled, this type will also cause the same lossy decoding to apply
 /// to any strings contained in a wrapped deserializable type when deserializing from BSON bytes.
