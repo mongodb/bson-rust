@@ -130,7 +130,7 @@ impl TryInto<RawBson> for RawElement<'_> {
     type Error = Error;
 
     fn try_into(self) -> Result<RawBson> {
-        Ok(self.value()?.to_raw_bson())
+        Ok(self.value()?.into())
     }
 }
 
@@ -138,7 +138,7 @@ impl TryInto<Bson> for RawElement<'_> {
     type Error = Error;
 
     fn try_into(self) -> Result<Bson> {
-        self.value()?.to_raw_bson().try_into()
+        RawBson::from(self.value()?).try_into()
     }
 }
 
@@ -273,7 +273,7 @@ impl<'a> RawElement<'a> {
     pub fn value_utf8_lossy(&self) -> Result<RawBson> {
         match self.value_utf8_lossy_inner()? {
             Some(v) => Ok(v.into()),
-            None => Ok(self.value()?.to_raw_bson()),
+            None => Ok(self.value()?.into()),
         }
     }
 
@@ -479,7 +479,7 @@ impl<'a> From<Utf8LossyBson<'a>> for RawBson {
                 scope,
             }) => RawBson::JavaScriptCodeWithScope(super::RawJavaScriptCodeWithScope {
                 code,
-                scope: scope.to_raw_document_buf(),
+                scope: scope.to_owned(),
             }),
             Utf8LossyBson::Symbol(s) => RawBson::Symbol(s),
             Utf8LossyBson::DbPointer(p) => RawBson::DbPointer(p),

@@ -21,7 +21,6 @@ use bson::{
     cstr,
     doc,
     oid::ObjectId,
-    serde_helpers::Utf8LossyDeserialization,
     spec::BinarySubtype,
     Binary,
     Bson,
@@ -43,6 +42,7 @@ use bson::{
     RawRegexRef,
     Regex,
     Timestamp,
+    Utf8Lossy,
     Uuid,
 };
 
@@ -1336,5 +1336,5 @@ fn invalid_length() {
 fn code_with_scope_too_long() {
     // This is a regression test for fuzzer-generated input (RUST-2241).
     let bytes = base64::decode("KAAAAAsBCRwPAAAACwFAAAAEAA8AEAAAAAYAAAAA9wD5/wAABgALAA==").unwrap();
-    assert!(bson::deserialize_from_slice::<Utf8LossyDeserialization<Document>>(&bytes).is_err());
+    assert!(bson::deserialize_from_slice::<Utf8Lossy<Document>>(&bytes).is_err());
 }

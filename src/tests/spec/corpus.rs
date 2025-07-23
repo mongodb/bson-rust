@@ -6,12 +6,12 @@ use std::{
 
 use crate::{
     raw::{RawBsonRef, RawDocument},
-    serde_helpers::Utf8LossyDeserialization,
     tests::LOCK,
     Bson,
     Document,
     RawBson,
     RawDocumentBuf,
+    Utf8Lossy,
 };
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Deserializer};
@@ -573,7 +573,7 @@ fn run_test(test: TestFile) {
                         description, err
                     )
                 });
-            crate::deserialize_from_slice::<Utf8LossyDeserialization<Document>>(bson.as_slice())
+            crate::deserialize_from_slice::<Utf8Lossy<Document>>(bson.as_slice())
                 .expect(&description);
         }
     }
