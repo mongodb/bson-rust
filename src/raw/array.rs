@@ -92,13 +92,6 @@ impl RawArray {
         &self.doc
     }
 
-    /// Convert this borrowed [`RawArray`] into an owned [`RawArrayBuf`].
-    ///
-    /// This involves a traversal of the array to count the values.
-    pub fn to_raw_array_buf(&self) -> RawArrayBuf {
-        RawArrayBuf::from_raw_document_buf(self.doc.to_owned())
-    }
-
     /// Gets a reference to the value at the given index.
     pub fn get(&self, index: usize) -> RawResult<Option<RawBsonRef<'_>>> {
         self.into_iter().nth(index).transpose()
@@ -250,7 +243,7 @@ impl ToOwned for RawArray {
     type Owned = RawArrayBuf;
 
     fn to_owned(&self) -> Self::Owned {
-        self.to_raw_array_buf()
+        RawArrayBuf::from_raw_document_buf(self.doc.to_owned())
     }
 }
 
