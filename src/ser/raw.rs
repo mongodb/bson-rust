@@ -8,11 +8,13 @@ use serde::{
 
 use self::value_serializer::{ValueSerializer, ValueType};
 
+#[cfg(feature = "serde_with-3")]
+use crate::serde_helpers::object_id::OID_BYTES_NEWTYPE;
 use crate::{
     oid::ObjectId,
     raw::{CStr, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     ser::{Error, Result},
-    serde_helpers::{object_id::OID_BYTES_NEWTYPE, HUMAN_READABLE_NEWTYPE},
+    serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
     RawArray,
@@ -53,6 +55,7 @@ enum SerializerHint {
     RawArray,
 
     /// The next call to `serialize_bytes` is for the porpoises of serializing an ObjectId.
+    #[cfg(feature = "serde_with-3")]
     ObjectId,
 }
 
@@ -216,6 +219,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
                     RawDocument::new_unchecked(v),
                 )))?;
             }
+            #[cfg(feature = "serde_with-3")]
             SerializerHint::ObjectId => {
                 let bytes: [u8; 12] = v.try_into().map_err(|e| Error::serialization(e))?;
                 self.serialize_raw(RawBsonRef::ObjectId(ObjectId::from_bytes(bytes)))?;
@@ -274,6 +278,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
             UUID_NEWTYPE_NAME => self.hint = SerializerHint::Uuid,
             RAW_DOCUMENT_NEWTYPE => self.hint = SerializerHint::RawDocument,
             RAW_ARRAY_NEWTYPE => self.hint = SerializerHint::RawArray,
+            #[cfg(feature = "serde_with-3")]
             OID_BYTES_NEWTYPE => self.hint = SerializerHint::ObjectId,
             HUMAN_READABLE_NEWTYPE => {
                 let old = self.human_readable;
