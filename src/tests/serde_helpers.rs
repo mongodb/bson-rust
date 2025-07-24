@@ -222,4 +222,11 @@ fn objectid_as_bytes() {
         value,
         crate::deserialize_from_slice(raw.as_bytes()).unwrap()
     );
+
+    // rmp-serde serialization
+    let buf = rmp_serde::encode::to_vec(&value).unwrap();
+    assert_eq!(
+        value,
+        rmp_serde::from_slice::<Test>(buf.as_slice()).unwrap(),
+    );
 }
