@@ -225,7 +225,6 @@ impl FromStr for Uuid {
 }
 
 #[cfg(feature = "uuid-1")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid-1")))]
 impl Uuid {
     /// Create a [`Uuid`] from a [`uuid::Uuid`](https://docs.rs/uuid/0.8/uuid/struct.Uuid.html) from
     /// the [`uuid`](https://docs.rs/uuid/0.8) crate.
@@ -457,7 +456,6 @@ impl Binary {
 macro_rules! trait_impls {
     ($feat:meta, $u:ty) => {
         #[cfg($feat)]
-        #[cfg_attr(docsrs, doc(cfg($feat)))]
         impl From<$u> for Binary {
             fn from(uuid: $u) -> Self {
                 Binary {
@@ -468,7 +466,6 @@ macro_rules! trait_impls {
         }
 
         #[cfg(all($feat, feature = "serde_with-3"))]
-        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with-3"))))]
         impl<'de> serde_with::DeserializeAs<'de, $u> for crate::Uuid {
             fn deserialize_as<D>(deserializer: D) -> std::result::Result<$u, D::Error>
             where
@@ -481,7 +478,6 @@ macro_rules! trait_impls {
         }
 
         #[cfg(all($feat, feature = "serde_with-3"))]
-        #[cfg_attr(docsrs, doc(cfg(all($feat, feature = "serde_with-3"))))]
         impl serde_with::SerializeAs<$u> for crate::Uuid {
             fn serialize_as<S>(source: &$u, serializer: S) -> std::result::Result<S::Ok, S::Error>
             where

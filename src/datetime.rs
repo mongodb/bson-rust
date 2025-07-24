@@ -211,7 +211,6 @@ impl crate::DateTime {
     /// Convert the given [`chrono::DateTime`] into a [`bson::DateTime`](DateTime), truncating it to
     /// millisecond precision.
     #[cfg(feature = "chrono-0_4")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn from_chrono<T: chrono::TimeZone>(dt: chrono::DateTime<T>) -> Self {
         Self::from_millis(dt.timestamp_millis())
     }
@@ -241,7 +240,6 @@ impl crate::DateTime {
     /// assert_eq!(chrono_big, chrono::DateTime::<chrono::Utc>::MAX_UTC)
     /// ```
     #[cfg(feature = "chrono-0_4")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
     pub fn to_chrono(self) -> chrono::DateTime<Utc> {
         match Utc.timestamp_millis_opt(self.0) {
             LocalResult::Single(dt) => dt,
@@ -324,7 +322,6 @@ impl crate::DateTime {
     /// assert_eq!(time_big, time::PrimitiveDateTime::MIN.assume_utc())
     /// ```
     #[cfg(feature = "time-0_3")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
     pub fn to_time_0_3(self) -> time::OffsetDateTime {
         self.to_time_private()
     }
@@ -453,7 +450,6 @@ impl From<crate::DateTime> for SystemTime {
 }
 
 #[cfg(feature = "chrono-0_4")]
-#[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
 impl From<crate::DateTime> for chrono::DateTime<Utc> {
     fn from(bson_dt: DateTime) -> Self {
         bson_dt.to_chrono()
@@ -461,7 +457,6 @@ impl From<crate::DateTime> for chrono::DateTime<Utc> {
 }
 
 #[cfg(feature = "chrono-0_4")]
-#[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
 impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for crate::DateTime {
     fn from(x: chrono::DateTime<T>) -> Self {
         Self::from_chrono(x)
@@ -469,10 +464,6 @@ impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for crate::DateTime {
 }
 
 #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
-#[cfg_attr(
-    docsrs,
-    doc(cfg(all(feature = "chrono-0_4", feature = "serde_with-3")))
-)]
 impl<'de> serde_with::DeserializeAs<'de, chrono::DateTime<Utc>> for crate::DateTime {
     fn deserialize_as<D>(deserializer: D) -> std::result::Result<chrono::DateTime<Utc>, D::Error>
     where
@@ -484,7 +475,6 @@ impl<'de> serde_with::DeserializeAs<'de, chrono::DateTime<Utc>> for crate::DateT
 }
 
 #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "chrono-0_4", feature = "chrono-0_4"))))]
 impl serde_with::SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
     fn serialize_as<S>(
         source: &chrono::DateTime<Utc>,
@@ -499,7 +489,6 @@ impl serde_with::SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
 }
 
 #[cfg(feature = "time-0_3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
 impl From<crate::DateTime> for time::OffsetDateTime {
     fn from(bson_dt: DateTime) -> Self {
         bson_dt.to_time_0_3()
@@ -507,7 +496,6 @@ impl From<crate::DateTime> for time::OffsetDateTime {
 }
 
 #[cfg(feature = "time-0_3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
 impl From<time::OffsetDateTime> for crate::DateTime {
     fn from(x: time::OffsetDateTime) -> Self {
         Self::from_time_0_3(x)
@@ -515,7 +503,6 @@ impl From<time::OffsetDateTime> for crate::DateTime {
 }
 
 #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "time-0_3", feature = "serde_with-3"))))]
 impl<'de> serde_with::DeserializeAs<'de, time::OffsetDateTime> for crate::DateTime {
     fn deserialize_as<D>(deserializer: D) -> std::result::Result<time::OffsetDateTime, D::Error>
     where
@@ -527,7 +514,6 @@ impl<'de> serde_with::DeserializeAs<'de, time::OffsetDateTime> for crate::DateTi
 }
 
 #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "time-0_3", feature = "chrono-0_4"))))]
 impl serde_with::SerializeAs<time::OffsetDateTime> for crate::DateTime {
     fn serialize_as<S>(
         source: &time::OffsetDateTime,

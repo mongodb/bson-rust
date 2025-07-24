@@ -109,6 +109,9 @@ impl<'a> RawIter<'a> {
     }
 }
 
+/// A view into a value contained in a [`RawDocument`] or [`RawDocumentBuf`](crate::RawDocumentBuf).
+/// The underlying bytes of the element are not parsed or validated; call [`RawElement::value`] or
+/// one of the `TryFrom` implementations to convert the element into a BSON value.
 #[derive(Clone)]
 pub struct RawElement<'a> {
     key: &'a CStr,
@@ -118,27 +121,27 @@ pub struct RawElement<'a> {
     size: usize,
 }
 
-impl<'a> TryInto<RawBsonRef<'a>> for RawElement<'a> {
+impl<'a> TryFrom<RawElement<'a>> for RawBsonRef<'a> {
     type Error = Error;
 
-    fn try_into(self) -> Result<RawBsonRef<'a>> {
-        self.value()
+    fn try_from(element: RawElement<'a>) -> Result<Self> {
+        element.value()
     }
 }
 
-impl TryInto<RawBson> for RawElement<'_> {
+impl TryFrom<RawElement<'_>> for RawBson {
     type Error = Error;
 
-    fn try_into(self) -> Result<RawBson> {
-        Ok(self.value()?.to_raw_bson())
+    fn try_from(element: RawElement<'_>) -> Result<Self> {
+        Ok(element.value()?.to_raw_bson())
     }
 }
 
-impl TryInto<Bson> for RawElement<'_> {
+impl TryFrom<RawElement<'_>> for Bson {
     type Error = Error;
 
-    fn try_into(self) -> Result<Bson> {
-        self.value()?.to_raw_bson().try_into()
+    fn try_from(element: RawElement<'_>) -> Result<Self> {
+        element.value()?.to_raw_bson().try_into()
     }
 }
 
@@ -157,18 +160,23 @@ impl<'a> RawElement<'a> {
         })
     }
 
+    /// The size of the element.
     pub fn size(&self) -> usize {
         self.size
     }
 
+    /// The document key the element corresponds to.
     pub fn key(&self) -> &'a CStr {
         self.key
     }
 
+    /// The type of the element.
     pub fn element_type(&self) -> ElementType {
         self.kind
     }
 
+    /// Parses this element into a [`RawBsonRef`] and returns an error if the underlying bytes are
+    /// invalid.
     pub fn value(&self) -> Result<RawBsonRef<'a>> {
         Ok(match self.kind {
             ElementType::Null => RawBsonRef::Null,
@@ -270,6 +278,8 @@ impl<'a> RawElement<'a> {
         })
     }
 
+    /// Parses this element into [`RawBson`], replacing any invalid UTF-8 strings with the Unicode
+    /// replacement character. Returns an error if the underlying bytes are invalid.
     pub fn value_utf8_lossy(&self) -> Result<RawBson> {
         match self.value_utf8_lossy_inner()? {
             Some(v) => Ok(v.into()),

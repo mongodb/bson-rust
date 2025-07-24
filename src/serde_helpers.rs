@@ -13,7 +13,6 @@ use std::{
 /// - [`object_id::AsHexString`] — converts an [`crate::oid::ObjectId`] to and from a hex string.
 /// - [`object_id::FromHexString`] — converts a hex string to and from an [`crate::oid::ObjectId`].
 #[cfg(feature = "serde_with-3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod object_id {
     use crate::{macros::serde_conv_doc, oid::ObjectId};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -85,7 +84,6 @@ pub mod object_id {
 /// - [`datetime::FromTime03OffsetDateTime`] — converts a [`time::OffsetDateTime`] to and from a
 ///   [`crate::DateTime`].
 #[cfg(feature = "serde_with-3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod datetime {
     use crate::{macros::serde_conv_doc, DateTime};
     use chrono::Utc;
@@ -177,7 +175,6 @@ pub mod datetime {
 
     #[cfg(feature = "chrono-0_4")]
     serde_conv_doc!(
-        #[cfg_attr(docsrs, doc(cfg(feature = "chrono-0_4")))]
         /// Converts a [`chrono::DateTime`] to and from a [`DateTime`].
         /// ```rust
         /// # #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
@@ -205,7 +202,6 @@ pub mod datetime {
 
     #[cfg(feature = "time-0_3")]
     serde_conv_doc!(
-        #[cfg_attr(docsrs, doc(cfg(feature = "time-0_3")))]
         /// Converts a [`time::OffsetDateTime`] to and from a [`DateTime`].
         /// ```rust
         /// # #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
@@ -239,7 +235,6 @@ pub mod datetime {
 /// - [`timestamp::AsU32`] — converts a [`crate::Timestamp`] to and from a `u32`.
 /// - [`timestamp::FromU32`] — converts a `u32` to and from a [`crate::Timestamp`].
 #[cfg(feature = "serde_with-3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod timestamp {
     use crate::{macros::serde_conv_doc, Timestamp};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -319,7 +314,6 @@ pub mod timestamp {
 /// - [`u32::AsI32`] — converts a `u32` to and from an `i32`.
 /// - [`u32::AsI64`] — converts a `u32` to and from an `i64`.
 #[cfg(feature = "serde_with-3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod u32 {
     use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -421,7 +415,6 @@ pub mod u32 {
 /// - [`u64::AsI32`] — converts a `u64` to and from an `i32`.
 /// - [`u64::AsI64`] — converts a `u64` to and from an `i64`.
 #[cfg(feature = "serde_with-3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde_with-3")))]
 pub mod u64 {
     use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -533,7 +526,6 @@ pub mod u64 {
 /// - [`uuid_1::AsPythonLegacyBinary`] — serializes a [`uuid::Uuid`] as a [`crate::Binary`] in the
 ///   legacy Python driver UUID format.
 #[cfg(all(feature = "serde_with-3", feature = "uuid-1"))]
-#[cfg_attr(docsrs, doc(cfg(all(feature = "serde_with-3", feature = "uuid-1"))))]
 pub mod uuid_1 {
     use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -681,13 +673,11 @@ macro_rules! as_binary_mod {
         use $uu;
 
         /// Serializes a Uuid as a Binary.
-        #[cfg_attr(docsrs, doc($feat))]
         pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
             crate::uuid::Uuid::from(*val).serialize(serializer)
         }
 
         /// Deserializes a Uuid from a Binary.
-        #[cfg_attr(docsrs, doc($feat))]
         pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
         where
             D: Deserializer<'de>,
@@ -707,14 +697,12 @@ macro_rules! as_legacy_binary_mod {
         use $uu;
 
         /// Serializes a Uuid as a Binary in the legacy UUID format.
-        #[cfg_attr(docsrs, doc($feat))]
         pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
             let binary = Binary::from_uuid_with_representation(crate::uuid::Uuid::from(*val), $rep);
             binary.serialize(serializer)
         }
 
         /// Deserializes a Uuid from a Binary in the legacy UUID format.
-        #[cfg_attr(docsrs, doc($feat))]
         pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
         where
             D: Deserializer<'de>,

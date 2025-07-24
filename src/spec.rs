@@ -71,25 +71,25 @@ const BINARY_SUBTYPE_USER_DEFINED: u8 = 0x80;
 #[repr(u8)]
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum ElementType {
-    /// 64-bit binary floating point
+    /// 64-bit binary floating point.
     Double = ELEMENT_TYPE_FLOATING_POINT,
-    /// UTF-8 string
+    /// UTF-8 string.
     String = ELEMENT_TYPE_UTF8_STRING,
-    /// Embedded document
+    /// Embedded document.
     EmbeddedDocument = ELEMENT_TYPE_EMBEDDED_DOCUMENT,
-    /// Array
+    /// Array.
     Array = ELEMENT_TYPE_ARRAY,
-    /// Binary data
+    /// Binary data.
     Binary = ELEMENT_TYPE_BINARY,
-    /// Deprecated. Undefined (value)
+    /// Deprecated.
     Undefined = ELEMENT_TYPE_UNDEFINED,
-    /// [ObjectId](http://dochub.mongodb.org/core/objectids)
+    /// [ObjectId](http://dochub.mongodb.org/core/objectids).
     ObjectId = ELEMENT_TYPE_OBJECT_ID,
-    /// Bool value
+    /// Boolean value.
     Boolean = ELEMENT_TYPE_BOOLEAN,
-    /// UTC datetime
+    /// UTC datetime.
     DateTime = ELEMENT_TYPE_UTC_DATETIME,
-    /// Null value
+    /// Null value.
     Null = ELEMENT_TYPE_NULL_VALUE,
     /// Regular expression - The first cstring is the regex pattern, the second is the regex
     /// options string. Options are identified by characters, which must be stored in
@@ -100,21 +100,23 @@ pub enum ElementType {
     RegularExpression = ELEMENT_TYPE_REGULAR_EXPRESSION,
     /// Deprecated.
     DbPointer = ELEMENT_TYPE_DBPOINTER,
-    /// JavaScript code
+    /// JavaScript code.
     JavaScriptCode = ELEMENT_TYPE_JAVASCRIPT_CODE,
     /// Deprecated.
     Symbol = ELEMENT_TYPE_SYMBOL,
-    /// JavaScript code w/ scope
+    /// JavaScript code with scope.
     JavaScriptCodeWithScope = ELEMENT_TYPE_JAVASCRIPT_CODE_WITH_SCOPE,
-    /// 32-bit integer
+    /// 32-bit integer.
     Int32 = ELEMENT_TYPE_32BIT_INTEGER,
-    /// Timestamp
+    /// Timestamp.
     Timestamp = ELEMENT_TYPE_TIMESTAMP,
-    /// 64-bit integer
+    /// 64-bit integer.
     Int64 = ELEMENT_TYPE_64BIT_INTEGER,
-    /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst)
+    /// [128-bit decimal floating point](https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.rst).
     Decimal128 = ELEMENT_TYPE_128BIT_DECIMAL,
+    /// Maximum key.
     MaxKey = ELEMENT_TYPE_MAXKEY,
+    /// Minimum key.
     MinKey = ELEMENT_TYPE_MINKEY,
 }
 
@@ -180,6 +182,7 @@ impl ElementType {
 /// The available binary subtypes, plus a user-defined slot.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[non_exhaustive]
+#[allow(missing_docs)]
 pub enum BinarySubtype {
     Generic,
     Function,
