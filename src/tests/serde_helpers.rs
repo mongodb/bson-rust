@@ -172,3 +172,54 @@ fn utf8_lossy_wrapper() {
     assert_eq!(s.s1.0, expected_replacement);
     assert_eq!(s.s2, expected_replacement);
 }
+
+#[cfg(feature = "serde_with-3")]
+#[test]
+fn objectid_as_bytes() {
+    use crate::{oid::ObjectId, serde_helpers::object_id, Document};
+    use serde_with::serde_as;
+
+    #[serde_as]
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    struct Test {
+        #[serde_as(as = "object_id::AsBytes")]
+        objectid: ObjectId,
+        float: f64,
+    }
+    let value = Test {
+        objectid: ObjectId::new(),
+        float: 42.0,
+    };
+
+    // Human-readable serialization
+    let doc = crate::serialize_to_document(&value).unwrap();
+    assert_eq!(
+        doc,
+        doc! {
+            "objectid": value.objectid,
+            "float": value.float,
+        }
+    );
+    assert_eq!(
+        value,
+        crate::deserialize_from_document::<Test>(doc).unwrap()
+    );
+
+    // Non-human-readable serialization
+    let raw = crate::serialize_to_raw_document_buf(&value).unwrap();
+    let expected = rawdoc! {
+        "objectid": value.objectid,
+        "float": value.float,
+    };
+    assert_eq!(
+        raw,
+        expected,
+        "\n  actual: {:?}\n  expected: {:?}",
+        Document::try_from(&raw).unwrap(),
+        Document::try_from(&expected).unwrap(),
+    );
+    assert_eq!(
+        value,
+        crate::deserialize_from_slice(raw.as_bytes()).unwrap()
+    );
+}

@@ -83,8 +83,25 @@ pub mod object_id {
             if serializer.is_human_readable() {
                 source.serialize(serializer)
             } else {
-                serializer.serialize_newtype_struct(OID_BYTES_NEWTYPE, &source.bytes())
+                struct Helper([u8; 12]);
+                impl Serialize for Helper {
+                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                    where
+                        S: Serializer,
+                    {
+                        serializer.serialize_bytes(&self.0)
+                    }
+                }
+                serializer.serialize_newtype_struct(OID_BYTES_NEWTYPE, &Helper(source.bytes()))
             }
+        }
+    }
+    impl<'de> DeserializeAs<'de, ObjectId> for AsBytes {
+        fn deserialize_as<D>(deserializer: D) -> Result<ObjectId, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            ObjectId::deserialize(deserializer)
         }
     }
 }
