@@ -221,7 +221,7 @@ impl<'a> serde::Serializer for &'a mut Serializer {
             }
             #[cfg(feature = "serde_with-3")]
             SerializerHint::ObjectId => {
-                let bytes: [u8; 12] = v.try_into().map_err(|e| Error::serialization(e))?;
+                let bytes: [u8; 12] = v.try_into().map_err(Error::serialization)?;
                 self.serialize_raw(RawBsonRef::ObjectId(ObjectId::from_bytes(bytes)))?;
             }
             hint => {
