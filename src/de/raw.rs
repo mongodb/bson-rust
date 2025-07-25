@@ -37,8 +37,8 @@ use crate::{
 use super::{DeserializerHint, Error, Result};
 use crate::de::serde::MapDeserializer;
 
-/// Deserializer mapping from raw bson to serde's data model.
-pub(crate) struct Deserializer<'de> {
+/// Deserializer for deserializing raw BSON bytes.
+pub struct Deserializer<'de> {
     element: RawElement<'de>,
     options: DeserializerOptions,
 }
@@ -50,7 +50,9 @@ struct DeserializerOptions {
 }
 
 impl<'de> Deserializer<'de> {
-    pub(crate) fn new(buf: &'de [u8]) -> Result<Self> {
+    /// Construct a `Deserializer` with the provided bytes. Returns an error if the basic structure
+    /// of the bytes is invalid.
+    pub fn new(buf: &'de [u8]) -> Result<Self> {
         Ok(Self {
             element: RawElement::toplevel(buf)?,
             options: DeserializerOptions {
