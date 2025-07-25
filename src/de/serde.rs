@@ -588,7 +588,7 @@ where
     }
 }
 
-/// Serde Deserializer
+/// Deserializer for deserializing a [`Bson`] value.
 pub struct Deserializer {
     value: Option<Bson>,
     options: DeserializerOptions,
@@ -604,7 +604,7 @@ pub(crate) struct DeserializerOptions {
 }
 
 impl Deserializer {
-    /// Construct a new [`Deserializer`] using the default options.
+    /// Construct a `Deserializer` with the provided [`Bson`] value.
     pub fn new(value: Bson) -> Deserializer {
         Deserializer::new_with_options(value, Default::default())
     }
