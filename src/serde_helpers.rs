@@ -69,6 +69,40 @@ pub mod object_id {
             Ok(oid.to_hex())
         }
     );
+
+    pub(crate) const OID_BYTES_NEWTYPE: &str = "$__bson_private_oid_bytes";
+    /// When serializing to a non-human-readable destination, will represent the [`ObjectId`] as a
+    /// byte array instead of the default extjson structure.
+    pub struct AsBytes;
+    impl SerializeAs<ObjectId> for AsBytes {
+        fn serialize_as<S>(source: &ObjectId, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            if serializer.is_human_readable() {
+                source.serialize(serializer)
+            } else {
+                struct Helper([u8; 12]);
+                impl Serialize for Helper {
+                    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                    where
+                        S: Serializer,
+                    {
+                        serializer.serialize_bytes(&self.0)
+                    }
+                }
+                serializer.serialize_newtype_struct(OID_BYTES_NEWTYPE, &Helper(source.bytes()))
+            }
+        }
+    }
+    impl<'de> DeserializeAs<'de, ObjectId> for AsBytes {
+        fn deserialize_as<D>(deserializer: D) -> Result<ObjectId, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            ObjectId::deserialize(deserializer)
+        }
+    }
 }
 
 /// Type converters for serializing and deserializing [`crate::DateTime`] using
