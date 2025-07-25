@@ -406,6 +406,7 @@ pub use self::{
         deserialize_from_document,
         deserialize_from_reader,
         deserialize_from_slice,
+        raw::RawDeserializer,
         Deserializer,
     },
     ser::{

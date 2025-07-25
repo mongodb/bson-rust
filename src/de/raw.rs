@@ -38,7 +38,7 @@ use super::{DeserializerHint, Error, Result};
 use crate::de::serde::MapDeserializer;
 
 /// Deserializer for deserializing raw BSON bytes.
-pub struct Deserializer<'de> {
+pub struct RawDeserializer<'de> {
     element: RawElement<'de>,
     options: DeserializerOptions,
 }
@@ -49,9 +49,9 @@ struct DeserializerOptions {
     human_readable: bool,
 }
 
-impl<'de> Deserializer<'de> {
-    /// Construct a `Deserializer` with the provided bytes. Returns an error if the basic structure
-    /// of the bytes is invalid.
+impl<'de> RawDeserializer<'de> {
+    /// Construct a `RawDeserializer` with the provided bytes. Returns an error if the basic
+    /// structure of the bytes is invalid.
     pub fn new(buf: &'de [u8]) -> Result<Self> {
         Ok(Self {
             element: RawElement::toplevel(buf)?,
@@ -201,7 +201,7 @@ impl<'de> Deserializer<'de> {
     }
 }
 
-impl<'de> serde::de::Deserializer<'de> for Deserializer<'de> {
+impl<'de> serde::de::Deserializer<'de> for RawDeserializer<'de> {
     type Error = Error;
 
     #[inline]
@@ -338,7 +338,7 @@ impl<'de> DocumentAccess<'de> {
         Ok(())
     }
 
-    fn deserializer(self) -> Result<Deserializer<'de>> {
+    fn deserializer(self) -> Result<RawDeserializer<'de>> {
         let elem = match self.elem {
             Some(e) => e,
             None => {
@@ -347,7 +347,7 @@ impl<'de> DocumentAccess<'de> {
                 ))
             }
         };
-        Ok(Deserializer {
+        Ok(RawDeserializer {
             element: elem,
             options: self.options,
         })
@@ -376,7 +376,7 @@ impl<'de> serde::de::MapAccess<'de> for DocumentAccess<'de> {
     {
         match &self.elem {
             None => Err(Error::deserialization("too many values requested")),
-            Some(elem) => seed.deserialize(Deserializer {
+            Some(elem) => seed.deserialize(RawDeserializer {
                 element: elem.clone(),
                 options: self.options.clone(),
             }),
@@ -398,7 +398,7 @@ impl<'de> serde::de::SeqAccess<'de> for DocumentAccess<'de> {
         match &self.elem {
             None => Ok(None),
             Some(elem) => seed
-                .deserialize(Deserializer {
+                .deserialize(RawDeserializer {
                     element: elem.clone(),
                     options: self.options.clone(),
                 })

@@ -185,7 +185,7 @@ fn run_test(test: TestFile) {
             if !description.contains("$regex query operator") {
                 // deserialize the field from raw Bytes into a RawBson
                 let deserializer_raw =
-                    crate::de::RawDeserializer::new(canonical_bson.as_slice()).unwrap();
+                    crate::RawDeserializer::new(canonical_bson.as_slice()).unwrap();
                 let raw_bson_field = deserializer_raw
                     .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<RawBsonRef>))
                     .expect(&description);
@@ -197,7 +197,7 @@ fn run_test(test: TestFile) {
 
                 // deserialize the field from raw Bytes into an OwnedRawBson
                 let deserializer_raw =
-                    crate::de::RawDeserializer::new(canonical_bson.as_slice()).unwrap();
+                    crate::RawDeserializer::new(canonical_bson.as_slice()).unwrap();
                 let owned_raw_bson_field = deserializer_raw
                     .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<RawBson>))
                     .expect(&description);
@@ -207,7 +207,7 @@ fn run_test(test: TestFile) {
 
                 // deserialize the field from raw Bytes into a Bson
                 let deserializer_value =
-                    crate::de::RawDeserializer::new(canonical_bson.as_slice()).unwrap();
+                    crate::RawDeserializer::new(canonical_bson.as_slice()).unwrap();
                 let bson_field = deserializer_value
                     .deserialize_any(FieldVisitor(test_key.as_str(), PhantomData::<Bson>))
                     .expect(&description);

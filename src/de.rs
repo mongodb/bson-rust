@@ -21,7 +21,7 @@
 
 //! Deserializer
 
-mod raw;
+pub(crate) mod raw;
 mod serde;
 
 pub use self::serde::Deserializer;
@@ -39,9 +39,6 @@ use crate::{
 use ::serde::{de::DeserializeOwned, Deserialize};
 
 pub(crate) use self::serde::{convert_unsigned_to_signed_raw, BsonVisitor};
-
-#[cfg(test)]
-pub(crate) use self::raw::Deserializer as RawDeserializer;
 
 /// Hint provided to the deserializer via `deserialize_newtype_struct` as to the type of thing
 /// being deserialized.
@@ -108,11 +105,11 @@ pub fn deserialize_from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,
 {
-    deserialize_from_raw(raw::Deserializer::new(bytes)?)
+    deserialize_from_raw(raw::RawDeserializer::new(bytes)?)
 }
 
 pub(crate) fn deserialize_from_raw<'de, T: Deserialize<'de>>(
-    deserializer: raw::Deserializer<'de>,
+    deserializer: raw::RawDeserializer<'de>,
 ) -> Result<T> {
     #[cfg(feature = "serde_path_to_error")]
     {
