@@ -20,7 +20,7 @@ use crate::{
 use pretty_assertions::assert_eq;
 
 fn append_test(expected: Document, append: impl FnOnce(&mut RawDocumentBuf)) {
-    let bytes = expected.encode_to_vec().unwrap();
+    let bytes = expected.to_vec().unwrap();
     let mut buf = RawDocumentBuf::new();
     append(&mut buf);
     assert_eq!(buf.as_bytes(), bytes);

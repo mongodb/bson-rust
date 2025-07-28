@@ -5,7 +5,7 @@ extern crate bson;
 use bson::RawDocument;
 
 fuzz_target!(|buf: &[u8]| {
-    if let Ok(doc) = RawDocument::decode_from_bytes(buf) {
+    if let Ok(doc) = RawDocument::from_bytes(buf) {
         for _ in doc {}
     }
 });

@@ -674,7 +674,7 @@ impl Document {
     }
 
     /// Attempt to encode the [`Document`] into a byte [`Vec`].
-    pub fn encode_to_vec(&self) -> Result<Vec<u8>> {
+    pub fn to_vec(&self) -> Result<Vec<u8>> {
         Ok(crate::RawDocumentBuf::try_from(self)?.into_bytes())
     }
 
@@ -690,11 +690,11 @@ impl Document {
     ///
     /// let mut v: Vec<u8> = Vec::new();
     /// let doc = doc! { "x" : 1 };
-    /// doc.encode_to_writer(&mut v)?;
+    /// doc.to_writer(&mut v)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn encode_to_writer<W: Write>(&self, mut writer: W) -> crate::error::Result<()> {
+    pub fn to_writer<W: Write>(&self, mut writer: W) -> crate::error::Result<()> {
         let buf = crate::RawDocumentBuf::try_from(self)?;
         writer.write_all(buf.as_bytes())?;
         Ok(())
@@ -714,22 +714,22 @@ impl Document {
     ///
     /// let mut v: Vec<u8> = Vec::new();
     /// let doc = doc! { "x" : 1 };
-    /// doc.encode_to_writer(&mut v)?;
+    /// doc.to_writer(&mut v)?;
     ///
     /// // read from mutable reference
     /// let mut reader = Cursor::new(v.clone());
-    /// let doc1 = Document::decode_from_reader(&mut reader)?;
+    /// let doc1 = Document::from_reader(&mut reader)?;
     ///
     /// // read from owned value
-    /// let doc2 = Document::decode_from_reader(Cursor::new(v))?;
+    /// let doc2 = Document::from_reader(Cursor::new(v))?;
     ///
     /// assert_eq!(doc, doc1);
     /// assert_eq!(doc, doc2);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn decode_from_reader<R: Read>(reader: R) -> crate::error::Result<Document> {
-        let raw = crate::raw::RawDocumentBuf::decode_from_reader(reader)?;
+    pub fn from_reader<R: Read>(reader: R) -> crate::error::Result<Document> {
+        let raw = crate::raw::RawDocumentBuf::from_reader(reader)?;
         raw.try_into()
     }
 }

@@ -162,7 +162,7 @@ fn cstring_null_bytes_error() {
     verify_doc(doc);
 
     fn verify_doc(doc: Document) {
-        let result = doc.encode_to_vec();
+        let result = doc.to_vec();
         assert!(result.is_err(), "unexpected success");
         let err = result.unwrap_err();
         assert!(err.is_malformed_bytes(), "unexpected error: {:?}", err);

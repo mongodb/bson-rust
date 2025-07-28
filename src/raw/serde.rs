@@ -108,8 +108,8 @@ impl<'a, 'de: 'a> TryFrom<CowByteBuffer<'de>> for OwnedOrBorrowedRawDocument<'a>
 
     fn try_from(buffer: CowByteBuffer<'de>) -> Result<Self, Self::Error> {
         let doc = match buffer.0 {
-            Some(Cow::Borrowed(borrowed)) => RawDocument::decode_from_bytes(borrowed)?.into(),
-            Some(Cow::Owned(owned)) => RawDocumentBuf::decode_from_bytes(owned)?.into(),
+            Some(Cow::Borrowed(borrowed)) => RawDocument::from_bytes(borrowed)?.into(),
+            Some(Cow::Owned(owned)) => RawDocumentBuf::from_bytes(owned)?.into(),
             None => RawDocumentBuf::new().into(),
         };
         Ok(doc)
@@ -134,14 +134,14 @@ impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawDocument<'a> {
                 if b.subtype == BinarySubtype::Generic =>
             {
                 Ok(Self::Borrowed(
-                    RawDocument::decode_from_bytes(b.bytes).map_err(SerdeError::custom)?,
+                    RawDocument::from_bytes(b.bytes).map_err(SerdeError::custom)?,
                 ))
             }
             OwnedOrBorrowedRawBson::Owned(RawBson::Binary(b))
                 if b.subtype == BinarySubtype::Generic =>
             {
                 Ok(Self::Owned(
-                    RawDocumentBuf::decode_from_bytes(b.bytes).map_err(SerdeError::custom)?,
+                    RawDocumentBuf::from_bytes(b.bytes).map_err(SerdeError::custom)?,
                 ))
             }
 
@@ -186,13 +186,13 @@ impl<'a, 'de: 'a> Deserialize<'de> for OwnedOrBorrowedRawArray<'a> {
             OwnedOrBorrowedRawBson::Borrowed(RawBsonRef::Binary(b))
                 if b.subtype == BinarySubtype::Generic =>
             {
-                let doc = RawDocument::decode_from_bytes(b.bytes).map_err(SerdeError::custom)?;
+                let doc = RawDocument::from_bytes(b.bytes).map_err(SerdeError::custom)?;
                 Ok(Self::Borrowed(RawArray::from_doc(doc)))
             }
             OwnedOrBorrowedRawBson::Owned(RawBson::Binary(b))
                 if b.subtype == BinarySubtype::Generic =>
             {
-                let doc = RawDocumentBuf::decode_from_bytes(b.bytes).map_err(SerdeError::custom)?;
+                let doc = RawDocumentBuf::from_bytes(b.bytes).map_err(SerdeError::custom)?;
                 Ok(Self::Owned(RawArrayBuf::from_raw_document_buf(doc)))
             }
 

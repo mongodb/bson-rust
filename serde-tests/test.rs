@@ -59,7 +59,7 @@ fn run_test<T>(expected_value: &T, expected_doc: &Document, description: &str)
 where
     T: Serialize + DeserializeOwned + PartialEq + std::fmt::Debug,
 {
-    let expected_bytes = expected_doc.encode_to_vec().expect(description);
+    let expected_bytes = expected_doc.to_vec().expect(description);
 
     let expected_bytes_serde = bson::serialize_to_vec(&expected_value).expect(description);
 
@@ -104,7 +104,7 @@ fn run_deserialize_test<T>(expected_value: &T, expected_doc: &Document, descript
 where
     T: DeserializeOwned + PartialEq + std::fmt::Debug,
 {
-    let expected_bytes = expected_doc.encode_to_vec().expect(description);
+    let expected_bytes = expected_doc.to_vec().expect(description);
 
     assert_eq!(
         &bson::deserialize_from_document::<T>(expected_doc.clone()).expect(description),
@@ -445,7 +445,7 @@ fn type_conversion() {
     let deserialized: Foo = bson::deserialize_from_document(doc.clone()).unwrap();
     assert_eq!(deserialized, v);
 
-    let bytes = doc.encode_to_vec().unwrap();
+    let bytes = doc.to_vec().unwrap();
 
     let bson_deserialized: Foo = bson::deserialize_from_reader(bytes.as_slice()).unwrap();
     assert_eq!(bson_deserialized, v);
@@ -462,7 +462,7 @@ fn missing_errors() {
 
     bson::deserialize_from_document::<Foo>(doc.clone()).unwrap_err();
 
-    let bytes = doc.encode_to_vec().unwrap();
+    let bytes = doc.to_vec().unwrap();
 
     bson::deserialize_from_reader::<_, Foo>(bytes.as_slice()).unwrap_err();
 }
@@ -681,7 +681,7 @@ fn unused_fields_deny() {
     bson::deserialize_from_document::<Foo>(doc.clone())
         .expect_err("extra fields should cause failure");
 
-    let bytes = doc.encode_to_vec().unwrap();
+    let bytes = doc.to_vec().unwrap();
     bson::deserialize_from_reader::<_, Foo>(bytes.as_slice())
         .expect_err("extra fields should cause failure");
 }
@@ -946,7 +946,7 @@ impl AllTypes {
 
         let decimal = {
             let bytes = hex::decode("18000000136400D0070000000000000000000000003A3000").unwrap();
-            let d = Document::decode_from_reader(bytes.as_slice()).unwrap();
+            let d = Document::from_reader(bytes.as_slice()).unwrap();
             match d.get("d") {
                 Some(Bson::Decimal128(d)) => *d,
                 c => panic!("expected decimal128, got {:?}", c),
@@ -1065,7 +1065,7 @@ fn all_raw_types_rmp() {
         }
     })
     .unwrap();
-    let doc_buf = RawDocumentBuf::decode_from_bytes(doc_bytes).unwrap();
+    let doc_buf = RawDocumentBuf::from_bytes(doc_bytes).unwrap();
     let document = &doc_buf;
     let array = document.get_array("array").unwrap();
 
@@ -1121,7 +1121,7 @@ fn borrowed() {
         "cow": "cow",
         "array": ["borrowed string"],
     };
-    let bson = doc.encode_to_vec().unwrap();
+    let bson = doc.to_vec().unwrap();
 
     let s = "borrowed string".to_string();
     let ss = "another borrowed string".to_string();
@@ -1315,7 +1315,7 @@ fn hint_cleared() {
 
     let bytes = bson::serialize_to_vec(&doc_value).unwrap();
 
-    let doc = RawDocument::decode_from_bytes(&bytes).unwrap();
+    let doc = RawDocument::from_bytes(&bytes).unwrap();
     let binary = doc.get_binary("binary").unwrap();
 
     let f = Foo { doc, binary };

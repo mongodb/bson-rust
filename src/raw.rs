@@ -25,7 +25,7 @@
 //! };
 //!
 //! // See http://bsonspec.org/spec.html for details on the binary encoding of BSON.
-//! let doc = RawDocumentBuf::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+//! let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 //! let elem = doc.get("hi")?.unwrap();
 //!
 //! assert_eq!(
@@ -86,7 +86,7 @@
 //! use bson::raw::RawDocument;
 //!
 //! let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
-//! assert_eq!(RawDocument::decode_from_bytes(bytes)?.get_str("hi")?, "y'all");
+//! assert_eq!(RawDocument::from_bytes(bytes)?.get_str("hi")?, "y'all");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!

@@ -6,7 +6,7 @@ use bson::{RawBsonRef, RawDocument};
 use std::convert::TryInto;
 
 fuzz_target!(|buf: &[u8]| {
-    if let Ok(doc) = RawDocument::decode_from_bytes(buf) {
+    if let Ok(doc) = RawDocument::from_bytes(buf) {
         for elem in doc.iter_elements().flatten() {
             // Convert to RawBsonRef and check string-related types
             if let Ok(bson) = elem.try_into() {

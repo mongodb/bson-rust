@@ -48,7 +48,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// # use bson::error::Error;
 /// use bson::raw::RawDocument;
 ///
-/// let doc = RawDocument::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
+/// let doc = RawDocument::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// let mut iter = doc.into_iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
@@ -65,7 +65,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// ```
 /// use bson::raw::RawDocument;
 ///
-/// let doc = RawDocument::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
+/// let doc = RawDocument::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -91,10 +91,10 @@ impl RawDocument {
     /// ```
     /// use bson::raw::RawDocument;
     ///
-    /// let doc = RawDocument::decode_from_bytes(b"\x05\0\0\0\0")?;
+    /// let doc = RawDocument::from_bytes(b"\x05\0\0\0\0")?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn decode_from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&RawDocument> {
+    pub fn from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&RawDocument> {
         let data = data.as_ref();
 
         if data.len() < 5 {
@@ -577,8 +577,9 @@ impl ToOwned for RawDocument {
     type Owned = RawDocumentBuf;
 
     fn to_owned(&self) -> Self::Owned {
-        // unwrap is ok here because we already verified the bytes in `RawDocumentRef::new`
-        RawDocumentBuf::decode_from_bytes(self.data.to_owned()).unwrap()
+        // unwrap is ok here because we already verified the bytes in
+        // `RawDocument::from_bytes`
+        RawDocumentBuf::from_bytes(self.data.to_owned()).unwrap()
     }
 }
 
