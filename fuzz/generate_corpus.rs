@@ -30,7 +30,7 @@ fn generate_length_edge_cases(dir: &Path) -> std::io::Result<()> {
     fs::write(
         target_dir.join("min_doc"),
         min_doc
-            .encode_to_vec()
+            .to_vec()
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
@@ -39,7 +39,7 @@ fn generate_length_edge_cases(dir: &Path) -> std::io::Result<()> {
     fs::write(
         target_dir.join("large_doc"),
         large_doc
-            .encode_to_vec()
+            .to_vec()
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
@@ -78,7 +78,7 @@ fn generate_type_marker_cases(dir: &Path) -> std::io::Result<()> {
     fs::write(
         target_dir.join("all_types"),
         all_types
-            .encode_to_vec()
+            .to_vec()
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
@@ -107,7 +107,7 @@ fn generate_string_edge_cases(dir: &Path) -> std::io::Result<()> {
     fs::write(
         target_dir.join("utf8_cases"),
         utf8_cases
-            .encode_to_vec()
+            .to_vec()
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
@@ -133,7 +133,7 @@ fn generate_serialization_cases(dir: &Path) -> std::io::Result<()> {
     fs::write(
         target_dir.join("nested_doc"),
         nested_doc
-            .encode_to_vec()
+            .to_vec()
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 
@@ -147,7 +147,7 @@ fn generate_serialization_cases(dir: &Path) -> std::io::Result<()> {
     fs::write(
         target_dir.join("large_binary"),
         large_binary
-            .encode_to_vec()
+            .to_vec()
             .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?,
     )?;
 

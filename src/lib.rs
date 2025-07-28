@@ -133,7 +133,7 @@
 //! use std::io::Read;
 //!
 //! let mut bytes = hex::decode("0C0000001069000100000000").unwrap();
-//! let doc = Document::decode_from_reader(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
+//! let doc = Document::from_reader(&mut bytes.as_slice()).unwrap(); // { "i": 1 }
 //!
 //! let doc = doc! {
 //!    "hello": "world",
@@ -396,6 +396,7 @@ pub use self::{
         RawJavaScriptCodeWithScopeRef,
         RawRegexRef,
     },
+    utf8_lossy::Utf8Lossy,
     uuid::{Uuid, UuidRepresentation},
 };
 
@@ -439,6 +440,7 @@ pub mod ser;
 #[cfg(feature = "serde")]
 pub mod serde_helpers;
 pub mod spec;
+mod utf8_lossy;
 pub mod uuid;
 
 #[cfg(test)]

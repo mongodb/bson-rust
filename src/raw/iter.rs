@@ -133,7 +133,7 @@ impl TryFrom<RawElement<'_>> for RawBson {
     type Error = Error;
 
     fn try_from(element: RawElement<'_>) -> Result<Self> {
-        Ok(element.value()?.to_raw_bson())
+        Ok(element.value()?.into())
     }
 }
 
@@ -141,7 +141,7 @@ impl TryFrom<RawElement<'_>> for Bson {
     type Error = Error;
 
     fn try_from(element: RawElement<'_>) -> Result<Self> {
-        element.value()?.to_raw_bson().try_into()
+        element.value()?.try_into()
     }
 }
 
@@ -150,7 +150,7 @@ impl<'a> RawElement<'a> {
     pub(crate) fn toplevel(bytes: &'a [u8]) -> Result<Self> {
         use crate::raw::cstr;
 
-        let doc = RawDocument::decode_from_bytes(bytes)?;
+        let doc = RawDocument::from_bytes(bytes)?;
         Ok(Self {
             key: cstr!("TOPLEVEL"),
             kind: ElementType::EmbeddedDocument,
@@ -189,11 +189,11 @@ impl<'a> RawElement<'a> {
             ElementType::Double => RawBsonRef::Double(f64_from_slice(self.slice())?),
             ElementType::String => RawBsonRef::String(self.read_str()?),
             ElementType::EmbeddedDocument => {
-                RawBsonRef::Document(RawDocument::decode_from_bytes(self.slice())?)
+                RawBsonRef::Document(RawDocument::from_bytes(self.slice())?)
             }
-            ElementType::Array => RawBsonRef::Array(RawArray::from_doc(
-                RawDocument::decode_from_bytes(self.slice())?,
-            )),
+            ElementType::Array => {
+                RawBsonRef::Array(RawArray::from_doc(RawDocument::from_bytes(self.slice())?))
+            }
             ElementType::Boolean => RawBsonRef::Boolean(
                 bool_from_slice(self.slice()).map_err(|e| self.malformed_error(e))?,
             ),
@@ -271,7 +271,7 @@ impl<'a> RawElement<'a> {
                 let slice = self.slice();
                 let code = read_lenencode(&slice[4..])?;
                 let scope_start = 4 + 4 + code.len() + 1;
-                let scope = RawDocument::decode_from_bytes(&slice[scope_start..])?;
+                let scope = RawDocument::from_bytes(&slice[scope_start..])?;
 
                 RawBsonRef::JavaScriptCodeWithScope(RawJavaScriptCodeWithScopeRef { code, scope })
             }
@@ -283,7 +283,7 @@ impl<'a> RawElement<'a> {
     pub fn value_utf8_lossy(&self) -> Result<RawBson> {
         match self.value_utf8_lossy_inner()? {
             Some(v) => Ok(v.into()),
-            None => Ok(self.value()?.to_raw_bson()),
+            None => Ok(self.value()?.into()),
         }
     }
 
@@ -302,7 +302,7 @@ impl<'a> RawElement<'a> {
                 if scope_start >= slice.len() {
                     return Err(self.malformed_error("code with scope length overrun"));
                 }
-                let scope = RawDocument::decode_from_bytes(&slice[scope_start..])?;
+                let scope = RawDocument::from_bytes(&slice[scope_start..])?;
 
                 Utf8LossyBson::JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope {
                     code,
@@ -489,7 +489,7 @@ impl<'a> From<Utf8LossyBson<'a>> for RawBson {
                 scope,
             }) => RawBson::JavaScriptCodeWithScope(super::RawJavaScriptCodeWithScope {
                 code,
-                scope: scope.to_raw_document_buf(),
+                scope: scope.to_owned(),
             }),
             Utf8LossyBson::Symbol(s) => RawBson::Symbol(s),
             Utf8LossyBson::DbPointer(p) => RawBson::DbPointer(p),

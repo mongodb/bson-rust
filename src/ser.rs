@@ -123,5 +123,5 @@ pub fn serialize_to_raw_document_buf<T>(value: &T) -> Result<RawDocumentBuf>
 where
     T: Serialize,
 {
-    RawDocumentBuf::decode_from_bytes(serialize_to_vec(value)?).map_err(Error::custom)
+    RawDocumentBuf::from_bytes(serialize_to_vec(value)?).map_err(Error::custom)
 }

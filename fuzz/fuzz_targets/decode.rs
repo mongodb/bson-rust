@@ -7,8 +7,8 @@ use bson::Document;
 use std::io::Cursor;
 
 fuzz_target!(|buf: &[u8]| {
-    if let Ok(doc) = Document::decode_from_reader(&mut Cursor::new(&buf[..])) {
+    if let Ok(doc) = Document::from_reader(&mut Cursor::new(&buf[..])) {
         let mut vec = Vec::with_capacity(buf.len());
-        let _ = doc.encode_to_writer(&mut vec);
+        let _ = doc.to_writer(&mut vec);
     }
 });

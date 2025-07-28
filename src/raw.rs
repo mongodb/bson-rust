@@ -1,20 +1,22 @@
 //! An API for interacting with raw BSON bytes.
 //!
-//! This module provides two document types, [`RawDocumentBuf`] and [`RawDocument`] (akin to
-//! [`std::string::String`] and [`str`]), for working with raw BSON documents. These types differ
-//! from the regular [`crate::Document`] type in that their storage is BSON bytes rather than a
-//! hash-map like Rust type. In certain circumstances, these types can be leveraged for increased
+//! This module provides two document types, [`RawDocumentBuf`] and [`&RawDocument`](RawDocument)
+//! (an owned buffer and a reference respectively, akin to [`String`] and [`&str`](str)), for
+//! working with raw BSON documents. These types differ from the regular
+//! [`Document`](crate::Document) type in that their storage is BSON bytes rather than a hash-map
+//! like Rust type. In certain circumstances, these types can be leveraged for increased
 //! performance.
 //!
 //! This module also provides a [`RawBson`] type for modeling any borrowed BSON element and a
 //! [`RawArray`] type for modeling a borrowed slice of a document containing a BSON array element.
 //!
 //! A [`RawDocumentBuf`] can be created from a `Vec<u8>` containing raw BSON data. A
-//! [`RawDocument`] can be created from anything that can be borrowed as a `&[u8]`. Both types
-//! can access elements via methods similar to those available on the [`crate::Document`] type.
-//! Note that [`RawDocument::get`] (which [`RawDocument`] calls through to via its
-//! [`Deref`](std::ops::Deref) implementation) returns a [`Result`], since the bytes contained in
-//! the document are not fully validated until trying to access the contained data.
+//! [`&RawDocument`](RawDocument) can be created from anything that can be borrowed as a `&[u8]`.
+//! Both types can access elements via methods similar to those available on the
+//! [`Document`](crate::Document) type. Note that [`RawDocument::get`] (which [`RawDocumentBuf`]
+//! calls through to via its [`Deref`](std::ops::Deref) implementation) returns a [`Result`], since
+//! the bytes contained in the document are not fully validated until trying to access the contained
+//! data.
 //!
 //! ```rust
 //! use bson::raw::{
@@ -23,7 +25,7 @@
 //! };
 //!
 //! // See http://bsonspec.org/spec.html for details on the binary encoding of BSON.
-//! let doc = RawDocumentBuf::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+//! let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 //! let elem = doc.get("hi")?.unwrap();
 //!
 //! assert_eq!(
@@ -33,11 +35,12 @@
 //! # Ok::<(), bson::error::Error>(())
 //! ```
 //!
-//! ### [`crate::Document`] interop
+//! ### [`Document`](crate::Document) interop
 //!
-//! A [`RawDocument`] can be created from a [`crate::Document`]. Internally, this
-//! serializes the [`crate::Document`] to a `Vec<u8>`, and then includes those bytes in the
-//! [`RawDocument`].
+//! A [`RawDocumentBuf`] can be created from a [`Document`](crate::Document) via its [`TryFrom`]
+//! impl. This encodes the `Document` as a byte buffer, and then returns those bytes as a
+//! `RawDocumentBuf`; this will fail if the `Document` contains values not allowed in encoded BSON
+//! (such as embedded nul bytes in string keys).
 //!
 //! ```rust
 //! use bson::{
@@ -51,7 +54,7 @@
 //!    }
 //! };
 //!
-//! let raw = RawDocumentBuf::from_document(&document)?;
+//! let raw = RawDocumentBuf::try_from(&document)?;
 //! let value = raw
 //!     .get_document("goodbye")?
 //!     .get_str("cruel")?;
@@ -62,6 +65,13 @@
 //! );
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
+//!
+//! Conversion in the other direction, from [`&RawDocument`](RawDocument) to
+//! [`Document`](crate::Document), can also be done via [`TryFrom`].  This will fail if the byte
+//! buffer in the `&RawDocument` contains invalid BSON.
+//!
+//! [`RawBson`] and [`RawArrayBuf`] can similary be constructed from their equivalent base crate
+//! types, and their corresponding reference types can be converted to the base crate types.
 //!
 //! ### Reference type ([`RawDocument`])
 //!
@@ -76,7 +86,7 @@
 //! use bson::raw::RawDocument;
 //!
 //! let bytes = b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00";
-//! assert_eq!(RawDocument::decode_from_bytes(bytes)?.get_str("hi")?, "y'all");
+//! assert_eq!(RawDocument::from_bytes(bytes)?.get_str("hi")?, "y'all");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -101,7 +111,7 @@
 //!     "year": "2021",
 //! };
 //!
-//! let doc = RawDocumentBuf::from_document(&original_doc)?;
+//! let doc = RawDocumentBuf::try_from(&original_doc)?;
 //! let mut doc_iter = doc.iter();
 //!
 //! let (key, value): (&CStr, RawBsonRef) = doc_iter.next().unwrap()?;

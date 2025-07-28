@@ -107,7 +107,7 @@ fn vector_from_numbers(
 // Only return the binary if it represents a valid vector; otherwise, return an error.
 fn binary_from_bytes(bson: &str, test_key: &str, description: &str) -> Result<Binary, String> {
     let bytes = hex::decode(bson).expect(description);
-    let mut test_document = Document::decode_from_reader(bytes.as_slice()).expect(description);
+    let mut test_document = Document::from_reader(bytes.as_slice()).expect(description);
     let bson = test_document.remove(test_key).expect(description);
     let binary = match bson {
         Bson::Binary(binary) => binary,
@@ -175,7 +175,7 @@ fn run_test_file(test_file: TestFile) {
 
         // From<Vector> for RawBson
         let raw_document = rawdoc! { "vector": &test_vector };
-        let test_raw_document = RawDocumentBuf::from_document(&test_document).expect(&description);
+        let test_raw_document = RawDocumentBuf::try_from(&test_document).expect(&description);
         assert_eq!(raw_document, test_raw_document);
 
         #[derive(Debug, Deserialize, PartialEq, Serialize)]

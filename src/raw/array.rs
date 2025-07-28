@@ -39,7 +39,7 @@ use crate::{
 /// };
 /// let bytes = bson::serialize_to_vec(&doc)?;
 ///
-/// let rawdoc = RawDocument::decode_from_bytes(bytes.as_slice())?;
+/// let rawdoc = RawDocument::from_bytes(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
 ///
 /// for v in rawarray {
@@ -59,9 +59,9 @@ use crate::{
 /// let doc = doc! {
 ///     "x": [1, true, "two", 5.5]
 /// };
-/// let bytes = doc.encode_to_vec()?;
+/// let bytes = doc.to_vec()?;
 ///
-/// let rawdoc = RawDocument::decode_from_bytes(bytes.as_slice())?;
+/// let rawdoc = RawDocument::from_bytes(bytes.as_slice())?;
 /// let rawarray = rawdoc.get_array("x")?;
 ///
 /// assert_eq!(rawarray.get_bool(1)?, true);
@@ -90,13 +90,6 @@ impl RawArray {
     #[cfg(feature = "serde")]
     pub(crate) fn as_doc(&self) -> &RawDocument {
         &self.doc
-    }
-
-    /// Convert this borrowed [`RawArray`] into an owned [`RawArrayBuf`].
-    ///
-    /// This involves a traversal of the array to count the values.
-    pub fn to_raw_array_buf(&self) -> RawArrayBuf {
-        RawArrayBuf::from_raw_document_buf(self.doc.to_raw_document_buf())
     }
 
     /// Gets a reference to the value at the given index.
@@ -250,7 +243,7 @@ impl ToOwned for RawArray {
     type Owned = RawArrayBuf;
 
     fn to_owned(&self) -> Self::Owned {
-        self.to_raw_array_buf()
+        RawArrayBuf::from_raw_document_buf(self.doc.to_owned())
     }
 }
 

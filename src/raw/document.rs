@@ -12,6 +12,7 @@ use crate::{
     RawBson,
     RawJavaScriptCodeWithScope,
     Timestamp,
+    Utf8Lossy,
 };
 
 use super::{
@@ -47,7 +48,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// # use bson::error::Error;
 /// use bson::raw::RawDocument;
 ///
-/// let doc = RawDocument::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
+/// let doc = RawDocument::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// let mut iter = doc.into_iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
@@ -64,7 +65,7 @@ use crate::{oid::ObjectId, spec::ElementType, Document};
 /// ```
 /// use bson::raw::RawDocument;
 ///
-/// let doc = RawDocument::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
+/// let doc = RawDocument::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00")?;
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -90,10 +91,10 @@ impl RawDocument {
     /// ```
     /// use bson::raw::RawDocument;
     ///
-    /// let doc = RawDocument::decode_from_bytes(b"\x05\0\0\0\0")?;
+    /// let doc = RawDocument::from_bytes(b"\x05\0\0\0\0")?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn decode_from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&RawDocument> {
+    pub fn from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&RawDocument> {
         let data = data.as_ref();
 
         if data.len() < 5 {
@@ -125,20 +126,6 @@ impl RawDocument {
         // RawDocument is a [u8] and it is #[repr(transparent), meaning the structs are represented
         // identically at the byte level.
         unsafe { &*(data.as_ref() as *const [u8] as *const RawDocument) }
-    }
-
-    /// Creates a new [`RawDocumentBuf`] with an owned copy of the BSON bytes.
-    ///
-    /// ```
-    /// use bson::raw::{RawDocument, RawDocumentBuf};
-    ///
-    /// let data = b"\x05\0\0\0\0";
-    /// let doc_ref = RawDocument::decode_from_bytes(data)?;
-    /// let doc: RawDocumentBuf = doc_ref.to_raw_document_buf();
-    /// # Ok::<(), bson::error::Error>(())
-    pub fn to_raw_document_buf(&self) -> RawDocumentBuf {
-        // unwrap is ok here because we already verified the bytes in `RawDocumentRef::new`
-        RawDocumentBuf::decode_from_bytes(self.data.to_owned()).unwrap()
     }
 
     /// Gets a reference to the value corresponding to the given key by iterating until the key is
@@ -512,11 +499,6 @@ impl RawDocument {
         s.try_into()
     }
 
-    /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.
-    pub fn to_document(&self) -> RawResult<Document> {
-        self.try_into()
-    }
-
     /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.  Any
     /// invalid UTF-8 sequences will be replaced with the Unicode replacement character.
     pub fn to_document_utf8_lossy(&self) -> RawResult<Document> {
@@ -527,44 +509,6 @@ impl RawDocument {
             out.insert(elem.key().as_str(), value);
         }
         Ok(out)
-    }
-}
-
-fn deep_utf8_lossy(src: RawBson) -> RawResult<Bson> {
-    match src {
-        RawBson::Array(arr) => {
-            let mut tmp = vec![];
-            for elem in arr.iter_elements() {
-                tmp.push(deep_utf8_lossy(elem?.value_utf8_lossy()?)?);
-            }
-            Ok(Bson::Array(tmp))
-        }
-        RawBson::Document(doc) => {
-            let mut tmp = doc! {};
-            for elem in doc.iter_elements() {
-                let elem = elem?;
-                tmp.insert(
-                    elem.key().as_str(),
-                    deep_utf8_lossy(elem.value_utf8_lossy()?)?,
-                );
-            }
-            Ok(Bson::Document(tmp))
-        }
-        RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope { code, scope }) => {
-            let mut tmp = doc! {};
-            for elem in scope.iter_elements() {
-                let elem = elem?;
-                tmp.insert(
-                    elem.key().as_str(),
-                    deep_utf8_lossy(elem.value_utf8_lossy()?)?,
-                );
-            }
-            Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
-                code,
-                scope: tmp,
-            }))
-        }
-        v => v.try_into(),
     }
 }
 
@@ -633,7 +577,9 @@ impl ToOwned for RawDocument {
     type Owned = RawDocumentBuf;
 
     fn to_owned(&self) -> Self::Owned {
-        self.to_raw_document_buf()
+        // unwrap is ok here because we already verified the bytes in
+        // `RawDocument::from_bytes`
+        RawDocumentBuf::from_bytes(self.data.to_owned()).unwrap()
     }
 }
 
@@ -643,7 +589,7 @@ impl<'a> From<&'a RawDocument> for Cow<'a, RawDocument> {
     }
 }
 
-impl TryFrom<&RawDocument> for crate::Document {
+impl TryFrom<&RawDocument> for Document {
     type Error = RawError;
 
     fn try_from(rawdoc: &RawDocument) -> RawResult<Document> {
@@ -651,6 +597,58 @@ impl TryFrom<&RawDocument> for crate::Document {
             .into_iter()
             .map(|res| res.and_then(|(k, v)| Ok((k.as_str().to_owned(), v.try_into()?))))
             .collect()
+    }
+}
+
+impl TryFrom<&RawDocument> for Utf8Lossy<Document> {
+    type Error = RawError;
+
+    fn try_from(rawdoc: &RawDocument) -> RawResult<Utf8Lossy<Document>> {
+        let mut out = Document::new();
+        for elem in rawdoc.iter_elements() {
+            let elem = elem?;
+            let value = deep_utf8_lossy(elem.value_utf8_lossy()?)?;
+            out.insert(elem.key().as_str(), value);
+        }
+        Ok(Utf8Lossy(out))
+    }
+}
+
+fn deep_utf8_lossy(src: RawBson) -> RawResult<Bson> {
+    match src {
+        RawBson::Array(arr) => {
+            let mut tmp = vec![];
+            for elem in arr.iter_elements() {
+                tmp.push(deep_utf8_lossy(elem?.value_utf8_lossy()?)?);
+            }
+            Ok(Bson::Array(tmp))
+        }
+        RawBson::Document(doc) => {
+            let mut tmp = doc! {};
+            for elem in doc.iter_elements() {
+                let elem = elem?;
+                tmp.insert(
+                    elem.key().as_str(),
+                    deep_utf8_lossy(elem.value_utf8_lossy()?)?,
+                );
+            }
+            Ok(Bson::Document(tmp))
+        }
+        RawBson::JavaScriptCodeWithScope(RawJavaScriptCodeWithScope { code, scope }) => {
+            let mut tmp = doc! {};
+            for elem in scope.iter_elements() {
+                let elem = elem?;
+                tmp.insert(
+                    elem.key().as_str(),
+                    deep_utf8_lossy(elem.value_utf8_lossy()?)?,
+                );
+            }
+            Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                code,
+                scope: tmp,
+            }))
+        }
+        v => v.try_into(),
     }
 }
 
@@ -662,11 +660,27 @@ impl TryFrom<RawDocumentBuf> for Document {
     }
 }
 
+impl TryFrom<RawDocumentBuf> for Utf8Lossy<Document> {
+    type Error = crate::error::Error;
+
+    fn try_from(raw: RawDocumentBuf) -> Result<Utf8Lossy<Document>> {
+        Utf8Lossy::<Document>::try_from(raw.as_ref())
+    }
+}
+
 impl TryFrom<&RawDocumentBuf> for Document {
     type Error = crate::error::Error;
 
     fn try_from(raw: &RawDocumentBuf) -> Result<Document> {
         Document::try_from(raw.as_ref())
+    }
+}
+
+impl TryFrom<&RawDocumentBuf> for Utf8Lossy<Document> {
+    type Error = crate::error::Error;
+
+    fn try_from(raw: &RawDocumentBuf) -> Result<Utf8Lossy<Document>> {
+        Utf8Lossy::<Document>::try_from(raw.as_ref())
     }
 }
 

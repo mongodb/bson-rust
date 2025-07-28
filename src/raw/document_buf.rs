@@ -27,7 +27,7 @@ mod raw_writer;
 /// # use bson::error::Error;
 /// use bson::raw::RawDocumentBuf;
 ///
-/// let doc = RawDocumentBuf::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 /// let mut iter = doc.iter();
 /// let (key, value) = iter.next().unwrap()?;
 /// assert_eq!(key, "hi");
@@ -45,7 +45,7 @@ mod raw_writer;
 /// ```
 /// use bson::raw::RawDocumentBuf;
 ///
-/// let doc = RawDocumentBuf::decode_from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
+/// let doc = RawDocumentBuf::from_bytes(b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec())?;
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -77,11 +77,11 @@ impl RawDocumentBuf {
     ///
     /// ```
     /// # use bson::raw::RawDocumentBuf;
-    /// let doc = RawDocumentBuf::decode_from_bytes(b"\x05\0\0\0\0".to_vec())?;
+    /// let doc = RawDocumentBuf::from_bytes(b"\x05\0\0\0\0".to_vec())?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn decode_from_bytes(data: Vec<u8>) -> Result<Self> {
-        let _ = RawDocument::decode_from_bytes(data.as_slice())?;
+    pub fn from_bytes(data: Vec<u8>) -> Result<Self> {
+        let _ = RawDocument::from_bytes(data.as_slice())?;
         Ok(Self { data })
     }
 
@@ -99,35 +99,12 @@ impl RawDocumentBuf {
     ///
     /// ```
     /// # use bson::raw::RawDocumentBuf;
-    /// let doc = RawDocumentBuf::decode_from_reader(b"\x05\0\0\0\0".as_slice())?;
+    /// let doc = RawDocumentBuf::from_reader(b"\x05\0\0\0\0".as_slice())?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn decode_from_reader<R: std::io::Read>(reader: R) -> Result<Self> {
+    pub fn from_reader<R: std::io::Read>(reader: R) -> Result<Self> {
         let buf = crate::raw::reader_to_vec(reader)?;
-        Self::decode_from_bytes(buf)
-    }
-
-    /// Create a [`RawDocumentBuf`] from a [`Document`].
-    ///
-    /// ```
-    /// use bson::{doc, oid::ObjectId, raw::RawDocumentBuf};
-    ///
-    /// let document = doc! {
-    ///     "_id": ObjectId::new(),
-    ///     "name": "Herman Melville",
-    ///     "title": "Moby-Dick",
-    /// };
-    /// let doc = RawDocumentBuf::from_document(&document)?;
-    /// # Ok::<(), bson::error::Error>(())
-    /// ```
-    pub fn from_document(doc: impl Borrow<Document>) -> Result<Self> {
-        let mut out = RawDocumentBuf::new();
-        for (k, v) in doc.borrow() {
-            let k: &CStr = k.as_str().try_into()?;
-            let val: RawBson = v.clone().try_into()?;
-            out.append(k, val);
-        }
-        Ok(out)
+        Self::from_bytes(buf)
     }
 
     /// Gets an iterator over the elements in the [`RawDocumentBuf`], which yields
@@ -136,7 +113,7 @@ impl RawDocumentBuf {
     /// ```
     /// use bson::{doc, raw::RawDocumentBuf};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc! { "ferris": true })?;
+    /// let doc = RawDocumentBuf::try_from(&doc! { "ferris": true })?;
     ///
     /// for element in doc.iter() {
     ///     let (key, value) = element?;
@@ -180,7 +157,7 @@ impl RawDocumentBuf {
     /// ```
     /// use bson::{doc, raw::RawDocumentBuf};
     ///
-    /// let doc = RawDocumentBuf::from_document(&doc!{})?;
+    /// let doc = RawDocumentBuf::try_from(&doc!{})?;
     /// assert_eq!(doc.into_bytes(), b"\x05\x00\x00\x00\x00".to_vec());
     /// # Ok::<(), bson::error::Error>(())
     /// ```
@@ -200,7 +177,7 @@ impl RawDocumentBuf {
     /// the documentation for [BindRawBsonRef] for more details.
     /// ```
     /// # use bson::error::Error;
-    /// use bson::{doc, raw::{cstr, RawBsonRef, RawDocumentBuf}};
+    /// use bson::{Document, doc, raw::{cstr, RawBsonRef, RawDocumentBuf}};
     ///
     /// let mut doc = RawDocumentBuf::new();
     /// // `&str` and `i32` both convert to `RawBsonRef`
@@ -219,7 +196,7 @@ impl RawDocumentBuf {
     ///     "an owned document": { "a key": true },
     /// };
     ///
-    /// assert_eq!(doc.to_document()?, expected);
+    /// assert_eq!(Document::try_from(doc)?, expected);
     /// # Ok::<(), Error>(())
     /// ```
     pub fn append(&mut self, key: impl AsRef<CStr>, value: impl BindRawBsonRef) {
@@ -289,7 +266,13 @@ impl TryFrom<&Document> for RawDocumentBuf {
     type Error = crate::error::Error;
 
     fn try_from(doc: &Document) -> std::result::Result<Self, Self::Error> {
-        RawDocumentBuf::from_document(doc)
+        let mut out = RawDocumentBuf::new();
+        for (k, v) in doc {
+            let k: &CStr = k.as_str().try_into()?;
+            let val: RawBson = v.clone().try_into()?;
+            out.append(k, val);
+        }
+        Ok(out)
     }
 }
 

@@ -2,10 +2,7 @@ use core::str;
 
 use serde::{de::Visitor, Deserialize, Serialize};
 
-use crate::{
-    deserialize_from_slice,
-    serde_helpers::{HumanReadable, Utf8LossyDeserialization},
-};
+use crate::{deserialize_from_slice, serde_helpers::HumanReadable, Utf8Lossy};
 
 #[test]
 fn human_readable_wrapper() {
@@ -144,17 +141,15 @@ fn utf8_lossy_wrapper() {
 
     deserialize_from_slice::<NoUtf8Lossy>(&both_strings_invalid_bytes).unwrap_err();
 
-    let s = deserialize_from_slice::<Utf8LossyDeserialization<NoUtf8Lossy>>(
-        &both_strings_invalid_bytes,
-    )
-    .unwrap()
-    .0;
+    let s = deserialize_from_slice::<Utf8Lossy<NoUtf8Lossy>>(&both_strings_invalid_bytes)
+        .unwrap()
+        .0;
     assert_eq!(s.s1, expected_replacement);
     assert_eq!(s.s2, expected_replacement);
 
     #[derive(Debug, Deserialize)]
     struct FirstStringUtf8Lossy {
-        s1: Utf8LossyDeserialization<String>,
+        s1: Utf8Lossy<String>,
         s2: String,
     }
 
@@ -164,11 +159,9 @@ fn utf8_lossy_wrapper() {
 
     deserialize_from_slice::<FirstStringUtf8Lossy>(&both_strings_invalid_bytes).unwrap_err();
 
-    let s = deserialize_from_slice::<Utf8LossyDeserialization<FirstStringUtf8Lossy>>(
-        &both_strings_invalid_bytes,
-    )
-    .unwrap()
-    .0;
+    let s = deserialize_from_slice::<Utf8Lossy<FirstStringUtf8Lossy>>(&both_strings_invalid_bytes)
+        .unwrap()
+        .0;
     assert_eq!(s.s1.0, expected_replacement);
     assert_eq!(s.s2, expected_replacement);
 }
