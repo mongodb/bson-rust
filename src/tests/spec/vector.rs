@@ -210,3 +210,23 @@ fn run_test_file(test_file: TestFile) {
 fn run_vector_tests() {
     run_spec_test(&["bson-binary-vector"], run_test_file);
 }
+
+#[test]
+fn non_zero_ignored_bits() {
+    // 1. Encoding
+    let error = PackedBitVector::new(vec![u8::MAX], 1).unwrap_err();
+    assert!(error
+        .message
+        .is_some_and(|message| message.contains("must all be 0")));
+
+    // 2. Decoding
+    let bytes = vec![PACKED_BIT, 1, u8::MAX];
+    let error = Vector::from_bytes(bytes).unwrap_err();
+    assert!(error
+        .message
+        .is_some_and(|message| message.contains("must all be 0")));
+
+    // 3. Comparison
+    // This test is not implemented because it is not possible to construct a Vector with non-zero
+    // padding bits.
+}
