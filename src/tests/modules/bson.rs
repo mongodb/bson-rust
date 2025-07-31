@@ -407,8 +407,6 @@ fn from_external_datetime() {
     }
     #[cfg(feature = "jiff-0_2")]
     {
-        use chrono::Utc;
-
         let bdt = DateTime::from(jiff::Timestamp::MAX);
         assert_eq!(
             bdt.to_jiff().as_millisecond(),
@@ -425,7 +423,7 @@ fn from_external_datetime() {
         assert_eq!(bdt.to_jiff(), jiff::Timestamp::MAX);
 
         let bdt = DateTime::MIN;
-        assert_eq!(bdt.to_jiff(), jiff::Timestamp::MAX);
+        assert_eq!(bdt.to_jiff(), jiff::Timestamp::MIN);
     }
 }
 
