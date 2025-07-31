@@ -12,7 +12,7 @@ use std::{
 use chrono::{LocalResult, TimeZone, Utc};
 #[cfg(all(
     feature = "serde_with-3",
-    any(feature = "chrono-0_4", feature = "time-0_3")
+    any(feature = "chrono-0_4", feature = "time-0_3", feature = "jiff-0_2")
 ))]
 use serde::{Deserialize, Deserializer, Serialize};
 use time::format_description::well_known::Rfc3339;
@@ -215,6 +215,13 @@ impl crate::DateTime {
         Self::from_millis(dt.timestamp_millis())
     }
 
+    /// Convert the given [`jiff::Timestamp`] into a [`bson::DateTime`](DateTime), truncating it to
+    /// millisecond precision.
+    #[cfg(feature = "jiff-0_2")]
+    pub fn from_jiff(ts: jiff::Timestamp) -> Self {
+        Self::from_millis(ts.as_millisecond())
+    }
+
     /// Returns a builder used to construct a [`DateTime`] from a given year, month,
     /// day, and optionally, an hour, minute, second and millisecond, which default to
     /// 0 if not explicitly set.
@@ -251,6 +258,33 @@ impl crate::DateTime {
                 }
             }
         }
+    }
+
+
+    /// Convert this [`DateTime`] to a [`jiff::Timestamp`].
+    ///
+    /// Note: Not every BSON datetime can be represented as a [`jiff::Timestamp`]. For such dates,
+    /// [`jiff::Timestamp::MIN`] or [`jiff::Timestamp::MAX`] will be returned, whichever
+    /// is closer.
+    ///
+    /// ```
+    /// let bson_dt = bson::DateTime::now();
+    /// let jiff_ts = bson_dt.to_jiff();
+    /// assert_eq!(bson_dt.timestamp_millis(), jiff_ts.as_millisecond());
+    ///
+    /// let big = bson::DateTime::from_millis(i64::MAX);
+    /// let jiff_big = big.to_jiff();
+    /// assert_eq!(jiff_big, jiff::Timestamp::MAX)
+    /// ```
+    #[cfg(feature = "jiff-0_2")]
+    pub fn to_jiff(self) -> jiff::Timestamp {
+        jiff::Timestamp::from_millisecond(self.0).unwrap_or_else(|_| {
+            if self.0 < 0 {
+                jiff::Timestamp::MIN
+            } else {
+                jiff::Timestamp::MAX
+            }
+        })
     }
 
     fn from_time_private(dt: time::OffsetDateTime) -> Self {
@@ -484,6 +518,46 @@ impl serde_with::SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
         S: serde::Serializer,
     {
         let dt = DateTime::from_chrono(*source);
+        dt.serialize(serializer)
+    }
+}
+
+
+#[cfg(feature = "jiff-0_2")]
+impl From<crate::DateTime> for jiff::Timestamp {
+    fn from(bson_dt: DateTime) -> Self {
+        bson_dt.to_jiff()
+    }
+}
+
+#[cfg(feature = "jiff-0_2")]
+impl From<jiff::Timestamp> for crate::DateTime {
+    fn from(x: jiff::Timestamp) -> Self {
+        Self::from_jiff(x)
+    }
+}
+
+#[cfg(all(feature = "jiff-0_2", feature = "serde_with-3"))]
+impl<'de> serde_with::DeserializeAs<'de, jiff::Timestamp> for crate::DateTime {
+    fn deserialize_as<D>(deserializer: D) -> std::result::Result<jiff::Timestamp, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let dt = DateTime::deserialize(deserializer)?;
+        Ok(dt.to_jiff())
+    }
+}
+
+#[cfg(all(feature = "jiff-0_2", feature = "serde_with-3"))]
+impl serde_with::SerializeAs<jiff::Timestamp> for crate::DateTime {
+    fn serialize_as<S>(
+        source: &jiff::Timestamp,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let dt = DateTime::from_jiff(*source);
         dt.serialize(serializer)
     }
 }

@@ -1082,6 +1082,78 @@ fn test_datetime_chrono04_datetime_helper() {
 }
 
 #[test]
+#[cfg(all(feature = "jiff-0_2", feature = "serde_with-3"))]
+fn test_datetime_jiff02_timestamp_helper() {
+    let _guard = LOCK.run_concurrently();
+
+    use std::str::FromStr;
+
+    #[serde_as]
+    #[derive(Deserialize, Serialize, Debug, PartialEq)]
+    struct A {
+        #[serde_as(as = "datetime::FromJiff02Timestamp")]
+        pub date: jiff::Timestamp,
+
+        #[serde_as(as = "Option<datetime::FromJiff02Timestamp>")]
+        pub date_optional_none: Option<jiff::Timestamp>,
+
+        #[serde_as(as = "Option<datetime::FromJiff02Timestamp>")]
+        pub date_optional_some: Option<jiff::Timestamp>,
+
+        #[serde_as(as = "Vec<datetime::FromJiff02Timestamp>")]
+        pub date_vector: Vec<jiff::Timestamp>,
+    }
+
+    let iso = "1996-12-20T00:39:57Z";
+    let date: jiff::Timestamp = jiff::Timestamp::from_str(iso).unwrap();
+    let a: A = A {
+        date,
+        date_optional_none: None,
+        date_optional_some: Some(date),
+        date_vector: vec![date],
+    };
+
+    // Serialize the struct to BSON
+    let doc = serialize_to_document(&a).unwrap();
+
+    // Validate serialized data
+    assert_eq!(
+        doc.get_datetime("date").unwrap().to_jiff(),
+        date,
+        "Expected serialized date to match original date."
+    );
+
+    assert_eq!(
+        doc.get("date_optional_none"),
+        Some(&Bson::Null),
+        "Expected serialized date_optional_none to be None."
+    );
+
+    assert_eq!(
+        doc.get("date_optional_some"),
+        Some(&Bson::DateTime(DateTime::from_jiff(date))),
+        "Expected serialized date_optional_some to match original."
+    );
+
+    let date_vector = doc
+        .get_array("date_vector")
+        .expect("Expected serialized date_vector to be a BSON array.");
+    let expected_date_vector: Vec<Bson> = vec![Bson::DateTime(date.into())];
+    assert_eq!(
+        date_vector, &expected_date_vector,
+        "Expected each serialized element in date_vector to be a BSON DateTime matching the \
+         original."
+    );
+
+    // Validate deserialized data
+    let a_deserialized: A = deserialize_from_document(doc).unwrap();
+    assert_eq!(
+        a_deserialized, a,
+        "Deserialized struct does not match original."
+    );
+}
+
+#[test]
 #[cfg(all(feature = "time-0_3", feature = "serde_with-3"))]
 fn test_datetime_time03_offset_datetime_helper() {
     use time::OffsetDateTime;

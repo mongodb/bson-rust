@@ -327,6 +327,8 @@ fn test_serialize_utc_date_time() {
     let src = time::OffsetDateTime::from_unix_timestamp(1_286_705_410).unwrap();
     #[cfg(feature = "chrono-0_4")]
     let src = chrono::Utc.timestamp_opt(1_286_705_410, 0).unwrap();
+    #[cfg(feature = "jiff-0_2")]
+    let src = jiff::Timestamp::from_second(1_286_705_410, 0).unwrap();
     let dst = vec![
         18, 0, 0, 0, 9, 107, 101, 121, 0, 208, 111, 158, 149, 43, 1, 0, 0, 0,
     ];

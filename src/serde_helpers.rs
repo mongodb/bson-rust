@@ -81,6 +81,8 @@ pub mod object_id {
 /// - [`datetime::FromI64`] — converts an `i64` to and from a [`crate::DateTime`].
 /// - [`datetime::FromChrono04DateTime`] — converts a [`chrono::DateTime`] to and from a
 ///   [`crate::DateTime`].
+/// - [`datetime::FromJiff02Timestamp`] — converts a [`jiff::Timestamp`] to and from a
+///   [`crate::DateTime`].
 /// - [`datetime::FromTime03OffsetDateTime`] — converts a [`time::OffsetDateTime`] to and from a
 ///   [`crate::DateTime`].
 #[cfg(feature = "serde_with-3")]
@@ -197,6 +199,33 @@ pub mod datetime {
         },
         |bson_date: DateTime| -> Result<chrono::DateTime<Utc>, String> {
             Ok(bson_date.to_chrono())
+        }
+    );
+
+    #[cfg(feature = "jiff-0_2")]
+    serde_conv_doc!(
+        /// Converts a [`jiff::Timestamp`] to and from a [`DateTime`].
+        /// ```rust
+        /// # #[cfg(all(feature = "jiff-0_2", feature = "serde_with-3"))]
+        /// # {
+        /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Event {
+        ///     #[serde_as(as = "datetime::FromJiff02Timestamp")]
+        ///     pub date: jiff::Timestamp,
+        /// }
+        /// # }
+        /// ```
+        pub FromJiff02Timestamp,
+        jiff::Timestamp,
+        |jiff_ts: &jiff::Timestamp| -> Result<DateTime, String> {
+            Ok(DateTime::from_jiff(*jiff_ts))
+        },
+        |bson_date: DateTime| -> Result<jiff::Timestamp, String> {
+            Ok(bson_date.to_jiff())
         }
     );
 

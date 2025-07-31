@@ -62,6 +62,7 @@
 //! | Feature      | Description                                                                                          | Default |
 //! |:-------------|:-----------------------------------------------------------------------------------------------------|:--------|
 //! | `chrono-0_4` | Enable support for v0.4 of the [`chrono`](https://docs.rs/chrono/0.4) crate in the public API.       | no      |
+//! | `jiff-0_2` | Enable support for v0.2 of the [`jiff`](https://docs.rs/jiff/0.2) crate in the public API.             | no      |
 //! | `uuid-1`     | Enable support for v1.x of the [`uuid`](https://docs.rs/uuid/1.x) crate in the public API.           | no      |
 //! | `time-0_3`   | Enable support for v0.3 of the [`time`](https://docs.rs/time/0.3) crate in the public API.           | no      |
 //! | `serde_with-3` | Enable [`serde_with`](https://docs.rs/serde_with/3.x) 3.x integrations for [`DateTime`] and [`Uuid`]. | no      |
