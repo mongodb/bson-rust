@@ -260,7 +260,6 @@ impl crate::DateTime {
         }
     }
 
-
     /// Convert this [`DateTime`] to a [`jiff::Timestamp`].
     ///
     /// Note: Not every BSON datetime can be represented as a [`jiff::Timestamp`]. For such dates,
@@ -278,7 +277,7 @@ impl crate::DateTime {
     /// ```
     #[cfg(feature = "jiff-0_2")]
     pub fn to_jiff(self) -> jiff::Timestamp {
-        jiff::Timestamp::from_millisecond(self.0).unwrap_or_else(|_| {
+        jiff::Timestamp::from_millisecond(self.0).unwrap_or({
             if self.0 < 0 {
                 jiff::Timestamp::MIN
             } else {
@@ -521,7 +520,6 @@ impl serde_with::SerializeAs<chrono::DateTime<Utc>> for crate::DateTime {
         dt.serialize(serializer)
     }
 }
-
 
 #[cfg(feature = "jiff-0_2")]
 impl From<crate::DateTime> for jiff::Timestamp {

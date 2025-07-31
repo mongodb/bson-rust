@@ -326,6 +326,7 @@ fn test_serialize_utc_date_time() {
     #[allow(unused)]
     let src = time::OffsetDateTime::from_unix_timestamp(1_286_705_410).unwrap();
     #[cfg(feature = "chrono-0_4")]
+    #[allow(unused)]
     let src = chrono::Utc.timestamp_opt(1_286_705_410, 0).unwrap();
     #[cfg(feature = "jiff-0_2")]
     let src = jiff::Timestamp::from_second(1_286_705_410).unwrap();

@@ -309,8 +309,7 @@ fn from_external_datetime() {
     }
     #[cfg(feature = "jiff-0_2")]
     {
-        let no_subsec_millis: jiff::Timestamp =
-            "2014-11-28T12:00:09Z".parse().unwrap();
+        let no_subsec_millis: jiff::Timestamp = "2014-11-28T12:00:09Z".parse().unwrap();
         let dt = DateTime::from(no_subsec_millis);
         assert_millisecond_precision(dt);
         assert_subsec_millis(dt, 0);
