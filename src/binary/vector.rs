@@ -87,7 +87,7 @@ impl PackedBitVector {
     /// ```
     ///
     /// Padding must be within 0-7 inclusive. Padding must be 0 or unspecified if the provided
-    /// vector is empty.
+    /// vector is empty. The ignored bits in the vector must all be 0.
     pub fn new(vector: Vec<u8>, padding: impl Into<Option<u8>>) -> Result<Self> {
         let padding = padding.into().unwrap_or(0);
         if !(0..8).contains(&padding) {
@@ -95,10 +95,22 @@ impl PackedBitVector {
                 "vector padding must be within 0-7 inclusive, got {padding}"
             )));
         }
-        if padding != 0 && vector.is_empty() {
-            return Err(Error::binary(format!(
-                "cannot specify non-zero padding if the provided vector is empty, got {padding}",
-            )));
+        match vector.last() {
+            Some(last) => {
+                if last.trailing_zeros() < u32::from(padding) {
+                    return Err(Error::binary(
+                        "the ignored bits in a packed bit vector must all be 0",
+                    ));
+                }
+            }
+            None => {
+                if padding != 0 {
+                    return Err(Error::binary(format!(
+                        "cannot specify non-zero padding if the provided vector is empty, got \
+                         {padding}"
+                    )));
+                }
+            }
         }
         Ok(Self { vector, padding })
     }
