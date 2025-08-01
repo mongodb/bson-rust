@@ -408,6 +408,13 @@ impl<T: chrono::TimeZone> From<chrono::DateTime<T>> for Bson {
     }
 }
 
+#[cfg(feature = "jiff-0_2")]
+impl From<jiff::Timestamp> for Bson {
+    fn from(a: jiff::Timestamp) -> Bson {
+        Bson::DateTime(crate::DateTime::from(a))
+    }
+}
+
 #[cfg(feature = "uuid-1")]
 impl From<uuid::Uuid> for Bson {
     fn from(uuid: uuid::Uuid) -> Self {

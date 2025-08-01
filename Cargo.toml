@@ -37,6 +37,8 @@ default = ["compat-3-0-0"]
 compat-3-0-0 = []
 # if enabled, include API for interfacing with chrono 0.4
 chrono-0_4 = ["dep:chrono"]
+# if enabled, include API for interfacing with jiff 0.2
+jiff-0_2 = ["dep:jiff"]
 # enable the large-dates feature for the time crate
 large_dates = ["time/large-dates"]
 # if enabled, include API for interfacing with uuid 1.x
@@ -56,6 +58,7 @@ name = "bson"
 [dependencies]
 ahash = "0.8.0"
 chrono = { version = "0.4.15", features = ["std"], default-features = false, optional = true }
+jiff = { version = "0.2", default-features = false, optional = true }
 rand = "0.9"
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", features = ["preserve_order"], optional = true }
@@ -87,6 +90,7 @@ serde_bytes = "0.11"
 serde_path_to_error = "0.1.16"
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde", "clock", "std"], default-features = false }
+jiff = { version = "0.2", default-features = false, features = ["std"] }
 
 [package.metadata.docs.rs]
 all-features = true

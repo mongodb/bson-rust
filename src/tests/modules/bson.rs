@@ -274,6 +274,15 @@ fn from_external_datetime() {
         let from_chrono = DateTime::from(now);
         assert_millisecond_precision(from_chrono);
     }
+    #[cfg(feature = "jiff-0_2")]
+    {
+        let now = jiff::Timestamp::now();
+        let bson = Bson::from(now);
+        assert_millisecond_precision(bson.as_datetime().unwrap().to_owned());
+
+        let from_jiff = DateTime::from(now);
+        assert_millisecond_precision(from_jiff);
+    }
 
     let no_subsec_millis = datetime!(2014-11-28 12:00:09 UTC);
     let dt = DateTime::from_time_0_3(no_subsec_millis);
@@ -290,6 +299,17 @@ fn from_external_datetime() {
     {
         let no_subsec_millis: chrono::DateTime<chrono::Utc> =
             "2014-11-28T12:00:09Z".parse().unwrap();
+        let dt = DateTime::from(no_subsec_millis);
+        assert_millisecond_precision(dt);
+        assert_subsec_millis(dt, 0);
+
+        let bson = Bson::from(dt);
+        assert_millisecond_precision(bson.as_datetime().unwrap().to_owned());
+        assert_subsec_millis(bson.as_datetime().unwrap().to_owned(), 0);
+    }
+    #[cfg(feature = "jiff-0_2")]
+    {
+        let no_subsec_millis: jiff::Timestamp = "2014-11-28T12:00:09Z".parse().unwrap();
         let dt = DateTime::from(no_subsec_millis);
         assert_millisecond_precision(dt);
         assert_subsec_millis(dt, 0);
@@ -324,6 +344,17 @@ fn from_external_datetime() {
             assert_subsec_millis(dt, 123);
 
             let bson = Bson::from(chrono_dt);
+            assert_millisecond_precision(bson.as_datetime().unwrap().to_owned());
+            assert_subsec_millis(bson.as_datetime().unwrap().to_owned(), 123);
+        }
+        #[cfg(feature = "jiff-0_2")]
+        {
+            let jiff_ts: jiff::Timestamp = s.parse().unwrap();
+            let dt = DateTime::from(jiff_ts);
+            assert_millisecond_precision(dt);
+            assert_subsec_millis(dt, 123);
+
+            let bson = Bson::from(jiff_ts);
             assert_millisecond_precision(bson.as_datetime().unwrap().to_owned());
             assert_subsec_millis(bson.as_datetime().unwrap().to_owned(), 123);
         }
@@ -372,6 +403,26 @@ fn from_external_datetime() {
 
         let bdt = DateTime::MIN;
         assert_eq!(bdt.to_chrono(), chrono::DateTime::<Utc>::MIN_UTC);
+    }
+    #[cfg(feature = "jiff-0_2")]
+    {
+        let bdt = DateTime::from(jiff::Timestamp::MAX);
+        assert_eq!(
+            bdt.to_jiff().as_millisecond(),
+            jiff::Timestamp::MAX.as_millisecond()
+        );
+
+        let bdt = DateTime::from(jiff::Timestamp::MIN);
+        assert_eq!(
+            bdt.to_jiff().as_millisecond(),
+            jiff::Timestamp::MIN.as_millisecond()
+        );
+
+        let bdt = DateTime::MAX;
+        assert_eq!(bdt.to_jiff(), jiff::Timestamp::MAX);
+
+        let bdt = DateTime::MIN;
+        assert_eq!(bdt.to_jiff(), jiff::Timestamp::MIN);
     }
 }
 
