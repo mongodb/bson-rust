@@ -65,9 +65,10 @@
 //! | `jiff-0_2` | Enable support for v0.2 of the [`jiff`](https://docs.rs/jiff/0.2) crate in the public API.             | no      |
 //! | `uuid-1`     | Enable support for v1.x of the [`uuid`](https://docs.rs/uuid/1.x) crate in the public API.           | no      |
 //! | `time-0_3`   | Enable support for v0.3 of the [`time`](https://docs.rs/time/0.3) crate in the public API.           | no      |
+//! | `serde`      | Enable integration with the [`serde`](https://docs.rs/serde/) serialization/deserialization framework.  | no      |
 //! | `serde_with-3` | Enable [`serde_with`](https://docs.rs/serde_with/3.x) 3.x integrations for [`DateTime`] and [`Uuid`]. | no      |
 //! | `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_err/latest).  This is an unstable feature and any breaking changes to `serde_path_to_error` may affect usage of it via this feature. | no |
-//! | `compat-3-0-0` | Required for future compatibility if default features are disabled. | no |
+//! | `compat-3-0-0` | Required for future compatibility if default features are disabled. | yes |
 //! | `large_dates` | Increase the supported year range for some `bson::DateTime` utilities from +/-9,999 (inclusive) to +/-999,999 (inclusive). Note that enabling this feature can impact performance and introduce parsing ambiguities. | no |
 //! | `serde_json-1` | Enable support for v1.x of the [`serde_json`](https://docs.rs/serde_json/1.x) crate in the public API. | no |
 //!
@@ -170,12 +171,13 @@
 //! let error = doc.get_i64("i32"); // Err(...)
 //! ```
 //!
-//! ## Modeling BSON with strongly typed data structures
+//! ## Integration with `serde`
 //!
 //! While it is possible to work with documents and BSON values directly, it will often introduce a
 //! lot of boilerplate for verifying the necessary keys are present and their values are the correct
-//! types. [`serde`](https://serde.rs/) provides a powerful way of mapping BSON data into Rust data structures largely
-//! automatically, removing the need for all that boilerplate.
+//! types. Enabling the `serde` feature provides integration with the [`serde`](https://serde.rs/)
+//! crate that maps BSON data into Rust data structs largely automatically, removing the need for
+//! all that boilerplate.
 //!
 //! e.g.:
 //! ```rust
@@ -223,6 +225,64 @@
 //! [augment errors](crate::error::Error::path) with the full field path from root object to
 //! failing field.  This feature does incur a small CPU and memory overhead during (de)serialization
 //! and should be enabled with care in performance-sensitive environments.
+//!
+//! ### Embedding BSON Value Types
+//!
+//! The `serde` feature also enables implementations of [`Serialize`](serde::Serialize) and
+//! [`Deserialize`](serde::Deserialize) for the Rust types provided by this crate that represent
+//! BSON values, allowing them to be embedded in domain-specific structs as appropriate:
+//! ```rust
+//! use serde::{Deserialize, Serialize};
+//! use bson::{bson, Bson, oid::ObjectId};
+//!
+//! #[derive(Serialize, Deserialize)]
+//! struct Person {
+//!     id: ObjectId,
+//!     name: String,
+//!     age: i32,
+//!     phones: Vec<String>,
+//! }
+//!
+//! let bson_data: Bson = bson!({
+//!     "id": ObjectId::new(),
+//!     "name": "John Doe",
+//!     "age": 43,
+//!     "phones": [
+//!         "+44 1234567",
+//!         "+44 2345678"
+//!     ]
+//! });
+//!
+//! let person: Person = bson::deserialize_from_bson(bson_data).unwrap();
+//! ```
+//!
+//! ### Encoding vs. Serialization
+//!
+//! With the `serde` feature enabled, a BSON document can be converted to its wire-format byte
+//! representation in multiple ways:
+//! ```rust
+//! # fn wrapper() -> bson::error::Result<()> {
+//! use bson::{doc, serialize_to_vec};
+//! let my_document = doc! { "hello": "bson" };
+//! let encoded = my_document.to_vec()?;
+//! let serialized = serialize_to_vec(&my_document)?;
+//! # Ok(())
+//! # }
+//! # wrapper().unwrap();
+//! ```
+//!
+//! We recommend that, where possible, documents be converted to byte form using the encoding
+//! methods ([`Document::to_vec`]/[`Document::to_writer`]); this is more efficient as it avoids
+//! the intermediate `serde` data model representation.  This also applies to decoding; prefer
+//! [`Document::from_reader`] over [`deserialize_from_reader`] / [`deserialize_from_slice`].
+//!
+//! ### Serializer Compatibility
+//!
+//! The implementations of [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize)
+//! for BSON value types are tested with the `serde` \[de\]serializers provided by this crate and by
+//! the `serde_json` crate.  Compatibility with formats provided by other crates is not guaranteed
+//! and the data produced by serializing BSON values to other formats may change when this crate is
+//! updated.
 //!
 //! ## Working with Extended JSON
 //!
