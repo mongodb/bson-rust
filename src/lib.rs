@@ -260,14 +260,14 @@
 //! With the `serde` feature enabled, a BSON document can be converted to its wire-format byte
 //! representation in multiple ways:
 //! ```rust
-//! # fn wrapper() -> bson::Result<()> {
+//! # fn wrapper() -> bson::error::Result<()> {
 //! use bson::{doc, serialize_to_vec};
 //! let my_document = doc! { "hello": "bson" };
 //! let encoded = my_document.to_vec()?;
 //! let serialized = serialize_to_vec(&my_document)?;
 //! # Ok(())
 //! # }
-//! # wrapper()
+//! # wrapper().unwrap();
 //! ```
 //!
 //! We recommend that, where possible, documents be converted to byte form using the encoding
