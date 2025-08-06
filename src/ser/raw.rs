@@ -22,8 +22,11 @@ use crate::{
 use document_serializer::DocumentSerializer;
 
 /// Serializer used to convert a type `T` into raw BSON bytes.
-pub(crate) struct Serializer {
-    bytes: Vec<u8>,
+pub(crate) struct Serializer<'a> {
+    bytes: &'a mut Vec<u8>,
+
+    /// The index into `bytes` where the current serialization started.
+    start_index: usize,
 
     /// The index into `bytes` where the current element type will need to be stored.
     /// This needs to be set retroactively because in BSON, the element type comes before the key,
@@ -58,19 +61,16 @@ impl SerializerHint {
     }
 }
 
-impl Serializer {
-    pub(crate) fn new() -> Self {
+impl<'a> Serializer<'a> {
+    pub(crate) fn new(bytes: &'a mut Vec<u8>) -> Self {
+        let start_index = bytes.len();
         Self {
-            bytes: Vec::new(),
-            type_index: 0,
+            bytes,
+            start_index,
+            type_index: start_index,
             hint: SerializerHint::None,
             human_readable: false,
         }
-    }
-
-    /// Convert this serializer into the vec of the serialized bytes.
-    pub(crate) fn into_vec(self) -> Vec<u8> {
-        self.bytes
     }
 
     /// Reserve a spot for the element type to be set retroactively via `update_element_type`.
@@ -83,7 +83,7 @@ impl Serializer {
     /// Retroactively set the element type of the most recently serialized element.
     #[inline]
     fn update_element_type(&mut self, t: ElementType) -> Result<()> {
-        if self.type_index == 0 {
+        if self.type_index == self.start_index {
             if matches!(t, ElementType::EmbeddedDocument) {
                 // don't need to set the element type for the top level document
                 return Ok(());
@@ -113,17 +113,17 @@ impl Serializer {
     }
 }
 
-impl<'a> serde::Serializer for &'a mut Serializer {
+impl<'a, 'b> serde::Serializer for &'a mut Serializer<'b> {
     type Ok = ();
     type Error = Error;
 
-    type SerializeSeq = DocumentSerializer<'a>;
-    type SerializeTuple = DocumentSerializer<'a>;
-    type SerializeTupleStruct = DocumentSerializer<'a>;
-    type SerializeTupleVariant = VariantSerializer<'a>;
-    type SerializeMap = DocumentSerializer<'a>;
-    type SerializeStruct = StructSerializer<'a>;
-    type SerializeStructVariant = VariantSerializer<'a>;
+    type SerializeSeq = DocumentSerializer<'a, 'b>;
+    type SerializeTuple = DocumentSerializer<'a, 'b>;
+    type SerializeTupleStruct = DocumentSerializer<'a, 'b>;
+    type SerializeTupleVariant = VariantSerializer<'a, 'b>;
+    type SerializeMap = DocumentSerializer<'a, 'b>;
+    type SerializeStruct = StructSerializer<'a, 'b>;
+    type SerializeStructVariant = VariantSerializer<'a, 'b>;
 
     fn is_human_readable(&self) -> bool {
         self.human_readable
@@ -385,15 +385,15 @@ impl<'a> serde::Serializer for &'a mut Serializer {
     }
 }
 
-pub(crate) enum StructSerializer<'a> {
+pub(crate) enum StructSerializer<'a, 'b> {
     /// Serialize a BSON value currently represented in serde as a struct (e.g. ObjectId)
-    Value(ValueSerializer<'a>),
+    Value(ValueSerializer<'a, 'b>),
 
     /// Serialize the struct as a document.
-    Document(DocumentSerializer<'a>),
+    Document(DocumentSerializer<'a, 'b>),
 }
 
-impl SerializeStruct for StructSerializer<'_> {
+impl SerializeStruct for StructSerializer<'_, '_> {
     type Ok = ();
     type Error = Error;
 
@@ -424,8 +424,8 @@ enum VariantInnerType {
 
 /// Serializer used for enum variants, including both tuple (e.g. Foo::Bar(1, 2, 3)) and
 /// struct (e.g. Foo::Bar { a: 1 }).
-pub(crate) struct VariantSerializer<'a> {
-    root_serializer: &'a mut Serializer,
+pub(crate) struct VariantSerializer<'a, 'b> {
+    root_serializer: &'a mut Serializer<'b>,
 
     /// Variants are serialized as documents of the form `{ <variant name>: <document or array> }`,
     /// and `doc_start` indicates the index at which the outer document begins.
@@ -438,8 +438,8 @@ pub(crate) struct VariantSerializer<'a> {
     num_elements_serialized: usize,
 }
 
-impl<'a> VariantSerializer<'a> {
-    fn start(rs: &'a mut Serializer, variant: &'static CStr, inner_type: VariantInnerType) -> Self {
+impl<'a, 'b> VariantSerializer<'a, 'b> {
+    fn start(rs: &'a mut Serializer<'b>, variant: &'static CStr, inner_type: VariantInnerType) -> Self {
         let doc_start = rs.bytes.len();
         // write placeholder length for document, will be updated at end
         static ZERO: RawBsonRef = RawBsonRef::Int32(0);
@@ -492,7 +492,7 @@ impl<'a> VariantSerializer<'a> {
     }
 }
 
-impl serde::ser::SerializeTupleVariant for VariantSerializer<'_> {
+impl serde::ser::SerializeTupleVariant for VariantSerializer<'_, '_> {
     type Ok = ();
 
     type Error = Error;
@@ -511,7 +511,7 @@ impl serde::ser::SerializeTupleVariant for VariantSerializer<'_> {
     }
 }
 
-impl serde::ser::SerializeStructVariant for VariantSerializer<'_> {
+impl serde::ser::SerializeStructVariant for VariantSerializer<'_, '_> {
     type Ok = ();
 
     type Error = Error;

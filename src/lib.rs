@@ -474,6 +474,7 @@ pub use self::{
     },
     ser::{
         serialize_to_bson,
+        serialize_to_buffer,
         serialize_to_document,
         serialize_to_raw_document_buf,
         serialize_to_vec,
