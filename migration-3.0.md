@@ -33,7 +33,7 @@ computed_key.push_str("bar");
 // Non-static values need to be checked at runtime
 let computed_key = CString::try_from(computed_key)?;
 let doc_buf = rawdoc! {
-    // String literal keys are implicitly checked at compile-time.
+    // String literal keys in `rawdoc!` are implicitly checked at compile-time.
     "hello": "world",
     computed_key: 42,
     "regex": Regex {
@@ -42,6 +42,8 @@ let doc_buf = rawdoc! {
         options: cstr!("").to_owned(),
     }
 };
+// `append` keys must now be a `&CStr` or `CString`.
+doc_buf.append(cstr!("a key"), "a value");
 ```
 
 ## Conversions
@@ -53,9 +55,9 @@ In 2.x, the API documentation, structure, and naming frequently conflated _encod
 In 3.0, use of `serde` is now an optional feature, disabled by default; additionally, the functions for serialization and deserialization now have `serialize_to_` or `deserialize_from_` prefixes to make the distinction obvious at point of use.
 
 ## Documenting supported `serde` formats
-The `serde` data model allows a high degree of flexibility in how data types represent themselves, and how data formats will parse and reconstruct that representation.  This flexibility comes with the downside that not all values will produce the same values when serialized and deserialized with a given format.  Because of that, for 3.0 we have clarified our compatibility policy:
+The `serde` data model allows a high degree of flexibility in how data types represent themselves, and how data formats will parse and reconstruct that representation.  This flexibility comes with the downside that not all data types will produce the same values when serialized and deserialized with a given format.  Because of that, for 3.0 we have clarified our compatibility policy:
 
-The implementations of `Serialize` and `Deserialize` for BSON value types are tested with the `serde` \[de\]serializers provided by this crate and by the `serde_json` crate.  Compatibility with formats provided by other crates is not guaranteed and the data produced by serializing BSON values to other formats may change when this crate is updated.
+> The implementations of `Serialize` and `Deserialize` for BSON value types are tested with the `serde` \[de\]serializers provided by this crate and by the `serde_json` crate.  Compatibility with formats provided by other crates is not guaranteed and the data produced by serializing BSON values to other formats may change when this crate is updated.
 
 ## Lossy UTF8 text decoding
 BSON text is required to be UTF8 encoded.  However, in various real-world circumstances, text strings may be truncated or contain invalid character sequences; in those circumstances, it's sometimes appropriate to use _lossy text decoding_, where invalid sequences are replaced with the Unicode replacement character.
