@@ -562,15 +562,15 @@ fn run_test(test: TestFile) {
             .expect_err(description.as_str());
 
         if decode_error.description.contains("invalid UTF-8") {
-            RawDocumentBuf::from_reader(bson.as_slice())
-                .expect(&description)
-                .to_document_utf8_lossy()
-                .unwrap_or_else(|err| {
-                    panic!(
-                        "{}: utf8_lossy should not fail (failed with {:?})",
-                        description, err
-                    )
-                });
+            Utf8Lossy::<Document>::try_from(
+                RawDocumentBuf::from_reader(bson.as_slice()).expect(&description),
+            )
+            .unwrap_or_else(|err| {
+                panic!(
+                    "{}: utf8_lossy should not fail (failed with {:?})",
+                    description, err
+                )
+            });
             crate::deserialize_from_slice::<Utf8Lossy<Document>>(bson.as_slice())
                 .expect(&description);
         }

@@ -21,6 +21,7 @@ use crate::{
     RawDocumentBuf,
     Regex,
     Timestamp,
+    Utf8Lossy,
 };
 use serde_json::json;
 
@@ -74,11 +75,11 @@ fn test_encode_decode_utf8_string_invalid() {
     doc.to_writer(&mut buf).unwrap();
 
     let expected = doc! { "key": "��", "subdoc": { "subkey": "��" } };
-    let decoded = RawDocumentBuf::from_reader(&mut Cursor::new(buf))
+    let decoded: Utf8Lossy<Document> = RawDocumentBuf::from_reader(&mut Cursor::new(buf))
         .unwrap()
-        .to_document_utf8_lossy()
+        .try_into()
         .unwrap();
-    assert_eq!(decoded, expected);
+    assert_eq!(decoded.0, expected);
 }
 
 #[test]
