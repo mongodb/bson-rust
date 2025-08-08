@@ -89,7 +89,19 @@ pub fn serialize_to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize,
 {
-    let mut serializer = raw::Serializer::new();
+    let mut bytes = Vec::new();
+    serialize_to_buffer(value, &mut bytes)?;
+    Ok(bytes)
+}
+
+/// Serialize the given `T` as a BSON byte vector into the provided byte buffer.
+/// This allows reusing the same buffer for multiple serializations.
+#[inline]
+pub fn serialize_to_buffer<T>(value: &T, buffer: &mut Vec<u8>) -> Result<()>
+where
+    T: Serialize,
+{
+    let mut serializer = raw::Serializer::new(buffer);
     #[cfg(feature = "serde_path_to_error")]
     {
         serde_path_to_error::serialize(value, &mut serializer).map_err(Error::with_path)?;
@@ -98,7 +110,7 @@ where
     {
         value.serialize(&mut serializer)?;
     }
-    Ok(serializer.into_vec())
+    Ok(())
 }
 
 /// Serialize the given `T` as a [`RawDocumentBuf`].
