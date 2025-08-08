@@ -498,18 +498,6 @@ impl RawDocument {
         let s = try_to_str(bytes)?;
         s.try_into()
     }
-
-    /// Copy this into a [`Document`], returning an error if invalid BSON is encountered.  Any
-    /// invalid UTF-8 sequences will be replaced with the Unicode replacement character.
-    pub fn to_document_utf8_lossy(&self) -> RawResult<Document> {
-        let mut out = Document::new();
-        for elem in self.iter_elements() {
-            let elem = elem?;
-            let value = deep_utf8_lossy(elem.value_utf8_lossy()?)?;
-            out.insert(elem.key().as_str(), value);
-        }
-        Ok(out)
-    }
 }
 
 #[cfg(feature = "serde")]
