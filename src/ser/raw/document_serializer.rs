@@ -21,7 +21,7 @@ pub(crate) struct DocumentSerializer<'a, 'b> {
 impl<'a, 'b> DocumentSerializer<'a, 'b> {
     pub(crate) fn start(rs: &'a mut Serializer<'b>) -> Self {
         let start = rs.bytes.len();
-        RawBsonRef::Int32(0).append_to(&mut rs.bytes);
+        RawBsonRef::Int32(0).append_to(rs.bytes);
         Self {
             root_serializer: rs,
             num_keys_serialized: 0,
@@ -257,7 +257,7 @@ impl serde::Serializer for KeySerializer<'_, '_> {
 
     #[inline]
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
-        crate::raw::CStr::from_str(v)?.append_to(&mut self.root_serializer.bytes);
+        crate::raw::CStr::from_str(v)?.append_to(self.root_serializer.bytes);
         Ok(())
     }
 

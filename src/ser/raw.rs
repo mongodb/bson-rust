@@ -108,7 +108,7 @@ impl<'a> Serializer<'a> {
 
     fn serialize_raw(&mut self, v: RawBsonRef) -> Result<()> {
         self.update_element_type(v.element_type())?;
-        v.append_to(&mut self.bytes);
+        v.append_to(self.bytes);
         Ok(())
     }
 }
@@ -439,21 +439,25 @@ pub(crate) struct VariantSerializer<'a, 'b> {
 }
 
 impl<'a, 'b> VariantSerializer<'a, 'b> {
-    fn start(rs: &'a mut Serializer<'b>, variant: &'static CStr, inner_type: VariantInnerType) -> Self {
+    fn start(
+        rs: &'a mut Serializer<'b>,
+        variant: &'static CStr,
+        inner_type: VariantInnerType,
+    ) -> Self {
         let doc_start = rs.bytes.len();
         // write placeholder length for document, will be updated at end
         static ZERO: RawBsonRef = RawBsonRef::Int32(0);
-        ZERO.append_to(&mut rs.bytes);
+        ZERO.append_to(rs.bytes);
 
         let inner = match inner_type {
             VariantInnerType::Struct => ElementType::EmbeddedDocument,
             VariantInnerType::Tuple => ElementType::Array,
         };
         rs.bytes.push(inner as u8);
-        variant.append_to(&mut rs.bytes);
+        variant.append_to(rs.bytes);
         let inner_start = rs.bytes.len();
         // write placeholder length for inner, will be updated at end
-        ZERO.append_to(&mut rs.bytes);
+        ZERO.append_to(rs.bytes);
 
         Self {
             root_serializer: rs,
@@ -469,7 +473,7 @@ impl<'a, 'b> VariantSerializer<'a, 'b> {
         T: Serialize + ?Sized,
     {
         self.root_serializer.reserve_element_type();
-        CStr::from_str(k)?.append_to(&mut self.root_serializer.bytes);
+        CStr::from_str(k)?.append_to(self.root_serializer.bytes);
         v.serialize(&mut *self.root_serializer)?;
 
         self.num_elements_serialized += 1;
