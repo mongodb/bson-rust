@@ -213,7 +213,7 @@ impl RawArray {
     /// view onto the array but do not parse out or construct
     /// values until the `.value()` or `.try_into()` methods are
     /// called.
-    pub fn iter_elements(&self) -> RawIter {
+    pub fn iter_elements(&self) -> RawIter<'_> {
         RawIter::new(&self.doc)
     }
 }
