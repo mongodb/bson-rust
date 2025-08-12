@@ -789,7 +789,7 @@ impl Bson {
     /// Method for converting a given [`Bson`] value to a [`serde::de::Unexpected`] for error
     /// reporting.
     #[cfg(feature = "serde")]
-    pub(crate) fn as_unexpected(&self) -> serde::de::Unexpected {
+    pub(crate) fn as_unexpected(&self) -> serde::de::Unexpected<'_> {
         use serde::de::Unexpected;
         match self {
             Bson::Array(_) => Unexpected::Seq,

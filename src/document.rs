@@ -218,12 +218,12 @@ impl Document {
     }
 
     /// Returns an iterator over the contents of the document.
-    pub fn iter(&self) -> Iter {
+    pub fn iter(&self) -> Iter<'_> {
         self.into_iter()
     }
 
     /// Returns an iterator over mutable references to the contents of the document.
-    pub fn iter_mut(&mut self) -> IterMut {
+    pub fn iter_mut(&mut self) -> IterMut<'_> {
         IterMut {
             inner: self.inner.iter_mut(),
         }
@@ -629,14 +629,14 @@ impl Document {
     }
 
     /// Returns an iterator over the keys in the document.
-    pub fn keys(&self) -> Keys {
+    pub fn keys(&self) -> Keys<'_> {
         Keys {
             inner: self.inner.keys(),
         }
     }
 
     /// Returns an iterator over the values in the document.
-    pub fn values(&self) -> Values {
+    pub fn values(&self) -> Values<'_> {
         Values {
             inner: self.inner.values(),
         }
@@ -666,7 +666,7 @@ impl Document {
     }
 
     /// Returns an [`Entry`] for the given key.
-    pub fn entry(&mut self, k: impl Into<String>) -> Entry {
+    pub fn entry(&mut self, k: impl Into<String>) -> Entry<'_> {
         match self.inner.entry(k.into()) {
             indexmap::map::Entry::Occupied(o) => Entry::Occupied(OccupiedEntry { inner: o }),
             indexmap::map::Entry::Vacant(v) => Entry::Vacant(VacantEntry { inner: v }),
