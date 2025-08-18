@@ -836,7 +836,7 @@ impl Bson {
             Self::String(s) => RawBsonRef::String(s).append_to(buf),
             Self::Array(arr) => {
                 let mut writer = DocWriter::open(buf);
-                for (ix, v) in arr.into_iter().enumerate() {
+                for (ix, v) in arr.iter().enumerate() {
                     writer.append_key(
                         v.element_type(),
                         &crate::raw::CString::from_string_unchecked(ix.to_string()),
