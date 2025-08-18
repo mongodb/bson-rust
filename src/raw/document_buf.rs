@@ -5,13 +5,11 @@ use std::{
 };
 
 use crate::{
-    raw::{CStr, MIN_BSON_DOCUMENT_SIZE},
+    raw::{doc_writer::DocWriter, CStr},
     Document,
 };
 
 use super::{bson::RawBson, iter::Iter, RawBsonRef, RawDocument, RawIter, Result};
-
-mod raw_writer;
 
 /// An owned BSON document (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
 /// This can be created from a `Vec<u8>` or a [`crate::Document`].
@@ -58,8 +56,7 @@ impl RawDocumentBuf {
     /// Creates a new, empty [`RawDocumentBuf`].
     pub fn new() -> Self {
         let mut data = Vec::new();
-        data.extend(MIN_BSON_DOCUMENT_SIZE.to_le_bytes());
-        data.push(0);
+        DocWriter::open(&mut data);
         Self { data }
     }
 
@@ -200,8 +197,13 @@ impl RawDocumentBuf {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn append(&mut self, key: impl AsRef<CStr>, value: impl BindRawBsonRef) {
+        self.data.pop();
         let key = key.as_ref();
-        value.bind(|value_ref| raw_writer::RawWriter::new(&mut self.data).append(key, value_ref));
+        value.bind(|value_ref| {
+            let mut writer = DocWriter::resume(&mut self.data, 0);
+            writer.append_key(value_ref.element_type(), key);
+            value_ref.append_to(writer.buffer());
+        });
     }
 }
 
@@ -266,13 +268,9 @@ impl TryFrom<&Document> for RawDocumentBuf {
     type Error = crate::error::Error;
 
     fn try_from(doc: &Document) -> std::result::Result<Self, Self::Error> {
-        let mut out = RawDocumentBuf::new();
-        for (k, v) in doc {
-            let k: &CStr = k.as_str().try_into()?;
-            let val: RawBson = v.clone().try_into()?;
-            out.append(k, val);
-        }
-        Ok(out)
+        let mut out = vec![];
+        doc.append_to(&mut out)?;
+        RawDocumentBuf::from_bytes(out)
     }
 }
 
@@ -280,13 +278,7 @@ impl TryFrom<Document> for RawDocumentBuf {
     type Error = crate::error::Error;
 
     fn try_from(doc: Document) -> std::result::Result<Self, Self::Error> {
-        let mut out = RawDocumentBuf::new();
-        for (k, v) in doc {
-            let k: &CStr = k.as_str().try_into()?;
-            let val: RawBson = v.try_into()?;
-            out.append(k, val);
-        }
-        Ok(out)
+        RawDocumentBuf::try_from(&doc)
     }
 }
 

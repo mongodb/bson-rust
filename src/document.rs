@@ -732,6 +732,15 @@ impl Document {
         let raw = crate::raw::RawDocumentBuf::from_reader(reader)?;
         raw.try_into()
     }
+
+    pub(crate) fn append_to(&self, buf: &mut Vec<u8>) -> crate::error::Result<()> {
+        let mut writer = crate::raw::doc_writer::DocWriter::open(buf);
+        for (k, v) in self {
+            writer.append_key(v.element_type(), k.as_str().try_into()?);
+            v.append_to(writer.buffer())?;
+        }
+        Ok(())
+    }
 }
 
 /// A view into a single entry in a document, which may either be vacant or occupied.

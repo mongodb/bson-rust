@@ -29,7 +29,14 @@ use std::{
 };
 
 pub use crate::document::Document;
-use crate::{oid, raw::CString, spec::ElementType, Binary, Decimal128};
+use crate::{
+    oid,
+    raw::{doc_writer::DocWriter, CString},
+    spec::ElementType,
+    Binary,
+    Decimal128,
+    RawBsonRef,
+};
 
 /// Possible BSON value types.
 #[derive(Clone, Default, PartialEq)]
@@ -814,6 +821,57 @@ impl Bson {
             Bson::DateTime(_) => Unexpected::Other("datetime"),
             Bson::Decimal128(_) => Unexpected::Other("decimal128"),
         }
+    }
+
+    pub(crate) fn append_to(&self, buf: &mut Vec<u8>) -> crate::error::Result<()> {
+        match self {
+            Self::Int32(val) => RawBsonRef::Int32(*val).append_to(buf),
+            Self::Int64(val) => RawBsonRef::Int64(*val).append_to(buf),
+            Self::Double(val) => RawBsonRef::Double(*val).append_to(buf),
+            Self::Binary(bin) => RawBsonRef::Binary(crate::RawBinaryRef {
+                subtype: bin.subtype,
+                bytes: &bin.bytes,
+            })
+            .append_to(buf),
+            Self::String(s) => RawBsonRef::String(s).append_to(buf),
+            Self::Array(arr) => {
+                let mut writer = DocWriter::open(buf);
+                for (ix, v) in arr.into_iter().enumerate() {
+                    writer.append_key(
+                        v.element_type(),
+                        &crate::raw::CString::from_string_unchecked(ix.to_string()),
+                    );
+                    v.append_to(writer.buffer())?;
+                }
+            }
+            Self::Document(doc) => doc.append_to(buf)?,
+            Self::Boolean(b) => RawBsonRef::Boolean(*b).append_to(buf),
+            Self::RegularExpression(re) => RawBsonRef::RegularExpression(crate::RawRegexRef {
+                pattern: &re.pattern,
+                options: &re.options,
+            })
+            .append_to(buf),
+            Self::JavaScriptCode(js) => RawBsonRef::JavaScriptCode(js).append_to(buf),
+            Self::JavaScriptCodeWithScope(cws) => {
+                let start = buf.len();
+                buf.extend(0i32.to_le_bytes()); // placeholder
+                RawBsonRef::String(&cws.code).append_to(buf);
+                cws.scope.append_to(buf)?;
+                let len: i32 = (buf.len() - start) as i32;
+                buf[start..start + 4].copy_from_slice(&len.to_le_bytes());
+            }
+            Self::Timestamp(ts) => RawBsonRef::Timestamp(*ts).append_to(buf),
+            Self::ObjectId(oid) => RawBsonRef::ObjectId(*oid).append_to(buf),
+            Self::DateTime(dt) => RawBsonRef::DateTime(*dt).append_to(buf),
+            Self::Symbol(s) => RawBsonRef::Symbol(s).append_to(buf),
+            Self::Decimal128(d) => RawBsonRef::Decimal128(*d).append_to(buf),
+            Self::DbPointer(dbp) => {
+                RawBsonRef::String(&dbp.namespace).append_to(buf);
+                RawBsonRef::ObjectId(dbp.id).append_to(buf);
+            }
+            Self::Null | Self::Undefined | Self::MinKey | Self::MaxKey => {}
+        }
+        Ok(())
     }
 }
 

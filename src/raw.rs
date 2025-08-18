@@ -129,6 +129,7 @@ mod array_buf;
 mod bson;
 mod bson_ref;
 mod cstr;
+pub(crate) mod doc_writer;
 mod document;
 mod document_buf;
 mod iter;
