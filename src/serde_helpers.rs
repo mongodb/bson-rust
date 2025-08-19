@@ -299,7 +299,7 @@ pub mod datetime {
     );
 }
 
-/// Type converters for serializing and deserializing `crate::Timestamp`.
+/// Type converters for serializing and deserializing [`crate::Timestamp`].
 ///
 /// ## Available converters
 /// - [`timestamp::AsU32`] — converts a [`crate::Timestamp`] to and from a `u32`.
@@ -381,7 +381,6 @@ pub mod timestamp {
 /// - [`u32::AsF64`] — converts a `u32` to and from an `f64`.
 /// - [`u32::AsI32`] — converts a `u32` to and from an `i32`.
 /// - [`u32::AsI64`] — converts a `u32` to and from an `i64`.
-#[cfg(feature = "serde_with-3")]
 pub mod u32 {
     use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -475,7 +474,7 @@ pub mod u32 {
     );
 }
 
-/// Type converters for serializing and deserializing `u64` using [`serde_with::serde_as`].
+/// Type converters for serializing and deserializing `u64`.
 ///
 /// ## Available converters
 /// - [`u64::AsF64`] — converts a `u64` to and from an `f64`.
@@ -597,7 +596,7 @@ pub mod uuid_1 {
     use uuid::Uuid;
 
     serde_conv_doc!(
-        /// Converts a ['crate::Uuid`] to and from a [`uuid::Uuid`].
+        /// Converts a [`crate::Uuid`] to and from a [`uuid::Uuid`].
         /// ```
         /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
         /// # {
