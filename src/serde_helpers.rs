@@ -130,6 +130,7 @@ pub mod object_id {
 ///   [`crate::DateTime`].
 pub mod datetime {
     use crate::{macros::serde_conv_doc, DateTime};
+    #[cfg(feature = "chrono-0_4")]
     use chrono::Utc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
