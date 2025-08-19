@@ -1,4 +1,51 @@
-//! Collection of helper functions for serializing to and deserializing from BSON using Serde
+//! Collection of helper functions for serializing to and deserializing from BSON using Serde.
+//!
+//! The submodules here provide converter types that can be used with the `#[serde(with = ...)]`
+//! annotation.  These modules follow a naming convention:
+//! * _module name_ - the _base type_ to be converted
+//! * _module_`::AsFoo` - when serializing/deserializing a field of the base type, store it as a
+//!   _Foo_ value
+//! * _module_`::FromFoo` - when serializing/deserializing a field of type _Foo_, store it as a
+//!   value of the base type
+//!
+//! For example, the [`object_id`] module provides both [`object_id::AsHexString`] and
+//! [`object_id::FromHexString`]:
+//! ```
+//! # use serde::{Deserialize, Serialize};
+//! use bson::{doc, serde_helpers::object_id, oid::ObjectId};
+//!
+//! #[derive(Deserialize, Serialize)]
+//! struct Example {
+//!   // No conversions applied; will serialize as the BSON value.
+//!   basic: ObjectId,
+//!   // In code, an ObjectId; when serialized, a hex string.
+//!   #[serde(with = "object_id::AsHexString")]
+//!   as_hex: ObjectId,
+//!   // In code, a hex string; serializes as a BSON objectid.
+//!   #[serde(with = "object_id::FromHexString")]
+//!   from_hex: String,
+//! }
+//! ```
+//!
+//! If the `serde_with-3` feature is enabled, these converters can also be used with the
+//! `#[serde_as(as = ...)]` annotation, which provides similar conversion functionality with the
+//! added flexibility of handling many container types automatically:
+//! ```
+//! # #[cfg(feature = "serde_with-3")]
+//! # {
+//! # use serde::{Deserialize, Serialize};
+//! use bson::{doc, serde_helpers::object_id, oid::ObjectId};
+//!
+//! #[serde_with::serde_as]
+//! #[derive(Deserialize, Serialize)]
+//! struct Example {
+//!   #[serde_as(as = "Option<object_id::AsHexString>")]
+//!   optional: Option<ObjectId>,
+//! }
+//! # }
+//! ```
+//! See the crate documentation for [`serde_with`](https://docs.rs/serde_with/latest/serde_with/) for more details.
+
 use serde::{de::Visitor, Deserialize, Serialize};
 use std::{
     marker::PhantomData,
@@ -6,17 +53,14 @@ use std::{
     result::Result,
 };
 
-/// Type converters for serializing and deserializing [`crate::oid::ObjectId`] using
-/// [`serde_with::serde_as`].
+/// Type converters for serializing and deserializing [`crate::oid::ObjectId`].
 ///
 /// ## Available converters
 /// - [`object_id::AsHexString`] — converts an [`crate::oid::ObjectId`] to and from a hex string.
 /// - [`object_id::FromHexString`] — converts a hex string to and from an [`crate::oid::ObjectId`].
-#[cfg(feature = "serde_with-3")]
 pub mod object_id {
     use crate::{macros::serde_conv_doc, oid::ObjectId};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_with::{DeserializeAs, SerializeAs};
 
     serde_conv_doc!(
         /// Converts an [`ObjectId`] to and from a hex string.
@@ -71,8 +115,7 @@ pub mod object_id {
     );
 }
 
-/// Type converters for serializing and deserializing [`crate::DateTime`] using
-/// [`serde_with::serde_as`].
+/// Type converters for serializing and deserializing [`crate::DateTime`].
 ///
 /// ## Available converters
 /// - [`datetime::AsRfc3339String`] — converts a [`crate::DateTime`] to and from an RFC 3339 string.
@@ -85,12 +128,10 @@ pub mod object_id {
 ///   [`crate::DateTime`].
 /// - [`datetime::FromTime03OffsetDateTime`] — converts a [`time::OffsetDateTime`] to and from a
 ///   [`crate::DateTime`].
-#[cfg(feature = "serde_with-3")]
 pub mod datetime {
     use crate::{macros::serde_conv_doc, DateTime};
     use chrono::Utc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_with::{DeserializeAs, SerializeAs};
 
     serde_conv_doc!(
         /// Converts a [`DateTime`] to and from an RFC 3339 (ISO 8601) formatted string.
@@ -257,17 +298,14 @@ pub mod datetime {
     );
 }
 
-/// Type converters for serializing and deserializing `crate::Timestamp` using
-/// [`serde_with::serde_as`].
+/// Type converters for serializing and deserializing `crate::Timestamp`.
 ///
 /// ## Available converters
 /// - [`timestamp::AsU32`] — converts a [`crate::Timestamp`] to and from a `u32`.
 /// - [`timestamp::FromU32`] — converts a `u32` to and from a [`crate::Timestamp`].
-#[cfg(feature = "serde_with-3")]
 pub mod timestamp {
     use crate::{macros::serde_conv_doc, Timestamp};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_with::{DeserializeAs, SerializeAs};
 
     serde_conv_doc!(
         /// Converts a [`Timestamp`] to and from a `u32`.
@@ -336,7 +374,7 @@ pub mod timestamp {
     );
 }
 
-/// Type converters for serializing and deserializing `u32` using [`serde_with::serde_as`].
+/// Type converters for serializing and deserializing `u32`.
 ///
 /// ## Available converters
 /// - [`u32::AsF64`] — converts a `u32` to and from an `f64`.
@@ -346,7 +384,6 @@ pub mod timestamp {
 pub mod u32 {
     use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_with::{DeserializeAs, SerializeAs};
 
     serde_conv_doc!(
         /// Converts a `u32` to and from an `f64`.
@@ -443,11 +480,9 @@ pub mod u32 {
 /// - [`u64::AsF64`] — converts a `u64` to and from an `f64`.
 /// - [`u64::AsI32`] — converts a `u64` to and from an `i32`.
 /// - [`u64::AsI64`] — converts a `u64` to and from an `i64`.
-#[cfg(feature = "serde_with-3")]
 pub mod u64 {
     use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_with::{DeserializeAs, SerializeAs};
 
     serde_conv_doc!(
         /// Converts a `u64` to and from an `f64`.
@@ -543,10 +578,10 @@ pub mod u64 {
     );
 }
 
-/// Type converters for serializing and deserializing [`uuid::Uuid`] using
-/// [`serde_with::serde_as`].
+/// Type converters for serializing and deserializing [`uuid::Uuid`].
 ///
 /// ## Available converters
+/// - [`uuid_1::FromBson`] - serializes a [`crate::Uuid`] as a [`uuid::Uuid`].
 /// - [`uuid_1::AsBinary`] — serializes a [`uuid::Uuid`] as a [`crate::Binary`].
 /// - [`uuid_1::AsCSharpLegacyBinary`] — serializes a [`uuid::Uuid`] as a [`crate::Binary`] in the
 ///   legacy C# driver UUID format.
@@ -554,12 +589,37 @@ pub mod u64 {
 ///   legacy Java driver UUID format.
 /// - [`uuid_1::AsPythonLegacyBinary`] — serializes a [`uuid::Uuid`] as a [`crate::Binary`] in the
 ///   legacy Python driver UUID format.
-#[cfg(all(feature = "serde_with-3", feature = "uuid-1"))]
+#[cfg(feature = "uuid-1")]
 pub mod uuid_1 {
     use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_with::{DeserializeAs, SerializeAs};
     use uuid::Uuid;
+
+    serde_conv_doc!(
+        /// Converts a ['crate::Uuid`] to and from a [`uuid::Uuid`].
+        /// ```
+        /// # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
+        /// # {
+        /// use bson::serde_helpers::uuid_1;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "uuid_1::FromBson")]
+        ///     pub id: bson::Uuid,
+        /// }
+        /// # }
+        /// ```
+        pub FromBson,
+        crate::Uuid,
+        |bson_uuid: &crate::Uuid| -> Result<Uuid, String> {
+            Ok((*bson_uuid).into())
+        },
+        |uuid: Uuid| -> Result<crate::Uuid, String> {
+            Ok(crate::Uuid::from(uuid))
+        }
+    );
 
     serde_conv_doc!(
         /// Serializes a [`Uuid`] as a [`crate::Binary`] and deserializes a [`Uuid`] from a [`crate::Binary`].
@@ -692,57 +752,6 @@ pub mod uuid_1 {
             Ok(inner.into())
         }
     );
-}
-
-#[allow(unused_macros)]
-macro_rules! as_binary_mod {
-    ($feat:meta, $uu:path) => {
-        use serde::{Deserialize, Deserializer, Serialize, Serializer};
-        use std::result::Result;
-        use $uu;
-
-        /// Serializes a Uuid as a Binary.
-        pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-            crate::uuid::Uuid::from(*val).serialize(serializer)
-        }
-
-        /// Deserializes a Uuid from a Binary.
-        pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let bson_uuid = crate::uuid::Uuid::deserialize(deserializer)?;
-            Ok(bson_uuid.into())
-        }
-    };
-}
-
-#[allow(unused_macros)]
-macro_rules! as_legacy_binary_mod {
-    ($feat:meta, $uu:path, $rep:path) => {
-        use crate::{uuid::UuidRepresentation, Binary};
-        use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
-        use std::result::Result;
-        use $uu;
-
-        /// Serializes a Uuid as a Binary in the legacy UUID format.
-        pub fn serialize<S: Serializer>(val: &Uuid, serializer: S) -> Result<S::Ok, S::Error> {
-            let binary = Binary::from_uuid_with_representation(crate::uuid::Uuid::from(*val), $rep);
-            binary.serialize(serializer)
-        }
-
-        /// Deserializes a Uuid from a Binary in the legacy UUID format.
-        pub fn deserialize<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let binary = Binary::deserialize(deserializer)?;
-            let uuid = binary
-                .to_uuid_with_representation($rep)
-                .map_err(de::Error::custom)?;
-            Ok(uuid.into())
-        }
-    };
 }
 
 /// Wrapping a type in `HumanReadable` signals to the BSON serde integration that it and all

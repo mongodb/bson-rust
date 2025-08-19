@@ -470,7 +470,8 @@ macro_rules! serde_conv_doc {
                 }
             }
 
-            impl SerializeAs<$t> for $m {
+            #[cfg(feature = "serde_with-3")]
+            impl serde_with::SerializeAs<$t> for $m {
                 fn serialize_as<S>(x: &$t, serializer: S) -> Result<S::Ok, S::Error>
                 where
                     S: Serializer,
@@ -479,7 +480,8 @@ macro_rules! serde_conv_doc {
                 }
             }
 
-            impl<'de> DeserializeAs<'de, $t> for $m {
+            #[cfg(feature = "serde_with-3")]
+            impl<'de> serde_with::DeserializeAs<'de, $t> for $m {
                 fn deserialize_as<D>(deserializer: D) -> Result<$t, D::Error>
                 where
                     D: Deserializer<'de>,
