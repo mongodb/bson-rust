@@ -74,25 +74,55 @@
 //! # };
 //! ```
 //!
+//! ## Serde conversion
+//!
+//! Fields using the [`uuid::Uuid`] type can be (de)serialized as BSON using the converters provided
+//! in [`serde_helpers`](crate::serde_helpers):
+//!
+//! ```
+//! # #[cfg(feature = "uuid-1")]
+//! # {
+//! use uuid;
+//! use serde::{Deserialize, Serialize};
+//! use bson::{doc, serde_helpers::uuid_1};
+//! #[derive(Deserialize, Serialize, PartialEq, Debug)]
+//! struct Foo {
+//!   /// Serializes as a BSON binary rather than using [`uuid::Uuid`]'s serialization
+//!   #[serde(with = "uuid_1::AsBinary")]
+//!   as_bson: uuid::Uuid,
+//! }
+//!
+//! let foo = Foo {
+//!   as_bson: uuid::Uuid::new_v4(),
+//! };
+//!
+//! let expected = doc! {
+//!   "as_bson": bson::Uuid::from(foo.as_bson),
+//! };
+//!
+//! assert_eq!(bson::serialize_to_document(&foo)?, expected);
+//! # }
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
 //! ## The `serde_with-3` feature flag
 //!
 //! The `serde_with-3` feature can be enabled to support more ergonomic serde attributes for
-//! (de)serializing [`uuid::Uuid`] from/to BSON via the [`serde_with`](https://docs.rs/serde_with/1.11.0/serde_with/)
-//! crate. The main benefit of this compared to the regular `serde_helpers` is that `serde_with-3`
-//! can handle nested [`uuid::Uuid`] values (e.g. in [`Option`]), whereas the former only works on
-//! fields that are exactly [`uuid::Uuid`].
+//! conversions. The main benefit of this compared to the regular `serde_helpers` is that
+//! `serde_with-3` can handle nested [`uuid::Uuid`] values (e.g. in [`Option`]), whereas the former
+//! only works on fields that are exactly [`uuid::Uuid`].
 //! ```
 //! # #[cfg(all(feature = "uuid-1", feature = "serde_with-3"))]
 //! # {
-//! # use uuid as uuid;
+//! # use uuid;
 //! use serde::{Deserialize, Serialize};
-//! use bson::doc;
+//! use bson::{doc, serde_helpers::uuid_1};
 //!
 //! #[serde_with::serde_as]
 //! #[derive(Deserialize, Serialize, PartialEq, Debug)]
 //! struct Foo {
 //!   /// Serializes as a BSON binary rather than using [`uuid::Uuid`]'s serialization
-//!   #[serde_as(as = "Option<bson::Uuid>")]
+//!   #[serde_as(as = "Option<uuid_1::AsBinary>")]
 //!   as_bson: Option<uuid::Uuid>,
 //! }
 //!
@@ -113,7 +143,6 @@
 //!
 //! [`crate::Uuid`]'s `serde` implementation is the same as [`uuid::Uuid`]'s
 //! for non-BSON formats such as JSON:
-//!
 //! ``` rust
 //! # #[cfg(feature = "uuid-1")]
 //! # {
@@ -453,41 +482,12 @@ impl Binary {
     }
 }
 
-macro_rules! trait_impls {
-    ($feat:meta, $u:ty) => {
-        #[cfg($feat)]
-        impl From<$u> for Binary {
-            fn from(uuid: $u) -> Self {
-                Binary {
-                    subtype: BinarySubtype::Uuid,
-                    bytes: uuid.as_bytes().to_vec(),
-                }
-            }
+#[cfg(feature = "uuid-1")]
+impl From<uuid::Uuid> for Binary {
+    fn from(uuid: uuid::Uuid) -> Self {
+        Binary {
+            subtype: BinarySubtype::Uuid,
+            bytes: uuid.as_bytes().to_vec(),
         }
-
-        #[cfg(all($feat, feature = "serde_with-3"))]
-        impl<'de> serde_with::DeserializeAs<'de, $u> for crate::Uuid {
-            fn deserialize_as<D>(deserializer: D) -> std::result::Result<$u, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                use serde::Deserialize as _;
-                let uuid = Uuid::deserialize(deserializer)?;
-                Ok(uuid.into())
-            }
-        }
-
-        #[cfg(all($feat, feature = "serde_with-3"))]
-        impl serde_with::SerializeAs<$u> for crate::Uuid {
-            fn serialize_as<S>(source: &$u, serializer: S) -> std::result::Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
-            {
-                use serde::Serialize as _;
-                let uuid = Uuid::from(*source);
-                uuid.serialize(serializer)
-            }
-        }
-    };
+    }
 }
-trait_impls!(feature = "uuid-1", uuid::Uuid);

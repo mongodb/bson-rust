@@ -1187,13 +1187,14 @@ fn u2i() {
 
 #[test]
 fn serde_with_chrono() {
+    use bson::serde_helpers::datetime;
     #[serde_with::serde_as]
     #[derive(Deserialize, Serialize, PartialEq, Debug)]
     struct Foo {
-        #[serde_as(as = "Option<bson::DateTime>")]
+        #[serde_as(as = "Option<datetime::FromChrono04DateTime>")]
         as_bson: Option<chrono::DateTime<chrono::Utc>>,
 
-        #[serde_as(as = "Option<bson::DateTime>")]
+        #[serde_as(as = "Option<datetime::FromChrono04DateTime>")]
         none_bson: Option<chrono::DateTime<chrono::Utc>>,
     }
 
@@ -1211,13 +1212,14 @@ fn serde_with_chrono() {
 
 #[test]
 fn serde_with_uuid() {
+    use bson::serde_helpers::uuid_1;
     #[serde_with::serde_as]
     #[derive(Deserialize, Serialize, PartialEq, Debug)]
     struct Foo {
-        #[serde_as(as = "Option<bson::Uuid>")]
+        #[serde_as(as = "Option<uuid_1::AsBinary>")]
         as_bson: Option<uuid::Uuid>,
 
-        #[serde_as(as = "Option<bson::Uuid>")]
+        #[serde_as(as = "Option<uuid_1::AsBinary>")]
         none_bson: Option<uuid::Uuid>,
     }
 

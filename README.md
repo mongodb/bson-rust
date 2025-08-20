@@ -50,7 +50,7 @@ Note that if you are using `bson` through the `mongodb` crate, you do not need t
 | `chrono-0_4` | Enable support for v0.4 of the [`chrono`](https://docs.rs/chrono/0.4) crate in the public API.              | n/a                | no      |
 | `uuid-1`     | Enable support for v1.x of the [`uuid`](https://docs.rs/uuid/1.0) crate in the public API.                  | n/a                | no      |
 | `time-0_3`   | Enable support for v0.3 of the [`time`](https://docs.rs/time/0.3) crate in the public API.                  | n/a                | no      |
-| `serde_with-3` | Enable [`serde_with`](https://docs.rs/serde_with/3.x) 3.x integrations for `bson::DateTime` and `bson::Uuid`.| `serde_with`         | no      |
+| `serde_with-3` | Enable [`serde_with`](https://docs.rs/serde_with/3.x) type conversion utilities in the public API. | `serde_with`         | no      |
 | `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_err/latest).  This is an unstable feature and any breaking changes to `serde_path_to_error` may affect usage of it via this feature.  | `serde_path_to_error`  | no |
 | `compat-3-0-0` | Required for future compatibility if default features are disabled. | n/a | no |
 | `large_dates` | Increase the supported year range for some `bson::DateTime` utilities from +/-9,999 (inclusive) to +/-999,999 (inclusive). Note that enabling this feature can impact performance and introduce parsing ambiguities. | n/a | no |
