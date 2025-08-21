@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     convert::TryFrom,
     time::{Duration, SystemTime},
 };
@@ -557,4 +558,45 @@ fn test_hashable() {
     assert_eq!(map.remove(&Bson::Null), Some(2));
 
     assert!(map.is_empty());
+}
+
+#[test]
+fn test_hash_set_to_bson() {
+    let mut set1 = HashSet::new();
+    let mut set2 = HashSet::new();
+
+    set1.insert(1);
+    set1.insert(2);
+    set1.insert(3);
+    set2.insert(&1);
+    set2.insert(&2);
+    set2.insert(&3);
+
+    let d1 = doc! {
+        "foo": set1,
+    };
+    let d2 = doc! {
+        "foo": set2,
+    };
+    let a1: Vec<_> = d1
+        .get_array("foo")
+        .unwrap()
+        .into_iter()
+        .map(|v| v.as_i32().unwrap())
+        .collect();
+    let a2: Vec<_> = d2
+        .get_array("foo")
+        .unwrap()
+        .into_iter()
+        .map(|v| v.as_i32().unwrap())
+        .collect();
+
+    assert_eq!(a1.len(), 3);
+    assert_eq!(a2.len(), 3);
+    assert!(a1.contains(&1));
+    assert!(a1.contains(&2));
+    assert!(a1.contains(&2));
+    assert!(a2.contains(&1));
+    assert!(a2.contains(&2));
+    assert!(a2.contains(&2));
 }

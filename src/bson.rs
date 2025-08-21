@@ -22,9 +22,10 @@
 //! BSON definition
 
 use std::{
+    collections::HashSet,
     convert::TryFrom,
     fmt::{self, Debug, Display, Formatter},
-    hash::Hash,
+    hash::{BuildHasher, Hash},
     ops::Index,
 };
 
@@ -339,6 +340,16 @@ where
 {
     fn from(v: Vec<T>) -> Bson {
         Bson::Array(v.into_iter().map(|val| val.into()).collect())
+    }
+}
+
+impl<T, R> From<HashSet<T, R>> for Bson
+where
+    T: Into<Bson>,
+    R: BuildHasher,
+{
+    fn from(s: HashSet<T, R>) -> Bson {
+        Bson::from_iter(s.into_iter())
     }
 }
 
