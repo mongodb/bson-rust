@@ -581,13 +581,13 @@ fn test_hash_set_to_bson() {
     let a1: Vec<_> = d1
         .get_array("foo")
         .unwrap()
-        .into_iter()
+        .iter()
         .map(|v| v.as_i32().unwrap())
         .collect();
     let a2: Vec<_> = d2
         .get_array("foo")
         .unwrap()
-        .into_iter()
+        .iter()
         .map(|v| v.as_i32().unwrap())
         .collect();
 
@@ -595,8 +595,8 @@ fn test_hash_set_to_bson() {
     assert_eq!(a2.len(), 3);
     assert!(a1.contains(&1));
     assert!(a1.contains(&2));
-    assert!(a1.contains(&2));
+    assert!(a1.contains(&3));
     assert!(a2.contains(&1));
     assert!(a2.contains(&2));
-    assert!(a2.contains(&2));
+    assert!(a2.contains(&3));
 }

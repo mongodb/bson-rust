@@ -345,7 +345,7 @@ where
 
 impl<T: Into<Bson>, S> From<HashSet<T, S>> for Bson {
     fn from(s: HashSet<T, S>) -> Bson {
-        Bson::from_iter(s.into_iter())
+        Bson::from_iter(s)
     }
 }
 
