@@ -25,7 +25,7 @@ use std::{
     collections::HashSet,
     convert::TryFrom,
     fmt::{self, Debug, Display, Formatter},
-    hash::{BuildHasher, Hash},
+    hash::Hash,
     ops::Index,
 };
 
@@ -343,12 +343,8 @@ where
     }
 }
 
-impl<T, R> From<HashSet<T, R>> for Bson
-where
-    T: Into<Bson>,
-    R: BuildHasher,
-{
-    fn from(s: HashSet<T, R>) -> Bson {
+impl<T: Into<Bson>, S> From<HashSet<T, S>> for Bson {
+    fn from(s: HashSet<T, S>) -> Bson {
         Bson::from_iter(s.into_iter())
     }
 }
