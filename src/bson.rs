@@ -349,6 +349,15 @@ impl<T: Into<Bson>, S> From<HashSet<T, S>> for Bson {
     }
 }
 
+impl<T, const N: usize> From<[T; N]> for Bson
+where
+    T: Into<Bson>,
+{
+    fn from(value: [T; N]) -> Self {
+        Bson::Array(value.into_iter().map(|v| v.into()).collect())
+    }
+}
+
 impl<T> From<&[T]> for Bson
 where
     T: Clone + Into<Bson>,
