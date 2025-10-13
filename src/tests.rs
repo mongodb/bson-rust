@@ -9,6 +9,6 @@ mod serde_helpers;
 mod spec;
 
 use modules::TestLock;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
-pub(crate) static LOCK: Lazy<TestLock> = Lazy::new(TestLock::new);
+pub(crate) static LOCK: LazyLock<TestLock> = LazyLock::new(TestLock::new);
