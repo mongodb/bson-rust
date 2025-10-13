@@ -126,7 +126,6 @@ dependencies = [
  "indexmap 2.11.4",
  "jiff",
  "js-sys",
- "once_cell",
  "pretty_assertions",
  "proptest",
  "rand",

@@ -6,10 +6,12 @@ use std::{convert::TryInto, time::SystemTime};
 use std::{
     fmt,
     str::FromStr,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        LazyLock,
+    },
 };
 
-use once_cell::sync::Lazy;
 use rand::{random, rng, Rng};
 
 use crate::error::{Error, Result};
@@ -24,8 +26,8 @@ const COUNTER_OFFSET: usize = PROCESS_ID_OFFSET + PROCESS_ID_SIZE;
 
 const MAX_U24: usize = 0xFF_FFFF;
 
-static OID_COUNTER: Lazy<AtomicUsize> =
-    Lazy::new(|| AtomicUsize::new(rng().random_range(0..=MAX_U24)));
+static OID_COUNTER: LazyLock<AtomicUsize> =
+    LazyLock::new(|| AtomicUsize::new(rng().random_range(0..=MAX_U24)));
 
 /// A wrapper around a raw 12-byte ObjectId.
 ///
@@ -204,7 +206,7 @@ impl ObjectId {
 
     /// Generate a random 5-byte array.
     fn gen_process_id() -> [u8; 5] {
-        static BUF: Lazy<[u8; 5]> = Lazy::new(random);
+        static BUF: LazyLock<[u8; 5]> = LazyLock::new(random);
 
         *BUF
     }
