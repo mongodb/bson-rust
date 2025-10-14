@@ -61,7 +61,7 @@ chrono = { version = "0.4.15", features = ["std"], default-features = false, opt
 jiff = { version = "0.2", default-features = false, optional = true }
 rand = "0.9"
 serde = { version = "1.0", features = ["derive"], optional = true }
-serde_json = { version = "1.0", features = ["preserve_order"], optional = true }
+serde_json = { version = "1.0", optional = true }
 indexmap = "2.1.0"
 hex = "0.4.2"
 base64 = "0.22.1"
@@ -87,7 +87,7 @@ pretty_assertions = "0.6.1"
 proptest = "1.0.0"
 serde_bytes = "0.11"
 serde_path_to_error = "0.1.16"
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde", "clock", "std"], default-features = false }
 jiff = { version = "0.2", default-features = false, features = ["std"] }
 
