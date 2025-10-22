@@ -8,6 +8,3 @@ set -o errexit
 RUST_BACKTRACE=1 cargo test --all-targets
 # Test with all features and including doctests
 RUST_BACKTRACE=1 cargo test --all-features
-
-cd serde-tests
-RUST_BACKTRACE=1 cargo test
