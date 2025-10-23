@@ -1,11 +1,11 @@
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
-use super::AllTypes;
-
-use bson::{cstr, doc, Bson, JavaScriptCodeWithScope, RawArrayBuf, RawBson, RawDocumentBuf};
-
 use serde::{Deserialize, Serialize};
+
+use crate::{cstr, doc, Bson, JavaScriptCodeWithScope, RawArrayBuf, RawBson, RawDocumentBuf};
+
+use super::util::AllTypes;
 
 #[test]
 fn all_types_json() {
@@ -39,8 +39,8 @@ fn all_types_json() {
         "b": true,
         "d": 12.5,
         "binary": v.binary.bytes,
-        "binary_old": { "$binary": { "base64": base64::encode(&v.binary_old.bytes), "subType": "02" } },
-        "binary_other": { "$binary": { "base64": base64::encode(&v.binary_old.bytes), "subType": "81" } },
+        "binary_old": { "$binary": { "base64": crate::base64::encode(&v.binary_old.bytes), "subType": "02" } },
+        "binary_other": { "$binary": { "base64": crate::base64::encode(&v.binary_old.bytes), "subType": "81" } },
         "date": { "$date": { "$numberLong": v.date.timestamp_millis().to_string() } },
         "regex": { "$regularExpression": { "pattern": v.regex.pattern, "options": v.regex.options } },
         "ts": { "$timestamp": { "t": 123, "i": 456 } },

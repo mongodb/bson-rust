@@ -1,7 +1,11 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::vec_init_then_push)]
 
-mod json;
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, HashSet},
+    iter::FromIterator,
+};
 
 use pretty_assertions::assert_eq;
 use serde::{
@@ -11,13 +15,7 @@ use serde::{
     Serialize,
 };
 
-use std::{
-    borrow::Cow,
-    collections::{BTreeMap, HashSet},
-    iter::FromIterator,
-};
-
-use bson::{
+use crate::{
     cstr,
     doc,
     oid::ObjectId,
@@ -41,10 +39,11 @@ use bson::{
     RawJavaScriptCodeWithScopeRef,
     RawRegexRef,
     Regex,
-    Timestamp,
     Utf8Lossy,
     Uuid,
 };
+
+use super::util::AllTypes;
 
 /// Verifies the following:
 ///   - round trip `expected_value` through `Document`:
@@ -54,41 +53,41 @@ use bson::{
 ///     - serializing `expected_value` to BSON bytes matches the raw BSON bytes of `expected_doc`
 ///     - deserializing a `T` from the serialized bytes produces `expected_value`
 ///     - deserializing a `Document` from the serialized bytes produces `expected_doc`
-///   - `bson::to_vec` and `Document::to_vec` produce the same result given the same input
+///   - `crate::to_vec` and `Document::to_vec` produce the same result given the same input
 fn run_test<T>(expected_value: &T, expected_doc: &Document, description: &str)
 where
     T: Serialize + DeserializeOwned + PartialEq + std::fmt::Debug,
 {
     let expected_bytes = expected_doc.to_vec().expect(description);
 
-    let expected_bytes_serde = bson::serialize_to_vec(&expected_value).expect(description);
+    let expected_bytes_serde = crate::serialize_to_vec(&expected_value).expect(description);
 
     assert_eq!(expected_bytes_serde, expected_bytes, "{}", description);
 
-    let expected_bytes_from_doc_serde = bson::serialize_to_vec(&expected_doc).expect(description);
+    let expected_bytes_from_doc_serde = crate::serialize_to_vec(&expected_doc).expect(description);
     assert_eq!(
         expected_bytes_from_doc_serde, expected_bytes,
         "{}",
         description
     );
 
-    let serialized_doc = bson::serialize_to_document(&expected_value).expect(description);
+    let serialized_doc = crate::serialize_to_document(&expected_value).expect(description);
     assert_eq!(&serialized_doc, expected_doc, "{}", description);
     assert_eq!(
         expected_value,
-        &bson::deserialize_from_document::<T>(serialized_doc).expect(description),
+        &crate::deserialize_from_document::<T>(serialized_doc).expect(description),
         "{}",
         description
     );
 
     assert_eq!(
-        &bson::deserialize_from_reader::<_, T>(expected_bytes.as_slice()).expect(description),
+        &crate::deserialize_from_reader::<_, T>(expected_bytes.as_slice()).expect(description),
         expected_value,
         "{}",
         description
     );
     assert_eq!(
-        &bson::deserialize_from_reader::<_, Document>(expected_bytes.as_slice())
+        &crate::deserialize_from_reader::<_, Document>(expected_bytes.as_slice())
             .expect(description),
         expected_doc,
         "{}",
@@ -107,19 +106,19 @@ where
     let expected_bytes = expected_doc.to_vec().expect(description);
 
     assert_eq!(
-        &bson::deserialize_from_document::<T>(expected_doc.clone()).expect(description),
+        &crate::deserialize_from_document::<T>(expected_doc.clone()).expect(description),
         expected_value,
         "{}",
         description
     );
     assert_eq!(
-        &bson::deserialize_from_reader::<_, T>(expected_bytes.as_slice()).expect(description),
+        &crate::deserialize_from_reader::<_, T>(expected_bytes.as_slice()).expect(description),
         expected_value,
         "{}",
         description
     );
     assert_eq!(
-        &bson::deserialize_from_reader::<_, Document>(expected_bytes.as_slice())
+        &crate::deserialize_from_reader::<_, Document>(expected_bytes.as_slice())
             .expect(description),
         expected_doc,
         "{}",
@@ -134,8 +133,8 @@ fn run_raw_round_trip_test<'de, T>(bytes: &'de [u8], description: &str)
 where
     T: Deserialize<'de> + Serialize + std::fmt::Debug,
 {
-    let t: T = bson::deserialize_from_slice(bytes).expect(description);
-    let vec = bson::serialize_to_vec(&t).expect(description);
+    let t: T = crate::deserialize_from_slice(bytes).expect(description);
+    let vec = crate::serialize_to_vec(&t).expect(description);
     assert_eq!(vec.as_slice(), bytes);
 }
 
@@ -442,12 +441,12 @@ fn type_conversion() {
     let doc = doc! {
         "bar": 1_i64
     };
-    let deserialized: Foo = bson::deserialize_from_document(doc.clone()).unwrap();
+    let deserialized: Foo = crate::deserialize_from_document(doc.clone()).unwrap();
     assert_eq!(deserialized, v);
 
     let bytes = doc.to_vec().unwrap();
 
-    let bson_deserialized: Foo = bson::deserialize_from_reader(bytes.as_slice()).unwrap();
+    let bson_deserialized: Foo = crate::deserialize_from_reader(bytes.as_slice()).unwrap();
     assert_eq!(bson_deserialized, v);
 }
 
@@ -460,11 +459,11 @@ fn missing_errors() {
 
     let doc = doc! {};
 
-    bson::deserialize_from_document::<Foo>(doc.clone()).unwrap_err();
+    crate::deserialize_from_document::<Foo>(doc.clone()).unwrap_err();
 
     let bytes = doc.to_vec().unwrap();
 
-    bson::deserialize_from_reader::<_, Foo>(bytes.as_slice()).unwrap_err();
+    crate::deserialize_from_reader::<_, Foo>(bytes.as_slice()).unwrap_err();
 }
 
 #[test]
@@ -678,11 +677,11 @@ fn unused_fields_deny() {
         "a": 1,
         "b": 2,
     };
-    bson::deserialize_from_document::<Foo>(doc.clone())
+    crate::deserialize_from_document::<Foo>(doc.clone())
         .expect_err("extra fields should cause failure");
 
     let bytes = doc.to_vec().unwrap();
-    bson::deserialize_from_reader::<_, Foo>(bytes.as_slice())
+    crate::deserialize_from_reader::<_, Foo>(bytes.as_slice())
         .expect_err("extra fields should cause failure");
 }
 
@@ -738,7 +737,7 @@ fn raw_doc_buf() {
         d: RawDocumentBuf,
     }
 
-    let bytes = bson::serialize_to_vec(&doc! {
+    let bytes = crate::serialize_to_vec(&doc! {
         "d": {
             "a": 12,
             "b": 5.5,
@@ -760,7 +759,7 @@ fn raw_doc() {
         d: &'a RawDocument,
     }
 
-    let bytes = bson::serialize_to_vec(&doc! {
+    let bytes = crate::serialize_to_vec(&doc! {
         "d": {
             "a": 12,
             "b": 5.5,
@@ -782,7 +781,7 @@ fn raw_array() {
         d: &'a RawArray,
     }
 
-    let bytes = bson::serialize_to_vec(&doc! {
+    let bytes = crate::serialize_to_vec(&doc! {
         "d": [1, true, { "ok": 1 }, [ "sub", "array" ], Uuid::new()]
     })
     .expect("raw_array");
@@ -807,7 +806,7 @@ fn raw_binary() {
         other: RawBinaryRef<'a>,
     }
 
-    let bytes = bson::serialize_to_vec(&doc! {
+    let bytes = crate::serialize_to_vec(&doc! {
         "generic": Binary {
             bytes: vec![1, 2, 3, 4, 5],
             subtype: BinarySubtype::Generic,
@@ -835,7 +834,7 @@ fn raw_regex() {
         r: RawRegexRef<'a>,
     }
 
-    let bytes = bson::serialize_to_vec(&doc! {
+    let bytes = crate::serialize_to_vec(&doc! {
         "r": Regex {
             pattern: cstr!("a[b-c]d").into(),
             options: cstr!("ab").into(),
@@ -854,7 +853,7 @@ fn raw_code_w_scope() {
         r: RawJavaScriptCodeWithScopeRef<'a>,
     }
 
-    let bytes = bson::serialize_to_vec(&doc! {
+    let bytes = crate::serialize_to_vec(&doc! {
         "r": JavaScriptCodeWithScope {
             code: "console.log(x)".to_string(),
             scope: doc! { "x": 1 },
@@ -877,142 +876,6 @@ fn raw_db_pointer() {
     let bytes = hex::decode("1A0000000C610002000000620056E1FC72E0C917E9C471416100").unwrap();
 
     run_raw_round_trip_test::<Foo>(bytes.as_slice(), "raw_db_pointer");
-}
-
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
-struct SubDoc {
-    a: i32,
-    b: i32,
-}
-
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
-struct AllTypes {
-    x: i32,
-    y: i64,
-    s: String,
-    array: Vec<Bson>,
-    bson: Bson,
-    oid: ObjectId,
-    null: Option<()>,
-    subdoc: Document,
-    b: bool,
-    d: f64,
-    binary: Binary,
-    binary_old: Binary,
-    binary_other: Binary,
-    date: DateTime,
-    regex: Regex,
-    ts: Timestamp,
-    i: SubDoc,
-    undefined: Bson,
-    code: Bson,
-    code_w_scope: JavaScriptCodeWithScope,
-    decimal: Decimal128,
-    symbol: Bson,
-    min_key: Bson,
-    max_key: Bson,
-}
-
-impl AllTypes {
-    fn fixtures() -> (Self, Document) {
-        let binary = Binary {
-            bytes: vec![36, 36, 36],
-            subtype: BinarySubtype::Generic,
-        };
-        let binary_old = Binary {
-            bytes: vec![36, 36, 36],
-            subtype: BinarySubtype::BinaryOld,
-        };
-        let binary_other = Binary {
-            bytes: vec![36, 36, 36],
-            subtype: BinarySubtype::UserDefined(0x81),
-        };
-        let date = DateTime::now();
-        let regex = Regex {
-            pattern: cstr!("hello").into(),
-            options: cstr!("x").into(),
-        };
-        let timestamp = Timestamp {
-            time: 123,
-            increment: 456,
-        };
-        let code = Bson::JavaScriptCode("console.log(1)".to_string());
-        let code_w_scope = JavaScriptCodeWithScope {
-            code: "console.log(a)".to_string(),
-            scope: doc! { "a": 1 },
-        };
-        let oid = ObjectId::new();
-        let subdoc = doc! { "k": true, "b": { "hello": "world" } };
-
-        let decimal = {
-            let bytes = hex::decode("18000000136400D0070000000000000000000000003A3000").unwrap();
-            let d = Document::from_reader(bytes.as_slice()).unwrap();
-            match d.get("d") {
-                Some(Bson::Decimal128(d)) => *d,
-                c => panic!("expected decimal128, got {:?}", c),
-            }
-        };
-
-        let doc = doc! {
-            "x": 1,
-            "y": 2_i64,
-            "s": "oke",
-            "array": [ true, "oke", { "12": 24 } ],
-            "bson": 1234.5,
-            "oid": oid,
-            "null": Bson::Null,
-            "subdoc": subdoc.clone(),
-            "b": true,
-            "d": 12.5,
-            "binary": binary.clone(),
-            "binary_old": binary_old.clone(),
-            "binary_other": binary_other.clone(),
-            "date": date,
-            "regex": regex.clone(),
-            "ts": timestamp,
-            "i": { "a": 300, "b": 12345 },
-            "undefined": Bson::Undefined,
-            "code": code.clone(),
-            "code_w_scope": code_w_scope.clone(),
-            "decimal": Bson::Decimal128(decimal),
-            "symbol": Bson::Symbol("ok".to_string()),
-            "min_key": Bson::MinKey,
-            "max_key": Bson::MaxKey,
-        };
-
-        let v = AllTypes {
-            x: 1,
-            y: 2,
-            s: "oke".to_string(),
-            array: vec![
-                Bson::Boolean(true),
-                Bson::String("oke".to_string()),
-                Bson::Document(doc! { "12": 24 }),
-            ],
-            bson: Bson::Double(1234.5),
-            oid,
-            null: None,
-            subdoc,
-            b: true,
-            d: 12.5,
-            binary,
-            binary_old,
-            binary_other,
-            date,
-            regex,
-            ts: timestamp,
-            i: SubDoc { a: 300, b: 12345 },
-            undefined: Bson::Undefined,
-            code,
-            code_w_scope,
-            decimal,
-            symbol: Bson::Symbol("ok".to_string()),
-            min_key: Bson::MinKey,
-            max_key: Bson::MaxKey,
-        };
-
-        (v, doc)
-    }
 }
 
 #[test]
@@ -1050,7 +913,7 @@ fn all_raw_types_rmp() {
         regex: RawRegexRef<'a>,
     }
 
-    let doc_bytes = bson::serialize_to_vec(&doc! {
+    let doc_bytes = crate::serialize_to_vec(&doc! {
         "bson": "some string",
         "array": [1, 2, 3],
         "binary": Binary { bytes: vec![1, 2, 3], subtype: BinarySubtype::Generic },
@@ -1138,7 +1001,7 @@ fn borrowed() {
     };
 
     let deserialized: Foo =
-        bson::deserialize_from_slice(bson.as_slice()).expect("deserialization should succeed");
+        crate::deserialize_from_slice(bson.as_slice()).expect("deserialization should succeed");
     assert_eq!(deserialized, v);
 }
 
@@ -1181,13 +1044,13 @@ fn u2i() {
     let v = TooBig {
         u_64: i64::MAX as u64 + 1,
     };
-    bson::serialize_to_document(&v).unwrap_err();
-    bson::serialize_to_vec(&v).unwrap_err();
+    crate::serialize_to_document(&v).unwrap_err();
+    crate::serialize_to_vec(&v).unwrap_err();
 }
 
 #[test]
 fn serde_with_chrono() {
-    use bson::serde_helpers::datetime;
+    use crate::serde_helpers::datetime;
     #[serde_with::serde_as]
     #[derive(Deserialize, Serialize, PartialEq, Debug)]
     struct Foo {
@@ -1199,7 +1062,7 @@ fn serde_with_chrono() {
     }
 
     let f = Foo {
-        as_bson: Some(bson::DateTime::now().into()),
+        as_bson: Some(crate::DateTime::now().into()),
         none_bson: None,
     };
     let expected = doc! {
@@ -1212,7 +1075,7 @@ fn serde_with_chrono() {
 
 #[test]
 fn serde_with_uuid() {
-    use bson::serde_helpers::uuid_1;
+    use crate::serde_helpers::uuid_1;
     #[serde_with::serde_as]
     #[derive(Deserialize, Serialize, PartialEq, Debug)]
     struct Foo {
@@ -1228,7 +1091,7 @@ fn serde_with_uuid() {
         none_bson: None,
     };
     let expected = doc! {
-        "as_bson": bson::Uuid::from(f.as_bson.unwrap()),
+        "as_bson": crate::Uuid::from(f.as_bson.unwrap()),
         "none_bson": Bson::Null
     };
 
@@ -1315,15 +1178,15 @@ fn hint_cleared() {
         "binary": binary_value.clone()
     };
 
-    let bytes = bson::serialize_to_vec(&doc_value).unwrap();
+    let bytes = crate::serialize_to_vec(&doc_value).unwrap();
 
     let doc = RawDocument::from_bytes(&bytes).unwrap();
     let binary = doc.get_binary("binary").unwrap();
 
     let f = Foo { doc, binary };
 
-    let serialized_bytes = bson::serialize_to_vec(&f).unwrap();
-    let round_doc: Document = bson::deserialize_from_slice(&serialized_bytes).unwrap();
+    let serialized_bytes = crate::serialize_to_vec(&f).unwrap();
+    let round_doc: Document = crate::deserialize_from_slice(&serialized_bytes).unwrap();
 
     assert_eq!(round_doc, doc! { "doc": doc_value, "binary": binary_value });
 }
@@ -1331,12 +1194,13 @@ fn hint_cleared() {
 #[test]
 fn invalid_length() {
     // This is a regression test for fuzzer-generated input (RUST-1240).
-    assert!(bson::deserialize_from_slice::<Document>(&[4, 0, 0, 128, 0, 87]).is_err());
+    assert!(crate::deserialize_from_slice::<Document>(&[4, 0, 0, 128, 0, 87]).is_err());
 }
 
 #[test]
 fn code_with_scope_too_long() {
     // This is a regression test for fuzzer-generated input (RUST-2241).
-    let bytes = base64::decode("KAAAAAsBCRwPAAAACwFAAAAEAA8AEAAAAAYAAAAA9wD5/wAABgALAA==").unwrap();
-    assert!(bson::deserialize_from_slice::<Utf8Lossy<Document>>(&bytes).is_err());
+    let bytes =
+        crate::base64::decode("KAAAAAsBCRwPAAAACwFAAAAEAA8AEAAAAAYAAAAA9wD5/wAABgALAA==").unwrap();
+    assert!(crate::deserialize_from_slice::<Utf8Lossy<Document>>(&bytes).is_err());
 }

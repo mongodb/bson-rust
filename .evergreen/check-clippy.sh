@@ -10,6 +10,3 @@ CLIPPY_VERSION=1.89.0
 rustup install $CLIPPY_VERSION
 
 cargo +$CLIPPY_VERSION clippy --all-targets --all-features -p bson -- -D warnings
-
-cd serde-tests
-cargo +$CLIPPY_VERSION clippy --all-targets --all-features -p serde-tests -- -D warnings

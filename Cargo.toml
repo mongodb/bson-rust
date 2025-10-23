@@ -24,7 +24,6 @@ exclude = [
     "etc/**",
     "examples/**",
     "fuzz/**",
-    "serde-tests/**",
     "src/tests/**",
     "rustfmt.toml",
     ".travis.yml",
@@ -89,6 +88,7 @@ serde_path_to_error = "0.1.16"
 serde_json = { version = "1", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde", "clock", "std"], default-features = false }
 jiff = { version = "0.2", default-features = false, features = ["std"] }
+rmp-serde = "0.15"
 
 [package.metadata.docs.rs]
 all-features = true
