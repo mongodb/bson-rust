@@ -51,7 +51,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! bson = "3.0.0"
+//! bson = "3.1.0"
 //! ```
 //!
 //! Note that if you are using `bson` through the `mongodb` crate, you do not need to specify it in
@@ -434,7 +434,7 @@
 //! is, it will only happen in a minor or major version release.
 
 #![allow(clippy::cognitive_complexity, clippy::derive_partial_eq_without_eq)]
-#![doc(html_root_url = "https://docs.rs/bson/3.0.0")]
+#![doc(html_root_url = "https://docs.rs/bson/3.1.0")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_docs)]
 
