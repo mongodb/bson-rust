@@ -166,6 +166,12 @@ impl<'a> From<&'a CStr> for &'a str {
     }
 }
 
+impl Default for &CStr {
+    fn default() -> Self {
+        cstr!("")
+    }
+}
+
 #[cfg(feature = "serde")]
 impl serde::Serialize for &CStr {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -233,7 +239,7 @@ pub use cstr;
 ///
 /// Like `CStr`, this differs from [`std::ffi::CString`] in that it is required to be valid UTF-8,
 /// and does not include the nul terminator in the buffer.
-#[derive(Clone, Eq)]
+#[derive(Clone, Eq, Default)]
 #[repr(transparent)]
 pub struct CString {
     data: String,
@@ -258,6 +264,11 @@ impl TryFrom<&str> for CString {
 }
 
 impl CString {
+    /// Creates a new empty `CString`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub(crate) fn from_string_unchecked(data: String) -> Self {
         Self { data }
     }
