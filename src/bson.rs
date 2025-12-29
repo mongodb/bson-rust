@@ -26,6 +26,7 @@ use std::{
     convert::TryFrom,
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
+    num::NonZero,
     ops::Index,
 };
 
@@ -383,15 +384,27 @@ impl<T: Into<Bson>> ::std::iter::FromIterator<T> for Bson {
     }
 }
 
+impl From<i64> for Bson {
+    fn from(a: i64) -> Bson {
+        Bson::Int64(a)
+    }
+}
+
 impl From<i32> for Bson {
     fn from(a: i32) -> Bson {
         Bson::Int32(a)
     }
 }
 
-impl From<i64> for Bson {
-    fn from(a: i64) -> Bson {
-        Bson::Int64(a)
+impl From<i16> for Bson {
+    fn from(value: i16) -> Self {
+        Bson::Int32(value.into())
+    }
+}
+
+impl From<i8> for Bson {
+    fn from(value: i8) -> Self {
+        Bson::Int32(value.into())
     }
 }
 
@@ -404,6 +417,32 @@ impl From<u32> for Bson {
         }
     }
 }
+
+impl From<u16> for Bson {
+    fn from(value: u16) -> Self {
+        Bson::Int32(value.into())
+    }
+}
+
+// From<u8> for Bson would cause the From<[u8; 12]> impl and the generic From<[T; N]> impl to
+// overlap.
+// TODO RUST-2317: remove the overspecialized From<[u8; 12]> impl.
+
+// NonZero<T> is bounded by T: ZeroablePrimitive, and ZeroablePrimitive is unstable so we can't just
+// write a generic impl :(
+macro_rules! from_nonzero {
+    ($($t:ty),+) => {
+        $(
+            impl From<NonZero<$t>> for Bson {
+                fn from(value: NonZero<$t>) -> Self {
+                    Bson::from(value.get())
+                }
+            }
+        )+
+    };
+}
+
+from_nonzero!(i64, i32, i16, i8, u32, u16);
 
 impl From<[u8; 12]> for Bson {
     fn from(a: [u8; 12]) -> Bson {
