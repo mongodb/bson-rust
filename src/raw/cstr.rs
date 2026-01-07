@@ -27,7 +27,7 @@ use crate::error::{Error, Result};
 /// // bson::raw::CStr does not:
 /// let invalid: &bson::raw::CStr = cstr!("foo\0bar");  // will not compile
 /// ```
-#[derive(Debug, Eq)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct CStr {
     data: [u8],
@@ -92,12 +92,6 @@ impl CStr {
     }
 }
 
-impl PartialEq for CStr {
-    fn eq(&self, other: &CStr) -> bool {
-        self.as_str() == other.as_str()
-    }
-}
-
 impl PartialEq<str> for CStr {
     fn eq(&self, other: &str) -> bool {
         self.as_str() == other
@@ -113,24 +107,6 @@ impl PartialEq<CString> for CStr {
 impl PartialEq<String> for CStr {
     fn eq(&self, other: &String) -> bool {
         self.as_str() == other.as_str()
-    }
-}
-
-impl std::hash::Hash for CStr {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.as_str().hash(state);
-    }
-}
-
-impl Ord for CStr {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.as_str().cmp(other.as_str())
-    }
-}
-
-impl PartialOrd for CStr {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
     }
 }
 
@@ -239,7 +215,7 @@ pub use cstr;
 ///
 /// Like `CStr`, this differs from [`std::ffi::CString`] in that it is required to be valid UTF-8,
 /// and does not include the nul terminator in the buffer.
-#[derive(Clone, Eq, Default)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[repr(transparent)]
 pub struct CString {
     data: String,
@@ -330,12 +306,6 @@ impl std::fmt::Display for CString {
     }
 }
 
-impl PartialEq for CString {
-    fn eq(&self, other: &Self) -> bool {
-        self.data == other.data
-    }
-}
-
 impl PartialEq<CStr> for CString {
     fn eq(&self, other: &CStr) -> bool {
         self.data.as_str() == other.as_str()
@@ -351,12 +321,6 @@ impl PartialEq<String> for CString {
 impl PartialEq<str> for CString {
     fn eq(&self, other: &str) -> bool {
         self.data.as_str() == other
-    }
-}
-
-impl std::hash::Hash for CString {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.data.hash(state);
     }
 }
 
