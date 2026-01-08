@@ -180,7 +180,7 @@ impl ElementType {
 }
 
 /// The available binary subtypes, plus a user-defined slot.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[non_exhaustive]
 #[allow(missing_docs)]
 pub enum BinarySubtype {
@@ -235,5 +235,17 @@ impl From<u8> for BinarySubtype {
             _ if t < BINARY_SUBTYPE_USER_DEFINED => BinarySubtype::Reserved(t),
             _ => BinarySubtype::UserDefined(t),
         }
+    }
+}
+
+impl Ord for BinarySubtype {
+    fn cmp(&self, other: &BinarySubtype) -> std::cmp::Ordering {
+        u8::from(*self).cmp(&u8::from(*other))
+    }
+}
+
+impl PartialOrd for BinarySubtype {
+    fn partial_cmp(&self, other: &BinarySubtype) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
