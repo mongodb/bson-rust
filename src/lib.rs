@@ -473,6 +473,7 @@ pub use self::{
         Deserializer,
     },
     ser::{
+        raw::RawSerializer,
         serialize_to_bson,
         serialize_to_buffer,
         serialize_to_document,

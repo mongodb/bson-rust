@@ -22,7 +22,7 @@ use crate::{
 use document_serializer::DocumentSerializer;
 
 /// Serializer used to convert a type `T` into raw BSON bytes.
-pub(crate) struct Serializer<'a> {
+pub struct RawSerializer<'a> {
     bytes: &'a mut Vec<u8>,
 
     /// The index into `bytes` where the current serialization started.
@@ -61,8 +61,9 @@ impl SerializerHint {
     }
 }
 
-impl<'a> Serializer<'a> {
-    pub(crate) fn new(bytes: &'a mut Vec<u8>) -> Self {
+impl<'a> RawSerializer<'a> {
+    /// Constructs a new `RawSerializer` with the provided byte buffer.
+    pub fn new(bytes: &'a mut Vec<u8>) -> Self {
         let start_index = bytes.len();
         Self {
             bytes,
@@ -113,7 +114,7 @@ impl<'a> Serializer<'a> {
     }
 }
 
-impl<'a, 'b> serde::Serializer for &'a mut Serializer<'b> {
+impl<'a, 'b> serde::Serializer for &'a mut RawSerializer<'b> {
     type Ok = ();
     type Error = Error;
 
@@ -385,7 +386,7 @@ impl<'a, 'b> serde::Serializer for &'a mut Serializer<'b> {
     }
 }
 
-pub(crate) enum StructSerializer<'a, 'b> {
+pub enum StructSerializer<'a, 'b> {
     /// Serialize a BSON value currently represented in serde as a struct (e.g. ObjectId)
     Value(ValueSerializer<'a, 'b>),
 
@@ -424,8 +425,8 @@ enum VariantInnerType {
 
 /// Serializer used for enum variants, including both tuple (e.g. Foo::Bar(1, 2, 3)) and
 /// struct (e.g. Foo::Bar { a: 1 }).
-pub(crate) struct VariantSerializer<'a, 'b> {
-    root_serializer: &'a mut Serializer<'b>,
+pub struct VariantSerializer<'a, 'b> {
+    root_serializer: &'a mut RawSerializer<'b>,
 
     /// Variants are serialized as documents of the form `{ <variant name>: <document or array> }`,
     /// and `doc_start` indicates the index at which the outer document begins.
@@ -440,7 +441,7 @@ pub(crate) struct VariantSerializer<'a, 'b> {
 
 impl<'a, 'b> VariantSerializer<'a, 'b> {
     fn start(
-        rs: &'a mut Serializer<'b>,
+        rs: &'a mut RawSerializer<'b>,
         variant: &'static CStr,
         inner_type: VariantInnerType,
     ) -> Self {

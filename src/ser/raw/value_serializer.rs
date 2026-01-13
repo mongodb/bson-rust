@@ -17,12 +17,12 @@ use crate::{
     RawJavaScriptCodeWithScopeRef,
 };
 
-use super::{document_serializer::DocumentSerializer, Serializer};
+use super::{document_serializer::DocumentSerializer, RawSerializer};
 
 /// A serializer used specifically for serializing the serde-data-model form of a BSON type (e.g.
 /// [`Binary`]) to raw bytes.
-pub(crate) struct ValueSerializer<'a, 'b> {
-    root_serializer: &'a mut Serializer<'b>,
+pub struct ValueSerializer<'a, 'b> {
+    root_serializer: &'a mut RawSerializer<'b>,
     state: SerializationStep,
 }
 
@@ -125,7 +125,7 @@ impl From<ValueType> for ElementType {
 }
 
 impl<'a, 'b> ValueSerializer<'a, 'b> {
-    pub(super) fn new(rs: &'a mut Serializer<'b>, value_type: ValueType) -> Self {
+    pub(super) fn new(rs: &'a mut RawSerializer<'b>, value_type: ValueType) -> Self {
         let state = match value_type {
             ValueType::DateTime => SerializationStep::DateTime,
             ValueType::Binary => SerializationStep::Binary,
@@ -605,14 +605,14 @@ impl SerializeStruct for &mut ValueSerializer<'_, '_> {
     }
 }
 
-pub(crate) struct CodeWithScopeSerializer<'a, 'b> {
+pub struct CodeWithScopeSerializer<'a, 'b> {
     start: usize,
     doc: DocumentSerializer<'a, 'b>,
 }
 
 impl<'a, 'b> CodeWithScopeSerializer<'a, 'b> {
     #[inline]
-    fn start(code: &str, rs: &'a mut Serializer<'b>) -> Self {
+    fn start(code: &str, rs: &'a mut RawSerializer<'b>) -> Self {
         let start = rs.bytes.len();
         RawBsonRef::Int32(0).append_to(rs.bytes); // placeholder length
         write_string(rs.bytes, code);

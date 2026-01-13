@@ -21,7 +21,7 @@
 
 //! Serializer
 
-mod raw;
+pub(crate) mod raw;
 mod serde;
 
 pub use self::serde::Serializer;
@@ -101,7 +101,7 @@ pub fn serialize_to_buffer<T>(value: &T, buffer: &mut Vec<u8>) -> Result<()>
 where
     T: Serialize,
 {
-    let mut serializer = raw::Serializer::new(buffer);
+    let mut serializer = raw::RawSerializer::new(buffer);
     #[cfg(feature = "serde_path_to_error")]
     {
         serde_path_to_error::serialize(value, &mut serializer).map_err(Error::with_path)?;
