@@ -5,21 +5,21 @@ use crate::{
     RawBsonRef,
 };
 
-use super::Serializer;
+use super::RawSerializer;
 
 pub(crate) struct DocumentSerializationResult<'a, 'b> {
-    pub(crate) root_serializer: &'a mut Serializer<'b>,
+    pub(crate) root_serializer: &'a mut RawSerializer<'b>,
 }
 
 /// Serializer used to serialize document or array bodies.
-pub(crate) struct DocumentSerializer<'a, 'b> {
-    root_serializer: &'a mut Serializer<'b>,
+pub struct DocumentSerializer<'a, 'b> {
+    root_serializer: &'a mut RawSerializer<'b>,
     num_keys_serialized: usize,
     start: usize,
 }
 
 impl<'a, 'b> DocumentSerializer<'a, 'b> {
-    pub(crate) fn start(rs: &'a mut Serializer<'b>) -> Self {
+    pub(crate) fn start(rs: &'a mut RawSerializer<'b>) -> Self {
         let start = rs.bytes.len();
         RawBsonRef::Int32(0).append_to(rs.bytes);
         Self {
@@ -30,7 +30,7 @@ impl<'a, 'b> DocumentSerializer<'a, 'b> {
     }
 
     /// Serialize a document key using the provided closure.
-    fn serialize_doc_key_custom<F: FnOnce(&mut Serializer<'b>) -> Result<()>>(
+    fn serialize_doc_key_custom<F: FnOnce(&mut RawSerializer<'b>) -> Result<()>>(
         &mut self,
         f: F,
     ) -> Result<()> {
@@ -179,7 +179,7 @@ impl serde::ser::SerializeTupleStruct for DocumentSerializer<'_, '_> {
 /// Serializer used specifically for serializing document keys.
 /// Only keys that serialize to strings will be accepted.
 struct KeySerializer<'a, 'b> {
-    root_serializer: &'a mut Serializer<'b>,
+    root_serializer: &'a mut RawSerializer<'b>,
 }
 
 impl serde::Serializer for KeySerializer<'_, '_> {
