@@ -566,4 +566,18 @@ fn max_cstr_parse_len() {
     let doc = rawdoc! { longer_key: "b", key: "c" };
     let error = doc.get_with_max_cstr_parse_len(key, key.len()).unwrap_err();
     assert!(matches!(error.kind, ErrorKind::TooLongCStr { .. }));
+
+    let mut bytes = rawdoc! { "array": { key: "element" } }.into_bytes();
+    // change the type id for the value from document to array
+    bytes[4] = 4;
+    let doc_with_array = RawDocumentBuf::from_bytes(bytes).unwrap();
+    let array = doc_with_array.get_array("array").unwrap();
+
+    let mut iter = array.into_iter().max_cstr_parse_len(key.len());
+    let val = iter.next().unwrap().unwrap().as_str().unwrap();
+    assert_eq!(val, "element");
+
+    let mut iter = array.into_iter().max_cstr_parse_len(key.len() - 1);
+    let error = iter.next().unwrap().unwrap_err();
+    assert!(matches!(error.kind, ErrorKind::TooLongCStr { .. }));
 }
