@@ -30,7 +30,8 @@ use super::{
     RawDocument,
 };
 
-/// An iterator over the document's entries.
+/// An iterator over the key-value pairs in a document. Construct by calling [`RawDocument::iter`]
+/// or [`RawDocumentBuf::iter`](crate::RawDocumentBuf::iter).
 pub struct Iter<'a> {
     inner: RawIter<'a>,
 }
@@ -40,6 +41,15 @@ impl<'a> Iter<'a> {
         Iter {
             inner: RawIter::new(doc),
         }
+    }
+
+    /// The maximum number of bytes the iterator should parse when searching for the null-terminator
+    /// for a cstring.
+    #[cfg(feature = "sfp-internal")]
+    #[doc(hidden)]
+    pub fn max_cstr_parse_len(mut self, len: impl Into<Option<usize>>) -> Self {
+        self.inner = self.inner.max_cstr_parse_len(len);
+        self
     }
 }
 
@@ -58,11 +68,12 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-/// An iterator over the document's elements.
+/// An iterator over the elements in a document. Construct by calling [`RawDocument::iter_elements`]
+/// or [`RawDocumentBuf::iter_elements`](crate::RawDocumentBuf::iter_elements).
 pub struct RawIter<'a> {
     doc: &'a RawDocument,
     offset: usize,
-
+    max_cstr_parse_len: Option<usize>,
     /// Whether the underlying doc is assumed to be valid or if an error has been encountered.
     /// After an error, all subsequent iterations will return None.
     valid: bool,
@@ -73,8 +84,18 @@ impl<'a> RawIter<'a> {
         Self {
             doc,
             offset: 4,
+            max_cstr_parse_len: None,
             valid: true,
         }
+    }
+
+    /// The maximum number of bytes the iterator should parse when searching for the null-terminator
+    /// for a cstring.
+    #[cfg(feature = "sfp-internal")]
+    #[doc(hidden)]
+    pub fn max_cstr_parse_len(mut self, len: impl Into<Option<usize>>) -> Self {
+        self.max_cstr_parse_len = len.into();
+        self
     }
 
     fn verify_enough_bytes(&self, start: usize, num_bytes: usize) -> Result<()> {
@@ -212,12 +233,12 @@ impl<'a> RawElement<'a> {
                 id: self.get_oid_at(self.start_at + (self.size - 12))?,
             }),
             ElementType::RegularExpression => {
-                let pattern = self.doc.read_cstring_at(self.start_at)?;
+                let pattern = self.doc.read_cstring_at(self.start_at, None)?;
                 RawBsonRef::RegularExpression(RawRegexRef {
                     pattern,
                     options: self
                         .doc
-                        .read_cstring_at(self.start_at + pattern.len() + 1)?,
+                        .read_cstring_at(self.start_at + pattern.len() + 1, None)?,
                 })
             }
             ElementType::Timestamp => RawBsonRef::Timestamp({
@@ -317,12 +338,14 @@ impl<'a> RawElement<'a> {
             }),
             ElementType::RegularExpression => {
                 let pattern =
-                    String::from_utf8_lossy(self.doc.cstring_bytes_at(self.start_at)?).into_owned();
+                    String::from_utf8_lossy(self.doc.cstring_bytes_at(self.start_at, None)?)
+                        .into_owned();
                 let pattern_len = pattern.len();
                 Utf8LossyBson::RegularExpression(crate::Regex {
                     pattern: pattern.try_into()?,
                     options: String::from_utf8_lossy(
-                        self.doc.cstring_bytes_at(self.start_at + pattern_len + 1)?,
+                        self.doc
+                            .cstring_bytes_at(self.start_at + pattern_len + 1, None)?,
                     )
                     .into_owned()
                     .try_into()?,
@@ -404,8 +427,8 @@ impl RawIter<'_> {
             ElementType::Array => self.next_document_len(offset)?,
             ElementType::Binary => self.get_next_length_at(offset)? + 4 + 1,
             ElementType::RegularExpression => {
-                let pattern = self.doc.read_cstring_at(offset)?;
-                let options = self.doc.read_cstring_at(offset + pattern.len() + 1)?;
+                let pattern = self.doc.read_cstring_at(offset, None)?;
+                let options = self.doc.read_cstring_at(offset + pattern.len() + 1, None)?;
                 pattern.len() + 1 + options.len() + 1
             }
             ElementType::DbPointer => read_len(&self.doc.as_bytes()[offset..])? + 12,
@@ -440,7 +463,10 @@ impl<'a> Iterator for RawIter<'a> {
             return Some(Err(Error::malformed_bytes("iteration overflowed document")));
         }
 
-        let key = match self.doc.read_cstring_at(self.offset + 1) {
+        let key = match self
+            .doc
+            .read_cstring_at(self.offset + 1, self.max_cstr_parse_len)
+        {
             Ok(k) => k,
             Err(e) => {
                 self.valid = false;

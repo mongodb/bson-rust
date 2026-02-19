@@ -508,3 +508,62 @@ proptest! {
         prop_assert_eq!(doc, roundtrip);
     }
 }
+
+#[test]
+#[cfg(feature = "sfp-internal")]
+fn max_cstr_parse_len() {
+    let key = cstr!("aaaaaaaa");
+    let doc = rawdoc! { key: "b" };
+
+    let mut iter = doc.iter().max_cstr_parse_len(key.len());
+    let (k, _) = iter.next().unwrap().unwrap();
+    assert_eq!(k, key);
+
+    let mut iter = doc.iter().max_cstr_parse_len(key.len() - 1);
+    let error = iter.next().unwrap().unwrap_err();
+    match error.kind {
+        ErrorKind::TooLongCStr {
+            max_parse_len,
+            bytes,
+        } => {
+            assert_eq!(max_parse_len, key.len() - 1);
+            assert_eq!(bytes.as_slice(), &key.as_str().bytes().collect::<Vec<_>>());
+        }
+        other => panic!("expected TooLongCStr, got {}", other),
+    }
+
+    let mut iter = doc.iter_elements().max_cstr_parse_len(key.len() - 5);
+    let Err(error) = iter.next().unwrap() else {
+        panic!("expected error");
+    };
+    assert!(matches!(error.kind, ErrorKind::TooLongCStr { .. }));
+
+    let b = doc
+        .get_with_max_cstr_parse_len(key.as_str(), key.len())
+        .unwrap()
+        .unwrap()
+        .as_str()
+        .unwrap();
+    assert_eq!(b, "b");
+
+    let error = doc
+        .get_with_max_cstr_parse_len(key.as_str(), key.len() - 2)
+        .unwrap_err();
+    assert!(matches!(error.kind, ErrorKind::TooLongCStr { .. }));
+
+    // ensure we don't panic on OOB if the max parse len exceeds the document's length
+    let mut iter = doc.iter().max_cstr_parse_len(doc.as_bytes().len() + 1);
+    iter.next().unwrap().unwrap();
+
+    // a long key in a nested document shouldn't impact parsing
+    let nested_doc = rawdoc! { "nested": doc, "after": "c" };
+    for result in nested_doc.iter().max_cstr_parse_len(key.len() - 1) {
+        result.unwrap();
+    }
+
+    // a too-long key earlier in the doc should cause an error
+    let longer_key = cstr!("aaaaaaaaaaaaaaaa");
+    let doc = rawdoc! { longer_key: "b", key: "c" };
+    let error = doc.get_with_max_cstr_parse_len(key, key.len()).unwrap_err();
+    assert!(matches!(error.kind, ErrorKind::TooLongCStr { .. }));
+}
