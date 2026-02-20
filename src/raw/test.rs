@@ -580,4 +580,39 @@ fn max_cstr_parse_len() {
     let mut iter = array.into_iter().max_cstr_parse_len(key.len() - 1);
     let error = iter.next().unwrap().unwrap_err();
     assert!(matches!(error.kind, ErrorKind::TooLongCStr { .. }));
+
+    let pattern = cstr!("pattern");
+    let options = cstr!("abc");
+    let key = cstr!("r");
+    let regex = RawRegexRef { pattern, options };
+    let doc_with_regex = rawdoc! { key: RawBsonRef::from(regex) };
+
+    let mut iter = doc_with_regex.iter().max_cstr_parse_len(pattern.len());
+    let (key_from_doc, bson) = iter.next().unwrap().unwrap();
+    let regex_from_doc = bson.as_regex().unwrap();
+    assert_eq!(key_from_doc, key);
+    assert_eq!(regex_from_doc, regex);
+
+    let mut iter = doc_with_regex.iter().max_cstr_parse_len(pattern.len() - 1);
+    let error = iter.next().unwrap().unwrap_err();
+    match error.kind {
+        ErrorKind::TooLongCStr {
+            max_parse_len,
+            bytes,
+        } => {
+            assert_eq!(max_parse_len, pattern.len() - 1);
+            assert_eq!(bytes, pattern.as_str().bytes().collect::<Vec<_>>());
+        }
+        other => panic!("expected TooLongCStr, got {}", other),
+    }
+
+    let mut iter = doc_with_regex
+        .iter_elements()
+        .max_cstr_parse_len(pattern.len() - 1);
+    // an error occurs here rather than when accessing the value because the iterator needs to read
+    // the regex's cstrings to determine its overall length
+    let Err(error) = iter.next().unwrap() else {
+        panic!("expected error");
+    };
+    assert!(matches!(error.kind, ErrorKind::TooLongCStr { .. }));
 }

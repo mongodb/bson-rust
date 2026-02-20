@@ -233,6 +233,9 @@ impl<'a> RawElement<'a> {
                 id: self.get_oid_at(self.start_at + (self.size - 12))?,
             }),
             ElementType::RegularExpression => {
+                // Note: the max_cstr_parse_len doesn't need to be passed in here because it is
+                // already enforced when the iterator determines the total size of the regular
+                // expression.
                 let pattern = self.doc.read_cstring_at(self.start_at, None)?;
                 RawBsonRef::RegularExpression(RawRegexRef {
                     pattern,
@@ -337,6 +340,9 @@ impl<'a> RawElement<'a> {
                 id: self.get_oid_at(self.start_at + (self.size - 12))?,
             }),
             ElementType::RegularExpression => {
+                // Note: the max_cstr_parse_len doesn't need to be passed in here because it is
+                // already enforced when the iterator determines the total size of the regular
+                // expression.
                 let pattern =
                     String::from_utf8_lossy(self.doc.cstring_bytes_at(self.start_at, None)?)
                         .into_owned();
@@ -427,8 +433,10 @@ impl RawIter<'_> {
             ElementType::Array => self.next_document_len(offset)?,
             ElementType::Binary => self.get_next_length_at(offset)? + 4 + 1,
             ElementType::RegularExpression => {
-                let pattern = self.doc.read_cstring_at(offset, None)?;
-                let options = self.doc.read_cstring_at(offset + pattern.len() + 1, None)?;
+                let pattern = self.doc.read_cstring_at(offset, self.max_cstr_parse_len)?;
+                let options = self
+                    .doc
+                    .read_cstring_at(offset + pattern.len() + 1, self.max_cstr_parse_len)?;
                 pattern.len() + 1 + options.len() + 1
             }
             ElementType::DbPointer => read_len(&self.doc.as_bytes()[offset..])? + 12,
