@@ -217,6 +217,35 @@ pub mod datetime {
         }
     );
 
+    serde_conv_doc!(
+        /// Converts an `i64` integer to and from a [`DateTime`].
+        ///
+        /// The `i64` should represent milliseconds. See [`DateTime::from_millis`] for more details.
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// # {
+        /// use bson::DateTime;
+        /// use bson::serde_helpers::datetime;
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "datetime::IntoI64")]
+        ///     pub now: DateTime,
+        /// }
+        /// # }
+        /// ```
+        pub IntoI64,
+        DateTime,
+        |date: &DateTime| -> Result<i64, String> {
+            Ok(date.timestamp_millis())
+        },
+        |value: i64| -> Result<DateTime, String> {
+            Ok(DateTime::from_millis(value))
+        }
+    );
+
     #[cfg(feature = "chrono-0_4")]
     serde_conv_doc!(
         /// Converts a [`chrono::DateTime`] to and from a [`DateTime`].
