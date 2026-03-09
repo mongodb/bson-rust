@@ -184,31 +184,31 @@ impl<'a> RawElement<'a> {
             ElementType::MinKey => RawBsonRef::MinKey,
             ElementType::MaxKey => RawBsonRef::MaxKey,
             ElementType::ObjectId => RawBsonRef::ObjectId(self.get_oid_at(self.start_at)?),
-            ElementType::Int32 => RawBsonRef::Int32(i32_from_slice(self.slice())?),
-            ElementType::Int64 => RawBsonRef::Int64(i64_from_slice(self.slice())?),
-            ElementType::Double => RawBsonRef::Double(f64_from_slice(self.slice())?),
+            ElementType::Int32 => RawBsonRef::Int32(i32_from_slice(self.value_bytes())?),
+            ElementType::Int64 => RawBsonRef::Int64(i64_from_slice(self.value_bytes())?),
+            ElementType::Double => RawBsonRef::Double(f64_from_slice(self.value_bytes())?),
             ElementType::String => RawBsonRef::String(self.read_str()?),
             ElementType::EmbeddedDocument => {
-                RawBsonRef::Document(RawDocument::from_bytes(self.slice())?)
+                RawBsonRef::Document(RawDocument::from_bytes(self.value_bytes())?)
             }
-            ElementType::Array => {
-                RawBsonRef::Array(RawArray::from_doc(RawDocument::from_bytes(self.slice())?))
-            }
+            ElementType::Array => RawBsonRef::Array(RawArray::from_doc(RawDocument::from_bytes(
+                self.value_bytes(),
+            )?)),
             ElementType::Boolean => RawBsonRef::Boolean(
-                bool_from_slice(self.slice()).map_err(|e| self.malformed_error(e))?,
+                bool_from_slice(self.value_bytes()).map_err(|e| self.malformed_error(e))?,
             ),
             ElementType::DateTime => {
-                RawBsonRef::DateTime(DateTime::from_millis(i64_from_slice(self.slice())?))
+                RawBsonRef::DateTime(DateTime::from_millis(i64_from_slice(self.value_bytes())?))
             }
             ElementType::Decimal128 => RawBsonRef::Decimal128(Decimal128::from_bytes(
-                self.slice()
+                self.value_bytes()
                     .try_into()
                     .map_err(|e| self.malformed_error(e))?,
             )),
             ElementType::JavaScriptCode => RawBsonRef::JavaScriptCode(self.read_str()?),
             ElementType::Symbol => RawBsonRef::Symbol(self.read_str()?),
             ElementType::DbPointer => RawBsonRef::DbPointer(RawDbPointerRef {
-                namespace: read_lenencode(self.slice())?,
+                namespace: read_lenencode(self.value_bytes())?,
                 id: self.get_oid_at(self.start_at + (self.size - 12))?,
             }),
             ElementType::RegularExpression => {
@@ -221,7 +221,7 @@ impl<'a> RawElement<'a> {
                 })
             }
             ElementType::Timestamp => RawBsonRef::Timestamp({
-                let bytes: [u8; 8] = self.slice()[0..8]
+                let bytes: [u8; 8] = self.value_bytes()[0..8]
                     .try_into()
                     .map_err(|e| self.malformed_error(e))?;
                 Timestamp::from_le_bytes(bytes)
@@ -268,7 +268,7 @@ impl<'a> RawElement<'a> {
                     return Err(self.malformed_error("code with scope length too small"));
                 }
 
-                let slice = self.slice();
+                let slice = self.value_bytes();
                 let code = read_lenencode(&slice[4..])?;
                 let scope_start = 4 + 4 + code.len() + 1;
                 let scope = RawDocument::from_bytes(&slice[scope_start..])?;
@@ -296,7 +296,7 @@ impl<'a> RawElement<'a> {
                     return Err(self.malformed_error("code with scope length too small"));
                 }
 
-                let slice = self.slice();
+                let slice = self.value_bytes();
                 let code = String::from_utf8_lossy(read_lenencode_bytes(&slice[4..])?).into_owned();
                 let scope_start = 4 + 4 + code.len() + 1;
                 if scope_start >= slice.len() {
@@ -311,7 +311,7 @@ impl<'a> RawElement<'a> {
             }
             ElementType::Symbol => Utf8LossyBson::Symbol(self.read_utf8_lossy()),
             ElementType::DbPointer => Utf8LossyBson::DbPointer(crate::DbPointer {
-                namespace: String::from_utf8_lossy(read_lenencode_bytes(self.slice())?)
+                namespace: String::from_utf8_lossy(read_lenencode_bytes(self.value_bytes())?)
                     .into_owned(),
                 id: self.get_oid_at(self.start_at + (self.size - 12))?,
             }),
@@ -336,7 +336,8 @@ impl<'a> RawElement<'a> {
         Error::malformed_bytes(e).with_key(self.key.as_str())
     }
 
-    pub(crate) fn slice(&self) -> &'a [u8] {
+    /// The raw bytes of the value.
+    pub fn value_bytes(&self) -> &'a [u8] {
         self.slice_bounds(self.start_at, self.size)
     }
 
