@@ -496,6 +496,8 @@ pub mod document;
 pub mod error;
 #[cfg(feature = "serde")]
 mod extjson;
+#[cfg(feature = "facet-0")]
+pub mod facet;
 pub mod oid;
 pub mod raw;
 #[cfg(feature = "serde")]
