@@ -26,7 +26,6 @@ use super::{
     RawDocumentBuf,
     RawIter,
     RawRegexRef,
-    Result as RawResult,
     MIN_BSON_DOCUMENT_SIZE,
 };
 use crate::{oid::ObjectId, spec::ElementType, Document};
@@ -94,7 +93,7 @@ impl RawDocument {
     /// let doc = RawDocument::from_bytes(b"\x05\0\0\0\0")?;
     /// # Ok::<(), bson::error::Error>(())
     /// ```
-    pub fn from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> RawResult<&RawDocument> {
+    pub fn from_bytes<D: AsRef<[u8]> + ?Sized>(data: &D) -> Result<&RawDocument> {
         let data = data.as_ref();
 
         if data.len() < 5 {
@@ -145,8 +144,26 @@ impl RawDocument {
     /// assert!(doc.get("unknown")?.is_none());
     /// # Ok::<(), Error>(())
     /// ```
-    pub fn get(&self, key: impl AsRef<str>) -> RawResult<Option<RawBsonRef<'_>>> {
+    pub fn get(&self, key: impl AsRef<str>) -> Result<Option<RawBsonRef<'_>>> {
         for elem in RawIter::new(self) {
+            let elem = elem?;
+            if key.as_ref() == elem.key().as_str() {
+                return Ok(Some(elem.try_into()?));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Gets a reference to the value corresponding to the given key by iterating until the key is
+    /// found. Returns an error if a cstring is encountered that exceeds the provided `len`.
+    #[cfg(feature = "sfp-internal")]
+    #[doc(hidden)]
+    pub fn get_with_max_cstr_parse_len(
+        &self,
+        key: impl AsRef<str>,
+        len: usize,
+    ) -> Result<Option<RawBsonRef<'_>>> {
+        for elem in RawIter::new(self).max_cstr_parse_len(len) {
             let elem = elem?;
             if key.as_ref() == elem.key().as_str() {
                 return Ok(Some(elem.try_into()?));
@@ -479,24 +496,41 @@ impl RawDocument {
         self.as_bytes().len() == MIN_BSON_DOCUMENT_SIZE as usize
     }
 
-    pub(crate) fn cstring_bytes_at(&self, start_at: usize) -> RawResult<&[u8]> {
-        let buf = &self.as_bytes()[start_at..];
+    pub(crate) fn cstring_bytes_at(
+        &self,
+        start_at: usize,
+        max_parse_len: Option<usize>,
+    ) -> Result<&[u8]> {
+        let data = &self.data;
+        let end = max_parse_len
+            .map(|len| std::cmp::min(start_at + len + 1, data.len()))
+            .unwrap_or(data.len());
+        let buf = &data[start_at..end];
 
-        let mut splits = buf.splitn(2, |x| *x == 0);
-        let value = splits
-            .next()
-            .ok_or_else(|| RawError::malformed_bytes("no value"))?;
-        if splits.next().is_some() {
-            Ok(value)
-        } else {
-            Err(RawError::malformed_bytes("expected null terminator"))
-        }
+        let Some(index) = buf.iter().position(|b| *b == 0) else {
+            #[cfg(feature = "sfp-internal")]
+            if let Some(max_parse_len) = max_parse_len {
+                return Err(crate::error::ErrorKind::TooLongCStr {
+                    max_parse_len,
+                    bytes: buf.to_vec(),
+                }
+                .into());
+            }
+            // Note: This error should never be encountered in practice because the document
+            // constructors validate that the last byte is 0.
+            return Err(Error::malformed_bytes("missing null terminator"));
+        };
+        Ok(&buf[..index])
     }
 
-    pub(crate) fn read_cstring_at(&self, start_at: usize) -> RawResult<&CStr> {
-        let bytes = self.cstring_bytes_at(start_at)?;
-        let s = try_to_str(bytes)?;
-        s.try_into()
+    pub(crate) fn read_cstring_at(
+        &self,
+        start_at: usize,
+        max_parse_len: Option<usize>,
+    ) -> Result<&CStr> {
+        let bytes = self.cstring_bytes_at(start_at, max_parse_len)?;
+        let str = try_to_str(bytes)?;
+        str.try_into()
     }
 }
 
@@ -580,7 +614,7 @@ impl<'a> From<&'a RawDocument> for Cow<'a, RawDocument> {
 impl TryFrom<&RawDocument> for Document {
     type Error = RawError;
 
-    fn try_from(rawdoc: &RawDocument) -> RawResult<Document> {
+    fn try_from(rawdoc: &RawDocument) -> Result<Document> {
         rawdoc
             .into_iter()
             .map(|res| res.and_then(|(k, v)| Ok((k.as_str().to_owned(), v.try_into()?))))
@@ -591,7 +625,7 @@ impl TryFrom<&RawDocument> for Document {
 impl TryFrom<&RawDocument> for Utf8Lossy<Document> {
     type Error = RawError;
 
-    fn try_from(rawdoc: &RawDocument) -> RawResult<Utf8Lossy<Document>> {
+    fn try_from(rawdoc: &RawDocument) -> Result<Utf8Lossy<Document>> {
         let mut out = Document::new();
         for elem in rawdoc.iter_elements() {
             let elem = elem?;
@@ -602,7 +636,7 @@ impl TryFrom<&RawDocument> for Utf8Lossy<Document> {
     }
 }
 
-fn deep_utf8_lossy(src: RawBson) -> RawResult<Bson> {
+fn deep_utf8_lossy(src: RawBson) -> Result<Bson> {
     match src {
         RawBson::Array(arr) => {
             let mut tmp = vec![];
@@ -674,7 +708,7 @@ impl TryFrom<&RawDocumentBuf> for Utf8Lossy<Document> {
 
 impl<'a> IntoIterator for &'a RawDocument {
     type IntoIter = Iter<'a>;
-    type Item = RawResult<(&'a CStr, RawBsonRef<'a>)>;
+    type Item = Result<(&'a CStr, RawBsonRef<'a>)>;
 
     fn into_iter(self) -> Iter<'a> {
         self.iter()

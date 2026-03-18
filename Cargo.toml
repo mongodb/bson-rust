@@ -50,6 +50,8 @@ serde_path_to_error = ["dep:serde_path_to_error"]
 serde_with-3 = ["dep:serde_with", "dep:serde"]
 serde = ["dep:serde"]
 serde_json-1 = ["dep:serde_json"]
+# Provides additional functionality for BSON validation. For internal use only.
+sfp-internal = []
 
 [lib]
 name = "bson"
