@@ -33,10 +33,10 @@ impl TryFrom<&Bson> for ExtJson {
             Bson::DateTime(dt) => dt.try_into(),
             Bson::Symbol(s) => Ok(ExtJson(value!({"$symbol": (s)}))),
             Bson::Decimal128(d) => d.try_into(),
-            Bson::Undefined => todo!(),
-            Bson::MaxKey => todo!(),
-            Bson::MinKey => todo!(),
-            Bson::DbPointer(db_pointer) => todo!(),
+            Bson::Undefined => Ok(ExtJson(value!({"$undefined": true}))),
+            Bson::MaxKey => Ok(ExtJson(value!({"$maxKey": 1}))),
+            Bson::MinKey => Ok(ExtJson(value!({"$minKey": 1}))),
+            Bson::DbPointer(d) => d.try_into(),
         }
     }
 }
@@ -71,22 +71,6 @@ impl TryFrom<ExtJson> for Bson {
         })
     }
 }
-
-macro_rules! try_from_num {
-    ($($t:ty),+) => {
-        $(
-            impl TryFrom<&$t> for ExtJson {
-                type Error = std::convert::Infallible;
-
-                fn try_from(t: &$t) -> Result<Self, Self::Error> {
-                    Ok(ExtJson(Value::from(*t)))
-                }
-            }
-        )+
-    };
-}
-
-try_from_num!(bool);
 
 impl TryFrom<&f64> for ExtJson {
     type Error = std::convert::Infallible;
@@ -166,22 +150,6 @@ impl TryFrom<&u32> for ExtJson {
     }
 }
 
-/*
-impl TryFrom<ExtJson> for f64 {
-    type Error = crate::error::Error;
-
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        value
-            .0
-            .as_number()
-            .map(VNumber::to_f64_lossy)
-            .ok_or_else(|| {
-                crate::error::Error::deserialization(format!("expected number, got {value:?}"))
-            })
-    }
-}
-*/
-
 impl TryFrom<&str> for ExtJson {
     type Error = std::convert::Infallible;
 
@@ -220,6 +188,14 @@ impl TryFrom<&Document> for ExtJson {
                 .map(|(k, v)| (k, ExtJson::try_from(v).unwrap().0))
                 .collect(),
         ))
+    }
+}
+
+impl TryFrom<&bool> for ExtJson {
+    type Error = std::convert::Infallible;
+
+    fn try_from(b: &bool) -> Result<Self, Self::Error> {
+        Ok(ExtJson(Value::from(*b)))
     }
 }
 
@@ -299,5 +275,17 @@ impl TryFrom<&crate::Decimal128> for ExtJson {
 
     fn try_from(d: &crate::Decimal128) -> Result<Self, Self::Error> {
         Ok(ExtJson(value!({"$numberDecimal": (d.to_string())})))
+    }
+}
+
+impl TryFrom<&crate::DbPointer> for ExtJson {
+    type Error = std::convert::Infallible;
+
+    fn try_from(d: &crate::DbPointer) -> Result<Self, Self::Error> {
+        let id: ExtJson = (&d.id).try_into()?;
+        Ok(ExtJson(value!({
+            "$ref": (&d.namespace),
+            "$id": (id.0),
+        })))
     }
 }
