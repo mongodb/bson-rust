@@ -1,9 +1,9 @@
 //! Support for the `facet` crate.
 
 use facet::Facet;
-use facet_value::{value, Destructured, VNumber, Value};
+use facet_value::{value, Destructured, Value};
 
-use crate::{error::Error, Bson, Document, Regex};
+use crate::{error::Error, Binary, Bson, Document, Regex};
 
 /// A type for use with #[facet(proxy)] that represents BSON values in their canonical extended JSON
 /// form.
@@ -62,12 +62,51 @@ impl TryFrom<ExtJson> for Bson {
                 }
             }
             Destructured::String(vs) => Bson::String(vs.as_str().to_owned()),
-            Destructured::Bytes(vbytes) => todo!(),
-            Destructured::Array(varray) => todo!(),
+            Destructured::Bytes(vbytes) => Bson::Binary(crate::Binary {
+                subtype: crate::spec::BinarySubtype::Generic,
+                bytes: vbytes.as_slice().to_vec(),
+            }),
+            Destructured::Array(varray) => Bson::Array(
+                varray
+                    .into_iter()
+                    .map(|e| Bson::try_from(ExtJson(e)))
+                    .collect::<Result<Vec<_>, Self::Error>>()?,
+            ),
             Destructured::Object(vobject) => todo!(),
-            Destructured::DateTime(vdate_time) => todo!(),
-            Destructured::QName(vqname) => todo!(),
-            Destructured::Uuid(vuuid) => todo!(),
+            Destructured::DateTime(vdt) => {
+                if vdt.offset_minutes().unwrap_or(0) != 0 {
+                    return Err(Error::deserialization(format!(
+                        "cannot deserialize from non-UTC datetime {vdt:?}"
+                    )));
+                }
+                if !vdt.has_date() {
+                    return Err(Error::deserialization(format!(
+                        "cannot deserialize from time without date {vdt:?}"
+                    )));
+                }
+                Bson::DateTime(
+                    crate::DateTime::builder()
+                        .year(vdt.year())
+                        .month(vdt.month())
+                        .day(vdt.day())
+                        .hour(vdt.hour())
+                        .minute(vdt.minute())
+                        .second(vdt.second())
+                        .millisecond((vdt.nanos() / 1_000_000) as u16)
+                        .build()?,
+                )
+            }
+            Destructured::QName(vqname) => {
+                if vqname.has_namespace() {
+                    return Err(Error::deserialization(format!(
+                        "cannot deserialize from qualified name with namespace {vqname:?}"
+                    )));
+                }
+                Bson::try_from(ExtJson(vqname.local_name().clone()))?
+            }
+            Destructured::Uuid(vuuid) => Bson::Binary(Binary::from_uuid(crate::Uuid::from_bytes(
+                *vuuid.as_bytes(),
+            ))),
         })
     }
 }
