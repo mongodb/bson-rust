@@ -1,9 +1,9 @@
 //! Support for the `facet` crate.
 
 use facet::Facet;
-use facet_value::{value, Destructured, Value};
+use facet_value::{value, Destructured, VObject, VString, Value};
 
-use crate::{error::Error, Binary, Bson, Document, Regex};
+use crate::{error::Error, spec::BinarySubtype, Binary, Bson, Document, Regex};
 
 /// A type for use with #[facet(proxy)] that represents BSON values in their canonical extended JSON
 /// form.
@@ -62,17 +62,25 @@ impl TryFrom<ExtJson> for Bson {
                 }
             }
             Destructured::String(vs) => Bson::String(vs.as_str().to_owned()),
-            Destructured::Bytes(vbytes) => Bson::Binary(crate::Binary {
-                subtype: crate::spec::BinarySubtype::Generic,
-                bytes: vbytes.as_slice().to_vec(),
-            }),
+            Destructured::Bytes(vbytes) => {
+                Bson::Binary(crate::Binary::try_from(ExtJson(vbytes.into()))?)
+            }
             Destructured::Array(varray) => Bson::Array(
                 varray
                     .into_iter()
                     .map(|e| Bson::try_from(ExtJson(e)))
                     .collect::<Result<Vec<_>, Self::Error>>()?,
             ),
-            Destructured::Object(vobject) => todo!(),
+            Destructured::Object(vobject) => {
+                let mut keys: Vec<_> = vobject.keys().map(|vs| vs.as_str()).collect();
+                keys.sort_unstable();
+                match keys.as_slice() {
+                    ["$oid"] => todo!(),
+                    _ => (),
+                }
+
+                todo!()
+            }
             Destructured::DateTime(vdt) => {
                 if vdt.offset_minutes().unwrap_or(0) != 0 {
                     return Err(Error::deserialization(format!(
@@ -289,11 +297,80 @@ impl TryFrom<&crate::Binary> for ExtJson {
     }
 }
 
+impl TryFrom<ExtJson> for crate::Binary {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+        Ok(match value.0.destructure() {
+            Destructured::Bytes(vb) => Binary {
+                subtype: BinarySubtype::Generic,
+                bytes: vb.as_slice().to_vec(),
+            },
+            Destructured::Uuid(vu) => Binary {
+                subtype: BinarySubtype::Uuid,
+                bytes: vu.as_bytes().into(),
+            },
+            Destructured::Object(vo) => match ObjMatch::new(vo).take_pairs("Binary")? {
+                [("$binary", inner)] => todo!(),
+                _ => todo!(),
+            },
+            _ => todo!(),
+        })
+    }
+}
+
+struct ObjMatch {
+    keys: Vec<VString>,
+    values: Vec<Value>,
+}
+
+impl ObjMatch {
+    fn new(obj: VObject) -> Self {
+        let mut keys = vec![];
+        let mut values = vec![];
+        for (k, v) in obj {
+            keys.push(k);
+            values.push(v);
+        }
+        Self { keys, values }
+    }
+
+    fn take_pairs<const N: usize>(
+        &mut self,
+        name: &str,
+    ) -> crate::error::Result<[(&str, Value); N]> {
+        let v: Vec<_> = self
+            .keys
+            .iter()
+            .map(|vs| vs.as_str())
+            .zip(self.values.drain(..))
+            .collect();
+        v.try_into().map_err(|v| {
+            Error::deserialization(format!("expected {name} as {N} entries, got {v:?}"))
+        })
+    }
+}
+
 impl TryFrom<&crate::oid::ObjectId> for ExtJson {
     type Error = std::convert::Infallible;
 
     fn try_from(oid: &crate::oid::ObjectId) -> Result<Self, Self::Error> {
         Ok(ExtJson(value!({"$oid": (oid.to_string())})))
+    }
+}
+
+impl TryFrom<ExtJson> for crate::oid::ObjectId {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+        match value.0.destructure() {
+            Destructured::Uuid(vu) => todo!(),
+            other => {
+                return Err(Error::deserialization(format!(
+                    "invalid ObjectId: {other:?}"
+                )))
+            }
+        }
     }
 }
 
