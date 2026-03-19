@@ -310,45 +310,38 @@ impl TryFrom<ExtJson> for crate::Binary {
                 subtype: BinarySubtype::Uuid,
                 bytes: vu.as_bytes().into(),
             },
-            Destructured::Object(vo) => match ObjMatch::new(vo).take_pairs("Binary")? {
-                [("$binary", inner)] => todo!(),
-                _ => todo!(),
-            },
+            Destructured::Object(vo) => with_pairs(vo, |pairs| match pairs {
+                [("$binary", Destructured::Object(inner))] => {
+                    with_pairs(inner, |pairs| match pairs {
+                        [("base64", bytes), ("subType", st)] => todo!(),
+                        _ => None,
+                    })
+                }
+                _ => None,
+            })
+            .ok_or_else(|| Error::deserialization("invalid Binary extjson"))?,
             _ => todo!(),
         })
     }
 }
 
-struct ObjMatch {
-    keys: Vec<VString>,
-    values: Vec<Value>,
-}
-
-impl ObjMatch {
-    fn new(obj: VObject) -> Self {
-        let mut keys = vec![];
-        let mut values = vec![];
-        for (k, v) in obj {
-            keys.push(k);
-            values.push(v);
-        }
-        Self { keys, values }
+fn with_pairs<const N: usize, T, F>(obj: VObject, f: F) -> Option<T>
+where
+    F: for<'a> FnOnce([(&'a str, Destructured); N]) -> Option<T>,
+{
+    let mut keys = Vec::with_capacity(N);
+    let mut values = Vec::with_capacity(N);
+    for (k, v) in obj {
+        keys.push(k);
+        values.push(v.destructure());
     }
-
-    fn take_pairs<const N: usize>(
-        &mut self,
-        name: &str,
-    ) -> crate::error::Result<[(&str, Value); N]> {
-        let v: Vec<_> = self
-            .keys
-            .iter()
-            .map(|vs| vs.as_str())
-            .zip(self.values.drain(..))
-            .collect();
-        v.try_into().map_err(|v| {
-            Error::deserialization(format!("expected {name} as {N} entries, got {v:?}"))
-        })
-    }
+    let tmp: Vec<_> = keys
+        .iter()
+        .map(|vs| vs.as_str())
+        .zip(values.into_iter())
+        .collect();
+    let tmp_arr: [_; N] = tmp.try_into().ok()?;
+    f(tmp_arr)
 }
 
 impl TryFrom<&crate::oid::ObjectId> for ExtJson {
