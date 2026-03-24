@@ -19,10 +19,13 @@ use crate::{
     Bson,
 };
 
-#[derive(Deserialize)]
+#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Int32 {
     #[serde(rename = "$numberInt")]
+    #[cfg_attr(feature = "facet-0", facet(rename = "$numberInt"))]
     value: String,
 }
 
@@ -31,6 +34,14 @@ impl Int32 {
         self.value.parse().map_err(|_| {
             Error::invalid_value(Unexpected::Str(self.value.as_str()), &"i32 as a string")
         })
+    }
+}
+
+impl From<&i32> for Int32 {
+    fn from(value: &i32) -> Self {
+        Self {
+            value: value.to_string(),
+        }
     }
 }
 
@@ -103,11 +114,20 @@ impl From<crate::oid::ObjectId> for ObjectId {
     }
 }
 
-#[derive(Deserialize)]
+#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Symbol {
     #[serde(rename = "$symbol")]
+    #[cfg_attr(feature = "facet-0", facet(rename = "$symbol"))]
     pub(crate) value: String,
+}
+
+impl From<String> for Symbol {
+    fn from(value: String) -> Self {
+        Self { value }
+    }
 }
 
 #[derive(Deserialize)]

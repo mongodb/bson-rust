@@ -133,6 +133,7 @@ dependencies = [
  "chrono",
  "criterion",
  "facet",
+ "facet-json",
  "facet-value",
  "getrandom 0.3.4",
  "hex",
@@ -413,9 +414,9 @@ dependencies = [
 
 [[package]]
 name = "facet-dessert"
-version = "0.44.3"
+version = "0.44.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40d80b75160e929f810d0901c59a096641144dced0ac930bca547e567f0d99af"
+checksum = "0fb18a3e7ee90139051f679390662ae158439c1564b73b482676b9a3862d13c0"
 dependencies = [
  "facet-core",
  "facet-reflect",
@@ -423,15 +424,28 @@ dependencies = [
 
 [[package]]
 name = "facet-format"
-version = "0.44.3"
+version = "0.44.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a34f047087b5bedda8a7e81ab923abd98d4a5def6a35c8a59fa06f1541cb41d"
+checksum = "d87b44b7183a982f8c9889b7ec50bf8f1a38318a77069084436cc908bb1e5e96"
 dependencies = [
  "facet-core",
  "facet-dessert",
  "facet-path",
  "facet-reflect",
  "facet-solver",
+]
+
+[[package]]
+name = "facet-json"
+version = "0.44.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81791a228a3d57e2e982430f92ad2a219feaca8f21234316a830246594f64e84"
+dependencies = [
+ "facet",
+ "facet-core",
+ "facet-format",
+ "facet-reflect",
+ "memchr",
 ]
 
 [[package]]
