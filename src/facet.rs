@@ -31,6 +31,7 @@ enum ExtJsonInner {
     Boolean(bool),
     Null(()),
     String(String),
+    Array(Vec<ExtJson>),
 }
 
 impl From<ExtJsonInner> for ExtJson {
@@ -54,6 +55,7 @@ impl TryFrom<&Bson> for ExtJson {
             Bson::JavaScriptCode(s) => {
                 ExtJsonInner::JavaScriptCode(models::JavaScriptCode::from(s.as_str())).into()
             }
+            Bson::JavaScriptCodeWithScope(_) => todo!(),
             Bson::Int32(v) => ExtJsonInner::Int32(models::Int32::from(v)).into(),
             Bson::Int64(v) => ExtJsonInner::Int64(models::Int64::from(v)).into(),
             Bson::Timestamp(ts) => ExtJsonInner::Timestamp(models::Timestamp::from(*ts)).into(),
@@ -66,7 +68,13 @@ impl TryFrom<&Bson> for ExtJson {
             Bson::MaxKey => ExtJsonInner::MaxKey(models::MaxKey { value: 1 }).into(),
             Bson::MinKey => ExtJsonInner::MinKey(models::MinKey { value: 1 }).into(),
             Bson::DbPointer(dp) => ExtJsonInner::DbPointer(models::DbPointer::from(dp)).into(),
-            _ => todo!(),
+            Bson::Array(arr) => ExtJsonInner::Array(
+                arr.into_iter()
+                    .map(|v| v.try_into())
+                    .collect::<Result<Vec<_>, _>>()?,
+            )
+            .into(),
+            Bson::Document(_) => todo!(),
         })
     }
 }
@@ -96,6 +104,11 @@ impl TryFrom<ExtJson> for Bson {
             ExtJsonInner::MaxKey(v) => v.parse()?,
             ExtJsonInner::MinKey(v) => v.parse()?,
             ExtJsonInner::DbPointer(v) => Bson::DbPointer(v.parse()?),
+            ExtJsonInner::Array(v) => Bson::Array(
+                v.into_iter()
+                    .map(|bv| bv.try_into())
+                    .collect::<crate::error::Result<Vec<Bson>>>()?,
+            ),
         })
     }
 }
@@ -324,6 +337,31 @@ impl TryFrom<ExtJson> for bool {
         match value.0 {
             ExtJsonInner::Boolean(b) => Ok(b),
             other => Err(parse_err!("expected Boolean, got {other:?}")),
+        }
+    }
+}
+
+impl TryFrom<&crate::Array> for ExtJson {
+    type Error = std::convert::Infallible;
+
+    fn try_from(value: &crate::Array) -> Result<Self, Self::Error> {
+        Ok(ExtJsonInner::Array(
+            value
+                .into_iter()
+                .map(|v| v.try_into())
+                .collect::<Result<Vec<_>, _>>()?,
+        )
+        .into())
+    }
+}
+
+impl TryFrom<ExtJson> for crate::Array {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+        match value.0 {
+            ExtJsonInner::Array(arr) => arr.into_iter().map(|v| v.try_into()).collect(),
+            other => Err(parse_err!("expected Array, got {other:?}")),
         }
     }
 }
@@ -704,6 +742,55 @@ mod test {
   "bv": true,
   "bb": true,
   "n": null
+}"#,
+        );
+    }
+
+    #[test]
+    fn roundtrip_array() {
+        #[derive(Debug, PartialEq, Facet)]
+        struct Foo {
+            #[facet(opaque, proxy = ExtJson)]
+            a: Bson,
+            #[facet(opaque, proxy = ExtJson)]
+            b: crate::Array,
+        }
+        let arr = vec![
+            Bson::Int32(1),
+            Bson::String("hello".into()),
+            Bson::Boolean(false),
+            Bson::Array(vec![Bson::Int64(9_000_000_000)]),
+        ];
+        assert_roundtrip(
+            &Foo {
+                a: Bson::Array(arr.clone()),
+                b: arr,
+            },
+            r#"{
+  "a": [
+    {
+      "$numberInt": "1"
+    },
+    "hello",
+    false,
+    [
+      {
+        "$numberLong": "9000000000"
+      }
+    ]
+  ],
+  "b": [
+    {
+      "$numberInt": "1"
+    },
+    "hello",
+    false,
+    [
+      {
+        "$numberLong": "9000000000"
+      }
+    ]
+  ]
 }"#,
         );
     }
