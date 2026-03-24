@@ -252,6 +252,82 @@ impl TryFrom<ExtJson> for crate::Timestamp {
     }
 }
 
+impl TryFrom<&crate::Regex> for ExtJson {
+    type Error = std::convert::Infallible;
+
+    fn try_from(value: &crate::Regex) -> Result<Self, Self::Error> {
+        Ok(ExtJsonInner::RegularExpression(models::Regex::from(value)).into())
+    }
+}
+
+impl TryFrom<ExtJson> for crate::Regex {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+        match value.0 {
+            ExtJsonInner::RegularExpression(model) => model.parse(),
+            other => Err(parse_err!("expected Regex, got {other:?}")),
+        }
+    }
+}
+
+impl TryFrom<&crate::DbPointer> for ExtJson {
+    type Error = std::convert::Infallible;
+
+    fn try_from(value: &crate::DbPointer) -> Result<Self, Self::Error> {
+        Ok(ExtJsonInner::DbPointer(models::DbPointer::from(value)).into())
+    }
+}
+
+impl TryFrom<ExtJson> for crate::DbPointer {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+        match value.0 {
+            ExtJsonInner::DbPointer(model) => model.parse(),
+            other => Err(parse_err!("expected DbPointer, got {other:?}")),
+        }
+    }
+}
+
+impl TryFrom<&String> for ExtJson {
+    type Error = std::convert::Infallible;
+
+    fn try_from(value: &String) -> Result<Self, Self::Error> {
+        Ok(ExtJsonInner::String(value.clone()).into())
+    }
+}
+
+impl TryFrom<ExtJson> for String {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+        match value.0 {
+            ExtJsonInner::String(s) => Ok(s),
+            other => Err(parse_err!("expected String, got {other:?}")),
+        }
+    }
+}
+
+impl TryFrom<&bool> for ExtJson {
+    type Error = std::convert::Infallible;
+
+    fn try_from(value: &bool) -> Result<Self, Self::Error> {
+        Ok(ExtJsonInner::Boolean(*value).into())
+    }
+}
+
+impl TryFrom<ExtJson> for bool {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+        match value.0 {
+            ExtJsonInner::Boolean(b) => Ok(b),
+            other => Err(parse_err!("expected Boolean, got {other:?}")),
+        }
+    }
+}
+
 macro_rules! parse_err {
     ($fmt:literal $(, $a:expr)*) => {{
         crate::error::Error::deserialization(format!($fmt $(, $a)*))
@@ -380,14 +456,20 @@ mod test {
         #[derive(Debug, PartialEq, Facet)]
         struct Foo {
             #[facet(opaque, proxy = ExtJson)]
+            v: crate::oid::ObjectId,
+            #[facet(opaque, proxy = ExtJson)]
             b: Bson,
         }
         let id = crate::oid::ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap();
         assert_roundtrip(
             &Foo {
+                v: id,
                 b: Bson::ObjectId(id),
             },
             r#"{
+  "v": {
+    "$oid": "507f1f77bcf86cd799439011"
+  },
   "b": {
     "$oid": "507f1f77bcf86cd799439011"
   }
@@ -400,14 +482,22 @@ mod test {
         #[derive(Debug, PartialEq, Facet)]
         struct Foo {
             #[facet(opaque, proxy = ExtJson)]
+            v: crate::DateTime,
+            #[facet(opaque, proxy = ExtJson)]
             b: Bson,
         }
         let dt = crate::DateTime::from_millis(1_000_000_000_000);
         assert_roundtrip(
             &Foo {
+                v: dt,
                 b: Bson::DateTime(dt),
             },
             r#"{
+  "v": {
+    "$date": {
+      "$numberLong": "1000000000000"
+    }
+  },
   "b": {
     "$date": {
       "$numberLong": "1000000000000"
@@ -422,6 +512,8 @@ mod test {
         #[derive(Debug, PartialEq, Facet)]
         struct Foo {
             #[facet(opaque, proxy = ExtJson)]
+            v: crate::Binary,
+            #[facet(opaque, proxy = ExtJson)]
             b: Bson,
         }
         let bin = crate::Binary {
@@ -430,9 +522,16 @@ mod test {
         };
         assert_roundtrip(
             &Foo {
+                v: bin.clone(),
                 b: Bson::Binary(bin),
             },
             r#"{
+  "v": {
+    "$binary": {
+      "base64": "AQID",
+      "subType": "00"
+    }
+  },
   "b": {
     "$binary": {
       "base64": "AQID",
@@ -448,6 +547,8 @@ mod test {
         #[derive(Debug, PartialEq, Facet)]
         struct Foo {
             #[facet(opaque, proxy = ExtJson)]
+            v: crate::Timestamp,
+            #[facet(opaque, proxy = ExtJson)]
             b: Bson,
         }
         let ts = crate::Timestamp {
@@ -456,9 +557,16 @@ mod test {
         };
         assert_roundtrip(
             &Foo {
+                v: ts,
                 b: Bson::Timestamp(ts),
             },
             r#"{
+  "v": {
+    "$timestamp": {
+      "t": 1234,
+      "i": 5
+    }
+  },
   "b": {
     "$timestamp": {
       "t": 1234,
@@ -470,25 +578,131 @@ mod test {
     }
 
     #[test]
-    fn roundtrip_bson_string_and_bool() {
+    fn roundtrip_decimal128() {
         #[derive(Debug, PartialEq, Facet)]
         struct Foo {
             #[facet(opaque, proxy = ExtJson)]
-            s: Bson,
+            v: crate::Decimal128,
             #[facet(opaque, proxy = ExtJson)]
             b: Bson,
+        }
+        let d: crate::Decimal128 = "3.14".parse().unwrap();
+        assert_roundtrip(
+            &Foo {
+                v: d,
+                b: Bson::Decimal128(d),
+            },
+            r#"{
+  "v": {
+    "$numberDecimal": "3.14"
+  },
+  "b": {
+    "$numberDecimal": "3.14"
+  }
+}"#,
+        );
+    }
+
+    #[test]
+    fn roundtrip_regex() {
+        #[derive(Debug, PartialEq, Facet)]
+        struct Foo {
+            #[facet(opaque, proxy = ExtJson)]
+            v: crate::Regex,
+            #[facet(opaque, proxy = ExtJson)]
+            b: Bson,
+        }
+        let r = crate::Regex::from_strings("abc", "i").unwrap();
+        assert_roundtrip(
+            &Foo {
+                v: r.clone(),
+                b: Bson::RegularExpression(r),
+            },
+            r#"{
+  "v": {
+    "$regularExpression": {
+      "pattern": "abc",
+      "options": "i"
+    }
+  },
+  "b": {
+    "$regularExpression": {
+      "pattern": "abc",
+      "options": "i"
+    }
+  }
+}"#,
+        );
+    }
+
+    #[test]
+    fn roundtrip_db_pointer() {
+        #[derive(Debug, PartialEq, Facet)]
+        struct Foo {
+            #[facet(opaque, proxy = ExtJson)]
+            v: crate::DbPointer,
+            #[facet(opaque, proxy = ExtJson)]
+            b: Bson,
+        }
+        let id = crate::oid::ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap();
+        let dp = crate::DbPointer {
+            namespace: "test.coll".to_string(),
+            id,
+        };
+        assert_roundtrip(
+            &Foo {
+                v: dp.clone(),
+                b: Bson::DbPointer(dp),
+            },
+            r#"{
+  "v": {
+    "$dbPointer": {
+      "$ref": "test.coll",
+      "$id": {
+        "$oid": "507f1f77bcf86cd799439011"
+      }
+    }
+  },
+  "b": {
+    "$dbPointer": {
+      "$ref": "test.coll",
+      "$id": {
+        "$oid": "507f1f77bcf86cd799439011"
+      }
+    }
+  }
+}"#,
+        );
+    }
+
+    #[test]
+    fn roundtrip_bson_string_and_bool() {
+        #[derive(Debug, PartialEq, Facet)]
+        struct Foo {
+            #[facet(proxy = ExtJson)]
+            sv: String,
+            #[facet(opaque, proxy = ExtJson)]
+            sb: Bson,
+            #[facet(proxy = ExtJson)]
+            bv: bool,
+            #[facet(opaque, proxy = ExtJson)]
+            bb: Bson,
             #[facet(opaque, proxy = ExtJson)]
             n: Bson,
         }
         assert_roundtrip(
             &Foo {
-                s: Bson::String("hello".into()),
-                b: Bson::Boolean(true),
+                sv: "hello".into(),
+                sb: Bson::String("hello".into()),
+                bv: true,
+                bb: Bson::Boolean(true),
                 n: Bson::Null,
             },
             r#"{
-  "s": "hello",
-  "b": true,
+  "sv": "hello",
+  "sb": "hello",
+  "bv": true,
+  "bb": true,
   "n": null
 }"#,
         );
