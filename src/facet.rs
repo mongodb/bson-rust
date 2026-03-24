@@ -1,9 +1,16 @@
 //! Support for the `facet` crate.
 
-use facet::Facet;
-use facet_value::{value, Destructured, VObject, VString, Value};
+use std::str::FromStr;
 
-use crate::{error::Error, spec::BinarySubtype, Binary, Bson, Document, Regex};
+use facet::Facet;
+use facet_value::{value, Destructured, VObject, Value};
+
+use crate::{
+    error::{Error, Result},
+    Bson,
+    Document,
+    Regex,
+};
 
 /// A type for use with #[facet(proxy)] that represents BSON values in their canonical extended JSON
 /// form.
@@ -14,7 +21,7 @@ pub struct ExtJson(Value);
 impl TryFrom<&Bson> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(value: &Bson) -> Result<Self, Self::Error> {
+    fn try_from(value: &Bson) -> std::result::Result<Self, Self::Error> {
         match value {
             Bson::Double(d) => d.try_into(),
             Bson::String(s) => s.try_into(),
@@ -44,7 +51,7 @@ impl TryFrom<&Bson> for ExtJson {
 impl TryFrom<ExtJson> for Bson {
     type Error = crate::error::Error;
 
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+    fn try_from(value: ExtJson) -> Result<Self> {
         use Destructured::*;
         Ok(match value.0.destructure() {
             Null => Bson::Null,
@@ -54,25 +61,40 @@ impl TryFrom<ExtJson> for Bson {
                 varray
                     .into_iter()
                     .map(|e| Bson::try_from(ExtJson(e)))
-                    .collect::<Result<Vec<_>, Self::Error>>()?,
+                    .collect::<Result<Vec<_>>>()?,
             ),
-            Object(vobject) => {
-                let mut keys: Vec<_> = vobject.keys().map(|vs| vs.as_str()).collect();
+            Object(obj) => {
+                let mut keys: Vec<_> = obj.keys().map(|vs| vs.as_str()).collect();
                 keys.sort_unstable();
                 match keys.as_slice() {
                     ["$oid"] => {
-                        return crate::oid::ObjectId::try_from(ExtJson(vobject.into()))
-                            .map(Bson::ObjectId)
+                        Bson::ObjectId(crate::oid::ObjectId::try_from(ExtJson(obj.into()))?)
                     }
-                    _ => (),
+                    ["$symbol"] => match values(obj, ["$symbol"])? {
+                        [String(s)] => Bson::Symbol(s.into()),
+                        [other] => {
+                            return Err(parse_err!("$symbol: expected string, got {other:?}"))
+                        }
+                    },
+                    ["$numberInt"] => Bson::Int32(i32::try_from(ExtJson(obj.into()))?),
+                    ["$numberLong"] => Bson::Int64(i64::try_from(ExtJson(obj.into()))?),
+                    ["$numberDouble"] => Bson::Double(f64::try_from(ExtJson(obj.into()))?),
+                    ["$numberDecimal"] => {
+                        Bson::Decimal128(crate::Decimal128::try_from(ExtJson(obj.into()))?)
+                    }
+                    ["$binary"] => Bson::Binary(crate::Binary::try_from(ExtJson(obj.into()))?),
+                    ["$code"] => match values(obj, ["$code"])? {
+                        [String(s)] => Bson::JavaScriptCode(s.into()),
+                        [other] => return Err(parse_err!("$code: expected string, got {other:?}")),
+                    },
+                    ["$code", "$scope"] => Bson::JavaScriptCodeWithScope(
+                        crate::JavaScriptCodeWithScope::try_from(ExtJson(obj.into()))?,
+                    ),
+                    ["$timestamp"] => {
+                        Bson::Timestamp(crate::Timestamp::try_from(ExtJson(obj.into()))?)
+                    }
+                    _ => Bson::Document(Document::try_from(ExtJson(obj.into()))?),
                 }
-
-                let mut out = Document::new();
-                for (k, v) in vobject {
-                    let v: Bson = ExtJson(v).try_into()?;
-                    out.insert(k, v);
-                }
-                Bson::Document(out)
             }
             other => return Err(parse_err!("unexpected value type {other:?}")),
         })
@@ -82,7 +104,7 @@ impl TryFrom<ExtJson> for Bson {
 impl TryFrom<&f64> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(f: &f64) -> Result<Self, Self::Error> {
+    fn try_from(f: &f64) -> std::result::Result<Self, Self::Error> {
         let s = if f.is_nan() {
             "NaN"
         } else if f.is_infinite() {
@@ -101,7 +123,7 @@ impl TryFrom<&f64> for ExtJson {
 impl TryFrom<ExtJson> for f64 {
     type Error = crate::error::Error;
 
-    fn try_from(xj: ExtJson) -> Result<Self, Self::Error> {
+    fn try_from(xj: ExtJson) -> Result<Self> {
         use Destructured::*;
         match xj.0.destructure() {
             Object(vo) => match values(vo, ["$numberDouble"])? {
@@ -121,39 +143,86 @@ impl TryFrom<ExtJson> for f64 {
 impl TryFrom<&f32> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(f: &f32) -> Result<Self, Self::Error> {
+    fn try_from(f: &f32) -> std::result::Result<Self, Self::Error> {
         (&(*f as f64)).try_into()
+    }
+}
+
+impl TryFrom<ExtJson> for f32 {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self> {
+        // f64 -> f32 never fails because it always incurs a loss of precision
+        Ok(f64::try_from(value)? as f32)
     }
 }
 
 impl TryFrom<&i64> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(i: &i64) -> Result<Self, Self::Error> {
+    fn try_from(i: &i64) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(value!({"$numberLong": (i.to_string())})))
+    }
+}
+
+impl TryFrom<ExtJson> for i64 {
+    type Error = crate::error::Error;
+
+    fn try_from(xj: ExtJson) -> Result<Self> {
+        use Destructured::*;
+        match xj.0.destructure() {
+            Object(obj) => match values(obj, ["$numberLong"])? {
+                [String(s)] => s.parse().map_err(|e| parse_err!("{e}")),
+                [other] => Err(parse_err!("$numberLong: expected string, got {other:?}")),
+            },
+            other => Err(parse_err!("i64: expected object, got {other:?}")),
+        }
     }
 }
 
 impl TryFrom<&i32> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(i: &i32) -> Result<Self, Self::Error> {
+    fn try_from(i: &i32) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(value!({"$numberInt": (i.to_string())})))
+    }
+}
+
+impl TryFrom<ExtJson> for i32 {
+    type Error = crate::error::Error;
+
+    fn try_from(xj: ExtJson) -> Result<Self> {
+        use Destructured::*;
+        match xj.0.destructure() {
+            Object(obj) => match values(obj, ["$numberInt"])? {
+                [String(s)] => s.parse().map_err(|e| parse_err!("{e}")),
+                [other] => Err(parse_err!("$numberInt: expected string, got {other:?}")),
+            },
+            other => Err(parse_err!("i32: expected object, got {other:?}")),
+        }
     }
 }
 
 impl TryFrom<&u32> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(i: &u32) -> Result<Self, Self::Error> {
+    fn try_from(i: &u32) -> std::result::Result<Self, Self::Error> {
         (&(*i as i64)).try_into()
+    }
+}
+
+impl TryFrom<ExtJson> for u32 {
+    type Error = crate::error::Error;
+
+    fn try_from(xj: ExtJson) -> Result<Self> {
+        u32::try_from(i64::try_from(xj)?).map_err(|e| parse_err!("{e}"))
     }
 }
 
 impl TryFrom<&str> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn try_from(s: &str) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(Value::from(s)))
     }
 }
@@ -161,7 +230,7 @@ impl TryFrom<&str> for ExtJson {
 impl TryFrom<&String> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(s: &String) -> Result<Self, Self::Error> {
+    fn try_from(s: &String) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(Value::from(s)))
     }
 }
@@ -169,7 +238,7 @@ impl TryFrom<&String> for ExtJson {
 impl TryFrom<&crate::Array> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(bsons: &crate::Array) -> Result<Self, Self::Error> {
+    fn try_from(bsons: &crate::Array) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(
             bsons
                 .iter()
@@ -182,7 +251,7 @@ impl TryFrom<&crate::Array> for ExtJson {
 impl TryFrom<&Document> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(doc: &Document) -> Result<Self, Self::Error> {
+    fn try_from(doc: &Document) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(
             doc.iter()
                 .map(|(k, v)| (k, ExtJson::try_from(v).unwrap().0))
@@ -191,10 +260,28 @@ impl TryFrom<&Document> for ExtJson {
     }
 }
 
+impl TryFrom<ExtJson> for Document {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self> {
+        match value.0.destructure() {
+            Destructured::Object(obj) => {
+                let mut out = Document::new();
+                for (k, v) in obj {
+                    let v: Bson = ExtJson(v).try_into()?;
+                    out.insert(k, v);
+                }
+                Ok(out)
+            }
+            other => Err(parse_err!("document: expected object, got {other:?}")),
+        }
+    }
+}
+
 impl TryFrom<&bool> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(b: &bool) -> Result<Self, Self::Error> {
+    fn try_from(b: &bool) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(Value::from(*b)))
     }
 }
@@ -202,7 +289,7 @@ impl TryFrom<&bool> for ExtJson {
 impl TryFrom<&Regex> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(regex: &Regex) -> Result<Self, Self::Error> {
+    fn try_from(regex: &Regex) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(value!({
             "$regularExpression": {
                 "pattern": (regex.pattern.as_str()),
@@ -215,7 +302,7 @@ impl TryFrom<&Regex> for ExtJson {
 impl TryFrom<&crate::JavaScriptCodeWithScope> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(jsc: &crate::JavaScriptCodeWithScope) -> Result<Self, Self::Error> {
+    fn try_from(jsc: &crate::JavaScriptCodeWithScope) -> std::result::Result<Self, Self::Error> {
         let scope: ExtJson = (&jsc.scope).try_into()?;
         Ok(ExtJson(value!({
             "$code": (&jsc.code),
@@ -224,10 +311,30 @@ impl TryFrom<&crate::JavaScriptCodeWithScope> for ExtJson {
     }
 }
 
+impl TryFrom<ExtJson> for crate::JavaScriptCodeWithScope {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self> {
+        use Destructured::*;
+        match value.0.destructure() {
+            Object(obj) => match values(obj, ["$code", "$scope"])? {
+                [String(code), Object(scope)] => Ok(crate::JavaScriptCodeWithScope {
+                    code: code.into(),
+                    scope: ExtJson(scope.into()).try_into()?,
+                }),
+                other => Err(parse_err!("code with scope: invalid body {other:?}")),
+            },
+            other => Err(parse_err!(
+                "code with scope: expected object, got {other:?}"
+            )),
+        }
+    }
+}
+
 impl TryFrom<&crate::Timestamp> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(ts: &crate::Timestamp) -> Result<Self, Self::Error> {
+    fn try_from(ts: &crate::Timestamp) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(value!({
             "$timestamp": {
                 "t": (ts.time),
@@ -237,10 +344,36 @@ impl TryFrom<&crate::Timestamp> for ExtJson {
     }
 }
 
+impl TryFrom<ExtJson> for crate::Timestamp {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self> {
+        use Destructured::*;
+        match value.0.destructure() {
+            Object(obj) => match values(obj, ["$timestamp"])? {
+                [Object(body)] => match values(body, ["t", "i"])? {
+                    [Number(t), Number(i)] if t.is_integer() && i.is_integer() => {
+                        let time = t
+                            .to_u32()
+                            .ok_or_else(|| parse_err!("timestamp.t: expected u32, got {t:?}"))?;
+                        let increment = i
+                            .to_u32()
+                            .ok_or_else(|| parse_err!("timestamp.i: expected u32, got {i:?}"))?;
+                        Ok(crate::Timestamp { time, increment })
+                    }
+                    other => Err(parse_err!("$timestamp: invalid body {other:?}")),
+                },
+                other => Err(parse_err!("$timestamp: expected object, got {other:?}")),
+            },
+            other => Err(parse_err!("timestamp: expected object, got {other:?}")),
+        }
+    }
+}
+
 impl TryFrom<&crate::Binary> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(bin: &crate::Binary) -> Result<Self, Self::Error> {
+    fn try_from(bin: &crate::Binary) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(value!({
             "$binary": {
                 "base64": (crate::base64::encode(&bin.bytes)),
@@ -253,7 +386,7 @@ impl TryFrom<&crate::Binary> for ExtJson {
 impl TryFrom<ExtJson> for crate::Binary {
     type Error = crate::error::Error;
 
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+    fn try_from(value: ExtJson) -> Result<Self> {
         use Destructured::*;
         Ok(match value.0.destructure() {
             Object(vo) => match values(vo, ["$binary"])? {
@@ -281,7 +414,7 @@ impl TryFrom<ExtJson> for crate::Binary {
 impl TryFrom<&crate::oid::ObjectId> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(oid: &crate::oid::ObjectId) -> Result<Self, Self::Error> {
+    fn try_from(oid: &crate::oid::ObjectId) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(value!({"$oid": (oid.to_hex())})))
     }
 }
@@ -289,7 +422,7 @@ impl TryFrom<&crate::oid::ObjectId> for ExtJson {
 impl TryFrom<ExtJson> for crate::oid::ObjectId {
     type Error = crate::error::Error;
 
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+    fn try_from(value: ExtJson) -> Result<Self> {
         use Destructured::*;
         match value.0.destructure() {
             Object(obj) => match values(obj, ["$oid"])? {
@@ -304,7 +437,7 @@ impl TryFrom<ExtJson> for crate::oid::ObjectId {
 impl TryFrom<&crate::DateTime> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(dt: &crate::DateTime) -> Result<Self, Self::Error> {
+    fn try_from(dt: &crate::DateTime) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(value!({
             "$date": {
                 "$numberLong": (dt.timestamp_millis()),
@@ -316,15 +449,30 @@ impl TryFrom<&crate::DateTime> for ExtJson {
 impl TryFrom<&crate::Decimal128> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(d: &crate::Decimal128) -> Result<Self, Self::Error> {
+    fn try_from(d: &crate::Decimal128) -> std::result::Result<Self, Self::Error> {
         Ok(ExtJson(value!({"$numberDecimal": (d.to_string())})))
+    }
+}
+
+impl TryFrom<ExtJson> for crate::Decimal128 {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self> {
+        use Destructured::*;
+        match value.0.destructure() {
+            Object(obj) => match values(obj, ["$numberDecimal"])? {
+                [String(d)] => crate::Decimal128::from_str(d.as_str()),
+                [other] => Err(parse_err!("$numberDecimal: expected string, got {other:?}")),
+            },
+            other => Err(parse_err!("decimal128: expected object, got {other:?}")),
+        }
     }
 }
 
 impl TryFrom<&crate::DbPointer> for ExtJson {
     type Error = std::convert::Infallible;
 
-    fn try_from(d: &crate::DbPointer) -> Result<Self, Self::Error> {
+    fn try_from(d: &crate::DbPointer) -> std::result::Result<Self, Self::Error> {
         let id: ExtJson = (&d.id).try_into()?;
         Ok(ExtJson(value!({
             "$ref": (&d.namespace),
@@ -333,10 +481,7 @@ impl TryFrom<&crate::DbPointer> for ExtJson {
     }
 }
 
-fn values<const N: usize>(
-    mut obj: VObject,
-    keys: [&str; N],
-) -> crate::error::Result<[Destructured; N]> {
+fn values<const N: usize>(mut obj: VObject, keys: [&str; N]) -> Result<[Destructured; N]> {
     if obj.len() != N {
         return Err(parse_err!(
             "wrong object len: expected keys {keys:?}, got {obj:?}"
