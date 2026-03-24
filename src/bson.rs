@@ -1147,7 +1147,7 @@ pub struct Regex {
 }
 
 impl Regex {
-    #[cfg(any(test, feature = "serde"))]
+    #[cfg(any(test, feature = "serde", feature = "facet-0"))]
     pub(crate) fn from_strings(
         pattern: impl AsRef<str>,
         options: impl AsRef<str>,

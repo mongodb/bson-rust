@@ -229,7 +229,7 @@ impl Error {
         Self::serialization(format!("invalid document key type: {}", key.as_ref()))
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(any(feature = "serde", feature = "facet-0"))]
     pub(crate) fn deserialization(message: impl ToString) -> Self {
         Self::from(ErrorKind::Deserialization {}).with_message(message)
     }

@@ -494,7 +494,7 @@ pub mod de;
 pub mod decimal128;
 pub mod document;
 pub mod error;
-#[cfg(feature = "serde")]
+#[cfg(any(feature = "serde", feature = "facet-0"))]
 mod extjson;
 #[cfg(feature = "facet-0")]
 pub mod facet;
