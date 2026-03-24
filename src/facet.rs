@@ -1,7 +1,8 @@
 //! Support for the `facet` crate.
 use facet::Facet;
+use indexmap::IndexMap;
 
-use crate::{extjson::models, Bson};
+use crate::{extjson::models, Bson, Document};
 
 /// A type for use with #[facet(proxy)] that represents BSON values in their canonical extended JSON
 /// form.
@@ -14,6 +15,7 @@ pub struct ExtJson(ExtJsonInner);
 #[repr(C)]
 enum ExtJsonInner {
     Double(models::Double),
+    Document(IndexMap<String, ExtJson>),
     RegularExpression(models::Regex),
     JavaScriptCode(models::JavaScriptCode),
     Int32(models::Int32),
@@ -24,14 +26,17 @@ enum ExtJsonInner {
     DateTime(models::DateTime),
     Symbol(models::Symbol),
     Decimal128(models::Decimal128),
+    #[allow(unused)]
     Undefined(models::Undefined),
+    #[allow(unused)]
     MaxKey(models::MaxKey),
+    #[allow(unused)]
     MinKey(models::MinKey),
     DbPointer(models::DbPointer),
+    Array(Vec<ExtJson>),
     Boolean(bool),
     Null(()),
     String(String),
-    Array(Vec<ExtJson>),
 }
 
 impl From<ExtJsonInner> for ExtJson {
@@ -45,36 +50,29 @@ impl TryFrom<&Bson> for ExtJson {
 
     fn try_from(value: &Bson) -> Result<Self, Self::Error> {
         Ok(match value {
-            Bson::Double(v) => ExtJsonInner::Double(models::Double::from(v)).into(),
-            Bson::String(s) => ExtJsonInner::String(s.clone()).into(),
-            Bson::Boolean(b) => ExtJsonInner::Boolean(*b).into(),
+            Bson::Double(v) => v.try_into()?,
+            Bson::String(s) => s.try_into()?,
+            Bson::Boolean(b) => b.try_into()?,
             Bson::Null => ExtJsonInner::Null(()).into(),
-            Bson::RegularExpression(r) => {
-                ExtJsonInner::RegularExpression(models::Regex::from(r)).into()
-            }
+            Bson::RegularExpression(r) => r.try_into()?,
             Bson::JavaScriptCode(s) => {
                 ExtJsonInner::JavaScriptCode(models::JavaScriptCode::from(s.as_str())).into()
             }
             Bson::JavaScriptCodeWithScope(_) => todo!(),
-            Bson::Int32(v) => ExtJsonInner::Int32(models::Int32::from(v)).into(),
-            Bson::Int64(v) => ExtJsonInner::Int64(models::Int64::from(v)).into(),
-            Bson::Timestamp(ts) => ExtJsonInner::Timestamp(models::Timestamp::from(*ts)).into(),
-            Bson::Binary(b) => ExtJsonInner::Binary(models::Binary::from(b)).into(),
-            Bson::ObjectId(id) => ExtJsonInner::ObjectId(models::ObjectId::from(*id)).into(),
-            Bson::DateTime(dt) => ExtJsonInner::DateTime(models::DateTime::from(*dt)).into(),
+            Bson::Int32(v) => v.try_into()?,
+            Bson::Int64(v) => v.try_into()?,
+            Bson::Timestamp(ts) => ts.try_into()?,
+            Bson::Binary(b) => b.try_into()?,
+            Bson::ObjectId(id) => id.try_into()?,
+            Bson::DateTime(dt) => dt.try_into()?,
             Bson::Symbol(s) => ExtJsonInner::Symbol(models::Symbol::from(s.clone())).into(),
-            Bson::Decimal128(d) => ExtJsonInner::Decimal128(models::Decimal128::from(d)).into(),
+            Bson::Decimal128(d) => d.try_into()?,
             Bson::Undefined => ExtJsonInner::Undefined(models::Undefined { value: true }).into(),
             Bson::MaxKey => ExtJsonInner::MaxKey(models::MaxKey { value: 1 }).into(),
             Bson::MinKey => ExtJsonInner::MinKey(models::MinKey { value: 1 }).into(),
-            Bson::DbPointer(dp) => ExtJsonInner::DbPointer(models::DbPointer::from(dp)).into(),
-            Bson::Array(arr) => ExtJsonInner::Array(
-                arr.into_iter()
-                    .map(|v| v.try_into())
-                    .collect::<Result<Vec<_>, _>>()?,
-            )
-            .into(),
-            Bson::Document(_) => todo!(),
+            Bson::DbPointer(dp) => dp.try_into()?,
+            Bson::Array(arr) => arr.try_into()?,
+            Bson::Document(doc) => doc.try_into()?,
         })
     }
 }
@@ -83,33 +81,28 @@ impl TryFrom<ExtJson> for Bson {
     type Error = crate::error::Error;
 
     fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        Ok(match value.0 {
-            ExtJsonInner::Double(v) => Bson::Double(v.parse()?),
-            ExtJsonInner::String(s) => Bson::String(s),
-            ExtJsonInner::Boolean(b) => Bson::Boolean(b),
-            ExtJsonInner::Null(()) => Bson::Null,
-            ExtJsonInner::RegularExpression(r) => Bson::RegularExpression(r.parse()?),
-            ExtJsonInner::JavaScriptCode(models::JavaScriptCode { code }) => {
-                Bson::JavaScriptCode(code)
-            }
-            ExtJsonInner::Int32(v) => Bson::Int32(v.parse()?),
-            ExtJsonInner::Int64(v) => Bson::Int64(v.parse()?),
-            ExtJsonInner::Timestamp(v) => Bson::Timestamp(v.parse()),
-            ExtJsonInner::Binary(v) => Bson::Binary(v.parse()?),
-            ExtJsonInner::ObjectId(v) => Bson::ObjectId(v.parse()?),
-            ExtJsonInner::DateTime(v) => Bson::DateTime(v.parse()?),
-            ExtJsonInner::Symbol(models::Symbol { value }) => Bson::Symbol(value),
-            ExtJsonInner::Decimal128(v) => Bson::Decimal128(v.parse()?),
-            ExtJsonInner::Undefined(v) => v.parse()?,
-            ExtJsonInner::MaxKey(v) => v.parse()?,
-            ExtJsonInner::MinKey(v) => v.parse()?,
-            ExtJsonInner::DbPointer(v) => Bson::DbPointer(v.parse()?),
-            ExtJsonInner::Array(v) => Bson::Array(
-                v.into_iter()
-                    .map(|bv| bv.try_into())
-                    .collect::<crate::error::Result<Vec<Bson>>>()?,
-            ),
-        })
+        match &value.0 {
+            ExtJsonInner::Double(_) => value.try_into().map(Bson::Double),
+            ExtJsonInner::String(_) => value.try_into().map(Bson::String),
+            ExtJsonInner::Boolean(_) => value.try_into().map(Bson::Boolean),
+            ExtJsonInner::Null(_) => Ok(Bson::Null),
+            ExtJsonInner::RegularExpression(_) => value.try_into().map(Bson::RegularExpression),
+            ExtJsonInner::JavaScriptCode(v) => Ok(Bson::JavaScriptCode(v.code.clone())),
+            ExtJsonInner::Int32(_) => value.try_into().map(Bson::Int32),
+            ExtJsonInner::Int64(_) => value.try_into().map(Bson::Int64),
+            ExtJsonInner::Timestamp(_) => value.try_into().map(Bson::Timestamp),
+            ExtJsonInner::Binary(_) => value.try_into().map(Bson::Binary),
+            ExtJsonInner::ObjectId(_) => value.try_into().map(Bson::ObjectId),
+            ExtJsonInner::DateTime(_) => value.try_into().map(Bson::DateTime),
+            ExtJsonInner::Symbol(v) => Ok(Bson::Symbol(v.value.clone())),
+            ExtJsonInner::Decimal128(_) => value.try_into().map(Bson::Decimal128),
+            ExtJsonInner::Undefined(_) => Ok(Bson::Undefined),
+            ExtJsonInner::MaxKey(_) => Ok(Bson::MaxKey),
+            ExtJsonInner::MinKey(_) => Ok(Bson::MinKey),
+            ExtJsonInner::DbPointer(_) => value.try_into().map(Bson::DbPointer),
+            ExtJsonInner::Array(_) => value.try_into().map(Bson::Array),
+            ExtJsonInner::Document(_) => value.try_into().map(Bson::Document),
+        }
     }
 }
 
@@ -362,6 +355,36 @@ impl TryFrom<ExtJson> for crate::Array {
         match value.0 {
             ExtJsonInner::Array(arr) => arr.into_iter().map(|v| v.try_into()).collect(),
             other => Err(parse_err!("expected Array, got {other:?}")),
+        }
+    }
+}
+
+impl TryFrom<&Document> for ExtJson {
+    type Error = std::convert::Infallible;
+
+    fn try_from(value: &Document) -> Result<Self, Self::Error> {
+        let mut out = IndexMap::with_capacity(value.len());
+        for (k, v) in value {
+            out.insert(k.clone(), v.try_into()?);
+        }
+        Ok(ExtJsonInner::Document(out).into())
+    }
+}
+
+impl TryFrom<ExtJson> for Document {
+    type Error = crate::error::Error;
+
+    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+        match value.0 {
+            ExtJsonInner::Document(map) => {
+                let mut out = Document::new();
+                for (k, v) in map {
+                    let b: Bson = v.try_into()?;
+                    out.insert(k, b);
+                }
+                Ok(out)
+            }
+            other => Err(parse_err!("expected Document, got {other:?}")),
         }
     }
 }
@@ -791,6 +814,50 @@ mod test {
       }
     ]
   ]
+}"#,
+        );
+    }
+
+    #[test]
+    fn roundtrip_document() {
+        #[derive(Debug, PartialEq, Facet)]
+        struct Foo {
+            #[facet(opaque, proxy = ExtJson)]
+            v: crate::Document,
+            #[facet(opaque, proxy = ExtJson)]
+            b: Bson,
+        }
+        let doc = doc! {
+            "x": 1,
+            "y": "hello",
+            "nested": {
+                "flag": true,
+            },
+        };
+        assert_roundtrip(
+            &Foo {
+                v: doc.clone(),
+                b: Bson::Document(doc),
+            },
+            r#"{
+  "v": {
+    "x": {
+      "$numberInt": "1"
+    },
+    "y": "hello",
+    "nested": {
+      "flag": true
+    }
+  },
+  "b": {
+    "x": {
+      "$numberInt": "1"
+    },
+    "y": "hello",
+    "nested": {
+      "flag": true
+    }
+  }
 }"#,
         );
     }

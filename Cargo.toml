@@ -50,7 +50,7 @@ serde_path_to_error = ["dep:serde_path_to_error"]
 serde_with-3 = ["dep:serde_with", "dep:serde"]
 serde = ["dep:serde"]
 serde_json-1 = ["dep:serde_json"]
-facet-0 = ["dep:facet", "dep:facet-value", "serde"]
+facet-0 = ["dep:facet", "serde"]
 
 [lib]
 name = "bson"
@@ -73,8 +73,7 @@ thiserror = "2"
 bitvec = "1.0.1"
 serde_path_to_error = { version = "0.1.16", optional = true }
 simdutf8 = "0.1.5"
-facet = { version = "0.44.2", optional = true }
-facet-value = { version = "0.44.3", optional = true }
+facet = { version = "0.44.2", features = ["indexmap"], optional = true }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 js-sys = "0.3"
