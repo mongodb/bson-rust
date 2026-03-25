@@ -27,94 +27,88 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
     type Error = Error;
 
     fn try_from(obj: serde_json::Map<String, serde_json::Value>) -> Result<Self> {
-        if obj.contains_key("$oid") {
-            let oid: models::ObjectId = serde_json::from_value(obj.into())?;
-            return Ok(Bson::ObjectId(oid.parse()?));
-        }
+        let keys: Vec<&str> = obj.keys().map(|s| s.as_str()).collect();
 
-        if obj.contains_key("$symbol") {
-            let symbol: models::Symbol = serde_json::from_value(obj.into())?;
-            return Ok(Bson::Symbol(symbol.value));
-        }
-
-        if obj.contains_key("$regularExpression") {
-            let regex: models::Regex = serde_json::from_value(obj.into())?;
-            return Ok(regex.parse()?.into());
-        }
-
-        if obj.contains_key("$numberInt") {
-            let int: models::Int32 = serde_json::from_value(obj.into())?;
-            return Ok(Bson::Int32(int.parse()?));
-        }
-
-        if obj.contains_key("$numberLong") {
-            let int: models::Int64 = serde_json::from_value(obj.into())?;
-            return Ok(Bson::Int64(int.parse()?));
-        }
-
-        if obj.contains_key("$numberDouble") {
-            let double: models::Double = serde_json::from_value(obj.into())?;
-            return Ok(Bson::Double(double.parse()?));
-        }
-
-        if obj.contains_key("$numberDecimal") {
-            let decimal: models::Decimal128 = serde_json::from_value(obj.into())?;
-            return Ok(Bson::Decimal128(decimal.parse()?));
-        }
-
-        if obj.contains_key("$binary") {
-            let binary: models::Binary = serde_json::from_value(obj.into())?;
-            return Ok(Bson::Binary(binary.parse()?));
-        }
-
-        if obj.contains_key("$uuid") {
-            let uuid: models::Uuid = serde_json::from_value(obj.into())?;
-            return Ok(Bson::Binary(uuid.parse()?));
-        }
-
-        if obj.contains_key("$code") {
-            let code_w_scope: models::JavaScriptCodeWithScope = serde_json::from_value(obj.into())?;
-            return match code_w_scope.scope {
-                Some(scope) => Ok(crate::JavaScriptCodeWithScope {
-                    code: code_w_scope.code,
-                    scope: scope.try_into()?,
+        use models::ObjectType;
+        match ObjectType::from_keys(&keys) {
+            ObjectType::ObjectId => {
+                let oid: models::ObjectId = serde_json::from_value(obj.into())?;
+                return Ok(Bson::ObjectId(oid.parse()?));
+            }
+            ObjectType::Symbol => {
+                let symbol: models::Symbol = serde_json::from_value(obj.into())?;
+                return Ok(Bson::Symbol(symbol.value));
+            }
+            ObjectType::RegularExpression => {
+                let regex: models::Regex = serde_json::from_value(obj.into())?;
+                return Ok(regex.parse()?.into());
+            }
+            ObjectType::Int32 => {
+                let int: models::Int32 = serde_json::from_value(obj.into())?;
+                return Ok(Bson::Int32(int.parse()?));
+            }
+            ObjectType::Int64 => {
+                let int: models::Int64 = serde_json::from_value(obj.into())?;
+                return Ok(Bson::Int64(int.parse()?));
+            }
+            ObjectType::Double => {
+                let double: models::Double = serde_json::from_value(obj.into())?;
+                return Ok(Bson::Double(double.parse()?));
+            }
+            ObjectType::Decimal128 => {
+                let decimal: models::Decimal128 = serde_json::from_value(obj.into())?;
+                return Ok(Bson::Decimal128(decimal.parse()?));
+            }
+            ObjectType::Binary => {
+                let binary: models::Binary = serde_json::from_value(obj.into())?;
+                return Ok(Bson::Binary(binary.parse()?));
+            }
+            ObjectType::Uuid => {
+                let uuid: models::Uuid = serde_json::from_value(obj.into())?;
+                return Ok(Bson::Binary(uuid.parse()?));
+            }
+            ObjectType::JavaScriptCode => {
+                let code: models::JavaScriptCode = serde_json::from_value(obj.into())?;
+                return Ok(Bson::JavaScriptCode(code.code));
+            }
+            ObjectType::JavaScriptCodeWithScope => {
+                let code: models::JavaScriptCodeWithScope<
+                    serde_json::Map<String, serde_json::Value>,
+                > = serde_json::from_value(obj.into())?;
+                return Ok(crate::JavaScriptCodeWithScope {
+                    code: code.code,
+                    scope: code.scope.try_into()?,
                 }
-                .into()),
-                None => Ok(Bson::JavaScriptCode(code_w_scope.code)),
-            };
+                .into());
+            }
+            ObjectType::Timestamp => {
+                let ts: models::Timestamp = serde_json::from_value(obj.into())?;
+                return Ok(ts.parse().into());
+            }
+            ObjectType::DateTime => {
+                let extjson_datetime: models::DateTime = serde_json::from_value(obj.into())?;
+                return Ok(Bson::DateTime(extjson_datetime.parse()?));
+            }
+            ObjectType::MinKey => {
+                let min_key: models::MinKey = serde_json::from_value(obj.into())?;
+                return min_key.parse();
+            }
+            ObjectType::MaxKey => {
+                let max_key: models::MaxKey = serde_json::from_value(obj.into())?;
+                return max_key.parse();
+            }
+            ObjectType::DbPointer => {
+                let db_ptr: models::DbPointer = serde_json::from_value(obj.into())?;
+                return Ok(db_ptr.parse()?.into());
+            }
+            ObjectType::Undefined => {
+                let undefined: models::Undefined = serde_json::from_value(obj.into())?;
+                return undefined.parse();
+            }
+            ObjectType::Document => {
+                return Ok(Bson::Document(obj.try_into()?));
+            }
         }
-
-        if obj.contains_key("$timestamp") {
-            let ts: models::Timestamp = serde_json::from_value(obj.into())?;
-            return Ok(ts.parse().into());
-        }
-
-        if obj.contains_key("$date") {
-            let extjson_datetime: models::DateTime = serde_json::from_value(obj.into())?;
-            return Ok(Bson::DateTime(extjson_datetime.parse()?));
-        }
-
-        if obj.contains_key("$minKey") {
-            let min_key: models::MinKey = serde_json::from_value(obj.into())?;
-            return min_key.parse();
-        }
-
-        if obj.contains_key("$maxKey") {
-            let max_key: models::MaxKey = serde_json::from_value(obj.into())?;
-            return max_key.parse();
-        }
-
-        if obj.contains_key("$dbPointer") {
-            let db_ptr: models::DbPointer = serde_json::from_value(obj.into())?;
-            return Ok(db_ptr.parse()?.into());
-        }
-
-        if obj.contains_key("$undefined") {
-            let undefined: models::Undefined = serde_json::from_value(obj.into())?;
-            return undefined.parse();
-        }
-
-        Ok(Bson::Document(obj.try_into()?))
     }
 }
 

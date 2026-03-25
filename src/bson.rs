@@ -662,11 +662,19 @@ impl Bson {
             return Bson::Document(doc);
         }
 
-        let mut keys: Vec<_> = doc.keys().map(|s| s.as_str()).collect();
-        keys.sort_unstable();
+        let keys: Vec<_> = doc.keys().map(|s| s.as_str()).collect();
 
-        match ElementType::from_keys(keys.as_slice()) {
-            ElementType::ObjectId => {
+        if keys.as_slice() == ["$numberDecimalBytes"] {
+            if let Ok(bytes) = doc.get_binary_generic("$numberDecimalBytes") {
+                if let Ok(b) = bytes.clone().try_into() {
+                    return Bson::Decimal128(Decimal128 { bytes: b });
+                }
+            }
+        }
+
+        use crate::extjson::models::ObjectType;
+        match ObjectType::from_keys(keys.as_slice()) {
+            ObjectType::ObjectId => {
                 if let Ok(oid) = doc.get_str("$oid") {
                     if let Ok(oid) = crate::oid::ObjectId::parse_str(oid) {
                         return Bson::ObjectId(oid);
@@ -674,13 +682,13 @@ impl Bson {
                 }
             }
 
-            ElementType::Symbol => {
+            ObjectType::Symbol => {
                 if let Ok(symbol) = doc.get_str("$symbol") {
                     return Bson::Symbol(symbol.into());
                 }
             }
 
-            ElementType::Int32 => {
+            ObjectType::Int32 => {
                 if let Ok(i) = doc.get_str("$numberInt") {
                     if let Ok(i) = i.parse() {
                         return Bson::Int32(i);
@@ -688,7 +696,7 @@ impl Bson {
                 }
             }
 
-            ElementType::Int64 => {
+            ObjectType::Int64 => {
                 if let Ok(i) = doc.get_str("$numberLong") {
                     if let Ok(i) = i.parse() {
                         return Bson::Int64(i);
@@ -696,7 +704,7 @@ impl Bson {
                 }
             }
 
-            ElementType::Double => match doc.get_str("$numberDouble") {
+            ObjectType::Double => match doc.get_str("$numberDouble") {
                 Ok("Infinity") => return Bson::Double(f64::INFINITY),
                 Ok("-Infinity") => return Bson::Double(f64::NEG_INFINITY),
                 Ok("NaN") => return Bson::Double(f64::NAN),
@@ -708,31 +716,27 @@ impl Bson {
                 _ => {}
             },
 
-            ElementType::Decimal128 => {
+            ObjectType::Decimal128 => {
                 if let Ok(d) = doc.get_str("$numberDecimal") {
                     if let Ok(d) = d.parse() {
                         return Bson::Decimal128(d);
                     }
-                } else if let Ok(bytes) = doc.get_binary_generic("$numberDecimalBytes") {
-                    if let Ok(b) = bytes.clone().try_into() {
-                        return Bson::Decimal128(Decimal128 { bytes: b });
-                    }
                 }
             }
 
-            ElementType::Binary => {
+            ObjectType::Binary => {
                 if let Some(binary) = Binary::from_extended_doc(&doc) {
                     return Bson::Binary(binary);
                 }
             }
 
-            ElementType::JavaScriptCode => {
+            ObjectType::JavaScriptCode => {
                 if let Ok(code) = doc.get_str("$code") {
                     return Bson::JavaScriptCode(code.into());
                 }
             }
 
-            ElementType::JavaScriptCodeWithScope => {
+            ObjectType::JavaScriptCodeWithScope => {
                 if let Ok(code) = doc.get_str("$code") {
                     if let Ok(scope) = doc.get_document("$scope") {
                         return Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
@@ -743,7 +747,7 @@ impl Bson {
                 }
             }
 
-            ElementType::Timestamp => {
+            ObjectType::Timestamp => {
                 if let Ok(timestamp) = doc.get_document("$timestamp") {
                     if let Ok(t) = timestamp.get_i32("t") {
                         if let Ok(i) = timestamp.get_i32("i") {
@@ -768,7 +772,7 @@ impl Bson {
                 }
             }
 
-            ElementType::RegularExpression => {
+            ObjectType::RegularExpression => {
                 if let Ok(regex) = doc.get_document("$regularExpression") {
                     if let Ok(pattern) = regex.get_str("pattern") {
                         if let Ok(options) = regex.get_str("options") {
@@ -780,7 +784,7 @@ impl Bson {
                 }
             }
 
-            ElementType::DbPointer => {
+            ObjectType::DbPointer => {
                 if let Ok(db_pointer) = doc.get_document("$dbPointer") {
                     if let Ok(ns) = db_pointer.get_str("$ref") {
                         if let Ok(id) = db_pointer.get_object_id("$id") {
@@ -793,7 +797,7 @@ impl Bson {
                 }
             }
 
-            ElementType::DateTime => {
+            ObjectType::DateTime => {
                 if let Ok(date) = doc.get_i64("$date") {
                     return Bson::DateTime(crate::DateTime::from_millis(date));
                 }
@@ -805,7 +809,7 @@ impl Bson {
                 }
             }
 
-            ElementType::MinKey => {
+            ObjectType::MinKey => {
                 let min_key = doc.get("$minKey");
 
                 if min_key == Some(&Bson::Int32(1)) || min_key == Some(&Bson::Int64(1)) {
@@ -813,7 +817,7 @@ impl Bson {
                 }
             }
 
-            ElementType::MaxKey => {
+            ObjectType::MaxKey => {
                 let max_key = doc.get("$maxKey");
 
                 if max_key == Some(&Bson::Int32(1)) || max_key == Some(&Bson::Int64(1)) {
@@ -821,13 +825,24 @@ impl Bson {
                 }
             }
 
-            ElementType::Undefined => {
+            ObjectType::Undefined => {
                 if doc.get("$undefined") == Some(&Bson::Boolean(true)) {
                     return Bson::Undefined;
                 }
             }
 
-            _ => {}
+            ObjectType::Uuid => {
+                if let Ok(uuid_str) = doc.get_str("$uuid") {
+                    if let Ok(uuid) = uuid::Uuid::parse_str(uuid_str) {
+                        return Bson::Binary(crate::Binary {
+                            subtype: crate::spec::BinarySubtype::Uuid,
+                            bytes: uuid.as_bytes().to_vec(),
+                        });
+                    }
+                }
+            }
+
+            ObjectType::Document => {}
         };
 
         Bson::Document(

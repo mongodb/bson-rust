@@ -1,6 +1,4 @@
-//! A module defining serde models for the extended JSON representations of the various BSON types.
-
-#![cfg_attr(not(feature = "serde_json-1"), allow(unused))]
+//! A module defining struct models for the extended JSON representations of the various BSON types.
 
 use serde::{
     de::{Error as _, Unexpected},
@@ -18,6 +16,53 @@ use crate::{
     spec::BinarySubtype,
     Bson,
 };
+
+// BSON types represented by objects in extended JSON.
+pub(crate) enum ObjectType {
+    ObjectId,
+    Symbol,
+    Int32,
+    Int64,
+    Double,
+    Decimal128,
+    Binary,
+    JavaScriptCode,
+    JavaScriptCodeWithScope,
+    Timestamp,
+    RegularExpression,
+    DbPointer,
+    DateTime,
+    MinKey,
+    MaxKey,
+    Undefined,
+    Uuid,
+    Document,
+}
+
+impl ObjectType {
+    pub(crate) fn from_keys(keys: &[&str]) -> Self {
+        match keys {
+            ["$oid"] => Self::ObjectId,
+            ["$symbol"] => Self::Symbol,
+            ["$numberInt"] => Self::Int32,
+            ["$numberLong"] => Self::Int64,
+            ["$numberDouble"] => Self::Double,
+            ["$numberDecimal"] => Self::Decimal128,
+            ["$binary"] => Self::Binary,
+            ["$code"] => Self::JavaScriptCode,
+            ["$code", "$scope"] | ["$scope", "$code"] => Self::JavaScriptCodeWithScope,
+            ["$timestamp"] => Self::Timestamp,
+            ["$regularExpression"] => Self::RegularExpression,
+            ["$dbPointer"] => Self::DbPointer,
+            ["$date"] => Self::DateTime,
+            ["$minKey"] => Self::MinKey,
+            ["$maxKey"] => Self::MaxKey,
+            ["$undefined"] => Self::Undefined,
+            ["$uuid"] => Self::Uuid,
+            _ => Self::Document,
+        }
+    }
+}
 
 #[cfg_attr(feature = "facet-0", derive(facet::Facet))]
 #[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
@@ -274,8 +319,11 @@ impl Binary {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
 pub(crate) struct Uuid {
     #[serde(rename = "$uuid")]
+    #[cfg_attr(feature = "facet-0", facet(rename = "$uuid"))]
     pub(crate) value: String,
 }
 
@@ -295,16 +343,37 @@ impl Uuid {
     }
 }
 
-#[cfg(feature = "serde_json-1")]
+#[cfg_attr(feature = "serde", derive(Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[derive(Debug)]
+pub(crate) struct JavaScriptCode {
+    #[cfg_attr(feature = "serde", serde(rename = "$code"))]
+    #[cfg_attr(feature = "facet-0", facet(rename = "$code"))]
+    pub(crate) code: String,
+}
+
+impl From<&str> for JavaScriptCode {
+    fn from(s: &str) -> Self {
+        Self {
+            code: s.to_string(),
+        }
+    }
+}
+
+#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct JavaScriptCodeWithScope {
+pub(crate) struct JavaScriptCodeWithScope<Scope> {
     #[serde(rename = "$code")]
+    #[cfg_attr(feature = "facet-0", facet(rename = "$code"))]
     pub(crate) code: String,
 
     #[serde(rename = "$scope")]
-    #[serde(default)]
-    pub(crate) scope: Option<serde_json::Map<String, serde_json::Value>>,
+    #[cfg_attr(feature = "facet-0", facet(rename = "$scope"))]
+    pub(crate) scope: Scope,
 }
 
 #[cfg_attr(feature = "facet-0", derive(facet::Facet))]
@@ -521,22 +590,6 @@ impl Undefined {
                 Unexpected::Bool(false),
                 &"$undefined should always be true",
             ))
-        }
-    }
-}
-
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
-#[derive(Debug)]
-pub(crate) struct JavaScriptCode {
-    #[cfg_attr(feature = "facet-0", facet(rename = "$code"))]
-    pub(crate) code: String,
-}
-
-impl From<&str> for JavaScriptCode {
-    fn from(s: &str) -> Self {
-        Self {
-            code: s.to_string(),
         }
     }
 }
