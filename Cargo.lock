@@ -133,7 +133,9 @@ dependencies = [
  "chrono",
  "criterion",
  "facet",
+ "facet-format",
  "facet-json",
+ "facet-value",
  "getrandom 0.3.4",
  "hex",
  "indexmap 2.13.0",
@@ -409,7 +411,6 @@ dependencies = [
  "const-fnv1a-hash",
  "iddqd",
  "impls",
- "indexmap 2.13.0",
 ]
 
 [[package]]
@@ -523,6 +524,18 @@ dependencies = [
  "facet-core",
  "facet-reflect",
  "strsim",
+]
+
+[[package]]
+name = "facet-value"
+version = "0.44.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5edd5a4a2cb835ea6e0fc5a896a105505ddbde1bc1fa1e7e7f38bcc639eec5d8"
+dependencies = [
+ "facet-core",
+ "facet-format",
+ "facet-reflect",
+ "indexmap 2.13.0",
 ]
 
 [[package]]

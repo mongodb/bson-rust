@@ -151,6 +151,29 @@ impl ElementType {
         })
     }
 
+    pub(crate) fn from_keys(keys: &[&str]) -> Self {
+        match keys {
+            ["$oid"] => Self::ObjectId,
+            ["$symbol"] => Self::Symbol,
+            ["$numberInt"] => Self::Int32,
+            ["$numberLong"] => Self::Int64,
+            ["$numberDouble"] => Self::Double,
+            ["$numberDecimal"] => Self::Decimal128,
+            ["$numberDecimalBytes"] => Self::Decimal128,
+            ["$binary"] => Self::Binary,
+            ["$code"] => Self::JavaScriptCode,
+            ["$code", "$scope"] => Self::JavaScriptCodeWithScope,
+            ["$timestamp"] => Self::Timestamp,
+            ["$regularExpression"] => Self::RegularExpression,
+            ["$dbPointer"] => Self::DbPointer,
+            ["$date"] => Self::DateTime,
+            ["$minKey"] => Self::MinKey,
+            ["$maxKey"] => Self::MaxKey,
+            ["$undefined"] => Self::Undefined,
+            _ => Self::EmbeddedDocument,
+        }
+    }
+
     #[cfg(feature = "serde")]
     pub(crate) fn name(&self) -> &'static str {
         match self {
