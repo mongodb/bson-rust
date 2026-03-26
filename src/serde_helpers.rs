@@ -218,14 +218,13 @@ pub mod datetime {
     );
 
     serde_conv_doc!(
-        /// Converts an `i64` integer to and from a [`DateTime`].
+        /// Converts a [`DateTime`] to and from an `i64` integer.
         ///
         /// The `i64` should represent milliseconds. See [`DateTime::from_millis`] for more details.
         /// ```rust
         /// # #[cfg(feature = "serde_with-3")]
         /// # {
-        /// use bson::DateTime;
-        /// use bson::serde_helpers::datetime;
+        /// use bson::{serde_helpers::datetime, DateTime};
         /// use serde::{Serialize, Deserialize};
         /// use serde_with::serde_as;
         /// #[serde_as]
