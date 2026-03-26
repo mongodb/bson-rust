@@ -230,12 +230,12 @@ pub mod datetime {
         /// #[serde_as]
         /// #[derive(Serialize, Deserialize)]
         /// struct Item {
-        ///     #[serde_as(as = "datetime::IntoI64")]
+        ///     #[serde_as(as = "datetime::AsI64")]
         ///     pub now: DateTime,
         /// }
         /// # }
         /// ```
-        pub IntoI64,
+        pub AsI64,
         DateTime,
         |date: &DateTime| -> Result<i64, String> {
             Ok(date.timestamp_millis())
