@@ -122,6 +122,7 @@ pub mod object_id {
 /// - [`datetime::FromRfc3339String`] — converts a RFC 3339 string to and from a
 ///   [`crate::DateTime`].
 /// - [`datetime::FromI64`] — converts an `i64` to and from a [`crate::DateTime`].
+/// - [`datetime::AsI64`] — converts a [`crate::DateTime`] to and from an `i64`.
 /// - [`datetime::FromChrono04DateTime`] — converts a [`chrono::DateTime`] to and from a
 ///   [`crate::DateTime`].
 /// - [`datetime::FromJiff02Timestamp`] — converts a [`jiff::Timestamp`] to and from a
@@ -214,6 +215,34 @@ pub mod datetime {
         },
         |date: DateTime| -> Result<i64, String> {
             Ok(date.timestamp_millis())
+        }
+    );
+
+    serde_conv_doc!(
+        /// Converts a [`DateTime`] to and from an `i64` integer.
+        ///
+        /// The `i64` should represent milliseconds. See [`DateTime::from_millis`] for more details.
+        /// ```rust
+        /// # #[cfg(feature = "serde_with-3")]
+        /// # {
+        /// use bson::{serde_helpers::datetime, DateTime};
+        /// use serde::{Serialize, Deserialize};
+        /// use serde_with::serde_as;
+        /// #[serde_as]
+        /// #[derive(Serialize, Deserialize)]
+        /// struct Item {
+        ///     #[serde_as(as = "datetime::AsI64")]
+        ///     pub now: DateTime,
+        /// }
+        /// # }
+        /// ```
+        pub AsI64,
+        DateTime,
+        |date: &DateTime| -> Result<i64, String> {
+            Ok(date.timestamp_millis())
+        },
+        |value: i64| -> Result<DateTime, String> {
+            Ok(DateTime::from_millis(value))
         }
     );
 

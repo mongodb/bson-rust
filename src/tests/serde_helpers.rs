@@ -749,6 +749,74 @@ fn test_datetime_i64_helper() {
 }
 
 #[test]
+#[cfg(feature = "serde_with-3")]
+fn test_i64_datetime_helper() {
+    let _guard = LOCK.run_concurrently();
+
+    #[serde_as]
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    struct A {
+        #[serde_as(as = "datetime::AsI64")]
+        date: DateTime,
+
+        #[serde_as(as = "Option<datetime::AsI64>")]
+        date_optional_none: Option<DateTime>,
+
+        #[serde_as(as = "Option<datetime::AsI64>")]
+        date_optional_some: Option<DateTime>,
+
+        #[serde_as(as = "Vec<datetime::AsI64>")]
+        date_vector: Vec<DateTime>,
+    }
+
+    let date = DateTime::now();
+    let a = A {
+        date,
+        date_optional_none: None,
+        date_optional_some: Some(date),
+        date_vector: vec![date],
+    };
+
+    // Serialize the struct to BSON
+    let doc = serialize_to_document(&a).unwrap();
+
+    // Validate serialized data
+    assert_eq!(
+        doc.get_i64("date").unwrap(),
+        date.timestamp_millis(),
+        "Expected serialized date to match original date."
+    );
+
+    assert_eq!(
+        doc.get("date_optional_none"),
+        Some(&Bson::Null),
+        "Expected serialized date_optional_none to be None."
+    );
+
+    assert_eq!(
+        doc.get("date_optional_some"),
+        Some(&Bson::Int64(date.timestamp_millis())),
+        "Expected serialized date_optional_some to match original."
+    );
+
+    let date_vector = doc
+        .get_array("date_vector")
+        .expect("Expected serialized date_vector to be a BSON array.");
+    let expected_date_vector: Vec<Bson> = vec![Bson::Int64(date.timestamp_millis())];
+    assert_eq!(
+        date_vector, &expected_date_vector,
+        "Expected each serialized element in date_vector match the original."
+    );
+
+    // Validate deserialized data
+    let a_deserialized: A = deserialize_from_document(doc).unwrap();
+    assert_eq!(
+        a_deserialized, a,
+        "Deserialized struct does not match original."
+    );
+}
+
+#[test]
 #[cfg(all(feature = "chrono-0_4", feature = "serde_with-3"))]
 fn test_datetime_chrono04_datetime_helper() {
     let _guard = LOCK.run_concurrently();
