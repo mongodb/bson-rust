@@ -59,7 +59,7 @@ use std::{
 /// - [`object_id::AsHexString`] — converts an [`crate::oid::ObjectId`] to and from a hex string.
 /// - [`object_id::FromHexString`] — converts a hex string to and from an [`crate::oid::ObjectId`].
 pub mod object_id {
-    use crate::{macros::serde_conv_doc, oid::ObjectId};
+    use crate::oid::ObjectId;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     serde_conv_doc!(
@@ -129,7 +129,7 @@ pub mod object_id {
 /// - [`datetime::FromTime03OffsetDateTime`] — converts a [`time::OffsetDateTime`] to and from a
 ///   [`crate::DateTime`].
 pub mod datetime {
-    use crate::{macros::serde_conv_doc, DateTime};
+    use crate::DateTime;
     #[cfg(feature = "chrono-0_4")]
     use chrono::Utc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -305,7 +305,7 @@ pub mod datetime {
 /// - [`timestamp::AsU32`] — converts a [`crate::Timestamp`] to and from a `u32`.
 /// - [`timestamp::FromU32`] — converts a `u32` to and from a [`crate::Timestamp`].
 pub mod timestamp {
-    use crate::{macros::serde_conv_doc, Timestamp};
+    use crate::Timestamp;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     serde_conv_doc!(
@@ -382,7 +382,6 @@ pub mod timestamp {
 /// - [`u32::AsI32`] — converts a `u32` to and from an `i32`.
 /// - [`u32::AsI64`] — converts a `u32` to and from an `i64`.
 pub mod u32 {
-    use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     serde_conv_doc!(
@@ -481,7 +480,6 @@ pub mod u32 {
 /// - [`u64::AsI32`] — converts a `u64` to and from an `i32`.
 /// - [`u64::AsI64`] — converts a `u64` to and from an `i64`.
 pub mod u64 {
-    use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     serde_conv_doc!(
@@ -591,7 +589,6 @@ pub mod u64 {
 ///   legacy Python driver UUID format.
 #[cfg(feature = "uuid-1")]
 pub mod uuid_1 {
-    use crate::macros::serde_conv_doc;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use uuid::Uuid;
 
