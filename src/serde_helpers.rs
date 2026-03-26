@@ -122,6 +122,7 @@ pub mod object_id {
 /// - [`datetime::FromRfc3339String`] — converts a RFC 3339 string to and from a
 ///   [`crate::DateTime`].
 /// - [`datetime::FromI64`] — converts an `i64` to and from a [`crate::DateTime`].
+/// - [`datetime::AsI64`] — converts a [`crate::DateTime`] to and from an `i64`.
 /// - [`datetime::FromChrono04DateTime`] — converts a [`chrono::DateTime`] to and from a
 ///   [`crate::DateTime`].
 /// - [`datetime::FromJiff02Timestamp`] — converts a [`jiff::Timestamp`] to and from a
