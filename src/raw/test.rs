@@ -3,7 +3,6 @@ mod props;
 
 use super::*;
 use crate::{
-    doc,
     oid::ObjectId,
     spec::BinarySubtype,
     Binary,

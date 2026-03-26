@@ -33,81 +33,79 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
         match ObjectType::from_keys(&keys) {
             ObjectType::ObjectId => {
                 let oid: models::ObjectId = serde_json::from_value(obj.into())?;
-                return Ok(Bson::ObjectId(oid.parse()?));
+                Ok(Bson::ObjectId(oid.parse()?))
             }
             ObjectType::Symbol => {
                 let symbol: models::Symbol = serde_json::from_value(obj.into())?;
-                return Ok(Bson::Symbol(symbol.value));
+                Ok(Bson::Symbol(symbol.value))
             }
             ObjectType::RegularExpression => {
                 let regex: models::Regex = serde_json::from_value(obj.into())?;
-                return Ok(regex.parse()?.into());
+                Ok(regex.parse()?.into())
             }
             ObjectType::Int32 => {
                 let int: models::Int32 = serde_json::from_value(obj.into())?;
-                return Ok(Bson::Int32(int.parse()?));
+                Ok(Bson::Int32(int.parse()?))
             }
             ObjectType::Int64 => {
                 let int: models::Int64 = serde_json::from_value(obj.into())?;
-                return Ok(Bson::Int64(int.parse()?));
+                Ok(Bson::Int64(int.parse()?))
             }
             ObjectType::Double => {
                 let double: models::Double = serde_json::from_value(obj.into())?;
-                return Ok(Bson::Double(double.parse()?));
+                Ok(Bson::Double(double.parse()?))
             }
             ObjectType::Decimal128 => {
                 let decimal: models::Decimal128 = serde_json::from_value(obj.into())?;
-                return Ok(Bson::Decimal128(decimal.parse()?));
+                Ok(Bson::Decimal128(decimal.parse()?))
             }
             ObjectType::Binary => {
                 let binary: models::Binary = serde_json::from_value(obj.into())?;
-                return Ok(Bson::Binary(binary.parse()?));
+                Ok(Bson::Binary(binary.parse()?))
             }
             ObjectType::Uuid => {
                 let uuid: models::Uuid = serde_json::from_value(obj.into())?;
-                return Ok(Bson::Binary(uuid.parse()?));
+                Ok(Bson::Binary(uuid.parse()?))
             }
             ObjectType::JavaScriptCode => {
                 let code: models::JavaScriptCode = serde_json::from_value(obj.into())?;
-                return Ok(Bson::JavaScriptCode(code.code));
+                Ok(Bson::JavaScriptCode(code.code))
             }
             ObjectType::JavaScriptCodeWithScope => {
                 let code: models::JavaScriptCodeWithScope<
                     serde_json::Map<String, serde_json::Value>,
                 > = serde_json::from_value(obj.into())?;
-                return Ok(crate::JavaScriptCodeWithScope {
+                Ok(crate::JavaScriptCodeWithScope {
                     code: code.code,
                     scope: code.scope.try_into()?,
                 }
-                .into());
+                .into())
             }
             ObjectType::Timestamp => {
                 let ts: models::Timestamp = serde_json::from_value(obj.into())?;
-                return Ok(ts.parse().into());
+                Ok(ts.parse().into())
             }
             ObjectType::DateTime => {
                 let extjson_datetime: models::DateTime = serde_json::from_value(obj.into())?;
-                return Ok(Bson::DateTime(extjson_datetime.parse()?));
+                Ok(Bson::DateTime(extjson_datetime.parse()?))
             }
             ObjectType::MinKey => {
                 let min_key: models::MinKey = serde_json::from_value(obj.into())?;
-                return min_key.parse();
+                min_key.parse()
             }
             ObjectType::MaxKey => {
                 let max_key: models::MaxKey = serde_json::from_value(obj.into())?;
-                return max_key.parse();
+                max_key.parse()
             }
             ObjectType::DbPointer => {
                 let db_ptr: models::DbPointer = serde_json::from_value(obj.into())?;
-                return Ok(db_ptr.parse()?.into());
+                Ok(db_ptr.parse()?.into())
             }
             ObjectType::Undefined => {
                 let undefined: models::Undefined = serde_json::from_value(obj.into())?;
-                return undefined.parse();
+                undefined.parse()
             }
-            ObjectType::Document => {
-                return Ok(Bson::Document(obj.try_into()?));
-            }
+            ObjectType::Document => Ok(Bson::Document(obj.try_into()?)),
         }
     }
 }
