@@ -50,7 +50,7 @@ serde_path_to_error = ["dep:serde_path_to_error"]
 serde_with-3 = ["dep:serde_with", "dep:serde"]
 serde = ["dep:serde"]
 serde_json-1 = ["dep:serde_json"]
-facet-0 = ["dep:facet", "dep:facet-value", "dep:facet-format", "serde"]
+facet-0 = ["dep:facet", "dep:facet-value", "dep:facet-format"]
 
 [lib]
 name = "bson"

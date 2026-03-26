@@ -2,7 +2,7 @@
 use facet::Facet;
 
 use crate::{
-    extjson::models::{self, ObjectType},
+    extjson::models::{self, parse_err, ObjectType},
     Bson,
     Document,
 };
@@ -354,13 +354,6 @@ impl TryFrom<ExtJson> for Document {
         }
     }
 }
-
-macro_rules! parse_err {
-    ($fmt:literal $(, $a:expr)*) => {{
-        crate::error::Error::deserialization(format!($fmt $(, $a)*))
-    }};
-}
-use parse_err;
 
 #[cfg(test)]
 mod test {
