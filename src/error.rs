@@ -83,7 +83,7 @@ pub enum ErrorKind {
 
     /// A general error occurred during deserialization. This variant is constructed in the
     /// [`serde::de::Error`] implementation for the [`Error`](struct@Error) type.
-    #[cfg(feature = "serde")]
+    #[cfg(any(feature = "serde", feature = "facet-0"))]
     #[error("A deserialization-related error occurred")]
     #[non_exhaustive]
     Deserialization {},
@@ -108,7 +108,7 @@ pub enum ErrorKind {
 
     /// A general error occurred during serialization. This variant is constructed in the
     /// [`serde::ser::Error`] implementation for the [`Error`](struct@Error) type.
-    #[cfg(feature = "serde")]
+    #[cfg(any(feature = "serde", feature = "facet-0"))]
     #[error("A serialization error occurred")]
     #[non_exhaustive]
     Serialization {},
