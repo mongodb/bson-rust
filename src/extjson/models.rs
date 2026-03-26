@@ -386,7 +386,7 @@ pub(crate) struct Timestamp {
 fn serialize_u32_as_i64<S: Serializer>(
     val: &u32,
     serializer: S,
-) -> std::error::Result<S::Ok, S::Error> {
+) -> std::result::Result<S::Ok, S::Error> {
     serializer.serialize_i64(*val as i64)
 }
 
