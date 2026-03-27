@@ -97,6 +97,21 @@ impl RawArray {
         self.into_iter().nth(index).transpose()
     }
 
+    /// Gets a reference to the value at the given index. Returns an error if a cstring is
+    /// encountered that exceeds the provided `len`.
+    #[cfg(feature = "sfp-internal")]
+    #[doc(hidden)]
+    pub fn get_with_max_cstr_parse_len(
+        &self,
+        index: usize,
+        len: usize,
+    ) -> RawResult<Option<RawBsonRef<'_>>> {
+        self.into_iter()
+            .max_cstr_parse_len(len)
+            .nth(index)
+            .transpose()
+    }
+
     fn get_with<'a, T>(
         &'a self,
         index: usize,
@@ -267,6 +282,17 @@ impl<'a> IntoIterator for &'a RawArray {
 /// An iterator over borrowed raw BSON array values.
 pub struct RawArrayIter<'a> {
     inner: RawIter<'a>,
+}
+
+impl<'a> RawArrayIter<'a> {
+    /// The maximum number of bytes the iterator should parse when searching for the null-terminator
+    /// for a cstring.
+    #[cfg(feature = "sfp-internal")]
+    #[doc(hidden)]
+    pub fn max_cstr_parse_len(mut self, len: impl Into<Option<usize>>) -> Self {
+        self.inner = self.inner.max_cstr_parse_len(len);
+        self
+    }
 }
 
 impl<'a> Iterator for RawArrayIter<'a> {
