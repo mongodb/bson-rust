@@ -59,11 +59,11 @@ impl ObjectType {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct Int32 {
     #[cfg_attr(feature = "serde", serde(rename = "$numberInt"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$numberInt"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$numberInt"))]
     value: String,
 }
 
@@ -84,13 +84,13 @@ impl From<&i32> for Int32 {
 }
 
 #[derive(Debug)]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub(crate) struct Int64 {
     #[cfg_attr(feature = "serde", serde(rename = "$numberLong"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$numberLong"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$numberLong"))]
     value: String,
 }
 
@@ -113,11 +113,11 @@ impl From<&i64> for Int64 {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct Double {
     #[cfg_attr(feature = "serde", serde(rename = "$numberDouble"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$numberDouble"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$numberDouble"))]
     value: String,
 }
 
@@ -152,11 +152,11 @@ impl Double {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct Decimal128 {
     #[cfg_attr(feature = "serde", serde(rename = "$numberDecimal"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$numberDecimal"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$numberDecimal"))]
     value: String,
 }
 
@@ -179,11 +179,11 @@ impl Decimal128 {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct ObjectId {
     #[cfg_attr(feature = "serde", serde(rename = "$oid"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$oid"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$oid"))]
     oid: String,
 }
 
@@ -202,11 +202,11 @@ impl From<crate::oid::ObjectId> for ObjectId {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct Symbol {
     #[cfg_attr(feature = "serde", serde(rename = "$symbol"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$symbol"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$symbol"))]
     pub(crate) value: String,
 }
 
@@ -219,19 +219,19 @@ impl From<String> for Symbol {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct Regex {
     #[cfg_attr(feature = "serde", serde(rename = "$regularExpression"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$regularExpression"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$regularExpression"))]
     body: RegexBody,
 }
 
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct RegexBody {
     pub(crate) pattern: String,
     pub(crate) options: String,
@@ -257,24 +257,24 @@ impl Regex {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct Binary {
     #[cfg_attr(feature = "serde", serde(rename = "$binary"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$binary"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$binary"))]
     pub(crate) body: BinaryBody,
 }
 
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct BinaryBody {
     pub(crate) base64: String,
 
     #[cfg_attr(feature = "serde", serde(rename = "subType"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "subType"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "subType"))]
     pub(crate) subtype: String,
 }
 
@@ -313,11 +313,11 @@ impl Binary {
 
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct Uuid {
     #[cfg_attr(feature = "serde", serde(rename = "$uuid"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$uuid"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$uuid"))]
     pub(crate) value: String,
 }
 
@@ -340,11 +340,11 @@ impl Uuid {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct JavaScriptCode {
     #[cfg_attr(feature = "serde", serde(rename = "$code"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$code"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$code"))]
     pub(crate) code: String,
 }
 
@@ -356,28 +356,28 @@ impl From<&str> for JavaScriptCode {
     }
 }
 
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct JavaScriptCodeWithScope<Scope> {
     #[cfg_attr(feature = "serde", serde(rename = "$code"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$code"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$code"))]
     pub(crate) code: String,
 
     #[cfg_attr(feature = "serde", serde(rename = "$scope"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$scope"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$scope"))]
     pub(crate) scope: Scope,
 }
 
 #[derive(Debug)]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct Timestamp {
     #[cfg_attr(feature = "serde", serde(rename = "$timestamp"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$timestamp"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$timestamp"))]
     body: TimestampBody,
 }
 
@@ -393,8 +393,8 @@ fn serialize_u32_as_i64<S: Serializer>(
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct TimestampBody {
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_u32_as_i64"))]
     pub(crate) t: u32,
@@ -426,19 +426,19 @@ impl Timestamp {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct DateTime {
     #[cfg_attr(feature = "serde", serde(rename = "$date"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$date"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$date"))]
     pub(crate) body: DateTimeBody,
 }
 
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(untagged))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(untagged))]
 #[repr(C)]
 pub(crate) enum DateTimeBody {
     Canonical(Int64),
@@ -482,11 +482,11 @@ impl DateTime {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct MinKey {
     #[cfg_attr(feature = "serde", serde(rename = "$minKey"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$minKey"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$minKey"))]
     pub(crate) value: u8,
 }
 
@@ -506,11 +506,11 @@ impl MinKey {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct MaxKey {
     #[cfg_attr(feature = "serde", serde(rename = "$maxKey"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$maxKey"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$maxKey"))]
     pub(crate) value: u8,
 }
 
@@ -530,26 +530,26 @@ impl MaxKey {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct DbPointer {
     #[cfg_attr(feature = "serde", serde(rename = "$dbPointer"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$dbPointer"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$dbPointer"))]
     body: DbPointerBody,
 }
 
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct DbPointerBody {
     #[cfg_attr(feature = "serde", serde(rename = "$ref"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$ref"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$ref"))]
     pub(crate) ref_ns: String,
 
     #[cfg_attr(feature = "serde", serde(rename = "$id"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$id"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$id"))]
     pub(crate) id: ObjectId,
 }
 
@@ -576,11 +576,11 @@ impl DbPointer {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
-#[cfg_attr(feature = "facet-0", derive(facet::Facet))]
-#[cfg_attr(feature = "facet-0", facet(deny_unknown_fields))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", facet(deny_unknown_fields))]
 pub(crate) struct Undefined {
     #[cfg_attr(feature = "serde", serde(rename = "$undefined"))]
-    #[cfg_attr(feature = "facet-0", facet(rename = "$undefined"))]
+    #[cfg_attr(feature = "facet-unstable", facet(rename = "$undefined"))]
     pub(crate) value: bool,
 }
 

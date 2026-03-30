@@ -9,6 +9,7 @@ use crate::{
     extjson::models::{self, parse_err, ObjectType},
     Bson,
     Document,
+    JavaScriptCodeWithScope,
 };
 
 /// A type for use with #[facet(proxy)] that represents BSON values in their canonical extended JSON
@@ -99,7 +100,9 @@ impl TryFrom<ExtJson> for Bson {
                             .map_err(|e| parse_err!("{e}"))
                             .map(|m| Bson::JavaScriptCode(m.code))
                     }
-                    ObjectType::JavaScriptCodeWithScope => todo!(),
+                    ObjectType::JavaScriptCodeWithScope => {
+                        JavaScriptCodeWithScope::try_from(v).map(Bson::JavaScriptCodeWithScope)
+                    }
                     ObjectType::Undefined => facet_value::from_value::<models::Undefined>(v.0)
                         .map_err(|e| parse_err!("{e}"))
                         .and_then(|m| m.parse()),
@@ -268,15 +271,25 @@ impl TryFrom<ExtJson> for crate::DateTime {
     }
 }
 
-impl TryFrom<&crate::JavaScriptCodeWithScope> for ExtJson {
+impl TryFrom<&JavaScriptCodeWithScope> for ExtJson {
     type Error = ToValueError;
-    fn try_from(value: &crate::JavaScriptCodeWithScope) -> Result<Self, Self::Error> {
+    fn try_from(value: &JavaScriptCodeWithScope) -> Result<Self, Self::Error> {
         let scope: ExtJson = (&value.scope).try_into()?;
         facet_value::to_value(&models::JavaScriptCodeWithScope {
             code: value.code.clone(),
             scope: Some(scope),
         })
         .map(ExtJson)
+    }
+}
+
+impl TryFrom<ExtJson> for JavaScriptCodeWithScope {
+    type Error = crate::error::Error;
+    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+        let models::JavaScriptCodeWithScope::<facet_value::Value> { code, scope } =
+            facet_value::from_value(value.0).map_err(|e| parse_err!("{e}"))?;
+        let scope = Document::try_from(ExtJson(scope))?;
+        Ok(JavaScriptCodeWithScope { code, scope })
     }
 }
 

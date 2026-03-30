@@ -416,6 +416,53 @@ fn roundtrip_array() {
 }
 
 #[test]
+fn roundtrip_javascript_code() {
+    #[derive(Debug, PartialEq, Facet)]
+    struct Foo {
+        #[facet(opaque, proxy = ExtJson)]
+        b: Bson,
+    }
+    assert_roundtrip(
+        &Foo {
+            b: Bson::JavaScriptCode("console.log(1)".into()),
+        },
+        r#"{
+  "b": {
+    "$code": "console.log(1)"
+  }
+}"#,
+    );
+}
+
+#[test]
+fn roundtrip_javascript_code_with_scope() {
+    #[derive(Debug, PartialEq, Facet)]
+    struct Foo {
+        #[facet(opaque, proxy = ExtJson)]
+        b: Bson,
+    }
+    let jsc = crate::JavaScriptCodeWithScope {
+        code: "function(x) { return x + n; }".into(),
+        scope: doc! { "n": 1 },
+    };
+    assert_roundtrip(
+        &Foo {
+            b: Bson::JavaScriptCodeWithScope(jsc),
+        },
+        r#"{
+  "b": {
+    "$code": "function(x) { return x + n; }",
+    "$scope": {
+      "n": {
+        "$numberInt": "1"
+      }
+    }
+  }
+}"#,
+    );
+}
+
+#[test]
 fn roundtrip_document() {
     #[derive(Debug, PartialEq, Facet)]
     struct Foo {
