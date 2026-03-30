@@ -71,6 +71,7 @@
 //! | `compat-3-0-0` | Required for future compatibility if default features are disabled. | yes |
 //! | `large_dates` | Increase the supported year range for some `bson::DateTime` utilities from +/-9,999 (inclusive) to +/-999,999 (inclusive). Note that enabling this feature can impact performance and introduce parsing ambiguities. | no |
 //! | `serde_json-1` | Enable support for v1.x of the [`serde_json`](https://docs.rs/serde_json/1.x) crate in the public API. | no |
+//! | `facet-unstable` | Enable support for [`facet`](https://docs.rs/facet/latest/facet/).  This is an unstable feture; as facet is currently pre-1.0, the version supported by the `bson` crate may change in a minor version update. | no |
 //!
 //! ## BSON values
 //!
@@ -494,8 +495,10 @@ pub mod de;
 pub mod decimal128;
 pub mod document;
 pub mod error;
-#[cfg(feature = "serde")]
+#[cfg(any(feature = "serde", feature = "facet-unstable"))]
 mod extjson;
+#[cfg(feature = "facet-unstable")]
+pub mod facet;
 pub mod oid;
 pub mod raw;
 #[cfg(feature = "serde")]

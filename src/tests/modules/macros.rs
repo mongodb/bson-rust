@@ -1,7 +1,6 @@
 use crate::{
     base64,
     cstr,
-    doc,
     oid::ObjectId,
     spec::BinarySubtype,
     tests::LOCK,

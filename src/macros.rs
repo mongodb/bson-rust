@@ -492,6 +492,3 @@ macro_rules! serde_conv_doc {
         };
     };
 }
-
-#[cfg(feature = "serde")]
-pub(crate) use serde_conv_doc;

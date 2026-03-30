@@ -1,13 +1,4 @@
-use crate::{
-    doc,
-    oid::ObjectId,
-    spec::BinarySubtype,
-    tests::LOCK,
-    Binary,
-    Bson,
-    Document,
-    Timestamp,
-};
+use crate::{oid::ObjectId, spec::BinarySubtype, tests::LOCK, Binary, Bson, Document, Timestamp};
 use time::OffsetDateTime;
 
 #[test]
