@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod test;
 
+mod format;
+
 use facet::Facet;
 
 use crate::{

@@ -135,6 +135,7 @@ dependencies = [
  "facet",
  "facet-format",
  "facet-json",
+ "facet-reflect",
  "facet-value",
  "getrandom 0.3.4",
  "hex",
@@ -511,6 +512,7 @@ dependencies = [
  "facet-core",
  "facet-path",
  "hashbrown 0.16.1",
+ "regex",
  "smallvec",
 ]
 

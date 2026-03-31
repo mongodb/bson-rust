@@ -219,7 +219,7 @@ impl Error {
         Self::from(ErrorKind::DateTime {}).with_message(message)
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(any(feature = "serde", feature = "facet-unstable"))]
     pub(crate) fn serialization(message: impl ToString) -> Self {
         Self::from(ErrorKind::Serialization {}).with_message(message)
     }
