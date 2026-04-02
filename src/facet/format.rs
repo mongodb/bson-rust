@@ -25,14 +25,12 @@ use crate::{
 };
 
 /// Serialize a value to BSON bytes.
-pub fn to_vec<'a, T: Facet<'a>>(value: &'a T) -> Result<Vec<u8>> {
+pub fn to_vec<'facet, T: Facet<'facet>>(value: &T) -> Result<Vec<u8>> {
     let mut s = Serializer::new();
-    facet_format::serialize_root(&mut s, facet_reflect::Peek::new(&value)).map_err(
-        |e| match e {
-            SerializeError::Backend(e) => e,
-            _ => Error::serialization(format!("{e}")),
-        },
-    )?;
+    facet_format::serialize_root(&mut s, facet_reflect::Peek::new(value)).map_err(|e| match e {
+        SerializeError::Backend(e) => e,
+        _ => Error::serialization(format!("{e}")),
+    })?;
     Ok(s.bytes)
 }
 
@@ -232,7 +230,7 @@ impl From<ReflectError> for Error {
 mod test {
     use std::io::Cursor;
 
-    use crate::{Document, cstr};
+    use crate::{Bson, Document, cstr};
 
     use super::*;
 
@@ -258,21 +256,6 @@ mod test {
         .unwrap();
         let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
         assert_eq!(doc, doc! { "inner": { "value": 42 }, "other": 13 });
-    }
-
-    #[test]
-    fn array_serialize() {
-        #[derive(Facet, Debug)]
-        struct Outer {
-            value: Vec<i32>,
-        }
-
-        let bytes = to_vec(&Outer {
-            value: vec![42, 13],
-        })
-        .unwrap();
-        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
-        assert_eq!(doc, doc! { "value": [42, 13] });
     }
 
     #[test]
@@ -320,117 +303,77 @@ mod test {
     }
 
     #[test]
-    fn regex_serialize() {
-        #[derive(Facet)]
+    fn array_serialize() {
+        #[derive(Facet, Debug)]
         struct Outer {
-            value: Regex,
+            value: Vec<i32>,
         }
-        let re = Regex {
+
+        let bytes = to_vec(&Outer {
+            value: vec![42, 13],
+        })
+        .unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        assert_eq!(doc, doc! { "value": [42, 13] });
+    }
+
+    fn value_serialize<T: Facet<'static> + Into<Bson> + Clone>(v: T) {
+        #[derive(Facet)]
+        struct Outer<T> {
+            value: T,
+        }
+        let bytes = to_vec(&Outer { value: v.clone() }).unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        assert_eq!(doc, doc! { "value": v });
+    }
+
+    #[test]
+    fn regex_serialize() {
+        value_serialize(Regex {
             pattern: cstr!("foo.*bar").to_owned(),
             options: cstr!("").to_owned(),
-        };
-        let bytes = to_vec(&Outer { value: re.clone() }).unwrap();
-        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
-        assert_eq!(doc, doc! { "value": re });
+        });
     }
 
     #[test]
     fn binary_serialize() {
-        #[derive(Facet)]
-        struct Outer {
-            value: Binary,
-        }
-        let bin = Binary {
+        value_serialize(Binary {
             subtype: BinarySubtype::Generic,
             bytes: vec![1, 2, 3, 4],
-        };
-        let bytes = to_vec(&Outer { value: bin.clone() }).unwrap();
-        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
-        assert_eq!(doc, doc! { "value": bin });
+        });
     }
 
     #[test]
     fn timestamp_serialize() {
-        #[derive(Facet)]
-        struct Outer {
-            value: Timestamp,
-        }
-        let ts = Timestamp {
-            time: 1234,
-            increment: 5,
-        };
-        let bytes = to_vec(&Outer { value: ts }).unwrap();
-        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
-        assert_eq!(doc, doc! { "value": ts });
+        value_serialize(Timestamp { time: 1234, increment: 5 });
     }
 
     #[test]
     fn object_id_serialize() {
-        #[derive(Facet)]
-        struct Outer {
-            value: ObjectId,
-        }
-        let oid = ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap();
-        let bytes = to_vec(&Outer { value: oid }).unwrap();
-        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
-        assert_eq!(doc, doc! { "value": oid });
+        value_serialize(ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap());
     }
 
     #[test]
     fn datetime_serialize() {
-        #[derive(Facet)]
-        struct Outer {
-            value: DateTime,
-        }
-        let dt = DateTime::from_millis(1_000_000_000_000);
-        let bytes = to_vec(&Outer { value: dt }).unwrap();
-        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
-        assert_eq!(doc, doc! { "value": dt });
+        value_serialize(DateTime::from_millis(1_000_000_000_000));
     }
 
     #[test]
     fn decimal128_serialize() {
-        #[derive(Facet)]
-        struct Outer {
-            value: Decimal128,
-        }
-        let d: Decimal128 = "3.14".parse().unwrap();
-        let bytes = to_vec(&Outer { value: d }).unwrap();
-        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
-        assert_eq!(doc, doc! { "value": d });
+        value_serialize("3.14".parse::<Decimal128>().unwrap());
     }
 
     #[test]
     fn javascript_code_with_scope_serialize() {
-        #[derive(Facet)]
-        struct Outer {
-            value: JavaScriptCodeWithScope,
-        }
-        let jscws = JavaScriptCodeWithScope {
+        value_serialize(JavaScriptCodeWithScope {
             code: "function(x) { return x + n; }".into(),
             scope: doc! { "n": 1 },
-        };
-        let bytes = to_vec(&Outer {
-            value: jscws.clone(),
-        })
-        .unwrap();
-        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
-        assert_eq!(doc, doc! { "value": jscws });
+        });
     }
 
     #[test]
     fn db_pointer_serialize() {
-        #[derive(Facet)]
-        struct Outer {
-            value: DbPointer,
-        }
         let id = ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap();
-        let dbp = DbPointer {
-            namespace: "test.coll".into(),
-            id,
-        };
-        let bytes = to_vec(&Outer { value: dbp.clone() }).unwrap();
-        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
-        assert_eq!(doc, doc! { "value": dbp });
+        value_serialize(DbPointer { namespace: "test.coll".into(), id });
     }
 }
