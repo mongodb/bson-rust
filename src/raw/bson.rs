@@ -128,7 +128,7 @@ impl RawBson {
     /// wrapped value isn't a BSON array.
     pub fn as_array_mut(&mut self) -> Option<&mut RawArrayBuf> {
         match self {
-            RawBson::Array(ref mut v) => Some(v),
+            RawBson::Array(v) => Some(v),
             _ => None,
         }
     }
@@ -146,7 +146,7 @@ impl RawBson {
     /// wrapped value isn't a BSON document.
     pub fn as_document_mut(&mut self) -> Option<&mut RawDocumentBuf> {
         match self {
-            RawBson::Document(ref mut v) => Some(v),
+            RawBson::Document(v) => Some(v),
             _ => None,
         }
     }

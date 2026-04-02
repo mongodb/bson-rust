@@ -7,11 +7,11 @@ use facet_format::{FormatSerializer, ScalarValue, SerializeError};
 use facet_reflect::ReflectError;
 
 use crate::{
+    RawBinaryRef,
+    RawBsonRef,
     error::{Error, Result},
     raw::CStr,
     spec::{BinarySubtype, ElementType},
-    RawBinaryRef,
-    RawBsonRef,
 };
 
 /// Serialize a value to BSON bytes.
@@ -30,7 +30,7 @@ pub fn to_vec<'a, T: Facet<'a>>(value: &'a T) -> Result<Vec<u8>> {
 struct Serializer {
     bytes: Vec<u8>,
     doc_size_pos: Vec<usize>,
-    elem_kind_pos: Option<usize>,
+    elem_type_pos: Option<usize>,
     array_ix: Vec<usize>,
 }
 
@@ -39,45 +39,42 @@ impl Serializer {
         Self {
             bytes: vec![],
             doc_size_pos: vec![],
-            elem_kind_pos: None,
+            elem_type_pos: None,
             array_ix: vec![],
         }
     }
 
-    fn write_bson_ref(&mut self, bv: RawBsonRef<'_>) -> Result<()> {
-        println!("write_bson_ref");
-        // no preceeding `field_key` call; we're either in an array or an error
-        if self.elem_kind_pos.is_none() {
-            let ix = self
-                .array_ix
-                .pop()
-                .ok_or_else(|| Error::serialization("field value with no key or array index"))?;
-            println!("write_bson_ref: array ix={ix}");
+    fn write_elem_type(&mut self, t: ElementType) -> Result<()> {
+        // synthesize a field key if we're in an array
+        if self.elem_type_pos.is_none()
+            && let Some(ix) = self.array_ix.pop()
+        {
             // synthesize the key: index as string
             self.field_key(&ix.to_string())?;
             self.array_ix.push(ix + 1);
         }
+        // write the type for a non-toplevel value
+        if let Some(type_pos) = self.elem_type_pos.take() {
+            self.bytes[type_pos] = t as u8;
+        }
 
-        let kind_pos = self
-            .elem_kind_pos
-            .take()
-            .ok_or_else(|| Error::serialization("field value without field key"))?;
-        self.bytes[kind_pos] = bv.element_type() as u8;
+        Ok(())
+    }
+
+    fn write_bson_ref(&mut self, bv: RawBsonRef<'_>) -> Result<()> {
+        self.write_elem_type(bv.element_type())?;
         bv.append_to(&mut self.bytes);
         Ok(())
     }
 
     fn begin_doc(&mut self, is_array: bool) -> Result<()> {
-        println!("begin_struct");
-        if let Some(kind_pos) = self.elem_kind_pos.take() {
-            println!("begin_struct: embedded kind_pos={kind_pos}");
-            self.bytes[kind_pos] = if is_array {
+        self.write_elem_type(
+            if is_array {
                 ElementType::Array
             } else {
                 ElementType::EmbeddedDocument
-            } as u8;
-        }
-        println!("begin_struct: size_pos={}", self.bytes.len());
+            },
+        )?;
         self.doc_size_pos.push(self.bytes.len());
         self.bytes
             .extend_from_slice(crate::raw::MIN_BSON_DOCUMENT_SIZE.to_le_bytes().as_slice()); // placeholder
@@ -97,7 +94,6 @@ impl facet_format::FormatSerializer for Serializer {
             .doc_size_pos
             .pop()
             .ok_or_else(|| Error::serialization("mismatched begin_struct / end_struct"))?;
-        println!("end_struct: size_pos={size_pos}");
         self.bytes.push(0); // terminal null
         let size = (self.bytes.len() - size_pos) as i32;
         self.bytes[size_pos..size_pos + 4].copy_from_slice(&size.to_le_bytes());
@@ -105,11 +101,10 @@ impl facet_format::FormatSerializer for Serializer {
     }
 
     fn field_key(&mut self, key: &str) -> Result<()> {
-        if self.elem_kind_pos.is_some() {
+        if self.elem_type_pos.is_some() {
             return Err(Error::serialization("unexpected field_key"));
         }
-        println!("field_key: {key:?} kind_pos: {}", self.bytes.len());
-        self.elem_kind_pos = Some(self.bytes.len());
+        self.elem_type_pos = Some(self.bytes.len());
         self.bytes.push(0); // placeholder
         let key: &CStr = key.try_into()?;
         key.append_to(&mut self.bytes);
@@ -117,7 +112,6 @@ impl facet_format::FormatSerializer for Serializer {
     }
 
     fn scalar(&mut self, scalar: ScalarValue<'_>) -> Result<()> {
-        println!("scalar");
         let tmp_s;
         let tmp_b;
         let bv = match scalar {
@@ -176,13 +170,11 @@ impl facet_format::FormatSerializer for Serializer {
     }
 
     fn begin_seq(&mut self) -> Result<()> {
-        println!("begin_seq");
         self.array_ix.push(0);
         self.begin_doc(true)
     }
 
     fn end_seq(&mut self) -> Result<()> {
-        println!("end_seq");
         self.array_ix
             .pop()
             .ok_or_else(|| Error::serialization("mismatched begin_seq / end_seq"))?;
@@ -274,6 +266,16 @@ mod test {
         })
         .unwrap();
         let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
-        println!("{doc}");
+        assert_eq!(
+            doc,
+            doc! {
+                "inner": [
+                    { "value": 42, "arr": ["hello", "world"] },
+                    { "value": 13, "arr": ["goodbye", "serde"] },
+                ],
+                "other": 1066,
+                "more": true,
+            }
+        );
     }
 }

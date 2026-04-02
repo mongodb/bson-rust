@@ -69,7 +69,7 @@ impl Display for Document {
                     fmt.write_str(",\n")?;
                 }
                 match v {
-                    Bson::Document(ref doc) => {
+                    Bson::Document(doc) => {
                         let new_indent = indent + 2;
                         write!(fmt, "{indent_str}\"{}\": {doc:#new_indent$}", k)?;
                     }

@@ -13,10 +13,10 @@ description = "Encoding and decoding support for BSON in Rust"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/mongodb/bson-rust"
-edition = "2021"
+edition = "2024"
 keywords = ["bson", "mongodb", "serde", "serialization", "deserialization"]
 categories = ["encoding"]
-rust-version = "1.81"
+rust-version = "1.85"
 
 # By default cargo include everything git include
 # cargo diet can help to manage what's not useful.

@@ -32,12 +32,12 @@ use std::{
 
 pub use crate::document::Document;
 use crate::{
-    oid,
-    raw::{doc_writer::DocWriter, CString},
-    spec::ElementType,
     Binary,
     Decimal128,
     RawBsonRef,
+    oid,
+    raw::{CString, doc_writer::DocWriter},
+    spec::ElementType,
 };
 
 /// Possible BSON value types.
@@ -150,7 +150,7 @@ impl Display for Bson {
                                 let new_indent = indent + 2;
                                 write!(fmt, "{bson:#new_indent$}")?;
                             }
-                            Bson::Document(ref doc) => {
+                            Bson::Document(doc) => {
                                 let new_indent = indent + 2;
                                 write!(fmt, "{doc:#new_indent$}")?;
                             }
@@ -1098,7 +1098,7 @@ impl Bson {
     /// If `self` is [`DbPointer`](Bson::DbPointer), return its value.  Returns [`None`] otherwise.
     pub fn as_db_pointer(&self) -> Option<&DbPointer> {
         match self {
-            Bson::DbPointer(ref db_pointer) => Some(db_pointer),
+            Bson::DbPointer(db_pointer) => Some(db_pointer),
             _ => None,
         }
     }

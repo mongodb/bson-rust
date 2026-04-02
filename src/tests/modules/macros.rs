@@ -1,14 +1,14 @@
 use crate::{
-    base64,
-    cstr,
-    oid::ObjectId,
-    spec::BinarySubtype,
-    tests::LOCK,
     Binary,
     Bson,
     RawBson,
     Regex,
     Timestamp,
+    base64,
+    cstr,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    tests::LOCK,
 };
 use pretty_assertions::assert_eq;
 
@@ -145,13 +145,13 @@ fn recursive_macro() {
 
                             // Match array items
                             match arr.first() {
-                                Some(Bson::String(ref s)) => assert_eq!("seal", s),
+                                Some(Bson::String(s)) => assert_eq!("seal", s),
                                 _ => panic!(
                                     "String 'seal' was not inserted into inner array correctly."
                                 ),
                             }
                             match arr.get(1) {
-                                Some(Bson::Boolean(ref b)) => assert!(!b),
+                                Some(Bson::Boolean(b)) => assert!(!b),
                                 _ => panic!(
                                     "Bool 'false' was not inserted into inner array correctly."
                                 ),
@@ -179,7 +179,7 @@ fn recursive_macro() {
 
             // Integer type
             match arr.first() {
-                Some(Bson::Int32(ref i)) => assert_eq!(-7, *i),
+                Some(Bson::Int32(i)) => assert_eq!(-7, *i),
                 _ => panic!("I32 '-7' was not inserted correctly."),
             }
         }
@@ -193,7 +193,7 @@ fn recursive_macro() {
 
             // Nested document
             match arr.first() {
-                Some(Bson::Document(ref doc)) => {
+                Some(Bson::Document(doc)) => {
                     // String
                     match doc.get("apple") {
                         Some(Bson::String(s)) => assert_eq!("ripe", s),
