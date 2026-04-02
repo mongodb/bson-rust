@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod test;
 
-mod format;
+pub mod format;
 
 use facet::Facet;
 

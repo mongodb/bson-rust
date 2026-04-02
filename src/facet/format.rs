@@ -1,18 +1,37 @@
-use facet_format::ScalarValue;
+//! Facet format support for BSON.
+
+use std::borrow::Cow;
+
+use facet::Facet;
+use facet_format::{FormatSerializer, ScalarValue, SerializeError};
 use facet_reflect::ReflectError;
 
 use crate::{
     error::{Error, Result},
     raw::CStr,
-    spec::ElementType,
+    spec::{BinarySubtype, ElementType},
+    RawBinaryRef,
     RawBsonRef,
 };
+
+/// Serialize a value to BSON bytes.
+pub fn to_vec<'a, T: Facet<'a>>(value: &'a T) -> Result<Vec<u8>> {
+    let mut s = Serializer::new();
+    facet_format::serialize_root(&mut s, facet_reflect::Peek::new(&value)).map_err(
+        |e| match e {
+            SerializeError::Backend(e) => e,
+            _ => Error::serialization(format!("{e}")),
+        },
+    )?;
+    Ok(s.bytes)
+}
 
 #[derive(Debug)]
 struct Serializer {
     bytes: Vec<u8>,
     doc_size_pos: Vec<usize>,
     elem_kind_pos: Option<usize>,
+    array_ix: Vec<usize>,
 }
 
 impl Serializer {
@@ -21,10 +40,24 @@ impl Serializer {
             bytes: vec![],
             doc_size_pos: vec![],
             elem_kind_pos: None,
+            array_ix: vec![],
         }
     }
 
     fn write_bson_ref(&mut self, bv: RawBsonRef<'_>) -> Result<()> {
+        println!("write_bson_ref");
+        // no preceeding `field_key` call; we're either in an array or an error
+        if self.elem_kind_pos.is_none() {
+            let ix = self
+                .array_ix
+                .pop()
+                .ok_or_else(|| Error::serialization("field value with no key or array index"))?;
+            println!("write_bson_ref: array ix={ix}");
+            // synthesize the key: index as string
+            self.field_key(&ix.to_string())?;
+            self.array_ix.push(ix + 1);
+        }
+
         let kind_pos = self
             .elem_kind_pos
             .take()
@@ -33,28 +66,38 @@ impl Serializer {
         bv.append_to(&mut self.bytes);
         Ok(())
     }
+
+    fn begin_doc(&mut self, is_array: bool) -> Result<()> {
+        println!("begin_struct");
+        if let Some(kind_pos) = self.elem_kind_pos.take() {
+            println!("begin_struct: embedded kind_pos={kind_pos}");
+            self.bytes[kind_pos] = if is_array {
+                ElementType::Array
+            } else {
+                ElementType::EmbeddedDocument
+            } as u8;
+        }
+        println!("begin_struct: size_pos={}", self.bytes.len());
+        self.doc_size_pos.push(self.bytes.len());
+        self.bytes
+            .extend_from_slice(crate::raw::MIN_BSON_DOCUMENT_SIZE.to_le_bytes().as_slice()); // placeholder
+        Ok(())
+    }
 }
 
 impl facet_format::FormatSerializer for Serializer {
     type Error = Error;
 
     fn begin_struct(&mut self) -> Result<()> {
-        println!("begin_struct");
-        if let Some(kind_pos) = self.elem_kind_pos.take() {
-            self.bytes[kind_pos] = ElementType::EmbeddedDocument as u8;
-        }
-        self.doc_size_pos.push(self.bytes.len());
-        self.bytes
-            .extend_from_slice(crate::raw::MIN_BSON_DOCUMENT_SIZE.to_le_bytes().as_slice()); // placeholder
-        Ok(())
+        self.begin_doc(false)
     }
 
     fn end_struct(&mut self) -> Result<()> {
-        println!("end_struct");
         let size_pos = self
             .doc_size_pos
             .pop()
             .ok_or_else(|| Error::serialization("mismatched begin_struct / end_struct"))?;
+        println!("end_struct: size_pos={size_pos}");
         self.bytes.push(0); // terminal null
         let size = (self.bytes.len() - size_pos) as i32;
         self.bytes[size_pos..size_pos + 4].copy_from_slice(&size.to_le_bytes());
@@ -62,10 +105,10 @@ impl facet_format::FormatSerializer for Serializer {
     }
 
     fn field_key(&mut self, key: &str) -> Result<()> {
-        println!("field_key: {key:?}");
         if self.elem_kind_pos.is_some() {
             return Err(Error::serialization("unexpected field_key"));
         }
+        println!("field_key: {key:?} kind_pos: {}", self.bytes.len());
         self.elem_kind_pos = Some(self.bytes.len());
         self.bytes.push(0); // placeholder
         let key: &CStr = key.try_into()?;
@@ -74,20 +117,57 @@ impl facet_format::FormatSerializer for Serializer {
     }
 
     fn scalar(&mut self, scalar: ScalarValue<'_>) -> Result<()> {
-        println!("scalar: {scalar:?}");
+        println!("scalar");
+        let tmp_s;
+        let tmp_b;
         let bv = match scalar {
+            ScalarValue::Unit => RawBsonRef::Null,
+            ScalarValue::Null => RawBsonRef::Null,
+            ScalarValue::Bool(b) => RawBsonRef::Boolean(b),
+            ScalarValue::Char(c) => {
+                tmp_s = c.to_string();
+                RawBsonRef::String(&tmp_s)
+            }
             ScalarValue::I64(i) => RawBsonRef::Int64(i),
-            _ => todo!(),
+            ScalarValue::U64(u) => RawBsonRef::Int64(u.try_into().map_err(|e| {
+                Error::serialization(format!("cannot store {u} as a BSON int64: {e}"))
+            })?),
+            ScalarValue::I128(i) => RawBsonRef::Int64(i.try_into().map_err(|e| {
+                Error::serialization(format!("cannot store {i} as a BSON int64: {e}"))
+            })?),
+            ScalarValue::U128(u) => RawBsonRef::Int64(u.try_into().map_err(|e| {
+                Error::serialization(format!("cannot store {u} as a BSON int64: {e}"))
+            })?),
+            ScalarValue::F64(f) => RawBsonRef::Double(f),
+            ScalarValue::Str(c) => match c {
+                Cow::Borrowed(s) => RawBsonRef::String(s),
+                Cow::Owned(s) => {
+                    tmp_s = s;
+                    RawBsonRef::String(&tmp_s)
+                }
+            },
+            ScalarValue::Bytes(c) => {
+                let bytes = match c {
+                    Cow::Borrowed(b) => b,
+                    Cow::Owned(b) => {
+                        tmp_b = b;
+                        &tmp_b
+                    }
+                };
+                RawBsonRef::Binary(RawBinaryRef {
+                    subtype: BinarySubtype::Generic,
+                    bytes,
+                })
+            }
         };
         self.write_bson_ref(bv)
     }
 
     fn serialize_opaque_scalar(
         &mut self,
-        shape: &'static facet::Shape,
+        _shape: &'static facet::Shape,
         value: facet_reflect::Peek<'_, '_>,
     ) -> Result<bool> {
-        println!("serialize_opaque_scalar: {}", shape.type_name());
         if let Ok(v) = value.get::<i32>() {
             self.write_bson_ref(RawBsonRef::Int32(*v))?;
             return Ok(true);
@@ -97,12 +177,16 @@ impl facet_format::FormatSerializer for Serializer {
 
     fn begin_seq(&mut self) -> Result<()> {
         println!("begin_seq");
-        todo!()
+        self.array_ix.push(0);
+        self.begin_doc(true)
     }
 
     fn end_seq(&mut self) -> Result<()> {
         println!("end_seq");
-        todo!()
+        self.array_ix
+            .pop()
+            .ok_or_else(|| Error::serialization("mismatched begin_seq / end_seq"))?;
+        self.end_struct()
     }
 }
 
@@ -114,6 +198,8 @@ impl From<ReflectError> for Error {
 
 #[cfg(test)]
 mod test {
+    use std::io::Cursor;
+
     use crate::Document;
 
     use super::*;
@@ -133,13 +219,61 @@ mod test {
             other: i32,
         }
 
-        let mut s = Serializer::new();
-        let v = Outer {
+        let bytes = to_vec(&Outer {
             inner: Inner { value: 42 },
             other: 13,
-        };
-        facet_format::serialize_root(&mut s, facet_reflect::Peek::new(&v)).unwrap();
-        let doc = Document::from_reader(std::io::Cursor::new(s.bytes)).unwrap();
+        })
+        .unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
         assert_eq!(doc, doc! { "inner": { "value": 42 }, "other": 13 });
+    }
+
+    #[test]
+    fn array_serialize() {
+        #[derive(Facet, Debug)]
+        struct Outer {
+            value: Vec<i32>,
+        }
+
+        let bytes = to_vec(&Outer {
+            value: vec![42, 13],
+        })
+        .unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        assert_eq!(doc, doc! { "value": [42, 13] });
+    }
+
+    #[test]
+    fn complex_serialize() {
+        #[derive(Facet, Debug)]
+        struct Inner {
+            value: i32,
+            arr: Vec<&'static str>,
+        }
+
+        #[derive(Facet, Debug)]
+        struct Outer {
+            inner: Vec<Inner>,
+            other: i32,
+            more: bool,
+        }
+
+        let bytes = to_vec(&Outer {
+            inner: vec![
+                Inner {
+                    value: 42,
+                    arr: vec!["hello", "world"],
+                },
+                Inner {
+                    value: 13,
+                    arr: vec!["goodbye", "serde"],
+                },
+            ],
+            other: 1066,
+            more: true,
+        })
+        .unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        println!("{doc}");
     }
 }
