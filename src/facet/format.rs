@@ -9,6 +9,7 @@ use facet_reflect::ReflectError;
 use crate::{
     RawBinaryRef,
     RawBsonRef,
+    Regex,
     error::{Error, Result},
     raw::CStr,
     spec::{BinarySubtype, ElementType},
@@ -165,6 +166,9 @@ impl facet_format::FormatSerializer for Serializer {
         if let Ok(v) = value.get::<i32>() {
             self.write_bson_ref(RawBsonRef::Int32(*v))?;
             return Ok(true);
+        } else if let Ok(re) = value.get::<Regex>() {
+            self.write_bson_ref(re.into())?;
+            return Ok(true);
         }
         Ok(false)
     }
@@ -192,7 +196,7 @@ impl From<ReflectError> for Error {
 mod test {
     use std::io::Cursor;
 
-    use crate::Document;
+    use crate::{Document, cstr};
 
     use super::*;
 
@@ -277,5 +281,20 @@ mod test {
                 "more": true,
             }
         );
+    }
+
+    #[test]
+    fn regex_serialize() {
+        #[derive(Facet)]
+        struct Outer {
+            value: Regex,
+        }
+        let re = Regex {
+            pattern: cstr!("foo.*bar").to_owned(),
+            options: cstr!("").to_owned(),
+        };
+        let bytes = to_vec(&Outer { value: re.clone() }).unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        assert_eq!(doc, doc! { "value": re });
     }
 }

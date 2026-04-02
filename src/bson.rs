@@ -1143,6 +1143,7 @@ impl Timestamp {
 
 /// Represents a BSON regular expression value.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
 pub struct Regex {
     /// The regex pattern to match.
     pub pattern: CString,
