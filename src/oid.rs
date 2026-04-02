@@ -98,6 +98,7 @@ static OID_COUNTER: LazyLock<AtomicUsize> =
 /// json: {"oid":{"$oid":"63ceeffd37518221cdc6cda2"},"oid_as_hex":"63ceeffd37518221cdc6cda3"}
 /// ```
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
 pub struct ObjectId {
     id: [u8; 12],
 }

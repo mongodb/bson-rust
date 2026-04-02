@@ -1106,6 +1106,7 @@ impl Bson {
 
 /// Represents a BSON timestamp value.
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd, Clone, Copy, Hash)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
 pub struct Timestamp {
     /// The number of seconds since the Unix epoch.
     pub time: u32,
@@ -1182,6 +1183,7 @@ impl Display for Regex {
 
 /// Represents a BSON code with scope value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct JavaScriptCodeWithScope {
     /// The JavaScript code.
     pub code: String,
@@ -1198,6 +1200,7 @@ impl Display for JavaScriptCodeWithScope {
 
 /// Represents a DBPointer. (Deprecated)
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
 pub struct DbPointer {
     pub(crate) namespace: String,
     pub(crate) id: oid::ObjectId,

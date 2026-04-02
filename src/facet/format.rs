@@ -7,10 +7,19 @@ use facet_format::{FormatSerializer, ScalarValue, SerializeError};
 use facet_reflect::ReflectError;
 
 use crate::{
+    Binary,
+    DateTime,
+    DbPointer,
+    Decimal128,
+    JavaScriptCodeWithScope,
     RawBinaryRef,
     RawBsonRef,
+    RawDocumentBuf,
+    RawJavaScriptCodeWithScopeRef,
     Regex,
+    Timestamp,
     error::{Error, Result},
+    oid::ObjectId,
     raw::CStr,
     spec::{BinarySubtype, ElementType},
 };
@@ -169,6 +178,33 @@ impl facet_format::FormatSerializer for Serializer {
         } else if let Ok(re) = value.get::<Regex>() {
             self.write_bson_ref(re.into())?;
             return Ok(true);
+        } else if let Ok(b) = value.get::<Binary>() {
+            self.write_bson_ref(b.into())?;
+            return Ok(true);
+        } else if let Ok(ts) = value.get::<Timestamp>() {
+            self.write_bson_ref((*ts).into())?;
+            return Ok(true);
+        } else if let Ok(oid) = value.get::<ObjectId>() {
+            self.write_bson_ref((*oid).into())?;
+            return Ok(true);
+        } else if let Ok(dt) = value.get::<DateTime>() {
+            self.write_bson_ref((*dt).into())?;
+            return Ok(true);
+        } else if let Ok(d) = value.get::<Decimal128>() {
+            self.write_bson_ref((*d).into())?;
+            return Ok(true);
+        } else if let Ok(jscws) = value.get::<JavaScriptCodeWithScope>() {
+            let tmp_scope = RawDocumentBuf::try_from(&jscws.scope)?;
+            self.write_bson_ref(RawBsonRef::JavaScriptCodeWithScope(
+                RawJavaScriptCodeWithScopeRef {
+                    code: &jscws.code,
+                    scope: tmp_scope.as_ref(),
+                },
+            ))?;
+            return Ok(true);
+        } else if let Ok(dbp) = value.get::<DbPointer>() {
+            self.write_bson_ref(dbp.into())?;
+            return Ok(true);
         }
         Ok(false)
     }
@@ -296,5 +332,105 @@ mod test {
         let bytes = to_vec(&Outer { value: re.clone() }).unwrap();
         let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
         assert_eq!(doc, doc! { "value": re });
+    }
+
+    #[test]
+    fn binary_serialize() {
+        #[derive(Facet)]
+        struct Outer {
+            value: Binary,
+        }
+        let bin = Binary {
+            subtype: BinarySubtype::Generic,
+            bytes: vec![1, 2, 3, 4],
+        };
+        let bytes = to_vec(&Outer { value: bin.clone() }).unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        assert_eq!(doc, doc! { "value": bin });
+    }
+
+    #[test]
+    fn timestamp_serialize() {
+        #[derive(Facet)]
+        struct Outer {
+            value: Timestamp,
+        }
+        let ts = Timestamp {
+            time: 1234,
+            increment: 5,
+        };
+        let bytes = to_vec(&Outer { value: ts }).unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        assert_eq!(doc, doc! { "value": ts });
+    }
+
+    #[test]
+    fn object_id_serialize() {
+        #[derive(Facet)]
+        struct Outer {
+            value: ObjectId,
+        }
+        let oid = ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap();
+        let bytes = to_vec(&Outer { value: oid }).unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        assert_eq!(doc, doc! { "value": oid });
+    }
+
+    #[test]
+    fn datetime_serialize() {
+        #[derive(Facet)]
+        struct Outer {
+            value: DateTime,
+        }
+        let dt = DateTime::from_millis(1_000_000_000_000);
+        let bytes = to_vec(&Outer { value: dt }).unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        assert_eq!(doc, doc! { "value": dt });
+    }
+
+    #[test]
+    fn decimal128_serialize() {
+        #[derive(Facet)]
+        struct Outer {
+            value: Decimal128,
+        }
+        let d: Decimal128 = "3.14".parse().unwrap();
+        let bytes = to_vec(&Outer { value: d }).unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        assert_eq!(doc, doc! { "value": d });
+    }
+
+    #[test]
+    fn javascript_code_with_scope_serialize() {
+        #[derive(Facet)]
+        struct Outer {
+            value: JavaScriptCodeWithScope,
+        }
+        let jscws = JavaScriptCodeWithScope {
+            code: "function(x) { return x + n; }".into(),
+            scope: doc! { "n": 1 },
+        };
+        let bytes = to_vec(&Outer {
+            value: jscws.clone(),
+        })
+        .unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        assert_eq!(doc, doc! { "value": jscws });
+    }
+
+    #[test]
+    fn db_pointer_serialize() {
+        #[derive(Facet)]
+        struct Outer {
+            value: DbPointer,
+        }
+        let id = ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap();
+        let dbp = DbPointer {
+            namespace: "test.coll".into(),
+            id,
+        };
+        let bytes = to_vec(&Outer { value: dbp.clone() }).unwrap();
+        let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
+        assert_eq!(doc, doc! { "value": dbp });
     }
 }

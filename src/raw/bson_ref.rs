@@ -767,3 +767,24 @@ impl serde::Serialize for RawDbPointerRef<'_> {
         state.end()
     }
 }
+
+impl<'a> From<RawDbPointerRef<'a>> for RawBsonRef<'a> {
+    fn from(dbp: RawDbPointerRef<'a>) -> Self {
+        RawBsonRef::DbPointer(dbp)
+    }
+}
+
+impl<'a> From<&'a DbPointer> for RawDbPointerRef<'a> {
+    fn from(value: &'a DbPointer) -> Self {
+        Self {
+            namespace: &value.namespace,
+            id: value.id,
+        }
+    }
+}
+
+impl<'a> From<&'a DbPointer> for RawBsonRef<'a> {
+    fn from(value: &'a DbPointer) -> Self {
+        RawBsonRef::DbPointer(value.into())
+    }
+}
