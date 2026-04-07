@@ -396,4 +396,10 @@ mod test {
     fn document_serialize() {
         value_serialize(doc! { "hello": "world" });
     }
+
+    #[test]
+    fn bson_serialize() {
+        value_serialize(Bson::Null);
+        value_serialize(Bson::Int32(13));
+    }
 }
