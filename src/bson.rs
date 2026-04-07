@@ -42,6 +42,8 @@ use crate::{
 
 /// Possible BSON value types.
 #[derive(Clone, Default, PartialEq)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[repr(C)]
 pub enum Bson {
     /// 64-bit binary floating point
     Double(f64),
@@ -918,14 +920,7 @@ impl Bson {
             })
             .append_to(buf),
             Self::JavaScriptCode(js) => RawBsonRef::JavaScriptCode(js).append_to(buf),
-            Self::JavaScriptCodeWithScope(cws) => {
-                let start = buf.len();
-                buf.extend(0i32.to_le_bytes()); // placeholder
-                RawBsonRef::String(&cws.code).append_to(buf);
-                cws.scope.append_to(buf)?;
-                let len: i32 = (buf.len() - start) as i32;
-                buf[start..start + 4].copy_from_slice(&len.to_le_bytes());
-            }
+            Self::JavaScriptCodeWithScope(cws) => cws.append_to(buf)?,
             Self::Timestamp(ts) => RawBsonRef::Timestamp(*ts).append_to(buf),
             Self::ObjectId(oid) => RawBsonRef::ObjectId(*oid).append_to(buf),
             Self::DateTime(dt) => RawBsonRef::DateTime(*dt).append_to(buf),
@@ -1190,6 +1185,18 @@ pub struct JavaScriptCodeWithScope {
 
     /// The scope document containing variable bindings.
     pub scope: Document,
+}
+
+impl JavaScriptCodeWithScope {
+    pub(crate) fn append_to(&self, buf: &mut Vec<u8>) -> crate::error::Result<()> {
+        let start = buf.len();
+        buf.extend(0i32.to_le_bytes()); // placeholder
+        RawBsonRef::String(&self.code).append_to(buf);
+        self.scope.append_to(buf)?;
+        let len: i32 = (buf.len() - start) as i32;
+        buf[start..start + 4].copy_from_slice(&len.to_le_bytes());
+        Ok(())
+    }
 }
 
 impl Display for JavaScriptCodeWithScope {

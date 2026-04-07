@@ -8,19 +8,19 @@ use facet_reflect::ReflectError;
 
 use crate::{
     Binary,
+    Bson,
     DateTime,
     DbPointer,
     Decimal128,
+    Document,
     JavaScriptCodeWithScope,
     RawBinaryRef,
     RawBsonRef,
-    RawDocumentBuf,
-    RawJavaScriptCodeWithScopeRef,
     Regex,
     Timestamp,
     error::{Error, Result},
     oid::ObjectId,
-    raw::CStr,
+    raw::{CStr, MIN_BSON_DOCUMENT_SIZE},
     spec::{BinarySubtype, ElementType},
 };
 
@@ -69,7 +69,7 @@ impl Serializer {
         Ok(())
     }
 
-    fn write_bson_ref(&mut self, bv: RawBsonRef<'_>) -> Result<()> {
+    fn write_raw_bson_ref(&mut self, bv: RawBsonRef<'_>) -> Result<()> {
         self.write_elem_type(bv.element_type())?;
         bv.append_to(&mut self.bytes);
         Ok(())
@@ -85,7 +85,7 @@ impl Serializer {
         )?;
         self.doc_size_pos.push(self.bytes.len());
         self.bytes
-            .extend_from_slice(crate::raw::MIN_BSON_DOCUMENT_SIZE.to_le_bytes().as_slice()); // placeholder
+            .extend_from_slice(MIN_BSON_DOCUMENT_SIZE.to_le_bytes().as_slice()); // placeholder
         Ok(())
     }
 }
@@ -162,7 +162,7 @@ impl facet_format::FormatSerializer for Serializer {
                 })
             }
         };
-        self.write_bson_ref(bv)
+        self.write_raw_bson_ref(bv)
     }
 
     fn serialize_opaque_scalar(
@@ -170,40 +170,49 @@ impl facet_format::FormatSerializer for Serializer {
         _shape: &'static facet::Shape,
         value: facet_reflect::Peek<'_, '_>,
     ) -> Result<bool> {
-        if let Ok(v) = value.get::<i32>() {
-            self.write_bson_ref(RawBsonRef::Int32(*v))?;
-            return Ok(true);
+        // Types that can be directly represented as a RawBsonRef
+        let rbr = if let Ok(v) = value.get::<i32>() {
+            Some(RawBsonRef::Int32(*v))
         } else if let Ok(re) = value.get::<Regex>() {
-            self.write_bson_ref(re.into())?;
-            return Ok(true);
+            Some(re.into())
         } else if let Ok(b) = value.get::<Binary>() {
-            self.write_bson_ref(b.into())?;
-            return Ok(true);
+            Some(b.into())
         } else if let Ok(ts) = value.get::<Timestamp>() {
-            self.write_bson_ref((*ts).into())?;
-            return Ok(true);
+            Some((*ts).into())
         } else if let Ok(oid) = value.get::<ObjectId>() {
-            self.write_bson_ref((*oid).into())?;
-            return Ok(true);
+            Some((*oid).into())
         } else if let Ok(dt) = value.get::<DateTime>() {
-            self.write_bson_ref((*dt).into())?;
-            return Ok(true);
+            Some((*dt).into())
         } else if let Ok(d) = value.get::<Decimal128>() {
-            self.write_bson_ref((*d).into())?;
-            return Ok(true);
-        } else if let Ok(jscws) = value.get::<JavaScriptCodeWithScope>() {
-            let tmp_scope = RawDocumentBuf::try_from(&jscws.scope)?;
-            self.write_bson_ref(RawBsonRef::JavaScriptCodeWithScope(
-                RawJavaScriptCodeWithScopeRef {
-                    code: &jscws.code,
-                    scope: tmp_scope.as_ref(),
-                },
-            ))?;
-            return Ok(true);
+            Some((*d).into())
         } else if let Ok(dbp) = value.get::<DbPointer>() {
-            self.write_bson_ref(dbp.into())?;
+            Some(dbp.into())
+        } else {
+            None
+        };
+        if let Some(rbr) = rbr {
+            self.write_raw_bson_ref(rbr)?;
             return Ok(true);
         }
+
+        // Types that need special handling
+        if let Ok(jscws) = value.get::<JavaScriptCodeWithScope>() {
+            self.write_elem_type(ElementType::JavaScriptCodeWithScope)?;
+            jscws.append_to(&mut self.bytes)?;
+
+            return Ok(true);
+        } else if let Ok(doc) = value.get::<Document>() {
+            self.write_elem_type(ElementType::EmbeddedDocument)?;
+            doc.append_to(&mut self.bytes)?;
+
+            return Ok(true);
+        } else if let Ok(b) = value.get::<Bson>() {
+            self.write_elem_type(b.element_type())?;
+            b.append_to(&mut self.bytes)?;
+
+            return Ok(true);
+        }
+
         Ok(false)
     }
 
@@ -345,7 +354,10 @@ mod test {
 
     #[test]
     fn timestamp_serialize() {
-        value_serialize(Timestamp { time: 1234, increment: 5 });
+        value_serialize(Timestamp {
+            time: 1234,
+            increment: 5,
+        });
     }
 
     #[test]
@@ -374,6 +386,14 @@ mod test {
     #[test]
     fn db_pointer_serialize() {
         let id = ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap();
-        value_serialize(DbPointer { namespace: "test.coll".into(), id });
+        value_serialize(DbPointer {
+            namespace: "test.coll".into(),
+            id,
+        });
+    }
+
+    #[test]
+    fn document_serialize() {
+        value_serialize(doc! { "hello": "world" });
     }
 }

@@ -411,6 +411,7 @@ dependencies = [
  "const-fnv1a-hash",
  "iddqd",
  "impls",
+ "indexmap 2.13.0",
 ]
 
 [[package]]

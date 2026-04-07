@@ -12,16 +12,17 @@ use ahash::RandomState;
 use indexmap::IndexMap;
 
 use crate::{
+    Binary,
+    Decimal128,
     bson::{Array, Bson, Timestamp},
     error::{Error, Result},
     oid::ObjectId,
     spec::{BinarySubtype, ElementType},
-    Binary,
-    Decimal128,
 };
 
 /// A BSON document represented as an associative HashMap with insertion ordering.
 #[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
 pub struct Document {
     inner: IndexMap<String, Bson, RandomState>,
 }

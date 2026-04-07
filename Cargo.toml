@@ -73,7 +73,7 @@ thiserror = "2"
 bitvec = "1.0.1"
 serde_path_to_error = { version = "0.1.16", optional = true }
 simdutf8 = "0.1.5"
-facet = { version = "0.44.2", optional = true }
+facet = { version = "0.44.2", optional = true, features = ["indexmap"] }
 facet-value = { version = "0.44", optional = true }
 facet-format = { version = "0.44", optional = true }
 facet-reflect = { version = "0.44", optional = true }
