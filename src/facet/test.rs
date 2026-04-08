@@ -1,3 +1,5 @@
+mod corpus;
+
 use facet::Facet;
 use facet_json;
 

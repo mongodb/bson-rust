@@ -1,4 +1,5 @@
 mod binary_subtype;
+pub(crate) mod corpus;
 mod datetime;
 mod modules;
 #[cfg(feature = "serde")]

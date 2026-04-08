@@ -5,68 +5,18 @@ use std::{
 };
 
 use crate::{
-    raw::{RawBsonRef, RawDocument},
-    tests::LOCK,
     Bson,
     Document,
     RawBson,
     RawDocumentBuf,
     Utf8Lossy,
+    raw::{RawBsonRef, RawDocument},
+    tests::{LOCK, corpus::TestFile},
 };
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Deserializer};
 
 use super::run_spec_test;
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct TestFile {
-    description: String,
-    bson_type: String,
-    test_key: Option<String>,
-
-    #[serde(default)]
-    valid: Vec<Valid>,
-
-    #[serde(rename = "decodeErrors")]
-    #[serde(default)]
-    decode_errors: Vec<DecodeError>,
-
-    #[serde(rename = "parseErrors")]
-    #[serde(default)]
-    parse_errors: Vec<ParseError>,
-
-    #[allow(dead_code)]
-    deprecated: Option<bool>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Valid {
-    description: String,
-    canonical_bson: String,
-    canonical_extjson: String,
-    relaxed_extjson: Option<String>,
-    degenerate_bson: Option<String>,
-    degenerate_extjson: Option<String>,
-    #[allow(dead_code)]
-    converted_bson: Option<String>,
-    #[allow(dead_code)]
-    converted_extjson: Option<String>,
-    lossy: Option<bool>,
-}
-
-#[derive(Debug, Deserialize)]
-struct DecodeError {
-    description: String,
-    bson: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct ParseError {
-    description: String,
-    string: String,
-}
 
 struct FieldVisitor<'a, T>(&'a str, PhantomData<T>);
 
