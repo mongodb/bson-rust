@@ -1,3 +1,5 @@
+#[cfg(mongodb_internal_bench)]
+mod bench;
 mod binary_subtype;
 pub(crate) mod corpus;
 mod datetime;
