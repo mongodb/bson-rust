@@ -1,6 +1,6 @@
-use std::{ffi::OsStr, fs::File, io::Read, path::PathBuf};
+use std::{ffi::OsStr, fs::File, io::Read, ops::Deref, path::PathBuf};
 
-use crate::tests::corpus;
+use crate::{Document, facet::ExtJson, tests::corpus::TestFile};
 
 #[test]
 fn run() {
@@ -21,9 +21,38 @@ fn run() {
         if path.extension() != Some(OsStr::new("json")) {
             continue;
         }
-        let mut file = File::open(&path).unwrap();
-        let mut buf = vec![];
-        file.read_to_end(&mut buf).unwrap();
-        drop(file);
+
+        let buf = {
+            let mut buf = vec![];
+            let mut file = File::open(&path).unwrap();
+            file.read_to_end(&mut buf).unwrap();
+            buf
+        };
+
+        let test = facet_json::from_slice::<TestFile>(&buf).expect(path.to_string_lossy().deref());
+        for v in &test.valid {
+            if v.description.contains("NaN") {
+                continue;
+            }
+            if v.lossy == Some(true) {
+                continue;
+            }
+
+            let description = format!("{}: {}", test.description, v.description);
+
+            let canonical_bson_bytes = hex::decode(&v.canonical_bson).expect(&description);
+            let canonical_bson_doc =
+                Document::from_reader(canonical_bson_bytes.as_slice()).expect(&description);
+
+            let canonical_extjson =
+                facet_json::from_str::<ExtJson>(&v.canonical_extjson).expect(&description);
+            let canonical_extjson_doc = Document::try_from(canonical_extjson).expect(&description);
+
+            assert_eq!(canonical_bson_doc, canonical_extjson_doc, "{description}");
+
+            let facet_bytes =
+                crate::facet::format::to_vec(&canonical_extjson_doc).expect(&description);
+            assert_eq!(canonical_bson_bytes, facet_bytes, "{description}");
+        }
     }
 }
