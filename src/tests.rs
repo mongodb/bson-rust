@@ -1,6 +1,8 @@
 mod binary_subtype;
 pub(crate) mod corpus;
 mod datetime;
+#[cfg(feature = "facet-unstable")]
+mod facet;
 mod modules;
 #[cfg(feature = "serde")]
 mod serde;

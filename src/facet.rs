@@ -1,17 +1,14 @@
 //! Support for the `facet` crate.
 
-#[cfg(test)]
-mod test;
-
 pub mod format;
 
 use facet::Facet;
 
 use crate::{
-    extjson::models::{self, parse_err, ObjectType},
     Bson,
     Document,
     JavaScriptCodeWithScope,
+    extjson::models::{self, ObjectType, parse_err},
 };
 
 /// A type for use with #[facet(proxy)] that represents BSON values in their canonical extended JSON
