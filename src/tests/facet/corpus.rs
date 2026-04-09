@@ -31,13 +31,6 @@ fn run() {
 
         let test = facet_json::from_slice::<TestFile>(&buf).expect(path.to_string_lossy().deref());
         for v in &test.valid {
-            if v.description.contains("NaN") {
-                continue;
-            }
-            if v.lossy == Some(true) {
-                continue;
-            }
-
             let description = format!("{}: {}", test.description, v.description);
 
             let canonical_bson_bytes = hex::decode(&v.canonical_bson).expect(&description);
@@ -47,6 +40,12 @@ fn run() {
             let canonical_extjson =
                 facet_json::from_str::<ExtJson>(&v.canonical_extjson).expect(&description);
             let canonical_extjson_doc = Document::try_from(canonical_extjson).expect(&description);
+
+            // NaN never compares equal, and lossy tests produce output different from input, so for
+            // those we check that they parse but skip the equality test.
+            if v.description.contains("NaN") || v.lossy == Some(true) {
+                continue;
+            }
 
             assert_eq!(canonical_bson_doc, canonical_extjson_doc, "{description}");
 
