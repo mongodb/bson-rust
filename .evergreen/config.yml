@@ -231,7 +231,7 @@ axes:
       - id: "wasi"
         display_name: "WASI"
         variables:
-          TARGET: "wasm32-wasi"
+          TARGET: "wasm32-wasip1"
       - id: "wasm"
         display_name: "WASM"
         variables:
