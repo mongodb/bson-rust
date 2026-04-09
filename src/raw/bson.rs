@@ -1,8 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 
 use crate::{
-    oid::{self, ObjectId},
-    spec::ElementType,
     Binary,
     Bson,
     DbPointer,
@@ -18,12 +16,16 @@ use crate::{
     RawRegexRef,
     Regex,
     Timestamp,
+    oid::{self, ObjectId},
+    spec::ElementType,
 };
 
 use super::{Error, Result};
 
 /// A BSON value backed by owned raw BSON bytes.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[repr(C)]
 pub enum RawBson {
     /// 64-bit binary floating point
     Double(f64),
@@ -423,7 +425,7 @@ impl<'de> serde::Deserialize<'de> for RawBson {
     where
         D: serde::Deserializer<'de>,
     {
-        use super::serde::{bson_visitor::OwnedOrBorrowedRawBsonVisitor, OwnedOrBorrowedRawBson};
+        use super::serde::{OwnedOrBorrowedRawBson, bson_visitor::OwnedOrBorrowedRawBsonVisitor};
         match deserializer.deserialize_newtype_struct(
             crate::raw::RAW_BSON_NEWTYPE,
             OwnedOrBorrowedRawBsonVisitor,
@@ -516,12 +518,32 @@ impl TryFrom<Bson> for RawBson {
 
 /// A BSON "code with scope" value backed by owned raw BSON.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct RawJavaScriptCodeWithScope {
     /// The code value.
     pub code: String,
 
     /// The scope document.
     pub scope: RawDocumentBuf,
+}
+
+impl TryFrom<RawJavaScriptCodeWithScope> for crate::JavaScriptCodeWithScope {
+    type Error = crate::raw::Error;
+
+    fn try_from(value: RawJavaScriptCodeWithScope) -> crate::raw::Result<Self> {
+        Ok(Self {
+            code: value.code,
+            scope: value.scope.try_into()?,
+        })
+    }
+}
+
+impl TryFrom<RawJavaScriptCodeWithScope> for Bson {
+    type Error = crate::raw::Error;
+
+    fn try_from(value: RawJavaScriptCodeWithScope) -> crate::raw::Result<Self> {
+        value.try_into().map(Bson::JavaScriptCodeWithScope)
+    }
 }
 
 #[cfg(feature = "serde")]
@@ -552,5 +574,14 @@ impl serde::Serialize for RawJavaScriptCodeWithScope {
         };
 
         raw.serialize(serializer)
+    }
+}
+
+impl<'a> From<&'a RawJavaScriptCodeWithScope> for RawJavaScriptCodeWithScopeRef<'a> {
+    fn from(value: &'a RawJavaScriptCodeWithScope) -> Self {
+        RawJavaScriptCodeWithScopeRef {
+            code: &value.code,
+            scope: &value.scope,
+        }
     }
 }

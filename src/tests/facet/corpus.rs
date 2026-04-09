@@ -49,8 +49,7 @@ fn run() {
 
             assert_eq!(canonical_bson_doc, canonical_extjson_doc, "{description}");
 
-            let facet_bytes =
-                crate::facet::format::to_vec(&canonical_extjson_doc).expect(&description);
+            let facet_bytes = crate::facet::to_vec(&canonical_extjson_doc).expect(&description);
             assert_eq!(canonical_bson_bytes, facet_bytes, "{description}");
         }
     }

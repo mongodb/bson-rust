@@ -14,8 +14,11 @@ use crate::{
     Decimal128,
     Document,
     JavaScriptCodeWithScope,
+    RawArrayBuf,
     RawBinaryRef,
     RawBsonRef,
+    RawDocumentBuf,
+    RawJavaScriptCodeWithScope,
     Regex,
     Timestamp,
     error::{Error, Result},
@@ -187,6 +190,14 @@ impl facet_format::FormatSerializer for Serializer {
             Some((*d).into())
         } else if let Ok(dbp) = value.get::<DbPointer>() {
             Some(dbp.into())
+        } else if let Ok(rd) = value.get::<RawDocumentBuf>() {
+            Some(RawBsonRef::Document(rd))
+        } else if let Ok(ra) = value.get::<RawArrayBuf>() {
+            Some(RawBsonRef::Array(ra))
+        } else if let Ok(rjscws) = value.get::<RawJavaScriptCodeWithScope>() {
+            Some(RawBsonRef::JavaScriptCodeWithScope(rjscws.into()))
+        } else if let Ok(rb) = value.get::<crate::RawBson>() {
+            Some(rb.as_raw_bson_ref())
         } else {
             None
         };

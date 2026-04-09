@@ -43,7 +43,7 @@ fn serde_serialize(b: &mut Bencher) {
 #[bench]
 fn facet_serialize(b: &mut Bencher) {
     let value = Foo::new();
-    b.iter(|| crate::facet::format::to_vec(&value).unwrap());
+    b.iter(|| crate::facet::to_vec(&value).unwrap());
 }
 
 #[derive(Debug)]
@@ -79,5 +79,5 @@ fn serde_bson_serialize(b: &mut Bencher) {
 #[bench]
 fn facet_bson_serialize(b: &mut Bencher) {
     let value = WithBson::new();
-    b.iter(|| crate::facet::format::to_vec(&value).unwrap());
+    b.iter(|| crate::facet::to_vec(&value).unwrap());
 }

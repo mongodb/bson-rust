@@ -1,6 +1,6 @@
 //! Support for the `facet` crate.
 
-pub mod format;
+mod format;
 
 use facet::Facet;
 
@@ -10,6 +10,8 @@ use crate::{
     JavaScriptCodeWithScope,
     extjson::models::{self, ObjectType, parse_err},
 };
+
+pub use format::to_vec;
 
 /// A type for use with #[facet(proxy)] that represents BSON values in their canonical extended JSON
 /// form.

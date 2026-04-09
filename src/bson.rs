@@ -42,7 +42,7 @@ use crate::{
 
 /// Possible BSON value types.
 #[derive(Clone, Default, PartialEq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 #[repr(C)]
 pub enum Bson {
     /// 64-bit binary floating point
@@ -1101,7 +1101,7 @@ impl Bson {
 
 /// Represents a BSON timestamp value.
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd, Clone, Copy, Hash)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct Timestamp {
     /// The number of seconds since the Unix epoch.
     pub time: u32,
@@ -1139,7 +1139,7 @@ impl Timestamp {
 
 /// Represents a BSON regular expression value.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct Regex {
     /// The regex pattern to match.
     pub pattern: CString,
@@ -1207,7 +1207,7 @@ impl Display for JavaScriptCodeWithScope {
 
 /// Represents a DBPointer. (Deprecated)
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct DbPointer {
     pub(crate) namespace: String,
     pub(crate) id: oid::ObjectId,

@@ -22,7 +22,7 @@ use crate::{
 
 /// A BSON document represented as an associative HashMap with insertion ordering.
 #[derive(Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct Document {
     inner: IndexMap<String, Bson, RandomState>,
 }

@@ -5,10 +5,10 @@ mod vector;
 use std::fmt::{self, Display};
 
 use crate::{
+    RawBinaryRef,
     base64,
     error::{Error, Result},
     spec::BinarySubtype,
-    RawBinaryRef,
 };
 
 pub use vector::{PackedBitVector, Vector};

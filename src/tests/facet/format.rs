@@ -11,7 +11,7 @@ use crate::{
     Regex,
     Timestamp,
     cstr,
-    facet::format::to_vec,
+    facet::to_vec,
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -99,14 +99,18 @@ fn array_serialize() {
     assert_eq!(doc, doc! { "value": [42, 13] });
 }
 
-fn value_serialize<T: Facet<'static> + Into<Bson> + Clone>(v: T) {
+fn value_serialize<T>(v: T)
+where
+    T: Facet<'static> + TryInto<Bson, Error: std::fmt::Debug> + Clone,
+{
     #[derive(Facet)]
     struct Outer<T> {
         value: T,
     }
     let bytes = to_vec(&Outer { value: v.clone() }).unwrap();
     let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
-    assert_eq!(doc, doc! { "value": v });
+    let bson_val: Bson = v.try_into().unwrap();
+    assert_eq!(doc, doc! { "value": bson_val });
 }
 
 #[test]
@@ -174,4 +178,27 @@ fn document_serialize() {
 fn bson_serialize() {
     value_serialize(Bson::Null);
     value_serialize(Bson::Int32(13));
+}
+
+#[test]
+fn rawdoc_serialize() {
+    value_serialize(rawdoc! { "hello": "world" });
+}
+
+#[test]
+fn rawarr_serialize() {
+    value_serialize([1, 2, 3].into_iter().collect::<crate::RawArrayBuf>());
+}
+
+#[test]
+fn rawjsc_serialize() {
+    value_serialize(crate::RawJavaScriptCodeWithScope {
+        code: "a+b".to_owned(),
+        scope: rawdoc! { "a": 1, "b": 2 },
+    });
+}
+
+#[test]
+fn rawbson_serialize() {
+    value_serialize(crate::RawBson::Int32(9023));
 }
