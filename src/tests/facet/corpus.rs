@@ -29,7 +29,8 @@ fn run() {
             buf
         };
 
-        let test = facet_json::from_slice::<TestFile>(&buf).expect(path.to_string_lossy().deref());
+        let test = facet_json::from_slice::<TestFile>(&buf)
+            .unwrap_or_else(|e| panic!("{}: {e}", path.to_string_lossy().deref()));
         for v in &test.valid {
             let description = format!("{}: {}", test.description, v.description);
 

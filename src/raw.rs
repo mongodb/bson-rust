@@ -156,7 +156,7 @@ pub use self::{
         RawJavaScriptCodeWithScopeRef,
         RawRegexRef,
     },
-    cstr::{assert_valid_cstr, cstr, validate_cstr, CStr, CString, IsValidCStr},
+    cstr::{CStr, CString, IsValidCStr, assert_valid_cstr, cstr, validate_cstr},
     document::RawDocument,
     document_buf::{BindRawBsonRef, BindValue, RawDocumentBuf},
     iter::{RawElement, RawIter},

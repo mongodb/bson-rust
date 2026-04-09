@@ -3,7 +3,7 @@ use serde_json::json;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{cstr, doc, Bson, JavaScriptCodeWithScope, RawArrayBuf, RawBson, RawDocumentBuf};
+use crate::{Bson, JavaScriptCodeWithScope, RawArrayBuf, RawBson, RawDocumentBuf, cstr, doc};
 
 use super::util::AllTypes;
 

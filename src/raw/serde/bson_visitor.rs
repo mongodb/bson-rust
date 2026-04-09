@@ -4,16 +4,6 @@ use serde::de::{Error as SerdeError, Visitor};
 use serde_bytes::ByteBuf;
 
 use crate::{
-    de::convert_unsigned_to_signed_raw,
-    extjson::models::{
-        BorrowedBinaryBody,
-        BorrowedDbPointerBody,
-        BorrowedRegexBody,
-        TimestampBody,
-    },
-    oid::ObjectId,
-    raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
-    spec::BinarySubtype,
     Binary,
     DateTime,
     DbPointer,
@@ -31,6 +21,16 @@ use crate::{
     RawRegexRef,
     Regex,
     Timestamp,
+    de::convert_unsigned_to_signed_raw,
+    extjson::models::{
+        BorrowedBinaryBody,
+        BorrowedDbPointerBody,
+        BorrowedRegexBody,
+        TimestampBody,
+    },
+    oid::ObjectId,
+    raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    spec::BinarySubtype,
 };
 
 use super::{
@@ -59,7 +59,7 @@ impl OwnedOrBorrowedRawBsonVisitor {
             None => {
                 return Ok(MapParse::Leaf(
                     RawBson::Document(RawDocumentBuf::new()).into(),
-                ))
+                ));
             }
         };
         Ok(MapParse::Leaf(match first_key.0.as_ref() {

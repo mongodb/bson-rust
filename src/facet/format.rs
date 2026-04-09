@@ -39,9 +39,18 @@ pub fn to_vec<'facet, T: Facet<'facet>>(value: &T) -> Result<Vec<u8>> {
 
 #[derive(Debug)]
 struct Serializer {
+    /// The output buffer.
     bytes: Vec<u8>,
+    /// A stack of document size offsets into the buffer for documents that are in the process of
+    /// being written.  When one is finished, it pops the offset off the stack and updates that
+    /// spot in the buffer with the now-known value.
     doc_size_pos: Vec<usize>,
+    /// The offset into the buffer of the element type tag of the current field being added.  BSON
+    /// bytes are in [tag, name, value] order but events happen in [name, typed value] order, so
+    /// when the name is written it writes a placeholder for the value write to update.
     elem_type_pos: Option<usize>,
+    /// A stack of index values for arrays in the process of being written.  The current array will
+    /// increment the top value to synthesize a string key and pop it off when the array is closed.
     array_ix: Vec<usize>,
 }
 

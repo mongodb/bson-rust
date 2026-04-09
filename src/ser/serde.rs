@@ -12,18 +12,18 @@ use serde::ser::{
 };
 
 use crate::{
+    Binary,
+    Decimal128,
     base64,
     bson::{Array, Bson, DbPointer, Document, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     error::{Error, Result},
     extjson,
     oid::ObjectId,
-    raw::{RawDbPointerRef, RawRegexRef, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE, RawDbPointerRef, RawRegexRef},
     serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
-    Binary,
-    Decimal128,
 };
 
 use super::to_bson_with_options;

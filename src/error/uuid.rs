@@ -1,9 +1,9 @@
 use thiserror::Error as ThisError;
 
 use crate::{
+    UuidRepresentation,
     error::{Error, ErrorKind},
     spec::BinarySubtype,
-    UuidRepresentation,
 };
 
 /// The kinds of errors that can occur when working with the [`Uuid`](crate::uuid::Uuid) type.

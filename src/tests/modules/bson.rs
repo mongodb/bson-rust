@@ -5,11 +5,6 @@ use std::{
 };
 
 use crate::{
-    base64,
-    cstr,
-    oid::ObjectId,
-    spec::BinarySubtype,
-    tests::LOCK,
     Binary,
     Bson,
     DateTime,
@@ -17,6 +12,11 @@ use crate::{
     JavaScriptCodeWithScope,
     Regex,
     Timestamp,
+    base64,
+    cstr,
+    oid::ObjectId,
+    spec::BinarySubtype,
+    tests::LOCK,
 };
 
 #[test]

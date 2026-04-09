@@ -21,20 +21,20 @@ use serde::de::{
 use serde_bytes::ByteBuf;
 
 use crate::{
+    Binary,
+    Decimal128,
     bson::{Bson, DbPointer, JavaScriptCodeWithScope, Regex, Timestamp},
     datetime::DateTime,
     document::{Document, IntoIter},
     error::{Error, Result},
     oid::ObjectId,
-    raw::{RawBsonRef, RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    raw::{RAW_ARRAY_NEWTYPE, RAW_BSON_NEWTYPE, RAW_DOCUMENT_NEWTYPE, RawBsonRef},
     serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::BinarySubtype,
     uuid::UUID_NEWTYPE_NAME,
-    Binary,
-    Decimal128,
 };
 
-use super::{raw::Decimal128Access, DeserializerHint};
+use super::{DeserializerHint, raw::Decimal128Access};
 
 pub(crate) struct BsonVisitor;
 
@@ -782,7 +782,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
                 return Err(Error::invalid_value(
                     Unexpected::Other("empty document"),
                     &"variant name",
-                ))
+                ));
             }
         };
 

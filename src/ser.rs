@@ -30,10 +30,10 @@ pub use self::serde::Serializer;
 use ::serde::{ser::Error as SerdeError, Serialize};
 
 use crate::{
+    RawDocumentBuf,
     bson::{Bson, Document},
     error::{Error, Result},
     ser::serde::SerializerOptions,
-    RawDocumentBuf,
 };
 
 /// Encode a `T` Serializable into a [`Bson`] value.

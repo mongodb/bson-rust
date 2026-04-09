@@ -7,7 +7,7 @@ use std::borrow::Cow;
 
 #[cfg(feature = "serde")]
 use crate::raw::serde::CowStr;
-use crate::{base64, error::Result, oid, spec::BinarySubtype, Bson};
+use crate::{Bson, base64, error::Result, oid, spec::BinarySubtype};
 
 // BSON types represented by objects in extended JSON.
 pub(crate) enum ObjectType {

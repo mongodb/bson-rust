@@ -2,7 +2,6 @@ mod corpus;
 mod format;
 
 use facet::Facet;
-use facet_json;
 
 use crate::Bson;
 
