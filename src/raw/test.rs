@@ -3,23 +3,25 @@ mod props;
 
 use super::*;
 use crate::{
-    oid::ObjectId,
-    spec::BinarySubtype,
     Binary,
     Bson,
     DateTime,
     Decimal128,
     Regex,
     Timestamp,
+    oid::ObjectId,
+    spec::BinarySubtype,
 };
 
 #[test]
 fn test_decimal128_doesnt_panic_on_bad_codepoint_boundary() {
     use std::str::FromStr;
     // idx 34 (Coefficient::MAX_DIGITS) on this string isn't a valid codepoint boundary
-    assert!(Decimal128::from_str("111111111111111111111111111111111❤")
-        .unwrap_err()
-        .is_decimal128_unparseable());
+    assert!(
+        Decimal128::from_str("111111111111111111111111111111111❤")
+            .unwrap_err()
+            .is_decimal128_unparseable()
+    );
 }
 
 #[test]

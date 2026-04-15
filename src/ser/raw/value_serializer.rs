@@ -1,23 +1,23 @@
 use std::convert::TryFrom;
 
 use serde::{
-    ser::{Error as SerdeError, Impossible, SerializeMap, SerializeStruct},
     Serialize,
+    ser::{Error as SerdeError, Impossible, SerializeMap, SerializeStruct},
 };
 
 use crate::{
-    base64,
-    oid::ObjectId,
-    raw::{write_string, RAW_DOCUMENT_NEWTYPE},
-    ser::{Error, Result},
-    spec::{BinarySubtype, ElementType},
     RawBinaryRef,
     RawBsonRef,
     RawDocument,
     RawJavaScriptCodeWithScopeRef,
+    base64,
+    oid::ObjectId,
+    raw::{RAW_DOCUMENT_NEWTYPE, write_string},
+    ser::{Error, Result},
+    spec::{BinarySubtype, ElementType},
 };
 
-use super::{document_serializer::DocumentSerializer, RawSerializer};
+use super::{RawSerializer, document_serializer::DocumentSerializer};
 
 /// A serializer used specifically for serializing the serde-data-model form of a BSON type (e.g.
 /// [`Binary`]) to raw bytes.
@@ -316,7 +316,7 @@ impl<'a, 'b> serde::Serializer for &'a mut ValueSerializer<'_, 'b> {
                 return Err(Error::custom(format!(
                     "can't serialize string for step {:?}",
                     s
-                )))
+                )));
             }
         }
         Ok(())
@@ -386,13 +386,7 @@ impl<'a, 'b> serde::Serializer for &'a mut ValueSerializer<'_, 'b> {
         T: Serialize + ?Sized,
     {
         match (&mut self.state, name) {
-            (
-                SerializationStep::CodeWithScopeScope {
-                    code: _,
-                    ref mut raw,
-                },
-                RAW_DOCUMENT_NEWTYPE,
-            ) => {
+            (SerializationStep::CodeWithScopeScope { code: _, raw }, RAW_DOCUMENT_NEWTYPE) => {
                 *raw = true;
                 value.serialize(self)
             }

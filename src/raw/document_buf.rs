@@ -5,11 +5,11 @@ use std::{
 };
 
 use crate::{
-    raw::{doc_writer::DocWriter, CStr},
     Document,
+    raw::{CStr, doc_writer::DocWriter},
 };
 
-use super::{bson::RawBson, iter::Iter, RawBsonRef, RawDocument, RawIter, Result};
+use super::{RawBsonRef, RawDocument, RawIter, Result, bson::RawBson, iter::Iter};
 
 /// An owned BSON document (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
 /// This can be created from a `Vec<u8>` or a [`crate::Document`].
@@ -48,6 +48,7 @@ use super::{bson::RawBson, iter::Iter, RawBsonRef, RawDocument, RawIter, Result}
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct RawDocumentBuf {
     data: Vec<u8>,
 }

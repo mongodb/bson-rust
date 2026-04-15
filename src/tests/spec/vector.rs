@@ -3,15 +3,15 @@ use std::convert::TryFrom;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
+    Bson,
+    Document,
+    RawDocumentBuf,
     binary::{Binary, PackedBitVector, Vector},
     deserialize_from_document,
     deserialize_from_slice,
     serialize_to_document,
     serialize_to_raw_document_buf,
     spec::BinarySubtype,
-    Bson,
-    Document,
-    RawDocumentBuf,
 };
 
 use super::run_spec_test;
@@ -215,16 +215,20 @@ fn run_vector_tests() {
 fn non_zero_ignored_bits() {
     // 1. Encoding
     let error = PackedBitVector::new(vec![u8::MAX], 1).unwrap_err();
-    assert!(error
-        .message
-        .is_some_and(|message| message.contains("must all be 0")));
+    assert!(
+        error
+            .message
+            .is_some_and(|message| message.contains("must all be 0"))
+    );
 
     // 2. Decoding
     let bytes = vec![PACKED_BIT, 1, u8::MAX];
     let error = Vector::from_bytes(bytes).unwrap_err();
-    assert!(error
-        .message
-        .is_some_and(|message| message.contains("must all be 0")));
+    assert!(
+        error
+            .message
+            .is_some_and(|message| message.contains("must all be 0"))
+    );
 
     // 3. Comparison
     // This test is not implemented because it is not possible to construct a Vector with non-zero

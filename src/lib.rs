@@ -437,6 +437,7 @@
 #![allow(clippy::cognitive_complexity, clippy::derive_partial_eq_without_eq)]
 #![doc(html_root_url = "https://docs.rs/bson/3.1.0")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(mongodb_internal_bench, feature(test))]
 #![warn(missing_docs)]
 
 #[doc(inline)]
@@ -466,21 +467,21 @@ pub use self::{
 #[doc(inline)]
 pub use self::{
     de::{
+        Deserializer,
         deserialize_from_bson,
         deserialize_from_document,
         deserialize_from_reader,
         deserialize_from_slice,
         raw::RawDeserializer,
-        Deserializer,
     },
     ser::{
+        Serializer,
         raw::RawSerializer,
         serialize_to_bson,
         serialize_to_buffer,
         serialize_to_document,
         serialize_to_raw_document_buf,
         serialize_to_vec,
-        Serializer,
     },
 };
 

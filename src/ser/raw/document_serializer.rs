@@ -1,8 +1,8 @@
-use serde::{ser::Impossible, Serialize};
+use serde::{Serialize, ser::Impossible};
 
 use crate::{
-    error::{Error, Result},
     RawBsonRef,
+    error::{Error, Result},
 };
 
 use super::RawSerializer;

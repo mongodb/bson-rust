@@ -1,4 +1,4 @@
-use crate::{oid::ObjectId, spec::BinarySubtype, tests::LOCK, Binary, Bson, Document, Timestamp};
+use crate::{Binary, Bson, Document, Timestamp, oid::ObjectId, spec::BinarySubtype, tests::LOCK};
 use time::OffsetDateTime;
 
 #[test]
@@ -56,14 +56,16 @@ fn test_getters() {
     };
 
     assert_eq!(None, doc.get("nonsense"));
-    assert!(doc
-        .get_str("nonsense")
-        .unwrap_err()
-        .is_value_access_not_present());
-    assert!(doc
-        .get_str("floating_point")
-        .unwrap_err()
-        .is_value_access_unexpected_type());
+    assert!(
+        doc.get_str("nonsense")
+            .unwrap_err()
+            .is_value_access_not_present()
+    );
+    assert!(
+        doc.get_str("floating_point")
+            .unwrap_err()
+            .is_value_access_unexpected_type()
+    );
 
     assert_eq!(Some(&Bson::Double(10.0)), doc.get("floating_point"));
     assert_eq!(10.0, doc.get_f64("floating_point").unwrap());

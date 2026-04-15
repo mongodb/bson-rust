@@ -3,14 +3,14 @@ use std::collections::BTreeMap;
 use assert_matches::assert_matches;
 
 use crate::{
+    Bson,
+    Document,
     deserialize_from_bson,
     error::ErrorKind,
     oid::ObjectId,
     serialize_to_bson,
     serialize_to_vec,
     tests::LOCK,
-    Bson,
-    Document,
 };
 
 #[test]

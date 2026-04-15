@@ -216,6 +216,7 @@ pub use cstr;
 /// Like `CStr`, this differs from [`std::ffi::CString`] in that it is required to be valid UTF-8,
 /// and does not include the nul terminator in the buffer.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 #[repr(transparent)]
 pub struct CString {
     data: String,

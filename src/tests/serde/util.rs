@@ -1,10 +1,6 @@
 use serde::{self, Deserialize, Serialize};
 
 use crate::{
-    cstr,
-    doc,
-    oid::ObjectId,
-    spec::BinarySubtype,
     Binary,
     Bson,
     DateTime,
@@ -13,6 +9,10 @@ use crate::{
     JavaScriptCodeWithScope,
     Regex,
     Timestamp,
+    cstr,
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
 };
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]

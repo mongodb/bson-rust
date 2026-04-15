@@ -10,13 +10,13 @@ use super::{
     Result as RawResult,
 };
 use crate::{
-    error::{Error, Result},
-    oid::ObjectId,
-    spec::ElementType,
     Bson,
     DateTime,
     RawArrayBuf,
     Timestamp,
+    error::{Error, Result},
+    oid::ObjectId,
+    spec::ElementType,
 };
 
 /// A slice of a BSON document containing a BSON array value (akin to [`std::str`]). This can be
@@ -236,6 +236,30 @@ impl TryFrom<&RawArray> for Vec<Bson> {
                 Bson::try_from(rawbson)
             })
             .collect()
+    }
+}
+
+impl TryFrom<&RawArray> for Bson {
+    type Error = RawError;
+
+    fn try_from(value: &RawArray) -> RawResult<Self> {
+        value.try_into().map(Bson::Array)
+    }
+}
+
+impl TryFrom<RawArrayBuf> for Bson {
+    type Error = RawError;
+
+    fn try_from(value: RawArrayBuf) -> RawResult<Self> {
+        value.as_ref().try_into()
+    }
+}
+
+impl TryFrom<&RawArrayBuf> for Bson {
+    type Error = RawError;
+
+    fn try_from(value: &RawArrayBuf) -> RawResult<Self> {
+        value.as_ref().try_into()
     }
 }
 

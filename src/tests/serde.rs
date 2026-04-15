@@ -10,6 +10,12 @@ use std::{
 };
 
 use crate::{
+    Binary,
+    Bson,
+    DateTime,
+    Deserializer,
+    Document,
+    Serializer,
     bson,
     cstr,
     deserialize_from_bson,
@@ -18,12 +24,6 @@ use crate::{
     serialize_to_bson,
     spec::BinarySubtype,
     tests::LOCK,
-    Binary,
-    Bson,
-    DateTime,
-    Deserializer,
-    Document,
-    Serializer,
 };
 
 use serde::{Deserialize, Serialize};

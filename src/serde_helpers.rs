@@ -46,7 +46,7 @@
 //! ```
 //! See the crate documentation for [`serde_with`](https://docs.rs/serde_with/latest/serde_with/) for more details.
 
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Visitor};
 use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},

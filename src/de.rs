@@ -38,7 +38,7 @@ use crate::{
 #[rustfmt::skip]
 use ::serde::{de::DeserializeOwned, Deserialize};
 
-pub(crate) use self::serde::{convert_unsigned_to_signed_raw, BsonVisitor};
+pub(crate) use self::serde::{BsonVisitor, convert_unsigned_to_signed_raw};
 
 /// Hint provided to the deserializer via `deserialize_newtype_struct` as to the type of thing
 /// being deserialized.

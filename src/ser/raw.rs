@@ -2,22 +2,22 @@ mod document_serializer;
 mod value_serializer;
 
 use serde::{
-    ser::{Error as SerdeError, SerializeMap, SerializeStruct},
     Serialize,
+    ser::{Error as SerdeError, SerializeMap, SerializeStruct},
 };
 
 use self::value_serializer::{ValueSerializer, ValueType};
 
 use crate::{
+    RawArray,
+    RawBinaryRef,
+    RawBsonRef,
+    RawDocument,
     raw::{CStr, RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
     ser::{Error, Result},
     serde_helpers::HUMAN_READABLE_NEWTYPE,
     spec::{BinarySubtype, ElementType},
     uuid::UUID_NEWTYPE_NAME,
-    RawArray,
-    RawBinaryRef,
-    RawBsonRef,
-    RawDocument,
 };
 use document_serializer::DocumentSerializer;
 
@@ -404,7 +404,7 @@ impl SerializeStruct for StructSerializer<'_, '_> {
         T: Serialize + ?Sized,
     {
         match self {
-            StructSerializer::Value(ref mut v) => (&mut *v).serialize_field(key, value),
+            StructSerializer::Value(v) => (&mut *v).serialize_field(key, value),
             StructSerializer::Document(d) => d.serialize_field(key, value),
         }
     }

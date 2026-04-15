@@ -4,22 +4,23 @@ use std::{
 };
 
 use crate::{
-    error::{Error, Result},
-    raw::CStr,
     Bson,
     DateTime,
+    Document,
     JavaScriptCodeWithScope,
     RawBson,
     RawJavaScriptCodeWithScope,
     Timestamp,
     Utf8Lossy,
+    error::{Error, Result},
+    oid::ObjectId,
+    raw::CStr,
+    spec::ElementType,
 };
 
 use super::{
-    i32_from_slice,
-    iter::Iter,
-    try_to_str,
     Error as RawError,
+    MIN_BSON_DOCUMENT_SIZE,
     RawArray,
     RawBinaryRef,
     RawBsonRef,
@@ -27,9 +28,10 @@ use super::{
     RawIter,
     RawRegexRef,
     Result as RawResult,
-    MIN_BSON_DOCUMENT_SIZE,
+    i32_from_slice,
+    iter::Iter,
+    try_to_str,
 };
-use crate::{oid::ObjectId, spec::ElementType, Document};
 
 /// A slice of a BSON document (akin to [`std::str`]). This can be created from a
 /// [`RawDocumentBuf`] or any type that contains valid BSON data, including static binary literals,
@@ -588,6 +590,14 @@ impl TryFrom<&RawDocument> for Document {
     }
 }
 
+impl TryFrom<&RawDocument> for Bson {
+    type Error = RawError;
+
+    fn try_from(value: &RawDocument) -> RawResult<Self> {
+        value.try_into().map(Bson::Document)
+    }
+}
+
 impl TryFrom<&RawDocument> for Utf8Lossy<Document> {
     type Error = RawError;
 
@@ -648,6 +658,14 @@ impl TryFrom<RawDocumentBuf> for Document {
     }
 }
 
+impl TryFrom<RawDocumentBuf> for Bson {
+    type Error = RawError;
+
+    fn try_from(value: RawDocumentBuf) -> RawResult<Self> {
+        Bson::try_from(value.as_ref())
+    }
+}
+
 impl TryFrom<RawDocumentBuf> for Utf8Lossy<Document> {
     type Error = crate::error::Error;
 
@@ -661,6 +679,14 @@ impl TryFrom<&RawDocumentBuf> for Document {
 
     fn try_from(raw: &RawDocumentBuf) -> Result<Document> {
         Document::try_from(raw.as_ref())
+    }
+}
+
+impl TryFrom<&RawDocumentBuf> for Bson {
+    type Error = RawError;
+
+    fn try_from(value: &RawDocumentBuf) -> RawResult<Self> {
+        Bson::try_from(value.as_ref())
     }
 }
 

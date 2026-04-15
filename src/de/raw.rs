@@ -1,28 +1,12 @@
 use std::borrow::Cow;
 
 use serde::{
-    de::{value::BorrowedStrDeserializer, Error as SerdeError, IntoDeserializer, MapAccess},
-    forward_to_deserialize_any,
     Deserializer as SerdeDeserializer,
+    de::{Error as SerdeError, IntoDeserializer, MapAccess, value::BorrowedStrDeserializer},
+    forward_to_deserialize_any,
 };
 
 use crate::{
-    base64,
-    oid::ObjectId,
-    raw::{
-        RawBinaryRef,
-        RawElement,
-        RawIter,
-        Utf8LossyBson,
-        Utf8LossyJavaScriptCodeWithScope,
-        RAW_ARRAY_NEWTYPE,
-        RAW_BSON_NEWTYPE,
-        RAW_DOCUMENT_NEWTYPE,
-    },
-    serde_helpers::HUMAN_READABLE_NEWTYPE,
-    spec::{BinarySubtype, ElementType},
-    utf8_lossy::UTF8_LOSSY_NEWTYPE,
-    uuid::UUID_NEWTYPE_NAME,
     DateTime,
     DbPointer,
     Decimal128,
@@ -33,6 +17,22 @@ use crate::{
     RawRegexRef,
     Regex,
     Timestamp,
+    base64,
+    oid::ObjectId,
+    raw::{
+        RAW_ARRAY_NEWTYPE,
+        RAW_BSON_NEWTYPE,
+        RAW_DOCUMENT_NEWTYPE,
+        RawBinaryRef,
+        RawElement,
+        RawIter,
+        Utf8LossyBson,
+        Utf8LossyJavaScriptCodeWithScope,
+    },
+    serde_helpers::HUMAN_READABLE_NEWTYPE,
+    spec::{BinarySubtype, ElementType},
+    utf8_lossy::UTF8_LOSSY_NEWTYPE,
+    uuid::UUID_NEWTYPE_NAME,
 };
 
 use super::{DeserializerHint, Error, Result};
@@ -187,7 +187,7 @@ impl<'de> RawDeserializer<'de> {
                 _ => {
                     return Err(Error::deserialization(
                         "internal error: unexpected non-string",
-                    ))
+                    ));
                 }
             };
             Ok(Cow::Owned(s))
@@ -241,7 +241,7 @@ impl<'de> serde::de::Deserializer<'de> for RawDeserializer<'de> {
                     _ => {
                         return Err(Error::deserialization(
                             "internal error: unexpected non-document",
-                        ))
+                        ));
                     }
                 };
                 visitor.visit_enum(DocumentAccess::new(doc, self.options.clone())?)
@@ -345,7 +345,7 @@ impl<'de> DocumentAccess<'de> {
             None => {
                 return Err(Error::deserialization(
                     "internal error: no element for deserializer",
-                ))
+                ));
             }
         };
         Ok(RawDeserializer {

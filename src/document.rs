@@ -12,16 +12,17 @@ use ahash::RandomState;
 use indexmap::IndexMap;
 
 use crate::{
+    Binary,
+    Decimal128,
     bson::{Array, Bson, Timestamp},
     error::{Error, Result},
     oid::ObjectId,
     spec::{BinarySubtype, ElementType},
-    Binary,
-    Decimal128,
 };
 
 /// A BSON document represented as an associative HashMap with insertion ordering.
 #[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct Document {
     inner: IndexMap<String, Bson, RandomState>,
 }
@@ -69,7 +70,7 @@ impl Display for Document {
                     fmt.write_str(",\n")?;
                 }
                 match v {
-                    Bson::Document(ref doc) => {
+                    Bson::Document(doc) => {
                         let new_indent = indent + 2;
                         write!(fmt, "{indent_str}\"{}\": {doc:#new_indent$}", k)?;
                     }

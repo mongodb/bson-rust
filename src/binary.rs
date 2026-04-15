@@ -5,16 +5,17 @@ mod vector;
 use std::fmt::{self, Display};
 
 use crate::{
+    RawBinaryRef,
     base64,
     error::{Error, Result},
     spec::BinarySubtype,
-    RawBinaryRef,
 };
 
 pub use vector::{PackedBitVector, Vector};
 
 /// Represents a BSON binary value.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct Binary {
     /// The subtype of the bytes.
     pub subtype: BinarySubtype,

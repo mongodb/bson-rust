@@ -1,23 +1,23 @@
 use core::str;
 
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Visitor};
 
 use crate::{
-    deserialize_from_bson,
-    deserialize_from_document,
-    deserialize_from_slice,
-    doc,
-    oid::ObjectId,
-    serde_helpers::{self, datetime, object_id, timestamp, u32, u64, HumanReadable},
-    serialize_to_bson,
-    serialize_to_document,
-    spec::BinarySubtype,
-    tests::LOCK,
     Binary,
     Bson,
     DateTime,
     Timestamp,
     Utf8Lossy,
+    deserialize_from_bson,
+    deserialize_from_document,
+    deserialize_from_slice,
+    doc,
+    oid::ObjectId,
+    serde_helpers::{self, HumanReadable, datetime, object_id, timestamp, u32, u64},
+    serialize_to_bson,
+    serialize_to_document,
+    spec::BinarySubtype,
+    tests::LOCK,
 };
 
 use serde_with::serde_as;

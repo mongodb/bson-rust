@@ -7,12 +7,12 @@ use std::{
     fmt,
     str::FromStr,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         LazyLock,
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
-use rand::{random, rng, Rng};
+use rand::{Rng, random, rng};
 
 use crate::error::{Error, Result};
 
@@ -98,6 +98,7 @@ static OID_COUNTER: LazyLock<AtomicUsize> =
 /// json: {"oid":{"$oid":"63ceeffd37518221cdc6cda2"},"oid_as_hex":"63ceeffd37518221cdc6cda3"}
 /// ```
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct ObjectId {
     id: [u8; 12],
 }

@@ -1,10 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
-use super::{bson::RawBson, Error, RawArray, RawDocument, Result};
+use super::{Error, RawArray, RawDocument, Result, bson::RawBson};
 use crate::{
-    oid::{self, ObjectId},
-    raw::{write_string, CStr, RawJavaScriptCodeWithScope},
-    spec::{BinarySubtype, ElementType},
     Binary,
     Bson,
     DbPointer,
@@ -13,6 +10,9 @@ use crate::{
     RawDocumentBuf,
     Regex,
     Timestamp,
+    oid::{self, ObjectId},
+    raw::{CStr, RawJavaScriptCodeWithScope, write_string},
+    spec::{BinarySubtype, ElementType},
 };
 
 #[cfg(feature = "serde")]
@@ -343,7 +343,7 @@ impl<'de: 'a, 'a> serde::Deserialize<'de> for RawBsonRef<'a> {
     where
         D: serde::Deserializer<'de>,
     {
-        use super::serde::{bson_visitor::OwnedOrBorrowedRawBsonVisitor, OwnedOrBorrowedRawBson};
+        use super::serde::{OwnedOrBorrowedRawBson, bson_visitor::OwnedOrBorrowedRawBsonVisitor};
         match deserializer.deserialize_newtype_struct(
             crate::raw::RAW_BSON_NEWTYPE,
             OwnedOrBorrowedRawBsonVisitor,
@@ -501,6 +501,12 @@ impl<'a> From<&'a RawBson> for RawBsonRef<'a> {
     }
 }
 
+impl<'a> From<&'a Regex> for RawBsonRef<'a> {
+    fn from(value: &'a Regex) -> Self {
+        RawBsonRef::RegularExpression(value.into())
+    }
+}
+
 /// A BSON binary value referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawBinaryRef<'a> {
@@ -654,6 +660,15 @@ impl<'a> From<RawRegexRef<'a>> for RawBsonRef<'a> {
     }
 }
 
+impl<'a> From<&'a Regex> for RawRegexRef<'a> {
+    fn from(value: &'a Regex) -> Self {
+        Self {
+            pattern: &value.pattern,
+            options: &value.options,
+        }
+    }
+}
+
 /// A BSON "code with scope" value referencing raw bytes stored elsewhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RawJavaScriptCodeWithScopeRef<'a> {
@@ -750,5 +765,26 @@ impl serde::Serialize for RawDbPointerRef<'_> {
         };
         state.serialize_field("$dbPointer", &body)?;
         state.end()
+    }
+}
+
+impl<'a> From<RawDbPointerRef<'a>> for RawBsonRef<'a> {
+    fn from(dbp: RawDbPointerRef<'a>) -> Self {
+        RawBsonRef::DbPointer(dbp)
+    }
+}
+
+impl<'a> From<&'a DbPointer> for RawDbPointerRef<'a> {
+    fn from(value: &'a DbPointer) -> Self {
+        Self {
+            namespace: &value.namespace,
+            id: value.id,
+        }
+    }
+}
+
+impl<'a> From<&'a DbPointer> for RawBsonRef<'a> {
+    fn from(value: &'a DbPointer) -> Self {
+        RawBsonRef::DbPointer(value.into())
     }
 }

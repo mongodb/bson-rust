@@ -1,9 +1,6 @@
 use std::convert::TryInto;
 
 use crate::{
-    oid::ObjectId,
-    raw::{CStr, Error, Result, MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE},
-    spec::{BinarySubtype, ElementType},
     Bson,
     DateTime,
     Decimal128,
@@ -14,9 +11,14 @@ use crate::{
     RawJavaScriptCodeWithScopeRef,
     RawRegexRef,
     Timestamp,
+    oid::ObjectId,
+    raw::{CStr, Error, MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE, Result},
+    spec::{BinarySubtype, ElementType},
 };
 
 use super::{
+    RawBsonRef,
+    RawDocument,
     bool_from_slice,
     checked_add,
     f64_from_slice,
@@ -26,8 +28,6 @@ use super::{
     read_lenencode,
     read_lenencode_bytes,
     try_to_str,
-    RawBsonRef,
-    RawDocument,
 };
 
 /// An iterator over the document's entries.

@@ -1,15 +1,15 @@
 use std::{borrow::Cow, convert::TryFrom, fmt::Formatter, ops::Range};
 
 use serde::{
-    de::{DeserializeSeed, Error as SerdeError, MapAccess, SeqAccess, Visitor},
     Deserializer,
+    de::{DeserializeSeed, Error as SerdeError, MapAccess, SeqAccess, Visitor},
 };
 
 use crate::{
-    raw::{write_string, RAW_BSON_NEWTYPE},
-    spec::{BinarySubtype, ElementType},
     RawBson,
     RawBsonRef,
+    raw::{RAW_BSON_NEWTYPE, write_string},
+    spec::{BinarySubtype, ElementType},
 };
 
 use super::{CowStr, MapParse, OwnedOrBorrowedRawBson, OwnedOrBorrowedRawBsonVisitor};

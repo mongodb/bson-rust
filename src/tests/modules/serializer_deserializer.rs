@@ -6,13 +6,6 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cstr,
-    de::deserialize_from_document,
-    doc,
-    oid::ObjectId,
-    serialize_to_document,
-    spec::BinarySubtype,
-    tests::LOCK,
     Binary,
     Bson,
     Decimal128,
@@ -22,6 +15,13 @@ use crate::{
     Regex,
     Timestamp,
     Utf8Lossy,
+    cstr,
+    de::deserialize_from_document,
+    doc,
+    oid::ObjectId,
+    serialize_to_document,
+    spec::BinarySubtype,
+    tests::LOCK,
 };
 use serde_json::json;
 
@@ -546,9 +546,10 @@ fn test_serialize_deserialize_document() {
 
     let x = 1;
     let err = serialize_to_document(&x).unwrap_err();
-    assert!(err
-        .message
-        .is_some_and(|message| message.contains("expected to serialize document")));
+    assert!(
+        err.message
+            .is_some_and(|message| message.contains("expected to serialize document"))
+    );
 
     let bad_point = doc! { "x": "one", "y": "two" };
     let bad_point = deserialize_from_document::<Point>(bad_point);

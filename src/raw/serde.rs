@@ -3,19 +3,19 @@ pub(crate) mod seeded_visitor;
 
 use std::{borrow::Cow, convert::TryFrom, fmt::Debug};
 
-use serde::{de::Error as SerdeError, Deserialize};
+use serde::{Deserialize, de::Error as SerdeError};
 
 use crate::{
-    raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
-    spec::BinarySubtype,
     RawArray,
     RawArrayBuf,
     RawBsonRef,
     RawDocument,
     RawDocumentBuf,
+    raw::{RAW_ARRAY_NEWTYPE, RAW_DOCUMENT_NEWTYPE},
+    spec::BinarySubtype,
 };
 
-use super::{bson::RawBson, RAW_BSON_NEWTYPE};
+use super::{RAW_BSON_NEWTYPE, bson::RawBson};
 use bson_visitor::*;
 use seeded_visitor::*;
 

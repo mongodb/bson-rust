@@ -4,7 +4,7 @@ use std::{
 };
 
 use super::{Binary, Error, Result};
-use crate::{spec::BinarySubtype, Bson, RawBson};
+use crate::{Bson, RawBson, spec::BinarySubtype};
 
 const INT8: u8 = 0x03;
 const FLOAT32: u8 = 0x27;

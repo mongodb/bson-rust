@@ -32,16 +32,22 @@ use std::{
 
 pub use crate::document::Document;
 use crate::{
-    oid,
-    raw::{doc_writer::DocWriter, CString},
-    spec::ElementType,
     Binary,
     Decimal128,
     RawBsonRef,
+    oid,
+    raw::{CString, doc_writer::DocWriter},
+    spec::ElementType,
 };
 
 /// Possible BSON value types.
 #[derive(Clone, Default, PartialEq)]
+#[cfg_attr(
+    feature = "facet-unstable",
+    repr(C),
+    derive(facet::Facet),
+    facet(opaque)
+)]
 pub enum Bson {
     /// 64-bit binary floating point
     Double(f64),
@@ -150,7 +156,7 @@ impl Display for Bson {
                                 let new_indent = indent + 2;
                                 write!(fmt, "{bson:#new_indent$}")?;
                             }
-                            Bson::Document(ref doc) => {
+                            Bson::Document(doc) => {
                                 let new_indent = indent + 2;
                                 write!(fmt, "{doc:#new_indent$}")?;
                             }
@@ -918,14 +924,7 @@ impl Bson {
             })
             .append_to(buf),
             Self::JavaScriptCode(js) => RawBsonRef::JavaScriptCode(js).append_to(buf),
-            Self::JavaScriptCodeWithScope(cws) => {
-                let start = buf.len();
-                buf.extend(0i32.to_le_bytes()); // placeholder
-                RawBsonRef::String(&cws.code).append_to(buf);
-                cws.scope.append_to(buf)?;
-                let len: i32 = (buf.len() - start) as i32;
-                buf[start..start + 4].copy_from_slice(&len.to_le_bytes());
-            }
+            Self::JavaScriptCodeWithScope(cws) => cws.append_to(buf)?,
             Self::Timestamp(ts) => RawBsonRef::Timestamp(*ts).append_to(buf),
             Self::ObjectId(oid) => RawBsonRef::ObjectId(*oid).append_to(buf),
             Self::DateTime(dt) => RawBsonRef::DateTime(*dt).append_to(buf),
@@ -1098,7 +1097,7 @@ impl Bson {
     /// If `self` is [`DbPointer`](Bson::DbPointer), return its value.  Returns [`None`] otherwise.
     pub fn as_db_pointer(&self) -> Option<&DbPointer> {
         match self {
-            Bson::DbPointer(ref db_pointer) => Some(db_pointer),
+            Bson::DbPointer(db_pointer) => Some(db_pointer),
             _ => None,
         }
     }
@@ -1106,6 +1105,7 @@ impl Bson {
 
 /// Represents a BSON timestamp value.
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd, Clone, Copy, Hash)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct Timestamp {
     /// The number of seconds since the Unix epoch.
     pub time: u32,
@@ -1143,6 +1143,7 @@ impl Timestamp {
 
 /// Represents a BSON regular expression value.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct Regex {
     /// The regex pattern to match.
     pub pattern: CString,
@@ -1181,12 +1182,25 @@ impl Display for Regex {
 
 /// Represents a BSON code with scope value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct JavaScriptCodeWithScope {
     /// The JavaScript code.
     pub code: String,
 
     /// The scope document containing variable bindings.
     pub scope: Document,
+}
+
+impl JavaScriptCodeWithScope {
+    pub(crate) fn append_to(&self, buf: &mut Vec<u8>) -> crate::error::Result<()> {
+        let start = buf.len();
+        buf.extend(0i32.to_le_bytes()); // placeholder
+        RawBsonRef::String(&self.code).append_to(buf);
+        self.scope.append_to(buf)?;
+        let len: i32 = (buf.len() - start) as i32;
+        buf[start..start + 4].copy_from_slice(&len.to_le_bytes());
+        Ok(())
+    }
 }
 
 impl Display for JavaScriptCodeWithScope {
@@ -1197,6 +1211,7 @@ impl Display for JavaScriptCodeWithScope {
 
 /// Represents a DBPointer. (Deprecated)
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct DbPointer {
     pub(crate) namespace: String,
     pub(crate) id: oid::ObjectId,

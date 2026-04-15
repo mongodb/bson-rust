@@ -1,9 +1,11 @@
+mod corpus;
+mod format;
+
 use facet::Facet;
-use facet_json;
 
 use crate::Bson;
 
-use super::ExtJson;
+use crate::facet::ExtJson;
 
 fn assert_roundtrip<T: Facet<'static> + PartialEq + std::fmt::Debug>(value: &T, expected: &str) {
     let json = facet_json::to_string_pretty(value).unwrap();

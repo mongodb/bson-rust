@@ -10,16 +10,12 @@ use std::{
 use pretty_assertions::assert_eq;
 use serde::{
     self,
-    de::{DeserializeOwned, Unexpected},
     Deserialize,
     Serialize,
+    de::{DeserializeOwned, Unexpected},
 };
 
 use crate::{
-    cstr,
-    doc,
-    oid::ObjectId,
-    spec::BinarySubtype,
     Binary,
     Bson,
     DateTime,
@@ -41,6 +37,10 @@ use crate::{
     Regex,
     Utf8Lossy,
     Uuid,
+    cstr,
+    doc,
+    oid::ObjectId,
+    spec::BinarySubtype,
 };
 
 use super::util::AllTypes;

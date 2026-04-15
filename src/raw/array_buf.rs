@@ -5,7 +5,7 @@ use std::{
 
 use crate::{RawArray, RawBsonRef, RawDocumentBuf};
 
-use super::{document_buf::BindRawBsonRef, RawArrayIter};
+use super::{RawArrayIter, document_buf::BindRawBsonRef};
 
 /// An owned BSON array value (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON
 /// bytes. This type can be used to construct owned array values, which can be used to append to
@@ -39,6 +39,7 @@ use super::{document_buf::BindRawBsonRef, RawArrayIter};
 /// Note that accessing elements is an O(N) operation, as it requires iterating through the document
 /// from the beginning to find the requested key.
 #[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
 pub struct RawArrayBuf {
     inner: RawDocumentBuf,
     len: usize,

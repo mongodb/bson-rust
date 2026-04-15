@@ -1,8 +1,4 @@
 use crate::{
-    oid::ObjectId,
-    raw::{cstr, RawJavaScriptCodeWithScope},
-    spec::BinarySubtype,
-    tests::LOCK,
     Binary,
     Bson,
     DateTime,
@@ -15,6 +11,10 @@ use crate::{
     RawDocumentBuf,
     Regex,
     Timestamp,
+    oid::ObjectId,
+    raw::{RawJavaScriptCodeWithScope, cstr},
+    spec::BinarySubtype,
+    tests::LOCK,
 };
 
 use pretty_assertions::assert_eq;

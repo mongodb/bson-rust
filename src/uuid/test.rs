@@ -1,8 +1,8 @@
 use crate::{
-    spec::BinarySubtype,
-    uuid::{Uuid, UuidRepresentation},
     Binary,
     Bson,
+    spec::BinarySubtype,
+    uuid::{Uuid, UuidRepresentation},
 };
 
 #[cfg(feature = "serde")]
@@ -155,15 +155,18 @@ fn test_binary_to_uuid_standard_rep() {
         uuid
     );
 
-    assert!(bin
-        .to_uuid_with_representation(UuidRepresentation::CSharpLegacy)
-        .is_err());
-    assert!(bin
-        .to_uuid_with_representation(UuidRepresentation::PythonLegacy)
-        .is_err());
-    assert!(bin
-        .to_uuid_with_representation(UuidRepresentation::PythonLegacy)
-        .is_err());
+    assert!(
+        bin.to_uuid_with_representation(UuidRepresentation::CSharpLegacy)
+            .is_err()
+    );
+    assert!(
+        bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy)
+            .is_err()
+    );
+    assert!(
+        bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy)
+            .is_err()
+    );
 }
 
 #[test]
@@ -178,15 +181,18 @@ fn test_binary_to_uuid_explicitly_standard_rep() {
         uuid
     );
 
-    assert!(bin
-        .to_uuid_with_representation(UuidRepresentation::CSharpLegacy)
-        .is_err());
-    assert!(bin
-        .to_uuid_with_representation(UuidRepresentation::PythonLegacy)
-        .is_err());
-    assert!(bin
-        .to_uuid_with_representation(UuidRepresentation::PythonLegacy)
-        .is_err());
+    assert!(
+        bin.to_uuid_with_representation(UuidRepresentation::CSharpLegacy)
+            .is_err()
+    );
+    assert!(
+        bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy)
+            .is_err()
+    );
+    assert!(
+        bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy)
+            .is_err()
+    );
 }
 
 #[test]
@@ -195,9 +201,10 @@ fn test_binary_to_uuid_java_rep() {
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::JavaLegacy);
 
     assert!(bin.to_uuid().is_err());
-    assert!(bin
-        .to_uuid_with_representation(UuidRepresentation::Standard)
-        .is_err());
+    assert!(
+        bin.to_uuid_with_representation(UuidRepresentation::Standard)
+            .is_err()
+    );
 
     assert_eq!(
         bin.to_uuid_with_representation(UuidRepresentation::JavaLegacy)
@@ -212,9 +219,10 @@ fn test_binary_to_uuid_csharp_legacy_rep() {
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::CSharpLegacy);
 
     assert!(bin.to_uuid().is_err());
-    assert!(bin
-        .to_uuid_with_representation(UuidRepresentation::Standard)
-        .is_err());
+    assert!(
+        bin.to_uuid_with_representation(UuidRepresentation::Standard)
+            .is_err()
+    );
 
     assert_eq!(
         bin.to_uuid_with_representation(UuidRepresentation::CSharpLegacy)
@@ -229,9 +237,10 @@ fn test_binary_to_uuid_python_legacy_rep() {
     let bin = Binary::from_uuid_with_representation(uuid, UuidRepresentation::PythonLegacy);
 
     assert!(bin.to_uuid().is_err());
-    assert!(bin
-        .to_uuid_with_representation(UuidRepresentation::Standard)
-        .is_err());
+    assert!(
+        bin.to_uuid_with_representation(UuidRepresentation::Standard)
+            .is_err()
+    );
 
     assert_eq!(
         bin.to_uuid_with_representation(UuidRepresentation::PythonLegacy)

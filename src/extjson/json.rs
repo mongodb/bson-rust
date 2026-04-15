@@ -1,11 +1,9 @@
 use std::convert::{TryFrom, TryInto};
 
 use serde::de::{Error as _, Unexpected};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::{
-    error::{Error, Result},
-    extjson::models,
     Binary,
     Bson,
     DbPointer,
@@ -13,6 +11,8 @@ use crate::{
     JavaScriptCodeWithScope,
     Regex,
     Timestamp,
+    error::{Error, Result},
+    extjson::models,
 };
 
 impl From<serde_json::Error> for Error {

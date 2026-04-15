@@ -1,4 +1,4 @@
-use crate::{spec::BinarySubtype, Binary, Bson, Document, JavaScriptCodeWithScope, Regex};
+use crate::{Binary, Bson, Document, JavaScriptCodeWithScope, Regex, spec::BinarySubtype};
 
 use proptest::prelude::*;
 
