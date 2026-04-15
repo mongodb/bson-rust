@@ -42,8 +42,12 @@ use crate::{
 
 /// Possible BSON value types.
 #[derive(Clone, Default, PartialEq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
-#[repr(C)]
+#[cfg_attr(
+    feature = "facet-unstable",
+    repr(C),
+    derive(facet::Facet),
+    facet(opaque)
+)]
 pub enum Bson {
     /// 64-bit binary floating point
     Double(f64),

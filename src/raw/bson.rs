@@ -24,8 +24,12 @@ use super::{Error, Result};
 
 /// A BSON value backed by owned raw BSON bytes.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
-#[repr(C)]
+#[cfg_attr(
+    feature = "facet-unstable",
+    repr(C),
+    derive(facet::Facet),
+    facet(opaque)
+)]
 pub enum RawBson {
     /// 64-bit binary floating point
     Double(f64),

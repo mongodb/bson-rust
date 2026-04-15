@@ -11,7 +11,7 @@ use crate::{
     Regex,
     Timestamp,
     cstr,
-    facet::to_vec,
+    facet::serialize_to_vec,
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -31,7 +31,7 @@ fn simple_serialize() {
         other: i32,
     }
 
-    let bytes = to_vec(&Outer {
+    let bytes = serialize_to_vec(&Outer {
         inner: Inner { value: 42 },
         other: 13,
     })
@@ -55,7 +55,7 @@ fn complex_serialize() {
         more: bool,
     }
 
-    let bytes = to_vec(&Outer {
+    let bytes = serialize_to_vec(&Outer {
         inner: vec![
             Inner {
                 value: 42,
@@ -91,7 +91,7 @@ fn array_serialize() {
         value: Vec<i32>,
     }
 
-    let bytes = to_vec(&Outer {
+    let bytes = serialize_to_vec(&Outer {
         value: vec![42, 13],
     })
     .unwrap();
@@ -107,7 +107,7 @@ where
     struct Outer<T> {
         value: T,
     }
-    let bytes = to_vec(&Outer { value: v.clone() }).unwrap();
+    let bytes = serialize_to_vec(&Outer { value: v.clone() }).unwrap();
     let doc = Document::from_reader(Cursor::new(bytes)).unwrap();
     let bson_val: Bson = v.try_into().unwrap();
     assert_eq!(doc, doc! { "value": bson_val });

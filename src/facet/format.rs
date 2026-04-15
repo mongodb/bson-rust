@@ -28,7 +28,7 @@ use crate::{
 };
 
 /// Serialize a value to BSON bytes.
-pub fn to_vec<'facet, T: Facet<'facet>>(value: &T) -> Result<Vec<u8>> {
+pub fn serialize_to_vec<'facet, T: Facet<'facet>>(value: &T) -> Result<Vec<u8>> {
     let mut s = Serializer::new();
     facet_format::serialize_root(&mut s, facet_reflect::Peek::new(value)).map_err(|e| match e {
         SerializeError::Backend(e) => e,
