@@ -4,9 +4,14 @@ use std::borrow::Cow;
 
 use facet::Facet;
 use facet_format::{
+    ContainerKind,
     DeserializeErrorKind,
+    FieldKey,
+    FieldLocationHint,
     FormatSerializer,
     ParseError,
+    ParseEvent,
+    ParseEventKind,
     ScalarValue,
     SerializeError,
 };
@@ -23,14 +28,13 @@ use crate::{
     RawArrayBuf,
     RawBinaryRef,
     RawBsonRef,
-    RawDocument,
     RawDocumentBuf,
     RawJavaScriptCodeWithScope,
     Regex,
     Timestamp,
     error::{Error, Result},
     oid::ObjectId,
-    raw::{CStr, MIN_BSON_DOCUMENT_SIZE, i32_from_slice},
+    raw::{CStr, MIN_BSON_DOCUMENT_SIZE, RawIter},
     spec::{BinarySubtype, ElementType},
 };
 
@@ -262,7 +266,7 @@ impl From<ReflectError> for Error {
     }
 }
 
-struct Deserializer<'de> {
+struct Parser<'de> {
     bytes: &'de [u8],
     offset: usize,
     expects: Expect,
@@ -274,7 +278,7 @@ enum Expect {
     ElemValue,
 }
 
-impl<'de> Deserializer<'de> {
+impl<'de> Parser<'de> {
     fn new(bytes: &'de [u8]) -> Self {
         Self {
             bytes,
@@ -282,21 +286,97 @@ impl<'de> Deserializer<'de> {
             expects: Expect::DocStart,
         }
     }
+
+    fn span(&self) -> Span {
+        let len = match self.expects {
+            Expect::DocStart => {
+                let iter = RawIter::new_unchecked(self.bytes, self.offset);
+                iter.next_document_len(self.offset).unwrap_or(0)
+            }
+            Expect::ElemKey => 1,
+            Expect::ElemValue => 0,
+        };
+        Span::new(self.offset, len)
+    }
+
+    fn next_event_inner(&mut self) -> Result<Option<ParseEvent<'de>>> {
+        let Some(ev) = self.peek_event_inner()? else {
+            return Ok(None);
+        };
+        match self.expects {
+            Expect::DocStart => {
+                self.offset += 4;
+                self.expects = Expect::ElemKey;
+            }
+            Expect::ElemKey => {
+                self.expects = if matches!(ev.kind, ParseEventKind::SequenceEnd) {
+                    // document end tag => we're now looking for another key in the outer document
+                    Expect::ElemKey
+                } else {
+                    Expect::ElemValue
+                };
+            }
+            Expect::ElemValue => {}
+        }
+        Ok(Some(ev))
+    }
+
+    fn peek_event_inner(&mut self) -> Result<Option<ParseEvent<'de>>> {
+        if self.offset == self.bytes.len() {
+            return Ok(None);
+        }
+        let mut iter = RawIter::new_unchecked(self.bytes, self.offset);
+        Ok(Some(match self.expects {
+            Expect::DocStart => {
+                let len = iter.next_document_len(self.offset)?;
+                ParseEvent::new(
+                    ParseEventKind::StructStart(ContainerKind::Object),
+                    Span::new(self.offset, len),
+                )
+            }
+            Expect::ElemKey => {
+                let Some(elt) = iter.next() else {
+                    return Ok(Some(ParseEvent::new(
+                        ParseEventKind::SequenceEnd,
+                        Span::new(self.offset, 1),
+                    )));
+                };
+                let elt = elt?;
+                ParseEvent::new(
+                    ParseEventKind::FieldKey(FieldKey::new(
+                        elt.key().as_str(),
+                        FieldLocationHint::KeyValue,
+                    )),
+                    Span::new(self.offset, elt.size()),
+                )
+            }
+            Expect::ElemValue => {
+                let Some(elt) = iter.next() else {
+                    return Err(Error::deserialization("unexpected document end"));
+                };
+                let elt = elt?;
+                match elt.value()? {
+                    RawBsonRef::Int32(i) => ParseEvent::new(
+                        ParseEventKind::Scalar(ScalarValue::I64(i as i64)),
+                        Span::new(self.offset + 1, 1),
+                    ),
+                    _ => todo!(),
+                }
+            }
+        }))
+    }
 }
 
-fn parse_err(source: Error, offset: usize, len: usize) -> ParseError {
+fn parse_err(source: Error, span: Span) -> ParseError {
     ParseError::new(
-        Span {
-            offset: offset as u32,
-            len: len as u32,
-        },
+        span,
         DeserializeErrorKind::InvalidValue {
             message: Cow::Owned(source.to_string()),
         },
     )
 }
 
-impl<'de> facet_format::FormatParser<'de> for Deserializer<'de> {
+impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
     fn is_self_describing(&self) -> bool {
         false
     }
@@ -307,22 +387,14 @@ impl<'de> facet_format::FormatParser<'de> for Deserializer<'de> {
         true
     }
 
-    fn next_event(
-        &mut self,
-    ) -> std::result::Result<Option<facet_format::ParseEvent<'de>>, ParseError> {
-        match self.expects {
-            Expect::DocStart => {
-                todo!()
-            }
-            Expect::ElemKey => todo!(),
-            Expect::ElemValue => todo!(),
-        }
+    fn next_event(&mut self) -> std::result::Result<Option<ParseEvent<'de>>, ParseError> {
+        self.next_event_inner()
+            .map_err(|e| parse_err(e, self.span()))
     }
 
-    fn peek_event(
-        &mut self,
-    ) -> std::result::Result<Option<facet_format::ParseEvent<'de>>, ParseError> {
-        todo!()
+    fn peek_event(&mut self) -> std::result::Result<Option<ParseEvent<'de>>, ParseError> {
+        self.peek_event_inner()
+            .map_err(|e| parse_err(e, self.span()))
     }
 
     fn skip_value(&mut self) -> std::result::Result<(), ParseError> {
@@ -346,5 +418,7 @@ pub fn deserialize_from_slice<'a, T: Facet<'a>>(bytes: &'a [u8]) -> Result<T> {
     // * serialize_map:
     //   * for byte buffer / leaf value wrappers, can return a pointer to the buffer
     //   * for others, return a pointer to a static marker that's opaque
-    todo!()
+    facet_format::FormatDeserializer::new(&mut Parser::new(bytes))
+        .deserialize()
+        .map_err(|e| Error::deserialization(e))
 }

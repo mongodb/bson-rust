@@ -78,9 +78,13 @@ pub struct RawIter<'a> {
 
 impl<'a> RawIter<'a> {
     pub(crate) fn new(doc: &'a RawDocument) -> Self {
+        Self::new_unchecked(doc.as_bytes(), 4)
+    }
+
+    pub(crate) fn new_unchecked(bytes: &'a [u8], offset: usize) -> Self {
         Self {
-            bytes: doc.as_bytes(),
-            offset: 4,
+            bytes,
+            offset,
             valid: true,
         }
     }
@@ -97,7 +101,7 @@ impl<'a> RawIter<'a> {
         Ok(())
     }
 
-    fn next_document_len(&self, starting_at: usize) -> Result<usize> {
+    pub(crate) fn next_document_len(&self, starting_at: usize) -> Result<usize> {
         self.verify_enough_bytes(starting_at, MIN_BSON_DOCUMENT_SIZE as usize)?;
         let size = i32_from_slice(&self.bytes[starting_at..])? as usize;
 
