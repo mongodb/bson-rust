@@ -1,6 +1,7 @@
 #[cfg(mongodb_internal_bench)]
 mod bench;
 mod binary_subtype;
+#[cfg(any(feature = "serde", feature = "facet-unstable"))]
 pub(crate) mod corpus;
 mod datetime;
 #[cfg(feature = "facet-unstable")]

@@ -483,22 +483,12 @@ impl RawDocument {
 
     pub(crate) fn cstring_bytes_at(&self, start_at: usize) -> RawResult<&[u8]> {
         let buf = &self.as_bytes()[start_at..];
-
-        let mut splits = buf.splitn(2, |x| *x == 0);
-        let value = splits
-            .next()
-            .ok_or_else(|| RawError::malformed_bytes("no value"))?;
-        if splits.next().is_some() {
-            Ok(value)
-        } else {
-            Err(RawError::malformed_bytes("expected null terminator"))
-        }
+        super::cstring_bytes(buf)
     }
 
     pub(crate) fn read_cstring_at(&self, start_at: usize) -> RawResult<&CStr> {
-        let bytes = self.cstring_bytes_at(start_at)?;
-        let s = try_to_str(bytes)?;
-        s.try_into()
+        let buf = &self.as_bytes()[start_at..];
+        super::read_cstring(buf)
     }
 }
 

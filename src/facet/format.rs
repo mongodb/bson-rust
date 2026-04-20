@@ -3,8 +3,14 @@
 use std::borrow::Cow;
 
 use facet::Facet;
-use facet_format::{FormatSerializer, ScalarValue, SerializeError};
-use facet_reflect::ReflectError;
+use facet_format::{
+    DeserializeErrorKind,
+    FormatSerializer,
+    ParseError,
+    ScalarValue,
+    SerializeError,
+};
+use facet_reflect::{ReflectError, Span};
 
 use crate::{
     Binary,
@@ -17,13 +23,14 @@ use crate::{
     RawArrayBuf,
     RawBinaryRef,
     RawBsonRef,
+    RawDocument,
     RawDocumentBuf,
     RawJavaScriptCodeWithScope,
     Regex,
     Timestamp,
     error::{Error, Result},
     oid::ObjectId,
-    raw::{CStr, MIN_BSON_DOCUMENT_SIZE},
+    raw::{CStr, MIN_BSON_DOCUMENT_SIZE, i32_from_slice},
     spec::{BinarySubtype, ElementType},
 };
 
@@ -32,7 +39,7 @@ pub fn serialize_to_vec<'facet, T: Facet<'facet>>(value: &T) -> Result<Vec<u8>> 
     let mut s = Serializer::new();
     facet_format::serialize_root(&mut s, facet_reflect::Peek::new(value)).map_err(|e| match e {
         SerializeError::Backend(e) => e,
-        _ => Error::serialization(format!("{e}")),
+        _ => Error::serialization(e),
     })?;
     Ok(s.bytes)
 }
@@ -253,4 +260,91 @@ impl From<ReflectError> for Error {
     fn from(value: ReflectError) -> Self {
         Error::serialization(format!("{value}"))
     }
+}
+
+struct Deserializer<'de> {
+    bytes: &'de [u8],
+    offset: usize,
+    expects: Expect,
+}
+
+enum Expect {
+    DocStart,
+    ElemKey,
+    ElemValue,
+}
+
+impl<'de> Deserializer<'de> {
+    fn new(bytes: &'de [u8]) -> Self {
+        Self {
+            bytes,
+            offset: 0,
+            expects: Expect::DocStart,
+        }
+    }
+}
+
+fn parse_err(source: Error, offset: usize, len: usize) -> ParseError {
+    ParseError::new(
+        Span {
+            offset: offset as u32,
+            len: len as u32,
+        },
+        DeserializeErrorKind::InvalidValue {
+            message: Cow::Owned(source.to_string()),
+        },
+    )
+}
+
+impl<'de> facet_format::FormatParser<'de> for Deserializer<'de> {
+    fn is_self_describing(&self) -> bool {
+        false
+    }
+
+    fn hint_byte_sequence(&mut self) -> bool {
+        eprintln!("hint_byte_sequence");
+
+        true
+    }
+
+    fn next_event(
+        &mut self,
+    ) -> std::result::Result<Option<facet_format::ParseEvent<'de>>, ParseError> {
+        match self.expects {
+            Expect::DocStart => {
+                todo!()
+            }
+            Expect::ElemKey => todo!(),
+            Expect::ElemValue => todo!(),
+        }
+    }
+
+    fn peek_event(
+        &mut self,
+    ) -> std::result::Result<Option<facet_format::ParseEvent<'de>>, ParseError> {
+        todo!()
+    }
+
+    fn skip_value(&mut self) -> std::result::Result<(), ParseError> {
+        todo!()
+    }
+
+    fn save(&mut self) -> facet_format::SavePoint {
+        todo!()
+    }
+
+    fn restore(&mut self, save_point: facet_format::SavePoint) {
+        todo!()
+    }
+}
+
+/// Deserialize a value from BSON bytes.
+pub fn deserialize_from_slice<'a, T: Facet<'a>>(bytes: &'a [u8]) -> Result<T> {
+    // Approach:
+    // * FacetOpaqueAdapter for all bson types
+    // * deserialize_build parses from input as normal
+    // * serialize_map:
+    //   * for byte buffer / leaf value wrappers, can return a pointer to the buffer
+    //   * for others, return a pointer to a static marker that's opaque
+    todo!()
 }
