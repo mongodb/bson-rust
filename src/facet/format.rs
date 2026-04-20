@@ -287,18 +287,6 @@ impl<'de> Parser<'de> {
         }
     }
 
-    fn span(&self) -> Span {
-        let len = match self.expects {
-            Expect::DocStart => {
-                let iter = RawIter::new_unchecked(self.bytes, self.offset);
-                iter.next_document_len(self.offset).unwrap_or(0)
-            }
-            Expect::ElemKey => 1,
-            Expect::ElemValue => 0,
-        };
-        Span::new(self.offset, len)
-    }
-
     fn next_event_inner(&mut self) -> Result<Option<ParseEvent<'de>>> {
         let Some(ev) = self.peek_event_inner()? else {
             return Ok(None);
@@ -309,6 +297,8 @@ impl<'de> Parser<'de> {
                 self.expects = Expect::ElemKey;
             }
             Expect::ElemKey => {
+                // self.offset remains the same so the same RawElement will be parsed for the
+                // ElemValue
                 self.expects = if matches!(ev.kind, ParseEventKind::SequenceEnd) {
                     // document end tag => we're now looking for another key in the outer document
                     Expect::ElemKey
@@ -316,7 +306,10 @@ impl<'de> Parser<'de> {
                     Expect::ElemValue
                 };
             }
-            Expect::ElemValue => {}
+            Expect::ElemValue => {
+                self.expects = Expect::ElemKey;
+                self.offset = ev.span.end();
+            }
         }
         Ok(Some(ev))
     }
@@ -337,7 +330,7 @@ impl<'de> Parser<'de> {
             Expect::ElemKey => {
                 let Some(elt) = iter.next() else {
                     return Ok(Some(ParseEvent::new(
-                        ParseEventKind::SequenceEnd,
+                        ParseEventKind::StructEnd,
                         Span::new(self.offset, 1),
                     )));
                 };
@@ -358,22 +351,22 @@ impl<'de> Parser<'de> {
                 match elt.value()? {
                     RawBsonRef::Int32(i) => ParseEvent::new(
                         ParseEventKind::Scalar(ScalarValue::I64(i as i64)),
-                        Span::new(self.offset + 1, 1),
+                        Span::new(self.offset + 1 + elt.key().len() + 1, 4),
                     ),
                     _ => todo!(),
                 }
             }
         }))
     }
-}
 
-fn parse_err(source: Error, span: Span) -> ParseError {
-    ParseError::new(
-        span,
-        DeserializeErrorKind::InvalidValue {
-            message: Cow::Owned(source.to_string()),
-        },
-    )
+    fn parse_err(&self, source: Error) -> ParseError {
+        ParseError::new(
+            Span::new(self.offset, 0),
+            DeserializeErrorKind::InvalidValue {
+                message: Cow::Owned(source.to_string()),
+            },
+        )
+    }
 }
 
 impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
@@ -389,12 +382,20 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
 
     fn next_event(&mut self) -> std::result::Result<Option<ParseEvent<'de>>, ParseError> {
         self.next_event_inner()
-            .map_err(|e| parse_err(e, self.span()))
+            .map(|e| {
+                eprintln!("next: {e:?}");
+                e
+            })
+            .map_err(|e| self.parse_err(e))
     }
 
     fn peek_event(&mut self) -> std::result::Result<Option<ParseEvent<'de>>, ParseError> {
         self.peek_event_inner()
-            .map_err(|e| parse_err(e, self.span()))
+            .map(|e| {
+                eprintln!("peek: {e:?}");
+                e
+            })
+            .map_err(|e| self.parse_err(e))
     }
 
     fn skip_value(&mut self) -> std::result::Result<(), ParseError> {

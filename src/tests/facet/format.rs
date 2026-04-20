@@ -11,7 +11,7 @@ use crate::{
     Regex,
     Timestamp,
     cstr,
-    facet::serialize_to_vec,
+    facet::{deserialize_from_slice, serialize_to_vec},
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -201,4 +201,17 @@ fn rawjsc_serialize() {
 #[test]
 fn rawbson_serialize() {
     value_serialize(crate::RawBson::Int32(9023));
+}
+
+#[test]
+fn simple_deserialize() {
+    #[derive(Debug, PartialEq, Facet)]
+    struct Foo {
+        val: i32,
+        next: i32,
+    }
+    let bytes = rawdoc! { "val": 42, "next": 13 }.into_bytes();
+    dbg!(&bytes);
+    let f: Foo = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(Foo { val: 42, next: 13 }, f);
 }
