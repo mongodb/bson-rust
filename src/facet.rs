@@ -11,7 +11,7 @@ use crate::{
     extjson::models::{self, ObjectType, parse_err},
 };
 
-pub use format::serialize_to_vec;
+pub use format::{deserialize_from_slice, serialize_to_vec};
 
 /// A type for use with #[facet(proxy)] that represents BSON values in their canonical extended JSON
 /// form.

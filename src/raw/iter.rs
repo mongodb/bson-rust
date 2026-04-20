@@ -12,7 +12,15 @@ use crate::{
     RawRegexRef,
     Timestamp,
     oid::ObjectId,
-    raw::{CStr, Error, MIN_BSON_DOCUMENT_SIZE, MIN_CODE_WITH_SCOPE_SIZE, Result},
+    raw::{
+        CStr,
+        Error,
+        MIN_BSON_DOCUMENT_SIZE,
+        MIN_CODE_WITH_SCOPE_SIZE,
+        Result,
+        cstring_bytes,
+        read_cstring,
+    },
     spec::{BinarySubtype, ElementType},
 };
 
@@ -60,7 +68,7 @@ impl<'a> Iterator for Iter<'a> {
 
 /// An iterator over the document's elements.
 pub struct RawIter<'a> {
-    doc: &'a RawDocument,
+    bytes: &'a [u8],
     offset: usize,
 
     /// Whether the underlying doc is assumed to be valid or if an error has been encountered.
@@ -71,7 +79,7 @@ pub struct RawIter<'a> {
 impl<'a> RawIter<'a> {
     pub(crate) fn new(doc: &'a RawDocument) -> Self {
         Self {
-            doc,
+            bytes: doc.as_bytes(),
             offset: 4,
             valid: true,
         }
@@ -79,11 +87,11 @@ impl<'a> RawIter<'a> {
 
     fn verify_enough_bytes(&self, start: usize, num_bytes: usize) -> Result<()> {
         let end = checked_add(start, num_bytes)?;
-        if self.doc.as_bytes().get(start..end).is_none() {
+        if self.bytes.get(start..end).is_none() {
             return Err(Error::malformed_bytes(format!(
                 "length exceeds remaining length of buffer: {} vs {}",
                 num_bytes,
-                self.doc.as_bytes().len() - start
+                self.bytes.len() - start
             )));
         }
         Ok(())
@@ -91,7 +99,7 @@ impl<'a> RawIter<'a> {
 
     fn next_document_len(&self, starting_at: usize) -> Result<usize> {
         self.verify_enough_bytes(starting_at, MIN_BSON_DOCUMENT_SIZE as usize)?;
-        let size = i32_from_slice(&self.doc.as_bytes()[starting_at..])? as usize;
+        let size = i32_from_slice(&self.bytes[starting_at..])? as usize;
 
         if size < MIN_BSON_DOCUMENT_SIZE as usize {
             return Err(Error::malformed_bytes(format!(
@@ -102,7 +110,7 @@ impl<'a> RawIter<'a> {
 
         self.verify_enough_bytes(starting_at, size)?;
 
-        if self.doc.as_bytes()[starting_at + size - 1] != 0 {
+        if self.bytes[starting_at + size - 1] != 0 {
             return Err(Error::malformed_bytes("not null terminated"));
         }
         Ok(size)
@@ -116,7 +124,7 @@ impl<'a> RawIter<'a> {
 pub struct RawElement<'a> {
     key: &'a CStr,
     kind: ElementType,
-    doc: &'a RawDocument,
+    bytes: &'a [u8],
     start_at: usize,
     size: usize,
 }
@@ -212,12 +220,10 @@ impl<'a> RawElement<'a> {
                 id: self.get_oid_at(self.start_at + (self.size - 12))?,
             }),
             ElementType::RegularExpression => {
-                let pattern = self.doc.read_cstring_at(self.start_at)?;
+                let pattern = read_cstring(&self.bytes[self.start_at..])?;
                 RawBsonRef::RegularExpression(RawRegexRef {
                     pattern,
-                    options: self
-                        .doc
-                        .read_cstring_at(self.start_at + pattern.len() + 1)?,
+                    options: read_cstring(&self.bytes[self.start_at + pattern.len() + 1..])?,
                 })
             }
             ElementType::Timestamp => RawBsonRef::Timestamp({
@@ -239,7 +245,7 @@ impl<'a> RawElement<'a> {
                     );
                 }
 
-                let subtype = BinarySubtype::from(self.doc.as_bytes()[self.start_at + 4]);
+                let subtype = BinarySubtype::from(self.bytes[self.start_at + 4]);
                 let data = match subtype {
                     BinarySubtype::BinaryOld => {
                         if len < 4 {
@@ -247,8 +253,7 @@ impl<'a> RawElement<'a> {
                                 "old binary subtype has no inner declared length",
                             ));
                         }
-                        let oldlength =
-                            i32_from_slice(&self.doc.as_bytes()[data_start..])? as usize;
+                        let oldlength = i32_from_slice(&self.bytes[data_start..])? as usize;
                         if checked_add(oldlength, 4)? != len {
                             return Err(self.malformed_error(
                                 "old binary subtype has wrong inner declared length",
@@ -316,14 +321,14 @@ impl<'a> RawElement<'a> {
                 id: self.get_oid_at(self.start_at + (self.size - 12))?,
             }),
             ElementType::RegularExpression => {
-                let pattern =
-                    String::from_utf8_lossy(self.doc.cstring_bytes_at(self.start_at)?).into_owned();
+                let pattern = String::from_utf8_lossy(cstring_bytes(&self.bytes[self.start_at..])?)
+                    .into_owned();
                 let pattern_len = pattern.len();
                 Utf8LossyBson::RegularExpression(crate::Regex {
                     pattern: pattern.try_into()?,
-                    options: String::from_utf8_lossy(
-                        self.doc.cstring_bytes_at(self.start_at + pattern_len + 1)?,
-                    )
+                    options: String::from_utf8_lossy(cstring_bytes(
+                        &self.bytes[self.start_at + pattern_len + 1..],
+                    )?)
                     .into_owned()
                     .try_into()?,
                 })
@@ -342,7 +347,7 @@ impl<'a> RawElement<'a> {
     }
 
     fn slice_bounds(&self, start_at: usize, size: usize) -> &'a [u8] {
-        &self.doc.as_bytes()[start_at..(start_at + size)]
+        &self.bytes[start_at..(start_at + size)]
     }
 
     fn str_bytes(&self) -> &'a [u8] {
@@ -359,7 +364,7 @@ impl<'a> RawElement<'a> {
 
     fn get_oid_at(&self, start_at: usize) -> Result<ObjectId> {
         Ok(ObjectId::from_bytes(
-            self.doc.as_bytes()[start_at..(start_at + 12)]
+            self.bytes[start_at..(start_at + 12)]
                 .try_into()
                 .map_err(|e| Error::malformed_bytes(e).with_key(self.key.as_str()))?,
         ))
@@ -368,7 +373,7 @@ impl<'a> RawElement<'a> {
 
 impl RawIter<'_> {
     fn get_next_length_at(&self, start_at: usize) -> Result<usize> {
-        let len = i32_from_slice(&self.doc.as_bytes()[start_at..])?;
+        let len = i32_from_slice(&self.bytes[start_at..])?;
         if len < 0 {
             Err(Error::malformed_bytes("lengths can't be negative"))
         } else {
@@ -377,12 +382,12 @@ impl RawIter<'_> {
     }
 
     fn get_next_kvp(&mut self, offset: usize) -> Result<(ElementType, usize)> {
-        let element_type = match ElementType::from(self.doc.as_bytes()[self.offset]) {
+        let element_type = match ElementType::from(self.bytes[self.offset]) {
             Some(et) => et,
             None => {
                 return Err(Error::malformed_bytes(format!(
                     "invalid tag: {}",
-                    self.doc.as_bytes()[self.offset]
+                    self.bytes[self.offset]
                 )));
             }
         };
@@ -400,18 +405,18 @@ impl RawIter<'_> {
             ElementType::Undefined => 0,
             ElementType::MinKey => 0,
             ElementType::MaxKey => 0,
-            ElementType::String => read_len(&self.doc.as_bytes()[offset..])?,
+            ElementType::String => read_len(&self.bytes[offset..])?,
             ElementType::EmbeddedDocument => self.next_document_len(offset)?,
             ElementType::Array => self.next_document_len(offset)?,
             ElementType::Binary => self.get_next_length_at(offset)? + 4 + 1,
             ElementType::RegularExpression => {
-                let pattern = self.doc.read_cstring_at(offset)?;
-                let options = self.doc.read_cstring_at(offset + pattern.len() + 1)?;
+                let pattern = read_cstring(&self.bytes[offset..])?;
+                let options = read_cstring(&self.bytes[offset + pattern.len() + 1..])?;
                 pattern.len() + 1 + options.len() + 1
             }
-            ElementType::DbPointer => read_len(&self.doc.as_bytes()[offset..])? + 12,
-            ElementType::Symbol => read_len(&self.doc.as_bytes()[offset..])?,
-            ElementType::JavaScriptCode => read_len(&self.doc.as_bytes()[offset..])?,
+            ElementType::DbPointer => read_len(&self.bytes[offset..])? + 12,
+            ElementType::Symbol => read_len(&self.bytes[offset..])?,
+            ElementType::JavaScriptCode => read_len(&self.bytes[offset..])?,
             ElementType::JavaScriptCodeWithScope => self.get_next_length_at(offset)?,
         };
 
@@ -428,20 +433,20 @@ impl<'a> Iterator for RawIter<'a> {
     fn next(&mut self) -> Option<Result<RawElement<'a>>> {
         if !self.valid {
             return None;
-        } else if self.offset == self.doc.as_bytes().len() - 1 {
-            if self.doc.as_bytes()[self.offset] == 0 {
+        } else if self.offset == self.bytes.len() - 1 {
+            if self.bytes[self.offset] == 0 {
                 // end of document marker
                 return None;
             } else {
                 self.valid = false;
                 return Some(Err(Error::malformed_bytes("document not null terminated")));
             }
-        } else if self.offset >= self.doc.as_bytes().len() {
+        } else if self.offset >= self.bytes.len() {
             self.valid = false;
             return Some(Err(Error::malformed_bytes("iteration overflowed document")));
         }
 
-        let key = match self.doc.read_cstring_at(self.offset + 1) {
+        let key = match read_cstring(&self.bytes[self.offset + 1..]) {
             Ok(k) => k,
             Err(e) => {
                 self.valid = false;
@@ -454,7 +459,7 @@ impl<'a> Iterator for RawIter<'a> {
             Ok((kind, size)) => Ok(RawElement {
                 key,
                 kind,
-                doc: self.doc,
+                bytes: self.bytes,
                 start_at: offset,
                 size,
             }),
