@@ -211,7 +211,34 @@ fn simple_deserialize() {
         next: i32,
     }
     let bytes = rawdoc! { "val": 42, "next": 13 }.into_bytes();
-    dbg!(&bytes);
     let f: Foo = deserialize_from_slice(&bytes).unwrap();
     assert_eq!(Foo { val: 42, next: 13 }, f);
+}
+
+#[test]
+fn nested_deserialize() {
+    #[derive(Debug, PartialEq, Facet)]
+    struct Foo {
+        val: i32,
+        next: i32,
+        inner: Bar,
+        last: i32,
+    }
+    #[derive(Debug, PartialEq, Facet)]
+    struct Bar {
+        a: i32,
+        b: i32,
+    }
+    let bytes =
+        rawdoc! { "val": 42, "next": 13, "inner": { "a": 1, "b": 2 }, "last": 1066 }.into_bytes();
+    let f: Foo = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(
+        Foo {
+            val: 42,
+            next: 13,
+            inner: Bar { a: 1, b: 2 },
+            last: 1066
+        },
+        f,
+    );
 }

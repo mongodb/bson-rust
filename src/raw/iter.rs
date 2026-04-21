@@ -437,14 +437,12 @@ impl<'a> Iterator for RawIter<'a> {
     fn next(&mut self) -> Option<Result<RawElement<'a>>> {
         if !self.valid {
             return None;
+        } else if self.bytes[self.offset] == 0 {
+            // end of document marker
+            return None;
         } else if self.offset == self.bytes.len() - 1 {
-            if self.bytes[self.offset] == 0 {
-                // end of document marker
-                return None;
-            } else {
-                self.valid = false;
-                return Some(Err(Error::malformed_bytes("document not null terminated")));
-            }
+            self.valid = false;
+            return Some(Err(Error::malformed_bytes("document not null terminated")));
         } else if self.offset >= self.bytes.len() {
             self.valid = false;
             return Some(Err(Error::malformed_bytes("iteration overflowed document")));
