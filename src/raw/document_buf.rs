@@ -11,6 +11,9 @@ use crate::{
 
 use super::{RawBsonRef, RawDocument, RawIter, Result, bson::RawBson, iter::Iter};
 
+#[cfg(feature = "facet-unstable")]
+use crate::facet::format::opaque;
+
 /// An owned BSON document (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
 /// This can be created from a `Vec<u8>` or a [`crate::Document`].
 ///
@@ -48,7 +51,7 @@ use super::{RawBsonRef, RawDocument, RawIter, Result, bson::RawBson, iter::Iter}
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Clone, PartialEq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = rawdoc_facet::RawDocumentBufAdapter))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::RawDocumentBufAdapter))]
 pub struct RawDocumentBuf {
     data: Vec<u8>,
 }
@@ -309,36 +312,6 @@ impl Deref for RawDocumentBuf {
 impl Borrow<RawDocument> for RawDocumentBuf {
     fn borrow(&self) -> &RawDocument {
         self.deref()
-    }
-}
-
-#[cfg(feature = "facet-unstable")]
-mod rawdoc_facet {
-    use super::*;
-
-    use facet::{FacetOpaqueAdapter, OpaqueDeserialize, OpaqueSerialize};
-
-    pub(super) struct RawDocumentBufAdapter;
-
-    impl FacetOpaqueAdapter for RawDocumentBufAdapter {
-        type Error = crate::error::Error;
-        type SendValue<'a> = RawDocumentBuf;
-        type RecvValue<'de> = RawDocumentBuf;
-
-        fn serialize_map(value: &Self::SendValue<'_>) -> OpaqueSerialize {
-            OpaqueSerialize {
-                ptr: facet::PtrConst::new(&value.data as *const Vec<u8>),
-                shape: <Vec<u8> as facet::Facet>::SHAPE,
-            }
-        }
-
-        fn deserialize_build<'de>(input: OpaqueDeserialize<'de>) -> Result<Self::RecvValue<'de>> {
-            let bytes = match input {
-                OpaqueDeserialize::Borrowed(slice) => slice.to_owned(),
-                OpaqueDeserialize::Owned(vec) => vec,
-            };
-            RawDocumentBuf::from_bytes(bytes)
-        }
     }
 }
 

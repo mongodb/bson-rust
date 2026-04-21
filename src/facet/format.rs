@@ -1,5 +1,7 @@
 //! Facet format support for BSON.
 
+pub(crate) mod opaque;
+
 use std::borrow::Cow;
 
 use facet::Facet;

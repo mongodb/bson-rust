@@ -1,6 +1,6 @@
 //! Support for the `facet` crate.
 
-mod format;
+pub(crate) mod format;
 
 use facet::Facet;
 
