@@ -123,6 +123,15 @@ fn regex_serialize() {
 }
 
 #[test]
+fn regex_json_serialize() {
+    let r = Regex::from_strings("foo.*bar", "n").unwrap();
+    assert!(matches!(
+        facet_json::to_string(&r),
+        Err(facet_format::SerializeError::Unsupported(..)),
+    ));
+}
+
+#[test]
 fn binary_serialize() {
     value_serialize(Binary {
         subtype: BinarySubtype::Generic,
