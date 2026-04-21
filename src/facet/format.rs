@@ -268,6 +268,10 @@ impl From<ReflectError> for Error {
 
 struct Parser<'de> {
     bytes: &'de [u8],
+    state: ParseState,
+}
+
+struct ParseState {
     offset: usize,
     expects: Expect,
 }
@@ -282,86 +286,93 @@ impl<'de> Parser<'de> {
     fn new(bytes: &'de [u8]) -> Self {
         Self {
             bytes,
-            offset: 0,
-            expects: Expect::DocStart,
+            state: ParseState {
+                offset: 0,
+                expects: Expect::DocStart,
+            },
         }
     }
 
-    fn next_event_inner(&mut self) -> Result<Option<ParseEvent<'de>>> {
-        let Some(ev) = self.peek_event_inner()? else {
-            return Ok(None);
-        };
-        match self.expects {
-            Expect::DocStart => {
-                self.offset += 4;
-                self.expects = Expect::ElemKey;
-            }
-            Expect::ElemKey => {
-                // self.offset remains the same so the same RawElement will be parsed for the
-                // ElemValue
-                self.expects = if matches!(ev.kind, ParseEventKind::SequenceEnd) {
-                    // document end tag => we're now looking for another key in the outer document
-                    Expect::ElemKey
-                } else {
-                    Expect::ElemValue
-                };
-            }
-            Expect::ElemValue => {
-                self.expects = Expect::ElemKey;
-                self.offset = ev.span.end();
-            }
-        }
-        Ok(Some(ev))
-    }
-
-    fn peek_event_inner(&mut self) -> Result<Option<ParseEvent<'de>>> {
-        if self.offset == self.bytes.len() {
+    fn peek(&self) -> Result<Option<(ParseEvent<'de>, ParseState)>> {
+        if self.state.offset == self.bytes.len() {
             return Ok(None);
         }
-        let mut iter = RawIter::new_unchecked(self.bytes, self.offset);
-        Ok(Some(match self.expects {
+        let mut iter = RawIter::new_unchecked(self.bytes, self.state.offset);
+        let event;
+        let next;
+        match self.state.expects {
             Expect::DocStart => {
-                let len = iter.next_document_len(self.offset)?;
-                ParseEvent::new(
+                let len = iter.next_document_len(self.state.offset)?;
+                event = ParseEvent::new(
                     ParseEventKind::StructStart(ContainerKind::Object),
-                    Span::new(self.offset, len),
-                )
-            }
-            Expect::ElemKey => {
-                let Some(elt) = iter.next() else {
-                    return Ok(Some(ParseEvent::new(
-                        ParseEventKind::StructEnd,
-                        Span::new(self.offset, 1),
-                    )));
+                    Span::new(self.state.offset, len),
+                );
+                next = ParseState {
+                    offset: self.state.offset + 4, // doc length
+                    expects: Expect::ElemKey,
                 };
-                let elt = elt?;
-                ParseEvent::new(
-                    ParseEventKind::FieldKey(FieldKey::new(
-                        elt.key().as_str(),
-                        FieldLocationHint::KeyValue,
-                    )),
-                    Span::new(self.offset, elt.size()),
-                )
             }
+            Expect::ElemKey => match iter.next() {
+                None => {
+                    event =
+                        ParseEvent::new(ParseEventKind::StructEnd, Span::new(self.state.offset, 1));
+                    next = ParseState {
+                        offset: self.state.offset + 1, // doc null terminator
+                        expects: Expect::ElemKey,
+                    }
+                }
+                Some(elt) => {
+                    let elt = elt?;
+                    event = ParseEvent::new(
+                        ParseEventKind::FieldKey(FieldKey::new(
+                            elt.key().as_str(),
+                            FieldLocationHint::KeyValue,
+                        )),
+                        Span::new(self.state.offset, elt.size()),
+                    );
+                    next = ParseState {
+                        offset: self.state.offset,
+                        expects: Expect::ElemValue,
+                    }
+                }
+            },
             Expect::ElemValue => {
                 let Some(elt) = iter.next() else {
                     return Err(Error::deserialization("unexpected document end"));
                 };
                 let elt = elt?;
+                let offset = self.state.offset + 1 /* kind tag */ + elt.key().len() + 1 /* null terminator */;
                 match elt.value()? {
-                    RawBsonRef::Int32(i) => ParseEvent::new(
-                        ParseEventKind::Scalar(ScalarValue::I64(i as i64)),
-                        Span::new(self.offset + 1 + elt.key().len() + 1, 4),
-                    ),
+                    RawBsonRef::Int32(i) => {
+                        event = ParseEvent::new(
+                            ParseEventKind::Scalar(ScalarValue::I64(i as i64)),
+                            Span::new(offset, 4),
+                        );
+                        next = ParseState {
+                            offset: event.span.end(),
+                            expects: Expect::ElemKey,
+                        };
+                    }
+                    RawBsonRef::Document(doc) => {
+                        event = ParseEvent::new(
+                            ParseEventKind::StructStart(ContainerKind::Object),
+                            Span::new(offset, doc.as_bytes().len()),
+                        );
+                        next = ParseState {
+                            offset: offset + 4,
+                            expects: Expect::ElemKey,
+                        };
+                    }
                     _ => todo!(),
-                }
+                };
             }
-        }))
+        }
+        Ok(Some((event, next)))
     }
 
     fn parse_err(&self, source: Error) -> ParseError {
         ParseError::new(
-            Span::new(self.offset, 0),
+            Span::new(self.state.offset, 0),
             DeserializeErrorKind::InvalidValue {
                 message: Cow::Owned(source.to_string()),
             },
@@ -381,19 +392,21 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
     }
 
     fn next_event(&mut self) -> std::result::Result<Option<ParseEvent<'de>>, ParseError> {
-        self.next_event_inner()
-            .map(|e| {
-                eprintln!("next: {e:?}");
-                e
-            })
-            .map_err(|e| self.parse_err(e))
+        let Some((ev, next)) = self.peek().map_err(|e| self.parse_err(e))? else {
+            return Ok(None);
+        };
+        self.state = next;
+        eprintln!("next: {ev:#?}");
+        Ok(Some(ev))
     }
 
     fn peek_event(&mut self) -> std::result::Result<Option<ParseEvent<'de>>, ParseError> {
-        self.peek_event_inner()
-            .map(|e| {
-                eprintln!("peek: {e:?}");
-                e
+        self.peek()
+            .map(|opt| {
+                opt.map(|(e, _)| {
+                    eprintln!("peek: {e:#?}");
+                    e
+                })
             })
             .map_err(|e| self.parse_err(e))
     }
@@ -406,7 +419,7 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
         todo!()
     }
 
-    fn restore(&mut self, save_point: facet_format::SavePoint) {
+    fn restore(&mut self, _save_point: facet_format::SavePoint) {
         todo!()
     }
 }
