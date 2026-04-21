@@ -31,6 +31,8 @@ use std::{
 };
 
 pub use crate::document::Document;
+#[cfg(feature = "facet-unstable")]
+use crate::facet::format::opaque;
 use crate::{
     Binary,
     Decimal128,
@@ -1143,7 +1145,7 @@ impl Timestamp {
 
 /// Represents a BSON regular expression value.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::RegexAdapter))]
 pub struct Regex {
     /// The regex pattern to match.
     pub pattern: CString,

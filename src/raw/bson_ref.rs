@@ -11,7 +11,7 @@ use crate::{
     Regex,
     Timestamp,
     oid::{self, ObjectId},
-    raw::{CStr, RawJavaScriptCodeWithScope, write_string},
+    raw::{CStr, RawJavaScriptCodeWithScope, read_cstring, write_string},
     spec::{BinarySubtype, ElementType},
 };
 
@@ -616,6 +616,16 @@ pub struct RawRegexRef<'a> {
     pub options: &'a CStr,
 }
 
+impl<'a> RawRegexRef<'a> {
+    pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
+        let pattern = read_cstring(bytes)?;
+        Ok(Self {
+            pattern,
+            options: read_cstring(&bytes[pattern.len() + 1..])?,
+        })
+    }
+}
+
 #[cfg(feature = "serde")]
 impl<'de: 'a, 'a> serde::Deserialize<'de> for RawRegexRef<'a> {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
@@ -657,6 +667,15 @@ impl serde::Serialize for RawRegexRef<'_> {
 impl<'a> From<RawRegexRef<'a>> for RawBsonRef<'a> {
     fn from(re: RawRegexRef<'a>) -> Self {
         RawBsonRef::RegularExpression(re)
+    }
+}
+
+impl<'a> From<RawRegexRef<'a>> for Regex {
+    fn from(value: RawRegexRef<'a>) -> Self {
+        Self {
+            pattern: value.pattern.to_owned(),
+            options: value.options.to_owned(),
+        }
     }
 }
 
