@@ -471,14 +471,14 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
 }
 
 /// Deserialize a value from BSON bytes.
-pub fn deserialize_from_slice<'a, T: Facet<'a>>(bytes: &'a [u8]) -> Result<T> {
+pub fn deserialize_from_slice<T: Facet<'static>>(bytes: &[u8]) -> Result<T> {
     // Approach:
     // * FacetOpaqueAdapter for all bson types
     // * deserialize_build parses from input as normal
     // * serialize_map:
     //   * for byte buffer / leaf value wrappers, can return a pointer to the buffer
     //   * for others, return a pointer to a static marker that's opaque
-    facet_format::FormatDeserializer::new(&mut Parser::new(bytes))
+    facet_format::FormatDeserializer::new_owned(&mut Parser::new(bytes))
         .deserialize()
         .map_err(|e| Error::deserialization(e))
 }

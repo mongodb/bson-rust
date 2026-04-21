@@ -8,7 +8,7 @@ use crate::{
     Decimal128,
     Document,
     JavaScriptCodeWithScope,
-    RawDocumentBuf,
+    RawBson,
     Regex,
     Timestamp,
     cstr,
@@ -244,25 +244,36 @@ fn nested_deserialize() {
     );
 }
 
-#[test]
-fn raw_deserialize() {
+fn value_deserialize<T>(v: T)
+where
+    T: Facet<'static> + Into<RawBson> + Clone + PartialEq + std::fmt::Debug,
+{
     #[derive(Debug, PartialEq, Facet)]
-    struct Foo {
+    struct Outer<T> {
         val: i32,
         next: i32,
-        inner: RawDocumentBuf,
+        inner: T,
         last: i32,
     }
-    let bytes =
-        rawdoc! { "val": 42, "next": 13, "inner": { "a": 1, "b": 2 }, "last": 1066 }.into_bytes();
-    let f: Foo = deserialize_from_slice(&bytes).unwrap();
+    let bytes = rawdoc! { "val": 42, "next": 13, "inner": v.clone(), "last": 1066 }.into_bytes();
+    let o: Outer<T> = deserialize_from_slice(&bytes).unwrap();
     assert_eq!(
-        Foo {
+        Outer {
             val: 42,
             next: 13,
-            inner: rawdoc! { "a": 1, "b": 2 },
+            inner: v,
             last: 1066
         },
-        f,
+        o,
     );
+}
+
+#[test]
+fn rawdoc_deserialize() {
+    value_deserialize(rawdoc! { "a": 1, "b": 2 });
+}
+
+#[test]
+fn regex_deserialize() {
+    value_deserialize(Regex::from_strings("foobar", "n").unwrap());
 }

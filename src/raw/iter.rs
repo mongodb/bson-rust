@@ -232,11 +232,7 @@ impl<'a> RawElement<'a> {
                 id: self.get_oid_at(self.start_at + (self.size - 12))?,
             }),
             ElementType::RegularExpression => {
-                let pattern = read_cstring(&self.bytes[self.start_at..])?;
-                RawBsonRef::RegularExpression(RawRegexRef {
-                    pattern,
-                    options: read_cstring(&self.bytes[self.start_at + pattern.len() + 1..])?,
-                })
+                RawBsonRef::RegularExpression(RawRegexRef::parse(&self.bytes[self.start_at..])?)
             }
             ElementType::Timestamp => RawBsonRef::Timestamp({
                 let bytes: [u8; 8] = self.value_bytes()[0..8]
