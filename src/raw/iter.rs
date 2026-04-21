@@ -187,6 +187,14 @@ impl<'a> RawElement<'a> {
         self.kind
     }
 
+    pub(crate) fn value_offset(&self) -> usize {
+        self.start_at
+    }
+
+    pub(crate) fn value_len(&self) -> usize {
+        self.size
+    }
+
     /// Parses this element into a [`RawBsonRef`] and returns an error if the underlying bytes are
     /// invalid.
     pub fn value(&self) -> Result<RawBsonRef<'a>> {

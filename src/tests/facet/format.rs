@@ -8,6 +8,7 @@ use crate::{
     Decimal128,
     Document,
     JavaScriptCodeWithScope,
+    RawDocumentBuf,
     Regex,
     Timestamp,
     cstr,
@@ -237,6 +238,29 @@ fn nested_deserialize() {
             val: 42,
             next: 13,
             inner: Bar { a: 1, b: 2 },
+            last: 1066
+        },
+        f,
+    );
+}
+
+#[test]
+fn raw_deserialize() {
+    #[derive(Debug, PartialEq, Facet)]
+    struct Foo {
+        val: i32,
+        next: i32,
+        inner: RawDocumentBuf,
+        last: i32,
+    }
+    let bytes =
+        rawdoc! { "val": 42, "next": 13, "inner": { "a": 1, "b": 2 }, "last": 1066 }.into_bytes();
+    let f: Foo = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(
+        Foo {
+            val: 42,
+            next: 13,
+            inner: rawdoc! { "a": 1, "b": 2 },
             last: 1066
         },
         f,

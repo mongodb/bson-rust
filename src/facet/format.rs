@@ -278,8 +278,10 @@ struct ParseState {
 
 enum Expect {
     DocStart,
+    DocStartRaw,
     ElemKey,
     ElemValue,
+    ElemValueRaw,
 }
 
 impl<'de> Parser<'de> {
@@ -312,6 +314,17 @@ impl<'de> Parser<'de> {
                     expects: Expect::ElemKey,
                 };
             }
+            Expect::DocStartRaw => {
+                let len = iter.next_document_len(self.state.offset)?;
+                event = ParseEvent::new(
+                    scalar_bytes(&self.bytes[self.state.offset..self.state.offset + len]),
+                    Span::new(self.state.offset, len),
+                );
+                next = ParseState {
+                    offset: event.span.end(),
+                    expects: Expect::DocStart,
+                };
+            }
             Expect::ElemKey => match iter.next() {
                 None => {
                     event =
@@ -341,29 +354,48 @@ impl<'de> Parser<'de> {
                     return Err(Error::deserialization("unexpected document end"));
                 };
                 let elt = elt?;
-                let offset = self.state.offset + 1 /* kind tag */ + elt.key().len() + 1 /* null terminator */;
-                match elt.value()? {
-                    RawBsonRef::Int32(i) => {
-                        event = ParseEvent::new(
-                            ParseEventKind::Scalar(ScalarValue::I64(i as i64)),
-                            Span::new(offset, 4),
-                        );
-                        next = ParseState {
-                            offset: event.span.end(),
-                            expects: Expect::ElemKey,
-                        };
+                let value = elt.value()?;
+                if let Some(scalar) = match value {
+                    RawBsonRef::Int32(i) => Some(ScalarValue::I64(i as i64)),
+                    _ => None,
+                } {
+                    event = ParseEvent::new(
+                        ParseEventKind::Scalar(scalar),
+                        Span::new(elt.value_offset(), elt.value_len()),
+                    );
+                    next = ParseState {
+                        offset: event.span.end(),
+                        expects: Expect::ElemKey,
+                    };
+                } else {
+                    match value {
+                        RawBsonRef::Document(doc) => {
+                            event = ParseEvent::new(
+                                ParseEventKind::StructStart(ContainerKind::Object),
+                                Span::new(elt.value_offset(), doc.as_bytes().len()),
+                            );
+                            next = ParseState {
+                                offset: elt.value_offset() + 4,
+                                expects: Expect::ElemKey,
+                            };
+                        }
+                        _ => todo!(),
                     }
-                    RawBsonRef::Document(doc) => {
-                        event = ParseEvent::new(
-                            ParseEventKind::StructStart(ContainerKind::Object),
-                            Span::new(offset, doc.as_bytes().len()),
-                        );
-                        next = ParseState {
-                            offset: offset + 4,
-                            expects: Expect::ElemKey,
-                        };
-                    }
-                    _ => todo!(),
+                }
+            }
+            Expect::ElemValueRaw => {
+                let Some(elt) = iter.next() else {
+                    return Err(Error::deserialization("unexpected document end"));
+                };
+                let elt = elt?;
+                let bytes = elt.value_bytes();
+                event = ParseEvent::new(
+                    scalar_bytes(bytes),
+                    Span::new(elt.value_offset(), bytes.len()),
+                );
+                next = ParseState {
+                    offset: event.span.end(),
+                    expects: Expect::ElemKey,
                 };
             }
         }
@@ -380,15 +412,27 @@ impl<'de> Parser<'de> {
     }
 }
 
+fn scalar_bytes<'a>(bytes: &'a [u8]) -> ParseEventKind<'a> {
+    ParseEventKind::Scalar(ScalarValue::Bytes(Cow::Borrowed(bytes)))
+}
+
 impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
     fn is_self_describing(&self) -> bool {
         false
     }
 
     fn hint_byte_sequence(&mut self) -> bool {
-        eprintln!("hint_byte_sequence");
-
-        true
+        match self.state.expects {
+            Expect::DocStart => {
+                self.state.expects = Expect::DocStartRaw;
+                true
+            }
+            Expect::ElemValue => {
+                self.state.expects = Expect::ElemValueRaw;
+                true
+            }
+            _ => false,
+        }
     }
 
     fn next_event(&mut self) -> std::result::Result<Option<ParseEvent<'de>>, ParseError> {
