@@ -3,10 +3,12 @@ use facet::{Facet, FacetOpaqueAdapter, OpaqueDeserialize, OpaqueSerialize, PtrCo
 use crate::{
     Binary,
     RawBinaryRef,
+    RawJavaScriptCodeWithScope,
+    RawJavaScriptCodeWithScopeRef,
     RawRegexRef,
     Regex,
     Timestamp,
-    error::{Error, Result},
+    error::Error,
     raw::RawDocumentBuf,
 };
 
@@ -37,75 +39,100 @@ fn input_vec<'de>(input: OpaqueDeserialize<'de>) -> Vec<u8> {
     }
 }
 
-pub(crate) struct RawDocumentBufAdapter;
+macro_rules! adapter {
+    (
+        struct $an:ident;
 
-impl FacetOpaqueAdapter for RawDocumentBufAdapter {
-    type Error = Error;
-    type SendValue<'a> = RawDocumentBuf;
-    type RecvValue<'de> = RawDocumentBuf;
+        fn serialize($val:ident: &$send:ty) {
+            $ser:expr
+        }
 
-    fn serialize_map(value: &Self::SendValue<'_>) -> OpaqueSerialize {
+        fn deserialize($input:ident) -> Result<$recv:ty> {
+            $deser:expr
+        }
+    ) => {
+        pub(crate) struct $an;
+
+        impl FacetOpaqueAdapter for $an {
+            type Error = Error;
+            type SendValue<'a> = $send;
+            type RecvValue<'de> = $recv;
+
+            fn serialize_map($val: &Self::SendValue<'_>) -> OpaqueSerialize {
+                $ser
+            }
+
+            fn deserialize_build<'de>(
+                $input: OpaqueDeserialize<'de>,
+            ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> {
+                $deser
+            }
+        }
+    };
+    (
+        struct $an:ident;
+
+        fn deserialize($input:ident) -> Result<$recv:ty> {
+            $deser:expr
+        }
+    ) => {
+        adapter! {
+            struct $an;
+
+            fn serialize(_value: &$recv) {
+                UnSerializable::OPAQUE
+            }
+
+            fn deserialize($input) -> Result<$recv> {
+                $deser
+            }
+        }
+    };
+}
+
+adapter! {
+    struct RawDocumentBufAdapter;
+
+    fn serialize(value: &RawDocumentBuf) {
         OpaqueSerialize {
             ptr: PtrConst::new(&value.as_bytes() as *const &[u8]),
             shape: <&[u8] as Facet>::SHAPE,
         }
     }
 
-    fn deserialize_build<'de>(input: OpaqueDeserialize<'de>) -> Result<Self::RecvValue<'de>> {
+    fn deserialize(input) -> Result<RawDocumentBuf> {
         RawDocumentBuf::from_bytes(input_vec(input))
     }
 }
 
-pub(crate) struct RegexAdapter;
+adapter! {
+    struct RegexAdapter;
 
-impl FacetOpaqueAdapter for RegexAdapter {
-    type Error = Error;
-    type SendValue<'a> = Regex;
-    type RecvValue<'de> = Regex;
-
-    fn serialize_map(_value: &Self::SendValue<'_>) -> OpaqueSerialize {
-        UnSerializable::OPAQUE
-    }
-
-    fn deserialize_build<'de>(
-        input: OpaqueDeserialize<'de>,
-    ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> {
+    fn deserialize(input) -> Result<Regex> {
         Ok(RawRegexRef::parse(input_slice(&input))?.into())
     }
 }
 
-pub(crate) struct BinaryAdapter;
+adapter! {
+    struct BinaryAdapter;
 
-impl FacetOpaqueAdapter for BinaryAdapter {
-    type Error = Error;
-    type SendValue<'a> = Binary;
-    type RecvValue<'de> = Binary;
-
-    fn serialize_map(_value: &Self::SendValue<'_>) -> OpaqueSerialize {
-        UnSerializable::OPAQUE
-    }
-
-    fn deserialize_build<'de>(
-        input: OpaqueDeserialize<'de>,
-    ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> {
+    fn deserialize(input) -> Result<Binary> {
         Ok(RawBinaryRef::parse(input_slice(&input))?.to_binary())
     }
 }
 
-pub(crate) struct TimestampAdapter;
+adapter! {
+    struct TimestampAdapter;
 
-impl FacetOpaqueAdapter for TimestampAdapter {
-    type Error = Error;
-    type SendValue<'a> = Timestamp;
-    type RecvValue<'de> = Timestamp;
-
-    fn serialize_map(_value: &Self::SendValue<'_>) -> OpaqueSerialize {
-        UnSerializable::OPAQUE
-    }
-
-    fn deserialize_build<'de>(
-        input: OpaqueDeserialize<'de>,
-    ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> {
+    fn deserialize(input) -> Result<Timestamp> {
         Timestamp::parse(input_slice(&input))
+    }
+}
+
+adapter! {
+    struct RawJavaScriptCodeWithScopeAdapter;
+
+    fn deserialize(input) -> Result<RawJavaScriptCodeWithScope> {
+        Ok(RawJavaScriptCodeWithScopeRef::parse(input_slice(&input))?.into())
     }
 }

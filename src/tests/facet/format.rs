@@ -9,6 +9,7 @@ use crate::{
     Document,
     JavaScriptCodeWithScope,
     RawBson,
+    RawJavaScriptCodeWithScope,
     Regex,
     Timestamp,
     cstr,
@@ -300,5 +301,13 @@ fn timestamp_deserialize() {
     value_deserialize(Timestamp {
         time: 1000,
         increment: 2000,
+    });
+}
+
+#[test]
+fn rawjscws_deserialize() {
+    value_deserialize(RawJavaScriptCodeWithScope {
+        code: "a+b".to_owned(),
+        scope: rawdoc! { "a": 1, "b": 2},
     });
 }

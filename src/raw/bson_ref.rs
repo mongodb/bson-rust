@@ -13,10 +13,12 @@ use crate::{
     oid::{self, ObjectId},
     raw::{
         CStr,
+        MIN_CODE_WITH_SCOPE_SIZE,
         RawJavaScriptCodeWithScope,
         checked_add,
         i32_from_slice,
         read_cstring,
+        read_lenencode,
         write_string,
     },
     spec::{BinarySubtype, ElementType},
@@ -748,6 +750,29 @@ pub struct RawJavaScriptCodeWithScopeRef<'a> {
 impl RawJavaScriptCodeWithScopeRef<'_> {
     pub(crate) fn len(self) -> i32 {
         4 + 4 + self.code.len() as i32 + 1 + self.scope.as_bytes().len() as i32
+    }
+}
+
+impl<'a> RawJavaScriptCodeWithScopeRef<'a> {
+    pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
+        if bytes.len() < MIN_CODE_WITH_SCOPE_SIZE as usize {
+            return Err(Error::malformed_bytes("code with scope length too small"));
+        }
+
+        let code = read_lenencode(&bytes[4..])?;
+        let scope_start = 4 + 4 + code.len() + 1;
+        let scope = RawDocument::from_bytes(&bytes[scope_start..])?;
+
+        Ok(RawJavaScriptCodeWithScopeRef { code, scope })
+    }
+}
+
+impl<'a> From<RawJavaScriptCodeWithScopeRef<'a>> for RawJavaScriptCodeWithScope {
+    fn from(value: RawJavaScriptCodeWithScopeRef<'a>) -> Self {
+        Self {
+            code: value.code.to_owned(),
+            scope: value.scope.to_owned(),
+        }
     }
 }
 
