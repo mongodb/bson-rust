@@ -246,12 +246,9 @@ impl<'a> RawElement<'a> {
                 RawRegexRef::parse(self.value_bytes())
                     .map_err(|e| e.with_key(self.key().as_str()))?,
             ),
-            ElementType::Timestamp => RawBsonRef::Timestamp({
-                let bytes: [u8; 8] = self.value_bytes()[0..8]
-                    .try_into()
-                    .map_err(|e| self.malformed_error(e))?;
-                Timestamp::from_le_bytes(bytes)
-            }),
+            ElementType::Timestamp => RawBsonRef::Timestamp(
+                Timestamp::parse(self.value_bytes()).map_err(|e| e.with_key(self.key.as_str()))?,
+            ),
             ElementType::Binary => RawBsonRef::Binary(
                 RawBinaryRef::parse(self.value_bytes())
                     .map_err(|e| e.with_key(self.key.as_str()))?,

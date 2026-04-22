@@ -5,6 +5,7 @@ use crate::{
     RawBinaryRef,
     RawRegexRef,
     Regex,
+    Timestamp,
     error::{Error, Result},
     raw::RawDocumentBuf,
 };
@@ -88,5 +89,23 @@ impl FacetOpaqueAdapter for BinaryAdapter {
         input: OpaqueDeserialize<'de>,
     ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> {
         Ok(RawBinaryRef::parse(input_slice(&input))?.to_binary())
+    }
+}
+
+pub(crate) struct TimestampAdapter;
+
+impl FacetOpaqueAdapter for TimestampAdapter {
+    type Error = Error;
+    type SendValue<'a> = Timestamp;
+    type RecvValue<'de> = Timestamp;
+
+    fn serialize_map(_value: &Self::SendValue<'_>) -> OpaqueSerialize {
+        UnSerializable::OPAQUE
+    }
+
+    fn deserialize_build<'de>(
+        input: OpaqueDeserialize<'de>,
+    ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> {
+        Timestamp::parse(input_slice(&input))
     }
 }

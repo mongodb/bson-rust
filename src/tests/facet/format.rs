@@ -294,3 +294,11 @@ fn binary_deserialize() {
         bytes: vec![0, 1, 2, 3],
     });
 }
+
+#[test]
+fn timestamp_deserialize() {
+    value_deserialize(Timestamp {
+        time: 1000,
+        increment: 2000,
+    });
+}
