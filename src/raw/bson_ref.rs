@@ -11,7 +11,14 @@ use crate::{
     Regex,
     Timestamp,
     oid::{self, ObjectId},
-    raw::{CStr, RawJavaScriptCodeWithScope, read_cstring, write_string},
+    raw::{
+        CStr,
+        RawJavaScriptCodeWithScope,
+        checked_add,
+        i32_from_slice,
+        read_cstring,
+        write_string,
+    },
     spec::{BinarySubtype, ElementType},
 };
 
@@ -531,6 +538,46 @@ impl RawBinaryRef<'_> {
             BinarySubtype::BinaryOld => self.bytes.len() as i32 + 4,
             _ => self.bytes.len() as i32,
         }
+    }
+}
+
+impl<'a> RawBinaryRef<'a> {
+    pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
+        let len = bytes.len().checked_sub(4 + 1).ok_or_else(|| {
+            Error::malformed_bytes(format!("length exceeds maximum: {}", bytes.len()))
+        })?;
+
+        let data_start = 4 + 1;
+
+        if bytes.len() >= i32::MAX as usize {
+            return Err(Error::malformed_bytes(format!(
+                "binary length exceeds maximum: {}",
+                len
+            )));
+        }
+
+        let subtype = BinarySubtype::from(bytes[4]);
+        let data = match subtype {
+            BinarySubtype::BinaryOld => {
+                if len < 4 {
+                    return Err(Error::malformed_bytes(
+                        "old binary subtype has no inner declared length",
+                    ));
+                }
+                let oldlength = i32_from_slice(&bytes[data_start..])? as usize;
+                if checked_add(oldlength, 4)? != len {
+                    return Err(Error::malformed_bytes(
+                        "old binary subtype has wrong inner declared length",
+                    ));
+                }
+                &bytes[data_start + 4..]
+            }
+            _ => &bytes[data_start..],
+        };
+        Ok(RawBinaryRef {
+            subtype,
+            bytes: data,
+        })
     }
 }
 
