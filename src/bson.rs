@@ -37,6 +37,7 @@ use crate::{
     Binary,
     Decimal128,
     RawBsonRef,
+    error::{Error, Result},
     oid,
     raw::{CString, doc_writer::DocWriter},
     spec::ElementType,
@@ -1107,7 +1108,7 @@ impl Bson {
 
 /// Represents a BSON timestamp value.
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd, Clone, Copy, Hash)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::TimestampAdapter))]
 pub struct Timestamp {
     /// The number of seconds since the Unix epoch.
     pub time: u32,
@@ -1140,6 +1141,11 @@ impl Timestamp {
             increment: u32::from_le_bytes(inc_bytes),
             time: u32::from_le_bytes(time_bytes),
         }
+    }
+
+    pub(crate) fn parse(bytes: &[u8]) -> Result<Self> {
+        let bytes: [u8; 8] = bytes.try_into().map_err(|e| Error::malformed_bytes(e))?;
+        Ok(Self::from_le_bytes(bytes))
     }
 }
 
