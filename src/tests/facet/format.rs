@@ -286,3 +286,11 @@ fn rawdoc_deserialize() {
 fn regex_deserialize() {
     value_deserialize(Regex::from_strings("foobar", "n").unwrap());
 }
+
+#[test]
+fn binary_deserialize() {
+    value_deserialize(Binary {
+        subtype: BinarySubtype::Generic,
+        bytes: vec![0, 1, 2, 3],
+    });
+}

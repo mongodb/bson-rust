@@ -54,8 +54,9 @@ impl<'de> RawDeserializer<'de> {
     /// Construct a `RawDeserializer` with the provided bytes. Returns an error if the basic
     /// structure of the bytes is invalid.
     pub fn new(buf: &'de [u8]) -> Result<Self> {
+        RawDocument::from_bytes(buf)?;
         Ok(Self {
-            element: RawElement::toplevel(buf)?,
+            element: RawElement::toplevel(buf),
             options: DeserializerOptions {
                 utf8_lossy: false,
                 human_readable: false,

@@ -21,7 +21,7 @@ use crate::{
         cstring_bytes,
         read_cstring,
     },
-    spec::{BinarySubtype, ElementType},
+    spec::ElementType,
 };
 
 use super::{
@@ -74,11 +74,22 @@ pub struct RawIter<'a> {
     /// Whether the underlying doc is assumed to be valid or if an error has been encountered.
     /// After an error, all subsequent iterations will return None.
     valid: bool,
+
+    /// When true, the iterator treats a null byte as the document terminator only at the last
+    /// position of `bytes`; a null encountered earlier is an error. When false (used by
+    /// `new_unchecked` for flat parsers that span nested documents), any null byte ends
+    /// iteration.
+    strict: bool,
 }
 
 impl<'a> RawIter<'a> {
     pub(crate) fn new(doc: &'a RawDocument) -> Self {
-        Self::new_unchecked(doc.as_bytes(), 4)
+        Self {
+            bytes: doc.as_bytes(),
+            offset: 4,
+            valid: true,
+            strict: true,
+        }
     }
 
     pub(crate) fn new_unchecked(bytes: &'a [u8], offset: usize) -> Self {
@@ -86,6 +97,7 @@ impl<'a> RawIter<'a> {
             bytes,
             offset,
             valid: true,
+            strict: false,
         }
     }
 
@@ -159,17 +171,16 @@ impl TryFrom<RawElement<'_>> for Bson {
 
 impl<'a> RawElement<'a> {
     #[cfg(feature = "serde")]
-    pub(crate) fn toplevel(bytes: &'a [u8]) -> Result<Self> {
+    pub(crate) fn toplevel(bytes: &'a [u8]) -> Self {
         use crate::raw::cstr;
 
-        let doc = RawDocument::from_bytes(bytes)?;
-        Ok(Self {
+        Self {
             key: cstr!("TOPLEVEL"),
             kind: ElementType::EmbeddedDocument,
-            doc,
+            bytes,
             start_at: 0,
-            size: doc.as_bytes().len(),
-        })
+            size: bytes.len(),
+        }
     }
 
     /// The size of the element.
@@ -231,51 +242,20 @@ impl<'a> RawElement<'a> {
                 namespace: read_lenencode(self.value_bytes())?,
                 id: self.get_oid_at(self.start_at + (self.size - 12))?,
             }),
-            ElementType::RegularExpression => {
-                RawBsonRef::RegularExpression(RawRegexRef::parse(&self.bytes[self.start_at..])?)
-            }
+            ElementType::RegularExpression => RawBsonRef::RegularExpression(
+                RawRegexRef::parse(self.value_bytes())
+                    .map_err(|e| e.with_key(self.key().as_str()))?,
+            ),
             ElementType::Timestamp => RawBsonRef::Timestamp({
                 let bytes: [u8; 8] = self.value_bytes()[0..8]
                     .try_into()
                     .map_err(|e| self.malformed_error(e))?;
                 Timestamp::from_le_bytes(bytes)
             }),
-            ElementType::Binary => {
-                let len = self.size.checked_sub(4 + 1).ok_or_else(|| {
-                    self.malformed_error(format!("length exceeds maximum: {}", self.size))
-                })?;
-
-                let data_start = self.start_at + 4 + 1;
-
-                if self.size >= i32::MAX as usize {
-                    return Err(
-                        self.malformed_error(format!("binary length exceeds maximum: {}", len))
-                    );
-                }
-
-                let subtype = BinarySubtype::from(self.bytes[self.start_at + 4]);
-                let data = match subtype {
-                    BinarySubtype::BinaryOld => {
-                        if len < 4 {
-                            return Err(self.malformed_error(
-                                "old binary subtype has no inner declared length",
-                            ));
-                        }
-                        let oldlength = i32_from_slice(&self.bytes[data_start..])? as usize;
-                        if checked_add(oldlength, 4)? != len {
-                            return Err(self.malformed_error(
-                                "old binary subtype has wrong inner declared length",
-                            ));
-                        }
-                        self.slice_bounds(data_start + 4, len - 4)
-                    }
-                    _ => self.slice_bounds(data_start, len),
-                };
-                RawBsonRef::Binary(RawBinaryRef {
-                    subtype,
-                    bytes: data,
-                })
-            }
+            ElementType::Binary => RawBsonRef::Binary(
+                RawBinaryRef::parse(self.value_bytes())
+                    .map_err(|e| e.with_key(self.key.as_str()))?,
+            ),
             ElementType::JavaScriptCodeWithScope => {
                 if self.size < MIN_CODE_WITH_SCOPE_SIZE as usize {
                     return Err(self.malformed_error("code with scope length too small"));
@@ -441,15 +421,21 @@ impl<'a> Iterator for RawIter<'a> {
     fn next(&mut self) -> Option<Result<RawElement<'a>>> {
         if !self.valid {
             return None;
-        } else if self.bytes[self.offset] == 0 {
-            // end of document marker
-            return None;
-        } else if self.offset == self.bytes.len() - 1 {
-            self.valid = false;
-            return Some(Err(Error::malformed_bytes("document not null terminated")));
         } else if self.offset >= self.bytes.len() {
             self.valid = false;
             return Some(Err(Error::malformed_bytes("iteration overflowed document")));
+        } else if self.strict {
+            if self.offset == self.bytes.len() - 1 {
+                return if self.bytes[self.offset] == 0 {
+                    None
+                } else {
+                    self.valid = false;
+                    Some(Err(Error::malformed_bytes("document not null terminated")))
+                };
+            }
+        } else if self.bytes[self.offset] == 0 {
+            // end of document marker
+            return None;
         }
 
         let key = match read_cstring(&self.bytes[self.offset + 1..]) {

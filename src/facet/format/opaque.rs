@@ -1,6 +1,8 @@
 use facet::{Facet, FacetOpaqueAdapter, OpaqueDeserialize, OpaqueSerialize, PtrConst};
 
 use crate::{
+    Binary,
+    RawBinaryRef,
     RawRegexRef,
     Regex,
     error::{Error, Result},
@@ -12,6 +14,13 @@ use crate::{
 struct UnSerializable;
 
 static UN_SERIALIZABLE: UnSerializable = UnSerializable;
+
+impl UnSerializable {
+    const OPAQUE: OpaqueSerialize = OpaqueSerialize {
+        ptr: PtrConst::new_sized(&UN_SERIALIZABLE as *const UnSerializable),
+        shape: UnSerializable::SHAPE,
+    };
+}
 
 fn input_slice<'de>(input: &'de OpaqueDeserialize<'de>) -> &'de [u8] {
     match input {
@@ -54,15 +63,30 @@ impl FacetOpaqueAdapter for RegexAdapter {
     type RecvValue<'de> = Regex;
 
     fn serialize_map(_value: &Self::SendValue<'_>) -> OpaqueSerialize {
-        OpaqueSerialize {
-            ptr: PtrConst::new(&UN_SERIALIZABLE as *const UnSerializable),
-            shape: UnSerializable::SHAPE,
-        }
+        UnSerializable::OPAQUE
     }
 
     fn deserialize_build<'de>(
         input: OpaqueDeserialize<'de>,
     ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> {
         Ok(RawRegexRef::parse(input_slice(&input))?.into())
+    }
+}
+
+pub(crate) struct BinaryAdapter;
+
+impl FacetOpaqueAdapter for BinaryAdapter {
+    type Error = Error;
+    type SendValue<'a> = Binary;
+    type RecvValue<'de> = Binary;
+
+    fn serialize_map(_value: &Self::SendValue<'_>) -> OpaqueSerialize {
+        UnSerializable::OPAQUE
+    }
+
+    fn deserialize_build<'de>(
+        input: OpaqueDeserialize<'de>,
+    ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> {
+        Ok(RawBinaryRef::parse(input_slice(&input))?.to_binary())
     }
 }
