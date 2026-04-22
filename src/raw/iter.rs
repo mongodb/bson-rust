@@ -33,7 +33,6 @@ use super::{
     i32_from_slice,
     i64_from_slice,
     read_len,
-    read_lenencode,
     read_lenencode_bytes,
     try_to_str,
 };
@@ -214,7 +213,9 @@ impl<'a> RawElement<'a> {
             ElementType::Undefined => RawBsonRef::Undefined,
             ElementType::MinKey => RawBsonRef::MinKey,
             ElementType::MaxKey => RawBsonRef::MaxKey,
-            ElementType::ObjectId => RawBsonRef::ObjectId(self.get_oid_at(self.start_at)?),
+            ElementType::ObjectId => RawBsonRef::ObjectId(
+                ObjectId::parse(self.value_bytes()).map_err(|e| e.with_key(self.key.as_str()))?,
+            ),
             ElementType::Int32 => RawBsonRef::Int32(i32_from_slice(self.value_bytes())?),
             ElementType::Int64 => RawBsonRef::Int64(i64_from_slice(self.value_bytes())?),
             ElementType::Double => RawBsonRef::Double(f64_from_slice(self.value_bytes())?),
@@ -228,20 +229,18 @@ impl<'a> RawElement<'a> {
             ElementType::Boolean => RawBsonRef::Boolean(
                 bool_from_slice(self.value_bytes()).map_err(|e| self.malformed_error(e))?,
             ),
-            ElementType::DateTime => {
-                RawBsonRef::DateTime(DateTime::from_millis(i64_from_slice(self.value_bytes())?))
-            }
-            ElementType::Decimal128 => RawBsonRef::Decimal128(Decimal128::from_bytes(
-                self.value_bytes()
-                    .try_into()
-                    .map_err(|e| self.malformed_error(e))?,
-            )),
+            ElementType::DateTime => RawBsonRef::DateTime(
+                DateTime::parse(self.value_bytes()).map_err(|e| e.with_key(self.key.as_str()))?,
+            ),
+            ElementType::Decimal128 => RawBsonRef::Decimal128(
+                Decimal128::parse(self.value_bytes()).map_err(|e| e.with_key(self.key.as_str()))?,
+            ),
             ElementType::JavaScriptCode => RawBsonRef::JavaScriptCode(self.read_str()?),
             ElementType::Symbol => RawBsonRef::Symbol(self.read_str()?),
-            ElementType::DbPointer => RawBsonRef::DbPointer(RawDbPointerRef {
-                namespace: read_lenencode(self.value_bytes())?,
-                id: self.get_oid_at(self.start_at + (self.size - 12))?,
-            }),
+            ElementType::DbPointer => RawBsonRef::DbPointer(
+                RawDbPointerRef::parse(self.value_bytes())
+                    .map_err(|e| e.with_key(self.key.as_str()))?,
+            ),
             ElementType::RegularExpression => RawBsonRef::RegularExpression(
                 RawRegexRef::parse(self.value_bytes())
                     .map_err(|e| e.with_key(self.key().as_str()))?,
