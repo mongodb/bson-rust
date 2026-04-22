@@ -253,18 +253,10 @@ impl<'a> RawElement<'a> {
                 RawBinaryRef::parse(self.value_bytes())
                     .map_err(|e| e.with_key(self.key.as_str()))?,
             ),
-            ElementType::JavaScriptCodeWithScope => {
-                if self.size < MIN_CODE_WITH_SCOPE_SIZE as usize {
-                    return Err(self.malformed_error("code with scope length too small"));
-                }
-
-                let slice = self.value_bytes();
-                let code = read_lenencode(&slice[4..])?;
-                let scope_start = 4 + 4 + code.len() + 1;
-                let scope = RawDocument::from_bytes(&slice[scope_start..])?;
-
-                RawBsonRef::JavaScriptCodeWithScope(RawJavaScriptCodeWithScopeRef { code, scope })
-            }
+            ElementType::JavaScriptCodeWithScope => RawBsonRef::JavaScriptCodeWithScope(
+                RawJavaScriptCodeWithScopeRef::parse(self.value_bytes())
+                    .map_err(|e| e.with_key(self.key.as_str()))?,
+            ),
         })
     }
 

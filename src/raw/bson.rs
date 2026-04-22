@@ -1,5 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
+#[cfg(feature = "facet-unstable")]
+use crate::facet::format::opaque;
 use crate::{
     Binary,
     Bson,
@@ -522,7 +524,7 @@ impl TryFrom<Bson> for RawBson {
 
 /// A BSON "code with scope" value backed by owned raw BSON.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::RawJavaScriptCodeWithScopeAdapter))]
 pub struct RawJavaScriptCodeWithScope {
     /// The code value.
     pub code: String,
