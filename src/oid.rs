@@ -98,7 +98,7 @@ static OID_COUNTER: LazyLock<AtomicUsize> =
 /// json: {"oid":{"$oid":"63ceeffd37518221cdc6cda2"},"oid_as_hex":"63ceeffd37518221cdc6cda3"}
 /// ```
 #[derive(Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::format::opaque::ObjectIdAdapter))]
 pub struct ObjectId {
     id: [u8; 12],
 }
@@ -153,6 +153,17 @@ impl ObjectId {
         bytes[COUNTER_OFFSET..(COUNTER_OFFSET + COUNTER_SIZE)].clone_from_slice(&counter);
 
         Self::from_bytes(bytes)
+    }
+
+    pub(crate) fn parse(bytes: &[u8]) -> Result<Self> {
+        let arr: [u8; 12] = bytes
+            .try_into()
+            .map_err(|e: std::array::TryFromSliceError| Error::malformed_bytes(e))?;
+        Ok(Self::from_bytes(arr))
+    }
+
+    pub(crate) fn as_bytes_slice(&self) -> &[u8] {
+        &self.id
     }
 
     /// Creates an ObjectID using a 12-byte (24-char) hexadecimal string.

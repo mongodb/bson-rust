@@ -8,13 +8,16 @@ use crate::{
     Decimal128,
     Document,
     JavaScriptCodeWithScope,
+    RawArrayBuf,
     RawBson,
+    RawDocumentBuf,
     RawJavaScriptCodeWithScope,
     Regex,
     Timestamp,
     cstr,
     facet::{deserialize_from_slice, serialize_to_vec},
     oid::ObjectId,
+    raw::CString,
     spec::BinarySubtype,
 };
 
@@ -210,6 +213,11 @@ fn rawjsc_serialize() {
 }
 
 #[test]
+fn cstring_serialize() {
+    value_serialize(cstr!("hello").to_owned());
+}
+
+#[test]
 fn rawbson_serialize() {
     value_serialize(crate::RawBson::Int32(9023));
 }
@@ -310,4 +318,88 @@ fn rawjscws_deserialize() {
         code: "a+b".to_owned(),
         scope: rawdoc! { "a": 1, "b": 2},
     });
+}
+
+#[test]
+fn object_id_deserialize() {
+    value_deserialize(ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap());
+}
+
+#[test]
+fn decimal128_deserialize() {
+    value_deserialize("3.14".parse::<Decimal128>().unwrap());
+}
+
+#[test]
+fn datetime_deserialize() {
+    value_deserialize(DateTime::from_millis(1_000_000_000_000));
+}
+
+#[test]
+fn db_pointer_deserialize() {
+    value_deserialize(DbPointer {
+        namespace: "test.coll".into(),
+        id: ObjectId::parse_str("507f1f77bcf86cd799439011").unwrap(),
+    });
+}
+
+#[test]
+fn javascript_code_with_scope_deserialize() {
+    let v = JavaScriptCodeWithScope {
+        code: "function(x) { return x + n; }".into(),
+        scope: doc! { "n": 1 },
+    };
+    let raw_v: RawJavaScriptCodeWithScope = v.clone().try_into().unwrap();
+    #[derive(Debug, PartialEq, Facet)]
+    struct Outer {
+        val: i32,
+        next: i32,
+        inner: JavaScriptCodeWithScope,
+        last: i32,
+    }
+    let bytes = rawdoc! { "val": 42, "next": 13, "inner": raw_v, "last": 1066 }.into_bytes();
+    let o: Outer = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(
+        Outer {
+            val: 42,
+            next: 13,
+            inner: v,
+            last: 1066
+        },
+        o,
+    );
+}
+
+#[test]
+fn document_deserialize() {
+    let v = doc! { "hello": "world", "count": 3 };
+    let raw_v: RawDocumentBuf = v.clone().try_into().unwrap();
+    #[derive(Debug, PartialEq, Facet)]
+    struct Outer {
+        val: i32,
+        next: i32,
+        inner: Document,
+        last: i32,
+    }
+    let bytes = rawdoc! { "val": 42, "next": 13, "inner": raw_v, "last": 1066 }.into_bytes();
+    let o: Outer = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(
+        Outer {
+            val: 42,
+            next: 13,
+            inner: v,
+            last: 1066
+        },
+        o,
+    );
+}
+
+#[test]
+fn rawarr_deserialize() {
+    value_deserialize([1, 2, 3].into_iter().collect::<RawArrayBuf>());
+}
+
+#[test]
+fn cstring_deserialize() {
+    value_deserialize(CString::try_from("hello world".to_owned()).unwrap());
 }

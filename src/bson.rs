@@ -1190,7 +1190,7 @@ impl Display for Regex {
 
 /// Represents a BSON code with scope value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::JavaScriptCodeWithScopeAdapter))]
 pub struct JavaScriptCodeWithScope {
     /// The JavaScript code.
     pub code: String,
@@ -1219,7 +1219,7 @@ impl Display for JavaScriptCodeWithScope {
 
 /// Represents a DBPointer. (Deprecated)
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::DbPointerAdapter))]
 pub struct DbPointer {
     pub(crate) namespace: String,
     pub(crate) id: oid::ObjectId,

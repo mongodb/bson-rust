@@ -544,6 +544,17 @@ impl TryFrom<RawJavaScriptCodeWithScope> for crate::JavaScriptCodeWithScope {
     }
 }
 
+impl TryFrom<crate::JavaScriptCodeWithScope> for RawJavaScriptCodeWithScope {
+    type Error = crate::raw::Error;
+
+    fn try_from(value: crate::JavaScriptCodeWithScope) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
+            code: value.code,
+            scope: value.scope.try_into()?,
+        })
+    }
+}
+
 impl TryFrom<RawJavaScriptCodeWithScope> for Bson {
     type Error = crate::raw::Error;
 

@@ -818,6 +818,18 @@ pub struct RawDbPointerRef<'a> {
     pub(crate) id: ObjectId,
 }
 
+impl<'a> RawDbPointerRef<'a> {
+    pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
+        let namespace = read_lenencode(bytes)?;
+        let id_start = bytes
+            .len()
+            .checked_sub(12)
+            .ok_or_else(|| Error::malformed_bytes("db pointer too small"))?;
+        let id = ObjectId::parse(&bytes[id_start..])?;
+        Ok(Self { namespace, id })
+    }
+}
+
 #[cfg(feature = "serde")]
 impl<'de: 'a, 'a> serde::Deserialize<'de> for RawDbPointerRef<'a> {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>

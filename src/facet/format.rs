@@ -36,7 +36,7 @@ use crate::{
     Timestamp,
     error::{Error, Result},
     oid::ObjectId,
-    raw::{CStr, MIN_BSON_DOCUMENT_SIZE, RawIter},
+    raw::{CStr, CString, MIN_BSON_DOCUMENT_SIZE, RawIter},
     spec::{BinarySubtype, ElementType},
 };
 
@@ -218,6 +218,8 @@ impl facet_format::FormatSerializer for Serializer {
             Some(RawBsonRef::Array(ra))
         } else if let Ok(rjscws) = value.get::<RawJavaScriptCodeWithScope>() {
             Some(RawBsonRef::JavaScriptCodeWithScope(rjscws.into()))
+        } else if let Ok(cs) = value.get::<CString>() {
+            Some(RawBsonRef::String(cs.as_str()))
         } else if let Ok(rb) = value.get::<crate::RawBson>() {
             Some(rb.as_raw_bson_ref())
         } else {
