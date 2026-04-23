@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use crate::{
     Bson,
     RawBson,
-    raw::{CStr, Error, MIN_BSON_DOCUMENT_SIZE, RawValue, Result, read_cstring},
+    raw::{CStr, Error, MIN_BSON_DOCUMENT_SIZE, Result, read_cstring, value::RawValue},
     spec::ElementType,
 };
 
@@ -150,7 +150,7 @@ impl<'a> RawElement<'a> {
 
     /// The size of the element.
     pub fn size(&self) -> usize {
-        self.value.bytes.len()
+        self.value.bytes().len()
     }
 
     /// The document key the element corresponds to.
@@ -160,7 +160,7 @@ impl<'a> RawElement<'a> {
 
     /// The type of the element.
     pub fn element_type(&self) -> ElementType {
-        self.value.kind
+        self.value.kind()
     }
 
     /// Parses this element into a [`RawBsonRef`] and returns an error if the underlying bytes are
@@ -282,11 +282,7 @@ impl<'a> Iterator for RawIter<'a> {
         Some(match self.get_next_kvp(offset) {
             Ok((kind, size)) => Ok(RawElement {
                 key,
-                value: RawValue {
-                    kind,
-                    bytes: &self.bytes[offset..offset + size],
-                    source_offset: offset,
-                },
+                value: RawValue::new_at(kind, &self.bytes[offset..offset + size], offset),
             }),
             Err(error) => {
                 self.valid = false;
