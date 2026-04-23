@@ -403,3 +403,8 @@ fn rawarr_deserialize() {
 fn cstring_deserialize() {
     value_deserialize(CString::try_from("hello world".to_owned()).unwrap());
 }
+
+#[test]
+fn rawbson_deserialize() {
+    value_deserialize(RawBson::Double(3.14));
+}

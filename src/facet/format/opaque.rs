@@ -18,7 +18,7 @@ use crate::{
     Timestamp,
     error::{Error, Result},
     oid::ObjectId,
-    raw::{CString, RawDocument, RawDocumentBuf},
+    raw::{CString, RawDocument, RawDocumentBuf, value::RawValue},
     spec::ElementType,
 };
 
@@ -250,7 +250,17 @@ adapter! {
 adapter! {
     struct RawBsonAdapter;
 
-    fn deserialize(_input: OpaqueDeserialize) -> Result<RawBson> {
-        todo!()
+    fn deserialize(input: OpaqueDeserialize) -> Result<RawBson> {
+        let bytes = match &input {
+            OpaqueDeserialize::Borrowed(slice) => slice,
+            OpaqueDeserialize::Owned(vec) => vec.as_slice(),
+        };
+        let tag = bytes[bytes.len()-1];
+        let Some(kind) = ElementType::from(tag) else {
+            return Err(Error::malformed_bytes(format!("invalid type tag {tag}")));
+        };
+        let bytes = &bytes[0..bytes.len()-1];
+        let value = RawValue::new(kind, bytes);
+        value.parse().map(RawBson::from)
     }
 }
