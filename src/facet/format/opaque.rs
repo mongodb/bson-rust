@@ -34,17 +34,22 @@ impl UnSerializable {
 }
 
 fn input_slice<'de>(input: &'de OpaqueDeserialize<'de>) -> &'de [u8] {
-    match input {
+    let slice = match input {
         OpaqueDeserialize::Borrowed(slice) => slice,
         OpaqueDeserialize::Owned(vec) => vec.as_slice(),
-    }
+    };
+    // omit type tag
+    &slice[0..slice.len() - 1]
 }
 
 fn input_vec<'de>(input: OpaqueDeserialize<'de>) -> Vec<u8> {
-    match input {
+    let mut vec = match input {
         OpaqueDeserialize::Borrowed(slice) => slice.to_owned(),
         OpaqueDeserialize::Owned(vec) => vec,
-    }
+    };
+    // omit type tag
+    vec.pop();
+    vec
 }
 
 macro_rules! adapter {

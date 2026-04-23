@@ -320,10 +320,10 @@ impl<'de> Parser<'de> {
             }
             Expect::DocStartRaw => {
                 let len = iter.next_document_len(self.state.offset)?;
-                event = ParseEvent::new(
-                    scalar_bytes(&self.bytes[self.state.offset..self.state.offset + len]),
-                    Span::new(self.state.offset, len),
-                );
+                let mut bytes = self.bytes[self.state.offset..self.state.offset + len].to_vec();
+                // type tag for parsing a `Bson`/`RawBson` value
+                bytes.push(ElementType::EmbeddedDocument as u8);
+                event = ParseEvent::new(scalar_bytes(bytes), Span::new(self.state.offset, len));
                 next = ParseState {
                     offset: event.span.end(),
                     expects: Expect::DocStart,
@@ -392,10 +392,12 @@ impl<'de> Parser<'de> {
                     return Err(Error::deserialization("unexpected document end"));
                 };
                 let elt = elt?;
-                let bytes = elt.value_bytes();
+                let mut bytes = elt.value_bytes().to_vec();
+                // type tag for parsing a `Bson`/`RawBson` value
+                bytes.push(elt.element_type() as u8);
                 event = ParseEvent::new(
                     scalar_bytes(bytes),
-                    Span::new(elt.value_offset(), bytes.len()),
+                    Span::new(elt.value_offset(), elt.value_len()),
                 );
                 next = ParseState {
                     offset: event.span.end(),
@@ -416,8 +418,8 @@ impl<'de> Parser<'de> {
     }
 }
 
-fn scalar_bytes<'a>(bytes: &'a [u8]) -> ParseEventKind<'a> {
-    ParseEventKind::Scalar(ScalarValue::Bytes(Cow::Borrowed(bytes)))
+fn scalar_bytes(bytes: Vec<u8>) -> ParseEventKind<'static> {
+    ParseEventKind::Scalar(ScalarValue::Bytes(Cow::Owned(bytes)))
 }
 
 impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
@@ -425,7 +427,21 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
         false
     }
 
+    fn input(&self) -> Option<&'de [u8]> {
+        Some(self.bytes)
+    }
+
+    fn hint_opaque_scalar(
+        &mut self,
+        type_identifier: &'static str,
+        _shape: &'static facet::Shape,
+    ) -> bool {
+        eprintln!("opaque scalar: {type_identifier:?}");
+        false
+    }
+
     fn hint_byte_sequence(&mut self) -> bool {
+        eprintln!("hint byte sequence");
         match self.state.expects {
             Expect::DocStart => {
                 self.state.expects = Expect::DocStartRaw;
