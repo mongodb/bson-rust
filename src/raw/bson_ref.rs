@@ -6,6 +6,7 @@ use crate::{
     Bson,
     DbPointer,
     Decimal128,
+    JavaScriptCodeWithScope,
     RawArrayBuf,
     RawDocumentBuf,
     Regex,
@@ -776,6 +777,19 @@ impl<'a> From<RawJavaScriptCodeWithScopeRef<'a>> for RawJavaScriptCodeWithScope 
     }
 }
 
+impl<'a> TryFrom<RawJavaScriptCodeWithScopeRef<'a>> for JavaScriptCodeWithScope {
+    type Error = crate::error::Error;
+
+    fn try_from(
+        value: RawJavaScriptCodeWithScopeRef<'a>,
+    ) -> std::result::Result<Self, Self::Error> {
+        Ok(JavaScriptCodeWithScope {
+            code: value.code.to_owned(),
+            scope: value.scope.try_into()?,
+        })
+    }
+}
+
 #[cfg(feature = "serde")]
 impl<'de: 'a, 'a> serde::Deserialize<'de> for RawJavaScriptCodeWithScopeRef<'a> {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
@@ -889,5 +903,14 @@ impl<'a> From<&'a DbPointer> for RawDbPointerRef<'a> {
 impl<'a> From<&'a DbPointer> for RawBsonRef<'a> {
     fn from(value: &'a DbPointer) -> Self {
         RawBsonRef::DbPointer(value.into())
+    }
+}
+
+impl<'a> From<RawDbPointerRef<'a>> for DbPointer {
+    fn from(value: RawDbPointerRef<'a>) -> Self {
+        Self {
+            namespace: value.namespace.to_owned(),
+            id: value.id,
+        }
     }
 }
