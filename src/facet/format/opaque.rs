@@ -9,6 +9,7 @@ use crate::{
     JavaScriptCodeWithScope,
     RawArrayBuf,
     RawBinaryRef,
+    RawBson,
     RawDbPointerRef,
     RawJavaScriptCodeWithScope,
     RawJavaScriptCodeWithScopeRef,
@@ -243,5 +244,13 @@ adapter! {
         crate::raw::read_lenencode(input_slice(&input, ElementType::String)?)?
             .to_owned()
             .try_into()
+    }
+}
+
+adapter! {
+    struct RawBsonAdapter;
+
+    fn deserialize(_input: OpaqueDeserialize) -> Result<RawBson> {
+        todo!()
     }
 }

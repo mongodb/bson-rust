@@ -363,23 +363,20 @@ impl<'de> Parser<'de> {
                     RawBsonRef::Int32(i) => Some(ScalarValue::I64(i as i64)),
                     _ => None,
                 } {
-                    event = ParseEvent::new(
-                        ParseEventKind::Scalar(scalar),
-                        Span::new(elt.value_offset(), elt.value_len()),
-                    );
+                    event = ParseEvent::new(ParseEventKind::Scalar(scalar), elt.value_raw().span());
                     next = ParseState {
                         offset: event.span.end(),
                         expects: Expect::ElemKey,
                     };
                 } else {
                     match value {
-                        RawBsonRef::Document(doc) => {
+                        RawBsonRef::Document(_) => {
                             event = ParseEvent::new(
                                 ParseEventKind::StructStart(ContainerKind::Object),
-                                Span::new(elt.value_offset(), doc.as_bytes().len()),
+                                elt.value_raw().span(),
                             );
                             next = ParseState {
-                                offset: elt.value_offset() + 4,
+                                offset: elt.value_raw().source_offset() + 4,
                                 expects: Expect::ElemKey,
                             };
                         }
@@ -392,13 +389,10 @@ impl<'de> Parser<'de> {
                     return Err(Error::deserialization("unexpected document end"));
                 };
                 let elt = elt?;
-                let mut bytes = elt.value_bytes().to_vec();
+                let mut bytes = elt.value_raw().bytes().to_vec();
                 // type tag for parsing a `Bson`/`RawBson` value
                 bytes.push(elt.element_type() as u8);
-                event = ParseEvent::new(
-                    scalar_bytes(bytes),
-                    Span::new(elt.value_offset(), elt.value_len()),
-                );
+                event = ParseEvent::new(scalar_bytes(bytes), elt.value_raw().span());
                 next = ParseState {
                     offset: event.span.end(),
                     expects: Expect::ElemKey,

@@ -30,7 +30,7 @@ use super::{Error, Result};
     feature = "facet-unstable",
     repr(C),
     derive(facet::Facet),
-    facet(opaque)
+    facet(opaque = crate::facet::format::opaque::RawBsonAdapter)
 )]
 pub enum RawBson {
     /// 64-bit binary floating point

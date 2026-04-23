@@ -256,7 +256,7 @@ impl<'de> serde::de::Deserializer<'de> for RawDeserializer<'de> {
         V: serde::de::Visitor<'de>,
     {
         match self.element.element_type() {
-            ElementType::ObjectId => visitor.visit_borrowed_bytes(self.element.value_bytes()),
+            ElementType::ObjectId => visitor.visit_borrowed_bytes(self.element.value_raw().bytes()),
             _ => self.deserialize_any(visitor),
         }
     }
