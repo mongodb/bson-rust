@@ -2,40 +2,12 @@ use std::convert::TryInto;
 
 use crate::{
     Bson,
-    DateTime,
-    Decimal128,
-    RawArray,
-    RawBinaryRef,
     RawBson,
-    RawDbPointerRef,
-    RawJavaScriptCodeWithScopeRef,
-    RawRegexRef,
-    Timestamp,
-    oid::ObjectId,
-    raw::{
-        CStr,
-        Error,
-        MIN_BSON_DOCUMENT_SIZE,
-        MIN_CODE_WITH_SCOPE_SIZE,
-        Result,
-        cstring_bytes,
-        read_cstring,
-    },
+    raw::{CStr, Error, MIN_BSON_DOCUMENT_SIZE, RawValue, Result, read_cstring},
     spec::ElementType,
 };
 
-use super::{
-    RawBsonRef,
-    RawDocument,
-    bool_from_slice,
-    checked_add,
-    f64_from_slice,
-    i32_from_slice,
-    i64_from_slice,
-    read_len,
-    read_lenencode_bytes,
-    try_to_str,
-};
+use super::{RawBsonRef, RawDocument, checked_add, i32_from_slice, read_len};
 
 /// An iterator over the document's entries.
 pub struct Iter<'a> {
@@ -138,10 +110,7 @@ impl<'a> RawIter<'a> {
 #[derive(Clone)]
 pub struct RawElement<'a> {
     key: &'a CStr,
-    kind: ElementType,
-    bytes: &'a [u8],
-    start_at: usize,
-    size: usize,
+    value: RawValue<'a>,
 }
 
 impl<'a> TryFrom<RawElement<'a>> for RawBsonRef<'a> {
@@ -175,16 +144,13 @@ impl<'a> RawElement<'a> {
 
         Self {
             key: cstr!("TOPLEVEL"),
-            kind: ElementType::EmbeddedDocument,
-            bytes,
-            start_at: 0,
-            size: bytes.len(),
+            value: RawValue::new(ElementType::EmbeddedDocument, bytes),
         }
     }
 
     /// The size of the element.
     pub fn size(&self) -> usize {
-        self.size
+        self.value.bytes.len()
     }
 
     /// The document key the element corresponds to.
@@ -194,69 +160,19 @@ impl<'a> RawElement<'a> {
 
     /// The type of the element.
     pub fn element_type(&self) -> ElementType {
-        self.kind
-    }
-
-    pub(crate) fn value_offset(&self) -> usize {
-        self.start_at
-    }
-
-    pub(crate) fn value_len(&self) -> usize {
-        self.size
+        self.value.kind
     }
 
     /// Parses this element into a [`RawBsonRef`] and returns an error if the underlying bytes are
     /// invalid.
     pub fn value(&self) -> Result<RawBsonRef<'a>> {
-        Ok(match self.kind {
-            ElementType::Null => RawBsonRef::Null,
-            ElementType::Undefined => RawBsonRef::Undefined,
-            ElementType::MinKey => RawBsonRef::MinKey,
-            ElementType::MaxKey => RawBsonRef::MaxKey,
-            ElementType::ObjectId => RawBsonRef::ObjectId(
-                ObjectId::parse(self.value_bytes()).map_err(|e| e.with_key(self.key.as_str()))?,
-            ),
-            ElementType::Int32 => RawBsonRef::Int32(i32_from_slice(self.value_bytes())?),
-            ElementType::Int64 => RawBsonRef::Int64(i64_from_slice(self.value_bytes())?),
-            ElementType::Double => RawBsonRef::Double(f64_from_slice(self.value_bytes())?),
-            ElementType::String => RawBsonRef::String(self.read_str()?),
-            ElementType::EmbeddedDocument => {
-                RawBsonRef::Document(RawDocument::from_bytes(self.value_bytes())?)
-            }
-            ElementType::Array => RawBsonRef::Array(RawArray::from_doc(RawDocument::from_bytes(
-                self.value_bytes(),
-            )?)),
-            ElementType::Boolean => RawBsonRef::Boolean(
-                bool_from_slice(self.value_bytes()).map_err(|e| self.malformed_error(e))?,
-            ),
-            ElementType::DateTime => RawBsonRef::DateTime(
-                DateTime::parse(self.value_bytes()).map_err(|e| e.with_key(self.key.as_str()))?,
-            ),
-            ElementType::Decimal128 => RawBsonRef::Decimal128(
-                Decimal128::parse(self.value_bytes()).map_err(|e| e.with_key(self.key.as_str()))?,
-            ),
-            ElementType::JavaScriptCode => RawBsonRef::JavaScriptCode(self.read_str()?),
-            ElementType::Symbol => RawBsonRef::Symbol(self.read_str()?),
-            ElementType::DbPointer => RawBsonRef::DbPointer(
-                RawDbPointerRef::parse(self.value_bytes())
-                    .map_err(|e| e.with_key(self.key.as_str()))?,
-            ),
-            ElementType::RegularExpression => RawBsonRef::RegularExpression(
-                RawRegexRef::parse(self.value_bytes())
-                    .map_err(|e| e.with_key(self.key().as_str()))?,
-            ),
-            ElementType::Timestamp => RawBsonRef::Timestamp(
-                Timestamp::parse(self.value_bytes()).map_err(|e| e.with_key(self.key.as_str()))?,
-            ),
-            ElementType::Binary => RawBsonRef::Binary(
-                RawBinaryRef::parse(self.value_bytes())
-                    .map_err(|e| e.with_key(self.key.as_str()))?,
-            ),
-            ElementType::JavaScriptCodeWithScope => RawBsonRef::JavaScriptCodeWithScope(
-                RawJavaScriptCodeWithScopeRef::parse(self.value_bytes())
-                    .map_err(|e| e.with_key(self.key.as_str()))?,
-            ),
-        })
+        self.value
+            .parse()
+            .map_err(|e| e.with_key(self.key.as_str()))
+    }
+
+    pub(crate) fn value_raw(&self) -> &RawValue<'a> {
+        &self.value
     }
 
     /// Parses this element into [`RawBson`], replacing any invalid UTF-8 strings with the Unicode
@@ -269,81 +185,9 @@ impl<'a> RawElement<'a> {
     }
 
     pub(crate) fn value_utf8_lossy_inner(&self) -> Result<Option<Utf8LossyBson<'a>>> {
-        Ok(Some(match self.kind {
-            ElementType::String => Utf8LossyBson::String(self.read_utf8_lossy()),
-            ElementType::JavaScriptCode => Utf8LossyBson::JavaScriptCode(self.read_utf8_lossy()),
-            ElementType::JavaScriptCodeWithScope => {
-                if self.size < MIN_CODE_WITH_SCOPE_SIZE as usize {
-                    return Err(self.malformed_error("code with scope length too small"));
-                }
-
-                let slice = self.value_bytes();
-                let code = String::from_utf8_lossy(read_lenencode_bytes(&slice[4..])?).into_owned();
-                let scope_start = 4 + 4 + code.len() + 1;
-                if scope_start >= slice.len() {
-                    return Err(self.malformed_error("code with scope length overrun"));
-                }
-                let scope = RawDocument::from_bytes(&slice[scope_start..])?;
-
-                Utf8LossyBson::JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope {
-                    code,
-                    scope,
-                })
-            }
-            ElementType::Symbol => Utf8LossyBson::Symbol(self.read_utf8_lossy()),
-            ElementType::DbPointer => Utf8LossyBson::DbPointer(crate::DbPointer {
-                namespace: String::from_utf8_lossy(read_lenencode_bytes(self.value_bytes())?)
-                    .into_owned(),
-                id: self.get_oid_at(self.start_at + (self.size - 12))?,
-            }),
-            ElementType::RegularExpression => {
-                let pattern = String::from_utf8_lossy(cstring_bytes(&self.bytes[self.start_at..])?)
-                    .into_owned();
-                let pattern_len = pattern.len();
-                Utf8LossyBson::RegularExpression(crate::Regex {
-                    pattern: pattern.try_into()?,
-                    options: String::from_utf8_lossy(cstring_bytes(
-                        &self.bytes[self.start_at + pattern_len + 1..],
-                    )?)
-                    .into_owned()
-                    .try_into()?,
-                })
-            }
-            _ => return Ok(None),
-        }))
-    }
-
-    fn malformed_error(&self, e: impl ToString) -> Error {
-        Error::malformed_bytes(e).with_key(self.key.as_str())
-    }
-
-    /// The raw bytes of the value.
-    pub fn value_bytes(&self) -> &'a [u8] {
-        self.slice_bounds(self.start_at, self.size)
-    }
-
-    fn slice_bounds(&self, start_at: usize, size: usize) -> &'a [u8] {
-        &self.bytes[start_at..(start_at + size)]
-    }
-
-    fn str_bytes(&self) -> &'a [u8] {
-        self.slice_bounds(self.start_at + 4, self.size - 4 - 1)
-    }
-
-    fn read_str(&self) -> Result<&'a str> {
-        try_to_str(self.str_bytes())
-    }
-
-    fn read_utf8_lossy(&self) -> String {
-        String::from_utf8_lossy(self.str_bytes()).into_owned()
-    }
-
-    fn get_oid_at(&self, start_at: usize) -> Result<ObjectId> {
-        Ok(ObjectId::from_bytes(
-            self.bytes[start_at..(start_at + 12)]
-                .try_into()
-                .map_err(|e| Error::malformed_bytes(e).with_key(self.key.as_str()))?,
-        ))
+        self.value
+            .parse_utf8_lossy()
+            .map_err(|e| e.with_key(self.key.as_str()))
     }
 }
 
@@ -438,10 +282,11 @@ impl<'a> Iterator for RawIter<'a> {
         Some(match self.get_next_kvp(offset) {
             Ok((kind, size)) => Ok(RawElement {
                 key,
-                kind,
-                bytes: self.bytes,
-                start_at: offset,
-                size,
+                value: RawValue {
+                    kind,
+                    bytes: &self.bytes[offset..offset + size],
+                    source_offset: offset,
+                },
             }),
             Err(error) => {
                 self.valid = false;
