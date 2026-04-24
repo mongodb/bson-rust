@@ -358,10 +358,9 @@ impl<'de> Parser<'de> {
                 }
             },
             Expect::ElemValue => {
-                let Some(elt) = iter.next() else {
+                let Some(elt) = iter.next().transpose()? else {
                     return Err(Error::deserialization("unexpected document end"));
                 };
-                let elt = elt?;
                 let value = elt.value()?;
                 if let Some(scalar) = match value {
                     RawBsonRef::Int32(i) => Some(ScalarValue::I64(i as i64)),
@@ -384,7 +383,15 @@ impl<'de> Parser<'de> {
                                 expects: Expect::ElemKey,
                             };
                         }
-                        _ => todo!(),
+                        /*
+                        RawBsonRef::Array(_) => {
+                            event = ParseEvent::new(
+                                ParseEventKind::SequenceStart(ContainerKind::Array),
+                                elt.value_raw().span(),
+                            );
+                        }
+                        */
+                        v => todo!("{v:?}"),
                     }
                 }
             }
@@ -467,9 +474,15 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
     fn skip_value(&mut self) -> std::result::Result<(), ParseError> {
         match &self.state.expects {
             Expect::ElemValue | Expect::ElemValueRaw => {
-                if let Some((_, next)) = self.peek().map_err(|e| self.parse_err(e))? {
-                    self.state = next;
-                }
+                let mut iter = RawIter::new_unchecked(self.bytes, self.state.offset);
+                let Some(elt) = iter.next().transpose().map_err(|e| self.parse_err(e))? else {
+                    return Ok(());
+                };
+                self.state = ParseState {
+                    offset: elt.value_raw().span().end(),
+                    expects: Expect::ElemKey,
+                };
+
                 Ok(())
             }
             ex => Err(self.parse_err(Error::deserialization(format!(
