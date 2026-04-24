@@ -10,7 +10,6 @@ use crate::{
     JavaScriptCodeWithScope,
     RawArrayBuf,
     RawBson,
-    RawDocumentBuf,
     RawJavaScriptCodeWithScope,
     Regex,
     Timestamp,
@@ -286,6 +285,34 @@ where
     );
 }
 
+fn value_deserialize_cooked<T>(v: T)
+where
+    T: Facet<'static> + Into<Bson> + Clone + PartialEq + std::fmt::Debug,
+{
+    #[derive(Debug, PartialEq, Facet)]
+    struct Outer<T> {
+        val: i32,
+        next: i32,
+        inner: T,
+        last: i32,
+    }
+    let bytes = {
+        let bv: Bson = v.clone().into();
+        let raw_v: RawBson = bv.try_into().unwrap();
+        rawdoc! { "val": 42, "next": 13, "inner": raw_v, "last": 1066 }.into_bytes()
+    };
+    let o: Outer<T> = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(
+        Outer {
+            val: 42,
+            next: 13,
+            inner: v,
+            last: 1066
+        },
+        o,
+    );
+}
+
 #[test]
 fn rawdoc_deserialize() {
     value_deserialize(rawdoc! { "a": 1, "b": 2 });
@@ -345,53 +372,15 @@ fn db_pointer_deserialize() {
 
 #[test]
 fn javascript_code_with_scope_deserialize() {
-    let v = JavaScriptCodeWithScope {
+    value_deserialize_cooked(JavaScriptCodeWithScope {
         code: "function(x) { return x + n; }".into(),
         scope: doc! { "n": 1 },
-    };
-    let raw_v: RawJavaScriptCodeWithScope = v.clone().try_into().unwrap();
-    #[derive(Debug, PartialEq, Facet)]
-    struct Outer {
-        val: i32,
-        next: i32,
-        inner: JavaScriptCodeWithScope,
-        last: i32,
-    }
-    let bytes = rawdoc! { "val": 42, "next": 13, "inner": raw_v, "last": 1066 }.into_bytes();
-    let o: Outer = deserialize_from_slice(&bytes).unwrap();
-    assert_eq!(
-        Outer {
-            val: 42,
-            next: 13,
-            inner: v,
-            last: 1066
-        },
-        o,
-    );
+    });
 }
 
 #[test]
 fn document_deserialize() {
-    let v = doc! { "hello": "world", "count": 3 };
-    let raw_v: RawDocumentBuf = v.clone().try_into().unwrap();
-    #[derive(Debug, PartialEq, Facet)]
-    struct Outer {
-        val: i32,
-        next: i32,
-        inner: Document,
-        last: i32,
-    }
-    let bytes = rawdoc! { "val": 42, "next": 13, "inner": raw_v, "last": 1066 }.into_bytes();
-    let o: Outer = deserialize_from_slice(&bytes).unwrap();
-    assert_eq!(
-        Outer {
-            val: 42,
-            next: 13,
-            inner: v,
-            last: 1066
-        },
-        o,
-    );
+    value_deserialize_cooked(doc! { "hello": "world", "count": 3 });
 }
 
 #[test]
@@ -407,4 +396,9 @@ fn cstring_deserialize() {
 #[test]
 fn rawbson_deserialize() {
     value_deserialize(RawBson::Double(3.14));
+}
+
+#[test]
+fn bson_deserialize() {
+    value_deserialize_cooked(Bson::Double(3.14));
 }

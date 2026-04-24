@@ -49,7 +49,7 @@ use crate::{
     feature = "facet-unstable",
     repr(C),
     derive(facet::Facet),
-    facet(opaque)
+    facet(opaque = crate::facet::format::opaque::BsonAdapter)
 )]
 pub enum Bson {
     /// 64-bit binary floating point

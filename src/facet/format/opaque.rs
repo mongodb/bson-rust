@@ -2,6 +2,7 @@ use facet::{Facet, FacetOpaqueAdapter, OpaqueDeserialize, OpaqueSerialize, PtrCo
 
 use crate::{
     Binary,
+    Bson,
     DateTime,
     DbPointer,
     Decimal128,
@@ -262,5 +263,13 @@ adapter! {
         let bytes = &bytes[0..bytes.len()-1];
         let value = RawValue::new(kind, bytes);
         value.parse().map(RawBson::from)
+    }
+}
+
+adapter! {
+    struct BsonAdapter;
+
+    fn deserialize(input: OpaqueDeserialize) -> Result<Bson> {
+        RawBsonAdapter::deserialize_build(input)?.try_into()
     }
 }
