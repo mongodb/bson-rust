@@ -402,3 +402,36 @@ fn rawbson_deserialize() {
 fn bson_deserialize() {
     value_deserialize_cooked(Bson::Double(3.14));
 }
+
+#[test]
+fn untagged_enum_deserialize() {
+    #[derive(Debug, PartialEq, Facet)]
+    #[repr(u8)]
+    #[facet(untagged)]
+    enum Payload {
+        A { x: i32 },
+        B { y: i32 },
+    }
+
+    #[derive(Debug, PartialEq, Facet)]
+    struct Wrapper {
+        before: i32,
+        inner: Payload,
+        after: i32,
+    }
+
+    let bytes = rawdoc! { "before": 1, "inner": { "x": 99 }, "after": 7 }.into_bytes();
+    let w: Wrapper = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(w.inner, Payload::A { x: 99 });
+
+    let bytes = rawdoc! { "before": 1, "inner": { "y": 42 }, "after": 7 }.into_bytes();
+    let w: Wrapper = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(
+        w,
+        Wrapper {
+            before: 1,
+            inner: Payload::B { y: 42 },
+            after: 7,
+        }
+    );
+}
