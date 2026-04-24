@@ -308,9 +308,6 @@ impl<'de> Parser<'de> {
     }
 
     fn peek(&self) -> Result<Option<(ParseEvent<'de>, ParseState)>> {
-        if self.state.offset == self.bytes.len() {
-            return Ok(None);
-        }
         let mut iter = RawIter::new_unchecked(self.bytes, self.state.offset);
         let event;
         let next;
@@ -340,14 +337,8 @@ impl<'de> Parser<'de> {
                 };
             }
             Expect::Eof => {
-                if self.state.offset != self.bytes.len() - 1 {
+                if self.state.offset != self.bytes.len() {
                     return Err(Error::deserialization("unparsed bytes at end of buffer"));
-                }
-                let terminal = self.bytes[self.state.offset];
-                if terminal != 0 {
-                    return Err(Error::deserialization(format!(
-                        "expected null terminator, found {terminal}"
-                    )));
                 }
                 return Ok(None);
             }
