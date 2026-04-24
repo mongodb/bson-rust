@@ -435,3 +435,41 @@ fn untagged_enum_deserialize() {
         }
     );
 }
+
+#[test]
+fn skip_unknown_field_deserialize() {
+    #[derive(Debug, PartialEq, Facet)]
+    struct Keep {
+        keep: i32,
+    }
+
+    let bytes = rawdoc! { "throwaway": 99_i32, "keep": 7 }.into_bytes();
+    let k: Keep = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(k, Keep { keep: 7 });
+
+    let bytes = rawdoc! {
+        "throwaway": { "a": 1, "b": { "c": 2 } },
+        "keep": 7,
+    }
+    .into_bytes();
+    let k: Keep = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(k, Keep { keep: 7 });
+
+    /*
+    let bytes = rawdoc! {
+        "throwaway": [1, 2, 3, 4],
+        "keep": 7,
+    }
+    .into_bytes();
+    let k: Keep = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(k, Keep { keep: 7 });
+    */
+
+    let bytes = rawdoc! {
+        "keep": 7,
+        "throwaway": { "nested": 13 },
+    }
+    .into_bytes();
+    let k: Keep = deserialize_from_slice(&bytes).unwrap();
+    assert_eq!(k, Keep { keep: 7 });
+}
