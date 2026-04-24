@@ -30,6 +30,7 @@ use crate::{
     RawArrayBuf,
     RawBinaryRef,
     RawBsonRef,
+    RawDocument,
     RawDocumentBuf,
     RawJavaScriptCodeWithScope,
     Regex,
@@ -280,15 +281,17 @@ struct Parser<'de> {
 struct ParseState {
     offset: usize,
     expects: Expect,
+    outer: Vec<Expect>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 enum Expect {
     DocStart,
     DocStartRaw,
     ElemKey,
     ElemValue,
     ElemValueRaw,
+    Eof,
 }
 
 impl<'de> Parser<'de> {
@@ -298,6 +301,7 @@ impl<'de> Parser<'de> {
             state: ParseState {
                 offset: 0,
                 expects: Expect::DocStart,
+                outer: vec![],
             },
             saved: None,
         }
@@ -320,6 +324,7 @@ impl<'de> Parser<'de> {
                 next = ParseState {
                     offset: self.state.offset + 4, // doc length
                     expects: Expect::ElemKey,
+                    outer: vec![Expect::Eof],
                 };
             }
             Expect::DocStartRaw => {
@@ -331,15 +336,32 @@ impl<'de> Parser<'de> {
                 next = ParseState {
                     offset: event.span.end(),
                     expects: Expect::DocStart,
+                    outer: vec![Expect::Eof],
                 };
+            }
+            Expect::Eof => {
+                if self.state.offset != self.bytes.len() - 1 {
+                    return Err(Error::deserialization("unparsed bytes at end of buffer"));
+                }
+                let terminal = self.bytes[self.state.offset];
+                if terminal != 0 {
+                    return Err(Error::deserialization(format!(
+                        "expected null terminator, found {terminal}"
+                    )));
+                }
+                return Ok(None);
             }
             Expect::ElemKey => match iter.next() {
                 None => {
                     event =
                         ParseEvent::new(ParseEventKind::StructEnd, Span::new(self.state.offset, 1));
+                    let Some((expects, outer)) = self.state.outer.split_last() else {
+                        return Err(Error::deserialization("unexpected container end"));
+                    };
                     next = ParseState {
                         offset: self.state.offset + 1, // doc null terminator
-                        expects: Expect::ElemKey,
+                        expects: *expects,
+                        outer: outer.to_vec(),
                     }
                 }
                 Some(elt) => {
@@ -354,12 +376,13 @@ impl<'de> Parser<'de> {
                     next = ParseState {
                         offset: self.state.offset,
                         expects: Expect::ElemValue,
+                        outer: self.state.outer.clone(),
                     }
                 }
             },
             Expect::ElemValue => {
                 let Some(elt) = iter.next().transpose()? else {
-                    return Err(Error::deserialization("unexpected document end"));
+                    return Err(Error::deserialization("unexpected container end"));
                 };
                 let value = elt.value()?;
                 if let Some(scalar) = match value {
@@ -370,6 +393,7 @@ impl<'de> Parser<'de> {
                     next = ParseState {
                         offset: event.span.end(),
                         expects: Expect::ElemKey,
+                        outer: self.state.outer.clone(),
                     };
                 } else {
                     match value {
@@ -381,6 +405,7 @@ impl<'de> Parser<'de> {
                             next = ParseState {
                                 offset: elt.value_raw().source_offset() + 4,
                                 expects: Expect::ElemKey,
+                                outer: vec_and(&self.state.outer, Expect::ElemKey),
                             };
                         }
                         /*
@@ -407,6 +432,7 @@ impl<'de> Parser<'de> {
                 next = ParseState {
                     offset: event.span.end(),
                     expects: Expect::ElemKey,
+                    outer: self.state.outer.clone(),
                 };
             }
         }
@@ -481,6 +507,7 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
                 self.state = ParseState {
                     offset: elt.value_raw().span().end(),
                     expects: Expect::ElemKey,
+                    outer: self.state.outer.clone(),
                 };
 
                 Ok(())
@@ -505,15 +532,16 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
     }
 }
 
-/// Deserialize a value from BSON bytes.
+/// Deserialize a value from a binary BSON document.
 pub fn deserialize_from_slice<T: Facet<'static>>(bytes: &[u8]) -> Result<T> {
-    // Approach:
-    // * FacetOpaqueAdapter for all bson types
-    // * deserialize_build parses from input as normal
-    // * serialize_map:
-    //   * for byte buffer / leaf value wrappers, can return a pointer to the buffer
-    //   * for others, return a pointer to a static marker that's opaque
+    RawDocument::from_bytes(bytes)?;
     facet_format::FormatDeserializer::new_owned(&mut Parser::new(bytes))
         .deserialize()
         .map_err(|e| Error::deserialization(e))
+}
+
+fn vec_and<T: Clone>(vs: &[T], v: T) -> Vec<T> {
+    let mut out = vs.to_vec();
+    out.push(v);
+    out
 }
