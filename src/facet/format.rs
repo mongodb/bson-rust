@@ -273,13 +273,16 @@ impl From<ReflectError> for Error {
 struct Parser<'de> {
     bytes: &'de [u8],
     state: ParseState,
+    saved: Option<ParseState>,
 }
 
+#[derive(Debug, Clone)]
 struct ParseState {
     offset: usize,
     expects: Expect,
 }
 
+#[derive(Debug, Clone)]
 enum Expect {
     DocStart,
     DocStartRaw,
@@ -296,6 +299,7 @@ impl<'de> Parser<'de> {
                 offset: 0,
                 expects: Expect::DocStart,
             },
+            saved: None,
         }
     }
 
@@ -425,15 +429,6 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
         Some(self.bytes)
     }
 
-    fn hint_opaque_scalar(
-        &mut self,
-        type_identifier: &'static str,
-        _shape: &'static facet::Shape,
-    ) -> bool {
-        eprintln!("opaque scalar: {type_identifier:?}");
-        false
-    }
-
     fn hint_byte_sequence(&mut self) -> bool {
         eprintln!("hint byte sequence");
         match self.state.expects {
@@ -470,15 +465,30 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
     }
 
     fn skip_value(&mut self) -> std::result::Result<(), ParseError> {
-        todo!()
+        match &self.state.expects {
+            Expect::ElemValue | Expect::ElemValueRaw => {
+                if let Some((_, next)) = self.peek().map_err(|e| self.parse_err(e))? {
+                    self.state = next;
+                }
+                Ok(())
+            }
+            ex => Err(self.parse_err(Error::deserialization(format!(
+                "unexpected skip_value for {ex:?}"
+            )))),
+        }
     }
 
     fn save(&mut self) -> facet_format::SavePoint {
-        todo!()
+        self.saved = Some(self.state.clone());
+        facet_format::SavePoint::new(self.state.offset as u64)
     }
 
-    fn restore(&mut self, _save_point: facet_format::SavePoint) {
-        todo!()
+    fn restore(&mut self, save_point: facet_format::SavePoint) {
+        debug_assert!(self.saved.is_some());
+        if let Some(saved) = self.saved.take() {
+            debug_assert!(save_point.0 == saved.offset as u64);
+            self.state = saved;
+        }
     }
 }
 
