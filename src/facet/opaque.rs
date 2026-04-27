@@ -23,6 +23,10 @@ use crate::{
     spec::ElementType,
 };
 
+// Generate Facet opaque adapters for these types: each line is (type, serialize_fn,
+// deserialize_fn;).  serialize_fn is only available for types that are thin wrappers around byte
+// arrays, and will only be used when serializing these types to non-bson formats; all other types
+// will produce an error in that context.
 adapters! {
     RawDocumentBuf,             ser_rawdoc, de_rawdoc;
     Regex,                      _,          de_regex;
