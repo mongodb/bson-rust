@@ -275,18 +275,12 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
             return Ok(None);
         };
         self.state = next;
-        eprintln!("next: {ev:#?}");
         Ok(Some(ev))
     }
 
     fn peek_event(&mut self) -> std::result::Result<Option<ParseEvent<'de>>, ParseError> {
         self.peek()
-            .map(|opt| {
-                opt.map(|(e, _)| {
-                    eprintln!("peek: {e:#?}");
-                    e
-                })
-            })
+            .map(|opt| opt.map(|(e, _)| e))
             .map_err(|e| self.parse_err(e))
     }
 
