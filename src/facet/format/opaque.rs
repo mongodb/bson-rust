@@ -57,7 +57,7 @@ fn input_slice<'de>(input: &'de OpaqueDeserialize<'de>, kind: ElementType) -> Re
     Ok(&slice[0..slice.len() - 1])
 }
 
-fn input_vec<'de>(input: OpaqueDeserialize<'de>, kind: ElementType) -> Result<Vec<u8>> {
+fn input_vec(input: OpaqueDeserialize, kind: ElementType) -> Result<Vec<u8>> {
     let mut vec = match input {
         OpaqueDeserialize::Borrowed(slice) => slice.to_owned(),
         OpaqueDeserialize::Owned(vec) => vec,
@@ -68,208 +68,163 @@ fn input_vec<'de>(input: OpaqueDeserialize<'de>, kind: ElementType) -> Result<Ve
 }
 
 macro_rules! adapter {
-    (
-        struct $an:ident;
-
-        fn serialize($val:ident: &$send:ty) $ser:block
-
-        fn deserialize($input:ident: OpaqueDeserialize) -> Result<$recv:ty> $deser:block
-    ) => {
-        pub(crate) struct $an;
-
-        impl FacetOpaqueAdapter for $an {
-            type Error = Error;
-            type SendValue<'a> = $send;
-            type RecvValue<'de> = $recv;
-
-            fn serialize_map($val: &Self::SendValue<'_>) -> OpaqueSerialize $ser
-
-            fn deserialize_build<'de>(
-                $input: OpaqueDeserialize<'de>,
-            ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> $deser
-        }
+    ($ty:ident, _, $de:ident $(,)?) => {
+        adapter!($ty, ser_unserializable, $de);
     };
-    (
-        struct $an:ident;
-
-        fn deserialize($input:ident: OpaqueDeserialize) -> Result<$recv:ty> $deser:block
-    ) => {
-        adapter! {
-            struct $an;
-
-            fn serialize(_value: &$recv) {
-                UnSerializable::OPAQUE
+    ($ty:ident, $ser:ident, $de:ident $(,)?) => {
+        ::paste::paste! {
+            pub(crate) struct [<$ty Adapter>];
+            impl FacetOpaqueAdapter for [<$ty Adapter>] {
+                type Error = Error;
+                type SendValue<'a> = $ty;
+                type RecvValue<'de> = $ty;
+                fn serialize_map(value: &Self::SendValue<'_>) -> OpaqueSerialize {
+                    $ser(value)
+                }
+                fn deserialize_build<'de>(
+                    input: OpaqueDeserialize<'de>,
+                ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> {
+                    $de(input)
+                }
             }
-
-            fn deserialize($input: OpaqueDeserialize) -> Result<$recv> $deser
         }
     };
 }
 
-adapter! {
-    struct RawDocumentBufAdapter;
+fn ser_unserializable<T>(_: &T) -> OpaqueSerialize {
+    UnSerializable::OPAQUE
+}
 
-    fn serialize(value: &RawDocumentBuf) {
-        OpaqueSerialize {
-            ptr: PtrConst::new(&value.as_bytes() as *const &[u8]),
-            shape: <&[u8] as Facet>::SHAPE,
-        }
-    }
+macro_rules! adapters {
+    ($($ty:ident, $ser:tt, $de:ident);* $(;)?) => {
+        $( adapter!($ty, $ser, $de); )*
+    };
+}
 
-    fn deserialize(input: OpaqueDeserialize) -> Result<RawDocumentBuf> {
-        RawDocumentBuf::from_bytes(input_vec(input, ElementType::EmbeddedDocument)?)
+adapters! {
+    RawDocumentBuf,             ser_rawdoc, de_rawdoc;
+    Regex,                      _,          de_regex;
+    Binary,                     _,          de_binary;
+    Timestamp,                  _,          de_timestamp;
+    RawJavaScriptCodeWithScope, _,          de_raw_jscws;
+    ObjectId,                   ser_oid,    de_oid;
+    Decimal128,                 ser_dec,    de_dec;
+    RawArrayBuf,                ser_rawarr, de_rawarr;
+    DateTime,                   _,          de_datetime;
+    DbPointer,                  _,          de_dbptr;
+    JavaScriptCodeWithScope,    _,          de_jscws;
+    Document,                   _,          de_doc;
+    CString,                    _,          de_cstring;
+    RawBson,                    _,          de_rawbson;
+    Bson,                       _,          de_bson;
+}
+
+fn ser_rawdoc(value: &RawDocumentBuf) -> OpaqueSerialize {
+    OpaqueSerialize {
+        ptr: PtrConst::new(&value.as_bytes() as *const &[u8]),
+        shape: <&[u8] as Facet>::SHAPE,
     }
 }
 
-adapter! {
-    struct RegexAdapter;
+fn de_rawdoc(input: OpaqueDeserialize) -> Result<RawDocumentBuf> {
+    RawDocumentBuf::from_bytes(input_vec(input, ElementType::EmbeddedDocument)?)
+}
 
-    fn deserialize(input: OpaqueDeserialize) -> Result<Regex> {
-        RawRegexRef::parse(input_slice(&input, ElementType::RegularExpression)?).map(Regex::from)
+fn de_regex(input: OpaqueDeserialize) -> Result<Regex> {
+    RawRegexRef::parse(input_slice(&input, ElementType::RegularExpression)?).map(Regex::from)
+}
+
+fn de_binary(input: OpaqueDeserialize) -> Result<Binary> {
+    Ok(RawBinaryRef::parse(input_slice(&input, ElementType::Binary)?)?.to_binary())
+}
+
+fn de_timestamp(input: OpaqueDeserialize) -> Result<Timestamp> {
+    Timestamp::parse(input_slice(&input, ElementType::Timestamp)?)
+}
+
+fn de_raw_jscws(input: OpaqueDeserialize) -> Result<RawJavaScriptCodeWithScope> {
+    Ok(RawJavaScriptCodeWithScopeRef::parse(input_slice(
+        &input,
+        ElementType::JavaScriptCodeWithScope,
+    )?)?
+    .into())
+}
+
+fn ser_oid(value: &ObjectId) -> OpaqueSerialize {
+    OpaqueSerialize {
+        ptr: PtrConst::new(&value.as_bytes_slice() as *const &[u8]),
+        shape: <&[u8] as Facet>::SHAPE,
     }
 }
 
-adapter! {
-    struct BinaryAdapter;
+fn de_oid(input: OpaqueDeserialize) -> Result<ObjectId> {
+    ObjectId::parse(input_slice(&input, ElementType::ObjectId)?)
+}
 
-    fn deserialize(input: OpaqueDeserialize) -> Result<Binary> {
-        Ok(RawBinaryRef::parse(input_slice(&input, ElementType::Binary)?)?.to_binary())
+fn ser_dec(value: &Decimal128) -> OpaqueSerialize {
+    OpaqueSerialize {
+        ptr: PtrConst::new(&value.as_bytes_slice() as *const &[u8]),
+        shape: <&[u8] as Facet>::SHAPE,
     }
 }
 
-adapter! {
-    struct TimestampAdapter;
+fn de_dec(input: OpaqueDeserialize) -> Result<Decimal128> {
+    Decimal128::parse(input_slice(&input, ElementType::Decimal128)?)
+}
 
-    fn deserialize(input: OpaqueDeserialize) -> Result<Timestamp> {
-        Timestamp::parse(input_slice(&input, ElementType::Timestamp)?)
+fn ser_rawarr(value: &RawArrayBuf) -> OpaqueSerialize {
+    OpaqueSerialize {
+        ptr: PtrConst::new(&value.as_bytes() as *const &[u8]),
+        shape: <&[u8] as Facet>::SHAPE,
     }
 }
 
-adapter! {
-    struct RawJavaScriptCodeWithScopeAdapter;
-
-    fn deserialize(input: OpaqueDeserialize) -> Result<RawJavaScriptCodeWithScope> {
-        Ok(RawJavaScriptCodeWithScopeRef::parse(
-            input_slice(&input, ElementType::JavaScriptCodeWithScope)?
-        )?.into())
-    }
+fn de_rawarr(input: OpaqueDeserialize) -> Result<RawArrayBuf> {
+    Ok(RawArrayBuf::from_raw_document_buf(
+        RawDocumentBuf::from_bytes(input_vec(input, ElementType::Array)?)?,
+    ))
 }
 
-adapter! {
-    struct ObjectIdAdapter;
-
-    fn serialize(value: &ObjectId) {
-        OpaqueSerialize {
-            ptr: PtrConst::new(&value.as_bytes_slice() as *const &[u8]),
-            shape: <&[u8] as Facet>::SHAPE,
-        }
-    }
-
-    fn deserialize(input: OpaqueDeserialize) -> Result<ObjectId> {
-        ObjectId::parse(input_slice(&input, ElementType::ObjectId)?)
-    }
+fn de_datetime(input: OpaqueDeserialize) -> Result<DateTime> {
+    DateTime::parse(input_slice(&input, ElementType::DateTime)?)
 }
 
-adapter! {
-    struct Decimal128Adapter;
-
-    fn serialize(value: &Decimal128) {
-        OpaqueSerialize {
-            ptr: PtrConst::new(&value.as_bytes_slice() as *const &[u8]),
-            shape: <&[u8] as Facet>::SHAPE,
-        }
-    }
-
-    fn deserialize(input: OpaqueDeserialize) -> Result<Decimal128> {
-        Decimal128::parse(input_slice(&input, ElementType::Decimal128)?)
-    }
+fn de_dbptr(input: OpaqueDeserialize) -> Result<DbPointer> {
+    Ok(RawDbPointerRef::parse(input_slice(&input, ElementType::DbPointer)?)?.into())
 }
 
-adapter! {
-    struct RawArrayBufAdapter;
-
-    fn serialize(value: &RawArrayBuf) {
-        OpaqueSerialize {
-            ptr: PtrConst::new(&value.as_bytes() as *const &[u8]),
-            shape: <&[u8] as Facet>::SHAPE,
-        }
-    }
-
-    fn deserialize(input: OpaqueDeserialize) -> Result<RawArrayBuf> {
-        Ok(RawArrayBuf::from_raw_document_buf(
-            RawDocumentBuf::from_bytes(input_vec(input, ElementType::Array)?)?
-        ))
-    }
+fn de_jscws(input: OpaqueDeserialize) -> Result<JavaScriptCodeWithScope> {
+    Ok(RawJavaScriptCodeWithScopeRef::parse(input_slice(
+        &input,
+        ElementType::JavaScriptCodeWithScope,
+    )?)?
+    .try_into()?)
 }
 
-adapter! {
-    struct DateTimeAdapter;
-
-    fn deserialize(input: OpaqueDeserialize) -> Result<DateTime> {
-        DateTime::parse(input_slice(&input, ElementType::DateTime)?)
-    }
+fn de_doc(input: OpaqueDeserialize) -> Result<Document> {
+    RawDocument::from_bytes(input_slice(&input, ElementType::EmbeddedDocument)?)?.try_into()
 }
 
-adapter! {
-    struct DbPointerAdapter;
-
-    fn deserialize(input: OpaqueDeserialize) -> Result<DbPointer> {
-        Ok(RawDbPointerRef::parse(input_slice(&input, ElementType::DbPointer)?)?.into())
-    }
+fn de_cstring(input: OpaqueDeserialize) -> Result<CString> {
+    crate::raw::read_lenencode(input_slice(&input, ElementType::String)?)?
+        .to_owned()
+        .try_into()
 }
 
-adapter! {
-    struct JavaScriptCodeWithScopeAdapter;
-
-    fn deserialize(input: OpaqueDeserialize) -> Result<JavaScriptCodeWithScope> {
-        Ok(RawJavaScriptCodeWithScopeRef::parse(
-            input_slice(&input, ElementType::JavaScriptCodeWithScope)?
-        )?.try_into()?)
-    }
+fn de_rawbson(input: OpaqueDeserialize) -> Result<RawBson> {
+    let bytes = match &input {
+        OpaqueDeserialize::Borrowed(slice) => slice,
+        OpaqueDeserialize::Owned(vec) => vec.as_slice(),
+    };
+    let tag = bytes[bytes.len() - 1];
+    let Some(kind) = ElementType::from(tag) else {
+        return Err(Error::malformed_bytes(format!("invalid type tag {tag}")));
+    };
+    let bytes = &bytes[0..bytes.len() - 1];
+    let value = RawValue::new(kind, bytes);
+    value.parse().map(RawBson::from)
 }
 
-adapter! {
-    struct DocumentAdapter;
-
-    fn deserialize(input: OpaqueDeserialize) -> Result<Document> {
-        RawDocument::from_bytes(
-            input_slice(&input, ElementType::EmbeddedDocument)?
-        )?.try_into()
-    }
-}
-
-adapter! {
-    struct CStringAdapter;
-
-    fn deserialize(input: OpaqueDeserialize) -> Result<CString> {
-        crate::raw::read_lenencode(input_slice(&input, ElementType::String)?)?
-            .to_owned()
-            .try_into()
-    }
-}
-
-adapter! {
-    struct RawBsonAdapter;
-
-    fn deserialize(input: OpaqueDeserialize) -> Result<RawBson> {
-        let bytes = match &input {
-            OpaqueDeserialize::Borrowed(slice) => slice,
-            OpaqueDeserialize::Owned(vec) => vec.as_slice(),
-        };
-        let tag = bytes[bytes.len()-1];
-        let Some(kind) = ElementType::from(tag) else {
-            return Err(Error::malformed_bytes(format!("invalid type tag {tag}")));
-        };
-        let bytes = &bytes[0..bytes.len()-1];
-        let value = RawValue::new(kind, bytes);
-        value.parse().map(RawBson::from)
-    }
-}
-
-adapter! {
-    struct BsonAdapter;
-
-    fn deserialize(input: OpaqueDeserialize) -> Result<Bson> {
-        RawBsonAdapter::deserialize_build(input)?.try_into()
-    }
+fn de_bson(input: OpaqueDeserialize) -> Result<Bson> {
+    de_rawbson(input)?.try_into()
 }
