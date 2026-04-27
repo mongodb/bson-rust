@@ -83,7 +83,7 @@ impl TryFrom<serde_json::Map<String, serde_json::Value>> for Bson {
             }
             ObjectType::Timestamp => {
                 let ts: models::Timestamp = serde_json::from_value(obj.into())?;
-                Ok(ts.parse().into())
+                Ok(ts.parse()?.into())
             }
             ObjectType::DateTime => {
                 let extjson_datetime: models::DateTime = serde_json::from_value(obj.into())?;
