@@ -481,3 +481,30 @@ fn array_deserialize() {
 fn nested_array_deserialize() {
     value_deserialize_cooked(vec![vec![1, 2], vec![3, 4]]);
 }
+
+#[test]
+fn double_deserialize() {
+    value_deserialize(3.14_f64);
+}
+
+#[test]
+fn string_deserialize() {
+    value_deserialize("hello world".to_owned());
+}
+
+#[test]
+fn bool_deserialize() {
+    value_deserialize(true);
+    value_deserialize(false);
+}
+
+#[test]
+fn int64_deserialize() {
+    value_deserialize(1234567890123_i64);
+}
+
+#[test]
+fn null_deserialize() {
+    value_deserialize_cooked::<Option<i32>>(None);
+    value_deserialize_cooked(Some(42_i32));
+}
