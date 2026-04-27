@@ -1144,7 +1144,7 @@ impl Timestamp {
     }
 
     pub(crate) fn parse(bytes: &[u8]) -> Result<Self> {
-        let bytes: [u8; 8] = bytes.try_into().map_err(|e| Error::malformed_bytes(e))?;
+        let bytes: [u8; 8] = bytes.try_into().map_err(Error::malformed_bytes)?;
         Ok(Self::from_le_bytes(bytes))
     }
 }

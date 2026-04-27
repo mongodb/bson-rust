@@ -63,6 +63,7 @@ impl<'a> RawIter<'a> {
         }
     }
 
+    #[cfg(feature = "facet-unstable")]
     pub(crate) fn new_unchecked(bytes: &'a [u8], offset: usize) -> Self {
         Self {
             bytes,
@@ -171,6 +172,7 @@ impl<'a> RawElement<'a> {
             .map_err(|e| e.with_key(self.key.as_str()))
     }
 
+    #[cfg(feature = "facet-unstable")]
     pub(crate) fn value_raw(&self) -> &RawValue<'a> {
         &self.value
     }

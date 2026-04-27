@@ -34,10 +34,12 @@ use crate::{
 pub(crate) struct RawValue<'a> {
     kind: ElementType,
     bytes: &'a [u8],
+    #[allow(unused)]
     source_offset: usize,
 }
 
 impl<'a> RawValue<'a> {
+    #[cfg(any(feature = "serde", feature = "facet-unstable"))]
     pub(crate) fn new(kind: ElementType, bytes: &'a [u8]) -> Self {
         Self {
             kind,
@@ -71,9 +73,9 @@ impl<'a> RawValue<'a> {
             ElementType::Array => {
                 RawBsonRef::Array(RawArray::from_doc(RawDocument::from_bytes(self.bytes)?))
             }
-            ElementType::Boolean => RawBsonRef::Boolean(
-                bool_from_slice(self.bytes).map_err(|e| Error::malformed_bytes(e))?,
-            ),
+            ElementType::Boolean => {
+                RawBsonRef::Boolean(bool_from_slice(self.bytes).map_err(Error::malformed_bytes)?)
+            }
             ElementType::DateTime => RawBsonRef::DateTime(DateTime::parse(self.bytes)?),
             ElementType::Decimal128 => RawBsonRef::Decimal128(Decimal128::parse(self.bytes)?),
             ElementType::JavaScriptCode => RawBsonRef::JavaScriptCode(self.read_str()?),
@@ -141,6 +143,7 @@ impl<'a> RawValue<'a> {
         self.kind
     }
 
+    #[cfg(feature = "facet-unstable")]
     pub(crate) fn source_offset(&self) -> usize {
         self.source_offset
     }
@@ -170,7 +173,7 @@ impl<'a> RawValue<'a> {
         Ok(ObjectId::from_bytes(
             self.bytes[start_at..(start_at + 12)]
                 .try_into()
-                .map_err(|e| Error::malformed_bytes(e))?,
+                .map_err(Error::malformed_bytes)?,
         ))
     }
 }

@@ -48,6 +48,7 @@ impl Decimal128 {
         Ok(Self::from_bytes(arr))
     }
 
+    #[cfg(feature = "facet-unstable")]
     pub(crate) fn as_bytes_slice(&self) -> &[u8] {
         &self.bytes
     }

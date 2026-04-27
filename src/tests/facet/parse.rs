@@ -192,12 +192,12 @@ fn cstring_deserialize() {
 
 #[test]
 fn rawbson_deserialize() {
-    value_deserialize(RawBson::Double(3.14));
+    value_deserialize(RawBson::Double(std::f64::consts::PI));
 }
 
 #[test]
 fn bson_deserialize() {
-    value_deserialize_cooked(Bson::Double(3.14));
+    value_deserialize_cooked(Bson::Double(std::f64::consts::PI));
 }
 
 #[test]
@@ -281,7 +281,7 @@ fn nested_array_deserialize() {
 
 #[test]
 fn double_deserialize() {
-    value_deserialize(3.14_f64);
+    value_deserialize(std::f64::consts::PI);
 }
 
 #[test]
