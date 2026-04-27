@@ -1,5 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
+#[cfg(feature = "facet-unstable")]
+use crate::facet::opaque;
 use crate::{
     Binary,
     Bson,
@@ -28,7 +30,7 @@ use super::{Error, Result};
     feature = "facet-unstable",
     repr(C),
     derive(facet::Facet),
-    facet(opaque)
+    facet(opaque = crate::facet::opaque::RawBsonAdapter)
 )]
 pub enum RawBson {
     /// 64-bit binary floating point
@@ -522,7 +524,7 @@ impl TryFrom<Bson> for RawBson {
 
 /// A BSON "code with scope" value backed by owned raw BSON.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::RawJavaScriptCodeWithScopeAdapter))]
 pub struct RawJavaScriptCodeWithScope {
     /// The code value.
     pub code: String,
@@ -535,6 +537,17 @@ impl TryFrom<RawJavaScriptCodeWithScope> for crate::JavaScriptCodeWithScope {
     type Error = crate::raw::Error;
 
     fn try_from(value: RawJavaScriptCodeWithScope) -> crate::raw::Result<Self> {
+        Ok(Self {
+            code: value.code,
+            scope: value.scope.try_into()?,
+        })
+    }
+}
+
+impl TryFrom<crate::JavaScriptCodeWithScope> for RawJavaScriptCodeWithScope {
+    type Error = crate::raw::Error;
+
+    fn try_from(value: crate::JavaScriptCodeWithScope) -> std::result::Result<Self, Self::Error> {
         Ok(Self {
             code: value.code,
             scope: value.scope.try_into()?,

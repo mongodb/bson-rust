@@ -183,7 +183,7 @@ use crate::error::{Error, Result};
 /// range, which enables the
 /// [`large-dates` feature for `time`](https://docs.rs/time/latest/time/#feature-flags).
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::opaque::DateTimeAdapter))]
 pub struct DateTime(i64);
 
 impl crate::DateTime {
@@ -197,6 +197,13 @@ impl crate::DateTime {
     /// January 1, 1970 0:00:00 UTC (aka "UNIX timestamp").
     pub const fn from_millis(date: i64) -> Self {
         Self(date)
+    }
+
+    pub(crate) fn parse(bytes: &[u8]) -> crate::error::Result<Self> {
+        let arr: [u8; 8] = bytes
+            .try_into()
+            .map_err(|e: std::array::TryFromSliceError| crate::error::Error::malformed_bytes(e))?;
+        Ok(Self::from_millis(i64::from_le_bytes(arr)))
     }
 
     /// Returns a [`DateTime`] which corresponds to the current date and time.

@@ -11,6 +11,9 @@ use crate::{
 
 use super::{RawBsonRef, RawDocument, RawIter, Result, bson::RawBson, iter::Iter};
 
+#[cfg(feature = "facet-unstable")]
+use crate::facet::opaque;
+
 /// An owned BSON document (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
 /// This can be created from a `Vec<u8>` or a [`crate::Document`].
 ///
@@ -48,7 +51,7 @@ use super::{RawBsonRef, RawDocument, RawIter, Result, bson::RawBson, iter::Iter}
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Clone, PartialEq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::RawDocumentBufAdapter))]
 pub struct RawDocumentBuf {
     data: Vec<u8>,
 }

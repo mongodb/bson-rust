@@ -30,7 +30,6 @@ use super::{
     Result as RawResult,
     i32_from_slice,
     iter::Iter,
-    try_to_str,
 };
 
 /// A slice of a BSON document (akin to [`std::str`]). This can be created from a
@@ -479,26 +478,6 @@ impl RawDocument {
     /// Returns whether this document contains any elements or not.
     pub fn is_empty(&self) -> bool {
         self.as_bytes().len() == MIN_BSON_DOCUMENT_SIZE as usize
-    }
-
-    pub(crate) fn cstring_bytes_at(&self, start_at: usize) -> RawResult<&[u8]> {
-        let buf = &self.as_bytes()[start_at..];
-
-        let mut splits = buf.splitn(2, |x| *x == 0);
-        let value = splits
-            .next()
-            .ok_or_else(|| RawError::malformed_bytes("no value"))?;
-        if splits.next().is_some() {
-            Ok(value)
-        } else {
-            Err(RawError::malformed_bytes("expected null terminator"))
-        }
-    }
-
-    pub(crate) fn read_cstring_at(&self, start_at: usize) -> RawResult<&CStr> {
-        let bytes = self.cstring_bytes_at(start_at)?;
-        let s = try_to_str(bytes)?;
-        s.try_into()
     }
 }
 
