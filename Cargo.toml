@@ -50,7 +50,7 @@ serde_path_to_error = ["dep:serde_path_to_error"]
 serde_with-3 = ["dep:serde_with", "dep:serde"]
 serde = ["dep:serde"]
 serde_json-1 = ["dep:serde_json"]
-facet-unstable = ["dep:facet", "dep:facet-value", "dep:facet-format", "dep:facet-reflect"]
+facet-unstable = ["dep:facet", "dep:facet-value", "dep:facet-format", "dep:facet-reflect", "dep:paste"]
 
 [lib]
 name = "bson"
@@ -77,6 +77,7 @@ facet = { version = "0.44.2", optional = true, features = ["indexmap"] }
 facet-value = { version = "0.44", optional = true }
 facet-format = { version = "0.44", optional = true }
 facet-reflect = { version = "0.44", optional = true }
+paste = { version = "1", optional = true }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 js-sys = "0.3"
