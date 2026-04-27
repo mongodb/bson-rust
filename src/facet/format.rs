@@ -37,7 +37,7 @@ use crate::{
     Timestamp,
     error::{Error, Result},
     oid::ObjectId,
-    raw::{CStr, CString, MIN_BSON_DOCUMENT_SIZE, RawIter},
+    raw::{CStr, CString, MIN_BSON_DOCUMENT_SIZE, RawElement, RawIter},
     spec::{BinarySubtype, ElementType},
 };
 
@@ -358,50 +358,43 @@ impl<'de> Parser<'de> {
                     if is_array {
                         return self.container_end(true).map(Some);
                     } else {
+                        // End of document is detected in Expect::ElemKey; finding it here indicates
+                        // invalid wire bytes.
                         return Err(Error::deserialization("unexpected document end"));
                     }
                 };
-                let value = elt.value()?;
                 let next_expect = if is_array {
                     Expect::ElemValue { is_array: true }
                 } else {
                     Expect::ElemKey
                 };
-                if let Some(scalar) = match value {
-                    RawBsonRef::Int32(i) => Some(ScalarValue::I64(i as i64)),
-                    _ => None,
-                } {
-                    event = ParseEvent::new(ParseEventKind::Scalar(scalar), elt.value_raw().span());
-                    next = ParseState {
-                        offset: event.span.end(),
-                        expects: next_expect,
-                        outer: self.state.outer.clone(),
-                    };
-                } else {
-                    match value {
-                        RawBsonRef::Document(_) => {
-                            event = ParseEvent::new(
-                                ParseEventKind::StructStart(ContainerKind::Object),
-                                elt.value_raw().span(),
-                            );
-                            next = ParseState {
-                                offset: elt.value_raw().source_offset() + 4,
-                                expects: Expect::ElemKey,
-                                outer: vec_and(&self.state.outer, next_expect),
-                            };
+                event = elt.as_event()?;
+                match &event.kind {
+                    ParseEventKind::Scalar(_) => {
+                        next = ParseState {
+                            offset: event.span.end(),
+                            expects: next_expect,
+                            outer: self.state.outer.clone(),
+                        };
+                    }
+                    ParseEventKind::StructStart(_) => {
+                        next = ParseState {
+                            offset: elt.value_raw().source_offset() + 4,
+                            expects: Expect::ElemKey,
+                            outer: vec_and(&self.state.outer, next_expect),
+                        };
+                    }
+                    ParseEventKind::SequenceStart(_) => {
+                        next = ParseState {
+                            offset: elt.value_raw().source_offset() + 4,
+                            expects: Expect::ElemValue { is_array: true },
+                            outer: vec_and(&self.state.outer, next_expect),
                         }
-                        RawBsonRef::Array(_) => {
-                            event = ParseEvent::new(
-                                ParseEventKind::SequenceStart(ContainerKind::Array),
-                                elt.value_raw().span(),
-                            );
-                            next = ParseState {
-                                offset: elt.value_raw().source_offset() + 4,
-                                expects: Expect::ElemValue { is_array: true },
-                                outer: vec_and(&self.state.outer, next_expect),
-                            }
-                        }
-                        v => todo!("{v:?}"),
+                    }
+                    ek => {
+                        return Err(Error::deserialization(format!(
+                            "unexpected parse event {ek:?}"
+                        )));
                     }
                 }
             }
@@ -459,6 +452,48 @@ impl<'de> Parser<'de> {
             outer: outer.to_vec(),
         };
         Ok((event, next))
+    }
+}
+
+impl<'a> RawElement<'a> {
+    fn as_event(&self) -> Result<ParseEvent<'a>> {
+        let value = self.value()?;
+        let span = self.value_raw().span();
+        let ek = match value {
+            RawBsonRef::Double(f) => ParseEventKind::Scalar(ScalarValue::F64(f)),
+            RawBsonRef::String(s) => ParseEventKind::Scalar(ScalarValue::Str(Cow::Borrowed(s))),
+            RawBsonRef::Boolean(b) => ParseEventKind::Scalar(ScalarValue::Bool(b)),
+            RawBsonRef::Null => ParseEventKind::Scalar(ScalarValue::Null),
+            RawBsonRef::Int32(i) => ParseEventKind::Scalar(ScalarValue::I64(i as i64)),
+            RawBsonRef::Int64(i) => ParseEventKind::Scalar(ScalarValue::I64(i)),
+            RawBsonRef::Binary(RawBinaryRef {
+                subtype: BinarySubtype::Generic,
+                bytes,
+            }) => ParseEventKind::Scalar(ScalarValue::Bytes(Cow::Borrowed(bytes))),
+
+            RawBsonRef::Array(_) => ParseEventKind::SequenceStart(ContainerKind::Array),
+            RawBsonRef::Document(_) => ParseEventKind::StructStart(ContainerKind::Object),
+
+            RawBsonRef::RegularExpression(_)
+            | RawBsonRef::JavaScriptCode(_)
+            | RawBsonRef::JavaScriptCodeWithScope(_)
+            | RawBsonRef::Timestamp(_)
+            | RawBsonRef::Binary(_)
+            | RawBsonRef::ObjectId(_)
+            | RawBsonRef::DateTime(_)
+            | RawBsonRef::Symbol(_)
+            | RawBsonRef::Decimal128(_)
+            | RawBsonRef::Undefined
+            | RawBsonRef::MaxKey
+            | RawBsonRef::MinKey
+            | RawBsonRef::DbPointer(_) => {
+                return Err(Error::deserialization(format!(
+                    "composite BSON type {:?} must be parsed into its corresponding Rust type",
+                    value.element_type()
+                )));
+            }
+        };
+        Ok(ParseEvent::new(ek, span))
     }
 }
 
