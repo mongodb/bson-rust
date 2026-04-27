@@ -124,155 +124,38 @@ impl TryFrom<ExtJson> for Bson {
     }
 }
 
-impl TryFrom<&i32> for ExtJson {
-    type Error = ToValueError;
-    fn try_from(value: &i32) -> Result<Self, Self::Error> {
-        facet_value::to_value(&models::Int32::from(value)).map(ExtJson)
-    }
-}
-impl TryFrom<ExtJson> for i32 {
-    type Error = crate::error::Error;
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        facet_value::from_value::<models::Int32>(value.0)
-            .map_err(|e| parse_err!("{e}"))
-            .and_then(|m| m.parse())
-    }
-}
-
-impl TryFrom<&i64> for ExtJson {
-    type Error = ToValueError;
-    fn try_from(value: &i64) -> Result<Self, Self::Error> {
-        facet_value::to_value(&models::Int64::from(value)).map(ExtJson)
-    }
-}
-impl TryFrom<ExtJson> for i64 {
-    type Error = crate::error::Error;
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        facet_value::from_value::<models::Int64>(value.0)
-            .map_err(|e| parse_err!("{e}"))
-            .and_then(|m| m.parse())
-    }
+macro_rules! ext_json_simple {
+    ($($ty:ty => $model:ident);* $(;)?) => {
+        $(
+            impl TryFrom<&$ty> for ExtJson {
+                type Error = ToValueError;
+                fn try_from(value: &$ty) -> Result<Self, Self::Error> {
+                    facet_value::to_value(&models::$model::from(value)).map(ExtJson)
+                }
+            }
+            impl TryFrom<ExtJson> for $ty {
+                type Error = crate::error::Error;
+                fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
+                    facet_value::from_value::<models::$model>(value.0)
+                        .map_err(|e| parse_err!("{e}"))
+                        .and_then(|m| m.parse())
+                }
+            }
+        )*
+    };
 }
 
-impl TryFrom<&f64> for ExtJson {
-    type Error = ToValueError;
-    fn try_from(value: &f64) -> Result<Self, Self::Error> {
-        facet_value::to_value(&models::Double::from(value)).map(ExtJson)
-    }
-}
-impl TryFrom<ExtJson> for f64 {
-    type Error = crate::error::Error;
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        facet_value::from_value::<models::Double>(value.0)
-            .map_err(|e| parse_err!("{e}"))
-            .and_then(|m| m.parse())
-    }
-}
-
-impl TryFrom<&crate::Decimal128> for ExtJson {
-    type Error = ToValueError;
-    fn try_from(value: &crate::Decimal128) -> Result<Self, Self::Error> {
-        facet_value::to_value(&models::Decimal128::from(value)).map(ExtJson)
-    }
-}
-impl TryFrom<ExtJson> for crate::Decimal128 {
-    type Error = crate::error::Error;
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        facet_value::from_value::<models::Decimal128>(value.0)
-            .map_err(|e| parse_err!("{e}"))
-            .and_then(|m| m.parse())
-    }
-}
-
-impl TryFrom<&crate::oid::ObjectId> for ExtJson {
-    type Error = ToValueError;
-    fn try_from(value: &crate::oid::ObjectId) -> Result<Self, Self::Error> {
-        facet_value::to_value(&models::ObjectId::from(*value)).map(ExtJson)
-    }
-}
-impl TryFrom<ExtJson> for crate::oid::ObjectId {
-    type Error = crate::error::Error;
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        facet_value::from_value::<models::ObjectId>(value.0)
-            .map_err(|e| parse_err!("{e}"))
-            .and_then(|m| m.parse())
-    }
-}
-
-impl TryFrom<&crate::Binary> for ExtJson {
-    type Error = ToValueError;
-    fn try_from(value: &crate::Binary) -> Result<Self, Self::Error> {
-        facet_value::to_value(&models::Binary::from(value)).map(ExtJson)
-    }
-}
-impl TryFrom<ExtJson> for crate::Binary {
-    type Error = crate::error::Error;
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        facet_value::from_value::<models::Binary>(value.0)
-            .map_err(|e| parse_err!("{e}"))
-            .and_then(|m| m.parse())
-    }
-}
-
-impl TryFrom<&crate::Timestamp> for ExtJson {
-    type Error = ToValueError;
-    fn try_from(value: &crate::Timestamp) -> Result<Self, Self::Error> {
-        facet_value::to_value(&models::Timestamp::from(*value)).map(ExtJson)
-    }
-}
-impl TryFrom<ExtJson> for crate::Timestamp {
-    type Error = crate::error::Error;
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        facet_value::from_value::<models::Timestamp>(value.0)
-            .map_err(|e| parse_err!("{e}"))
-            .map(|m| m.parse())
-    }
-}
-
-impl TryFrom<&crate::Regex> for ExtJson {
-    type Error = ToValueError;
-    fn try_from(value: &crate::Regex) -> Result<Self, Self::Error> {
-        facet_value::to_value(&models::Regex::from(value)).map(ExtJson)
-    }
-}
-impl TryFrom<ExtJson> for crate::Regex {
-    type Error = crate::error::Error;
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        facet_value::from_value::<models::Regex>(value.0)
-            .map_err(|e| parse_err!("{e}"))
-            .and_then(|m| m.parse())
-    }
-}
-
-impl TryFrom<&crate::DbPointer> for ExtJson {
-    type Error = ToValueError;
-    fn try_from(value: &crate::DbPointer) -> Result<Self, Self::Error> {
-        facet_value::to_value(&models::DbPointer::from(value)).map(ExtJson)
-    }
-}
-impl TryFrom<ExtJson> for crate::DbPointer {
-    type Error = crate::error::Error;
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        facet_value::from_value::<models::DbPointer>(value.0)
-            .map_err(|e| parse_err!("{e}"))
-            .and_then(|m| m.parse())
-    }
-}
-
-impl TryFrom<&crate::DateTime> for ExtJson {
-    type Error = ToValueError;
-    fn try_from(value: &crate::DateTime) -> Result<Self, Self::Error> {
-        facet_value::to_value(&models::DateTime::from(*value)).map(ExtJson)
-    }
-}
-
-impl TryFrom<ExtJson> for crate::DateTime {
-    type Error = crate::error::Error;
-    fn try_from(value: ExtJson) -> Result<Self, Self::Error> {
-        facet_value::from_value::<models::DateTime>(value.0)
-            .map_err(|e| parse_err!("{e}"))
-            .and_then(|m| m.parse())
-    }
+ext_json_simple! {
+    i32                  => Int32;
+    i64                  => Int64;
+    f64                  => Double;
+    crate::Decimal128    => Decimal128;
+    crate::oid::ObjectId => ObjectId;
+    crate::Binary        => Binary;
+    crate::Timestamp     => Timestamp;
+    crate::Regex         => Regex;
+    crate::DbPointer     => DbPointer;
+    crate::DateTime      => DateTime;
 }
 
 impl TryFrom<&JavaScriptCodeWithScope> for ExtJson {

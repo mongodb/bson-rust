@@ -211,8 +211,8 @@ impl ObjectId {
     }
 }
 
-impl From<crate::oid::ObjectId> for ObjectId {
-    fn from(id: crate::oid::ObjectId) -> Self {
+impl From<&crate::oid::ObjectId> for ObjectId {
+    fn from(id: &crate::oid::ObjectId) -> Self {
         Self { oid: id.to_hex() }
     }
 }
@@ -453,8 +453,8 @@ pub(crate) struct TimestampBody {
     pub(crate) i: u32,
 }
 
-impl From<crate::Timestamp> for Timestamp {
-    fn from(ts: crate::Timestamp) -> Self {
+impl From<&crate::Timestamp> for Timestamp {
+    fn from(ts: &crate::Timestamp) -> Self {
         Self {
             body: TimestampBody {
                 t: ts.time,
@@ -465,11 +465,11 @@ impl From<crate::Timestamp> for Timestamp {
 }
 
 impl Timestamp {
-    pub(crate) fn parse(self) -> crate::Timestamp {
-        crate::Timestamp {
+    pub(crate) fn parse(self) -> Result<crate::Timestamp> {
+        Ok(crate::Timestamp {
             time: self.body.t,
             increment: self.body.i,
-        }
+        })
     }
 }
 
@@ -512,8 +512,8 @@ impl DateTimeBody {
     }
 }
 
-impl From<crate::DateTime> for DateTime {
-    fn from(dt: crate::DateTime) -> Self {
+impl From<&crate::DateTime> for DateTime {
+    fn from(dt: &crate::DateTime) -> Self {
         Self {
             body: DateTimeBody::from_millis(dt.timestamp_millis()),
         }
@@ -628,7 +628,7 @@ impl From<&crate::DbPointer> for DbPointer {
         Self {
             body: DbPointerBody {
                 ref_ns: dp.namespace.clone(),
-                id: ObjectId::from(dp.id),
+                id: ObjectId::from(&dp.id),
             },
         }
     }
