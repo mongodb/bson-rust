@@ -150,10 +150,9 @@ impl<'de> Parser<'de> {
                 }
             }
             Expect::ElemValueRaw { is_array } => {
-                let Some(elt) = iter.next() else {
+                let Some(elt) = iter.next().transpose()? else {
                     return Err(Error::deserialization("unexpected document end"));
                 };
-                let elt = elt?;
                 let mut bytes = elt.value_raw().bytes().to_vec();
                 // type tag for parsing a `Bson`/`RawBson` value
                 bytes.push(elt.element_type() as u8);
@@ -338,7 +337,7 @@ pub fn deserialize_from_slice<T: Facet<'static>>(bytes: &[u8]) -> Result<T> {
     RawDocument::from_bytes(bytes)?;
     facet_format::FormatDeserializer::new_owned(&mut Parser::new(bytes))
         .deserialize()
-        .map_err(|e| Error::deserialization(e))
+        .map_err(Error::deserialization)
 }
 
 fn vec_and<T: Clone>(vs: &[T], v: T) -> Vec<T> {

@@ -116,11 +116,11 @@ fn de_dbptr(input: OpaqueDeserialize) -> Result<DbPointer> {
 }
 
 fn de_jscws(input: OpaqueDeserialize) -> Result<JavaScriptCodeWithScope> {
-    Ok(RawJavaScriptCodeWithScopeRef::parse(input_slice(
+    RawJavaScriptCodeWithScopeRef::parse(input_slice(
         &input,
         ElementType::JavaScriptCodeWithScope,
     )?)?
-    .try_into()?)
+    .try_into()
 }
 
 fn de_doc(input: OpaqueDeserialize) -> Result<Document> {

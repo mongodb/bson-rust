@@ -8,7 +8,6 @@ use crate::{
     RawBinaryRef,
     base64,
     error::{Error, Result},
-    facet::opaque,
     spec::BinarySubtype,
 };
 
@@ -16,7 +15,7 @@ pub use vector::{PackedBitVector, Vector};
 
 /// Represents a BSON binary value.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::BinaryAdapter))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::opaque::BinaryAdapter))]
 pub struct Binary {
     /// The subtype of the bytes.
     pub subtype: BinarySubtype,
