@@ -455,7 +455,6 @@ fn skip_unknown_field_deserialize() {
     let k: Keep = deserialize_from_slice(&bytes).unwrap();
     assert_eq!(k, Keep { keep: 7 });
 
-    /*
     let bytes = rawdoc! {
         "throwaway": [1, 2, 3, 4],
         "keep": 7,
@@ -463,7 +462,6 @@ fn skip_unknown_field_deserialize() {
     .into_bytes();
     let k: Keep = deserialize_from_slice(&bytes).unwrap();
     assert_eq!(k, Keep { keep: 7 });
-    */
 
     let bytes = rawdoc! {
         "keep": 7,
@@ -476,22 +474,10 @@ fn skip_unknown_field_deserialize() {
 
 #[test]
 fn array_deserialize() {
-    #[derive(Debug, PartialEq, Facet)]
-    struct Outer {
-        val: i32,
-        next: i32,
-        inner: Vec<i32>,
-        last: i32,
-    }
-    let bytes = rawdoc! { "val": 42, "next": 13, "inner": [1, 2], "last": 1066 }.into_bytes();
-    let o: Outer = deserialize_from_slice(&bytes).unwrap();
-    assert_eq!(
-        Outer {
-            val: 42,
-            next: 13,
-            inner: vec![1, 2],
-            last: 1066
-        },
-        o,
-    );
+    value_deserialize_cooked(vec![1, 2]);
+}
+
+#[test]
+fn nested_array_deserialize() {
+    value_deserialize_cooked(vec![vec![1, 2], vec![3, 4]]);
 }
