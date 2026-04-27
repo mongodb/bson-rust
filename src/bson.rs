@@ -32,7 +32,7 @@ use std::{
 
 pub use crate::document::Document;
 #[cfg(feature = "facet-unstable")]
-use crate::facet::format::opaque;
+use crate::facet::opaque;
 use crate::{
     Binary,
     Decimal128,
@@ -49,7 +49,7 @@ use crate::{
     feature = "facet-unstable",
     repr(C),
     derive(facet::Facet),
-    facet(opaque = crate::facet::format::opaque::BsonAdapter)
+    facet(opaque = crate::facet::opaque::BsonAdapter)
 )]
 pub enum Bson {
     /// 64-bit binary floating point

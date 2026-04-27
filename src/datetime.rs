@@ -183,7 +183,7 @@ use crate::error::{Error, Result};
 /// range, which enables the
 /// [`large-dates` feature for `time`](https://docs.rs/time/latest/time/#feature-flags).
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::format::opaque::DateTimeAdapter))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::opaque::DateTimeAdapter))]
 pub struct DateTime(i64);
 
 impl crate::DateTime {
