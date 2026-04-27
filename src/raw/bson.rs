@@ -1,7 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
 #[cfg(feature = "facet-unstable")]
-use crate::facet::format::opaque;
+use crate::facet::opaque;
 use crate::{
     Binary,
     Bson,
@@ -30,7 +30,7 @@ use super::{Error, Result};
     feature = "facet-unstable",
     repr(C),
     derive(facet::Facet),
-    facet(opaque = crate::facet::format::opaque::RawBsonAdapter)
+    facet(opaque = crate::facet::opaque::RawBsonAdapter)
 )]
 pub enum RawBson {
     /// 64-bit binary floating point

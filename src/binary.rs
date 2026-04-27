@@ -8,7 +8,7 @@ use crate::{
     RawBinaryRef,
     base64,
     error::{Error, Result},
-    facet::format::opaque,
+    facet::opaque,
     spec::BinarySubtype,
 };
 

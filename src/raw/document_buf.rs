@@ -12,7 +12,7 @@ use crate::{
 use super::{RawBsonRef, RawDocument, RawIter, Result, bson::RawBson, iter::Iter};
 
 #[cfg(feature = "facet-unstable")]
-use crate::facet::format::opaque;
+use crate::facet::opaque;
 
 /// An owned BSON document (akin to [`std::path::PathBuf`]), backed by a buffer of raw BSON bytes.
 /// This can be created from a `Vec<u8>` or a [`crate::Document`].

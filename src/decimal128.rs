@@ -24,7 +24,7 @@ use crate::error::{Decimal128ErrorKind, Error, Result};
 /// # example().unwrap()
 /// ```
 #[derive(Copy, Clone, Hash, PartialEq, Eq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::format::opaque::Decimal128Adapter))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::opaque::Decimal128Adapter))]
 pub struct Decimal128 {
     /// BSON bytes containing the decimal128. Stored for round tripping.
     pub(crate) bytes: [u8; 16],

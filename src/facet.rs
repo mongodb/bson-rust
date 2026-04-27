@@ -1,6 +1,8 @@
 //! Support for the `facet` crate.
 
-pub(crate) mod format;
+pub(crate) mod opaque;
+mod parse;
+mod ser;
 
 use facet::Facet;
 
@@ -11,7 +13,8 @@ use crate::{
     extjson::models::{self, ObjectType, parse_err},
 };
 
-pub use format::{deserialize_from_slice, serialize_to_vec};
+pub use parse::deserialize_from_slice;
+pub use ser::serialize_to_vec;
 
 /// A type for use with #[facet(proxy)] that represents BSON values in their canonical extended JSON
 /// form.
