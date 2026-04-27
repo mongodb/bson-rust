@@ -23,84 +23,6 @@ use crate::{
     spec::ElementType,
 };
 
-#[derive(Facet)]
-#[facet(opaque)]
-struct UnSerializable;
-
-static UN_SERIALIZABLE: UnSerializable = UnSerializable;
-
-impl UnSerializable {
-    const OPAQUE: OpaqueSerialize = OpaqueSerialize {
-        ptr: PtrConst::new_sized(&UN_SERIALIZABLE as *const UnSerializable),
-        shape: UnSerializable::SHAPE,
-    };
-}
-
-fn check_tag(expected: ElementType, actual: Option<&u8>) -> Result<()> {
-    let expected = expected as u8;
-    match actual {
-        Some(t) if *t == expected => Ok(()),
-        None => Err(Error::malformed_bytes("empty input")),
-        Some(t) => Err(Error::malformed_bytes(format!(
-            "invalid type tag: expected {expected}, got {t}"
-        ))),
-    }
-}
-
-fn input_slice<'de>(input: &'de OpaqueDeserialize<'de>, kind: ElementType) -> Result<&'de [u8]> {
-    let slice = match input {
-        OpaqueDeserialize::Borrowed(slice) => slice,
-        OpaqueDeserialize::Owned(vec) => vec.as_slice(),
-    };
-    // omit type tag
-    check_tag(kind, slice.last())?;
-    Ok(&slice[0..slice.len() - 1])
-}
-
-fn input_vec(input: OpaqueDeserialize, kind: ElementType) -> Result<Vec<u8>> {
-    let mut vec = match input {
-        OpaqueDeserialize::Borrowed(slice) => slice.to_owned(),
-        OpaqueDeserialize::Owned(vec) => vec,
-    };
-    // omit type tag
-    check_tag(kind, vec.pop().as_ref())?;
-    Ok(vec)
-}
-
-macro_rules! adapter {
-    ($ty:ident, _, $de:ident $(,)?) => {
-        adapter!($ty, ser_unserializable, $de);
-    };
-    ($ty:ident, $ser:ident, $de:ident $(,)?) => {
-        ::paste::paste! {
-            pub(crate) struct [<$ty Adapter>];
-            impl FacetOpaqueAdapter for [<$ty Adapter>] {
-                type Error = Error;
-                type SendValue<'a> = $ty;
-                type RecvValue<'de> = $ty;
-                fn serialize_map(value: &Self::SendValue<'_>) -> OpaqueSerialize {
-                    $ser(value)
-                }
-                fn deserialize_build<'de>(
-                    input: OpaqueDeserialize<'de>,
-                ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> {
-                    $de(input)
-                }
-            }
-        }
-    };
-}
-
-fn ser_unserializable<T>(_: &T) -> OpaqueSerialize {
-    UnSerializable::OPAQUE
-}
-
-macro_rules! adapters {
-    ($($ty:ident, $ser:tt, $de:ident);* $(;)?) => {
-        $( adapter!($ty, $ser, $de); )*
-    };
-}
-
 adapters! {
     RawDocumentBuf,             ser_rawdoc, de_rawdoc;
     Regex,                      _,          de_regex;
@@ -228,3 +150,83 @@ fn de_rawbson(input: OpaqueDeserialize) -> Result<RawBson> {
 fn de_bson(input: OpaqueDeserialize) -> Result<Bson> {
     de_rawbson(input)?.try_into()
 }
+
+#[derive(Facet)]
+#[facet(opaque)]
+struct UnSerializable;
+
+static UN_SERIALIZABLE: UnSerializable = UnSerializable;
+
+impl UnSerializable {
+    const OPAQUE: OpaqueSerialize = OpaqueSerialize {
+        ptr: PtrConst::new_sized(&UN_SERIALIZABLE as *const UnSerializable),
+        shape: UnSerializable::SHAPE,
+    };
+}
+
+fn check_tag(expected: ElementType, actual: Option<&u8>) -> Result<()> {
+    let expected = expected as u8;
+    match actual {
+        Some(t) if *t == expected => Ok(()),
+        None => Err(Error::malformed_bytes("empty input")),
+        Some(t) => Err(Error::malformed_bytes(format!(
+            "invalid type tag: expected {expected}, got {t}"
+        ))),
+    }
+}
+
+fn input_slice<'de>(input: &'de OpaqueDeserialize<'de>, kind: ElementType) -> Result<&'de [u8]> {
+    let slice = match input {
+        OpaqueDeserialize::Borrowed(slice) => slice,
+        OpaqueDeserialize::Owned(vec) => vec.as_slice(),
+    };
+    // omit type tag
+    check_tag(kind, slice.last())?;
+    Ok(&slice[0..slice.len() - 1])
+}
+
+fn input_vec(input: OpaqueDeserialize, kind: ElementType) -> Result<Vec<u8>> {
+    let mut vec = match input {
+        OpaqueDeserialize::Borrowed(slice) => slice.to_owned(),
+        OpaqueDeserialize::Owned(vec) => vec,
+    };
+    // omit type tag
+    check_tag(kind, vec.pop().as_ref())?;
+    Ok(vec)
+}
+
+macro_rules! adapter {
+    ($ty:ident, _, $de:ident $(,)?) => {
+        adapter!($ty, ser_unserializable, $de);
+    };
+    ($ty:ident, $ser:ident, $de:ident $(,)?) => {
+        ::paste::paste! {
+            pub(crate) struct [<$ty Adapter>];
+            impl FacetOpaqueAdapter for [<$ty Adapter>] {
+                type Error = Error;
+                type SendValue<'a> = $ty;
+                type RecvValue<'de> = $ty;
+                fn serialize_map(value: &Self::SendValue<'_>) -> OpaqueSerialize {
+                    $ser(value)
+                }
+                fn deserialize_build<'de>(
+                    input: OpaqueDeserialize<'de>,
+                ) -> std::result::Result<Self::RecvValue<'de>, Self::Error> {
+                    $de(input)
+                }
+            }
+        }
+    };
+}
+use adapter;
+
+fn ser_unserializable<T>(_: &T) -> OpaqueSerialize {
+    UnSerializable::OPAQUE
+}
+
+macro_rules! adapters {
+    ($($ty:ident, $ser:tt, $de:ident);* $(;)?) => {
+        $( adapter!($ty, $ser, $de); )*
+    };
+}
+use adapters;
