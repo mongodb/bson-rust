@@ -172,7 +172,7 @@ impl<'a> RawElement<'a> {
             .map_err(|e| e.with_key(self.key.as_str()))
     }
 
-    #[cfg(feature = "facet-unstable")]
+    #[cfg(any(feature = "serde", feature = "facet-unstable"))]
     pub(crate) fn value_raw(&self) -> &RawValue<'a> {
         &self.value
     }
