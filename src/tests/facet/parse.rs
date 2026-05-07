@@ -305,3 +305,49 @@ fn null_deserialize() {
     value_deserialize_cooked::<Option<i32>>(None);
     value_deserialize_cooked(Some(42_i32));
 }
+
+#[test]
+fn malformed_bytes_error() {
+    #[derive(Debug, Facet)]
+    struct Foo {
+        val: i32,
+    }
+
+    let mut bytes = rawdoc! { "val": 42_i32 }.into_bytes();
+    bytes.truncate(bytes.len() - 2);
+    assert!(deserialize_from_slice::<Foo>(&bytes).is_err());
+
+    let mut bytes = rawdoc! { "val": 42_i32 }.into_bytes();
+    bytes.push(0x00);
+    assert!(deserialize_from_slice::<Foo>(&bytes).is_err());
+}
+
+#[test]
+fn wrong_element_type_error() {
+    #[derive(Debug, Facet)]
+    struct Foo {
+        val: i32,
+    }
+
+    let mut bytes = rawdoc! { "val": 42_i32 }.into_bytes();
+    bytes[4] = 0xFF;
+    assert!(deserialize_from_slice::<Foo>(&bytes).is_err());
+
+    let bytes = rawdoc! { "val": "not an integer" }.into_bytes();
+    assert!(deserialize_from_slice::<Foo>(&bytes).is_err());
+}
+
+#[test]
+fn missing_required_field_error() {
+    #[derive(Debug, Facet)]
+    struct Foo {
+        val: i32,
+        other: i32,
+    }
+
+    let bytes = rawdoc! { "val": 42_i32 }.into_bytes();
+    assert!(deserialize_from_slice::<Foo>(&bytes).is_err());
+
+    let bytes = rawdoc! {}.into_bytes();
+    assert!(deserialize_from_slice::<Foo>(&bytes).is_err());
+}

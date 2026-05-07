@@ -151,7 +151,11 @@ impl<'de> Parser<'de> {
             }
             Expect::ElemValueRaw { is_array } => {
                 let Some(elt) = iter.next().transpose()? else {
-                    return Err(Error::deserialization("unexpected document end"));
+                    if is_array {
+                        return self.container_end(true).map(Some);
+                    } else {
+                        return Err(Error::deserialization("unexpected document end"));
+                    }
                 };
                 let mut bytes = elt.value_raw().bytes().to_vec();
                 // type tag for parsing a `Bson`/`RawBson` value
