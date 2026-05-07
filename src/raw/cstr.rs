@@ -1,6 +1,9 @@
 use core::str;
 
-use crate::error::{Error, Result};
+use crate::{
+    RawBson,
+    error::{Error, Result},
+};
 
 #[allow(rustdoc::invalid_rust_codeblocks)]
 /// A borrowed BSON-spec cstring: Zero or more UTF-8 encoded characters, excluding the nul byte.
@@ -216,7 +219,7 @@ pub use cstr;
 /// Like `CStr`, this differs from [`std::ffi::CString`] in that it is required to be valid UTF-8,
 /// and does not include the nul terminator in the buffer.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::opaque::CStringAdapter))]
 #[repr(transparent)]
 pub struct CString {
     data: String,
@@ -278,6 +281,12 @@ impl AsRef<CStr> for CString {
 impl From<CString> for String {
     fn from(value: CString) -> Self {
         value.into_string()
+    }
+}
+
+impl From<CString> for RawBson {
+    fn from(value: CString) -> Self {
+        RawBson::String(value.into())
     }
 }
 

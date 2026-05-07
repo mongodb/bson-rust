@@ -31,10 +31,13 @@ use std::{
 };
 
 pub use crate::document::Document;
+#[cfg(feature = "facet-unstable")]
+use crate::facet::opaque;
 use crate::{
     Binary,
     Decimal128,
     RawBsonRef,
+    error::{Error, Result},
     oid,
     raw::{CString, doc_writer::DocWriter},
     spec::ElementType,
@@ -46,7 +49,7 @@ use crate::{
     feature = "facet-unstable",
     repr(C),
     derive(facet::Facet),
-    facet(opaque)
+    facet(opaque = crate::facet::opaque::BsonAdapter)
 )]
 pub enum Bson {
     /// 64-bit binary floating point
@@ -1105,7 +1108,7 @@ impl Bson {
 
 /// Represents a BSON timestamp value.
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd, Clone, Copy, Hash)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::TimestampAdapter))]
 pub struct Timestamp {
     /// The number of seconds since the Unix epoch.
     pub time: u32,
@@ -1139,11 +1142,16 @@ impl Timestamp {
             time: u32::from_le_bytes(time_bytes),
         }
     }
+
+    pub(crate) fn parse(bytes: &[u8]) -> Result<Self> {
+        let bytes: [u8; 8] = bytes.try_into().map_err(Error::malformed_bytes)?;
+        Ok(Self::from_le_bytes(bytes))
+    }
 }
 
 /// Represents a BSON regular expression value.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::RegexAdapter))]
 pub struct Regex {
     /// The regex pattern to match.
     pub pattern: CString,
@@ -1182,7 +1190,7 @@ impl Display for Regex {
 
 /// Represents a BSON code with scope value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::JavaScriptCodeWithScopeAdapter))]
 pub struct JavaScriptCodeWithScope {
     /// The JavaScript code.
     pub code: String,
@@ -1211,7 +1219,7 @@ impl Display for JavaScriptCodeWithScope {
 
 /// Represents a DBPointer. (Deprecated)
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::DbPointerAdapter))]
 pub struct DbPointer {
     pub(crate) namespace: String,
     pub(crate) id: oid::ObjectId,

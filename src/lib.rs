@@ -447,17 +447,8 @@ pub use self::{
     datetime::DateTime,
     decimal128::Decimal128,
     raw::{
-        RawArray,
-        RawArrayBuf,
-        RawBinaryRef,
-        RawBson,
-        RawBsonRef,
-        RawDbPointerRef,
-        RawDocument,
-        RawDocumentBuf,
-        RawJavaScriptCodeWithScope,
-        RawJavaScriptCodeWithScopeRef,
-        RawRegexRef,
+        RawArray, RawArrayBuf, RawBinaryRef, RawBson, RawBsonRef, RawDbPointerRef, RawDocument,
+        RawDocumentBuf, RawJavaScriptCodeWithScope, RawJavaScriptCodeWithScopeRef, RawRegexRef,
     },
     utf8_lossy::Utf8Lossy,
     uuid::{Uuid, UuidRepresentation},
@@ -467,21 +458,12 @@ pub use self::{
 #[doc(inline)]
 pub use self::{
     de::{
-        Deserializer,
-        deserialize_from_bson,
-        deserialize_from_document,
-        deserialize_from_reader,
-        deserialize_from_slice,
-        raw::RawDeserializer,
+        Deserializer, deserialize_from_bson, deserialize_from_document, deserialize_from_reader,
+        deserialize_from_slice, raw::RawDeserializer,
     },
     ser::{
-        Serializer,
-        raw::RawSerializer,
-        serialize_to_bson,
-        serialize_to_buffer,
-        serialize_to_document,
-        serialize_to_raw_document_buf,
-        serialize_to_vec,
+        Serializer, raw::RawSerializer, serialize_to_bson, serialize_to_buffer,
+        serialize_to_document, serialize_to_raw_document_buf, serialize_to_vec,
     },
 };
 

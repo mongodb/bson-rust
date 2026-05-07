@@ -1,5 +1,3 @@
-//! Facet format support for BSON.
-
 use std::borrow::Cow;
 
 use facet::Facet;
@@ -23,7 +21,7 @@ use crate::{
     Timestamp,
     error::{Error, Result},
     oid::ObjectId,
-    raw::{CStr, MIN_BSON_DOCUMENT_SIZE},
+    raw::{CStr, CString, MIN_BSON_DOCUMENT_SIZE},
     spec::{BinarySubtype, ElementType},
 };
 
@@ -32,7 +30,7 @@ pub fn serialize_to_vec<'facet, T: Facet<'facet>>(value: &T) -> Result<Vec<u8>> 
     let mut s = Serializer::new();
     facet_format::serialize_root(&mut s, facet_reflect::Peek::new(value)).map_err(|e| match e {
         SerializeError::Backend(e) => e,
-        _ => Error::serialization(format!("{e}")),
+        _ => Error::serialization(e),
     })?;
     Ok(s.bytes)
 }
@@ -205,6 +203,8 @@ impl facet_format::FormatSerializer for Serializer {
             Some(RawBsonRef::Array(ra))
         } else if let Ok(rjscws) = value.get::<RawJavaScriptCodeWithScope>() {
             Some(RawBsonRef::JavaScriptCodeWithScope(rjscws.into()))
+        } else if let Ok(cs) = value.get::<CString>() {
+            Some(RawBsonRef::String(cs.as_str()))
         } else if let Ok(rb) = value.get::<crate::RawBson>() {
             Some(rb.as_raw_bson_ref())
         } else {

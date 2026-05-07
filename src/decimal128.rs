@@ -24,7 +24,7 @@ use crate::error::{Decimal128ErrorKind, Error, Result};
 /// # example().unwrap()
 /// ```
 #[derive(Copy, Clone, Hash, PartialEq, Eq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::opaque::Decimal128Adapter))]
 pub struct Decimal128 {
     /// BSON bytes containing the decimal128. Stored for round tripping.
     pub(crate) bytes: [u8; 16],
@@ -39,6 +39,18 @@ impl Decimal128 {
     /// Returns the raw byte representation of this `Decimal128`.
     pub fn bytes(&self) -> [u8; 128 / 8] {
         self.bytes
+    }
+
+    pub(crate) fn parse(bytes: &[u8]) -> Result<Self> {
+        let arr: [u8; 128 / 8] = bytes
+            .try_into()
+            .map_err(|e: std::array::TryFromSliceError| Error::malformed_bytes(e))?;
+        Ok(Self::from_bytes(arr))
+    }
+
+    #[cfg(feature = "facet-unstable")]
+    pub(crate) fn as_bytes_slice(&self) -> &[u8] {
+        &self.bytes
     }
 
     #[cfg(feature = "serde")]

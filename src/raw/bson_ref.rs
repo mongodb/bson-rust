@@ -6,12 +6,22 @@ use crate::{
     Bson,
     DbPointer,
     Decimal128,
+    JavaScriptCodeWithScope,
     RawArrayBuf,
     RawDocumentBuf,
     Regex,
     Timestamp,
     oid::{self, ObjectId},
-    raw::{CStr, RawJavaScriptCodeWithScope, write_string},
+    raw::{
+        CStr,
+        MIN_CODE_WITH_SCOPE_SIZE,
+        RawJavaScriptCodeWithScope,
+        checked_add,
+        i32_from_slice,
+        read_cstring,
+        read_lenencode,
+        write_string,
+    },
     spec::{BinarySubtype, ElementType},
 };
 
@@ -534,6 +544,46 @@ impl RawBinaryRef<'_> {
     }
 }
 
+impl<'a> RawBinaryRef<'a> {
+    pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
+        let len = bytes.len().checked_sub(4 + 1).ok_or_else(|| {
+            Error::malformed_bytes(format!("length exceeds maximum: {}", bytes.len()))
+        })?;
+
+        let data_start = 4 + 1;
+
+        if bytes.len() >= i32::MAX as usize {
+            return Err(Error::malformed_bytes(format!(
+                "binary length exceeds maximum: {}",
+                len
+            )));
+        }
+
+        let subtype = BinarySubtype::from(bytes[4]);
+        let data = match subtype {
+            BinarySubtype::BinaryOld => {
+                if len < 4 {
+                    return Err(Error::malformed_bytes(
+                        "old binary subtype has no inner declared length",
+                    ));
+                }
+                let oldlength = i32_from_slice(&bytes[data_start..])? as usize;
+                if checked_add(oldlength, 4)? != len {
+                    return Err(Error::malformed_bytes(
+                        "old binary subtype has wrong inner declared length",
+                    ));
+                }
+                &bytes[data_start + 4..]
+            }
+            _ => &bytes[data_start..],
+        };
+        Ok(RawBinaryRef {
+            subtype,
+            bytes: data,
+        })
+    }
+}
+
 #[cfg(feature = "serde")]
 impl<'de: 'a, 'a> serde::Deserialize<'de> for RawBinaryRef<'a> {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
@@ -616,6 +666,16 @@ pub struct RawRegexRef<'a> {
     pub options: &'a CStr,
 }
 
+impl<'a> RawRegexRef<'a> {
+    pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
+        let pattern = read_cstring(bytes)?;
+        Ok(Self {
+            pattern,
+            options: read_cstring(&bytes[pattern.len() + 1..])?,
+        })
+    }
+}
+
 #[cfg(feature = "serde")]
 impl<'de: 'a, 'a> serde::Deserialize<'de> for RawRegexRef<'a> {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
@@ -660,6 +720,15 @@ impl<'a> From<RawRegexRef<'a>> for RawBsonRef<'a> {
     }
 }
 
+impl<'a> From<RawRegexRef<'a>> for Regex {
+    fn from(value: RawRegexRef<'a>) -> Self {
+        Self {
+            pattern: value.pattern.to_owned(),
+            options: value.options.to_owned(),
+        }
+    }
+}
+
 impl<'a> From<&'a Regex> for RawRegexRef<'a> {
     fn from(value: &'a Regex) -> Self {
         Self {
@@ -682,6 +751,42 @@ pub struct RawJavaScriptCodeWithScopeRef<'a> {
 impl RawJavaScriptCodeWithScopeRef<'_> {
     pub(crate) fn len(self) -> i32 {
         4 + 4 + self.code.len() as i32 + 1 + self.scope.as_bytes().len() as i32
+    }
+}
+
+impl<'a> RawJavaScriptCodeWithScopeRef<'a> {
+    pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
+        if bytes.len() < MIN_CODE_WITH_SCOPE_SIZE as usize {
+            return Err(Error::malformed_bytes("code with scope length too small"));
+        }
+
+        let code = read_lenencode(&bytes[4..])?;
+        let scope_start = 4 + 4 + code.len() + 1;
+        let scope = RawDocument::from_bytes(&bytes[scope_start..])?;
+
+        Ok(RawJavaScriptCodeWithScopeRef { code, scope })
+    }
+}
+
+impl<'a> From<RawJavaScriptCodeWithScopeRef<'a>> for RawJavaScriptCodeWithScope {
+    fn from(value: RawJavaScriptCodeWithScopeRef<'a>) -> Self {
+        Self {
+            code: value.code.to_owned(),
+            scope: value.scope.to_owned(),
+        }
+    }
+}
+
+impl<'a> TryFrom<RawJavaScriptCodeWithScopeRef<'a>> for JavaScriptCodeWithScope {
+    type Error = crate::error::Error;
+
+    fn try_from(
+        value: RawJavaScriptCodeWithScopeRef<'a>,
+    ) -> std::result::Result<Self, Self::Error> {
+        Ok(JavaScriptCodeWithScope {
+            code: value.code.to_owned(),
+            scope: value.scope.try_into()?,
+        })
     }
 }
 
@@ -725,6 +830,18 @@ impl<'a> From<RawJavaScriptCodeWithScopeRef<'a>> for RawBsonRef<'a> {
 pub struct RawDbPointerRef<'a> {
     pub(crate) namespace: &'a str,
     pub(crate) id: ObjectId,
+}
+
+impl<'a> RawDbPointerRef<'a> {
+    pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
+        let namespace = read_lenencode(bytes)?;
+        let id_start = bytes
+            .len()
+            .checked_sub(12)
+            .ok_or_else(|| Error::malformed_bytes("db pointer too small"))?;
+        let id = ObjectId::parse(&bytes[id_start..])?;
+        Ok(Self { namespace, id })
+    }
 }
 
 #[cfg(feature = "serde")]
@@ -786,5 +903,14 @@ impl<'a> From<&'a DbPointer> for RawDbPointerRef<'a> {
 impl<'a> From<&'a DbPointer> for RawBsonRef<'a> {
     fn from(value: &'a DbPointer) -> Self {
         RawBsonRef::DbPointer(value.into())
+    }
+}
+
+impl<'a> From<RawDbPointerRef<'a>> for DbPointer {
+    fn from(value: RawDbPointerRef<'a>) -> Self {
+        Self {
+            namespace: value.namespace.to_owned(),
+            id: value.id,
+        }
     }
 }

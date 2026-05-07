@@ -137,6 +137,7 @@ mod iter;
 pub(crate) mod serde;
 #[cfg(test)]
 mod test;
+pub(crate) mod value;
 
 use std::{
     convert::{TryFrom, TryInto},
@@ -166,7 +167,6 @@ pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one b
 pub(crate) const MIN_BSON_DOCUMENT_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
 pub(crate) const MIN_CODE_WITH_SCOPE_SIZE: i32 = 4 + MIN_BSON_STRING_SIZE + MIN_BSON_DOCUMENT_SIZE;
 
-#[cfg(feature = "serde")]
 pub(crate) use self::iter::{Utf8LossyBson, Utf8LossyJavaScriptCodeWithScope};
 
 /// Special newtype name indicating that the type being (de)serialized is a raw BSON document.
@@ -198,7 +198,7 @@ fn f64_from_slice(val: &[u8]) -> Result<f64> {
 
 /// Given a u8 slice, return an i32 calculated from the first four bytes in
 /// little endian order.
-fn i32_from_slice(val: &[u8]) -> Result<i32> {
+pub(crate) fn i32_from_slice(val: &[u8]) -> Result<i32> {
     let arr: [u8; 4] = val
         .get(0..4)
         .and_then(|s| s.try_into().ok())
@@ -293,7 +293,7 @@ fn read_lenencode_bytes(buf: &[u8]) -> Result<&[u8]> {
     Ok(&buf[4..(end - 1)])
 }
 
-fn read_lenencode(buf: &[u8]) -> Result<&str> {
+pub(crate) fn read_lenencode(buf: &[u8]) -> Result<&str> {
     try_to_str(read_lenencode_bytes(buf)?)
 }
 
@@ -330,4 +330,22 @@ pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
     buf.extend(&(s.len() as i32 + 1).to_le_bytes());
     buf.extend(s.as_bytes());
     buf.push(0);
+}
+
+pub(crate) fn cstring_bytes(buf: &[u8]) -> Result<&[u8]> {
+    let mut splits = buf.splitn(2, |x| *x == 0);
+    let value = splits
+        .next()
+        .ok_or_else(|| Error::malformed_bytes("no value"))?;
+    if splits.next().is_some() {
+        Ok(value)
+    } else {
+        Err(Error::malformed_bytes("expected null terminator"))
+    }
+}
+
+pub(crate) fn read_cstring(buf: &[u8]) -> Result<&CStr> {
+    let bytes = cstring_bytes(buf)?;
+    let s = try_to_str(bytes)?;
+    s.try_into()
 }

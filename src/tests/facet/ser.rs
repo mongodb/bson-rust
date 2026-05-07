@@ -122,6 +122,15 @@ fn regex_serialize() {
 }
 
 #[test]
+fn regex_json_serialize() {
+    let r = Regex::from_strings("foo.*bar", "n").unwrap();
+    assert!(matches!(
+        facet_json::to_string(&r),
+        Err(facet_format::SerializeError::Unsupported(..)),
+    ));
+}
+
+#[test]
 fn binary_serialize() {
     value_serialize(Binary {
         subtype: BinarySubtype::Generic,
@@ -196,6 +205,11 @@ fn rawjsc_serialize() {
         code: "a+b".to_owned(),
         scope: rawdoc! { "a": 1, "b": 2 },
     });
+}
+
+#[test]
+fn cstring_serialize() {
+    value_serialize(cstr!("hello").to_owned());
 }
 
 #[test]

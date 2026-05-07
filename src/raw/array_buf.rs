@@ -39,7 +39,7 @@ use super::{RawArrayIter, document_buf::BindRawBsonRef};
 /// Note that accessing elements is an O(N) operation, as it requires iterating through the document
 /// from the beginning to find the requested key.
 #[derive(Clone, PartialEq)]
-#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque))]
+#[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::opaque::RawArrayBufAdapter))]
 pub struct RawArrayBuf {
     inner: RawDocumentBuf,
     len: usize,

@@ -1,5 +1,6 @@
 mod corpus;
-mod format;
+mod parse;
+mod ser;
 
 use facet::Facet;
 
