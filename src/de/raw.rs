@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use serde::{
     Deserializer as SerdeDeserializer,
-    de::{Error as SerdeError, IntoDeserializer, MapAccess, value::BorrowedStrDeserializer},
+    de::{Error as SerdeError, IntoDeserializer, value::BorrowedStrDeserializer},
     forward_to_deserialize_any,
 };
 
@@ -108,10 +108,7 @@ impl<'de> RawDeserializer<'de> {
             RawBsonRef::String(s) => visitor.visit_borrowed_str(s),
             RawBsonRef::Boolean(b) => visitor.visit_bool(b),
             RawBsonRef::Null => visitor.visit_unit(),
-            RawBsonRef::ObjectId(oid) => visitor.visit_map(SingleFieldAccess::new(
-                "$oid",
-                ObjectIdDeserializer { oid, hint },
-            )),
+            RawBsonRef::ObjectId(oid) => visitor.visit_map(SingleFieldAccess::oid(oid, hint)),
             RawBsonRef::Document(doc) => match hint {
                 DeserializerHint::RawBson => visitor.visit_map(RawDocumentAccess::new(doc)),
                 _ => visitor.visit_map(DocumentAccess::new(doc, self.options.clone())?),
@@ -142,9 +139,7 @@ impl<'de> RawDeserializer<'de> {
                     }
                 }
             }
-            RawBsonRef::Undefined => {
-                visitor.visit_map(RawBsonAccess::new("$undefined", BsonContent::Boolean(true)))
-            }
+            RawBsonRef::Undefined => visitor.visit_map(SingleFieldAccess::undef()),
             RawBsonRef::DateTime(dt) => {
                 let mut d = DateTimeDeserializer::new(dt, hint);
                 visitor.visit_map(DateTimeAccess {
@@ -157,43 +152,20 @@ impl<'de> RawDeserializer<'de> {
             RawBsonRef::DbPointer(dbp) => {
                 visitor.visit_map(DbPointerAccess::new(BsonCow::Borrowed(dbp), hint))
             }
-            RawBsonRef::JavaScriptCode(s) => visitor.visit_map(SingleFieldAccess::new(
-                "$code",
-                RawBsonDeserializer {
-                    value: BsonContent::Str(s),
-                },
-            )),
+            RawBsonRef::JavaScriptCode(s) => visitor.visit_map(SingleFieldAccess::code(s)),
             RawBsonRef::JavaScriptCodeWithScope(jsc) => visitor.visit_map(
                 CodeWithScopeAccess::new(BsonCow::Borrowed(jsc), hint, self.options.clone()),
             ),
-            RawBsonRef::Symbol(s) => visitor.visit_map(SingleFieldAccess::new(
-                "$symbol",
-                RawBsonDeserializer {
-                    value: BsonContent::Str(s),
-                },
-            )),
+            RawBsonRef::Symbol(s) => visitor.visit_map(SingleFieldAccess::symbol(s)),
             RawBsonRef::Timestamp(ts) => {
                 let mut d = TimestampDeserializer::new(ts);
                 visitor.visit_map(TimestampAccess {
                     deserializer: &mut d,
                 })
             }
-            RawBsonRef::Decimal128(d128) => visitor.visit_map(SingleFieldAccess::new(
-                "$numberDecimalBytes",
-                Decimal128Deserializer(d128),
-            )),
-            RawBsonRef::MaxKey => visitor.visit_map(SingleFieldAccess::new(
-                "$maxKey",
-                RawBsonDeserializer {
-                    value: BsonContent::Int32(1),
-                },
-            )),
-            RawBsonRef::MinKey => visitor.visit_map(SingleFieldAccess::new(
-                "$minKey",
-                RawBsonDeserializer {
-                    value: BsonContent::Int32(1),
-                },
-            )),
+            RawBsonRef::Decimal128(d128) => visitor.visit_map(SingleFieldAccess::decimal128(d128)),
+            RawBsonRef::MaxKey => visitor.visit_map(SingleFieldAccess::max_key()),
+            RawBsonRef::MinKey => visitor.visit_map(SingleFieldAccess::min_key()),
         }
     }
 
@@ -611,11 +583,63 @@ pub(crate) struct SingleFieldAccess<D> {
     deserializer: Option<D>,
 }
 
-impl<D> SingleFieldAccess<D> {
-    pub(crate) fn new(key: &'static str, deserializer: D) -> Self {
-        Self {
-            key,
-            deserializer: Some(deserializer),
+impl SingleFieldAccess<()> {
+    fn oid(oid: ObjectId, hint: DeserializerHint) -> SingleFieldAccess<ObjectIdDeserializer> {
+        SingleFieldAccess {
+            key: "$oid",
+            deserializer: Some(ObjectIdDeserializer { oid, hint }),
+        }
+    }
+
+    fn undef() -> SingleFieldAccess<RawBsonDeserializer<'static>> {
+        SingleFieldAccess {
+            key: "$undefined",
+            deserializer: Some(RawBsonDeserializer {
+                value: BsonContent::Boolean(true),
+            }),
+        }
+    }
+
+    fn code<'a>(s: &'a str) -> SingleFieldAccess<RawBsonDeserializer<'a>> {
+        SingleFieldAccess {
+            key: "$code",
+            deserializer: Some(RawBsonDeserializer {
+                value: BsonContent::Str(s),
+            }),
+        }
+    }
+
+    fn symbol<'a>(s: &'a str) -> SingleFieldAccess<RawBsonDeserializer<'a>> {
+        SingleFieldAccess {
+            key: "$symbol",
+            deserializer: Some(RawBsonDeserializer {
+                value: BsonContent::Str(s),
+            }),
+        }
+    }
+
+    pub(crate) fn decimal128(d: Decimal128) -> SingleFieldAccess<Decimal128Deserializer> {
+        SingleFieldAccess {
+            key: "$numberDecimalBytes",
+            deserializer: Some(Decimal128Deserializer(d)),
+        }
+    }
+
+    fn max_key() -> SingleFieldAccess<RawBsonDeserializer<'static>> {
+        SingleFieldAccess {
+            key: "$maxKey",
+            deserializer: Some(RawBsonDeserializer {
+                value: BsonContent::Int32(1),
+            }),
+        }
+    }
+
+    fn min_key() -> SingleFieldAccess<RawBsonDeserializer<'static>> {
+        SingleFieldAccess {
+            key: "$minKey",
+            deserializer: Some(RawBsonDeserializer {
+                value: BsonContent::Int32(1),
+            }),
         }
     }
 }
@@ -681,7 +705,7 @@ impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
     }
 }
 
-struct Decimal128Deserializer(Decimal128);
+pub(crate) struct Decimal128Deserializer(Decimal128);
 
 impl<'de> serde::de::Deserializer<'de> for Decimal128Deserializer {
     type Error = Error;
@@ -1194,13 +1218,7 @@ impl<'de> serde::de::Deserializer<'de> for &mut DbPointerAccess<'de> {
                     BsonCow::Borrowed(dbp) => dbp.id,
                     BsonCow::Owned(dbp) => dbp.id,
                 };
-                visitor.visit_map(SingleFieldAccess::new(
-                    "$oid",
-                    ObjectIdDeserializer {
-                        oid,
-                        hint: self.hint,
-                    },
-                ))
+                visitor.visit_map(SingleFieldAccess::oid(oid, self.hint))
             }
             DbPointerDeserializationStage::Done => {
                 Err(Error::custom("DbPointer fully deserialized already"))
