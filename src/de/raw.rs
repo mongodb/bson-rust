@@ -108,9 +108,10 @@ impl<'de> RawDeserializer<'de> {
             RawBsonRef::String(s) => visitor.visit_borrowed_str(s),
             RawBsonRef::Boolean(b) => visitor.visit_bool(b),
             RawBsonRef::Null => visitor.visit_unit(),
-            RawBsonRef::ObjectId(oid) => {
-                visitor.visit_map(SingleFieldAccess::new("$oid", ObjectIdDeserializer { oid, hint }))
-            }
+            RawBsonRef::ObjectId(oid) => visitor.visit_map(SingleFieldAccess::new(
+                "$oid",
+                ObjectIdDeserializer { oid, hint },
+            )),
             RawBsonRef::Document(doc) => match hint {
                 DeserializerHint::RawBson => visitor.visit_map(RawDocumentAccess::new(doc)),
                 _ => visitor.visit_map(DocumentAccess::new(doc, self.options.clone())?),
@@ -680,7 +681,6 @@ impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
     }
 }
 
-
 struct Decimal128Deserializer(Decimal128);
 
 impl<'de> serde::de::Deserializer<'de> for Decimal128Deserializer {
@@ -1196,7 +1196,10 @@ impl<'de> serde::de::Deserializer<'de> for &mut DbPointerAccess<'de> {
                 };
                 visitor.visit_map(SingleFieldAccess::new(
                     "$oid",
-                    ObjectIdDeserializer { oid, hint: self.hint },
+                    ObjectIdDeserializer {
+                        oid,
+                        hint: self.hint,
+                    },
                 ))
             }
             DbPointerDeserializationStage::Done => {
