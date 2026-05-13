@@ -78,7 +78,7 @@ impl<'de> RawDeserializer<'de> {
                 return match lossy {
                     Utf8LossyBson::String(s) => visitor.visit_string(s),
                     Utf8LossyBson::RegularExpression(re) => {
-                        visitor.visit_map(RegexAccess::new(BsonCow::Owned(re)))
+                        visitor.visit_map(SingleFieldAccess::regex(BsonCow::Owned(re)))
                     }
                     Utf8LossyBson::JavaScriptCode(code) => visitor.visit_map(MapDeserializer::new(
                         doc! { "$code": code },
@@ -90,7 +90,7 @@ impl<'de> RawDeserializer<'de> {
                         CodeWithScopeAccess::new(BsonCow::Owned(jsc), hint, self.options.clone()),
                     ),
                     Utf8LossyBson::DbPointer(dbp) => {
-                        visitor.visit_map(DbPointerAccess::new(BsonCow::Owned(dbp), hint))
+                        visitor.visit_map(SingleFieldAccess::db_pointer(BsonCow::Owned(dbp), hint))
                     }
                     Utf8LossyBson::Symbol(s) => visitor.visit_map(MapDeserializer::new(
                         doc! { "$symbol": s },
@@ -147,10 +147,10 @@ impl<'de> RawDeserializer<'de> {
                 })
             }
             RawBsonRef::RegularExpression(re) => {
-                visitor.visit_map(RegexAccess::new(BsonCow::Borrowed(re)))
+                visitor.visit_map(SingleFieldAccess::regex(BsonCow::Borrowed(re)))
             }
             RawBsonRef::DbPointer(dbp) => {
-                visitor.visit_map(DbPointerAccess::new(BsonCow::Borrowed(dbp), hint))
+                visitor.visit_map(SingleFieldAccess::db_pointer(BsonCow::Borrowed(dbp), hint))
             }
             RawBsonRef::JavaScriptCode(s) => visitor.visit_map(SingleFieldAccess::code(s)),
             RawBsonRef::JavaScriptCodeWithScope(jsc) => visitor.visit_map(
@@ -642,6 +642,25 @@ impl SingleFieldAccess<()> {
             }),
         }
     }
+
+    fn regex<'a>(
+        re: BsonCow<RawRegexRef<'a>, Regex>,
+    ) -> SingleFieldAccess<MapAccessDeserializer<RegexAccess<'a>>> {
+        SingleFieldAccess {
+            key: "$regularExpression",
+            deserializer: Some(MapAccessDeserializer(RegexAccess::new(re))),
+        }
+    }
+
+    fn db_pointer<'a>(
+        dbp: BsonCow<RawDbPointerRef<'a>, DbPointer>,
+        hint: DeserializerHint,
+    ) -> SingleFieldAccess<MapAccessDeserializer<DbPointerAccess<'a>>> {
+        SingleFieldAccess {
+            key: "$dbPointer",
+            deserializer: Some(MapAccessDeserializer(DbPointerAccess::new(dbp, hint))),
+        }
+    }
 }
 
 impl<'de, D: serde::de::Deserializer<'de, Error = Error>> serde::de::MapAccess<'de>
@@ -672,6 +691,38 @@ impl<'de, D: serde::de::Deserializer<'de, Error = Error>> serde::de::MapAccess<'
             .take()
             .ok_or_else(|| Error::custom("value already consumed"))?;
         seed.deserialize(de)
+    }
+}
+
+struct MapAccessDeserializer<A>(A);
+
+impl<'de, A: serde::de::MapAccess<'de, Error = Error>> serde::de::Deserializer<'de>
+    for MapAccessDeserializer<A>
+{
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_map(self.0)
+    }
+
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+        bytes byte_buf map struct option unit
+        ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
 
@@ -1159,7 +1210,7 @@ impl<'de> DbPointerAccess<'de> {
         Self {
             dbp,
             hint,
-            stage: DbPointerDeserializationStage::TopLevel,
+            stage: DbPointerDeserializationStage::Namespace,
         }
     }
 }
@@ -1172,7 +1223,6 @@ impl<'de> serde::de::MapAccess<'de> for DbPointerAccess<'de> {
         K: serde::de::DeserializeSeed<'de>,
     {
         let name = match self.stage {
-            DbPointerDeserializationStage::TopLevel => "$dbPointer",
             DbPointerDeserializationStage::Namespace => "$ref",
             DbPointerDeserializationStage::Id => "$id",
             DbPointerDeserializationStage::Done => return Ok(None),
@@ -1197,14 +1247,6 @@ impl<'de> serde::de::Deserializer<'de> for &mut DbPointerAccess<'de> {
         V: serde::de::Visitor<'de>,
     {
         match self.stage {
-            DbPointerDeserializationStage::TopLevel => {
-                self.stage = DbPointerDeserializationStage::Done;
-                visitor.visit_map(DbPointerAccess {
-                    dbp: self.dbp.clone(),
-                    hint: self.hint,
-                    stage: DbPointerDeserializationStage::Namespace,
-                })
-            }
             DbPointerDeserializationStage::Namespace => {
                 self.stage = DbPointerDeserializationStage::Id;
                 match &self.dbp {
@@ -1246,7 +1288,6 @@ impl<'de> serde::de::Deserializer<'de> for &mut DbPointerAccess<'de> {
 
 #[derive(Debug)]
 enum DbPointerDeserializationStage {
-    TopLevel,
     Namespace,
     Id,
     Done,
@@ -1265,7 +1306,7 @@ impl<'de> RegexAccess<'de> {
     fn new(re: BsonCow<RawRegexRef<'de>, Regex>) -> Self {
         Self {
             re,
-            stage: RegexDeserializationStage::TopLevel,
+            stage: RegexDeserializationStage::Pattern,
         }
     }
 }
@@ -1278,7 +1319,6 @@ impl<'de> serde::de::MapAccess<'de> for RegexAccess<'de> {
         K: serde::de::DeserializeSeed<'de>,
     {
         let name = match self.stage {
-            RegexDeserializationStage::TopLevel => "$regularExpression",
             RegexDeserializationStage::Pattern => "pattern",
             RegexDeserializationStage::Options => "options",
             RegexDeserializationStage::Done => return Ok(None),
@@ -1291,9 +1331,6 @@ impl<'de> serde::de::MapAccess<'de> for RegexAccess<'de> {
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        if matches!(self.stage, RegexDeserializationStage::Done) {
-            return Err(Error::custom("Regex fully deserialized already"));
-        }
         seed.deserialize(self)
     }
 }
@@ -1306,13 +1343,6 @@ impl<'de> serde::de::Deserializer<'de> for &mut RegexAccess<'de> {
         V: serde::de::Visitor<'de>,
     {
         match self.stage {
-            RegexDeserializationStage::TopLevel => {
-                self.stage = RegexDeserializationStage::Done;
-                visitor.visit_map(RegexAccess {
-                    re: self.re.clone(),
-                    stage: RegexDeserializationStage::Pattern,
-                })
-            }
             RegexDeserializationStage::Pattern => {
                 self.stage = RegexDeserializationStage::Options;
                 match &self.re {
@@ -1353,7 +1383,6 @@ impl<'de> serde::de::Deserializer<'de> for &mut RegexAccess<'de> {
 
 #[derive(Debug)]
 enum RegexDeserializationStage {
-    TopLevel,
     Pattern,
     Options,
     Done,
