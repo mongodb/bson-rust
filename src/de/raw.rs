@@ -672,14 +672,13 @@ impl<'de, D: serde::de::Deserializer<'de, Error = Error>> serde::de::MapAccess<'
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        if self.deserializer.is_some() {
-            seed.deserialize(FieldDeserializer {
-                field_name: self.key,
-            })
-            .map(Some)
-        } else {
-            Ok(None)
+        if self.deserializer.is_none() {
+            return Ok(None);
         }
+        seed.deserialize(FieldDeserializer {
+            field_name: self.key,
+        })
+        .map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
@@ -689,7 +688,7 @@ impl<'de, D: serde::de::Deserializer<'de, Error = Error>> serde::de::MapAccess<'
         let de = self
             .deserializer
             .take()
-            .ok_or_else(|| Error::custom("value already consumed"))?;
+            .ok_or_else(|| Error::deserialization("value already consumed"))?;
         seed.deserialize(de)
     }
 }
