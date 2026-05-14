@@ -54,6 +54,8 @@ use crate::error::{Error, Result};
 ///
 /// e.g.
 /// ```rust
+/// # #[cfg(all(feature = "serde", feature = "chrono-0_4"))]
+/// # {
 /// use serde::{Serialize, Deserialize};
 ///
 /// #[derive(Serialize, Deserialize)]
@@ -65,11 +67,10 @@ use crate::error::{Error, Result};
 ///     chrono_datetime: chrono::DateTime<chrono::Utc>,
 /// }
 ///
-/// # fn main() -> bson::error::Result<()> {
 /// let f = Foo { date_time: bson::DateTime::now(), chrono_datetime: chrono::Utc::now() };
 /// println!("{:?}", bson::serialize_to_document(&f)?);
-/// # Ok(())
 /// # }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 /// Produces the following output:
 /// ```js
@@ -81,6 +82,8 @@ use crate::error::{Error, Result};
 ///
 /// e.g.
 /// ```rust
+/// # #[cfg(all(feature = "serde", feature = "chrono-0_4"))]
+/// # {
 /// # use serde::Serialize;
 /// # #[derive(Serialize)]
 /// # struct Foo {
@@ -90,11 +93,10 @@ use crate::error::{Error, Result};
 /// #   // serializes as an RFC 3339 / ISO-8601 string.
 /// #   chrono_datetime: chrono::DateTime<chrono::Utc>,
 /// # }
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let f = Foo { date_time: bson::DateTime::now(), chrono_datetime: chrono::Utc::now() };
 /// println!("{}", serde_json::to_string(&f)?);
-/// # Ok(())
 /// # }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 /// Produces the following output:
 /// ```js

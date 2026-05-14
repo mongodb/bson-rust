@@ -22,6 +22,8 @@ const PACKED_BIT: u8 = 0x10;
 /// `Vector` serializes to and deserializes from a `Binary`.
 ///
 /// ```rust
+/// # #[cfg(feature = "serde")]
+/// # {
 /// # use serde::{Serialize, Deserialize};
 /// # use bson::{binary::Vector, error::Result, spec::ElementType};
 /// #[derive(Serialize, Deserialize)]
@@ -35,6 +37,7 @@ const PACKED_BIT: u8 = 0x10;
 ///
 /// let data: Data = bson::deserialize_from_document(document).unwrap();
 /// assert_eq!(data.vector, Vector::Int8(vec![0, 1, 2]));
+/// # }
 /// ```
 ///
 /// See the

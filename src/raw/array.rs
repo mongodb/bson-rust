@@ -32,6 +32,8 @@ use crate::{
 /// original document without making any additional allocations.
 ///
 /// ```
+/// # #[cfg(feature = "serde")]
+/// # {
 /// use bson::{doc, raw::RawDocument};
 ///
 /// let doc = doc! {
@@ -45,6 +47,7 @@ use crate::{
 /// for v in rawarray {
 ///     println!("{:?}", v?);
 /// }
+/// # }
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 ///

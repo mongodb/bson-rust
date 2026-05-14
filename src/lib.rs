@@ -182,6 +182,8 @@
 //!
 //! e.g.:
 //! ```rust
+//! # #[cfg(feature = "serde")]
+//! # {
 //! use serde::{Deserialize, Serialize};
 //! use bson::{bson, Bson};
 //!
@@ -213,6 +215,7 @@
 //!
 //! // Get a serialized version of the input data as a [`Bson`].
 //! let redacted_bson = bson::serialize_to_bson(&person).unwrap();
+//! # }
 //! ```
 //!
 //! Any types that implement [`Serialize`](serde::Serialize) and [`Deserialize`](serde::Deserialize)
@@ -233,6 +236,8 @@
 //! [`Deserialize`](serde::Deserialize) for the Rust types provided by this crate that represent
 //! BSON values, allowing them to be embedded in domain-specific structs as appropriate:
 //! ```rust
+//! # #[cfg(feature = "serde")]
+//! # {
 //! use serde::{Deserialize, Serialize};
 //! use bson::{bson, Bson, oid::ObjectId};
 //!
@@ -255,6 +260,7 @@
 //! });
 //!
 //! let person: Person = bson::deserialize_from_bson(bson_data).unwrap();
+//! # }
 //! ```
 //!
 //! ### Encoding vs. Serialization
@@ -262,6 +268,8 @@
 //! With the `serde` feature enabled, a BSON document can be converted to its wire-format byte
 //! representation in multiple ways:
 //! ```rust
+//! # #[cfg(feature = "serde")]
+//! # {
 //! # fn wrapper() -> bson::error::Result<()> {
 //! use bson::{doc, serialize_to_vec};
 //! let my_document = doc! { "hello": "bson" };
@@ -270,6 +278,7 @@
 //! # Ok(())
 //! # }
 //! # wrapper().unwrap();
+//! # }
 //! ```
 //!
 //! We recommend that, where possible, documents be converted to byte form using the encoding
@@ -317,6 +326,8 @@
 //!
 //! e.g.
 //! ```rust
+//! # #[cfg(feature = "serde")]
+//! # {
 //! # use bson::bson;
 //! let doc = bson!({ "x": 5, "d": bson::DateTime::now() });
 //!
@@ -325,6 +336,7 @@
 //!
 //! println!("canonical: {}", doc.into_canonical_extjson());
 //! // canonical: {"x":{"$numberInt":"5"},"d":{"$date":{"$numberLong":"1591050020711"}}}
+//! # }
 //! ```
 //!
 //! Canonical mode is useful when BSON values need to be round tripped without losing any type
@@ -339,6 +351,8 @@
 //!
 //! e.g.
 //! ```rust
+//! # #[cfg(feature = "serde")]
+//! # {
 //! # use bson::Bson;
 //! # use serde_json::json;
 //! # use std::convert::{TryFrom, TryInto};
@@ -350,6 +364,7 @@
 //!
 //! let invalid_ext_json = json!({ "$numberLong": 5 });
 //! Bson::try_from(invalid_ext_json).expect_err("5 should be a string");
+//! # }
 //! ```
 //!
 //! ### Serializing to Extended JSON
@@ -360,6 +375,8 @@
 //!
 //! e.g.
 //! ```rust
+//! # #[cfg(feature = "serde")]
+//! # {
 //! # use bson::{bson, oid};
 //! let doc = bson!({ "x": 5i32, "_id": oid::ObjectId::new() });
 //!
@@ -371,6 +388,7 @@
 //!
 //! let canonical_extjson = doc.into_canonical_extjson();
 //! println!("{}", canonical_extjson); // { "x": { "$numberInt": "5" }, "_id": { "$oid": <hexstring> } }
+//! # }
 //! ```
 //!
 //! ## Working with datetimes
