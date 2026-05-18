@@ -39,6 +39,8 @@ static OID_COUNTER: LazyLock<AtomicUsize> =
 ///
 /// e.g.
 /// ```rust
+/// # #[cfg(feature = "serde")]
+/// # {
 /// use serde::{Serialize, Deserialize};
 /// use bson::oid::ObjectId;
 ///
@@ -47,12 +49,11 @@ static OID_COUNTER: LazyLock<AtomicUsize> =
 ///     oid: ObjectId,
 /// }
 ///
-/// # fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 /// let f = Foo { oid: ObjectId::new() };
 /// println!("bson: {}", bson::serialize_to_document(&f)?);
 /// println!("json: {}", serde_json::to_string(&f)?);
-/// # Ok(())
 /// # }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 /// Produces the following output:
 /// ```text
@@ -70,6 +71,8 @@ static OID_COUNTER: LazyLock<AtomicUsize> =
 ///
 /// e.g.
 /// ```rust
+/// # #[cfg(all(feature = "serde", feature = "serde_with-3"))]
+/// # {
 /// use serde::{Serialize, Deserialize};
 /// use serde_with::serde_as;
 /// use bson::oid::ObjectId;
@@ -85,12 +88,11 @@ static OID_COUNTER: LazyLock<AtomicUsize> =
 ///     #[serde_as(as = "object_id::AsHexString")]
 ///     oid_as_hex: ObjectId,
 /// }
-/// # fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 /// let f = Foo { oid: ObjectId::new(), oid_as_hex: ObjectId::new() };
 /// println!("bson: {}", bson::serialize_to_document(&f)?);
 /// println!("json: {}", serde_json::to_string(&f)?);
-/// # Ok(())
 /// # }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 /// Produces the following output:
 /// ```text
