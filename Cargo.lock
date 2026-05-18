@@ -452,9 +452,9 @@ dependencies = [
 
 [[package]]
 name = "facet-macro-parse"
-version = "0.46.1"
+version = "0.46.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39567b5bc7b611ab86a494f101d7c34f15d4c227df9687dea1a43d46dce24c54"
+checksum = "1859e6f9a2b567c8985bf78c4d929df051789b750e947d7af471dbe0ae0446ff"
 dependencies = [
  "facet-macro-types",
  "proc-macro2",
@@ -463,9 +463,9 @@ dependencies = [
 
 [[package]]
 name = "facet-macro-types"
-version = "0.46.1"
+version = "0.46.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a29431b7f5feab6219ca87ca465123d646000a81d1b6bbd9c9c3ee7edc500daf"
+checksum = "1deccbe6e01860d0496be71c553f875a6792c9c2492d3761f764933978120cd8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -474,18 +474,18 @@ dependencies = [
 
 [[package]]
 name = "facet-macros"
-version = "0.46.1"
+version = "0.46.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6575d6a3bbceb018bcb325fb3e2621a1ff7897d85eb573c1f3e130845eeaeb60"
+checksum = "9879c7e89e288b10e45765665aa4ea568aa5d871371eed7bcba9eff8a69a3dd0"
 dependencies = [
  "facet-macros-impl",
 ]
 
 [[package]]
 name = "facet-macros-impl"
-version = "0.46.1"
+version = "0.46.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b028bf8494ba2d4042c1d2d7b3b55462b288795ebe0ce131d3a9cea06d22dda"
+checksum = "0f4ee4556c43e0aa917bc70cb54650a881e01d16b6d6bea911e397adf533680b"
 dependencies = [
  "facet-macro-parse",
  "facet-macro-types",
@@ -697,9 +697,9 @@ checksum = "3d3067d79b975e8844ca9eb072e16b31c3c1c36928edf9c6789548c524d0d954"
 
 [[package]]
 name = "iddqd"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a62dc942351d24e7c5495ab3c6d76698c471b35e2845544ed7866e688aed685"
+checksum = "b1fb967ac6b9edb2b5bd91496fc95fdf5eee0772aa31aca370766975f7e57962"
 dependencies = [
  "allocator-api2",
  "equivalent",
