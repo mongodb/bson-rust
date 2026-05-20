@@ -34,7 +34,7 @@ use crate::{
     uuid::UUID_NEWTYPE_NAME,
 };
 
-use super::{DeserializerHint, raw::Decimal128Access};
+use super::{DeserializerHint, raw::SingleFieldAccess};
 
 pub(crate) struct BsonVisitor;
 
@@ -658,7 +658,7 @@ impl Deserializer {
             Bson::Binary(b) if b.subtype == BinarySubtype::Generic => {
                 visitor.visit_byte_buf(b.bytes)
             }
-            Bson::Decimal128(d) => visitor.visit_map(Decimal128Access::new(d)),
+            Bson::Decimal128(d) => visitor.visit_map(SingleFieldAccess::decimal128(d)),
             _ => {
                 let doc = value.into_extended_document(is_rawbson);
                 visitor.visit_map(MapDeserializer::new(doc, self.options))

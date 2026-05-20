@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use serde::{
     Deserializer as SerdeDeserializer,
-    de::{Error as SerdeError, IntoDeserializer, MapAccess, value::BorrowedStrDeserializer},
+    de::{Error as SerdeError, IntoDeserializer, value::BorrowedStrDeserializer},
     forward_to_deserialize_any,
 };
 
@@ -79,7 +79,7 @@ impl<'de> RawDeserializer<'de> {
                 return match lossy {
                     Utf8LossyBson::String(s) => visitor.visit_string(s),
                     Utf8LossyBson::RegularExpression(re) => {
-                        visitor.visit_map(RegexAccess::new(BsonCow::Owned(re)))
+                        visitor.visit_map(SingleFieldAccess::regex(BsonCow::Owned(re)))
                     }
                     Utf8LossyBson::JavaScriptCode(code) => visitor.visit_map(MapDeserializer::new(
                         doc! { "$code": code },
@@ -91,7 +91,7 @@ impl<'de> RawDeserializer<'de> {
                         CodeWithScopeAccess::new(BsonCow::Owned(jsc), hint, self.options.clone()),
                     ),
                     Utf8LossyBson::DbPointer(dbp) => {
-                        visitor.visit_map(DbPointerAccess::new(BsonCow::Owned(dbp), hint))
+                        visitor.visit_map(SingleFieldAccess::db_pointer(BsonCow::Owned(dbp), hint))
                     }
                     Utf8LossyBson::Symbol(s) => visitor.visit_map(MapDeserializer::new(
                         doc! { "$symbol": s },
@@ -109,7 +109,7 @@ impl<'de> RawDeserializer<'de> {
             RawBsonRef::String(s) => visitor.visit_borrowed_str(s),
             RawBsonRef::Boolean(b) => visitor.visit_bool(b),
             RawBsonRef::Null => visitor.visit_unit(),
-            RawBsonRef::ObjectId(oid) => visitor.visit_map(ObjectIdAccess::new(oid, hint)),
+            RawBsonRef::ObjectId(oid) => visitor.visit_map(SingleFieldAccess::oid(oid, hint)),
             RawBsonRef::Document(doc) => match hint {
                 DeserializerHint::RawBson => visitor.visit_map(RawDocumentAccess::new(doc)),
                 _ => visitor.visit_map(DocumentAccess::new(doc, self.options.clone())?),
@@ -140,9 +140,7 @@ impl<'de> RawDeserializer<'de> {
                     }
                 }
             }
-            RawBsonRef::Undefined => {
-                visitor.visit_map(RawBsonAccess::new("$undefined", BsonContent::Boolean(true)))
-            }
+            RawBsonRef::Undefined => visitor.visit_map(SingleFieldAccess::undef()),
             RawBsonRef::DateTime(dt) => {
                 let mut d = DateTimeDeserializer::new(dt, hint);
                 visitor.visit_map(DateTimeAccess {
@@ -150,33 +148,25 @@ impl<'de> RawDeserializer<'de> {
                 })
             }
             RawBsonRef::RegularExpression(re) => {
-                visitor.visit_map(RegexAccess::new(BsonCow::Borrowed(re)))
+                visitor.visit_map(SingleFieldAccess::regex(BsonCow::Borrowed(re)))
             }
             RawBsonRef::DbPointer(dbp) => {
-                visitor.visit_map(DbPointerAccess::new(BsonCow::Borrowed(dbp), hint))
+                visitor.visit_map(SingleFieldAccess::db_pointer(BsonCow::Borrowed(dbp), hint))
             }
-            RawBsonRef::JavaScriptCode(s) => {
-                visitor.visit_map(RawBsonAccess::new("$code", BsonContent::Str(s)))
-            }
+            RawBsonRef::JavaScriptCode(s) => visitor.visit_map(SingleFieldAccess::code(s)),
             RawBsonRef::JavaScriptCodeWithScope(jsc) => visitor.visit_map(
                 CodeWithScopeAccess::new(BsonCow::Borrowed(jsc), hint, self.options.clone()),
             ),
-            RawBsonRef::Symbol(s) => {
-                visitor.visit_map(RawBsonAccess::new("$symbol", BsonContent::Str(s)))
-            }
+            RawBsonRef::Symbol(s) => visitor.visit_map(SingleFieldAccess::symbol(s)),
             RawBsonRef::Timestamp(ts) => {
                 let mut d = TimestampDeserializer::new(ts);
                 visitor.visit_map(TimestampAccess {
                     deserializer: &mut d,
                 })
             }
-            RawBsonRef::Decimal128(d128) => visitor.visit_map(Decimal128Access::new(d128)),
-            RawBsonRef::MaxKey => {
-                visitor.visit_map(RawBsonAccess::new("$maxKey", BsonContent::Int32(1)))
-            }
-            RawBsonRef::MinKey => {
-                visitor.visit_map(RawBsonAccess::new("$minKey", BsonContent::Int32(1)))
-            }
+            RawBsonRef::Decimal128(d128) => visitor.visit_map(SingleFieldAccess::decimal128(d128)),
+            RawBsonRef::MaxKey => visitor.visit_map(SingleFieldAccess::max_key()),
+            RawBsonRef::MinKey => visitor.visit_map(SingleFieldAccess::min_key()),
         }
     }
 
@@ -589,45 +579,150 @@ impl<'de> serde::de::Deserializer<'de> for RawDocumentDeserializer<'de> {
     }
 }
 
-struct ObjectIdAccess {
-    oid: ObjectId,
-    visited: bool,
-    hint: DeserializerHint,
+pub(crate) struct SingleFieldAccess<D> {
+    key: &'static str,
+    deserializer: Option<D>,
 }
 
-impl ObjectIdAccess {
-    fn new(oid: ObjectId, hint: DeserializerHint) -> Self {
-        Self {
-            oid,
-            visited: false,
-            hint,
+impl SingleFieldAccess<()> {
+    fn oid(oid: ObjectId, hint: DeserializerHint) -> SingleFieldAccess<ObjectIdDeserializer> {
+        SingleFieldAccess {
+            key: "$oid",
+            deserializer: Some(ObjectIdDeserializer { oid, hint }),
+        }
+    }
+
+    fn undef() -> SingleFieldAccess<RawBsonDeserializer<'static>> {
+        SingleFieldAccess {
+            key: "$undefined",
+            deserializer: Some(RawBsonDeserializer {
+                value: BsonContent::Boolean(true),
+            }),
+        }
+    }
+
+    fn code<'a>(s: &'a str) -> SingleFieldAccess<RawBsonDeserializer<'a>> {
+        SingleFieldAccess {
+            key: "$code",
+            deserializer: Some(RawBsonDeserializer {
+                value: BsonContent::Str(s),
+            }),
+        }
+    }
+
+    fn symbol<'a>(s: &'a str) -> SingleFieldAccess<RawBsonDeserializer<'a>> {
+        SingleFieldAccess {
+            key: "$symbol",
+            deserializer: Some(RawBsonDeserializer {
+                value: BsonContent::Str(s),
+            }),
+        }
+    }
+
+    pub(crate) fn decimal128(d: Decimal128) -> SingleFieldAccess<Decimal128Deserializer> {
+        SingleFieldAccess {
+            key: "$numberDecimalBytes",
+            deserializer: Some(Decimal128Deserializer(d)),
+        }
+    }
+
+    fn max_key() -> SingleFieldAccess<RawBsonDeserializer<'static>> {
+        SingleFieldAccess {
+            key: "$maxKey",
+            deserializer: Some(RawBsonDeserializer {
+                value: BsonContent::Int32(1),
+            }),
+        }
+    }
+
+    fn min_key() -> SingleFieldAccess<RawBsonDeserializer<'static>> {
+        SingleFieldAccess {
+            key: "$minKey",
+            deserializer: Some(RawBsonDeserializer {
+                value: BsonContent::Int32(1),
+            }),
+        }
+    }
+
+    fn regex<'a>(
+        re: BsonCow<RawRegexRef<'a>, Regex>,
+    ) -> SingleFieldAccess<MapAccessDeserializer<RegexAccess<'a>>> {
+        SingleFieldAccess {
+            key: "$regularExpression",
+            deserializer: Some(MapAccessDeserializer(RegexAccess::new(re))),
+        }
+    }
+
+    fn db_pointer<'a>(
+        dbp: BsonCow<RawDbPointerRef<'a>, DbPointer>,
+        hint: DeserializerHint,
+    ) -> SingleFieldAccess<MapAccessDeserializer<DbPointerAccess<'a>>> {
+        SingleFieldAccess {
+            key: "$dbPointer",
+            deserializer: Some(MapAccessDeserializer(DbPointerAccess::new(dbp, hint))),
         }
     }
 }
 
-impl<'de> serde::de::MapAccess<'de> for ObjectIdAccess {
+impl<'de, D: serde::de::Deserializer<'de, Error = Error>> serde::de::MapAccess<'de>
+    for SingleFieldAccess<D>
+{
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
         K: serde::de::DeserializeSeed<'de>,
     {
-        if self.visited {
+        if self.deserializer.is_none() {
             return Ok(None);
         }
-        self.visited = true;
-        seed.deserialize(FieldDeserializer { field_name: "$oid" })
-            .map(Some)
+        seed.deserialize(FieldDeserializer {
+            field_name: self.key,
+        })
+        .map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        seed.deserialize(ObjectIdDeserializer {
-            oid: self.oid,
-            hint: self.hint,
-        })
+        let de = self
+            .deserializer
+            .take()
+            .ok_or_else(|| Error::deserialization("value already consumed"))?;
+        seed.deserialize(de)
+    }
+}
+
+struct MapAccessDeserializer<A>(A);
+
+impl<'de, A: serde::de::MapAccess<'de, Error = Error>> serde::de::Deserializer<'de>
+    for MapAccessDeserializer<A>
+{
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_map(self.0)
+    }
+
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self)
+    }
+
+    fn is_human_readable(&self) -> bool {
+        false
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
+        bytes byte_buf map struct option unit
+        ignored_any unit_struct tuple_struct tuple enum identifier
     }
 }
 
@@ -661,46 +756,7 @@ impl<'de> serde::de::Deserializer<'de> for ObjectIdDeserializer {
     }
 }
 
-pub(crate) struct Decimal128Access {
-    decimal: Decimal128,
-    visited: bool,
-}
-
-impl Decimal128Access {
-    pub(crate) fn new(decimal: Decimal128) -> Self {
-        Self {
-            decimal,
-            visited: false,
-        }
-    }
-}
-
-impl<'de> serde::de::MapAccess<'de> for Decimal128Access {
-    type Error = Error;
-
-    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
-    where
-        K: serde::de::DeserializeSeed<'de>,
-    {
-        if self.visited {
-            return Ok(None);
-        }
-        self.visited = true;
-        seed.deserialize(FieldDeserializer {
-            field_name: "$numberDecimalBytes",
-        })
-        .map(Some)
-    }
-
-    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
-    where
-        V: serde::de::DeserializeSeed<'de>,
-    {
-        seed.deserialize(Decimal128Deserializer(self.decimal))
-    }
-}
-
-struct Decimal128Deserializer(Decimal128);
+pub(crate) struct Decimal128Deserializer(Decimal128);
 
 impl<'de> serde::de::Deserializer<'de> for Decimal128Deserializer {
     type Error = Error;
@@ -1154,7 +1210,7 @@ impl<'de> DbPointerAccess<'de> {
         Self {
             dbp,
             hint,
-            stage: DbPointerDeserializationStage::TopLevel,
+            stage: DbPointerDeserializationStage::Namespace,
         }
     }
 }
@@ -1167,7 +1223,6 @@ impl<'de> serde::de::MapAccess<'de> for DbPointerAccess<'de> {
         K: serde::de::DeserializeSeed<'de>,
     {
         let name = match self.stage {
-            DbPointerDeserializationStage::TopLevel => "$dbPointer",
             DbPointerDeserializationStage::Namespace => "$ref",
             DbPointerDeserializationStage::Id => "$id",
             DbPointerDeserializationStage::Done => return Ok(None),
@@ -1192,14 +1247,6 @@ impl<'de> serde::de::Deserializer<'de> for &mut DbPointerAccess<'de> {
         V: serde::de::Visitor<'de>,
     {
         match self.stage {
-            DbPointerDeserializationStage::TopLevel => {
-                self.stage = DbPointerDeserializationStage::Done;
-                visitor.visit_map(DbPointerAccess {
-                    dbp: self.dbp.clone(),
-                    hint: self.hint,
-                    stage: DbPointerDeserializationStage::Namespace,
-                })
-            }
             DbPointerDeserializationStage::Namespace => {
                 self.stage = DbPointerDeserializationStage::Id;
                 match &self.dbp {
@@ -1213,7 +1260,7 @@ impl<'de> serde::de::Deserializer<'de> for &mut DbPointerAccess<'de> {
                     BsonCow::Borrowed(dbp) => dbp.id,
                     BsonCow::Owned(dbp) => dbp.id,
                 };
-                visitor.visit_map(ObjectIdAccess::new(oid, self.hint))
+                visitor.visit_map(SingleFieldAccess::oid(oid, self.hint))
             }
             DbPointerDeserializationStage::Done => {
                 Err(Error::custom("DbPointer fully deserialized already"))
@@ -1241,7 +1288,6 @@ impl<'de> serde::de::Deserializer<'de> for &mut DbPointerAccess<'de> {
 
 #[derive(Debug)]
 enum DbPointerDeserializationStage {
-    TopLevel,
     Namespace,
     Id,
     Done,
@@ -1260,7 +1306,7 @@ impl<'de> RegexAccess<'de> {
     fn new(re: BsonCow<RawRegexRef<'de>, Regex>) -> Self {
         Self {
             re,
-            stage: RegexDeserializationStage::TopLevel,
+            stage: RegexDeserializationStage::Pattern,
         }
     }
 }
@@ -1273,7 +1319,6 @@ impl<'de> serde::de::MapAccess<'de> for RegexAccess<'de> {
         K: serde::de::DeserializeSeed<'de>,
     {
         let name = match self.stage {
-            RegexDeserializationStage::TopLevel => "$regularExpression",
             RegexDeserializationStage::Pattern => "pattern",
             RegexDeserializationStage::Options => "options",
             RegexDeserializationStage::Done => return Ok(None),
@@ -1286,9 +1331,6 @@ impl<'de> serde::de::MapAccess<'de> for RegexAccess<'de> {
     where
         V: serde::de::DeserializeSeed<'de>,
     {
-        if matches!(self.stage, RegexDeserializationStage::Done) {
-            return Err(Error::custom("Regex fully deserialized already"));
-        }
         seed.deserialize(self)
     }
 }
@@ -1301,13 +1343,6 @@ impl<'de> serde::de::Deserializer<'de> for &mut RegexAccess<'de> {
         V: serde::de::Visitor<'de>,
     {
         match self.stage {
-            RegexDeserializationStage::TopLevel => {
-                self.stage = RegexDeserializationStage::Done;
-                visitor.visit_map(RegexAccess {
-                    re: self.re.clone(),
-                    stage: RegexDeserializationStage::Pattern,
-                })
-            }
             RegexDeserializationStage::Pattern => {
                 self.stage = RegexDeserializationStage::Options;
                 match &self.re {
@@ -1348,18 +1383,9 @@ impl<'de> serde::de::Deserializer<'de> for &mut RegexAccess<'de> {
 
 #[derive(Debug)]
 enum RegexDeserializationStage {
-    TopLevel,
     Pattern,
     Options,
     Done,
-}
-
-/// Helper access struct for visiting the extended JSON model of simple BSON types.
-/// e.g. Symbol, Timestamp, etc.
-struct RawBsonAccess<'a> {
-    key: &'static str,
-    value: BsonContent<'a>,
-    first: bool,
 }
 
 /// Enum value representing some cached BSON data needed to represent a given
@@ -1369,42 +1395,6 @@ enum BsonContent<'a> {
     Str(&'a str),
     Int32(i32),
     Boolean(bool),
-}
-
-impl<'a> RawBsonAccess<'a> {
-    fn new(key: &'static str, value: BsonContent<'a>) -> Self {
-        Self {
-            key,
-            value,
-            first: true,
-        }
-    }
-}
-
-impl<'de> MapAccess<'de> for RawBsonAccess<'de> {
-    type Error = Error;
-
-    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
-    where
-        K: serde::de::DeserializeSeed<'de>,
-    {
-        if self.first {
-            self.first = false;
-            seed.deserialize(FieldDeserializer {
-                field_name: self.key,
-            })
-            .map(Some)
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
-    where
-        V: serde::de::DeserializeSeed<'de>,
-    {
-        seed.deserialize(RawBsonDeserializer { value: self.value })
-    }
 }
 
 struct RawBsonDeserializer<'a> {
