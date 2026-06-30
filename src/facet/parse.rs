@@ -45,6 +45,37 @@ enum Expect {
     Eof,
 }
 
+#[derive(Debug, Copy, Clone)]
+struct Delta {
+    offset: usize,
+    expects: Expect,
+    op: StackOp,
+}
+
+#[derive(Debug, Copy, Clone)]
+enum StackOp {
+    Keep,
+    Push(Expect),
+    Pop,
+}
+
+impl ParseState {
+    fn apply(&mut self, delta: Delta) -> Result<()> {
+        self.offset = delta.offset;
+        self.expects = delta.expects;
+        match delta.op {
+            StackOp::Keep => (),
+            StackOp::Push(exp) => self.outer.push(exp),
+            StackOp::Pop => {
+                if self.outer.pop().is_none() {
+                    return Err(Error::deserialization("mismatched container structure"));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 impl<'de> Parser<'de> {
     fn new(bytes: &'de [u8]) -> Self {
         Self {
@@ -58,10 +89,10 @@ impl<'de> Parser<'de> {
         }
     }
 
-    fn peek(&self) -> Result<Option<(ParseEvent<'de>, ParseState)>> {
+    fn peek(&self) -> Result<Option<(ParseEvent<'de>, Delta)>> {
         let mut iter = RawIter::new_unchecked(self.bytes, self.state.offset);
         let event;
-        let next;
+        let delta;
         match self.state.expects {
             Expect::DocStart => {
                 let len = iter.next_document_len(self.state.offset)?;
@@ -69,10 +100,10 @@ impl<'de> Parser<'de> {
                     ParseEventKind::StructStart(ContainerKind::Object),
                     Span::new(self.state.offset, len),
                 );
-                next = ParseState {
+                delta = Delta {
                     offset: self.state.offset + 4, // doc length
                     expects: Expect::ElemKey,
-                    outer: vec![Expect::Eof],
+                    op: StackOp::Push(Expect::Eof),
                 };
             }
             Expect::DocStartRaw => {
@@ -81,10 +112,10 @@ impl<'de> Parser<'de> {
                 // type tag for parsing a `Bson`/`RawBson` value
                 bytes.push(ElementType::EmbeddedDocument as u8);
                 event = ParseEvent::new(scalar_bytes(bytes), Span::new(self.state.offset, len));
-                next = ParseState {
+                delta = Delta {
                     offset: event.span.end(),
                     expects: Expect::Eof,
-                    outer: vec![],
+                    op: StackOp::Keep,
                 };
             }
             Expect::ElemKey => {
@@ -98,11 +129,11 @@ impl<'de> Parser<'de> {
                     )),
                     Span::new(self.state.offset, elt.size()),
                 );
-                next = ParseState {
+                delta = Delta {
                     offset: self.state.offset,
                     expects: Expect::ElemValue { is_array: false },
-                    outer: self.state.outer.clone(),
-                }
+                    op: StackOp::Keep,
+                };
             }
             Expect::ElemValue { is_array } => {
                 let Some(elt) = iter.next().transpose()? else {
@@ -122,25 +153,25 @@ impl<'de> Parser<'de> {
                 event = elt.as_event()?;
                 match &event.kind {
                     ParseEventKind::Scalar(_) => {
-                        next = ParseState {
+                        delta = Delta {
                             offset: event.span.end(),
                             expects: next_expect,
-                            outer: self.state.outer.clone(),
+                            op: StackOp::Keep,
                         };
                     }
                     ParseEventKind::StructStart(_) => {
-                        next = ParseState {
+                        delta = Delta {
                             offset: elt.value_raw().source_offset() + 4,
                             expects: Expect::ElemKey,
-                            outer: vec_and(&self.state.outer, next_expect),
+                            op: StackOp::Push(next_expect),
                         };
                     }
                     ParseEventKind::SequenceStart(_) => {
-                        next = ParseState {
+                        delta = Delta {
                             offset: elt.value_raw().source_offset() + 4,
                             expects: Expect::ElemValue { is_array: true },
-                            outer: vec_and(&self.state.outer, next_expect),
-                        }
+                            op: StackOp::Push(next_expect),
+                        };
                     }
                     ek => {
                         return Err(Error::deserialization(format!(
@@ -161,14 +192,14 @@ impl<'de> Parser<'de> {
                 // type tag for parsing a `Bson`/`RawBson` value
                 bytes.push(elt.element_type() as u8);
                 event = ParseEvent::new(scalar_bytes(bytes), elt.value_raw().span());
-                next = ParseState {
+                delta = Delta {
                     offset: event.span.end(),
                     expects: if is_array {
                         Expect::ElemValue { is_array: true }
                     } else {
                         Expect::ElemKey
                     },
-                    outer: self.state.outer.clone(),
+                    op: StackOp::Keep,
                 };
             }
             Expect::Eof => {
@@ -178,7 +209,7 @@ impl<'de> Parser<'de> {
                 return Ok(None);
             }
         }
-        Ok(Some((event, next)))
+        Ok(Some((event, delta)))
     }
 
     fn parse_err(&self, source: Error) -> ParseError {
@@ -190,22 +221,22 @@ impl<'de> Parser<'de> {
         )
     }
 
-    fn container_end(&self, is_array: bool) -> Result<(ParseEvent<'de>, ParseState)> {
+    fn container_end(&self, is_array: bool) -> Result<(ParseEvent<'de>, Delta)> {
         let ev_kind = if is_array {
             ParseEventKind::SequenceEnd
         } else {
             ParseEventKind::StructEnd
         };
         let event = ParseEvent::new(ev_kind, Span::new(self.state.offset, 1));
-        let Some((expects, outer)) = self.state.outer.split_last() else {
+        let Some(expects) = self.state.outer.last() else {
             return Err(Error::deserialization("mismatched container structure"));
         };
-        let next = ParseState {
+        let delta = Delta {
             offset: self.state.offset + 1, // doc null terminator
             expects: *expects,
-            outer: outer.to_vec(),
+            op: StackOp::Pop,
         };
-        Ok((event, next))
+        Ok((event, delta))
     }
 }
 
@@ -274,10 +305,10 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
     }
 
     fn next_event(&mut self) -> std::result::Result<Option<ParseEvent<'de>>, ParseError> {
-        let Some((ev, next)) = self.peek().map_err(|e| self.parse_err(e))? else {
+        let Some((ev, delta)) = self.peek().map_err(|e| self.parse_err(e))? else {
             return Ok(None);
         };
-        self.state = next;
+        self.state.apply(delta).map_err(|e| self.parse_err(e))?;
         Ok(Some(ev))
     }
 
@@ -342,10 +373,4 @@ pub fn deserialize_from_slice<T: Facet<'static>>(bytes: &[u8]) -> Result<T> {
     facet_format::FormatDeserializer::new_owned(&mut Parser::new(bytes))
         .deserialize()
         .map_err(Error::deserialization)
-}
-
-fn vec_and<T: Clone>(vs: &[T], v: T) -> Vec<T> {
-    let mut out = vs.to_vec();
-    out.push(v);
-    out
 }

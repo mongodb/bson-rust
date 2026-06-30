@@ -103,3 +103,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(mongodb_internal_bench)'] }
+
+[profile.bench]
+debug = true
+strip = false
