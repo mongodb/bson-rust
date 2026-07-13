@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{any::TypeId, borrow::Cow};
 
 use facet::Facet;
 use facet_format::{FormatSerializer, ScalarValue, SerializeError};
@@ -55,7 +55,7 @@ struct Serializer {
 impl Serializer {
     fn new() -> Self {
         Self {
-            bytes: vec![],
+            bytes: Vec::with_capacity(1024),
             doc_size_pos: vec![],
             elem_type_pos: None,
             array_ix: vec![],
@@ -177,36 +177,39 @@ impl facet_format::FormatSerializer for Serializer {
 
     fn serialize_opaque_scalar(
         &mut self,
-        _shape: &'static facet::Shape,
+        shape: &'static facet::Shape,
         value: facet_reflect::Peek<'_, '_>,
     ) -> Result<bool> {
+        let id = shape.id.get();
         // Types that can be directly represented as a RawBsonRef
-        let rbr = if let Ok(v) = value.get::<i32>() {
-            Some(RawBsonRef::Int32(*v))
-        } else if let Ok(re) = value.get::<Regex>() {
-            Some(re.into())
-        } else if let Ok(b) = value.get::<Binary>() {
-            Some(b.into())
-        } else if let Ok(ts) = value.get::<Timestamp>() {
-            Some((*ts).into())
-        } else if let Ok(oid) = value.get::<ObjectId>() {
-            Some((*oid).into())
-        } else if let Ok(dt) = value.get::<DateTime>() {
-            Some((*dt).into())
-        } else if let Ok(d) = value.get::<Decimal128>() {
-            Some((*d).into())
-        } else if let Ok(dbp) = value.get::<DbPointer>() {
-            Some(dbp.into())
-        } else if let Ok(rd) = value.get::<RawDocumentBuf>() {
-            Some(RawBsonRef::Document(rd))
-        } else if let Ok(ra) = value.get::<RawArrayBuf>() {
-            Some(RawBsonRef::Array(ra))
-        } else if let Ok(rjscws) = value.get::<RawJavaScriptCodeWithScope>() {
-            Some(RawBsonRef::JavaScriptCodeWithScope(rjscws.into()))
-        } else if let Ok(cs) = value.get::<CString>() {
-            Some(RawBsonRef::String(cs.as_str()))
-        } else if let Ok(rb) = value.get::<crate::RawBson>() {
-            Some(rb.as_raw_bson_ref())
+        let rbr = if id == TypeId::of::<i32>() {
+            Some(RawBsonRef::Int32(*value.get()?))
+        } else if id == TypeId::of::<Regex>() {
+            Some(value.get::<Regex>()?.into())
+        } else if id == TypeId::of::<Binary>() {
+            Some(value.get::<Binary>()?.into())
+        } else if id == TypeId::of::<Timestamp>() {
+            Some((*value.get::<Timestamp>()?).into())
+        } else if id == TypeId::of::<ObjectId>() {
+            Some((*value.get::<ObjectId>()?).into())
+        } else if id == TypeId::of::<DateTime>() {
+            Some((*value.get::<DateTime>()?).into())
+        } else if id == TypeId::of::<Decimal128>() {
+            Some((*value.get::<Decimal128>()?).into())
+        } else if id == TypeId::of::<DbPointer>() {
+            Some(value.get::<DbPointer>()?.into())
+        } else if id == TypeId::of::<RawDocumentBuf>() {
+            Some(RawBsonRef::Document(value.get::<RawDocumentBuf>()?))
+        } else if id == TypeId::of::<RawArrayBuf>() {
+            Some(RawBsonRef::Array(value.get::<RawArrayBuf>()?))
+        } else if id == TypeId::of::<RawJavaScriptCodeWithScope>() {
+            Some(RawBsonRef::JavaScriptCodeWithScope(
+                value.get::<RawJavaScriptCodeWithScope>()?.into(),
+            ))
+        } else if id == TypeId::of::<CString>() {
+            Some(RawBsonRef::String(value.get::<CString>()?.as_str()))
+        } else if id == TypeId::of::<crate::RawBson>() {
+            Some(value.get::<crate::RawBson>()?.as_raw_bson_ref())
         } else {
             None
         };
@@ -216,17 +219,20 @@ impl facet_format::FormatSerializer for Serializer {
         }
 
         // Types that need special handling
-        if let Ok(jscws) = value.get::<JavaScriptCodeWithScope>() {
+        if id == TypeId::of::<JavaScriptCodeWithScope>() {
+            let jscws = value.get::<JavaScriptCodeWithScope>()?;
             self.write_elem_type(ElementType::JavaScriptCodeWithScope)?;
             jscws.append_to(&mut self.bytes)?;
 
             return Ok(true);
-        } else if let Ok(doc) = value.get::<Document>() {
+        } else if id == TypeId::of::<Document>() {
+            let doc = value.get::<Document>()?;
             self.write_elem_type(ElementType::EmbeddedDocument)?;
             doc.append_to(&mut self.bytes)?;
 
             return Ok(true);
-        } else if let Ok(b) = value.get::<Bson>() {
+        } else if id == TypeId::of::<Bson>() {
+            let b = value.get::<Bson>()?;
             self.write_elem_type(b.element_type())?;
             b.append_to(&mut self.bytes)?;
 
