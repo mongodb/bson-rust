@@ -44,7 +44,10 @@ use crate::{
 };
 
 /// Possible BSON value types.
-#[derive(Clone, Default, PartialEq)]
+///
+/// Note that `Bson`'s [`PartialEq`] implementation is byte value equality, so `Bson::Double(v)` and
+/// `v` may compare differently.
+#[derive(Clone, Default)]
 #[cfg_attr(
     feature = "facet-unstable",
     repr(C),
@@ -102,34 +105,58 @@ pub type Array = Vec<Bson>;
 
 impl Hash for Bson {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
         match self {
-            Bson::Double(double) => {
-                if *double == 0.0_f64 {
-                    // There are 2 zero representations, +0 and -0, which
-                    // compare equal but have different bits. We use the +0 hash
-                    // for both so that hash(+0) == hash(-0).
-                    0.0_f64.to_bits().hash(state);
-                } else {
-                    double.to_bits().hash(state);
-                }
+            Self::Double(double) => double.to_bits().hash(state),
+            Self::String(x) => x.hash(state),
+            Self::Array(x) => x.hash(state),
+            Self::Document(x) => x.hash(state),
+            Self::Boolean(x) => x.hash(state),
+            Self::RegularExpression(x) => x.hash(state),
+            Self::JavaScriptCode(x) => x.hash(state),
+            Self::JavaScriptCodeWithScope(x) => x.hash(state),
+            Self::Int32(x) => x.hash(state),
+            Self::Int64(x) => x.hash(state),
+            Self::Timestamp(x) => x.hash(state),
+            Self::Binary(x) => x.hash(state),
+            Self::ObjectId(x) => x.hash(state),
+            Self::DateTime(x) => x.hash(state),
+            Self::Symbol(x) => x.hash(state),
+            Self::Decimal128(x) => x.hash(state),
+            Self::DbPointer(x) => x.hash(state),
+            Self::Null | Self::Undefined | Self::MaxKey | Self::MinKey => (),
+        }
+    }
+}
+
+impl PartialEq for Bson {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Self::Double(s) => matches!(other, Self::Double(o) if s.to_bits() == o.to_bits()),
+            Self::String(s) => matches!(other, Self::String(o) if s == o),
+            Self::Array(s) => matches!(other, Self::Array(o) if s == o),
+            Self::Document(s) => matches!(other, Self::Document(o) if s == o),
+            Self::Boolean(s) => matches!(other, Self::Boolean(o) if s == o),
+            Self::RegularExpression(s) => {
+                matches!(other, Self::RegularExpression(o) if s == o)
             }
-            Bson::String(x) => x.hash(state),
-            Bson::Array(x) => x.hash(state),
-            Bson::Document(x) => x.hash(state),
-            Bson::Boolean(x) => x.hash(state),
-            Bson::RegularExpression(x) => x.hash(state),
-            Bson::JavaScriptCode(x) => x.hash(state),
-            Bson::JavaScriptCodeWithScope(x) => x.hash(state),
-            Bson::Int32(x) => x.hash(state),
-            Bson::Int64(x) => x.hash(state),
-            Bson::Timestamp(x) => x.hash(state),
-            Bson::Binary(x) => x.hash(state),
-            Bson::ObjectId(x) => x.hash(state),
-            Bson::DateTime(x) => x.hash(state),
-            Bson::Symbol(x) => x.hash(state),
-            Bson::Decimal128(x) => x.hash(state),
-            Bson::DbPointer(x) => x.hash(state),
-            Bson::Null | Bson::Undefined | Bson::MaxKey | Bson::MinKey => (),
+            Self::JavaScriptCode(s) => matches!(other, Self::JavaScriptCode(o) if s == o),
+            Self::JavaScriptCodeWithScope(s) => {
+                matches!(other, Self::JavaScriptCodeWithScope(o) if s == o)
+            }
+            Self::Int32(s) => matches!(other, Self::Int32(o) if s == o),
+            Self::Int64(s) => matches!(other, Self::Int64(o) if s == o),
+            Self::Timestamp(s) => matches!(other, Self::Timestamp(o) if s == o),
+            Self::Binary(s) => matches!(other, Self::Binary(o) if s == o),
+            Self::ObjectId(s) => matches!(other, Self::ObjectId(o) if s == o),
+            Self::DateTime(s) => matches!(other, Self::DateTime(o) if s == o),
+            Self::Symbol(s) => matches!(other, Self::Symbol(o) if s == o),
+            Self::Decimal128(s) => matches!(other, Self::Decimal128(o) if s == o),
+            Self::DbPointer(s) => matches!(other, Self::DbPointer(o) if s == o),
+            Self::Null => matches!(other, Self::Null),
+            Self::Undefined => matches!(other, Self::Undefined),
+            Self::MaxKey => matches!(other, Self::MaxKey),
+            Self::MinKey => matches!(other, Self::MinKey),
         }
     }
 }

@@ -38,7 +38,7 @@ use super::{RawArrayIter, document_buf::BindRawBsonRef};
 /// any of the type-specific getters, such as [`RawArray::get_object_id`] or [`RawArray::get_str`].
 /// Note that accessing elements is an O(N) operation, as it requires iterating through the document
 /// from the beginning to find the requested key.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::opaque::RawArrayBufAdapter))]
 pub struct RawArrayBuf {
     inner: RawDocumentBuf,
@@ -96,6 +96,14 @@ impl RawArrayBuf {
             value,
         );
         self.len += 1;
+    }
+}
+
+// Hash has to be consistent across owned and borrowed forms; this means that RawArrayBuf has to
+// hash the same as RawArray, so don't include the length field.
+impl std::hash::Hash for RawArrayBuf {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.inner.hash(state);
     }
 }
 

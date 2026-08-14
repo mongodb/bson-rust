@@ -70,7 +70,7 @@ use super::{
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct RawDocument {
     data: [u8],
