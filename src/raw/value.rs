@@ -102,11 +102,14 @@ impl<'a> RawValue<'a> {
                 }
 
                 let slice = self.bytes;
-                let code = String::from_utf8_lossy(read_lenencode_bytes(&slice[4..])?).into_owned();
-                let scope_start = 4 + 4 + code.len() + 1;
+                let code_bytes = read_lenencode_bytes(&slice[4..])?;
+                // the scope follows the code's raw bytes; using the lossily decoded
+                // length here would shift the offset whenever the code is not valid utf-8
+                let scope_start = 4 + 4 + code_bytes.len() + 1;
                 if scope_start >= slice.len() {
                     return Err(Error::malformed_bytes("code with scope length overrun"));
                 }
+                let code = String::from_utf8_lossy(code_bytes).into_owned();
                 let scope = RawDocument::from_bytes(&slice[scope_start..])?;
 
                 Utf8LossyBson::JavaScriptCodeWithScope(Utf8LossyJavaScriptCodeWithScope {
