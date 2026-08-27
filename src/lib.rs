@@ -78,11 +78,11 @@
 //! Many different types can be represented as a BSON value, including 32-bit and 64-bit signed
 //! integers, 64 bit floating point numbers, strings, datetimes, embedded documents, and more. To
 //! see a full list of possible BSON values, see the [BSON specification](http://bsonspec.org/spec.html). The various
-//! possible BSON values are modeled in this crate by the [`Bson`](enum.Bson.html) enum.
+//! possible BSON values are modeled in this crate by the [`Bson`] enum.
 //!
-//! ### Creating [`Bson`](enum.Bson.html) instances
+//! ### Creating [`Bson`] instances
 //!
-//! [`Bson`](enum.Bson.html) values can be instantiated directly or via the
+//! [`Bson`] values can be instantiated directly or via the
 //! [`bson!`](macro.bson.html) macro:
 //!
 //! ```rust
@@ -100,13 +100,13 @@
 //! let array = bson!([5, false]);
 //! ```
 //! [`bson!`](macro.bson.html) has supports both array and object literals, and it automatically
-//! converts any values specified to [`Bson`](enum.Bson.html), provided they are `Into<Bson>`.
+//! converts any values specified to [`Bson`], provided they are `Into<Bson>`.
 //!
-//! ### [`Bson`](enum.Bson.html) value unwrapping
+//! ### [`Bson`] value unwrapping
 //!
-//! [`Bson`](enum.Bson.html) has a number of helper methods for accessing the underlying native Rust
-//! types. These helpers can be useful in circumstances in which the specific type of a BSON value
-//! is known ahead of time.
+//! [`Bson`] has a number of helper methods for accessing the underlying native Rust types. These
+//! helpers can be useful in circumstances in which the specific type of a BSON value is known ahead
+//! of time.
 //!
 //! e.g.:
 //! ```rust
@@ -124,13 +124,12 @@
 //!
 //! BSON documents are ordered maps of UTF-8 encoded strings to BSON values. They are logically
 //! similar to JSON objects in that they can contain subdocuments, arrays, and values of several
-//! different types. This crate models BSON documents via the
-//! [`Document`](document/struct.Document.html) struct.
+//! different types. This crate models BSON documents via the [`Document`] struct.
 //!
-//! ### Creating [`Document`](document/struct.Document.html)s
+//! ### Creating [`Document`]s
 //!
-//! [`Document`](document/struct.Document.html)s can be created directly either from a byte
-//! reader containing BSON data or via the `doc!` macro:
+//! [`Document`]s can be created directly either from a byte reader containing BSON data or via the
+//! `doc!` macro:
 //! ```rust
 //! use bson::{doc, Document};
 //! use std::io::Read;
@@ -145,12 +144,11 @@
 //! };
 //! ```
 //! [`doc!`](macro.doc.html) works similarly to [`bson!`](macro.bson.html), except that it always
-//! returns a [`Document`](document/struct.Document.html) rather than a [`Bson`](enum.Bson.html).
+//! returns a [`Document`] rather than a [`Bson`].
 //!
-//! ### [`Document`](document/struct.Document.html) member access
+//! ### [`Document`] member access
 //!
-//! [`Document`](document/struct.Document.html) has a number of methods on it to facilitate member
-//! access:
+//! [`Document`] has a number of methods on it to facilitate member access:
 //!
 //! ```rust
 //! use bson::doc;
@@ -465,8 +463,17 @@ pub use self::{
     datetime::DateTime,
     decimal128::Decimal128,
     raw::{
-        RawArray, RawArrayBuf, RawBinaryRef, RawBson, RawBsonRef, RawDbPointerRef, RawDocument,
-        RawDocumentBuf, RawJavaScriptCodeWithScope, RawJavaScriptCodeWithScopeRef, RawRegexRef,
+        RawArray,
+        RawArrayBuf,
+        RawBinaryRef,
+        RawBson,
+        RawBsonRef,
+        RawDbPointerRef,
+        RawDocument,
+        RawDocumentBuf,
+        RawJavaScriptCodeWithScope,
+        RawJavaScriptCodeWithScopeRef,
+        RawRegexRef,
     },
     utf8_lossy::Utf8Lossy,
     uuid::{Uuid, UuidRepresentation},
@@ -476,12 +483,21 @@ pub use self::{
 #[doc(inline)]
 pub use self::{
     de::{
-        Deserializer, deserialize_from_bson, deserialize_from_document, deserialize_from_reader,
-        deserialize_from_slice, raw::RawDeserializer,
+        deserialize_from_bson,
+        deserialize_from_document,
+        deserialize_from_reader,
+        deserialize_from_slice,
+        raw::RawDeserializer,
+        Deserializer,
     },
     ser::{
-        Serializer, raw::RawSerializer, serialize_to_bson, serialize_to_buffer,
-        serialize_to_document, serialize_to_raw_document_buf, serialize_to_vec,
+        raw::RawSerializer,
+        serialize_to_bson,
+        serialize_to_buffer,
+        serialize_to_document,
+        serialize_to_raw_document_buf,
+        serialize_to_vec,
+        Serializer,
     },
 };
 
