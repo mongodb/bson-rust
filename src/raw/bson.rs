@@ -25,7 +25,10 @@ use crate::{
 use super::{Error, Result};
 
 /// A BSON value backed by owned raw BSON bytes.
-#[derive(Debug, Clone, PartialEq)]
+///
+/// Note that `RawBson`'s [`PartialEq`] implementation is byte value equality, so
+/// `RawBson::Double(v)` and `v` may compare differently.
+#[derive(Debug, Clone)]
 #[cfg_attr(
     feature = "facet-unstable",
     repr(C),
@@ -329,6 +332,66 @@ impl RawBson {
     }
 }
 
+impl PartialEq for RawBson {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Self::Double(s) => matches!(other, Self::Double(o) if s.to_bits() == o.to_bits()),
+            Self::String(s) => matches!(other, Self::String(o) if s == o),
+            Self::Array(s) => matches!(other, Self::Array(o) if s == o),
+            Self::Document(s) => matches!(other, Self::Document(o) if s == o),
+            Self::Boolean(s) => matches!(other, Self::Boolean(o) if s == o),
+            Self::RegularExpression(s) => {
+                matches!(other, Self::RegularExpression(o) if s == o)
+            }
+            Self::JavaScriptCode(s) => matches!(other, Self::JavaScriptCode(o) if s == o),
+            Self::JavaScriptCodeWithScope(s) => {
+                matches!(other, Self::JavaScriptCodeWithScope(o) if s == o)
+            }
+            Self::Int32(s) => matches!(other, Self::Int32(o) if s == o),
+            Self::Int64(s) => matches!(other, Self::Int64(o) if s == o),
+            Self::Timestamp(s) => matches!(other, Self::Timestamp(o) if s == o),
+            Self::Binary(s) => matches!(other, Self::Binary(o) if s == o),
+            Self::ObjectId(s) => matches!(other, Self::ObjectId(o) if s == o),
+            Self::DateTime(s) => matches!(other, Self::DateTime(o) if s == o),
+            Self::Symbol(s) => matches!(other, Self::Symbol(o) if s == o),
+            Self::Decimal128(s) => matches!(other, Self::Decimal128(o) if s == o),
+            Self::DbPointer(s) => matches!(other, Self::DbPointer(o) if s == o),
+            Self::Null => matches!(other, Self::Null),
+            Self::Undefined => matches!(other, Self::Undefined),
+            Self::MaxKey => matches!(other, Self::MaxKey),
+            Self::MinKey => matches!(other, Self::MinKey),
+        }
+    }
+}
+
+impl Eq for RawBson {}
+
+impl std::hash::Hash for RawBson {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
+        match self {
+            Self::Double(double) => double.to_bits().hash(state),
+            Self::String(x) => x.hash(state),
+            Self::Array(x) => x.hash(state),
+            Self::Document(x) => x.hash(state),
+            Self::Boolean(x) => x.hash(state),
+            Self::RegularExpression(x) => x.hash(state),
+            Self::JavaScriptCode(x) => x.hash(state),
+            Self::JavaScriptCodeWithScope(x) => x.hash(state),
+            Self::Int32(x) => x.hash(state),
+            Self::Int64(x) => x.hash(state),
+            Self::Timestamp(x) => x.hash(state),
+            Self::Binary(x) => x.hash(state),
+            Self::ObjectId(x) => x.hash(state),
+            Self::DateTime(x) => x.hash(state),
+            Self::Symbol(x) => x.hash(state),
+            Self::Decimal128(x) => x.hash(state),
+            Self::DbPointer(x) => x.hash(state),
+            Self::Null | Self::Undefined | Self::MaxKey | Self::MinKey => (),
+        }
+    }
+}
+
 impl From<i32> for RawBson {
     fn from(i: i32) -> Self {
         RawBson::Int32(i)
@@ -523,7 +586,7 @@ impl TryFrom<Bson> for RawBson {
 }
 
 /// A BSON "code with scope" value backed by owned raw BSON.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::RawJavaScriptCodeWithScopeAdapter))]
 pub struct RawJavaScriptCodeWithScope {
     /// The code value.

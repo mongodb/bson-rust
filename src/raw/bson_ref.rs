@@ -29,7 +29,10 @@ use crate::{
 use serde::ser::SerializeStruct as _;
 
 /// A BSON value referencing raw bytes stored elsewhere.
-#[derive(Debug, Clone, Copy, PartialEq)]
+///
+/// Note that `RawBsonRef`'s [`PartialEq`] implementation is byte value equality, so
+/// `RawBsonRef::Double(v)` and `v` may compare differently.
+#[derive(Debug, Clone, Copy)]
 pub enum RawBsonRef<'a> {
     /// 64-bit binary floating point
     Double(f64),
@@ -300,6 +303,66 @@ impl<'a> RawBsonRef<'a> {
     }
 }
 
+impl<'a> PartialEq for RawBsonRef<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Self::Double(s) => matches!(other, Self::Double(o) if s.to_bits() == o.to_bits()),
+            Self::String(s) => matches!(other, Self::String(o) if s == o),
+            Self::Array(s) => matches!(other, Self::Array(o) if s == o),
+            Self::Document(s) => matches!(other, Self::Document(o) if s == o),
+            Self::Boolean(s) => matches!(other, Self::Boolean(o) if s == o),
+            Self::RegularExpression(s) => {
+                matches!(other, Self::RegularExpression(o) if s == o)
+            }
+            Self::JavaScriptCode(s) => matches!(other, Self::JavaScriptCode(o) if s == o),
+            Self::JavaScriptCodeWithScope(s) => {
+                matches!(other, Self::JavaScriptCodeWithScope(o) if s == o)
+            }
+            Self::Int32(s) => matches!(other, Self::Int32(o) if s == o),
+            Self::Int64(s) => matches!(other, Self::Int64(o) if s == o),
+            Self::Timestamp(s) => matches!(other, Self::Timestamp(o) if s == o),
+            Self::Binary(s) => matches!(other, Self::Binary(o) if s == o),
+            Self::ObjectId(s) => matches!(other, Self::ObjectId(o) if s == o),
+            Self::DateTime(s) => matches!(other, Self::DateTime(o) if s == o),
+            Self::Symbol(s) => matches!(other, Self::Symbol(o) if s == o),
+            Self::Decimal128(s) => matches!(other, Self::Decimal128(o) if s == o),
+            Self::DbPointer(s) => matches!(other, Self::DbPointer(o) if s == o),
+            Self::Null => matches!(other, Self::Null),
+            Self::Undefined => matches!(other, Self::Undefined),
+            Self::MaxKey => matches!(other, Self::MaxKey),
+            Self::MinKey => matches!(other, Self::MinKey),
+        }
+    }
+}
+
+impl<'a> Eq for RawBsonRef<'a> {}
+
+impl<'a> std::hash::Hash for RawBsonRef<'a> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
+        match self {
+            Self::Double(double) => double.to_bits().hash(state),
+            Self::String(x) => x.hash(state),
+            Self::Array(x) => x.hash(state),
+            Self::Document(x) => x.hash(state),
+            Self::Boolean(x) => x.hash(state),
+            Self::RegularExpression(x) => x.hash(state),
+            Self::JavaScriptCode(x) => x.hash(state),
+            Self::JavaScriptCodeWithScope(x) => x.hash(state),
+            Self::Int32(x) => x.hash(state),
+            Self::Int64(x) => x.hash(state),
+            Self::Timestamp(x) => x.hash(state),
+            Self::Binary(x) => x.hash(state),
+            Self::ObjectId(x) => x.hash(state),
+            Self::DateTime(x) => x.hash(state),
+            Self::Symbol(x) => x.hash(state),
+            Self::Decimal128(x) => x.hash(state),
+            Self::DbPointer(x) => x.hash(state),
+            Self::Null | Self::Undefined | Self::MaxKey | Self::MinKey => (),
+        }
+    }
+}
+
 impl<'a> From<RawBsonRef<'a>> for RawBson {
     fn from(value: RawBsonRef<'a>) -> Self {
         match value {
@@ -518,7 +581,7 @@ impl<'a> From<&'a Regex> for RawBsonRef<'a> {
 }
 
 /// A BSON binary value referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct RawBinaryRef<'a> {
     /// The subtype of the binary value.
     pub subtype: BinarySubtype,
@@ -651,7 +714,7 @@ impl<'a> From<&'a Binary> for RawBsonRef<'a> {
 }
 
 /// A BSON regex referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct RawRegexRef<'a> {
     /// The regex pattern to match.
     pub pattern: &'a CStr,
@@ -739,7 +802,7 @@ impl<'a> From<&'a Regex> for RawRegexRef<'a> {
 }
 
 /// A BSON "code with scope" value referencing raw bytes stored elsewhere.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct RawJavaScriptCodeWithScopeRef<'a> {
     /// The JavaScript code.
     pub code: &'a str,
@@ -826,7 +889,7 @@ impl<'a> From<RawJavaScriptCodeWithScopeRef<'a>> for RawBsonRef<'a> {
 }
 
 /// A BSON DB pointer value referencing raw bytes stored elesewhere.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RawDbPointerRef<'a> {
     pub(crate) namespace: &'a str,
     pub(crate) id: ObjectId,

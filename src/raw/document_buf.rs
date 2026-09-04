@@ -50,7 +50,7 @@ use crate::facet::opaque;
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = opaque::RawDocumentBufAdapter))]
 pub struct RawDocumentBuf {
     data: Vec<u8>,
