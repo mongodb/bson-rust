@@ -7,8 +7,10 @@ use crate::{
     Bson,
     DateTime,
     Decimal128,
+    Document,
     Regex,
     Timestamp,
+    Utf8Lossy,
     oid::ObjectId,
     spec::BinarySubtype,
 };
@@ -127,6 +129,31 @@ fn rawdoc_to_doc() {
 
     let vec_writer_bytes = doc.to_vec().expect("encode should work");
     assert_eq!(vec_writer_bytes, rawdoc.into_bytes());
+}
+
+#[test]
+fn code_with_scope_invalid_utf8_lossy() {
+    // the code here holds invalid utf-8, so its lossily decoded form is longer than the
+    // bytes actually stored. the scope follows the raw code bytes, so decoding must not
+    // use the replacement-decoded length to find it.
+    let code = unsafe { String::from_utf8_unchecked(vec![0x80, 0xae]) };
+    let rawdoc = rawdoc! {
+        "c": RawJavaScriptCodeWithScope {
+            code,
+            scope: rawdoc! { "ok": true },
+        },
+    };
+
+    let lossy: Utf8Lossy<Document> = (&*rawdoc)
+        .try_into()
+        .expect("lossy conversion should succeed");
+    match lossy.0.get("c").expect("missing key") {
+        Bson::JavaScriptCodeWithScope(jsc) => {
+            assert_eq!(jsc.code, "\u{FFFD}\u{FFFD}");
+            assert!(jsc.scope.get_bool("ok").expect("scope key"));
+        }
+        other => panic!("unexpected value: {:?}", other),
+    }
 }
 
 #[test]
