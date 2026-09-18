@@ -262,254 +262,17 @@ impl<'de> Visitor<'de> for BsonVisitor {
     where
         V: MapAccess<'de>,
     {
-        use crate::extjson;
-
         let mut doc = Document::new();
 
         while let Some(k) = visitor.next_key::<String>()? {
-            match k.as_str() {
-                "$oid" => {
-                    enum BytesOrHex<'a> {
-                        Bytes([u8; 12]),
-                        Hex(Cow<'a, str>),
-                    }
-
-                    impl<'a, 'de: 'a> Deserialize<'de> for BytesOrHex<'a> {
-                        fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-                        where
-                            D: serde::Deserializer<'de>,
-                        {
-                            struct BytesOrHexVisitor;
-
-                            impl<'de> Visitor<'de> for BytesOrHexVisitor {
-                                type Value = BytesOrHex<'de>;
-
-                                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                    write!(formatter, "hexstring or byte array")
-                                }
-
-                                fn visit_str<E>(
-                                    self,
-                                    v: &str,
-                                ) -> std::result::Result<Self::Value, E>
-                                where
-                                    E: serde::de::Error,
-                                {
-                                    Ok(BytesOrHex::Hex(Cow::Owned(v.to_string())))
-                                }
-
-                                fn visit_borrowed_str<E>(
-                                    self,
-                                    v: &'de str,
-                                ) -> std::result::Result<Self::Value, E>
-                                where
-                                    E: serde::de::Error,
-                                {
-                                    Ok(BytesOrHex::Hex(Cow::Borrowed(v)))
-                                }
-
-                                fn visit_bytes<E>(
-                                    self,
-                                    v: &[u8],
-                                ) -> std::result::Result<Self::Value, E>
-                                where
-                                    E: serde::de::Error,
-                                {
-                                    Ok(BytesOrHex::Bytes(
-                                        v.try_into().map_err(serde::de::Error::custom)?,
-                                    ))
-                                }
-                            }
-
-                            deserializer.deserialize_any(BytesOrHexVisitor)
-                        }
-                    }
-
-                    let bytes_or_hex: BytesOrHex = visitor.next_value()?;
-                    match bytes_or_hex {
-                        BytesOrHex::Bytes(b) => return Ok(Bson::ObjectId(ObjectId::from_bytes(b))),
-                        BytesOrHex::Hex(hex) => {
-                            return Ok(Bson::ObjectId(ObjectId::parse_str(&hex).map_err(
-                                |_| {
-                                    V::Error::invalid_value(
-                                        Unexpected::Str(&hex),
-                                        &"24-character, big-endian hex string",
-                                    )
-                                },
-                            )?));
-                        }
-                    }
-                }
-                "$symbol" => {
-                    let string: String = visitor.next_value()?;
-                    return Ok(Bson::Symbol(string));
-                }
-
-                "$numberInt" => {
-                    let string: String = visitor.next_value()?;
-                    return Ok(Bson::Int32(string.parse().map_err(|_| {
-                        V::Error::invalid_value(
-                            Unexpected::Str(&string),
-                            &"32-bit signed integer as a string",
-                        )
-                    })?));
-                }
-
-                "$numberLong" => {
-                    let string: String = visitor.next_value()?;
-                    return Ok(Bson::Int64(string.parse().map_err(|_| {
-                        V::Error::invalid_value(
-                            Unexpected::Str(&string),
-                            &"64-bit signed integer as a string",
-                        )
-                    })?));
-                }
-
-                "$numberDouble" => {
-                    let string: String = visitor.next_value()?;
-                    let val = match string.as_str() {
-                        "Infinity" => Bson::Double(f64::INFINITY),
-                        "-Infinity" => Bson::Double(f64::NEG_INFINITY),
-                        "NaN" => Bson::Double(f64::NAN),
-                        _ => Bson::Double(string.parse().map_err(|_| {
-                            V::Error::invalid_value(
-                                Unexpected::Str(&string),
-                                &"64-bit signed integer as a string",
-                            )
-                        })?),
-                    };
-                    return Ok(val);
-                }
-
-                "$binary" => {
-                    let v = visitor.next_value::<extjson::models::BinaryBody>()?;
-                    return Ok(Bson::Binary(
-                        extjson::models::Binary { body: v }
-                            .parse()
-                            .map_err(serde::de::Error::custom)?,
-                    ));
-                }
-
-                "$uuid" => {
-                    let v: String = visitor.next_value()?;
-                    let uuid = extjson::models::Uuid { value: v }
-                        .parse()
-                        .map_err(serde::de::Error::custom)?;
-                    return Ok(Bson::Binary(uuid));
-                }
-
-                "$code" => {
-                    let code = visitor.next_value::<String>()?;
-                    if let Some(key) = visitor.next_key::<String>()? {
-                        if key.as_str() == "$scope" {
-                            let scope = visitor.next_value::<Document>()?;
-                            return Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
-                                code,
-                                scope,
-                            }));
-                        } else {
-                            return Err(serde::de::Error::unknown_field(key.as_str(), &["$scope"]));
-                        }
-                    } else {
-                        return Ok(Bson::JavaScriptCode(code));
-                    }
-                }
-
-                "$scope" => {
-                    let scope = visitor.next_value::<Document>()?;
-                    if let Some(key) = visitor.next_key::<String>()? {
-                        if key.as_str() == "$code" {
-                            let code = visitor.next_value::<String>()?;
-                            return Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
-                                code,
-                                scope,
-                            }));
-                        } else {
-                            return Err(serde::de::Error::unknown_field(key.as_str(), &["$code"]));
-                        }
-                    } else {
-                        return Err(serde::de::Error::missing_field("$code"));
-                    }
-                }
-
-                "$timestamp" => {
-                    let ts = visitor.next_value::<extjson::models::TimestampBody>()?;
-                    return Ok(Bson::Timestamp(Timestamp {
-                        time: ts.t,
-                        increment: ts.i,
-                    }));
-                }
-
-                "$regularExpression" => {
-                    let re = visitor.next_value::<extjson::models::RegexBody>()?;
-                    return Ok(Bson::RegularExpression(
-                        Regex::from_strings(re.pattern, re.options)
-                            .map_err(serde::de::Error::custom)?,
-                    ));
-                }
-
-                "$dbPointer" => {
-                    let dbp = visitor.next_value::<extjson::models::DbPointerBody>()?;
-                    return Ok(Bson::DbPointer(DbPointer {
-                        id: dbp.id.parse().map_err(serde::de::Error::custom)?,
-                        namespace: dbp.ref_ns,
-                    }));
-                }
-
-                "$date" => {
-                    let dt = visitor.next_value::<extjson::models::DateTimeBody>()?;
-                    return Ok(Bson::DateTime(
-                        extjson::models::DateTime { body: dt }
-                            .parse()
-                            .map_err(serde::de::Error::custom)?,
-                    ));
-                }
-
-                "$maxKey" => {
-                    let i = visitor.next_value::<u8>()?;
-                    return extjson::models::MaxKey { value: i }
-                        .parse()
-                        .map_err(serde::de::Error::custom);
-                }
-
-                "$minKey" => {
-                    let i = visitor.next_value::<u8>()?;
-                    return extjson::models::MinKey { value: i }
-                        .parse()
-                        .map_err(serde::de::Error::custom);
-                }
-
-                "$undefined" => {
-                    let b = visitor.next_value::<bool>()?;
-                    return extjson::models::Undefined { value: b }
-                        .parse()
-                        .map_err(serde::de::Error::custom);
-                }
-
-                "$numberDecimal" => {
-                    let string: String = visitor.next_value()?;
-                    return Ok(Bson::Decimal128(string.parse::<Decimal128>().map_err(
-                        |_| {
-                            V::Error::invalid_value(
-                                Unexpected::Str(&string),
-                                &"decimal128 as a string",
-                            )
-                        },
-                    )?));
-                }
-
-                "$numberDecimalBytes" => {
-                    let bytes = visitor.next_value::<ByteBuf>()?;
-                    return Ok(Bson::Decimal128(Decimal128::deserialize_from_slice(
-                        &bytes,
-                    )?));
-                }
-
-                k => {
-                    let v = visitor.next_value::<Bson>()?;
-                    doc.insert(k, v);
+            if k.starts_with('$') {
+                if let Some(bson) = visit_extjson_key(k.as_str(), &mut visitor)? {
+                    return Ok(bson);
                 }
             }
+
+            let v = visitor.next_value::<Bson>()?;
+            doc.insert(k, v);
         }
 
         Ok(Bson::Document(doc))
@@ -543,6 +306,274 @@ impl<'de> Visitor<'de> for BsonVisitor {
         D: serde::Deserializer<'de>,
     {
         deserializer.deserialize_any(self)
+    }
+}
+
+/// Dispatch an extended-JSON key to its handler.  Recursive handlers are distinct from the leaf
+/// handler to minimize stack growth during recursion.
+#[inline(never)]
+fn visit_extjson_key<'de, V>(
+    key: &str,
+    visitor: &mut V,
+) -> std::result::Result<Option<Bson>, V::Error>
+where
+    V: MapAccess<'de>,
+{
+    match key {
+        "$code" => visit_extjson_code(visitor).map(Some),
+        "$scope" => visit_extjson_scope(visitor).map(Some),
+        _ => visit_extjson_leaf(key, visitor),
+    }
+}
+
+/// Handle an extended-JSON key that does not recurse into a nested document.
+#[inline(never)]
+fn visit_extjson_leaf<'de, V>(
+    key: &str,
+    visitor: &mut V,
+) -> std::result::Result<Option<Bson>, V::Error>
+where
+    V: MapAccess<'de>,
+{
+    use crate::extjson;
+
+    let bson = match key {
+        "$oid" => {
+            enum BytesOrHex<'a> {
+                Bytes([u8; 12]),
+                Hex(Cow<'a, str>),
+            }
+
+            impl<'a, 'de: 'a> Deserialize<'de> for BytesOrHex<'a> {
+                fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    struct BytesOrHexVisitor;
+
+                    impl<'de> Visitor<'de> for BytesOrHexVisitor {
+                        type Value = BytesOrHex<'de>;
+
+                        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                            write!(formatter, "hexstring or byte array")
+                        }
+
+                        fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+                        where
+                            E: serde::de::Error,
+                        {
+                            Ok(BytesOrHex::Hex(Cow::Owned(v.to_string())))
+                        }
+
+                        fn visit_borrowed_str<E>(
+                            self,
+                            v: &'de str,
+                        ) -> std::result::Result<Self::Value, E>
+                        where
+                            E: serde::de::Error,
+                        {
+                            Ok(BytesOrHex::Hex(Cow::Borrowed(v)))
+                        }
+
+                        fn visit_bytes<E>(self, v: &[u8]) -> std::result::Result<Self::Value, E>
+                        where
+                            E: serde::de::Error,
+                        {
+                            Ok(BytesOrHex::Bytes(
+                                v.try_into().map_err(serde::de::Error::custom)?,
+                            ))
+                        }
+                    }
+
+                    deserializer.deserialize_any(BytesOrHexVisitor)
+                }
+            }
+
+            let bytes_or_hex: BytesOrHex = visitor.next_value()?;
+            match bytes_or_hex {
+                BytesOrHex::Bytes(b) => Bson::ObjectId(ObjectId::from_bytes(b)),
+                BytesOrHex::Hex(hex) => {
+                    Bson::ObjectId(ObjectId::parse_str(&hex).map_err(|_| {
+                        V::Error::invalid_value(
+                            Unexpected::Str(&hex),
+                            &"24-character, big-endian hex string",
+                        )
+                    })?)
+                }
+            }
+        }
+
+        "$symbol" => {
+            let string: String = visitor.next_value()?;
+            Bson::Symbol(string)
+        }
+
+        "$numberInt" => {
+            let string: String = visitor.next_value()?;
+            Bson::Int32(string.parse().map_err(|_| {
+                V::Error::invalid_value(
+                    Unexpected::Str(&string),
+                    &"32-bit signed integer as a string",
+                )
+            })?)
+        }
+
+        "$numberLong" => {
+            let string: String = visitor.next_value()?;
+            Bson::Int64(string.parse().map_err(|_| {
+                V::Error::invalid_value(
+                    Unexpected::Str(&string),
+                    &"64-bit signed integer as a string",
+                )
+            })?)
+        }
+
+        "$numberDouble" => {
+            let string: String = visitor.next_value()?;
+            match string.as_str() {
+                "Infinity" => Bson::Double(f64::INFINITY),
+                "-Infinity" => Bson::Double(f64::NEG_INFINITY),
+                "NaN" => Bson::Double(f64::NAN),
+                _ => Bson::Double(string.parse().map_err(|_| {
+                    V::Error::invalid_value(
+                        Unexpected::Str(&string),
+                        &"64-bit signed integer as a string",
+                    )
+                })?),
+            }
+        }
+
+        "$binary" => {
+            let v = visitor.next_value::<extjson::models::BinaryBody>()?;
+            Bson::Binary(
+                extjson::models::Binary { body: v }
+                    .parse()
+                    .map_err(serde::de::Error::custom)?,
+            )
+        }
+
+        "$uuid" => {
+            let v: String = visitor.next_value()?;
+            let uuid = extjson::models::Uuid { value: v }
+                .parse()
+                .map_err(serde::de::Error::custom)?;
+            Bson::Binary(uuid)
+        }
+
+        "$timestamp" => {
+            let ts = visitor.next_value::<extjson::models::TimestampBody>()?;
+            Bson::Timestamp(Timestamp {
+                time: ts.t,
+                increment: ts.i,
+            })
+        }
+
+        "$regularExpression" => {
+            let re = visitor.next_value::<extjson::models::RegexBody>()?;
+            Bson::RegularExpression(
+                Regex::from_strings(re.pattern, re.options).map_err(serde::de::Error::custom)?,
+            )
+        }
+
+        "$dbPointer" => {
+            let dbp = visitor.next_value::<extjson::models::DbPointerBody>()?;
+            Bson::DbPointer(DbPointer {
+                id: dbp.id.parse().map_err(serde::de::Error::custom)?,
+                namespace: dbp.ref_ns,
+            })
+        }
+
+        "$date" => {
+            let dt = visitor.next_value::<extjson::models::DateTimeBody>()?;
+            Bson::DateTime(
+                extjson::models::DateTime { body: dt }
+                    .parse()
+                    .map_err(serde::de::Error::custom)?,
+            )
+        }
+
+        "$maxKey" => {
+            let i = visitor.next_value::<u8>()?;
+            extjson::models::MaxKey { value: i }
+                .parse()
+                .map_err(serde::de::Error::custom)?
+        }
+
+        "$minKey" => {
+            let i = visitor.next_value::<u8>()?;
+            extjson::models::MinKey { value: i }
+                .parse()
+                .map_err(serde::de::Error::custom)?
+        }
+
+        "$undefined" => {
+            let b = visitor.next_value::<bool>()?;
+            extjson::models::Undefined { value: b }
+                .parse()
+                .map_err(serde::de::Error::custom)?
+        }
+
+        "$numberDecimal" => {
+            let string: String = visitor.next_value()?;
+            Bson::Decimal128(string.parse::<Decimal128>().map_err(|_| {
+                V::Error::invalid_value(Unexpected::Str(&string), &"decimal128 as a string")
+            })?)
+        }
+
+        "$numberDecimalBytes" => {
+            let bytes = visitor.next_value::<ByteBuf>()?;
+            Bson::Decimal128(Decimal128::deserialize_from_slice(&bytes)?)
+        }
+
+        // Not an extended-JSON key: leave the value unread for the caller to handle as an
+        // ordinary field.
+        _ => return Ok(None),
+    };
+
+    Ok(Some(bson))
+}
+
+/// Handle a `$code` key, which may be followed by a `$scope` document.
+#[inline(never)]
+fn visit_extjson_code<'de, V>(visitor: &mut V) -> std::result::Result<Bson, V::Error>
+where
+    V: MapAccess<'de>,
+{
+    let code = visitor.next_value::<String>()?;
+    if let Some(key) = visitor.next_key::<String>()? {
+        if key.as_str() == "$scope" {
+            let scope = visitor.next_value::<Document>()?;
+            Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                code,
+                scope,
+            }))
+        } else {
+            Err(serde::de::Error::unknown_field(key.as_str(), &["$scope"]))
+        }
+    } else {
+        Ok(Bson::JavaScriptCode(code))
+    }
+}
+
+/// Handle a `$scope` key, which must be followed by a `$code` string.
+#[inline(never)]
+fn visit_extjson_scope<'de, V>(visitor: &mut V) -> std::result::Result<Bson, V::Error>
+where
+    V: MapAccess<'de>,
+{
+    let scope = visitor.next_value::<Document>()?;
+    if let Some(key) = visitor.next_key::<String>()? {
+        if key.as_str() == "$code" {
+            let code = visitor.next_value::<String>()?;
+            Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {
+                code,
+                scope,
+            }))
+        } else {
+            Err(serde::de::Error::unknown_field(key.as_str(), &["$code"]))
+        }
+    } else {
+        Err(serde::de::Error::missing_field("$code"))
     }
 }
 

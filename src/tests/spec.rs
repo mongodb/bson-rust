@@ -1,3 +1,4 @@
+#[cfg(feature = "serde_json-1")]
 mod corpus;
 mod vector;
 

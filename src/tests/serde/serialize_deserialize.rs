@@ -1048,54 +1048,59 @@ fn u2i() {
     crate::serialize_to_vec(&v).unwrap_err();
 }
 
-#[test]
-fn serde_with_chrono() {
-    use crate::serde_helpers::datetime;
-    #[serde_with::serde_as]
-    #[derive(Deserialize, Serialize, PartialEq, Debug)]
-    struct Foo {
-        #[serde_as(as = "Option<datetime::FromChrono04DateTime>")]
-        as_bson: Option<chrono::DateTime<chrono::Utc>>,
+#[cfg(feature = "serde_with-3")]
+mod serde_with_tests {
+    use super::*;
 
-        #[serde_as(as = "Option<datetime::FromChrono04DateTime>")]
-        none_bson: Option<chrono::DateTime<chrono::Utc>>,
+    #[test]
+    fn serde_with_chrono() {
+        use crate::serde_helpers::datetime;
+        #[serde_with::serde_as]
+        #[derive(Deserialize, Serialize, PartialEq, Debug)]
+        struct Foo {
+            #[serde_as(as = "Option<datetime::FromChrono04DateTime>")]
+            as_bson: Option<chrono::DateTime<chrono::Utc>>,
+
+            #[serde_as(as = "Option<datetime::FromChrono04DateTime>")]
+            none_bson: Option<chrono::DateTime<chrono::Utc>>,
+        }
+
+        let f = Foo {
+            as_bson: Some(crate::DateTime::now().into()),
+            none_bson: None,
+        };
+        let expected = doc! {
+            "as_bson": Bson::DateTime(f.as_bson.unwrap().into()),
+            "none_bson": Bson::Null
+        };
+
+        run_test(&f, &expected, "serde_with - chrono");
     }
 
-    let f = Foo {
-        as_bson: Some(crate::DateTime::now().into()),
-        none_bson: None,
-    };
-    let expected = doc! {
-        "as_bson": Bson::DateTime(f.as_bson.unwrap().into()),
-        "none_bson": Bson::Null
-    };
+    #[test]
+    fn serde_with_uuid() {
+        use crate::serde_helpers::uuid_1;
+        #[serde_with::serde_as]
+        #[derive(Deserialize, Serialize, PartialEq, Debug)]
+        struct Foo {
+            #[serde_as(as = "Option<uuid_1::AsBinary>")]
+            as_bson: Option<uuid::Uuid>,
 
-    run_test(&f, &expected, "serde_with - chrono");
-}
+            #[serde_as(as = "Option<uuid_1::AsBinary>")]
+            none_bson: Option<uuid::Uuid>,
+        }
 
-#[test]
-fn serde_with_uuid() {
-    use crate::serde_helpers::uuid_1;
-    #[serde_with::serde_as]
-    #[derive(Deserialize, Serialize, PartialEq, Debug)]
-    struct Foo {
-        #[serde_as(as = "Option<uuid_1::AsBinary>")]
-        as_bson: Option<uuid::Uuid>,
+        let f = Foo {
+            as_bson: Some(uuid::Uuid::new_v4()),
+            none_bson: None,
+        };
+        let expected = doc! {
+            "as_bson": crate::Uuid::from(f.as_bson.unwrap()),
+            "none_bson": Bson::Null
+        };
 
-        #[serde_as(as = "Option<uuid_1::AsBinary>")]
-        none_bson: Option<uuid::Uuid>,
+        run_test(&f, &expected, "serde_with - uuid");
     }
-
-    let f = Foo {
-        as_bson: Some(uuid::Uuid::new_v4()),
-        none_bson: None,
-    };
-    let expected = doc! {
-        "as_bson": crate::Uuid::from(f.as_bson.unwrap()),
-        "none_bson": Bson::Null
-    };
-
-    run_test(&f, &expected, "serde_with - uuid");
 }
 
 #[test]

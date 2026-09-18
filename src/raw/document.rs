@@ -14,7 +14,7 @@ use crate::{
     Utf8Lossy,
     error::{Error, Result},
     oid::ObjectId,
-    raw::CStr,
+    raw::{CStr, check_recursion_limit},
     spec::ElementType,
 };
 
@@ -479,6 +479,20 @@ impl RawDocument {
     pub fn is_empty(&self) -> bool {
         self.as_bytes().len() == MIN_BSON_DOCUMENT_SIZE as usize
     }
+
+    pub(crate) fn try_into_parsed(&self, depth: u32) -> RawResult<Document> {
+        check_recursion_limit(depth)?;
+        self.into_iter()
+            .map(|res| {
+                res.and_then(|(k, v)| {
+                    Ok((
+                        k.as_str().to_owned(),
+                        v.try_into_parsed(depth.saturating_add(1))?,
+                    ))
+                })
+            })
+            .collect()
+    }
 }
 
 #[cfg(feature = "serde")]
@@ -562,10 +576,7 @@ impl TryFrom<&RawDocument> for Document {
     type Error = RawError;
 
     fn try_from(rawdoc: &RawDocument) -> RawResult<Document> {
-        rawdoc
-            .into_iter()
-            .map(|res| res.and_then(|(k, v)| Ok((k.as_str().to_owned(), v.try_into()?))))
-            .collect()
+        rawdoc.try_into_parsed(0)
     }
 }
 
@@ -584,19 +595,23 @@ impl TryFrom<&RawDocument> for Utf8Lossy<Document> {
         let mut out = Document::new();
         for elem in rawdoc.iter_elements() {
             let elem = elem?;
-            let value = deep_utf8_lossy(elem.value_utf8_lossy()?)?;
+            let value = deep_utf8_lossy(elem.value_utf8_lossy()?, 0)?;
             out.insert(elem.key().as_str(), value);
         }
         Ok(Utf8Lossy(out))
     }
 }
 
-fn deep_utf8_lossy(src: RawBson) -> RawResult<Bson> {
+fn deep_utf8_lossy(src: RawBson, depth: u32) -> RawResult<Bson> {
+    check_recursion_limit(depth)?;
     match src {
         RawBson::Array(arr) => {
             let mut tmp = vec![];
             for elem in arr.iter_elements() {
-                tmp.push(deep_utf8_lossy(elem?.value_utf8_lossy()?)?);
+                tmp.push(deep_utf8_lossy(
+                    elem?.value_utf8_lossy()?,
+                    depth.saturating_add(1),
+                )?);
             }
             Ok(Bson::Array(tmp))
         }
@@ -606,7 +621,7 @@ fn deep_utf8_lossy(src: RawBson) -> RawResult<Bson> {
                 let elem = elem?;
                 tmp.insert(
                     elem.key().as_str(),
-                    deep_utf8_lossy(elem.value_utf8_lossy()?)?,
+                    deep_utf8_lossy(elem.value_utf8_lossy()?, depth.saturating_add(1))?,
                 );
             }
             Ok(Bson::Document(tmp))
@@ -615,9 +630,10 @@ fn deep_utf8_lossy(src: RawBson) -> RawResult<Bson> {
             let mut tmp = doc! {};
             for elem in scope.iter_elements() {
                 let elem = elem?;
+                // the scope is a nested document, so it counts as an extra level of nesting
                 tmp.insert(
                     elem.key().as_str(),
-                    deep_utf8_lossy(elem.value_utf8_lossy()?)?,
+                    deep_utf8_lossy(elem.value_utf8_lossy()?, depth.saturating_add(2))?,
                 );
             }
             Ok(Bson::JavaScriptCodeWithScope(JavaScriptCodeWithScope {

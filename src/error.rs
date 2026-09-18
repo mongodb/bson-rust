@@ -146,6 +146,11 @@ pub enum ErrorKind {
     #[error("An IO error occurred")]
     #[non_exhaustive]
     Io {},
+
+    /// A recursion limit was reached.
+    #[error("Recursion limit reached")]
+    #[non_exhaustive]
+    RecursionLimit {},
 }
 
 impl From<ErrorKind> for Error {
@@ -251,5 +256,14 @@ impl Error {
     #[cfg(feature = "serde")]
     pub(crate) fn too_large_integer(n: u64) -> Self {
         Self::from(ErrorKind::TooLargeUnsignedInteger { n })
+    }
+
+    pub(crate) fn recursion_limit() -> Self {
+        ErrorKind::RecursionLimit {}.into()
+    }
+
+    #[cfg(all(test, not(feature = "unbounded-depth")))]
+    pub(crate) fn is_recursion_limit(&self) -> bool {
+        matches!(self.kind, ErrorKind::RecursionLimit { .. })
     }
 }

@@ -173,7 +173,7 @@ fn from_impls() {
         Bson::from(vec![1, 2, 3]),
         Bson::Array(vec![Bson::Int32(1), Bson::Int32(2), Bson::Int32(3)])
     );
-    #[cfg(feature = "serde")]
+    #[cfg(all(feature = "serde", feature = "serde_json-1"))]
     assert_eq!(
         Bson::try_from(serde_json::json!({"_id": {"$oid": oid.to_hex()}, "name": ["bson-rs"]}))
             .unwrap(),
@@ -206,7 +206,7 @@ fn from_impls() {
     assert_eq!(doc! {"x": Some(4)}, doc! {"x": 4});
     assert_eq!(doc! {"x": None::<i32>}, doc! {"x": Bson::Null});
 
-    #[cfg(feature = "serde")]
+    #[cfg(all(feature = "serde", feature = "serde_json-1"))]
     {
         let db_pointer = Bson::try_from(serde_json::json!({
             "$dbPointer": {

@@ -9,7 +9,7 @@ mod facet;
 mod modules;
 #[cfg(feature = "serde")]
 mod serde;
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", feature = "serde_with-3"))]
 mod serde_helpers;
 #[cfg(feature = "serde")]
 mod spec;

@@ -181,6 +181,15 @@ pub(crate) const RAW_ARRAY_NEWTYPE: &str = "$__private__bson_RawArray";
 #[cfg(feature = "serde")]
 pub(crate) const RAW_BSON_NEWTYPE: &str = "$__private__bson_RawBson";
 
+const MAX_RECURSION: u32 = 200;
+
+pub(crate) fn check_recursion_limit(depth: u32) -> Result<()> {
+    if !cfg!(feature = "unbounded-depth") && depth > MAX_RECURSION {
+        return Result::Err(Error::recursion_limit());
+    }
+    Ok(())
+}
+
 /// Given a u8 slice, return an i32 calculated from the first four bytes in
 /// little endian order.
 fn f64_from_slice(val: &[u8]) -> Result<f64> {

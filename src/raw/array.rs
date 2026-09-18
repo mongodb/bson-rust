@@ -16,6 +16,7 @@ use crate::{
     Timestamp,
     error::{Error, Result},
     oid::ObjectId,
+    raw::check_recursion_limit,
     spec::ElementType,
 };
 
@@ -219,6 +220,16 @@ impl RawArray {
     pub fn iter_elements(&self) -> RawIter<'_> {
         RawIter::new(&self.doc)
     }
+
+    pub(crate) fn try_into_parsed(&self, depth: u32) -> RawResult<Vec<Bson>> {
+        check_recursion_limit(depth)?;
+        self.into_iter()
+            .map(|result| {
+                let rawbson = result?;
+                rawbson.try_into_parsed(depth.saturating_add(1))
+            })
+            .collect()
+    }
 }
 
 impl std::fmt::Debug for RawArray {
@@ -233,12 +244,15 @@ impl TryFrom<&RawArray> for Vec<Bson> {
     type Error = RawError;
 
     fn try_from(arr: &RawArray) -> RawResult<Vec<Bson>> {
-        arr.into_iter()
-            .map(|result| {
-                let rawbson = result?;
-                Bson::try_from(rawbson)
-            })
-            .collect()
+        arr.try_into_parsed(0)
+    }
+}
+
+impl TryFrom<RawArrayBuf> for Vec<Bson> {
+    type Error = RawError;
+
+    fn try_from(arr: RawArrayBuf) -> RawResult<Self> {
+        arr.as_ref().try_into()
     }
 }
 

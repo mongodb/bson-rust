@@ -482,6 +482,7 @@ fn test_serialize_deserialize_max_key() {
     assert_eq!(deserialized, doc);
 }
 
+#[cfg(feature = "serde_json-1")]
 #[test]
 fn test_serialize_deserialize_db_pointer() {
     let _guard = LOCK.run_concurrently();

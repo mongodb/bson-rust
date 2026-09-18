@@ -506,6 +506,83 @@ fn fuzz_oom() {
     let _ = crate::deserialize_from_slice::<crate::Document>(bytes);
 }
 
+#[cfg(not(feature = "unbounded-depth"))]
+mod nesting_test {
+    use crate::{
+        Document,
+        RawArrayBuf,
+        RawDocumentBuf,
+        RawJavaScriptCodeWithScope,
+        Utf8Lossy,
+        cstr,
+    };
+
+    #[derive(Debug, Clone, Copy)]
+    enum Nesting {
+        Document,
+        Array,
+        CodeWithScope,
+    }
+
+    fn nested_bson(depth: usize, nesting: &[Nesting]) -> RawDocumentBuf {
+        let mut doc = RawDocumentBuf::new();
+
+        for level in 0..depth {
+            let mut outer = RawDocumentBuf::new();
+            match nesting[level % nesting.len()] {
+                Nesting::Document => outer.append(cstr!("d"), doc),
+                Nesting::Array => {
+                    let mut array = RawArrayBuf::new();
+                    array.push(doc);
+                    outer.append(cstr!("a"), array);
+                }
+                Nesting::CodeWithScope => outer.append(
+                    cstr!("c"),
+                    RawJavaScriptCodeWithScope {
+                        code: String::new(),
+                        scope: doc,
+                    },
+                ),
+            }
+            doc = outer;
+        }
+
+        doc
+    }
+
+    #[test]
+    fn nesting_limit() {
+        // documents, arrays, alternating documents and arrays, and code-with-scope
+        for nesting in [
+            &[Nesting::Document][..],
+            &[Nesting::Array][..],
+            &[Nesting::Document, Nesting::Array][..],
+            &[Nesting::CodeWithScope][..],
+        ] {
+            let raw = nested_bson(10_000, nesting);
+            let bytes = raw.as_bytes();
+
+            let err = Document::from_reader(bytes).unwrap_err();
+            assert!(err.is_recursion_limit(), "{nesting:?}: {err:?}");
+
+            let err = Document::try_from(raw.as_ref()).unwrap_err();
+            assert!(err.is_recursion_limit(), "{nesting:?}: {err:?}");
+
+            let err = Utf8Lossy::<Document>::try_from(raw.as_ref()).unwrap_err();
+            assert!(err.is_recursion_limit(), "{nesting:?}: {err:?}");
+
+            #[cfg(feature = "serde")]
+            {
+                let err = crate::deserialize_from_slice::<Document>(bytes).unwrap_err();
+                assert!(err.is_recursion_limit(), "{nesting:?}: {err:?}");
+
+                let err = crate::deserialize_from_slice::<Utf8Lossy<Document>>(bytes).unwrap_err();
+                assert!(err.is_recursion_limit(), "{nesting:?}: {err:?}");
+            }
+        }
+    }
+}
+
 use props::arbitrary_bson;
 use proptest::prelude::*;
 use std::convert::TryInto;

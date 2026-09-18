@@ -324,7 +324,7 @@
 //!
 //! e.g.
 //! ```rust
-//! # #[cfg(feature = "serde")]
+//! # #[cfg(all(feature = "serde", feature = "serde_json-1"))]
 //! # {
 //! # use bson::bson;
 //! let doc = bson!({ "x": 5, "d": bson::DateTime::now() });
@@ -349,7 +349,7 @@
 //!
 //! e.g.
 //! ```rust
-//! # #[cfg(feature = "serde")]
+//! # #[cfg(all(feature = "serde", feature = "serde_json-1"))]
 //! # {
 //! # use bson::Bson;
 //! # use serde_json::json;
@@ -373,7 +373,7 @@
 //!
 //! e.g.
 //! ```rust
-//! # #[cfg(feature = "serde")]
+//! # #[cfg(all(feature = "serde", feature = "serde_json-1"))]
 //! # {
 //! # use bson::{bson, oid};
 //! let doc = bson!({ "x": 5i32, "_id": oid::ObjectId::new() });
@@ -483,21 +483,21 @@ pub use self::{
 #[doc(inline)]
 pub use self::{
     de::{
+        Deserializer,
         deserialize_from_bson,
         deserialize_from_document,
         deserialize_from_reader,
         deserialize_from_slice,
         raw::RawDeserializer,
-        Deserializer,
     },
     ser::{
+        Serializer,
         raw::RawSerializer,
         serialize_to_bson,
         serialize_to_buffer,
         serialize_to_document,
         serialize_to_raw_document_buf,
         serialize_to_vec,
-        Serializer,
     },
 };
 

@@ -429,6 +429,7 @@ fn test_serde_tuple_variant() {
     assert_eq!(p2, Point::ThreeDim(x2, y2, z2));
 }
 
+#[cfg(feature = "serde_json-1")]
 #[test]
 fn test_ser_db_pointer() {
     let _guard = LOCK.run_concurrently();
@@ -463,6 +464,7 @@ fn test_ser_db_pointer() {
     assert_eq!(xfoo, foo);
 }
 
+#[cfg(feature = "serde_json-1")]
 #[test]
 fn test_de_db_pointer() {
     let _guard = LOCK.run_concurrently();
@@ -552,6 +554,7 @@ fn test_serialize_deserialize_unsigned_numbers() {
     assert!(doc_result.is_err());
 }
 
+#[cfg(feature = "serde_json-1")]
 #[test]
 fn large_dates() {
     let _guard = LOCK.run_concurrently();

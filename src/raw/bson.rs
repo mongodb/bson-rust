@@ -19,6 +19,7 @@ use crate::{
     Regex,
     Timestamp,
     oid::{self, ObjectId},
+    raw::check_recursion_limit,
     spec::ElementType,
 };
 
@@ -330,6 +331,38 @@ impl RawBson {
             }),
         }
     }
+
+    pub(crate) fn try_into_parsed(self, depth: u32) -> Result<Bson> {
+        check_recursion_limit(depth)?;
+        Ok(match self {
+            Self::Double(d) => Bson::Double(d),
+            Self::String(s) => Bson::String(s),
+            Self::Document(rawdoc) => Bson::Document(rawdoc.try_into_parsed(depth)?),
+            Self::Array(rawarray) => Bson::Array(rawarray.try_into_parsed(depth)?),
+            Self::Binary(rawbson) => Bson::Binary(rawbson),
+            Self::ObjectId(rawbson) => Bson::ObjectId(rawbson),
+            Self::Boolean(rawbson) => Bson::Boolean(rawbson),
+            Self::DateTime(rawbson) => Bson::DateTime(rawbson),
+            Self::Null => Bson::Null,
+            Self::RegularExpression(rawregex) => Bson::RegularExpression(rawregex),
+            Self::JavaScriptCode(rawbson) => Bson::JavaScriptCode(rawbson),
+            Self::Int32(rawbson) => Bson::Int32(rawbson),
+            Self::Timestamp(rawbson) => Bson::Timestamp(rawbson),
+            Self::Int64(rawbson) => Bson::Int64(rawbson),
+            Self::Undefined => Bson::Undefined,
+            Self::DbPointer(rawbson) => Bson::DbPointer(rawbson),
+            Self::Symbol(rawbson) => Bson::Symbol(rawbson),
+            Self::JavaScriptCodeWithScope(rawbson) => {
+                Bson::JavaScriptCodeWithScope(crate::JavaScriptCodeWithScope {
+                    code: rawbson.code,
+                    scope: rawbson.scope.try_into_parsed(depth.saturating_add(1))?,
+                })
+            }
+            Self::Decimal128(rawbson) => Bson::Decimal128(rawbson),
+            Self::MaxKey => Bson::MaxKey,
+            Self::MinKey => Bson::MinKey,
+        })
+    }
 }
 
 impl PartialEq for RawBson {
@@ -519,34 +552,7 @@ impl TryFrom<RawBson> for Bson {
     type Error = Error;
 
     fn try_from(rawbson: RawBson) -> Result<Bson> {
-        Ok(match rawbson {
-            RawBson::Double(d) => Bson::Double(d),
-            RawBson::String(s) => Bson::String(s),
-            RawBson::Document(rawdoc) => Bson::Document(rawdoc.as_ref().try_into()?),
-            RawBson::Array(rawarray) => Bson::Array(rawarray.as_ref().try_into()?),
-            RawBson::Binary(rawbson) => Bson::Binary(rawbson),
-            RawBson::ObjectId(rawbson) => Bson::ObjectId(rawbson),
-            RawBson::Boolean(rawbson) => Bson::Boolean(rawbson),
-            RawBson::DateTime(rawbson) => Bson::DateTime(rawbson),
-            RawBson::Null => Bson::Null,
-            RawBson::RegularExpression(rawregex) => Bson::RegularExpression(rawregex),
-            RawBson::JavaScriptCode(rawbson) => Bson::JavaScriptCode(rawbson),
-            RawBson::Int32(rawbson) => Bson::Int32(rawbson),
-            RawBson::Timestamp(rawbson) => Bson::Timestamp(rawbson),
-            RawBson::Int64(rawbson) => Bson::Int64(rawbson),
-            RawBson::Undefined => Bson::Undefined,
-            RawBson::DbPointer(rawbson) => Bson::DbPointer(rawbson),
-            RawBson::Symbol(rawbson) => Bson::Symbol(rawbson),
-            RawBson::JavaScriptCodeWithScope(rawbson) => {
-                Bson::JavaScriptCodeWithScope(crate::JavaScriptCodeWithScope {
-                    code: rawbson.code,
-                    scope: rawbson.scope.try_into()?,
-                })
-            }
-            RawBson::Decimal128(rawbson) => Bson::Decimal128(rawbson),
-            RawBson::MaxKey => Bson::MaxKey,
-            RawBson::MinKey => Bson::MinKey,
-        })
+        rawbson.try_into_parsed(0)
     }
 }
 
