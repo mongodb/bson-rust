@@ -156,6 +156,24 @@ impl RawDocument {
         Ok(None)
     }
 
+    /// Gets a reference to the value corresponding to the given key by iterating until the key is
+    /// found. Returns an error if a cstring is encountered that exceeds the provided `len`.
+    #[cfg(feature = "sfp-internal")]
+    #[doc(hidden)]
+    pub fn get_with_max_cstr_parse_len(
+        &self,
+        key: impl AsRef<str>,
+        len: usize,
+    ) -> RawResult<Option<RawBsonRef<'_>>> {
+        for elem in RawIter::new(self).max_cstr_parse_len(len) {
+            let elem = elem?;
+            if key.as_ref() == elem.key().as_str() {
+                return Ok(Some(elem.try_into()?));
+            }
+        }
+        Ok(None)
+    }
+
     /// Gets an iterator over the elements in the [`RawDocument`] that yields
     /// `Result<(&str, RawBson<'_>)>`.
     pub fn iter(&self) -> Iter<'_> {

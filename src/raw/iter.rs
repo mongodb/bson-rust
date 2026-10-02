@@ -3,13 +3,21 @@ use std::convert::TryInto;
 use crate::{
     Bson,
     RawBson,
-    raw::{CStr, Error, MIN_BSON_DOCUMENT_SIZE, Result, read_cstring, value::RawValue},
+    raw::{
+        CStr,
+        Error,
+        MIN_BSON_DOCUMENT_SIZE,
+        Result,
+        read_cstring_with_max_len,
+        value::RawValue,
+    },
     spec::ElementType,
 };
 
 use super::{RawBsonRef, RawDocument, checked_add, i32_from_slice, read_len};
 
-/// An iterator over the document's entries.
+/// An iterator over the key-value pairs in a document. Construct by calling [`RawDocument::iter`]
+/// or [`RawDocumentBuf::iter`](crate::RawDocumentBuf::iter).
 pub struct Iter<'a> {
     inner: RawIter<'a>,
 }
@@ -19,6 +27,15 @@ impl<'a> Iter<'a> {
         Iter {
             inner: RawIter::new(doc),
         }
+    }
+
+    /// The maximum number of bytes the iterator should parse when searching for the null-terminator
+    /// for a cstring.
+    #[cfg(feature = "sfp-internal")]
+    #[doc(hidden)]
+    pub fn max_cstr_parse_len(mut self, len: impl Into<Option<usize>>) -> Self {
+        self.inner = self.inner.max_cstr_parse_len(len);
+        self
     }
 }
 
@@ -37,11 +54,12 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-/// An iterator over the document's elements.
+/// An iterator over the elements in a document. Construct by calling [`RawDocument::iter_elements`]
+/// or [`RawDocumentBuf::iter_elements`](crate::RawDocumentBuf::iter_elements).
 pub struct RawIter<'a> {
     bytes: &'a [u8],
     offset: usize,
-
+    max_cstr_parse_len: Option<usize>,
     /// Whether the underlying doc is assumed to be valid or if an error has been encountered.
     /// After an error, all subsequent iterations will return None.
     valid: bool,
@@ -58,6 +76,7 @@ impl<'a> RawIter<'a> {
         Self {
             bytes: doc.as_bytes(),
             offset: 4,
+            max_cstr_parse_len: None,
             valid: true,
             strict: true,
         }
@@ -68,9 +87,19 @@ impl<'a> RawIter<'a> {
         Self {
             bytes,
             offset,
+            max_cstr_parse_len: None,
             valid: true,
             strict: false,
         }
+    }
+
+    /// The maximum number of bytes the iterator should parse when searching for the null-terminator
+    /// for a cstring.
+    #[cfg(feature = "sfp-internal")]
+    #[doc(hidden)]
+    pub fn max_cstr_parse_len(mut self, len: impl Into<Option<usize>>) -> Self {
+        self.max_cstr_parse_len = len.into();
+        self
     }
 
     fn verify_enough_bytes(&self, start: usize, num_bytes: usize) -> Result<()> {
@@ -232,8 +261,12 @@ impl RawIter<'_> {
             ElementType::Array => self.next_document_len(offset)?,
             ElementType::Binary => self.get_next_length_at(offset)? + 4 + 1,
             ElementType::RegularExpression => {
-                let pattern = read_cstring(&self.bytes[offset..])?;
-                let options = read_cstring(&self.bytes[offset + pattern.len() + 1..])?;
+                let pattern =
+                    read_cstring_with_max_len(&self.bytes[offset..], self.max_cstr_parse_len)?;
+                let options = read_cstring_with_max_len(
+                    &self.bytes[offset + pattern.len() + 1..],
+                    self.max_cstr_parse_len,
+                )?;
                 pattern.len() + 1 + options.len() + 1
             }
             ElementType::DbPointer => read_len(&self.bytes[offset..])? + 12,
@@ -272,7 +305,10 @@ impl<'a> Iterator for RawIter<'a> {
             return None;
         }
 
-        let key = match read_cstring(&self.bytes[self.offset + 1..]) {
+        let key = match read_cstring_with_max_len(
+            &self.bytes[self.offset + 1..],
+            self.max_cstr_parse_len,
+        ) {
             Ok(k) => k,
             Err(e) => {
                 self.valid = false;

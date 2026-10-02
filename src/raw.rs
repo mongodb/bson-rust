@@ -160,7 +160,7 @@ pub use self::{
     cstr::{CStr, CString, IsValidCStr, assert_valid_cstr, cstr, validate_cstr},
     document::RawDocument,
     document_buf::{BindRawBsonRef, BindValue, RawDocumentBuf},
-    iter::{RawElement, RawIter},
+    iter::{Iter, RawElement, RawIter},
 };
 
 pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
@@ -354,7 +354,28 @@ pub(crate) fn cstring_bytes(buf: &[u8]) -> Result<&[u8]> {
 }
 
 pub(crate) fn read_cstring(buf: &[u8]) -> Result<&CStr> {
-    let bytes = cstring_bytes(buf)?;
-    let s = try_to_str(bytes)?;
+    read_cstring_with_max_len(buf, None)
+}
+
+/// Reads a cstring from the start of `buf`, returning an error if no null terminator is found
+/// within the first `max_parse_len + 1` bytes.
+pub(crate) fn read_cstring_with_max_len(buf: &[u8], max_parse_len: Option<usize>) -> Result<&CStr> {
+    let end = max_parse_len
+        .map(|len| std::cmp::min(len.saturating_add(1), buf.len()))
+        .unwrap_or(buf.len());
+    let buf = &buf[..end];
+
+    let Some(index) = buf.iter().position(|b| *b == 0) else {
+        #[cfg(feature = "sfp-internal")]
+        if let Some(max_parse_len) = max_parse_len {
+            return Err(crate::error::ErrorKind::TooLongCStr {
+                max_parse_len,
+                bytes: buf.to_vec(),
+            }
+            .into());
+        }
+        return Err(Error::malformed_bytes("expected null terminator"));
+    };
+    let s = try_to_str(&buf[..index])?;
     s.try_into()
 }

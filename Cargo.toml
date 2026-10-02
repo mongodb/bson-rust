@@ -52,6 +52,8 @@ serde = ["dep:serde"]
 serde_json-1 = ["dep:serde_json"]
 facet-unstable = ["dep:facet", "dep:facet-value", "dep:facet-format", "dep:facet-reflect", "dep:paste"]
 unbounded-depth = []
+# Provides additional functionality for BSON validation. For internal use only.
+sfp-internal = []
 
 [lib]
 name = "bson"

@@ -121,6 +121,19 @@ pub enum ErrorKind {
         n: u64,
     },
 
+    /// A cstring exceeded the maximum parsing length.
+    #[cfg(feature = "sfp-internal")]
+    #[error("cstring exceeded the maximum parsing length ({max_parse_len} bytes)")]
+    #[non_exhaustive]
+    #[doc(hidden)]
+    TooLongCStr {
+        /// The configured maximum parsing length.
+        max_parse_len: usize,
+
+        /// The bytes parsed before the maximum parsing length was reached.
+        bytes: Vec<u8>,
+    },
+
     /// Invalid UTF-8 bytes were encountered.
     #[error("Invalid UTF-8")]
     #[non_exhaustive]
