@@ -7,6 +7,7 @@ use crate::{
     error::{Error, Result},
     oid::ObjectId,
     raw::{
+        MIN_BSON_STRING_SIZE,
         MIN_CODE_WITH_SCOPE_SIZE,
         Utf8LossyBson,
         Utf8LossyJavaScriptCodeWithScope,
@@ -161,6 +162,16 @@ impl<'a> RawValue<'a> {
     }
 
     fn read_str(&self) -> Result<&'a str> {
+        // a string value is a 4-byte length prefix plus a trailing null, so anything shorter
+        // would underflow the length arithmetic in `str_bytes`. the iterator guarantees this
+        // via `read_len`, but values parsed directly (e.g. the facet opaque adapter) are not
+        // length-checked, so guard it here too.
+        if self.bytes.len() < MIN_BSON_STRING_SIZE as usize {
+            return Err(Error::malformed_bytes(format!(
+                "string value too short: {} bytes",
+                self.bytes.len()
+            )));
+        }
         try_to_str(self.str_bytes())
     }
 
