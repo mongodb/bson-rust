@@ -142,11 +142,15 @@ fn de_rawbson(input: OpaqueDeserialize) -> Result<RawBson> {
         OpaqueDeserialize::Borrowed(slice) => slice,
         OpaqueDeserialize::Owned(vec) => vec.as_slice(),
     };
-    let tag = bytes[bytes.len() - 1];
+    // the trailing byte is the type tag; the sibling adapters strip it via
+    // `input_slice`/`input_vec`, which error on empty input rather than indexing past the
+    // start of the buffer
+    let Some((&tag, bytes)) = bytes.split_last() else {
+        return Err(Error::malformed_bytes("empty raw bson value"));
+    };
     let Some(kind) = ElementType::from(tag) else {
         return Err(Error::malformed_bytes(format!("invalid type tag {tag}")));
     };
-    let bytes = &bytes[0..bytes.len() - 1];
     let value = RawValue::new(kind, bytes);
     value.parse().map(RawBson::from)
 }
@@ -234,3 +238,20 @@ macro_rules! adapters {
     };
 }
 use adapters;
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn de_rawbson_rejects_empty_input() {
+        // the trailing tag byte is missing entirely; this must error, not panic
+        de_rawbson(OpaqueDeserialize::Owned(vec![])).unwrap_err();
+    }
+
+    #[test]
+    fn de_rawbson_rejects_short_string_value() {
+        // tag 0x02 (string) with a value too short to hold the length prefix and null
+        de_rawbson(OpaqueDeserialize::Owned(vec![0x00, 0x02])).unwrap_err();
+    }
+}
