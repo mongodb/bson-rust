@@ -6,6 +6,7 @@ use std::{
 
 use crate::{
     Bson,
+    Decimal128,
     Document,
     RawBson,
     RawDocumentBuf,
@@ -530,6 +531,14 @@ fn run_test(test: TestFile) {
         // no special support for dbref convention
         if parse_error.description.contains("DBRef") {
             continue;
+        }
+
+        // the decimal128 parse errors are strings that must not parse as a Decimal128
+        if test.bson_type == "0x13" {
+            Decimal128::from_str(&parse_error.string).expect_err(&format!(
+                "{}: {:?}",
+                parse_error.description, parse_error.string
+            ));
         }
 
         let json: serde_json::Value = serde_json::Value::String(parse_error.string);

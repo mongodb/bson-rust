@@ -369,6 +369,13 @@ impl std::str::FromStr for ParsedDecimal128 {
                         exp_str = post;
                     }
                 }
+                // The coefficient must have at least one digit, and nothing but digits and an
+                // optional decimal point.
+                if !decimal_str.bytes().any(|b| b.is_ascii_digit())
+                    || !decimal_str.bytes().all(|b| b.is_ascii_digit() || b == b'.')
+                {
+                    return Err(Error::decimal128(Decimal128ErrorKind::Unparseable {}));
+                }
                 // Initially parse the exponent as an i128 to handle corner cases with zero
                 // coefficients and very large exponents.
                 let mut wide_exp = exp_str.parse::<i128>().map_err(|e| {
