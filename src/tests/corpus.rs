@@ -72,6 +72,7 @@ pub(crate) struct ParseError {
 // This is enforced at compile time via the `CStr` type.
 
 // Prose test 2: Test duplicate keys
+#[cfg(all(feature = "serde", feature = "serde_json-1"))]
 mod duplicate_keys {
     use crate::{Bson, Document, RawBsonRef, RawDocument, RawDocumentBuf, cstr, error::Result};
 
