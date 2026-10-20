@@ -70,6 +70,9 @@ use super::{
 /// assert_eq!(doc.get_str("hi")?, "y'all");
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
+///
+/// This can be converted to a parsed [`Document`] via `try_into`.  If duplicate keys exist in the
+/// raw document, only the last value for a given key will be present in the parsed `Document`.
 #[derive(PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct RawDocument {
@@ -130,7 +133,7 @@ impl RawDocument {
     }
 
     /// Gets a reference to the value corresponding to the given key by iterating until the key is
-    /// found.
+    /// found.  If duplicate keys exist, only the first one will be returned.
     ///
     /// ```
     /// # use bson::error::Error;

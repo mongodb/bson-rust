@@ -109,7 +109,7 @@ impl RawDocumentBuf {
     }
 
     /// Gets an iterator over the elements in the [`RawDocumentBuf`], which yields
-    /// `Result<(&str, RawBson<'_>)>`.
+    /// `Result<(&CStr, RawBson<'_>)>`.
     ///
     /// ```
     /// use bson::{doc, raw::RawDocumentBuf};
@@ -169,8 +169,8 @@ impl RawDocumentBuf {
     /// Append a key value pair to the end of the document without checking to see if
     /// the key already exists.
     ///
-    /// It is a user error to append the same key more than once to the same document, and it may
-    /// result in errors when communicating with MongoDB.
+    /// BSON with duplicate keys is permitted by the BSON specification, but it may result in errors
+    /// when communicating with MongoDB.
     ///
     /// Keys can be a [`&CStr`](crate::raw::CStr) or [`CString`](crate::raw::CString).
     ///
