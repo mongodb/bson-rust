@@ -444,7 +444,7 @@ impl crate::DateTime {
         if earlier.0 > self.0 {
             return None;
         }
-        Some(Duration::from_millis((self.0 - earlier.0) as u64))
+        Some(Duration::from_millis(self.0.abs_diff(earlier.0)))
     }
 
     /// Returns the time elapsed since `earlier`, or a [`Duration`] of zero if the given `DateTime`

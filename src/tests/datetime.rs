@@ -60,3 +60,22 @@ fn duration_since() {
     assert!(date1.checked_duration_since(date2).is_none());
     assert_eq!(date1.saturating_duration_since(date2), Duration::ZERO);
 }
+
+#[test]
+fn duration_since_full_range() {
+    let _guard = LOCK.run_concurrently();
+
+    let max_diff = Duration::from_millis(u64::MAX);
+    assert_eq!(
+        crate::DateTime::MAX.checked_duration_since(crate::DateTime::MIN),
+        Some(max_diff)
+    );
+    assert_eq!(
+        crate::DateTime::MAX.saturating_duration_since(crate::DateTime::MIN),
+        max_diff
+    );
+    assert_eq!(
+        crate::DateTime::from_millis(0).checked_duration_since(crate::DateTime::MIN),
+        Some(Duration::from_millis(1 << 63))
+    );
+}
