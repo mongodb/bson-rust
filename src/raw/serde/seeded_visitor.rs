@@ -6,6 +6,7 @@ use serde::{
 };
 
 use crate::{
+    RawBinaryRef,
     RawBson,
     RawBsonRef,
     raw::{RAW_BSON_NEWTYPE, write_string},
@@ -130,11 +131,6 @@ impl<'a, 'de> SeededVisitor<'a, 'de> {
         write_string(self.buffer.get_owned_buffer(), s)
     }
 
-    /// Converts the given length into little-endian bytes and appends the bytes to the buffer.
-    fn append_length_bytes(&mut self, length: i32) {
-        self.buffer.append_bytes(&length.to_le_bytes());
-    }
-
     /// Appends an owned byte buffer to the buffer. If the buffer is currently empty (i.e. the byte
     /// buffer was the top-level value provided to the deserializer), the buffer will be updated to
     /// contain an owned copy of the bytes provided. Otherwise (i.e. when the value is embedded),
@@ -160,9 +156,13 @@ impl<'a, 'de> SeededVisitor<'a, 'de> {
 
     /// Appends the given bytes and their corresponding length and subtype to the buffer.
     fn append_embedded_binary(&mut self, bytes: &[u8], subtype: impl Into<u8>) {
-        self.append_length_bytes(bytes.len() as i32);
-        self.buffer.push_byte(subtype.into());
-        self.buffer.append_bytes(bytes);
+        // go through `RawBsonRef` so that the extra inner length prefix required by the
+        // `BinaryOld` subtype is written the same way as on the serialization path
+        RawBsonRef::Binary(RawBinaryRef {
+            subtype: BinarySubtype::from(subtype.into()),
+            bytes,
+        })
+        .append_to(self.buffer.get_owned_buffer());
     }
 
     /// Appends 1 byte to the buffer as a placeholder for an element type. This byte should be
