@@ -32,7 +32,9 @@ struct Parser<'de> {
 struct ParseState {
     offset: usize,
     expects: Expect,
-    outer: Vec<Expect>,
+    /// For each open container, the state to resume once it closes and the offset just past its
+    /// declared end.
+    outer: Vec<(Expect, usize)>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -55,7 +57,7 @@ struct Delta {
 #[derive(Debug, Copy, Clone)]
 enum StackOp {
     Keep,
-    Push(Expect),
+    Push(Expect, usize),
     Pop,
 }
 
@@ -65,7 +67,7 @@ impl ParseState {
         self.expects = delta.expects;
         match delta.op {
             StackOp::Keep => (),
-            StackOp::Push(exp) => self.outer.push(exp),
+            StackOp::Push(exp, end) => self.outer.push((exp, end)),
             StackOp::Pop => {
                 if self.outer.pop().is_none() {
                     return Err(Error::deserialization("mismatched container structure"));
@@ -103,7 +105,7 @@ impl<'de> Parser<'de> {
                 delta = Delta {
                     offset: self.state.offset + 4, // doc length
                     expects: Expect::ElemKey,
-                    op: StackOp::Push(Expect::Eof),
+                    op: StackOp::Push(Expect::Eof, self.state.offset + len),
                 };
             }
             Expect::DocStartRaw => {
@@ -163,14 +165,14 @@ impl<'de> Parser<'de> {
                         delta = Delta {
                             offset: elt.value_raw().source_offset() + 4,
                             expects: Expect::ElemKey,
-                            op: StackOp::Push(next_expect),
+                            op: StackOp::Push(next_expect, event.span.end()),
                         };
                     }
                     ParseEventKind::SequenceStart(_) => {
                         delta = Delta {
                             offset: elt.value_raw().source_offset() + 4,
                             expects: Expect::ElemValue { is_array: true },
-                            op: StackOp::Push(next_expect),
+                            op: StackOp::Push(next_expect, event.span.end()),
                         };
                     }
                     ek => {
@@ -228,12 +230,20 @@ impl<'de> Parser<'de> {
             ParseEventKind::StructEnd
         };
         let event = ParseEvent::new(ev_kind, Span::new(self.state.offset, 1));
-        let Some(expects) = self.state.outer.last() else {
+        let Some(&(expects, end)) = self.state.outer.last() else {
             return Err(Error::deserialization("mismatched container structure"));
         };
+        let offset = self.state.offset + 1; // doc null terminator
+        // The iterator here isn't bounded by the container, so a null byte before the declared
+        // end (or elements running past it) has to be caught explicitly.
+        if offset != end {
+            return Err(Error::malformed_bytes(format!(
+                "document length mismatch: declared end {end}, actual end {offset}"
+            )));
+        }
         let delta = Delta {
-            offset: self.state.offset + 1, // doc null terminator
-            expects: *expects,
+            offset,
+            expects,
             op: StackOp::Pop,
         };
         Ok((event, delta))
