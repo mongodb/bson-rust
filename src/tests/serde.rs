@@ -15,10 +15,13 @@ use crate::{
     DateTime,
     Deserializer,
     Document,
+    RawBson,
+    RawDocumentBuf,
     Serializer,
     bson,
     cstr,
     deserialize_from_bson,
+    deserialize_from_document,
     doc,
     oid::ObjectId,
     serialize_to_bson,
@@ -308,6 +311,35 @@ fn test_binary_non_generic_roundtrip() {
 
     let f = deserialize_from_bson::<Foo>(b).unwrap();
     assert_eq!(x, f);
+}
+
+#[test]
+fn test_binary_old_to_raw() {
+    let _guard = LOCK.run_concurrently();
+    let doc = doc! {
+        "data": Binary {
+            subtype: BinarySubtype::BinaryOld,
+            bytes: b"12345abcde".to_vec(),
+        }
+    };
+
+    // converting through serde must produce the same bytes as the direct conversion, including
+    // the inner length prefix that the old binary subtype carries
+    let raw: RawDocumentBuf = deserialize_from_document(doc.clone()).unwrap();
+    assert_eq!(raw, RawDocumentBuf::try_from(&doc).unwrap());
+    assert_eq!(Document::try_from(raw).unwrap(), doc);
+
+    let bin = doc.get("data").unwrap().clone();
+    let raw: RawBson = deserialize_from_bson(Bson::Array(vec![bin.clone()])).unwrap();
+    let back: Bson = raw
+        .as_array()
+        .unwrap()
+        .get(0)
+        .unwrap()
+        .unwrap()
+        .try_into()
+        .unwrap();
+    assert_eq!(back, bin);
 }
 
 #[test]
