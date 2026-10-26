@@ -640,8 +640,7 @@ impl SerializeMap for CodeWithScopeSerializer<'_, '_> {
     fn end(self) -> Result<Self::Ok> {
         let result = self.doc.end_doc()?;
 
-        let total_len = (result.root_serializer.bytes.len() - self.start) as i32;
-        result.root_serializer.replace_i32(self.start, total_len);
+        result.root_serializer.write_length_at(self.start)?;
         Ok(())
     }
 }

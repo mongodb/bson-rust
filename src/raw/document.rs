@@ -107,7 +107,7 @@ impl RawDocument {
 
         let length = i32_from_slice(data)?;
 
-        if data.len() as i32 != length {
+        if usize::try_from(length).ok() != Some(data.len()) {
             return Err(Error::malformed_bytes("document length incorrect"));
         }
 

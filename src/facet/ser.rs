@@ -113,7 +113,8 @@ impl facet_format::FormatSerializer for Serializer {
             .pop()
             .ok_or_else(|| Error::serialization("mismatched begin_struct / end_struct"))?;
         self.bytes.push(0); // terminal null
-        let size = (self.bytes.len() - size_pos) as i32;
+        let size = i32::try_from(self.bytes.len() - size_pos)
+            .map_err(|_| Error::serialization("value exceeds maximum BSON length"))?;
         self.bytes[size_pos..size_pos + 4].copy_from_slice(&size.to_le_bytes());
         Ok(())
     }
