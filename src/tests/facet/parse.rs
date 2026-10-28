@@ -351,3 +351,38 @@ fn missing_required_field_error() {
     let bytes = rawdoc! {}.into_bytes();
     assert!(deserialize_from_slice::<Foo>(&bytes).is_err());
 }
+
+#[test]
+fn embedded_document_length_mismatch_error() {
+    #[derive(Debug, Facet)]
+    struct Inner {
+        a: i32,
+    }
+    #[derive(Debug, Facet)]
+    struct Outer {
+        inner: Inner,
+        role: Option<String>,
+    }
+
+    // `inner` declares a length that runs past its first null byte, hiding a `role` element
+    // inside the embedded document; the outer document itself only has the `inner` key.
+    let mut sub = vec![0, 0, 0, 0];
+    sub.extend(b"\x10a\x00\x01\x00\x00\x00");
+    sub.push(0x00);
+    sub.extend(b"\x02role\x00\x06\x00\x00\x00admin\x00");
+    let sub_len = sub.len() as i32;
+    sub[..4].copy_from_slice(&sub_len.to_le_bytes());
+
+    let mut bytes = vec![0, 0, 0, 0];
+    bytes.extend(b"\x03inner\x00");
+    bytes.extend(&sub);
+    bytes.push(0x00);
+    let len = bytes.len() as i32;
+    bytes[..4].copy_from_slice(&len.to_le_bytes());
+
+    let doc = crate::RawDocument::from_bytes(&bytes).unwrap();
+    assert!(doc.get("role").unwrap().is_none());
+
+    let result = deserialize_from_slice::<Outer>(&bytes);
+    assert!(result.is_err(), "{result:?}");
+}

@@ -64,11 +64,10 @@ pub struct RawIter<'a> {
     /// After an error, all subsequent iterations will return None.
     valid: bool,
 
-    /// When true, the iterator treats a null byte as the document terminator only at the last
-    /// position of `bytes`; a null encountered earlier is an error. When false (used by
-    /// `new_unchecked` for flat parsers that span nested documents), any null byte ends
-    /// iteration.
-    strict: bool,
+    /// The offset in `bytes` of the null byte that terminates the document being iterated.
+    /// Iteration ends only when it reaches this offset; elements running past it, or a missing
+    /// null byte there, are errors.
+    terminator: usize,
 }
 
 impl<'a> RawIter<'a> {
@@ -78,18 +77,20 @@ impl<'a> RawIter<'a> {
             offset: 4,
             max_cstr_parse_len: None,
             valid: true,
-            strict: true,
+            terminator: doc.as_bytes().len().saturating_sub(1),
         }
     }
 
+    /// Iterate over the elements of a document embedded in `bytes`, starting at `offset` and
+    /// ending at the document's null terminator at `terminator`.
     #[cfg(feature = "facet-unstable")]
-    pub(crate) fn new_unchecked(bytes: &'a [u8], offset: usize) -> Self {
+    pub(crate) fn new_unchecked(bytes: &'a [u8], offset: usize, terminator: usize) -> Self {
         Self {
             bytes,
             offset,
             max_cstr_parse_len: None,
             valid: true,
-            strict: false,
+            terminator,
         }
     }
 
@@ -288,21 +289,16 @@ impl<'a> Iterator for RawIter<'a> {
     fn next(&mut self) -> Option<Result<RawElement<'a>>> {
         if !self.valid {
             return None;
-        } else if self.offset >= self.bytes.len() {
+        } else if self.offset > self.terminator || self.offset >= self.bytes.len() {
             self.valid = false;
             return Some(Err(Error::malformed_bytes("iteration overflowed document")));
-        } else if self.strict {
-            if self.offset == self.bytes.len() - 1 {
-                return if self.bytes[self.offset] == 0 {
-                    None
-                } else {
-                    self.valid = false;
-                    Some(Err(Error::malformed_bytes("document not null terminated")))
-                };
-            }
-        } else if self.bytes[self.offset] == 0 {
-            // end of document marker
-            return None;
+        } else if self.offset == self.terminator {
+            return if self.bytes[self.offset] == 0 {
+                None
+            } else {
+                self.valid = false;
+                Some(Err(Error::malformed_bytes("document not null terminated")))
+            };
         }
 
         let key = match read_cstring_with_max_len(

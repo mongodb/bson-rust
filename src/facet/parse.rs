@@ -32,7 +32,16 @@ struct Parser<'de> {
 struct ParseState {
     offset: usize,
     expects: Expect,
-    outer: Vec<Expect>,
+    outer: Vec<Frame>,
+}
+
+/// An open container.
+#[derive(Debug, Copy, Clone)]
+struct Frame {
+    /// The state to resume once the container closes.
+    resume: Expect,
+    /// The offset of the container's null terminator, derived from its declared length.
+    terminator: usize,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -55,7 +64,7 @@ struct Delta {
 #[derive(Debug, Copy, Clone)]
 enum StackOp {
     Keep,
-    Push(Expect),
+    Push(Frame),
     Pop,
 }
 
@@ -65,7 +74,7 @@ impl ParseState {
         self.expects = delta.expects;
         match delta.op {
             StackOp::Keep => (),
-            StackOp::Push(exp) => self.outer.push(exp),
+            StackOp::Push(frame) => self.outer.push(frame),
             StackOp::Pop => {
                 if self.outer.pop().is_none() {
                     return Err(Error::deserialization("mismatched container structure"));
@@ -89,8 +98,17 @@ impl<'de> Parser<'de> {
         }
     }
 
+    /// An iterator over the remaining elements of the innermost open container.
+    fn iter(&self) -> RawIter<'de> {
+        let terminator = match self.state.outer.last() {
+            Some(frame) => frame.terminator,
+            None => self.bytes.len().saturating_sub(1),
+        };
+        RawIter::new_unchecked(self.bytes, self.state.offset, terminator)
+    }
+
     fn peek(&self) -> Result<Option<(ParseEvent<'de>, Delta)>> {
-        let mut iter = RawIter::new_unchecked(self.bytes, self.state.offset);
+        let mut iter = self.iter();
         let event;
         let delta;
         match self.state.expects {
@@ -103,7 +121,10 @@ impl<'de> Parser<'de> {
                 delta = Delta {
                     offset: self.state.offset + 4, // doc length
                     expects: Expect::ElemKey,
-                    op: StackOp::Push(Expect::Eof),
+                    op: StackOp::Push(Frame {
+                        resume: Expect::Eof,
+                        terminator: self.state.offset + len - 1,
+                    }),
                 };
             }
             Expect::DocStartRaw => {
@@ -163,14 +184,20 @@ impl<'de> Parser<'de> {
                         delta = Delta {
                             offset: elt.value_raw().source_offset() + 4,
                             expects: Expect::ElemKey,
-                            op: StackOp::Push(next_expect),
+                            op: StackOp::Push(Frame {
+                                resume: next_expect,
+                                terminator: event.span.end() - 1,
+                            }),
                         };
                     }
                     ParseEventKind::SequenceStart(_) => {
                         delta = Delta {
                             offset: elt.value_raw().source_offset() + 4,
                             expects: Expect::ElemValue { is_array: true },
-                            op: StackOp::Push(next_expect),
+                            op: StackOp::Push(Frame {
+                                resume: next_expect,
+                                terminator: event.span.end() - 1,
+                            }),
                         };
                     }
                     ek => {
@@ -228,12 +255,12 @@ impl<'de> Parser<'de> {
             ParseEventKind::StructEnd
         };
         let event = ParseEvent::new(ev_kind, Span::new(self.state.offset, 1));
-        let Some(expects) = self.state.outer.last() else {
+        let Some(frame) = self.state.outer.last() else {
             return Err(Error::deserialization("mismatched container structure"));
         };
         let delta = Delta {
             offset: self.state.offset + 1, // doc null terminator
-            expects: *expects,
+            expects: frame.resume,
             op: StackOp::Pop,
         };
         Ok((event, delta))
@@ -321,7 +348,7 @@ impl<'de> facet_format::FormatParser<'de> for Parser<'de> {
     fn skip_value(&mut self) -> std::result::Result<(), ParseError> {
         match &self.state.expects {
             Expect::ElemValue { is_array } | Expect::ElemValueRaw { is_array } => {
-                let mut iter = RawIter::new_unchecked(self.bytes, self.state.offset);
+                let mut iter = self.iter();
                 let Some(elt) = iter.next().transpose().map_err(|e| self.parse_err(e))? else {
                     return Ok(());
                 };
