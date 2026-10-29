@@ -100,11 +100,15 @@ impl<'a> RawSerializer<'a> {
         Ok(())
     }
 
-    /// Replace an i32 value at the given index with the given value.
+    /// Write the number of bytes from the given index to the end of the buffer as an i32 length
+    /// prefix at that index, returning an error if it does not fit.
     #[inline]
-    fn replace_i32(&mut self, at: usize, with: i32) {
+    fn write_length_at(&mut self, at: usize) -> Result<()> {
+        let length = i32::try_from(self.bytes.len() - at)
+            .map_err(|_| Error::serialization("value exceeds maximum BSON length"))?;
         let portion = &mut self.bytes[at..at + 4];
-        portion.copy_from_slice(&with.to_le_bytes());
+        portion.copy_from_slice(&length.to_le_bytes());
+        Ok(())
     }
 
     fn serialize_raw(&mut self, v: RawBsonRef) -> Result<()> {
@@ -485,14 +489,11 @@ impl<'a, 'b> VariantSerializer<'a, 'b> {
     fn end_both(self) -> Result<()> {
         // null byte for the inner
         self.root_serializer.bytes.push(0);
-        let arr_length = (self.root_serializer.bytes.len() - self.inner_start) as i32;
-        self.root_serializer
-            .replace_i32(self.inner_start, arr_length);
+        self.root_serializer.write_length_at(self.inner_start)?;
 
         // null byte for document
         self.root_serializer.bytes.push(0);
-        let doc_length = (self.root_serializer.bytes.len() - self.doc_start) as i32;
-        self.root_serializer.replace_i32(self.doc_start, doc_length);
+        self.root_serializer.write_length_at(self.doc_start)?;
         Ok(())
     }
 }

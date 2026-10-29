@@ -57,8 +57,7 @@ impl<'a, 'b> DocumentSerializer<'a, 'b> {
 
     pub(crate) fn end_doc(self) -> crate::ser::Result<DocumentSerializationResult<'a, 'b>> {
         self.root_serializer.bytes.push(0);
-        let length = (self.root_serializer.bytes.len() - self.start) as i32;
-        self.root_serializer.replace_i32(self.start, length);
+        self.root_serializer.write_length_at(self.start)?;
         Ok(DocumentSerializationResult {
             root_serializer: self.root_serializer,
         })
