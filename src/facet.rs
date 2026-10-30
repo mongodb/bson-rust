@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub use parse::deserialize_from_slice;
-pub use ser::serialize_to_vec;
+pub use ser::{serialize_to_buffer, serialize_to_vec};
 
 /// A type for use with #[facet(proxy)] that represents BSON values in their canonical extended JSON
 /// form.

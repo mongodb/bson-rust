@@ -27,18 +27,35 @@ use crate::{
 
 /// Serialize a value to BSON bytes.
 pub fn serialize_to_vec<'facet, T: Facet<'facet> + ?Sized>(value: &T) -> Result<Vec<u8>> {
-    let mut s = Serializer::new();
-    facet_format::serialize_root(&mut s, facet_reflect::Peek::new(value)).map_err(|e| match e {
-        SerializeError::Backend(e) => e,
-        _ => Error::serialization(e),
-    })?;
-    Ok(s.bytes)
+    let mut bytes = Vec::with_capacity(1024);
+    serialize_to_buffer(value, &mut bytes)?;
+    Ok(bytes)
+}
+
+/// Serialize a value to BSON bytes, appending them to the provided buffer.  If serialization
+/// fails, the buffer is restored to its original length.
+pub fn serialize_to_buffer<'facet, T: Facet<'facet> + ?Sized>(
+    value: &T,
+    bytes: &mut Vec<u8>,
+) -> Result<()> {
+    let start = bytes.len();
+    let mut s = Serializer::new(bytes);
+    let result = facet_format::serialize_root(&mut s, facet_reflect::Peek::new(value)).map_err(
+        |e| match e {
+            SerializeError::Backend(e) => e,
+            _ => Error::serialization(e),
+        },
+    );
+    if result.is_err() {
+        bytes.truncate(start);
+    }
+    result
 }
 
 #[derive(Debug)]
-struct Serializer {
+struct Serializer<'a> {
     /// The output buffer.
-    bytes: Vec<u8>,
+    bytes: &'a mut Vec<u8>,
     /// A stack of document size offsets into the buffer for documents that are in the process of
     /// being written.  When one is finished, it pops the offset off the stack and updates that
     /// spot in the buffer with the now-known value.
@@ -52,10 +69,10 @@ struct Serializer {
     array_ix: Vec<usize>,
 }
 
-impl Serializer {
-    fn new() -> Self {
+impl<'a> Serializer<'a> {
+    fn new(bytes: &'a mut Vec<u8>) -> Self {
         Self {
-            bytes: Vec::with_capacity(1024),
+            bytes,
             doc_size_pos: vec![],
             elem_type_pos: None,
             array_ix: vec![],
@@ -100,7 +117,7 @@ impl Serializer {
     }
 }
 
-impl facet_format::FormatSerializer for Serializer {
+impl facet_format::FormatSerializer for Serializer<'_> {
     type Error = Error;
 
     fn begin_struct(&mut self) -> Result<()> {

@@ -95,22 +95,29 @@ where
 }
 
 /// Serialize the given `T` as a BSON byte vector into the provided byte buffer.
-/// This allows reusing the same buffer for multiple serializations.
+/// This allows reusing the same buffer for multiple serializations.  If serialization fails, the
+/// buffer is restored to its original length.
 #[inline]
 pub fn serialize_to_buffer<T>(value: &T, buffer: &mut Vec<u8>) -> Result<()>
 where
     T: Serialize + ?Sized,
 {
-    let mut serializer = raw::RawSerializer::new(buffer);
-    #[cfg(feature = "serde_path_to_error")]
-    {
-        serde_path_to_error::serialize(value, &mut serializer).map_err(Error::with_path)?;
+    let start = buffer.len();
+    let result = {
+        let mut serializer = raw::RawSerializer::new(&mut *buffer);
+        #[cfg(feature = "serde_path_to_error")]
+        {
+            serde_path_to_error::serialize(value, &mut serializer).map_err(Error::with_path)
+        }
+        #[cfg(not(feature = "serde_path_to_error"))]
+        {
+            value.serialize(&mut serializer).map_err(Error::from)
+        }
+    };
+    if result.is_err() {
+        buffer.truncate(start);
     }
-    #[cfg(not(feature = "serde_path_to_error"))]
-    {
-        value.serialize(&mut serializer)?;
-    }
-    Ok(())
+    result
 }
 
 /// Serialize the given `T` as a [`RawDocumentBuf`].
