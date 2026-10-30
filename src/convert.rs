@@ -3,6 +3,8 @@
 
 #[cfg(feature = "convert-facet")]
 pub mod facet;
+#[cfg(feature = "convert-raw")]
+pub mod raw;
 #[cfg(feature = "convert-serde")]
 pub mod serde;
 

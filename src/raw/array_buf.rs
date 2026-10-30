@@ -42,7 +42,7 @@ use super::{RawArrayIter, document_buf::BindRawBsonRef};
 #[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::opaque::RawArrayBufAdapter))]
 pub struct RawArrayBuf {
     inner: RawDocumentBuf,
-    len: usize,
+    len: Option<usize>,
 }
 
 impl RawArrayBuf {
@@ -50,16 +50,16 @@ impl RawArrayBuf {
     pub fn new() -> RawArrayBuf {
         Self {
             inner: RawDocumentBuf::new(),
-            len: 0,
+            len: Some(0),
         }
     }
 
     /// Construct a new [`RawArrayBuf`] from the provided [`Vec`] of bytes.
-    ///
-    /// This involves a traversal of the array to count the values.
     pub(crate) fn from_raw_document_buf(doc: RawDocumentBuf) -> Self {
-        let len = doc.iter().count();
-        Self { inner: doc, len }
+        Self {
+            inner: doc,
+            len: None,
+        }
     }
 
     /// Append a value to the end of the array.
@@ -91,11 +91,12 @@ impl RawArrayBuf {
     /// # Ok::<(), Error>(())
     /// ```
     pub fn push(&mut self, value: impl BindRawBsonRef) {
+        let len = self.len.get_or_insert_with(|| self.inner.iter().count());
         self.inner.append(
-            super::CString::from_string_unchecked(self.len.to_string()),
+            super::CString::from_string_unchecked(len.to_string()),
             value,
         );
-        self.len += 1;
+        *len += 1;
     }
 }
 
@@ -211,5 +212,17 @@ impl TryFrom<crate::Array> for RawArrayBuf {
             tmp.push(raw);
         }
         Ok(tmp)
+    }
+}
+
+impl From<RawDocumentBuf> for RawArrayBuf {
+    fn from(value: RawDocumentBuf) -> Self {
+        Self::from_raw_document_buf(value)
+    }
+}
+
+impl From<RawArrayBuf> for RawDocumentBuf {
+    fn from(value: RawArrayBuf) -> Self {
+        value.inner
     }
 }
