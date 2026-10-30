@@ -224,9 +224,28 @@ impl Uuid {
     }
 
     /// Creates a [`Uuid`] from the provided hex string.
+    ///
+    /// For a version usable in const contexts, see [`Uuid::try_parse`].
     pub fn parse_str(input: impl AsRef<str>) -> Result<Self> {
         let uuid = uuid::Uuid::parse_str(input.as_ref()).map_err(Error::invalid_uuid_string)?;
         Ok(Self::from_external_uuid(uuid))
+    }
+
+    /// Creates a [`Uuid`] from the provided hex string, or returns `None` if it isn't valid.
+    ///
+    /// Unlike [`Uuid::parse_str`], this can be used in const contexts, where an invalid string
+    /// fails to compile:
+    ///
+    /// ```
+    /// use bson::Uuid;
+    ///
+    /// const ID: Uuid = Uuid::try_parse("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap();
+    /// ```
+    pub const fn try_parse(input: &str) -> Option<Self> {
+        match uuid::Uuid::try_parse(input) {
+            Ok(uuid) => Some(Self::from_external_uuid(uuid)),
+            Err(_) => None,
+        }
     }
 
     pub(crate) const fn from_external_uuid(uuid: uuid::Uuid) -> Self {
