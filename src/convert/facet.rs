@@ -1,5 +1,5 @@
 //! Pluggable conversion blanket impls for types that implement [`facet::Facet`].
-use super::IntoBson;
+use super::{FromBson, FromBsonOwned, IntoBson};
 use crate::error::Result;
 
 /// Conversion to BSON bytes via serde traits.
@@ -14,3 +14,11 @@ impl<'a, T: facet::Facet<'a> + ?Sized> IntoBson<BsonFacet> for &'a T {
         crate::facet::serialize_to_vec(self)
     }
 }
+
+impl<'a, T: facet::Facet<'a>> FromBson<'a, BsonFacet> for T {
+    fn from_bson(bytes: &'a [u8]) -> Result<Self> {
+        crate::facet::deserialize_from_slice(bytes)
+    }
+}
+
+impl<T: for<'a> facet::Facet<'a>> FromBsonOwned<BsonFacet> for T {}
