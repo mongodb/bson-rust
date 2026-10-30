@@ -285,3 +285,29 @@ fn deserialize_uuid_from_string() {
         .expect("failed to deserialize raw document");
     assert_eq!(wrapper.uuid, uuid);
 }
+
+#[test]
+fn try_parse() {
+    const ID: Uuid = Uuid::try_parse("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap();
+
+    assert_eq!(
+        ID,
+        Uuid::parse_str("67e55044-10b1-426f-9247-bb680e5fe0c8").unwrap()
+    );
+    assert_eq!(
+        Uuid::try_parse("67e5504410b1426f9247bb680e5fe0c8"),
+        Some(ID)
+    );
+    assert_eq!(
+        Uuid::try_parse("{67e55044-10b1-426f-9247-bb680e5fe0c8}"),
+        Some(ID)
+    );
+    assert_eq!(
+        Uuid::try_parse("urn:uuid:67E55044-10B1-426F-9247-BB680E5FE0C8"),
+        Some(ID)
+    );
+    assert_eq!(
+        Uuid::try_parse("67e55044-10b1-426f-9247-bb680e5fe0cz"),
+        None
+    );
+}
