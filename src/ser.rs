@@ -99,7 +99,7 @@ where
 #[inline]
 pub fn serialize_to_buffer<T>(value: &T, buffer: &mut Vec<u8>) -> Result<()>
 where
-    T: Serialize,
+    T: Serialize + ?Sized,
 {
     let mut serializer = raw::RawSerializer::new(buffer);
     #[cfg(feature = "serde_path_to_error")]
