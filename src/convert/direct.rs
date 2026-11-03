@@ -13,18 +13,18 @@ use crate::{
 };
 
 /// Conversion to BSON bytes via type-specific implementation.
-pub struct BsonRaw;
+pub struct BsonDirect;
 
 // RawDocument
 
-impl IntoBson<BsonRaw> for &RawDocument {
+impl IntoBson<BsonDirect> for &RawDocument {
     fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()> {
         bytes.extend(self.as_bytes());
         Ok(())
     }
 }
 
-impl<'a> FromBson<'a, BsonRaw> for &'a RawDocument {
+impl<'a> FromBson<'a, BsonDirect> for &'a RawDocument {
     fn from_bson(bytes: &'a [u8]) -> Result<Self> {
         RawDocument::from_bytes(bytes)
     }
@@ -32,7 +32,7 @@ impl<'a> FromBson<'a, BsonRaw> for &'a RawDocument {
 
 // RawDocumentBuf
 
-impl IntoBson<BsonRaw> for RawDocumentBuf {
+impl IntoBson<BsonDirect> for RawDocumentBuf {
     fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()> {
         bytes.append(&mut self.into_bytes());
         Ok(())
@@ -43,20 +43,20 @@ impl IntoBson<BsonRaw> for RawDocumentBuf {
     }
 }
 
-impl IntoBson<BsonRaw> for &RawDocumentBuf {
+impl IntoBson<BsonDirect> for &RawDocumentBuf {
     fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()> {
         bytes.extend(self.as_bytes());
         Ok(())
     }
 }
 
-impl<'a> FromBson<'a, BsonRaw> for RawDocumentBuf {
+impl<'a> FromBson<'a, BsonDirect> for RawDocumentBuf {
     fn from_bson(bytes: &'a [u8]) -> Result<Self> {
         Self::from_bytes(bytes.to_owned())
     }
 }
 
-impl FromBsonOwned<BsonRaw> for RawDocumentBuf {
+impl FromBsonOwned<BsonDirect> for RawDocumentBuf {
     fn from_bson_vec(bytes: Vec<u8>) -> Result<Self> {
         Self::from_bytes(bytes)
     }
@@ -64,14 +64,14 @@ impl FromBsonOwned<BsonRaw> for RawDocumentBuf {
 
 // RawArray
 
-impl IntoBson<BsonRaw> for &RawArray {
+impl IntoBson<BsonDirect> for &RawArray {
     fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()> {
         bytes.extend(self.as_bytes());
         Ok(())
     }
 }
 
-impl<'a> FromBson<'a, BsonRaw> for &'a RawArray {
+impl<'a> FromBson<'a, BsonDirect> for &'a RawArray {
     fn from_bson(bytes: &'a [u8]) -> Result<Self> {
         RawDocument::from_bytes(bytes).map(RawArray::from_doc)
     }
@@ -79,7 +79,7 @@ impl<'a> FromBson<'a, BsonRaw> for &'a RawArray {
 
 // RawArrayBuf
 
-impl IntoBson<BsonRaw> for RawArrayBuf {
+impl IntoBson<BsonDirect> for RawArrayBuf {
     fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()> {
         let doc: RawDocumentBuf = self.into();
         bytes.append(&mut doc.into_bytes());
@@ -92,14 +92,14 @@ impl IntoBson<BsonRaw> for RawArrayBuf {
     }
 }
 
-impl IntoBson<BsonRaw> for &RawArrayBuf {
+impl IntoBson<BsonDirect> for &RawArrayBuf {
     fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()> {
         bytes.extend(self.as_bytes());
         Ok(())
     }
 }
 
-impl<'a> FromBson<'a, BsonRaw> for RawArrayBuf {
+impl<'a> FromBson<'a, BsonDirect> for RawArrayBuf {
     fn from_bson(bytes: &'a [u8]) -> Result<Self> {
         Ok(Self::from_raw_document_buf(RawDocumentBuf::from_bytes(
             bytes.to_owned(),
@@ -107,7 +107,7 @@ impl<'a> FromBson<'a, BsonRaw> for RawArrayBuf {
     }
 }
 
-impl FromBsonOwned<BsonRaw> for RawArrayBuf {
+impl FromBsonOwned<BsonDirect> for RawArrayBuf {
     fn from_bson_vec(bytes: Vec<u8>) -> Result<Self> {
         Ok(Self::from_raw_document_buf(RawDocumentBuf::from_bytes(
             bytes,
@@ -117,13 +117,13 @@ impl FromBsonOwned<BsonRaw> for RawArrayBuf {
 
 // Document
 
-impl IntoBson<BsonRaw> for Document {
+impl IntoBson<BsonDirect> for Document {
     fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()> {
         ok_or_truncate(bytes, |b| self.append_to(b))
     }
 }
 
-impl IntoBson<BsonRaw> for &Document {
+impl IntoBson<BsonDirect> for &Document {
     fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()> {
         ok_or_truncate(bytes, |b| self.append_to(b))
     }
@@ -138,32 +138,32 @@ fn ok_or_truncate(bytes: &mut Vec<u8>, f: impl FnOnce(&mut Vec<u8>) -> Result<()
     result
 }
 
-impl<'a> FromBson<'a, BsonRaw> for Document {
+impl<'a> FromBson<'a, BsonDirect> for Document {
     fn from_bson(bytes: &'a [u8]) -> Result<Self> {
         RawDocument::from_bytes(bytes)?.try_into()
     }
 }
 
-impl FromBsonOwned<BsonRaw> for Document {}
+impl FromBsonOwned<BsonDirect> for Document {}
 
 // Array
 
-impl IntoBson<BsonRaw> for Array {
+impl IntoBson<BsonDirect> for Array {
     fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()> {
         ok_or_truncate(bytes, |b| array_append_to(&self, b))
     }
 }
 
-impl IntoBson<BsonRaw> for &Array {
+impl IntoBson<BsonDirect> for &Array {
     fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()> {
         ok_or_truncate(bytes, |b| array_append_to(&self, b))
     }
 }
 
-impl<'a> FromBson<'a, BsonRaw> for Array {
+impl<'a> FromBson<'a, BsonDirect> for Array {
     fn from_bson(bytes: &'a [u8]) -> Result<Self> {
         RawArray::from_doc(RawDocument::from_bytes(bytes)?).try_into()
     }
 }
 
-impl FromBsonOwned<BsonRaw> for Array {}
+impl FromBsonOwned<BsonDirect> for Array {}

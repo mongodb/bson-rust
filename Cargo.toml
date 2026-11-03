@@ -52,11 +52,11 @@ serde = ["dep:serde"]
 serde_json-1 = ["dep:serde_json"]
 facet-unstable = ["dep:facet", "dep:facet-value", "dep:facet-format", "dep:facet-reflect", "dep:paste"]
 unbounded-depth = []
-# Provides the `IntoBson` and `FromBson` traits.
-convert-traits = []
-convert-serde = ["convert-traits", "serde"]
-convert-facet = ["convert-traits", "facet-unstable"]
-convert-raw = ["convert-traits"]
+# Provides the `IntoBson` and `FromBson` traits.  This API is currently unstable and may be changed in backwards-incompatible ways in minor releases.
+unstable-convert-traits = []
+unstable-convert-serde = ["unstable-convert-traits", "serde"]
+unstable-convert-facet = ["unstable-convert-traits", "facet-unstable"]
+unstable-convert-direct = ["unstable-convert-traits"]
 # Provides additional functionality for BSON validation. For internal use only.
 sfp-internal = []
 

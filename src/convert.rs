@@ -1,11 +1,11 @@
 //! Pluggable bson conversion traits.  These traits can either be implemented as a blanket adapter
-//! (e.g. serde, facet) or bespoke per-type (e.g. raw).
+//! (e.g. serde, facet) or bespoke per-type (e.g. direct).
 
-#[cfg(feature = "convert-facet")]
+#[cfg(feature = "unstable-convert-direct")]
+pub mod direct;
+#[cfg(feature = "unstable-convert-facet")]
 pub mod facet;
-#[cfg(feature = "convert-raw")]
-pub mod raw;
-#[cfg(feature = "convert-serde")]
+#[cfg(feature = "unstable-convert-serde")]
 pub mod serde;
 
 use crate::error::Result;
