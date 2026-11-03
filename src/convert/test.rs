@@ -1,7 +1,99 @@
+use crate::{
+    RawDocumentBuf,
+    convert::{Format, FromBsonBytesOwned, IntoBsonBytes},
+};
+
+fn doc() -> RawDocumentBuf {
+    rawdoc! { "a": 1, "b": "two" }
+}
+
+/// Checks supported by every format: serialize `&RawDocumentBuf`, deserialize an owned
+/// `RawDocumentBuf` from a slice and from a `Vec`.
+fn check_owned<F: Format>()
+where
+    for<'a> &'a RawDocumentBuf: IntoBsonBytes<F>,
+    RawDocumentBuf: FromBsonBytesOwned<F>,
+{
+    let doc = doc();
+    let expected = doc.as_bytes();
+
+    assert_eq!(F::into_bson_bytes(&doc).unwrap(), expected);
+
+    // Append preserves existing buffer contents.
+    let mut buf = vec![0xAA, 0xBB];
+    F::append_bson_bytes(&doc, &mut buf).unwrap();
+    F::append_bson_bytes(&doc, &mut buf).unwrap();
+    let mut want = vec![0xAA, 0xBB];
+    want.extend(expected);
+    want.extend(expected);
+    assert_eq!(buf, want);
+
+    // Owned result from a borrowed slice and from an owned buffer.
+    let from_slice: RawDocumentBuf = F::from_bson_bytes(expected).unwrap();
+    assert_eq!(from_slice, doc);
+    let from_vec: RawDocumentBuf = F::from_bson_bytes_owned(expected.to_vec()).unwrap();
+    assert_eq!(from_vec, doc);
+
+    // Invalid input is rejected.
+    assert!(F::from_bson_bytes::<RawDocumentBuf>(&expected[..expected.len() - 1]).is_err());
+    assert!(F::from_bson_bytes_owned::<RawDocumentBuf>(vec![1, 2, 3]).is_err());
+}
+
+#[cfg(feature = "unstable-convert-direct")]
+mod direct {
+    use super::*;
+    use crate::{RawDocument, convert::Direct};
+
+    #[test]
+    fn round_trip() {
+        check_owned::<Direct>();
+
+        let doc = doc();
+        let bytes = doc.as_bytes();
+
+        // `&RawDocument`, serialized and borrowed from the input.
+        assert_eq!(Direct::into_bson_bytes(&*doc).unwrap(), bytes);
+        let mut buf = vec![0xAA];
+        Direct::append_bson_bytes(&*doc, &mut buf).unwrap();
+        assert_eq!(&buf[1..], bytes);
+        let _: &RawDocument = Direct::from_bson_bytes(bytes).unwrap();
+        assert!(Direct::from_bson_bytes::<&RawDocument>(&bytes[..bytes.len() - 1]).is_err());
+
+        // By-value `RawDocumentBuf` hands over its buffer.
+        assert_eq!(Direct::into_bson_bytes(self::doc()).unwrap(), bytes);
+        let mut buf = vec![0xAA];
+        Direct::append_bson_bytes(self::doc(), &mut buf).unwrap();
+        assert_eq!(&buf[1..], bytes);
+    }
+}
+
+#[cfg(feature = "unstable-convert-serde")]
+mod serde {
+    use super::*;
+    use crate::{RawDocument, convert::Serde};
+
+    #[test]
+    fn round_trip() {
+        check_owned::<Serde>();
+
+        let doc = doc();
+        let bytes = doc.as_bytes();
+        let _: &RawDocument = Serde::from_bson_bytes(bytes).unwrap();
+        assert!(Serde::from_bson_bytes::<&RawDocument>(&bytes[..bytes.len() - 1]).is_err());
+    }
+}
+
 #[cfg(feature = "unstable-convert-facet")]
 mod facet {
+    use super::*;
+
     use crate::convert::{Facet as FacetFormat, Format};
     use ::facet::Facet;
+
+    #[test]
+    fn round_trip() {
+        check_owned::<FacetFormat>();
+    }
 
     #[derive(Debug, PartialEq, Facet)]
     struct Borrowing<'a> {
