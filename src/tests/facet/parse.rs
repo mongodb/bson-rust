@@ -60,7 +60,7 @@ fn nested_deserialize() {
 
 fn value_deserialize<T>(v: T)
 where
-    T: Facet<'static> + Into<RawBson> + Clone + PartialEq + std::fmt::Debug,
+    T: for<'a> Facet<'a> + Into<RawBson> + Clone + PartialEq + std::fmt::Debug,
 {
     #[derive(Debug, PartialEq, Facet)]
     struct Outer<T> {
@@ -84,7 +84,7 @@ where
 
 fn value_deserialize_cooked<T>(v: T)
 where
-    T: Facet<'static> + Into<Bson> + Clone + PartialEq + std::fmt::Debug,
+    T: for<'a> Facet<'a> + Into<Bson> + Clone + PartialEq + std::fmt::Debug,
 {
     #[derive(Debug, PartialEq, Facet)]
     struct Outer<T> {

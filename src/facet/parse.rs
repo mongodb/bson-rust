@@ -394,10 +394,10 @@ impl Expect {
     }
 }
 
-/// Deserialize a value from a binary BSON document.
-pub fn deserialize_from_slice<T: Facet<'static>>(bytes: &[u8]) -> Result<T> {
+/// Deserialize a value from a binary BSON document.  The result may borrow from `bytes`.
+pub fn deserialize_from_slice<'de, T: Facet<'de>>(bytes: &'de [u8]) -> Result<T> {
     RawDocument::from_bytes(bytes)?;
-    facet_format::FormatDeserializer::new_owned(&mut Parser::new(bytes))
+    facet_format::FormatDeserializer::new(&mut Parser::new(bytes))
         .deserialize()
         .map_err(Error::deserialization)
 }
