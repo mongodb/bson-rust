@@ -1,23 +1,28 @@
-//! Pluggable conversion blanket impls for types that implement serde traits.
+//! Conversion format for types that implement serde traits.
+//!
+//! Blanket impls are provided for:
+//! * [`serde::Serialize`] => [`IntoBsonBytes<Serde>`]
+//! * [`serde::Deserialize<'a>`] => [`FromBsonBytes<'a, Serde>`]
+//! * [`serde::de::DeserializeOwned`] => [`FromBsonBytesOwned<Serde`>]
 
-use super::{Format, FromBson, FromBsonOwned, IntoBson};
+use super::{Format, FromBsonBytes, FromBsonBytesOwned, IntoBsonBytes};
 use crate::error::Result;
 
-/// Conversion to BSON bytes via serde traits.
+/// Conversion to BSON bytes via [`serde`].
 pub struct Serde;
 
 impl Format for Serde {}
 
-impl<T: serde::Serialize + ?Sized> IntoBson<Serde> for &T {
-    fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()> {
+impl<T: serde::Serialize + ?Sized> IntoBsonBytes<Serde> for &T {
+    fn append_bson_bytes(self, bytes: &mut Vec<u8>) -> Result<()> {
         crate::serialize_to_buffer(self, bytes)
     }
 }
 
-impl<'a, T: serde::Deserialize<'a>> FromBson<'a, Serde> for T {
-    fn from_bson(bytes: &'a [u8]) -> Result<Self> {
+impl<'a, T: serde::Deserialize<'a>> FromBsonBytes<'a, Serde> for T {
+    fn from_bson_bytes(bytes: &'a [u8]) -> Result<Self> {
         crate::deserialize_from_slice(bytes)
     }
 }
 
-impl<T: serde::de::DeserializeOwned> FromBsonOwned<Serde> for T {}
+impl<T: serde::de::DeserializeOwned> FromBsonBytesOwned<Serde> for T {}

@@ -38,7 +38,7 @@ use super::{RawArrayIter, document_buf::BindRawBsonRef};
 /// any of the type-specific getters, such as [`RawArray::get_object_id`] or [`RawArray::get_str`].
 /// Note that accessing elements is an O(N) operation, as it requires iterating through the document
 /// from the beginning to find the requested key.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Eq)]
 #[cfg_attr(feature = "facet-unstable", derive(facet::Facet), facet(opaque = crate::facet::opaque::RawArrayBufAdapter))]
 pub struct RawArrayBuf {
     inner: RawDocumentBuf,
@@ -97,6 +97,13 @@ impl RawArrayBuf {
             value,
         );
         *len += 1;
+    }
+}
+
+// The length field is lazily computed; it doesn't count for equality.
+impl PartialEq for RawArrayBuf {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.eq(&other.inner)
     }
 }
 
