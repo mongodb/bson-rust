@@ -98,7 +98,7 @@ impl<'a> Serializer<'a> {
 
     fn write_raw_bson_ref(&mut self, bv: RawBsonRef<'_>) -> Result<()> {
         self.write_elem_type(bv.element_type())?;
-        bv.append_to(&mut self.bytes);
+        bv.append_to(self.bytes);
         Ok(())
     }
 
@@ -143,7 +143,7 @@ impl facet_format::FormatSerializer for Serializer<'_> {
         self.elem_type_pos = Some(self.bytes.len());
         self.bytes.push(0); // placeholder
         let key: &CStr = key.try_into()?;
-        key.append_to(&mut self.bytes);
+        key.append_to(self.bytes);
         Ok(())
     }
 
@@ -240,19 +240,19 @@ impl facet_format::FormatSerializer for Serializer<'_> {
         if id == TypeId::of::<JavaScriptCodeWithScope>() {
             let jscws = value.get::<JavaScriptCodeWithScope>()?;
             self.write_elem_type(ElementType::JavaScriptCodeWithScope)?;
-            jscws.append_to(&mut self.bytes)?;
+            jscws.append_to(self.bytes)?;
 
             return Ok(true);
         } else if id == TypeId::of::<Document>() {
             let doc = value.get::<Document>()?;
             self.write_elem_type(ElementType::EmbeddedDocument)?;
-            doc.append_to(&mut self.bytes)?;
+            doc.append_to(self.bytes)?;
 
             return Ok(true);
         } else if id == TypeId::of::<Bson>() {
             let b = value.get::<Bson>()?;
             self.write_elem_type(b.element_type())?;
-            b.append_to(&mut self.bytes)?;
+            b.append_to(self.bytes)?;
 
             return Ok(true);
         }
