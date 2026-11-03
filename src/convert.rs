@@ -10,8 +10,17 @@ pub mod serde;
 
 use crate::error::Result;
 
+#[cfg(feature = "unstable-convert-direct")]
+pub use direct::Direct;
+
+#[cfg(feature = "unstable-convert-facet")]
+pub use facet::Facet;
+
+#[cfg(feature = "unstable-convert-serde")]
+pub use serde::Serde;
+
 /// This type can be converted into BSON bytes.
-pub trait IntoBson<T>: Sized {
+pub trait IntoBson<F: Format>: Sized {
     /// Append the BSON bytes representing this value to the end of a buffer.
     fn into_bson(self, bytes: &mut Vec<u8>) -> Result<()>;
 
@@ -23,45 +32,42 @@ pub trait IntoBson<T>: Sized {
     }
 }
 
-/// Append the BSON bytes representing this value to the end of a buffer.
-///
-/// This is a convenience method to allow inline turbofish typing.
-pub fn into_bson<T, V: IntoBson<T>>(v: V, bytes: &mut Vec<u8>) -> Result<()> {
-    v.into_bson(bytes)
-}
-
-/// Write the BSON bytes representing this value into a fresh buffer.
-///
-/// This is a convenience method to allow inline turbofish typing.
-pub fn into_bson_vec<T, V: IntoBson<T>>(v: V) -> Result<Vec<u8>> {
-    v.into_bson_vec()
-}
-
 /// This type can be constructed from BSON bytes.
-pub trait FromBson<'a, T>: Sized {
+pub trait FromBson<'a, F: Format>: Sized {
     /// Construct a value from a slice of BSON bytes.
     fn from_bson(bytes: &'a [u8]) -> Result<Self>;
 }
 
-/// Construct a value from a slice of BSON bytes.
-///
-/// This is a convenience method to allow inline turbofish typing.
-pub fn from_bson<'a, T, V: FromBson<'a, T>>(bytes: &'a [u8]) -> Result<V> {
-    V::from_bson(bytes)
-}
-
 /// This type can be constructed from BSON bytes of any lifetime, i.e. it does not borrow from its
 /// input.
-pub trait FromBsonOwned<T>: for<'a> FromBson<'a, T> {
+pub trait FromBsonOwned<F: Format>: for<'a> FromBson<'a, F> {
     /// Construct a value by consuming an owned buffer of BSON bytes.
     fn from_bson_vec(bytes: Vec<u8>) -> Result<Self> {
         Self::from_bson(&bytes[..])
     }
 }
 
-/// Construct a value by consuming an owned buffer of BSON bytes.
-///
-/// This is a convenience method to allow inline turbofish typing.
-pub fn from_bson_vec<T, V: FromBsonOwned<T>>(bytes: Vec<u8>) -> Result<V> {
-    V::from_bson_vec(bytes)
+/// A format used to convert types to or from BSON bytes.
+pub trait Format: Sized {
+    /// Append the BSON bytes representing the value to the end of a buffer using this conversion
+    /// format.
+    fn into_bson<V: IntoBson<Self>>(v: V, bytes: &mut Vec<u8>) -> Result<()> {
+        v.into_bson(bytes)
+    }
+
+    /// Write the BSON bytes representing this value into a fresh buffer using this conversion
+    /// format.
+    fn into_bson_vec<V: IntoBson<Self>>(v: V) -> Result<Vec<u8>> {
+        v.into_bson_vec()
+    }
+
+    /// Construct a value from a slice of BSON bytes using this conversion format.
+    fn from_bson<'a, V: FromBson<'a, Self>>(bytes: &'a [u8]) -> Result<V> {
+        V::from_bson(bytes)
+    }
+
+    /// Construct a value by consuming an owned buffer of BSON bytes using this conversion format.
+    fn from_bson_vec<V: FromBsonOwned<Self>>(bytes: Vec<u8>) -> Result<V> {
+        V::from_bson_vec(bytes)
+    }
 }
