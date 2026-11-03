@@ -11,7 +11,7 @@ pub struct Facet;
 
 impl Format for Facet {}
 
-impl<'a, T: facet::Facet<'a> + ?Sized> IntoBsonBytes<Facet> for &'a T {
+impl<'a, 'facet, T: facet::Facet<'facet> + ?Sized> IntoBsonBytes<Facet> for &'a T {
     fn append_bson_bytes(self, bytes: &mut Vec<u8>) -> Result<()> {
         crate::facet::serialize_to_buffer(self, bytes)
     }

@@ -44,6 +44,8 @@ pub mod direct;
 pub mod facet;
 #[cfg(feature = "unstable-convert-serde")]
 pub mod serde;
+#[cfg(test)]
+mod test;
 
 use crate::error::Result;
 
