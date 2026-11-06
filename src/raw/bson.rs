@@ -3,6 +3,9 @@ use std::convert::{TryFrom, TryInto};
 #[cfg(feature = "facet-unstable")]
 use crate::facet::opaque;
 use crate::{
+    oid::{self, ObjectId},
+    raw::check_recursion_limit,
+    spec::ElementType,
     Binary,
     Bson,
     DbPointer,
@@ -18,9 +21,6 @@ use crate::{
     RawRegexRef,
     Regex,
     Timestamp,
-    oid::{self, ObjectId},
-    raw::check_recursion_limit,
-    spec::ElementType,
 };
 
 use super::{Error, Result};
@@ -437,6 +437,16 @@ impl From<i64> for RawBson {
     }
 }
 
+impl From<u32> for RawBson {
+    fn from(n: u32) -> Self {
+        if let Ok(n) = i32::try_from(n) {
+            RawBson::Int32(n)
+        } else {
+            RawBson::Int64(n.into())
+        }
+    }
+}
+
 impl From<String> for RawBson {
     fn from(s: String) -> Self {
         RawBson::String(s)
@@ -527,7 +537,7 @@ impl<'de> serde::Deserialize<'de> for RawBson {
     where
         D: serde::Deserializer<'de>,
     {
-        use super::serde::{OwnedOrBorrowedRawBson, bson_visitor::OwnedOrBorrowedRawBsonVisitor};
+        use super::serde::{bson_visitor::OwnedOrBorrowedRawBsonVisitor, OwnedOrBorrowedRawBson};
         match deserializer.deserialize_newtype_struct(
             crate::raw::RAW_BSON_NEWTYPE,
             OwnedOrBorrowedRawBsonVisitor,
