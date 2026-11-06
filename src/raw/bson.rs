@@ -437,6 +437,16 @@ impl From<i64> for RawBson {
     }
 }
 
+impl From<u32> for RawBson {
+    fn from(n: u32) -> Self {
+        if let Ok(n) = i32::try_from(n) {
+            RawBson::Int32(n)
+        } else {
+            RawBson::Int64(n.into())
+        }
+    }
+}
+
 impl From<String> for RawBson {
     fn from(s: String) -> Self {
         RawBson::String(s)
