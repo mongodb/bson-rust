@@ -15,7 +15,7 @@
 //! Application authors should enable relevant format features:
 //! ```toml
 //! # Cargo.toml
-//! bson = { version = "...", features = ["unstable-convert", "unstable-convert-serde", "unstable-format-direct"] }
+//! bson = { version = "...", features = ["unstable-convert", "unstable-convert-serde", "unstable-convert-direct"] }
 //! ```
 //! ```rust
 //! # #[cfg(all(feature = "unstable-convert-serde", feature = "unstable-convert-direct"))]

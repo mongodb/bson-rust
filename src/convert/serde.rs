@@ -3,7 +3,7 @@
 //! Blanket impls are provided for:
 //! * [`serde::Serialize`] => [`IntoBsonBytes<Serde>`]
 //! * [`serde::Deserialize<'a>`] => [`FromBsonBytes<'a, Serde>`]
-//! * [`serde::de::DeserializeOwned`] => [`FromBsonBytesOwned<Serde`>]
+//! * [`serde::de::DeserializeOwned`] => [`FromBsonBytesOwned<Serde>`]
 
 use super::{Format, FromBsonBytes, FromBsonBytesOwned, IntoBsonBytes};
 use crate::error::Result;
