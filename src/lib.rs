@@ -506,6 +506,8 @@ mod macros;
 mod base64;
 pub mod binary;
 mod bson;
+#[cfg(feature = "unstable-convert")]
+pub mod convert;
 pub mod datetime;
 #[cfg(feature = "serde")]
 pub mod de;

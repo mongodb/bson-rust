@@ -936,16 +936,7 @@ impl Bson {
             })
             .append_to(buf),
             Self::String(s) => RawBsonRef::String(s).append_to(buf),
-            Self::Array(arr) => {
-                let mut writer = DocWriter::open(buf);
-                for (ix, v) in arr.iter().enumerate() {
-                    writer.append_key(
-                        v.element_type(),
-                        &crate::raw::CString::from_string_unchecked(ix.to_string()),
-                    );
-                    v.append_to(writer.buffer())?;
-                }
-            }
+            Self::Array(arr) => array_append_to(arr, buf)?,
             Self::Document(doc) => doc.append_to(buf)?,
             Self::Boolean(b) => RawBsonRef::Boolean(*b).append_to(buf),
             Self::RegularExpression(re) => RawBsonRef::RegularExpression(crate::RawRegexRef {
@@ -968,6 +959,18 @@ impl Bson {
         }
         Ok(())
     }
+}
+
+pub(crate) fn array_append_to(arr: &Array, buf: &mut Vec<u8>) -> crate::error::Result<()> {
+    let mut writer = DocWriter::open(buf);
+    for (ix, v) in arr.iter().enumerate() {
+        writer.append_key(
+            v.element_type(),
+            &crate::raw::CString::from_string_unchecked(ix.to_string()),
+        );
+        v.append_to(writer.buffer())?;
+    }
+    Ok(())
 }
 
 /// Value helpers
