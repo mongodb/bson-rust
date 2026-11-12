@@ -12,7 +12,7 @@ use crate::{
     Timestamp,
     Utf8Lossy,
     oid::ObjectId,
-    spec::BinarySubtype,
+    spec::{BinarySubtype, ElementType},
 };
 
 #[test]
@@ -720,4 +720,161 @@ fn max_cstr_parse_len() {
         panic!("expected error");
     };
     assert!(matches!(error.kind, ErrorKind::TooLongCStr { .. }));
+}
+
+// helpers for the element-view tests: build complete document bytes from element bytes
+
+fn element_view_doc_bytes(elements: &[u8]) -> Vec<u8> {
+    let mut out = ((elements.len() + 5) as i32).to_le_bytes().to_vec();
+    out.extend(elements);
+    out.push(0);
+    out
+}
+
+fn element_view_len_encode(payload: &[u8]) -> Vec<u8> {
+    let mut out = ((payload.len() + 1) as i32).to_le_bytes().to_vec();
+    out.extend(payload);
+    out.push(0);
+    out
+}
+
+fn element_view_cstring(payload: &[u8]) -> Vec<u8> {
+    let mut out = payload.to_vec();
+    out.push(0);
+    out
+}
+
+#[test]
+fn element_view_iter_keys_and_values() {
+    // {"s": "hello", "i": 42}
+    let mut elements = Vec::new();
+    elements.push(0x02);
+    elements.extend(element_view_cstring(b"s"));
+    elements.extend(element_view_len_encode(b"hello"));
+    elements.push(0x10);
+    elements.extend(element_view_cstring(b"i"));
+    elements.extend(42i32.to_le_bytes());
+
+    let bytes = element_view_doc_bytes(&elements);
+    let doc = RawDocument::from_bytes(&bytes).unwrap();
+    let mut iter = doc.iter_element_views();
+
+    let element = iter.next().unwrap().unwrap();
+    assert_eq!(element.key_bytes(), b"s");
+    assert_eq!(element.element_type(), ElementType::String);
+    // value_bytes includes framing: the length prefix and null terminator
+    assert_eq!(element.value_bytes(), &element_view_len_encode(b"hello"));
+    // strict parsing is still available as an explicit step
+    assert_eq!(element.value().unwrap().as_str(), Some("hello"));
+
+    let element = iter.next().unwrap().unwrap();
+    assert_eq!(element.key_bytes(), b"i");
+    assert_eq!(element.value().unwrap().as_i32(), Some(42));
+
+    assert!(iter.next().is_none());
+}
+
+#[test]
+fn element_view_iter_invalid_utf8_key() {
+    let mut elements = Vec::new();
+    elements.push(0x02);
+    elements.extend(element_view_cstring(b"\xFF\xFE"));
+    elements.extend(element_view_len_encode(b"value"));
+
+    let bytes = element_view_doc_bytes(&elements);
+    let doc = RawDocument::from_bytes(&bytes).unwrap();
+
+    // the existing iterator stops at the invalid key
+    assert!(doc.iter_elements().next().unwrap().is_err());
+
+    // the view iterator yields the raw key bytes
+    let mut iter = doc.iter_element_views();
+    let element = iter.next().unwrap().unwrap();
+    assert_eq!(element.key_bytes(), b"\xFF\xFE");
+    assert_eq!(element.value().unwrap().as_str(), Some("value"));
+    assert!(iter.next().is_none());
+
+    // validating the key is an explicit, fallible step
+    let mut iter = doc.iter_element_views();
+    let element = iter.next().unwrap().unwrap();
+    assert!(RawElement::try_from(element).is_err());
+
+    // a valid key round-trips into a RawElement
+    let mut elements = Vec::new();
+    elements.push(0x02);
+    elements.extend(element_view_cstring(b"ok"));
+    elements.extend(element_view_len_encode(b"value"));
+    let bytes = element_view_doc_bytes(&elements);
+    let doc = RawDocument::from_bytes(&bytes).unwrap();
+    let element = doc.iter_element_views().next().unwrap().unwrap();
+    let raw_element = RawElement::try_from(element).unwrap();
+    assert_eq!(raw_element.key(), "ok");
+    assert_eq!(raw_element.value().unwrap().as_str(), Some("value"));
+}
+
+#[test]
+fn element_view_iter_rejects_underfilled_body() {
+    // a valid one-element document...
+    let mut elements = Vec::new();
+    elements.push(0x10);
+    elements.extend(element_view_cstring(b"i"));
+    elements.extend(1i32.to_le_bytes());
+    let mut bytes = element_view_doc_bytes(&elements);
+    // ...with one extra trailing byte appended (and the length prefix adjusted)
+    let length = i32::from_le_bytes(bytes[..4].try_into().unwrap()) + 1;
+    bytes[..4].copy_from_slice(&length.to_le_bytes());
+    bytes.push(0);
+
+    let doc = RawDocument::from_bytes(&bytes).unwrap();
+    let mut iter = doc.iter_element_views();
+
+    // the element is located...
+    assert!(iter.next().unwrap().is_ok());
+    // ...but the unconsumed body byte is an error, not a clean end of iteration
+    assert!(iter.next().unwrap().is_err());
+    // and iteration has ended
+    assert!(iter.next().is_none());
+}
+
+#[test]
+fn element_view_iter_empty_document() {
+    let doc = RawDocument::from_bytes(b"\x05\0\0\0\0").unwrap();
+    let mut iter = doc.iter_element_views();
+    assert!(iter.next().is_none());
+}
+
+#[test]
+fn element_view_iter_malformed_documents() {
+    // invalid type tag
+    let mut elements = Vec::new();
+    elements.push(0x63);
+    elements.extend(element_view_cstring(b"k"));
+    let bytes = element_view_doc_bytes(&elements);
+    let doc = RawDocument::from_bytes(&bytes).unwrap();
+    let mut iter = doc.iter_element_views();
+    let err = iter.next().unwrap().unwrap_err();
+    assert!(err.to_string().contains("invalid tag"));
+    assert!(iter.next().is_none());
+
+    // string value that overruns the document
+    let mut elements = Vec::new();
+    elements.push(0x02);
+    elements.extend(element_view_cstring(b"s"));
+    elements.extend([99, 0, 0, 0]); // declares 99 bytes of string
+    let bytes = element_view_doc_bytes(&elements);
+    let doc = RawDocument::from_bytes(&bytes).unwrap();
+    let mut iter = doc.iter_element_views();
+    assert!(iter.next().unwrap().is_err());
+    assert!(iter.next().is_none());
+
+    // key that is not null terminated
+    let mut elements = Vec::new();
+    elements.push(0x10);
+    elements.extend(b"unterminated");
+    elements.extend(1i32.to_le_bytes());
+    let bytes = element_view_doc_bytes(&elements);
+    let doc = RawDocument::from_bytes(&bytes).unwrap();
+    let mut iter = doc.iter_element_views();
+    assert!(iter.next().unwrap().is_err());
+    assert!(iter.next().is_none());
 }
