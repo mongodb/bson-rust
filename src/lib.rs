@@ -468,6 +468,7 @@ pub use self::{
         RawBinaryRef,
         RawBson,
         RawBsonRef,
+        RawBsonRefView,
         RawDbPointerRef,
         RawDocument,
         RawDocumentBuf,

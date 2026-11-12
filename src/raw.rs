@@ -138,6 +138,7 @@ pub(crate) mod serde;
 #[cfg(test)]
 mod test;
 pub(crate) mod value;
+mod view;
 
 use std::{
     convert::{TryFrom, TryInto},
@@ -161,6 +162,7 @@ pub use self::{
     document::RawDocument,
     document_buf::{BindRawBsonRef, BindValue, RawDocumentBuf},
     iter::{Iter, RawElement, RawIter},
+    view::{RawBsonRefView, RawElementView, RawElementViewIter},
 };
 
 pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
@@ -351,10 +353,6 @@ pub(crate) fn cstring_bytes(buf: &[u8]) -> Result<&[u8]> {
     } else {
         Err(Error::malformed_bytes("expected null terminator"))
     }
-}
-
-pub(crate) fn read_cstring(buf: &[u8]) -> Result<&CStr> {
-    read_cstring_with_max_len(buf, None)
 }
 
 /// Reads a cstring from the start of `buf`, returning an error if no null terminator is found

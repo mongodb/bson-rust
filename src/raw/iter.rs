@@ -103,35 +103,9 @@ impl<'a> RawIter<'a> {
         self
     }
 
-    fn verify_enough_bytes(&self, start: usize, num_bytes: usize) -> Result<()> {
-        let end = checked_add(start, num_bytes)?;
-        if self.bytes.get(start..end).is_none() {
-            return Err(Error::malformed_bytes(format!(
-                "length exceeds remaining length of buffer: {} vs {}",
-                num_bytes,
-                self.bytes.len() - start
-            )));
-        }
-        Ok(())
-    }
-
+    #[cfg(feature = "facet-unstable")]
     pub(crate) fn next_document_len(&self, starting_at: usize) -> Result<usize> {
-        self.verify_enough_bytes(starting_at, MIN_BSON_DOCUMENT_SIZE as usize)?;
-        let size = i32_from_slice(&self.bytes[starting_at..])? as usize;
-
-        if size < MIN_BSON_DOCUMENT_SIZE as usize {
-            return Err(Error::malformed_bytes(format!(
-                "document too small: {} bytes",
-                size
-            )));
-        }
-
-        self.verify_enough_bytes(starting_at, size)?;
-
-        if self.bytes[starting_at + size - 1] != 0 {
-            return Err(Error::malformed_bytes("not null terminated"));
-        }
-        Ok(size)
+        next_document_len(self.bytes, starting_at)
     }
 }
 
@@ -169,6 +143,10 @@ impl TryFrom<RawElement<'_>> for Bson {
 }
 
 impl<'a> RawElement<'a> {
+    pub(crate) fn new(key: &'a CStr, value: RawValue<'a>) -> Self {
+        Self { key, value }
+    }
+
     #[cfg(feature = "serde")]
     pub(crate) fn toplevel(bytes: &'a [u8]) -> Self {
         use crate::raw::cstr;
@@ -224,15 +202,6 @@ impl<'a> RawElement<'a> {
 }
 
 impl RawIter<'_> {
-    fn get_next_length_at(&self, start_at: usize) -> Result<usize> {
-        let len = i32_from_slice(&self.bytes[start_at..])?;
-        if len < 0 {
-            Err(Error::malformed_bytes("lengths can't be negative"))
-        } else {
-            Ok(len as usize)
-        }
-    }
-
     fn get_next_kvp(&mut self, offset: usize) -> Result<(ElementType, usize)> {
         let element_type = match ElementType::from(self.bytes[self.offset]) {
             Some(et) => et,
@@ -258,9 +227,9 @@ impl RawIter<'_> {
             ElementType::MinKey => 0,
             ElementType::MaxKey => 0,
             ElementType::String => read_len(&self.bytes[offset..])?,
-            ElementType::EmbeddedDocument => self.next_document_len(offset)?,
-            ElementType::Array => self.next_document_len(offset)?,
-            ElementType::Binary => self.get_next_length_at(offset)? + 4 + 1,
+            ElementType::EmbeddedDocument => next_document_len(self.bytes, offset)?,
+            ElementType::Array => next_document_len(self.bytes, offset)?,
+            ElementType::Binary => get_next_length_at(self.bytes, offset)? + 4 + 1,
             ElementType::RegularExpression => {
                 let pattern =
                     read_cstring_with_max_len(&self.bytes[offset..], self.max_cstr_parse_len)?;
@@ -273,10 +242,10 @@ impl RawIter<'_> {
             ElementType::DbPointer => read_len(&self.bytes[offset..])? + 12,
             ElementType::Symbol => read_len(&self.bytes[offset..])?,
             ElementType::JavaScriptCode => read_len(&self.bytes[offset..])?,
-            ElementType::JavaScriptCodeWithScope => self.get_next_length_at(offset)?,
+            ElementType::JavaScriptCodeWithScope => get_next_length_at(self.bytes, offset)?,
         };
 
-        self.verify_enough_bytes(offset, element_size)?;
+        verify_enough_bytes(self.bytes, offset, element_size)?;
         self.offset = offset + element_size;
 
         Ok((element_type, element_size))
@@ -357,4 +326,47 @@ impl<'a> From<Utf8LossyBson<'a>> for RawBson {
             Utf8LossyBson::RegularExpression(r) => RawBson::RegularExpression(r),
         }
     }
+}
+
+/// Shared framing helpers used by both [`RawIter`] and the view iterator in
+/// [`crate::raw::view`]. Each validates only the structure needed to locate an extent
+/// (lengths, null terminators, and bounds); none validate UTF-8.
+pub(super) fn verify_enough_bytes(bytes: &[u8], start: usize, num_bytes: usize) -> Result<()> {
+    let end = checked_add(start, num_bytes)?;
+    if bytes.get(start..end).is_none() {
+        return Err(Error::malformed_bytes(format!(
+            "length exceeds remaining length of buffer: {} vs {}",
+            num_bytes,
+            bytes.len() - start
+        )));
+    }
+    Ok(())
+}
+
+pub(super) fn get_next_length_at(bytes: &[u8], start_at: usize) -> Result<usize> {
+    let len = i32_from_slice(&bytes[start_at..])?;
+    if len < 0 {
+        Err(Error::malformed_bytes("lengths can't be negative"))
+    } else {
+        Ok(len as usize)
+    }
+}
+
+pub(super) fn next_document_len(bytes: &[u8], starting_at: usize) -> Result<usize> {
+    verify_enough_bytes(bytes, starting_at, MIN_BSON_DOCUMENT_SIZE as usize)?;
+    let size = i32_from_slice(&bytes[starting_at..])? as usize;
+
+    if size < MIN_BSON_DOCUMENT_SIZE as usize {
+        return Err(Error::malformed_bytes(format!(
+            "document too small: {} bytes",
+            size
+        )));
+    }
+
+    verify_enough_bytes(bytes, starting_at, size)?;
+
+    if bytes[starting_at + size - 1] != 0 {
+        return Err(Error::malformed_bytes("not null terminated"));
+    }
+    Ok(size)
 }
