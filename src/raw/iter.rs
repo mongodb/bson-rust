@@ -143,6 +143,10 @@ impl TryFrom<RawElement<'_>> for Bson {
 }
 
 impl<'a> RawElement<'a> {
+    pub(crate) fn new(key: &'a CStr, value: RawValue<'a>) -> Self {
+        Self { key, value }
+    }
+
     #[cfg(feature = "serde")]
     pub(crate) fn toplevel(bytes: &'a [u8]) -> Self {
         use crate::raw::cstr;
@@ -353,7 +357,10 @@ pub(super) fn next_document_len(bytes: &[u8], starting_at: usize) -> Result<usiz
     let size = i32_from_slice(&bytes[starting_at..])? as usize;
 
     if size < MIN_BSON_DOCUMENT_SIZE as usize {
-        return Err(Error::malformed_bytes(format!("document too small: {} bytes", size)));
+        return Err(Error::malformed_bytes(format!(
+            "document too small: {} bytes",
+            size
+        )));
     }
 
     verify_enough_bytes(bytes, starting_at, size)?;
