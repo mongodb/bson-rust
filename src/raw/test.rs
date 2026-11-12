@@ -1248,3 +1248,106 @@ fn element_view_iter_rejects_element_overrunning_terminator() {
     assert!(err.to_string().contains("iteration overflowed document"));
     assert!(iter.next().is_none());
 }
+
+#[test]
+fn raw_value_parse_rejects_string_missing_terminator() {
+    // a string value whose final byte is not the null terminator must be an error;
+    // the strict path historically dropped the trailing byte silently
+    let mut value = element_view_len_encode(b"payload");
+    *value.last_mut().unwrap() = 0xFF;
+    let error = value::RawValue::new_at(ElementType::String, &value, 0)
+        .parse()
+        .unwrap_err();
+    assert!(matches!(error.kind, ErrorKind::MalformedBytes { .. }));
+}
+
+#[test]
+fn value_lossy_regex_locates_options_with_raw_pattern_length() {
+    // a regex pattern containing invalid utf-8: the options cstring must be located using
+    // the raw pattern bytes; using the lossily decoded length (three bytes per replacement
+    // character) shifts the offset past the options
+    let mut value = Vec::new();
+    value.extend(element_view_cstring(b"b\xC3")); // pattern: "b" + invalid continuation byte
+    value.extend(element_view_cstring(b"x")); // options
+
+    let lossy = value::RawValue::new_at(ElementType::RegularExpression, &value, 0)
+        .parse_utf8_lossy()
+        .unwrap()
+        .unwrap();
+    match lossy {
+        Utf8LossyBson::RegularExpression(regex) => {
+            assert_eq!(regex.pattern.as_str(), "b\u{FFFD}");
+            assert_eq!(regex.options.as_str(), "x");
+        }
+        _ => panic!("expected regex"),
+    }
+}
+
+#[test]
+fn element_view_into_validated_matches_strict_parse() {
+    // validating the view's framing must produce the same value as the strict parse for
+    // every type, string-like and otherwise
+    let mut scope_elements = Vec::new();
+    scope_elements.push(0x10);
+    scope_elements.extend(element_view_cstring(b"x"));
+    scope_elements.extend(1i32.to_le_bytes());
+    let scope = element_view_doc_bytes(&scope_elements);
+    let code = element_view_len_encode(b"var");
+
+    let mut elements = Vec::new();
+    for (tag, key, value) in [
+        (0x02, &b"s"[..], element_view_len_encode(b"hello")), // string
+        (0x0E, &b"y"[..], element_view_len_encode(b"sym")),   // symbol
+        (0x0D, &b"c"[..], element_view_len_encode(b"code")),  // javascript code
+        (0x0B, &b"re"[..], {
+            let mut v = element_view_cstring(b"pat");
+            v.extend(element_view_cstring(b"i"));
+            v
+        }), // regular expression
+        (0x0C, &b"dp"[..], {
+            let mut v = element_view_len_encode(b"ns");
+            v.extend([0u8; 12]); // object id
+            v
+        }), // dbpointer
+        (0x10, &b"i"[..], 42i32.to_le_bytes().to_vec()),      // int32
+    ] {
+        let mut element = Vec::new();
+        element.push(tag);
+        element.extend(element_view_cstring(key));
+        element.extend(value);
+        elements.extend(element);
+    }
+    let mut element = Vec::new();
+    element.push(0x0F);
+    element.extend(element_view_cstring(b"cws"));
+    element.extend(((4 + code.len() + scope.len()) as i32).to_le_bytes());
+    element.extend(&code);
+    element.extend(&scope);
+    elements.extend(element);
+
+    let bytes = element_view_doc_bytes(&elements);
+    let doc = RawDocument::from_bytes(&bytes).unwrap();
+    for element in doc.iter_element_views() {
+        let element = element.unwrap();
+        assert_eq!(
+            element.value_view().unwrap().into_validated().unwrap(),
+            element.value().unwrap(),
+        );
+    }
+}
+
+#[test]
+fn element_view_into_validated_rejects_invalid_utf8() {
+    // the view hands string-like payloads back as raw bytes; the strict conversion is the
+    // utf-8 validation policy
+    let mut elements = Vec::new();
+    elements.push(0x02);
+    elements.extend(element_view_cstring(b"s"));
+    elements.extend(element_view_len_encode(b"h\xFFllo"));
+
+    let bytes = element_view_doc_bytes(&elements);
+    let doc = RawDocument::from_bytes(&bytes).unwrap();
+    let element = doc.iter_element_views().next().unwrap().unwrap();
+    let error = element.value_view().unwrap().into_validated().unwrap_err();
+    assert!(matches!(error.kind, ErrorKind::Utf8Encoding { .. }));
+}

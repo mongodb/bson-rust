@@ -14,13 +14,12 @@ use crate::{
     oid::{self, ObjectId},
     raw::{
         CStr,
-        MIN_CODE_WITH_SCOPE_SIZE,
         RawJavaScriptCodeWithScope,
         check_recursion_limit,
         checked_add,
         i32_from_slice,
-        read_cstring,
-        read_lenencode,
+        try_to_str,
+        view::{code_with_scope_payload_at, dbpointer_payload_at, regex_payload_at},
         write_string,
     },
     spec::{BinarySubtype, ElementType},
@@ -764,10 +763,10 @@ pub struct RawRegexRef<'a> {
 
 impl<'a> RawRegexRef<'a> {
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
-        let pattern = read_cstring(bytes)?;
+        let (pattern, options) = regex_payload_at(bytes)?;
         Ok(Self {
-            pattern,
-            options: read_cstring(&bytes[pattern.len() + 1..])?,
+            pattern: try_to_str(pattern)?.try_into()?,
+            options: try_to_str(options)?.try_into()?,
         })
     }
 }
@@ -855,15 +854,11 @@ impl RawJavaScriptCodeWithScopeRef<'_> {
 
 impl<'a> RawJavaScriptCodeWithScopeRef<'a> {
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
-        if bytes.len() < MIN_CODE_WITH_SCOPE_SIZE as usize {
-            return Err(Error::malformed_bytes("code with scope length too small"));
-        }
-
-        let code = read_lenencode(&bytes[4..])?;
-        let scope_start = 4 + 4 + code.len() + 1;
-        let scope = RawDocument::from_bytes(&bytes[scope_start..])?;
-
-        Ok(RawJavaScriptCodeWithScopeRef { code, scope })
+        let (code, scope) = code_with_scope_payload_at(bytes)?;
+        Ok(Self {
+            code: try_to_str(code)?,
+            scope: RawDocument::from_bytes(scope)?,
+        })
     }
 }
 
@@ -933,13 +928,11 @@ pub struct RawDbPointerRef<'a> {
 
 impl<'a> RawDbPointerRef<'a> {
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
-        let namespace = read_lenencode(bytes)?;
-        let id_start = bytes
-            .len()
-            .checked_sub(12)
-            .ok_or_else(|| Error::malformed_bytes("db pointer too small"))?;
-        let id = ObjectId::parse(&bytes[id_start..])?;
-        Ok(Self { namespace, id })
+        let (namespace, id) = dbpointer_payload_at(bytes)?;
+        Ok(Self {
+            namespace: try_to_str(namespace)?,
+            id,
+        })
     }
 }
 

@@ -355,10 +355,6 @@ pub(crate) fn cstring_bytes(buf: &[u8]) -> Result<&[u8]> {
     }
 }
 
-pub(crate) fn read_cstring(buf: &[u8]) -> Result<&CStr> {
-    read_cstring_with_max_len(buf, None)
-}
-
 /// Reads a cstring from the start of `buf`, returning an error if no null terminator is found
 /// within the first `max_parse_len + 1` bytes.
 pub(crate) fn read_cstring_with_max_len(buf: &[u8], max_parse_len: Option<usize>) -> Result<&CStr> {
