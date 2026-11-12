@@ -138,6 +138,7 @@ pub(crate) mod serde;
 #[cfg(test)]
 mod test;
 pub(crate) mod value;
+mod view;
 
 use std::{
     convert::{TryFrom, TryInto},
@@ -161,6 +162,7 @@ pub use self::{
     document::RawDocument,
     document_buf::{BindRawBsonRef, BindValue, RawDocumentBuf},
     iter::{Iter, RawElement, RawIter},
+    view::{RawBsonRefView, RawElementView, RawElementViewIter},
 };
 
 pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
