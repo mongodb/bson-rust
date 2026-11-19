@@ -192,8 +192,9 @@ impl<'a> RawElement<'a> {
         &self.value
     }
 
-    /// Parses this element into [`RawBson`], replacing any invalid UTF-8 strings with the Unicode
-    /// replacement character. Returns an error if the underlying bytes are invalid.
+    /// Parses this element into [`RawBson`], replacing any invalid UTF-8 in the element's
+    /// string-like payloads with the Unicode replacement character; nested documents and
+    /// arrays are returned unvalidated. Returns an error if the underlying bytes are invalid.
     pub fn value_utf8_lossy(&self) -> Result<RawBson> {
         match self.value_utf8_lossy_inner()? {
             Some(v) => Ok(v.into()),

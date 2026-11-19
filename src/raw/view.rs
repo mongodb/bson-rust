@@ -295,8 +295,9 @@ impl<'a> RawElementView<'a> {
     }
 
     /// Parses this element's value into a [`RawBsonRef`] and returns an error if the
-    /// underlying bytes are invalid, including if any strings in the value are not valid
-    /// UTF-8. The key is not validated.
+    /// underlying bytes are invalid, including if the value's own string-like payloads are
+    /// not valid UTF-8. Nested documents and arrays are returned as unvalidated extents;
+    /// their contents are only validated when accessed. The key is not validated.
     pub fn value(&self) -> Result<RawBsonRef<'a>> {
         RawValue::new_at(self.element_type, self.value, self.value_offset).parse()
     }
