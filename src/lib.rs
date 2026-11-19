@@ -452,7 +452,10 @@
 
 #![allow(clippy::cognitive_complexity, clippy::derive_partial_eq_without_eq)]
 #![doc(html_root_url = "https://docs.rs/bson/3.1.0")]
-#![cfg_attr(docsrs, feature(doc_cfg))]
+// workaround: the facet derive expands to a `ʄ` lifetime, which confusable_idents reports
+// against ordinary `f` identifiers; a separate RUST ticket should be filed to fix this on
+// main, and this allow removed once it lands
+#![cfg_attr(docsrs, allow(confusable_idents))]
 #![cfg_attr(mongodb_internal_bench, feature(test))]
 #![warn(missing_docs)]
 
