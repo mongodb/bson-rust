@@ -343,37 +343,43 @@ pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
     buf.push(0);
 }
 
-pub(crate) fn cstring_bytes(buf: &[u8]) -> Result<&[u8]> {
-    let mut splits = buf.splitn(2, |x| *x == 0);
-    let value = splits
-        .next()
-        .ok_or_else(|| Error::malformed_bytes("no value"))?;
-    if splits.next().is_some() {
-        Ok(value)
-    } else {
-        Err(Error::malformed_bytes("expected null terminator"))
+/// Scans for a cstring starting at `offset` in `bytes`, returning the cstring's contents
+/// (excluding the null terminator) and the offset of the first byte after it. When
+/// `max_parse_len` is set, not finding a null terminator within that many bytes is a
+/// `TooLongCStr` error. No UTF-8 validation is performed.
+pub(crate) fn cstring_at(
+    bytes: &[u8],
+    offset: usize,
+    max_parse_len: Option<usize>,
+) -> Result<(&[u8], usize)> {
+    let end = max_parse_len
+        .map(|len| std::cmp::min(offset.saturating_add(len.saturating_add(1)), bytes.len()))
+        .unwrap_or(bytes.len());
+    match bytes[offset..end].iter().position(|b| *b == 0) {
+        Some(index) => {
+            let nul = offset + index;
+            Ok((&bytes[offset..nul], nul + 1))
+        }
+        None => {
+            #[cfg(feature = "sfp-internal")]
+            if let Some(max_parse_len) = max_parse_len {
+                return Err(crate::error::ErrorKind::TooLongCStr {
+                    max_parse_len,
+                    bytes: bytes[offset..end].to_vec(),
+                }
+                .into());
+            }
+            Err(Error::malformed_bytes(format!(
+                "expected null terminator (at byte offset {})",
+                offset
+            )))
+        }
     }
 }
 
 /// Reads a cstring from the start of `buf`, returning an error if no null terminator is found
 /// within the first `max_parse_len + 1` bytes.
 pub(crate) fn read_cstring_with_max_len(buf: &[u8], max_parse_len: Option<usize>) -> Result<&CStr> {
-    let end = max_parse_len
-        .map(|len| std::cmp::min(len.saturating_add(1), buf.len()))
-        .unwrap_or(buf.len());
-    let buf = &buf[..end];
-
-    let Some(index) = buf.iter().position(|b| *b == 0) else {
-        #[cfg(feature = "sfp-internal")]
-        if let Some(max_parse_len) = max_parse_len {
-            return Err(crate::error::ErrorKind::TooLongCStr {
-                max_parse_len,
-                bytes: buf.to_vec(),
-            }
-            .into());
-        }
-        return Err(Error::malformed_bytes("expected null terminator"));
-    };
-    let s = try_to_str(&buf[..index])?;
-    s.try_into()
+    let (s, _) = cstring_at(buf, 0, max_parse_len)?;
+    try_to_str(s)?.try_into()
 }

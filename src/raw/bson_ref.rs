@@ -764,6 +764,12 @@ pub struct RawRegexRef<'a> {
 impl<'a> RawRegexRef<'a> {
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
         let (pattern, options) = regex_payload_at(bytes)?;
+        Self::from_payloads(pattern, options)
+    }
+
+    /// Constructs a regular expression from its raw payloads, validating both as UTF-8
+    /// (and the options as a valid C string).
+    pub(crate) fn from_payloads(pattern: &'a [u8], options: &'a [u8]) -> Result<Self> {
         Ok(Self {
             pattern: try_to_str(pattern)?.try_into()?,
             options: try_to_str(options)?.try_into()?,
@@ -855,9 +861,15 @@ impl RawJavaScriptCodeWithScopeRef<'_> {
 impl<'a> RawJavaScriptCodeWithScopeRef<'a> {
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
         let (code, scope) = code_with_scope_payload_at(bytes)?;
+        Self::from_payloads(code, RawDocument::from_bytes(scope)?)
+    }
+
+    /// Constructs a code-with-scope value from its raw code payload (validated as UTF-8) and
+    /// its parsed scope document.
+    pub(crate) fn from_payloads(code: &'a [u8], scope: &'a RawDocument) -> Result<Self> {
         Ok(Self {
             code: try_to_str(code)?,
-            scope: RawDocument::from_bytes(scope)?,
+            scope,
         })
     }
 }
@@ -929,6 +941,11 @@ pub struct RawDbPointerRef<'a> {
 impl<'a> RawDbPointerRef<'a> {
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
         let (namespace, id) = dbpointer_payload_at(bytes)?;
+        Self::from_payloads(namespace, id)
+    }
+
+    /// Constructs a DbPointer from its raw namespace payload (validated as UTF-8) and id.
+    pub(crate) fn from_payloads(namespace: &'a [u8], id: ObjectId) -> Result<Self> {
         Ok(Self {
             namespace: try_to_str(namespace)?,
             id,

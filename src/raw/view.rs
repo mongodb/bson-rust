@@ -19,7 +19,7 @@ use crate::{
         MIN_CODE_WITH_SCOPE_SIZE,
         Result,
         bool_from_slice,
-        cstring_bytes,
+        cstring_at,
         f64_from_slice,
         i32_from_slice,
         i64_from_slice,
@@ -38,8 +38,7 @@ use super::{
     RawDocument,
     RawJavaScriptCodeWithScopeRef,
     RawRegexRef,
-    iter::{RawElement, get_next_length_at, next_document_len, verify_enough_bytes},
-    read_len,
+    iter::{FramingStatus, RawElement, element_size_at, framing_status},
 };
 
 /// An iterator over views of the elements in a document. Construct by calling
@@ -47,15 +46,15 @@ use super::{
 /// [`RawDocumentBuf::iter_element_views`](crate::RawDocumentBuf::iter_element_views), or
 /// [`RawArray::iter_element_views`](crate::RawArray::iter_element_views).
 ///
-/// This iterator only validates the structure needed to locate each element (element type
-/// tags, lengths, null terminators, and bounds). It does not perform any UTF-8 validation;
-/// keys and string-like values are exposed as raw bytes so that the caller can decide how to
-/// decode them. An error is returned and iteration ends if an element cannot be located.
+/// This iterator only validates the structure needed to locate each element. It does not
+/// perform any UTF-8 validation; keys and string-like values are exposed as raw bytes so
+/// that the caller can decide how to decode them. An error is returned and iteration ends
+/// if an element cannot be located.
 ///
-/// Iteration ends cleanly (i.e. [`Iterator::next`] returns `None`) only when the terminating
-/// null byte is reached as the final byte of the document. Any byte of the document's body
-/// that is not consumed by an element (including a premature null type tag) produces an
-/// error, so a completed iteration accounts for the entire document.
+/// Iteration ends cleanly only when the terminating null byte is reached as the final byte
+/// of the document. Any byte of the document's body that is not consumed by an element
+/// (including a premature null type tag) produces an error, so a completed iteration
+/// accounts for the entire document.
 pub struct RawElementViewIter<'a> {
     bytes: &'a [u8],
     offset: usize,
@@ -79,47 +78,17 @@ impl<'a> RawElementViewIter<'a> {
     }
 
     /// Calculates the size of the value of an element of `element_type` whose value begins at
-    /// `offset`, performing only the structural validation needed to locate the element's
-    /// extent (lengths, null terminators, and bounds). No UTF-8 validation is performed.
+    /// `offset`. Unbounded, structural only; see [`element_size_at`].
     fn value_size_at(&self, offset: usize, element_type: ElementType) -> Result<usize> {
-        let size = match element_type {
-            ElementType::Boolean => 1,
-            ElementType::Int32 => 4,
-            ElementType::Int64 => 8,
-            ElementType::Double => 8,
-            ElementType::DateTime => 8,
-            ElementType::Timestamp => 8,
-            ElementType::ObjectId => 12,
-            ElementType::Decimal128 => 16,
-            ElementType::Null => 0,
-            ElementType::Undefined => 0,
-            ElementType::MinKey => 0,
-            ElementType::MaxKey => 0,
-            ElementType::String | ElementType::Symbol | ElementType::JavaScriptCode => {
-                read_len(&self.bytes[offset..])?
-            }
-            ElementType::EmbeddedDocument | ElementType::Array => {
-                next_document_len(self.bytes, offset)?
-            }
-            ElementType::Binary => get_next_length_at(self.bytes, offset)? + 4 + 1,
-            ElementType::RegularExpression => {
-                let (pattern, options) = regex_payload_at(&self.bytes[offset..])?;
-                pattern.len() + 1 + options.len() + 1
-            }
-            ElementType::DbPointer => read_len(&self.bytes[offset..])? + 12,
-            ElementType::JavaScriptCodeWithScope => get_next_length_at(self.bytes, offset)?,
-        };
-
-        verify_enough_bytes(self.bytes, offset, size)?;
-        Ok(size)
+        element_size_at(self.bytes, offset, element_type, None)
     }
 }
 
 /// The pattern and options cstrings of a regular expression value, as raw bytes excluding
 /// their null terminators. No UTF-8 validation is performed.
 pub(super) fn regex_payload_at(bytes: &[u8]) -> Result<(&[u8], &[u8])> {
-    let pattern = cstring_bytes(bytes)?;
-    let options = cstring_bytes(&bytes[pattern.len() + 1..])?;
+    let (pattern, options_start) = cstring_at(bytes, 0, None)?;
+    let (options, _) = cstring_at(bytes, options_start, None)?;
     Ok((pattern, options))
 }
 
@@ -209,59 +178,52 @@ impl<'a> Iterator for RawElementViewIter<'a> {
     fn next(&mut self) -> Option<Result<RawElementView<'a>>> {
         if !self.valid {
             return None;
-        } else if self.offset > self.terminator || self.offset >= self.bytes.len() {
-            self.valid = false;
-            return Some(Err(Error::malformed_bytes("iteration overflowed document")));
-        } else if self.offset == self.terminator {
-            return if self.bytes[self.offset] == 0 {
-                None
-            } else {
-                self.valid = false;
-                Some(Err(Error::malformed_bytes("document not null terminated")))
-            };
         }
-
-        let element_type = match ElementType::from(self.bytes[self.offset]) {
-            Some(et) => et,
-            None => {
+        match framing_status(self.bytes, self.offset, self.terminator) {
+            FramingStatus::End => None,
+            FramingStatus::Malformed(error) => {
                 self.valid = false;
-                return Some(Err(Error::malformed_bytes(format!(
-                    "invalid tag: {} (at byte offset {})",
-                    self.bytes[self.offset], self.offset
-                ))));
+                Some(Err(error))
             }
-        };
+            FramingStatus::Element => {
+                let element_type = match ElementType::from(self.bytes[self.offset]) {
+                    Some(et) => et,
+                    None => {
+                        self.valid = false;
+                        return Some(Err(Error::malformed_bytes(format!(
+                            "invalid tag: {} (at byte offset {})",
+                            self.bytes[self.offset], self.offset
+                        ))));
+                    }
+                };
 
-        // Locate the key's null terminator without validating it as UTF-8.
-        let key_start = self.offset + 1;
-        let key_len = match self.bytes[key_start..].iter().position(|&b| b == 0) {
-            Some(len) => len,
-            None => {
-                self.valid = false;
-                return Some(Err(Error::malformed_bytes(format!(
-                    "expected null terminator for key (at byte offset {})",
-                    key_start
-                ))));
-            }
-        };
-        let key = &self.bytes[key_start..key_start + key_len];
-        let value_offset = key_start + key_len + 1;
+                // Locate the key's null terminator without validating it as UTF-8.
+                let key_start = self.offset + 1;
+                let (key, value_offset) = match cstring_at(self.bytes, key_start, None) {
+                    Ok(k) => k,
+                    Err(error) => {
+                        self.valid = false;
+                        return Some(Err(error));
+                    }
+                };
 
-        Some(match self.value_size_at(value_offset, element_type) {
-            Ok(size) => {
-                self.offset = value_offset + size;
-                Ok(RawElementView {
-                    element_type,
-                    key,
-                    value: &self.bytes[value_offset..value_offset + size],
-                    value_offset,
+                Some(match self.value_size_at(value_offset, element_type) {
+                    Ok(size) => {
+                        self.offset = value_offset + size;
+                        Ok(RawElementView {
+                            element_type,
+                            key,
+                            value: &self.bytes[value_offset..value_offset + size],
+                            value_offset,
+                        })
+                    }
+                    Err(error) => {
+                        self.valid = false;
+                        Err(error)
+                    }
                 })
             }
-            Err(error) => {
-                self.valid = false;
-                Err(error)
-            }
-        })
+        }
     }
 }
 
@@ -451,21 +413,14 @@ impl<'a> RawBsonRefView<'a> {
             Self::Symbol(bytes) => RawBsonRef::Symbol(try_to_str(bytes)?),
             Self::JavaScriptCode(bytes) => RawBsonRef::JavaScriptCode(try_to_str(bytes)?),
             Self::RegularExpression { pattern, options } => {
-                RawBsonRef::RegularExpression(RawRegexRef {
-                    pattern: try_to_str(pattern)?.try_into()?,
-                    options: try_to_str(options)?.try_into()?,
-                })
+                RawBsonRef::RegularExpression(RawRegexRef::from_payloads(pattern, options)?)
             }
-            Self::DbPointer { namespace, id } => RawBsonRef::DbPointer(RawDbPointerRef {
-                namespace: try_to_str(namespace)?,
-                id,
-            }),
-            Self::JavaScriptCodeWithScope { code, scope } => {
-                RawBsonRef::JavaScriptCodeWithScope(RawJavaScriptCodeWithScopeRef {
-                    code: try_to_str(code)?,
-                    scope,
-                })
+            Self::DbPointer { namespace, id } => {
+                RawBsonRef::DbPointer(RawDbPointerRef::from_payloads(namespace, id)?)
             }
+            Self::JavaScriptCodeWithScope { code, scope } => RawBsonRef::JavaScriptCodeWithScope(
+                RawJavaScriptCodeWithScopeRef::from_payloads(code, scope)?,
+            ),
             Self::Double(d) => RawBsonRef::Double(d),
             Self::Array(v) => RawBsonRef::Array(v),
             Self::Document(v) => RawBsonRef::Document(v),

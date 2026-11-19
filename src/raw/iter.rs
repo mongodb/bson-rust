@@ -14,7 +14,14 @@ use crate::{
     spec::ElementType,
 };
 
-use super::{RawBsonRef, RawDocument, checked_add, i32_from_slice, read_len};
+use super::{
+    RawBsonRef,
+    RawDocument,
+    checked_add,
+    i32_from_slice,
+    read_len,
+    view::regex_payload_at,
+};
 
 /// An iterator over the key-value pairs in a document. Construct by calling [`RawDocument::iter`]
 /// or [`RawDocumentBuf::iter`](crate::RawDocumentBuf::iter).
@@ -207,45 +214,14 @@ impl RawIter<'_> {
             Some(et) => et,
             None => {
                 return Err(Error::malformed_bytes(format!(
-                    "invalid tag: {}",
-                    self.bytes[self.offset]
+                    "invalid tag: {} (at byte offset {})",
+                    self.bytes[self.offset], self.offset
                 )));
             }
         };
 
-        let element_size = match element_type {
-            ElementType::Boolean => 1,
-            ElementType::Int32 => 4,
-            ElementType::Int64 => 8,
-            ElementType::Double => 8,
-            ElementType::DateTime => 8,
-            ElementType::Timestamp => 8,
-            ElementType::ObjectId => 12,
-            ElementType::Decimal128 => 16,
-            ElementType::Null => 0,
-            ElementType::Undefined => 0,
-            ElementType::MinKey => 0,
-            ElementType::MaxKey => 0,
-            ElementType::String => read_len(&self.bytes[offset..])?,
-            ElementType::EmbeddedDocument => next_document_len(self.bytes, offset)?,
-            ElementType::Array => next_document_len(self.bytes, offset)?,
-            ElementType::Binary => get_next_length_at(self.bytes, offset)? + 4 + 1,
-            ElementType::RegularExpression => {
-                let pattern =
-                    read_cstring_with_max_len(&self.bytes[offset..], self.max_cstr_parse_len)?;
-                let options = read_cstring_with_max_len(
-                    &self.bytes[offset + pattern.len() + 1..],
-                    self.max_cstr_parse_len,
-                )?;
-                pattern.len() + 1 + options.len() + 1
-            }
-            ElementType::DbPointer => read_len(&self.bytes[offset..])? + 12,
-            ElementType::Symbol => read_len(&self.bytes[offset..])?,
-            ElementType::JavaScriptCode => read_len(&self.bytes[offset..])?,
-            ElementType::JavaScriptCodeWithScope => get_next_length_at(self.bytes, offset)?,
-        };
-
-        verify_enough_bytes(self.bytes, offset, element_size)?;
+        let element_size =
+            element_size_at(self.bytes, offset, element_type, self.max_cstr_parse_len)?;
         self.offset = offset + element_size;
 
         Ok((element_type, element_size))
@@ -258,40 +234,38 @@ impl<'a> Iterator for RawIter<'a> {
     fn next(&mut self) -> Option<Result<RawElement<'a>>> {
         if !self.valid {
             return None;
-        } else if self.offset > self.terminator || self.offset >= self.bytes.len() {
-            self.valid = false;
-            return Some(Err(Error::malformed_bytes("iteration overflowed document")));
-        } else if self.offset == self.terminator {
-            return if self.bytes[self.offset] == 0 {
-                None
-            } else {
-                self.valid = false;
-                Some(Err(Error::malformed_bytes("document not null terminated")))
-            };
         }
-
-        let key = match read_cstring_with_max_len(
-            &self.bytes[self.offset + 1..],
-            self.max_cstr_parse_len,
-        ) {
-            Ok(k) => k,
-            Err(e) => {
+        match framing_status(self.bytes, self.offset, self.terminator) {
+            FramingStatus::End => None,
+            FramingStatus::Malformed(error) => {
                 self.valid = false;
-                return Some(Err(e));
+                Some(Err(error))
             }
-        };
-        let offset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
+            FramingStatus::Element => {
+                let key = match read_cstring_with_max_len(
+                    &self.bytes[self.offset + 1..],
+                    self.max_cstr_parse_len,
+                ) {
+                    Ok(k) => k,
+                    Err(e) => {
+                        self.valid = false;
+                        return Some(Err(e));
+                    }
+                };
+                let offset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
 
-        Some(match self.get_next_kvp(offset) {
-            Ok((kind, size)) => Ok(RawElement {
-                key,
-                value: RawValue::new_at(kind, &self.bytes[offset..offset + size], offset),
-            }),
-            Err(error) => {
-                self.valid = false;
-                Err(error.with_key(key.as_str()))
+                Some(match self.get_next_kvp(offset) {
+                    Ok((kind, size)) => Ok(RawElement::new(
+                        key,
+                        RawValue::new_at(kind, &self.bytes[offset..offset + size], offset),
+                    )),
+                    Err(error) => {
+                        self.valid = false;
+                        Err(error.with_key(key.as_str()))
+                    }
+                })
             }
-        })
+        }
     }
 }
 
@@ -326,6 +300,84 @@ impl<'a> From<Utf8LossyBson<'a>> for RawBson {
             Utf8LossyBson::RegularExpression(r) => RawBson::RegularExpression(r),
         }
     }
+}
+
+/// The position of an element iterator within a document's framing: another element may be
+/// parsed, the document's terminating null byte has been reached cleanly, or the framing is
+/// malformed.
+pub(super) enum FramingStatus {
+    /// The offset is inside the document body.
+    Element,
+    /// The offset is the document's terminating null byte; iteration ends cleanly.
+    End,
+    /// The framing is malformed at the offset.
+    Malformed(Error),
+}
+
+/// Classifies `offset` within a document's framing: at or past the buffer end is malformed,
+/// the terminating null byte ends iteration cleanly only when that byte is null, and any
+/// earlier offset may hold another element.
+pub(super) fn framing_status(bytes: &[u8], offset: usize, terminator: usize) -> FramingStatus {
+    if offset > terminator || offset >= bytes.len() {
+        FramingStatus::Malformed(Error::malformed_bytes("iteration overflowed document"))
+    } else if offset == terminator {
+        if bytes[offset] == 0 {
+            FramingStatus::End
+        } else {
+            FramingStatus::Malformed(Error::malformed_bytes("document not null terminated"))
+        }
+    } else {
+        FramingStatus::Element
+    }
+}
+
+/// Calculates the size of the value of an element of `element_type` whose value begins at
+/// `offset` in `bytes`, performing only the structural validation needed to locate the
+/// element's extent (lengths, null terminators, and bounds). No UTF-8 validation is
+/// performed, except that a regular expression's cstrings are UTF-8-validated when
+/// `max_cstr_parse_len` is set, preserving the strict iterator's behavior of surfacing
+/// over-limit or invalid regex cstrings during iteration.
+pub(super) fn element_size_at(
+    bytes: &[u8],
+    offset: usize,
+    element_type: ElementType,
+    max_cstr_parse_len: Option<usize>,
+) -> Result<usize> {
+    let size = match element_type {
+        ElementType::Boolean => 1,
+        ElementType::Int32 => 4,
+        ElementType::Int64 => 8,
+        ElementType::Double => 8,
+        ElementType::DateTime => 8,
+        ElementType::Timestamp => 8,
+        ElementType::ObjectId => 12,
+        ElementType::Decimal128 => 16,
+        ElementType::Null | ElementType::Undefined | ElementType::MinKey | ElementType::MaxKey => 0,
+        ElementType::String | ElementType::Symbol | ElementType::JavaScriptCode => {
+            read_len(&bytes[offset..])?
+        }
+        ElementType::EmbeddedDocument | ElementType::Array => next_document_len(bytes, offset)?,
+        ElementType::Binary => get_next_length_at(bytes, offset)? + 4 + 1,
+        ElementType::RegularExpression => match max_cstr_parse_len {
+            Some(_) => {
+                let pattern = read_cstring_with_max_len(&bytes[offset..], max_cstr_parse_len)?;
+                let options = read_cstring_with_max_len(
+                    &bytes[offset + pattern.len() + 1..],
+                    max_cstr_parse_len,
+                )?;
+                pattern.len() + 1 + options.len() + 1
+            }
+            None => {
+                let (pattern, options) = regex_payload_at(&bytes[offset..])?;
+                pattern.len() + 1 + options.len() + 1
+            }
+        },
+        ElementType::DbPointer => read_len(&bytes[offset..])? + 12,
+        ElementType::JavaScriptCodeWithScope => get_next_length_at(bytes, offset)?,
+    };
+
+    verify_enough_bytes(bytes, offset, size)?;
+    Ok(size)
 }
 
 /// Shared framing helpers used by both [`RawIter`] and the view iterator in
