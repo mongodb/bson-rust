@@ -297,9 +297,12 @@ impl<'a> RawElementView<'a> {
     /// Parses this element's value into a [`RawBsonRef`] and returns an error if the
     /// underlying bytes are invalid, including if the value's own string-like payloads are
     /// not valid UTF-8. Nested documents and arrays are returned as unvalidated extents;
-    /// their contents are only validated when accessed. The key is not validated.
+    /// their contents are only validated when accessed. Errors carry the element's key
+    /// (lossily decoded) as context; the key itself is not validated.
     pub fn value(&self) -> Result<RawBsonRef<'a>> {
-        RawValue::new_at(self.element_type, self.value, self.value_offset).parse()
+        RawValue::new_at(self.element_type, self.value, self.value_offset)
+            .parse()
+            .map_err(|e| e.with_key(String::from_utf8_lossy(self.key)))
     }
 
     /// Parses the shape of this element's value into a [`RawBsonRefView`], in which the
@@ -308,10 +311,12 @@ impl<'a> RawElementView<'a> {
     /// [`ElementType::DbPointer`], and [`ElementType::RegularExpression`]) are exposed as raw
     /// bytes, leaving the caller to apply its own decoding policy. All type-specific framing
     /// (length prefixes, null terminators, and nested extents) is parsed, and an error is
-    /// returned if the underlying bytes are structurally invalid. The key is not validated,
-    /// and no part of the value is validated as UTF-8.
+    /// returned if the underlying bytes are structurally invalid. Errors carry the element's
+    /// key (lossily decoded) as context; the key itself is not validated, and no part of the
+    /// value is validated as UTF-8.
     pub fn value_view(&self) -> Result<RawBsonRefView<'a>> {
         value_view_at(self.element_type, self.value)
+            .map_err(|e| e.with_key(String::from_utf8_lossy(self.key)))
     }
 }
 

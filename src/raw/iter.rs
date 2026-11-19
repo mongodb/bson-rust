@@ -390,9 +390,10 @@ pub(super) fn verify_enough_bytes(bytes: &[u8], start: usize, num_bytes: usize) 
     let end = checked_add(start, num_bytes)?;
     if bytes.get(start..end).is_none() {
         return Err(Error::malformed_bytes(format!(
-            "length exceeds remaining length of buffer: {} vs {}",
+            "length exceeds remaining length of buffer: {} vs {} (at byte offset {})",
             num_bytes,
-            bytes.len() - start
+            bytes.len().saturating_sub(start),
+            start
         )));
     }
     Ok(())
@@ -413,15 +414,18 @@ pub(super) fn next_document_len(bytes: &[u8], starting_at: usize) -> Result<usiz
 
     if size < MIN_BSON_DOCUMENT_SIZE as usize {
         return Err(Error::malformed_bytes(format!(
-            "document too small: {} bytes",
-            size
+            "document too small: {} bytes (at byte offset {})",
+            size, starting_at
         )));
     }
 
     verify_enough_bytes(bytes, starting_at, size)?;
 
     if bytes[starting_at + size - 1] != 0 {
-        return Err(Error::malformed_bytes("not null terminated"));
+        return Err(Error::malformed_bytes(format!(
+            "not null terminated (at byte offset {})",
+            starting_at + size - 1
+        )));
     }
     Ok(size)
 }
