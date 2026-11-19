@@ -1418,7 +1418,9 @@ fn value_lossy_parses_exactly_the_string_like_kinds() {
             ElementType::JavaScriptCodeWithScope => {
                 let code = element_view_len_encode(b"var");
                 let scope = b"\x05\x00\x00\x00\x00".to_vec();
-                let mut v = ((code.len() + scope.len()) as i32).to_le_bytes().to_vec();
+                let mut v = ((4 + code.len() + scope.len()) as i32)
+                    .to_le_bytes()
+                    .to_vec();
                 v.extend(&code);
                 v.extend(&scope);
                 v
