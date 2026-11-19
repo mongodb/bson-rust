@@ -40,6 +40,17 @@ impl<'a> RawValue<'a> {
     }
 
     pub(crate) fn parse_utf8_lossy(&self) -> Result<Option<Utf8LossyBson<'a>>> {
+        // only string-like values carry utf-8 payloads; anything else is left to the caller's
+        // strict-parse fallback so it is not parsed (and nested documents not re-framed) twice
+        match self.kind {
+            ElementType::String
+            | ElementType::JavaScriptCode
+            | ElementType::Symbol
+            | ElementType::DbPointer
+            | ElementType::RegularExpression
+            | ElementType::JavaScriptCodeWithScope => {}
+            _ => return Ok(None),
+        }
         let view = value_view_at(self.kind, self.bytes)?;
         Ok(Some(match view {
             RawBsonRefView::String(bytes) => {

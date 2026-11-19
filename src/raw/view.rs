@@ -146,8 +146,8 @@ pub(super) fn code_with_scope_payload_at(bytes: &[u8]) -> Result<(&[u8], &[u8])>
     }
 
     let code = read_lenencode_bytes(&bytes[4..])?;
-    // the scope follows the code's raw bytes; using the encoded length here would shift the
-    // offset whenever the code contains multi-byte sequences
+    // the scope follows the code's raw bytes; the lossily decoded length would shift the
+    // offset whenever the code is not valid utf-8
     let scope_start = 4 + 4 + code.len() + 1;
     if scope_start >= bytes.len() {
         return Err(Error::malformed_bytes("code with scope length overrun"));

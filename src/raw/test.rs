@@ -1337,6 +1337,45 @@ fn element_view_into_validated_matches_strict_parse() {
 }
 
 #[test]
+fn value_lossy_skips_parsing_non_string_like_kinds() {
+    // non-string-like values must not be parsed on the lossy path: callers (element
+    // value_utf8_lossy, serde deserialize_hint) fall back to the strict parse for them,
+    // so framing here would parse the value twice, including re-framing nested documents
+    let truncated: &[u8] = b"\x02\x03";
+    let parsed = value::RawValue::new_at(ElementType::EmbeddedDocument, truncated, 0)
+        .parse_utf8_lossy()
+        .unwrap();
+    assert!(parsed.is_none());
+
+    // string-like kinds are still framed and validated on the lossy path
+    let mut string = element_view_len_encode(b"payload");
+    *string.last_mut().unwrap() = 0xFF;
+    let error = value::RawValue::new_at(ElementType::String, &string, 0)
+        .parse_utf8_lossy()
+        .err()
+        .expect("malformed string should error");
+    assert!(matches!(error.kind, ErrorKind::MalformedBytes { .. }));
+}
+
+#[test]
+fn raw_document_buf_iter_element_views() {
+    // the owned document type exposes the same element-view iteration as the borrowed one
+    let doc = RawDocumentBuf::from_bytes(
+        b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec(),
+    )
+    .unwrap();
+    let mut iter = doc.iter_element_views();
+    let element = iter.next().unwrap().unwrap();
+    assert_eq!(element.element_type(), ElementType::String);
+    assert_eq!(element.key_bytes(), b"hi".as_slice());
+    match element.value_view().unwrap() {
+        RawBsonRefView::String(v) => assert_eq!(v, b"y'all".as_slice()),
+        other => panic!("unexpected {other:?}"),
+    }
+    assert!(iter.next().is_none());
+}
+
+#[test]
 fn element_view_into_validated_rejects_invalid_utf8() {
     // the view hands string-like payloads back as raw bytes; the strict conversion is the
     // utf-8 validation policy
