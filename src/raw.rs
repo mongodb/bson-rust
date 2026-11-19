@@ -123,6 +123,19 @@
 //! assert_eq!(value.as_str(), Some("2021"));
 //! # Ok::<(), bson::error::Error>(())
 //! ```
+//!
+//! ### Element views vs elements
+//!
+//! The iteration above returns validated keys ([`&CStr`](CStr)) and fully parsed values.
+//! [`RawDocument::iter_element_views`](crate::RawDocument::iter_element_views) (and its
+//! [`RawDocumentBuf`] and [`RawArray`] variants) instead
+//! returns element views that defer all UTF-8 validation to the caller: keys and the payloads
+//! of string-like values are exposed as raw bytes, and only the structure needed to locate each
+//! element (type tags, lengths, null terminators, and bounds) is validated during iteration.
+//! Prefer the validating iterator when the standard UTF-8 decoding policy is fine, and element
+//! views when the caller needs to apply its own decoding policy to keys or string-like values.
+//! Both models share the same framing helpers, so an element's extent is always determined
+//! identically.
 
 mod array;
 mod array_buf;

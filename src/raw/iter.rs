@@ -202,6 +202,8 @@ impl<'a> RawElement<'a> {
     }
 
     pub(crate) fn value_utf8_lossy_inner(&self) -> Result<Option<Utf8LossyBson<'a>>> {
+        // the canonical fallback pattern for callers: this returns None for non-string-like
+        // kinds without parsing them, and the caller then decides whether to parse strictly
         self.value
             .parse_utf8_lossy()
             .map_err(|e| e.with_key(self.key.as_str()))

@@ -55,3 +55,7 @@ path = "fuzz_targets/encoding.rs"
 [[bin]]
 name = "generate_corpus"
 path = "generate_corpus.rs"
+
+[[bin]]
+name = "iterate_views"
+path = "fuzz_targets/iterate_views.rs"

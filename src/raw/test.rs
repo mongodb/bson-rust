@@ -1376,6 +1376,101 @@ fn raw_document_buf_iter_element_views() {
 }
 
 #[test]
+fn value_lossy_parses_exactly_the_string_like_kinds() {
+    // the lossy path must parse exactly the string-like kinds: every other kind must
+    // return None (deferring to the strict fallback), so gate drift in either direction
+    // fails here; the exhaustive match fails to compile when a kind is added without a
+    // decision here
+    fn valid_value_bytes(kind: ElementType) -> Vec<u8> {
+        match kind {
+            ElementType::Boolean => vec![1],
+            ElementType::Int32 => 42i32.to_le_bytes().to_vec(),
+            ElementType::Int64 => 42i64.to_le_bytes().to_vec(),
+            ElementType::Double => 42.0f64.to_le_bytes().to_vec(),
+            ElementType::DateTime => 42i64.to_le_bytes().to_vec(),
+            ElementType::Timestamp => 42i64.to_le_bytes().to_vec(),
+            ElementType::ObjectId => [7u8; 12].to_vec(),
+            ElementType::Decimal128 => vec![0u8; 16],
+            ElementType::Null
+            | ElementType::Undefined
+            | ElementType::MinKey
+            | ElementType::MaxKey => Vec::new(),
+            ElementType::String | ElementType::Symbol | ElementType::JavaScriptCode => {
+                element_view_len_encode(b"payload")
+            }
+            ElementType::EmbeddedDocument | ElementType::Array => b"\x05\x00\x00\x00\x00".to_vec(),
+            ElementType::Binary => {
+                let mut v = 3i32.to_le_bytes().to_vec();
+                v.push(0);
+                v.extend(b"abc");
+                v
+            }
+            ElementType::RegularExpression => {
+                let mut v = element_view_cstring(b"pat");
+                v.extend(element_view_cstring(b"i"));
+                v
+            }
+            ElementType::DbPointer => {
+                let mut v = element_view_len_encode(b"ns");
+                v.extend([7u8; 12]);
+                v
+            }
+            ElementType::JavaScriptCodeWithScope => {
+                let code = element_view_len_encode(b"var");
+                let scope = b"\x05\x00\x00\x00\x00".to_vec();
+                let mut v = ((code.len() + scope.len()) as i32).to_le_bytes().to_vec();
+                v.extend(&code);
+                v.extend(&scope);
+                v
+            }
+        }
+    }
+
+    for kind in [
+        ElementType::Double,
+        ElementType::String,
+        ElementType::EmbeddedDocument,
+        ElementType::Array,
+        ElementType::Boolean,
+        ElementType::DateTime,
+        ElementType::Decimal128,
+        ElementType::JavaScriptCode,
+        ElementType::JavaScriptCodeWithScope,
+        ElementType::Symbol,
+        ElementType::RegularExpression,
+        ElementType::DbPointer,
+        ElementType::Timestamp,
+        ElementType::Binary,
+        ElementType::Undefined,
+        ElementType::Null,
+        ElementType::Int32,
+        ElementType::Int64,
+        ElementType::MinKey,
+        ElementType::MaxKey,
+        ElementType::ObjectId,
+    ] {
+        let bytes = valid_value_bytes(kind);
+        let lossy = value::RawValue::new_at(kind, &bytes, 0)
+            .parse_utf8_lossy()
+            .unwrap();
+        let expected = matches!(
+            kind,
+            ElementType::String
+                | ElementType::JavaScriptCode
+                | ElementType::Symbol
+                | ElementType::DbPointer
+                | ElementType::RegularExpression
+                | ElementType::JavaScriptCodeWithScope
+        );
+        assert_eq!(
+            lossy.is_some(),
+            expected,
+            "unexpected lossy parse for {kind:?}"
+        );
+    }
+}
+
+#[test]
 fn element_view_into_validated_rejects_invalid_utf8() {
     // the view hands string-like payloads back as raw bytes; the strict conversion is the
     // utf-8 validation policy
@@ -1389,4 +1484,13 @@ fn element_view_into_validated_rejects_invalid_utf8() {
     let element = doc.iter_element_views().next().unwrap().unwrap();
     let error = element.value_view().unwrap().into_validated().unwrap_err();
     assert!(matches!(error.kind, ErrorKind::Utf8Encoding { .. }));
+}
+
+#[test]
+fn raw_bson_ref_view_double_equality_is_f64() {
+    // RawBsonRefView compares Double by f64 value, unlike RawBsonRef's bit comparison:
+    // NaN never equals itself and zero equals negative zero — pinning the documented
+    // divergence (see RawBsonRefView's doc comment)
+    assert!(!RawBsonRefView::Double(f64::NAN).eq(&RawBsonRefView::Double(f64::NAN)));
+    assert_eq!(RawBsonRefView::Double(0.0), RawBsonRefView::Double(-0.0));
 }
