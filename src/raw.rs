@@ -316,6 +316,7 @@ fn read_lenencode_bytes(buf: &[u8]) -> Result<&[u8]> {
     Ok(&buf[4..(end - 1)])
 }
 
+#[cfg(feature = "facet-unstable")]
 pub(crate) fn read_lenencode(buf: &[u8]) -> Result<&str> {
     try_to_str(read_lenencode_bytes(buf)?)
 }

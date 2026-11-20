@@ -19,11 +19,14 @@ use crate::{
         checked_add,
         i32_from_slice,
         try_to_str,
-        view::{code_with_scope_payload_at, dbpointer_payload_at, regex_payload_at},
         write_string,
     },
     spec::{BinarySubtype, ElementType},
 };
+
+// used only by the facet-unstable parse wrappers below
+#[cfg(feature = "facet-unstable")]
+use crate::raw::view::{code_with_scope_payload_at, dbpointer_payload_at, regex_payload_at};
 
 #[cfg(feature = "serde")]
 use serde::ser::SerializeStruct as _;
@@ -762,6 +765,7 @@ pub struct RawRegexRef<'a> {
 }
 
 impl<'a> RawRegexRef<'a> {
+    #[cfg(feature = "facet-unstable")]
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
         let (pattern, options) = regex_payload_at(bytes)?;
         Self::from_payloads(pattern, options)
@@ -859,6 +863,7 @@ impl RawJavaScriptCodeWithScopeRef<'_> {
 }
 
 impl<'a> RawJavaScriptCodeWithScopeRef<'a> {
+    #[cfg(feature = "facet-unstable")]
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
         let (code, scope) = code_with_scope_payload_at(bytes)?;
         Self::from_payloads(code, RawDocument::from_bytes(scope)?)
@@ -939,6 +944,7 @@ pub struct RawDbPointerRef<'a> {
 }
 
 impl<'a> RawDbPointerRef<'a> {
+    #[cfg(feature = "facet-unstable")]
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
         let (namespace, id) = dbpointer_payload_at(bytes)?;
         Self::from_payloads(namespace, id)
