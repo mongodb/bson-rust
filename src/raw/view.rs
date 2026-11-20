@@ -344,7 +344,7 @@ impl<'a> TryFrom<RawElementView<'a>> for RawElement<'a> {
 /// by `f64` equality, unlike [`RawBsonRef`]'s byte value equality.
 ///
 /// Bytes are borrowed from the source document and are not guaranteed to be valid UTF-8.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RawBsonRefView<'a> {
     /// 64-bit binary floating point
     Double(f64),
