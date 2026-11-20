@@ -979,6 +979,7 @@ fn element_view_iter_full_shape() {
         }
         other => panic!("expected regex, got {other:?}"),
     }
+    assert_eq!(element.value_bytes(), b"ab\0b\0");
 
     let element = iter.next().unwrap().unwrap();
     match element.value_view().unwrap() {
@@ -988,6 +989,9 @@ fn element_view_iter_full_shape() {
         }
         other => panic!("expected dbpointer, got {other:?}"),
     }
+    let mut dbpointer_bytes = element_view_len_encode(b"ns");
+    dbpointer_bytes.extend([7u8; 12]);
+    assert_eq!(element.value_bytes(), dbpointer_bytes);
 
     let element = iter.next().unwrap().unwrap();
     match element.value_view().unwrap() {
@@ -997,6 +1001,7 @@ fn element_view_iter_full_shape() {
         }
         other => panic!("expected binary, got {other:?}"),
     }
+    assert_eq!(element.value_bytes(), b"\x03\x00\x00\x00\x80\x01\x02\x03");
 
     let element = iter.next().unwrap().unwrap();
     match element.value_view().unwrap() {
@@ -1006,6 +1011,7 @@ fn element_view_iter_full_shape() {
         }
         other => panic!("expected document, got {other:?}"),
     }
+    assert_eq!(element.value_bytes(), b"\x05\0\0\0\0");
 
     let element = iter.next().unwrap().unwrap();
     match element.value_view().unwrap() {
@@ -1014,6 +1020,7 @@ fn element_view_iter_full_shape() {
         }
         other => panic!("expected array, got {other:?}"),
     }
+    assert_eq!(element.value_bytes(), b"\x05\0\0\0\0");
 
     let element = iter.next().unwrap().unwrap();
     assert_eq!(element.value_view().unwrap(), RawBsonRefView::Int32(42));
@@ -1078,6 +1085,7 @@ fn element_view_iter_code_with_scope() {
     let mut iter = doc.iter_element_views();
 
     let element = iter.next().unwrap().unwrap();
+    assert_eq!(element.value_bytes(), &value);
     match element.value_view().unwrap() {
         RawBsonRefView::JavaScriptCodeWithScope { code, scope } => {
             assert_eq!(code, b"va\xFFr");
@@ -1110,7 +1118,8 @@ fn element_view_iter_invalid_utf8_string_value() {
     let mut iter = doc.iter_element_views();
     let element = iter.next().unwrap().unwrap();
     // strict parsing validates utf-8
-    assert!(element.value().is_err());
+    let error = element.value().unwrap_err();
+    assert!(matches!(error.kind, ErrorKind::Utf8Encoding { .. }));
     // shape parsing leaves the payload bytes untouched
     assert_eq!(
         element.value_view().unwrap(),
@@ -1310,6 +1319,25 @@ fn element_view_into_validated_matches_strict_parse() {
             v
         }), // dbpointer
         (0x10, &b"i"[..], 42i32.to_le_bytes().to_vec()),      // int32
+        (0x01, &b"d"[..], 2.5f64.to_le_bytes().to_vec()),     // double
+        (0x03, &b"doc"[..], element_view_doc_bytes(b"")),     // embedded document
+        (0x04, &b"arr"[..], element_view_doc_bytes(b"")),     // array
+        (0x05, &b"bin"[..], {
+            let mut v = 3i32.to_le_bytes().to_vec();
+            v.push(0x80); // subtype
+            v.extend([1, 2, 3]);
+            v
+        }), // binary
+        (0x06, &b"undef"[..], Vec::new()),                    // undefined
+        (0x07, &b"oid"[..], [7u8; 12].to_vec()),              // object id
+        (0x08, &b"b"[..], vec![1]),                           // boolean
+        (0x09, &b"dt"[..], 42i64.to_le_bytes().to_vec()),     // datetime
+        (0x0A, &b"nul"[..], Vec::new()),                      // null
+        (0x11, &b"ts"[..], 42u64.to_le_bytes().to_vec()),     // timestamp
+        (0x12, &b"l"[..], 42i64.to_le_bytes().to_vec()),      // int64
+        (0x13, &b"dec"[..], vec![0u8; 16]),                   // decimal128
+        (0xFF, &b"mink"[..], Vec::new()),                     // min key
+        (0x7F, &b"maxk"[..], Vec::new()),                     // max key
     ] {
         let mut element = Vec::new();
         element.push(tag);
@@ -1334,27 +1362,6 @@ fn element_view_into_validated_matches_strict_parse() {
             element.value().unwrap(),
         );
     }
-}
-
-#[test]
-fn value_lossy_skips_parsing_non_string_like_kinds() {
-    // non-string-like values must not be parsed on the lossy path: callers (element
-    // value_utf8_lossy, serde deserialize_hint) fall back to the strict parse for them,
-    // so framing here would parse the value twice, including re-framing nested documents
-    let truncated: &[u8] = b"\x02\x03";
-    let parsed = value::RawValue::new_at(ElementType::EmbeddedDocument, truncated, 0)
-        .parse_utf8_lossy()
-        .unwrap();
-    assert!(parsed.is_none());
-
-    // string-like kinds are still framed and validated on the lossy path
-    let mut string = element_view_len_encode(b"payload");
-    *string.last_mut().unwrap() = 0xFF;
-    let error = value::RawValue::new_at(ElementType::String, &string, 0)
-        .parse_utf8_lossy()
-        .err()
-        .expect("malformed string should error");
-    assert!(matches!(error.kind, ErrorKind::MalformedBytes { .. }));
 }
 
 #[test]
@@ -1470,6 +1477,16 @@ fn value_lossy_parses_exactly_the_string_like_kinds() {
             "unexpected lossy parse for {kind:?}"
         );
     }
+
+    // string-like kinds are still framed and validated on the lossy path: a malformed
+    // payload errors rather than producing a lossy value
+    let mut string = element_view_len_encode(b"payload");
+    *string.last_mut().unwrap() = 0xFF;
+    let error = value::RawValue::new_at(ElementType::String, &string, 0)
+        .parse_utf8_lossy()
+        .err()
+        .expect("malformed string should error");
+    assert!(matches!(error.kind, ErrorKind::MalformedBytes { .. }));
 }
 
 #[test]
