@@ -14,17 +14,19 @@ use crate::{
     oid::{self, ObjectId},
     raw::{
         CStr,
-        MIN_CODE_WITH_SCOPE_SIZE,
         RawJavaScriptCodeWithScope,
         check_recursion_limit,
         checked_add,
         i32_from_slice,
-        read_cstring,
-        read_lenencode,
+        try_to_str,
         write_string,
     },
     spec::{BinarySubtype, ElementType},
 };
+
+// used only by the facet-unstable parse wrappers below
+#[cfg(feature = "facet-unstable")]
+use crate::raw::view::{code_with_scope_payload_at, dbpointer_payload_at, regex_payload_at};
 
 #[cfg(feature = "serde")]
 use serde::ser::SerializeStruct as _;
@@ -763,11 +765,18 @@ pub struct RawRegexRef<'a> {
 }
 
 impl<'a> RawRegexRef<'a> {
+    #[cfg(feature = "facet-unstable")]
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
-        let pattern = read_cstring(bytes)?;
+        let (pattern, options) = regex_payload_at(bytes)?;
+        Self::from_payloads(pattern, options)
+    }
+
+    /// Constructs a regular expression from its raw payloads, validating both as UTF-8
+    /// (and the options as a valid C string).
+    pub(crate) fn from_payloads(pattern: &'a [u8], options: &'a [u8]) -> Result<Self> {
         Ok(Self {
-            pattern,
-            options: read_cstring(&bytes[pattern.len() + 1..])?,
+            pattern: try_to_str(pattern)?.try_into()?,
+            options: try_to_str(options)?.try_into()?,
         })
     }
 }
@@ -854,16 +863,19 @@ impl RawJavaScriptCodeWithScopeRef<'_> {
 }
 
 impl<'a> RawJavaScriptCodeWithScopeRef<'a> {
+    #[cfg(feature = "facet-unstable")]
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
-        if bytes.len() < MIN_CODE_WITH_SCOPE_SIZE as usize {
-            return Err(Error::malformed_bytes("code with scope length too small"));
-        }
+        let (code, scope) = code_with_scope_payload_at(bytes)?;
+        Self::from_payloads(code, RawDocument::from_bytes(scope)?)
+    }
 
-        let code = read_lenencode(&bytes[4..])?;
-        let scope_start = 4 + 4 + code.len() + 1;
-        let scope = RawDocument::from_bytes(&bytes[scope_start..])?;
-
-        Ok(RawJavaScriptCodeWithScopeRef { code, scope })
+    /// Constructs a code-with-scope value from its raw code payload (validated as UTF-8) and
+    /// its parsed scope document.
+    pub(crate) fn from_payloads(code: &'a [u8], scope: &'a RawDocument) -> Result<Self> {
+        Ok(Self {
+            code: try_to_str(code)?,
+            scope,
+        })
     }
 }
 
@@ -932,14 +944,18 @@ pub struct RawDbPointerRef<'a> {
 }
 
 impl<'a> RawDbPointerRef<'a> {
+    #[cfg(feature = "facet-unstable")]
     pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self> {
-        let namespace = read_lenencode(bytes)?;
-        let id_start = bytes
-            .len()
-            .checked_sub(12)
-            .ok_or_else(|| Error::malformed_bytes("db pointer too small"))?;
-        let id = ObjectId::parse(&bytes[id_start..])?;
-        Ok(Self { namespace, id })
+        let (namespace, id) = dbpointer_payload_at(bytes)?;
+        Self::from_payloads(namespace, id)
+    }
+
+    /// Constructs a DbPointer from its raw namespace payload (validated as UTF-8) and id.
+    pub(crate) fn from_payloads(namespace: &'a [u8], id: ObjectId) -> Result<Self> {
+        Ok(Self {
+            namespace: try_to_str(namespace)?,
+            id,
+        })
     }
 }
 
