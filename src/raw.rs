@@ -128,14 +128,13 @@
 //!
 //! The iteration above returns validated keys ([`&CStr`](CStr)) and fully parsed values.
 //! [`RawDocument::iter_element_views`](crate::RawDocument::iter_element_views) (and its
-//! [`RawDocumentBuf`] and [`RawArray`] variants) instead
-//! returns element views that defer all UTF-8 validation to the caller: keys and the payloads
-//! of string-like values are exposed as raw bytes, and only the structure needed to locate each
-//! element (type tags, lengths, null terminators, and bounds) is validated during iteration.
-//! Prefer the validating iterator when the standard UTF-8 decoding policy is fine, and element
-//! views when the caller needs to apply its own decoding policy to keys or string-like values.
-//! Both models share the same framing helpers, so an element's extent is always determined
-//! identically.
+//! [`RawDocumentBuf`] and [`RawArray`] variants) instead returns element views that defer
+//! UTF-8 validation to the caller. Keys and the payloads of string-like values are exposed
+//! as raw bytes, and the iterator validates only the structure needed to locate each element
+//! (type tags, lengths, null terminators, and bounds). Prefer the validating iterator when
+//! the standard UTF-8 decoding policy is fine, and element views when applying a custom
+//! decoding policy to keys or string-like values. Both models share the same framing
+//! helpers, so an element's extent is always determined identically.
 
 mod array;
 mod array_buf;
@@ -357,8 +356,8 @@ pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
 }
 
 /// Scans for a cstring starting at `offset` in `bytes`, returning the cstring's contents
-/// (excluding the null terminator) and the offset of the first byte after it. When
-/// `max_parse_len` is set, not finding a null terminator within that many bytes is a
+/// (excluding the null terminator) and the offset of the first byte after it. If
+/// `max_parse_len` is set and no null terminator appears within that many bytes, returns a
 /// `TooLongCStr` error. No UTF-8 validation is performed.
 pub(crate) fn cstring_at(
     bytes: &[u8],

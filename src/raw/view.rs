@@ -1,5 +1,5 @@
-//! The element view API: structural-only iteration that defers UTF-8 validation to the
-//! caller.
+//! The element view API provides structural-only iteration that defers UTF-8 validation
+//! to the caller.
 //!
 //! Construct [`RawElementViewIter`] via
 //! [`RawDocument::iter_element_views`](crate::RawDocument::iter_element_views),
@@ -46,24 +46,22 @@ use super::{
 /// [`RawDocumentBuf::iter_element_views`](crate::RawDocumentBuf::iter_element_views), or
 /// [`RawArray::iter_element_views`](crate::RawArray::iter_element_views).
 ///
-/// This iterator only validates the structure needed to locate each element. It does not
-/// perform any UTF-8 validation; keys and string-like values are exposed as raw bytes so
-/// that the caller can decide how to decode them. An error is returned and iteration ends
-/// if an element cannot be located.
+/// This iterator validates only the structure needed to locate each element. It performs
+/// no UTF-8 validation. Keys and string-like values are exposed as raw bytes so the caller
+/// can decide how to decode them. Iteration ends with an error if an element cannot be
+/// located.
 ///
-/// Iteration ends cleanly only when the terminating null byte is reached as the final byte
-/// of the document. Any byte of the document's body that is not consumed by an element
-/// (including a premature null type tag) produces an error, so a completed iteration
-/// accounts for the entire document.
+/// Iteration ends cleanly only at the document's terminating null byte. Any byte of the
+/// document's body that is not consumed by an element (including a premature null type tag)
+/// produces an error, so a completed iteration accounts for the entire document.
 pub struct RawElementViewIter<'a> {
     bytes: &'a [u8],
     offset: usize,
-    /// Whether the underlying doc is assumed to be valid or if an error has been encountered.
-    /// After an error, all subsequent iterations will return None.
+    /// False once an error is encountered, after which iteration returns None.
     valid: bool,
     /// The offset in `bytes` of the null byte that terminates the document being iterated.
-    /// Iteration ends only when it reaches this offset; elements running past it, or a
-    /// missing null byte there, are errors.
+    /// Iteration ends only at this offset. An element running past it or a missing null
+    /// byte there is an error.
     terminator: usize,
 }
 
@@ -77,8 +75,8 @@ impl<'a> RawElementViewIter<'a> {
         }
     }
 
-    /// Calculates the size of the value of an element of `element_type` whose value begins at
-    /// `offset`. Unbounded, structural only; see [`element_size_at`].
+    /// Calculates the size of the value of an element of `element_type` whose value begins
+    /// at `offset`, with no `max_cstr_parse_len` bound. See [`element_size_at`].
     fn value_size_at(&self, offset: usize, element_type: ElementType) -> Result<usize> {
         element_size_at(self.bytes, offset, element_type, None)
     }
@@ -115,8 +113,8 @@ pub(super) fn code_with_scope_payload_at(bytes: &[u8]) -> Result<(&[u8], &[u8])>
     }
 
     let code = read_lenencode_bytes(&bytes[4..])?;
-    // the scope follows the code's raw bytes; the lossily decoded length would shift the
-    // offset whenever the code is not valid utf-8
+    // the scope follows the code's raw bytes, so using the lossily decoded length would
+    // shift the offset whenever the code is not valid utf-8.
     let scope_start = 4 + 4 + code.len() + 1;
     if scope_start >= bytes.len() {
         return Err(Error::malformed_bytes("code with scope length overrun"));
@@ -231,14 +229,14 @@ impl<'a> Iterator for RawElementViewIter<'a> {
 /// [`RawDocumentBuf`](crate::RawDocumentBuf), yielded by [`RawElementViewIter`]. Neither the
 /// key nor the value has been validated as UTF-8.
 ///
-/// Call [`RawElementView::value`] to parse the value (validating all strings as UTF-8), call
-/// [`RawElementView::value_view`] to parse the value's shape while leaving string-like payloads
-/// as raw bytes, or convert the view into a [`RawElement`] via its `TryFrom` implementation
-/// to validate the key.
+/// Call [`RawElementView::value`] to parse the value and validate its string-like payloads
+/// as UTF-8, call [`RawElementView::value_view`] to parse the value's shape and leave
+/// string-like payloads as raw bytes, or convert the view into a [`RawElement`] via its
+/// `TryFrom` implementation to validate the key.
 ///
 /// ```
 /// # use bson::raw::RawDocument;
-/// // a document with an invalid UTF-8 key
+/// // a document with an invalid UTF-8 key.
 /// let doc = RawDocument::from_bytes(b"\x12\0\0\0\x02\xff\0\x06\0\0\0value\0\0")?;
 /// let mut iter = doc.iter_element_views();
 /// let element = iter.next().unwrap()?;
@@ -250,7 +248,7 @@ impl<'a> Iterator for RawElementViewIter<'a> {
 ///
 /// ```
 /// # use bson::raw::{RawBsonRefView, RawDocument};
-/// // a document whose string value contains invalid UTF-8
+/// // a document whose string value contains invalid UTF-8.
 /// let doc = RawDocument::from_bytes(b"\x12\0\0\0\x02a\0\x06\0\0\0h\xffllo\0\0")?;
 ///
 /// let mut decoded = Vec::new();
@@ -258,7 +256,7 @@ impl<'a> Iterator for RawElementViewIter<'a> {
 ///     let element = element?;
 ///     match element.value_view()? {
 ///         RawBsonRefView::String(payload) => {
-///             // the caller applies its own decoding policy; the framing has been parsed
+///             // the caller applies its own decoding policy to the raw payload bytes.
 ///             decoded.push((element.key_bytes().to_vec(), payload.to_vec()));
 ///         }
 ///         _ => unreachable!(),
@@ -294,11 +292,11 @@ impl<'a> RawElementView<'a> {
         self.value
     }
 
-    /// Parses this element's value into a [`RawBsonRef`] and returns an error if the
+    /// Parses this element's value into a [`RawBsonRef`], returning an error if the
     /// underlying bytes are invalid, including if the value's own string-like payloads are
-    /// not valid UTF-8. Nested documents and arrays are returned as unvalidated extents;
-    /// their contents are only validated when accessed. Errors carry the element's key
-    /// (lossily decoded) as context; the key itself is not validated.
+    /// not valid UTF-8. Nested documents and arrays are returned as unvalidated extents,
+    /// and their contents are validated only when accessed. Errors carry the element's key
+    /// (lossily decoded) as context, without validating the key itself.
     pub fn value(&self) -> Result<RawBsonRef<'a>> {
         RawValue::new_at(self.element_type, self.value, self.value_offset)
             .parse()
@@ -309,11 +307,10 @@ impl<'a> RawElementView<'a> {
     /// payloads of string-like types ([`ElementType::String`], [`ElementType::Symbol`],
     /// [`ElementType::JavaScriptCode`], [`ElementType::JavaScriptCodeWithScope`],
     /// [`ElementType::DbPointer`], and [`ElementType::RegularExpression`]) are exposed as raw
-    /// bytes, leaving the caller to apply its own decoding policy. All type-specific framing
-    /// (length prefixes, null terminators, and nested extents) is parsed, and an error is
-    /// returned if the underlying bytes are structurally invalid. Errors carry the element's
-    /// key (lossily decoded) as context; the key itself is not validated, and no part of the
-    /// value is validated as UTF-8.
+    /// bytes for the caller to decode. All type-specific framing (length prefixes, null
+    /// terminators, and nested extents) is parsed, and structurally invalid bytes produce
+    /// an error. Errors carry the element's key (lossily decoded) as context. Neither the
+    /// key nor any part of the value is validated as UTF-8.
     pub fn value_view(&self) -> Result<RawBsonRefView<'a>> {
         value_view_at(self.element_type, self.value)
             .map_err(|e| e.with_key(String::from_utf8_lossy(self.key)))
@@ -335,13 +332,12 @@ impl<'a> TryFrom<RawElementView<'a>> for RawElement<'a> {
 }
 
 /// A parsed view of a BSON value in which the payloads of string-like types are exposed as
-/// raw bytes, leaving the caller to apply its own decoding policy. This is the
-/// byte-preserving analog of [`RawBsonRef`]: all other variants are identical, and all
-/// type-specific framing has been parsed and validated. Construct by calling
-/// [`RawElementView::value_view`].
+/// raw bytes for the caller to decode. This is the byte-preserving analog of
+/// [`RawBsonRef`]. All other variants are identical, and all type-specific framing is
+/// parsed and validated. Construct by calling [`RawElementView::value_view`].
 ///
-/// Note that `RawBsonRefView`'s [`PartialEq`] implementation is derived, so `Double` compares
-/// by `f64` equality, unlike [`RawBsonRef`]'s byte value equality.
+/// `PartialEq` is derived, so `Double` compares by `f64` equality, unlike [`RawBsonRef`]'s
+/// byte value equality.
 ///
 /// Bytes are borrowed from the source document and are not guaranteed to be valid UTF-8.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -409,10 +405,9 @@ pub enum RawBsonRefView<'a> {
 }
 
 impl<'a> RawBsonRefView<'a> {
-    /// Applies the crate's strict decoding policy to this view: every string-like payload is
-    /// validated as UTF-8 (and, for regular expressions, as a valid C string), producing the
-    /// corresponding [`RawBsonRef`]. All other variants are passed through unchanged. Returns
-    /// an error if any payload is not valid UTF-8.
+    /// Applies the crate's strict decoding policy to this view. Every string-like payload
+    /// is validated as UTF-8 (and, for regular expressions, as a valid C string) to produce
+    /// the corresponding [`RawBsonRef`]. All other variants are passed through unchanged.
     pub(crate) fn into_validated(self) -> Result<RawBsonRef<'a>> {
         Ok(match self {
             Self::String(bytes) => RawBsonRef::String(try_to_str(bytes)?),

@@ -198,10 +198,9 @@ impl RawDocument {
         RawIter::new(self)
     }
 
-    /// Gets an iterator over views of the elements in the [`RawDocument`], which yields
-    /// `Result<RawElementView<'_>>` values. Unlike [`RawDocument::iter_elements`], this
-    /// iterator does not validate keys or values as UTF-8; see [`RawElementViewIter`] for
-    /// details.
+    /// Gets an iterator over views of the elements in the [`RawDocument`]. Unlike
+    /// [`RawDocument::iter_elements`], this iterator does not validate keys or values as
+    /// UTF-8. See [`RawElementViewIter`] for details.
     pub fn iter_element_views(&self) -> RawElementViewIter<'_> {
         RawElementViewIter::new(self)
     }

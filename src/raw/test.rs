@@ -722,7 +722,7 @@ fn max_cstr_parse_len() {
     assert!(matches!(error.kind, ErrorKind::TooLongCStr { .. }));
 }
 
-// helpers for the element-view tests: build complete document bytes from element bytes
+// helpers for the element-view tests: build complete document bytes from element bytes.
 
 fn element_view_doc_bytes(elements: &[u8]) -> Vec<u8> {
     let mut out = ((elements.len() + 5) as i32).to_le_bytes().to_vec();
@@ -762,9 +762,9 @@ fn element_view_iter_keys_and_values() {
     let element = iter.next().unwrap().unwrap();
     assert_eq!(element.key_bytes(), b"s");
     assert_eq!(element.element_type(), ElementType::String);
-    // value_bytes includes framing: the length prefix and null terminator
+    // value_bytes includes framing: the length prefix and null terminator.
     assert_eq!(element.value_bytes(), &element_view_len_encode(b"hello"));
-    // strict parsing is still available as an explicit step
+    // strict parsing is still available as an explicit step.
     assert_eq!(element.value().unwrap().as_str(), Some("hello"));
 
     let element = iter.next().unwrap().unwrap();
@@ -784,22 +784,22 @@ fn element_view_iter_invalid_utf8_key() {
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
 
-    // the existing iterator stops at the invalid key
+    // the existing iterator stops at the invalid key.
     assert!(doc.iter_elements().next().unwrap().is_err());
 
-    // the view iterator yields the raw key bytes
+    // the view iterator yields the raw key bytes.
     let mut iter = doc.iter_element_views();
     let element = iter.next().unwrap().unwrap();
     assert_eq!(element.key_bytes(), b"\xFF\xFE");
     assert_eq!(element.value().unwrap().as_str(), Some("value"));
     assert!(iter.next().is_none());
 
-    // validating the key is an explicit, fallible step
+    // validating the key is an explicit, fallible step.
     let mut iter = doc.iter_element_views();
     let element = iter.next().unwrap().unwrap();
     assert!(RawElement::try_from(element).is_err());
 
-    // a valid key round-trips into a RawElement
+    // a valid key round-trips into a RawElement.
     let mut elements = Vec::new();
     elements.push(0x02);
     elements.extend(element_view_cstring(b"ok"));
@@ -820,7 +820,7 @@ fn element_view_iter_rejects_underfilled_body() {
     elements.extend(element_view_cstring(b"i"));
     elements.extend(1i32.to_le_bytes());
     let mut bytes = element_view_doc_bytes(&elements);
-    // ...with one extra trailing byte appended (and the length prefix adjusted)
+    // ...with one extra trailing byte appended (and the length prefix adjusted).
     let length = i32::from_le_bytes(bytes[..4].try_into().unwrap()) + 1;
     bytes[..4].copy_from_slice(&length.to_le_bytes());
     bytes.push(0);
@@ -830,9 +830,9 @@ fn element_view_iter_rejects_underfilled_body() {
 
     // the element is located...
     assert!(iter.next().unwrap().is_ok());
-    // ...but the unconsumed body byte is an error, not a clean end of iteration
+    // ...but the unconsumed body byte is an error, not a clean end of iteration.
     assert!(iter.next().unwrap().is_err());
-    // and iteration has ended
+    // and iteration has ended.
     assert!(iter.next().is_none());
 }
 
@@ -845,7 +845,7 @@ fn element_view_iter_empty_document() {
 
 #[test]
 fn element_view_iter_malformed_documents() {
-    // invalid type tag
+    // invalid type tag.
     let mut elements = Vec::new();
     elements.push(0x63);
     elements.extend(element_view_cstring(b"k"));
@@ -856,18 +856,18 @@ fn element_view_iter_malformed_documents() {
     assert!(err.to_string().contains("invalid tag"));
     assert!(iter.next().is_none());
 
-    // string value that overruns the document
+    // string value that overruns the document.
     let mut elements = Vec::new();
     elements.push(0x02);
     elements.extend(element_view_cstring(b"s"));
-    elements.extend([99, 0, 0, 0]); // declares 99 bytes of string
+    elements.extend([99, 0, 0, 0]); // declares 99 bytes of string.
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
     let mut iter = doc.iter_element_views();
     assert!(iter.next().unwrap().is_err());
     assert!(iter.next().is_none());
 
-    // key that is not null terminated
+    // key that is not null terminated.
     let mut elements = Vec::new();
     elements.push(0x10);
     elements.extend(b"unterminated");
@@ -1090,7 +1090,7 @@ fn element_view_iter_code_with_scope() {
         RawBsonRefView::JavaScriptCodeWithScope { code, scope } => {
             assert_eq!(code, b"va\xFFr");
             assert_eq!(scope.as_bytes(), &element_view_doc_bytes(&scope_elements));
-            // the scope can be recursed into with the same iterator
+            // the scope can be iterated with the same iterator.
             let mut scope_iter = scope.iter_element_views();
             let scope_element = scope_iter.next().unwrap().unwrap();
             assert_eq!(scope_element.key_bytes(), b"x");
@@ -1117,10 +1117,10 @@ fn element_view_iter_invalid_utf8_string_value() {
 
     let mut iter = doc.iter_element_views();
     let element = iter.next().unwrap().unwrap();
-    // strict parsing validates utf-8
+    // strict parsing validates utf-8.
     let error = element.value().unwrap_err();
     assert!(matches!(error.kind, ErrorKind::Utf8Encoding { .. }));
-    // shape parsing leaves the payload bytes untouched
+    // shape parsing leaves the payload bytes untouched.
     assert_eq!(
         element.value_view().unwrap(),
         RawBsonRefView::String(b"h\xFFllo")
@@ -1129,7 +1129,7 @@ fn element_view_iter_invalid_utf8_string_value() {
 
 #[test]
 fn element_view_iter_invalid_utf8_regex_and_dbpointer() {
-    // regex with invalid utf-8 pattern
+    // regex with invalid utf-8 pattern.
     let mut elements = Vec::new();
     elements.push(0x0B);
     elements.extend(element_view_cstring(b"re"));
@@ -1147,7 +1147,7 @@ fn element_view_iter_invalid_utf8_regex_and_dbpointer() {
         other => panic!("expected regex, got {other:?}"),
     }
 
-    // dbpointer with invalid utf-8 namespace
+    // dbpointer with invalid utf-8 namespace.
     let mut elements = Vec::new();
     elements.push(0x0C);
     elements.extend(element_view_cstring(b"dp"));
@@ -1166,8 +1166,8 @@ fn element_view_iter_invalid_utf8_regex_and_dbpointer() {
     }
 }
 
-/// The decode loop a driver codec would write on top of the view API: no BSON framing logic is
-/// duplicated on the caller side, and string decoding is entirely the caller's policy.
+/// The decode loop a driver codec would write on top of the view API. The caller-side code
+/// contains no BSON framing logic, and string decoding follows the caller's policy.
 #[test]
 fn element_view_iter_decode_loop() {
     // {"k\xFF": "v\xFF", "nested": {"sub": 1}, "arr": [2], "code": "c\xFF"}
@@ -1198,7 +1198,7 @@ fn element_view_iter_decode_loop() {
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
 
-    // a caller-chosen decode policy: lossy for strings, raw for keys
+    // a caller-chosen decode policy, lossy for strings and raw for keys.
     fn decode(bytes: &[u8]) -> String {
         String::from_utf8_lossy(bytes).into_owned()
     }
@@ -1245,7 +1245,7 @@ fn element_view_iter_decode_loop() {
 #[test]
 fn element_view_iter_rejects_element_overrunning_terminator() {
     // {"k": "v"} where the string's null terminator doubles as the document's, so the element
-    // consumes every byte of the buffer and the iteration overruns the terminating null
+    // consumes every byte of the buffer and the iteration overruns the terminating null.
     let bytes: &[u8] = b"\x0d\0\0\0\x02k\0\x02\0\0\0v\0";
     let doc = RawDocument::from_bytes(bytes).unwrap();
     let mut iter = doc.iter_element_views();
@@ -1260,8 +1260,7 @@ fn element_view_iter_rejects_element_overrunning_terminator() {
 
 #[test]
 fn raw_value_parse_rejects_string_missing_terminator() {
-    // a string value whose final byte is not the null terminator must be an error;
-    // the strict path historically dropped the trailing byte silently
+    // a string value whose final byte is not the null terminator must be an error.
     let mut value = element_view_len_encode(b"payload");
     *value.last_mut().unwrap() = 0xFF;
     let error = value::RawValue::new_at(ElementType::String, &value, 0)
@@ -1272,9 +1271,9 @@ fn raw_value_parse_rejects_string_missing_terminator() {
 
 #[test]
 fn value_lossy_regex_locates_options_with_raw_pattern_length() {
-    // a regex pattern containing invalid utf-8: the options cstring must be located using
-    // the raw pattern bytes; using the lossily decoded length (three bytes per replacement
-    // character) shifts the offset past the options
+    // the options cstring is located using the raw pattern bytes, because a lossily
+    // decoded length (three bytes per replacement character) would shift the offset past
+    // the options.
     let mut value = Vec::new();
     value.extend(element_view_cstring(b"b\xC3")); // pattern: "b" + invalid continuation byte
     value.extend(element_view_cstring(b"x")); // options
@@ -1295,7 +1294,7 @@ fn value_lossy_regex_locates_options_with_raw_pattern_length() {
 #[test]
 fn element_view_into_validated_matches_strict_parse() {
     // validating the view's framing must produce the same value as the strict parse for
-    // every type, string-like and otherwise
+    // every type, string-like and otherwise.
     let mut scope_elements = Vec::new();
     scope_elements.push(0x10);
     scope_elements.extend(element_view_cstring(b"x"));
@@ -1366,7 +1365,7 @@ fn element_view_into_validated_matches_strict_parse() {
 
 #[test]
 fn raw_document_buf_iter_element_views() {
-    // the owned document type exposes the same element-view iteration as the borrowed one
+    // the owned document type exposes the same element-view iteration as the borrowed one.
     let doc = RawDocumentBuf::from_bytes(
         b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec(),
     )
@@ -1384,10 +1383,10 @@ fn raw_document_buf_iter_element_views() {
 
 #[test]
 fn value_lossy_parses_exactly_the_string_like_kinds() {
-    // the lossy path must parse exactly the string-like kinds: every other kind must
-    // return None (deferring to the strict fallback), so gate drift in either direction
-    // fails here; the exhaustive match fails to compile when a kind is added without a
-    // decision here
+    // the lossy path must parse exactly the string-like kinds. Every other kind returns
+    // None and defers to the strict fallback, so gate drift in either direction fails
+    // here. The exhaustive match fails to compile when a kind is added without a decision
+    // here.
     fn valid_value_bytes(kind: ElementType) -> Vec<u8> {
         match kind {
             ElementType::Boolean => vec![1],
@@ -1478,8 +1477,8 @@ fn value_lossy_parses_exactly_the_string_like_kinds() {
         );
     }
 
-    // string-like kinds are still framed and validated on the lossy path: a malformed
-    // payload errors rather than producing a lossy value
+    // string-like kinds are still framed and validated on the lossy path, so a malformed
+    // payload errors rather than producing a lossy value.
     let mut string = element_view_len_encode(b"payload");
     *string.last_mut().unwrap() = 0xFF;
     let error = value::RawValue::new_at(ElementType::String, &string, 0)
@@ -1490,9 +1489,33 @@ fn value_lossy_parses_exactly_the_string_like_kinds() {
 }
 
 #[test]
+fn value_lossy_defers_malformed_non_string_like_kinds() {
+    // the gate must route non-string-like kinds to the strict fallback without parsing
+    // them, so structurally invalid bytes return Ok(None) rather than an error. A
+    // non-string-like kind added to the gate fails here. With valid bytes the tail arm
+    // hides the drift.
+    for kind in [
+        ElementType::Double,
+        ElementType::EmbeddedDocument,
+        ElementType::Array,
+        ElementType::Boolean,
+        ElementType::DateTime,
+        ElementType::Decimal128,
+        ElementType::Timestamp,
+        ElementType::Binary,
+        ElementType::Int32,
+        ElementType::Int64,
+        ElementType::ObjectId,
+    ] {
+        let lossy = value::RawValue::new_at(kind, &[1, 2, 3], 0).parse_utf8_lossy();
+        assert!(matches!(lossy, Ok(None)), "expected Ok(None) for {kind:?}");
+    }
+}
+
+#[test]
 fn element_view_into_validated_rejects_invalid_utf8() {
-    // the view hands string-like payloads back as raw bytes; the strict conversion is the
-    // utf-8 validation policy
+    // the view hands string-like payloads back as raw bytes, so the strict conversion is
+    // where utf-8 validation happens.
     let mut elements = Vec::new();
     elements.push(0x02);
     elements.extend(element_view_cstring(b"s"));
@@ -1507,9 +1530,8 @@ fn element_view_into_validated_rejects_invalid_utf8() {
 
 #[test]
 fn raw_bson_ref_view_double_equality_is_f64() {
-    // RawBsonRefView compares Double by f64 value, unlike RawBsonRef's bit comparison:
-    // NaN never equals itself and zero equals negative zero — pinning the documented
-    // divergence (see RawBsonRefView's doc comment)
+    // the derived PartialEq compares Double by f64 value, unlike RawBsonRef's bit
+    // comparison. NaN never equals itself, and zero equals negative zero.
     assert!(!RawBsonRefView::Double(f64::NAN).eq(&RawBsonRefView::Double(f64::NAN)));
     assert_eq!(RawBsonRefView::Double(0.0), RawBsonRefView::Double(-0.0));
 }

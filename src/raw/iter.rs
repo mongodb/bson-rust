@@ -193,7 +193,7 @@ impl<'a> RawElement<'a> {
     }
 
     /// Parses this element into [`RawBson`], replacing any invalid UTF-8 in the element's
-    /// string-like payloads with the Unicode replacement character; nested documents and
+    /// string-like payloads with the Unicode replacement character. Nested documents and
     /// arrays are returned unvalidated. Returns an error if the underlying bytes are invalid.
     pub fn value_utf8_lossy(&self) -> Result<RawBson> {
         match self.value_utf8_lossy_inner()? {
@@ -203,8 +203,8 @@ impl<'a> RawElement<'a> {
     }
 
     pub(crate) fn value_utf8_lossy_inner(&self) -> Result<Option<Utf8LossyBson<'a>>> {
-        // the canonical fallback pattern for callers: this returns None for non-string-like
-        // kinds without parsing them, and the caller then decides whether to parse strictly
+        // returns None for non-string-like kinds without parsing them, leaving the strict
+        // fallback to the caller.
         self.value
             .parse_utf8_lossy()
             .map_err(|e| e.with_key(self.key.as_str()))
@@ -305,21 +305,17 @@ impl<'a> From<Utf8LossyBson<'a>> for RawBson {
     }
 }
 
-/// The position of an element iterator within a document's framing: another element may be
-/// parsed, the document's terminating null byte has been reached cleanly, or the framing is
-/// malformed.
+/// The position of an element iterator's offset within a document's framing.
 pub(super) enum FramingStatus {
     /// The offset is inside the document body.
     Element,
-    /// The offset is the document's terminating null byte; iteration ends cleanly.
+    /// The offset is the document's terminating null byte, so iteration ends cleanly.
     End,
     /// The framing is malformed at the offset.
     Malformed(Error),
 }
 
-/// Classifies `offset` within a document's framing: at or past the buffer end is malformed,
-/// the terminating null byte ends iteration cleanly only when that byte is null, and any
-/// earlier offset may hold another element.
+/// Classifies `offset` within a document's framing.
 pub(super) fn framing_status(bytes: &[u8], offset: usize, terminator: usize) -> FramingStatus {
     if offset > terminator || offset >= bytes.len() {
         FramingStatus::Malformed(Error::malformed_bytes("iteration overflowed document"))
@@ -335,11 +331,10 @@ pub(super) fn framing_status(bytes: &[u8], offset: usize, terminator: usize) -> 
 }
 
 /// Calculates the size of the value of an element of `element_type` whose value begins at
-/// `offset` in `bytes`, performing only the structural validation needed to locate the
-/// element's extent (lengths, null terminators, and bounds). No UTF-8 validation is
-/// performed, except that a regular expression's cstrings are UTF-8-validated when
-/// `max_cstr_parse_len` is set, preserving the strict iterator's behavior of surfacing
-/// over-limit or invalid regex cstrings during iteration.
+/// `offset` in `bytes`, validating only the structure needed to locate the element's extent
+/// (lengths, null terminators, and bounds). No UTF-8 validation is performed, except that a
+/// regular expression's cstrings are UTF-8-validated when `max_cstr_parse_len` is set, as
+/// in the strict iterator.
 pub(super) fn element_size_at(
     bytes: &[u8],
     offset: usize,
@@ -383,9 +378,10 @@ pub(super) fn element_size_at(
     Ok(size)
 }
 
-/// Shared framing helpers used by both [`RawIter`] and the view iterator in
-/// [`crate::raw::view`]. Each validates only the structure needed to locate an extent
-/// (lengths, null terminators, and bounds); none validate UTF-8.
+// Shared framing helpers used by both RawIter and the view iterator in crate::raw::view.
+// Each validates only the structure needed to locate an extent. None validate UTF-8.
+
+/// Returns an error if `bytes` does not contain `num_bytes` starting at `start`.
 pub(super) fn verify_enough_bytes(bytes: &[u8], start: usize, num_bytes: usize) -> Result<()> {
     let end = checked_add(start, num_bytes)?;
     if bytes.get(start..end).is_none() {

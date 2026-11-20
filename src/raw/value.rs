@@ -40,8 +40,9 @@ impl<'a> RawValue<'a> {
     }
 
     pub(crate) fn parse_utf8_lossy(&self) -> Result<Option<Utf8LossyBson<'a>>> {
-        // only string-like values carry utf-8 payloads; anything else is left to the caller's
-        // strict-parse fallback so it is not parsed (and nested documents not re-framed) twice
+        // only string-like values carry utf-8 payloads. Anything else returns None so the
+        // caller's strict-parse fallback handles it without parsing (and re-framing nested
+        // documents) twice.
         match self.kind {
             ElementType::String
             | ElementType::JavaScriptCode
