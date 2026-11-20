@@ -51,7 +51,7 @@ Note that if you are using `bson` through the `mongodb` crate, you do not need t
 | `uuid-1`     | Enable support for v1.x of the [`uuid`](https://docs.rs/uuid/1.0) crate in the public API.                  | n/a                | no      |
 | `time-0_3`   | Enable support for v0.3 of the [`time`](https://docs.rs/time/0.3) crate in the public API.                  | n/a                | no      |
 | `serde_with-3` | Enable [`serde_with`](https://docs.rs/serde_with/3.x) type conversion utilities in the public API. | `serde_with`         | no      |
-| `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_err/latest).  This is an unstable feature and any breaking changes to `serde_path_to_error` may affect usage of it via this feature.  | `serde_path_to_error`  | no |
+| `serde_path_to_error` | Enable support for error paths via integration with [`serde_path_to_error`](https://docs.rs/serde_path_to_error/latest/serde_path_to_error/).  This is an unstable feature and any breaking changes to `serde_path_to_error` may affect usage of it via this feature.  | `serde_path_to_error`  | no |
 | `compat-3-0-0` | Required for future compatibility if default features are disabled. | n/a | no |
 | `large_dates` | Increase the supported year range for some `bson::DateTime` utilities from +/-9,999 (inclusive) to +/-999,999 (inclusive). Note that enabling this feature can impact performance and introduce parsing ambiguities. | n/a | no |
 | `serde_json-1` | Enable support for v1.x of the [`serde_json`](https://docs.rs/serde_json/1.x) crate in the public API. | `serde_json` | no |
@@ -216,7 +216,7 @@ that is also less error prone.
 When serializing values that cannot be represented in BSON, or deserialzing from BSON that does
 not match the format expected by the type, the default error will only report the specific field
 that failed. To aid debugging, enabling the [`serde_path_to_error`](#feature-flags) feature will
-[augment errors](https://docs.rs/bson/latest/bson/de/enum.Error.html#variant.WithPath) with the
+[augment errors](https://docs.rs/bson/latest/bson/error/struct.Error.html#structfield.path) with the
 full field path from root object to failing field.  This feature does incur a small CPU and memory
 overhead during (de)serialization and should be enabled with care in performance-sensitive
 environments.
@@ -231,7 +231,7 @@ provides a `DateTime` type, but its `Serialize` and `Deserialize` implementation
 instead, so when using it with BSON, the BSON datetime type is not used. To work around this, the
 `chrono-0_4` feature flag can be enabled. This flag exposes a number of convenient conversions
 between `bson::DateTime` and `chrono::DateTime`, including the
-[`datetime::FromChrono04DateTime`](https://docs.rs/bson/latest/bson/serde_helpers/datetime/struct.FromChrono04DateTime/index.html)
+[`datetime::FromChrono04DateTime`](https://docs.rs/bson/latest/bson/serde_helpers/datetime/struct.FromChrono04DateTime.html)
 serde helper, which can be used to (de)serialize `chrono::DateTime`s to/from BSON datetimes, and the
 `From<chrono::DateTime>` implementation for `Bson`, which allows `chrono::DateTime` values to be
 used in the `doc!` and `bson!` macros.
