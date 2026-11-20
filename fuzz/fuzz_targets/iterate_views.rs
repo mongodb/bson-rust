@@ -6,7 +6,8 @@ use bson::RawDocument;
 
 fuzz_target!(|buf: &[u8]| {
     if let Ok(doc) = RawDocument::from_bytes(buf) {
-        for element in doc.iter_element_views() {
+        let mut iter = doc.iter_elements();
+        while let Some(element) = iter.next_view() {
             if let Ok(view) = element {
                 let _ = view.key_bytes();
                 let _ = view.element_type();

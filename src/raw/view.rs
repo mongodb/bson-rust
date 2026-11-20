@@ -1,10 +1,10 @@
 //! The element view API provides structural-only iteration that defers UTF-8 validation
 //! to the caller.
 //!
-//! Construct [`RawElementViewIter`] via
-//! [`RawDocument::iter_element_views`](crate::RawDocument::iter_element_views),
-//! [`RawDocumentBuf::iter_element_views`](crate::RawDocumentBuf::iter_element_views), or
-//! [`RawArray::iter_element_views`](crate::RawArray::iter_element_views).
+//! Iterate views with [`RawIter::next_view`](super::RawIter::next_view), starting from
+//! [`RawDocument::iter_elements`](crate::RawDocument::iter_elements),
+//! [`RawDocumentBuf::iter_elements`](crate::RawDocumentBuf::iter_elements), or
+//! [`RawArray::iter_elements`](crate::RawArray::iter_elements).
 
 use std::convert::TryInto;
 
@@ -38,49 +38,8 @@ use super::{
     RawDocument,
     RawJavaScriptCodeWithScopeRef,
     RawRegexRef,
-    iter::{FramingStatus, RawElement, element_size_at, framing_status},
+    iter::RawElement,
 };
-
-/// An iterator over views of the elements in a document. Construct by calling
-/// [`RawDocument::iter_element_views`](crate::RawDocument::iter_element_views),
-/// [`RawDocumentBuf::iter_element_views`](crate::RawDocumentBuf::iter_element_views), or
-/// [`RawArray::iter_element_views`](crate::RawArray::iter_element_views).
-///
-/// This iterator validates only the structure needed to locate each element. It performs
-/// no UTF-8 validation. Keys and string-like values are exposed as raw bytes so the caller
-/// can decide how to decode them. Iteration ends with an error if an element cannot be
-/// located.
-///
-/// Iteration ends cleanly only at the document's terminating null byte. Any byte of the
-/// document's body that is not consumed by an element (including a premature null type tag)
-/// produces an error, so a completed iteration accounts for the entire document.
-pub struct RawElementViewIter<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-    /// False once an error is encountered, after which iteration returns None.
-    valid: bool,
-    /// The offset in `bytes` of the null byte that terminates the document being iterated.
-    /// Iteration ends only at this offset. An element running past it or a missing null
-    /// byte there is an error.
-    terminator: usize,
-}
-
-impl<'a> RawElementViewIter<'a> {
-    pub(crate) fn new(doc: &'a RawDocument) -> Self {
-        Self {
-            bytes: doc.as_bytes(),
-            offset: 4,
-            valid: true,
-            terminator: doc.as_bytes().len().saturating_sub(1),
-        }
-    }
-
-    /// Calculates the size of the value of an element of `element_type` whose value begins
-    /// at `offset`, with no `max_cstr_parse_len` bound. See [`element_size_at`].
-    fn value_size_at(&self, offset: usize, element_type: ElementType) -> Result<usize> {
-        element_size_at(self.bytes, offset, element_type, None)
-    }
-}
 
 /// The pattern and options cstrings of a regular expression value, as raw bytes excluding
 /// their null terminators. No UTF-8 validation is performed.
@@ -170,64 +129,10 @@ pub(crate) fn value_view_at<'a>(
     })
 }
 
-impl<'a> Iterator for RawElementViewIter<'a> {
-    type Item = Result<RawElementView<'a>>;
-
-    fn next(&mut self) -> Option<Result<RawElementView<'a>>> {
-        if !self.valid {
-            return None;
-        }
-        match framing_status(self.bytes, self.offset, self.terminator) {
-            FramingStatus::End => None,
-            FramingStatus::Malformed(error) => {
-                self.valid = false;
-                Some(Err(error))
-            }
-            FramingStatus::Element => {
-                let element_type = match ElementType::from(self.bytes[self.offset]) {
-                    Some(et) => et,
-                    None => {
-                        self.valid = false;
-                        return Some(Err(Error::malformed_bytes(format!(
-                            "invalid tag: {} (at byte offset {})",
-                            self.bytes[self.offset], self.offset
-                        ))));
-                    }
-                };
-
-                // Locate the key's null terminator without validating it as UTF-8.
-                let key_start = self.offset + 1;
-                let (key, value_offset) = match cstring_at(self.bytes, key_start, None) {
-                    Ok(k) => k,
-                    Err(error) => {
-                        self.valid = false;
-                        return Some(Err(error));
-                    }
-                };
-
-                Some(match self.value_size_at(value_offset, element_type) {
-                    Ok(size) => {
-                        self.offset = value_offset + size;
-                        Ok(RawElementView {
-                            element_type,
-                            key,
-                            value: &self.bytes[value_offset..value_offset + size],
-                            value_offset,
-                        })
-                    }
-                    Err(error) => {
-                        self.valid = false;
-                        Err(error)
-                    }
-                })
-            }
-        }
-    }
-}
-
 /// A view of the bytes of an element contained in a [`RawDocument`] or
-/// [`RawDocumentBuf`](crate::RawDocumentBuf), yielded by [`RawElementViewIter`]. Neither the
-/// key nor the value has been validated as UTF-8.
+/// [`RawDocumentBuf`](crate::RawDocumentBuf), yielded by
+/// [`RawIter::next_view`](super::RawIter::next_view). Neither the key nor the value has
+/// been validated as UTF-8.
 ///
 /// Call [`RawElementView::value`] to parse the value and validate its string-like payloads
 /// as UTF-8, call [`RawElementView::value_view`] to parse the value's shape and leave
@@ -238,11 +143,11 @@ impl<'a> Iterator for RawElementViewIter<'a> {
 /// # use bson::raw::RawDocument;
 /// // a document with an invalid UTF-8 key.
 /// let doc = RawDocument::from_bytes(b"\x12\0\0\0\x02\xff\0\x06\0\0\0value\0\0")?;
-/// let mut iter = doc.iter_element_views();
-/// let element = iter.next().unwrap()?;
+/// let mut iter = doc.iter_elements();
+/// let element = iter.next_view().unwrap()?;
 /// assert_eq!(element.key_bytes(), b"\xff");
 /// assert_eq!(element.element_type(), bson::spec::ElementType::String);
-/// assert!(iter.next().is_none());
+/// assert!(iter.next_view().is_none());
 /// # Ok::<(), bson::error::Error>(())
 /// ```
 ///
@@ -252,7 +157,8 @@ impl<'a> Iterator for RawElementViewIter<'a> {
 /// let doc = RawDocument::from_bytes(b"\x12\0\0\0\x02a\0\x06\0\0\0h\xffllo\0\0")?;
 ///
 /// let mut decoded = Vec::new();
-/// for element in doc.iter_element_views() {
+/// let mut iter = doc.iter_elements();
+/// while let Some(element) = iter.next_view() {
 ///     let element = element?;
 ///     match element.value_view()? {
 ///         RawBsonRefView::String(payload) => {
@@ -274,6 +180,20 @@ pub struct RawElementView<'a> {
 }
 
 impl<'a> RawElementView<'a> {
+    pub(crate) fn new(
+        element_type: ElementType,
+        key: &'a [u8],
+        value: &'a [u8],
+        value_offset: usize,
+    ) -> Self {
+        Self {
+            element_type,
+            key,
+            value,
+            value_offset,
+        }
+    }
+
     /// The type of the element.
     pub fn element_type(&self) -> ElementType {
         self.element_type

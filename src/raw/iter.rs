@@ -8,7 +8,9 @@ use crate::{
         Error,
         MIN_BSON_DOCUMENT_SIZE,
         Result,
+        cstring_at,
         read_cstring_with_max_len,
+        try_to_str,
         value::RawValue,
     },
     spec::ElementType,
@@ -20,7 +22,7 @@ use super::{
     checked_add,
     i32_from_slice,
     read_len,
-    view::regex_payload_at,
+    view::{RawElementView, regex_payload_at},
 };
 
 /// An iterator over the key-value pairs in a document. Construct by calling [`RawDocument::iter`]
@@ -211,30 +213,15 @@ impl<'a> RawElement<'a> {
     }
 }
 
-impl RawIter<'_> {
-    fn get_next_kvp(&mut self, offset: usize) -> Result<(ElementType, usize)> {
-        let element_type = match ElementType::from(self.bytes[self.offset]) {
-            Some(et) => et,
-            None => {
-                return Err(Error::malformed_bytes(format!(
-                    "invalid tag: {} (at byte offset {})",
-                    self.bytes[self.offset], self.offset
-                )));
-            }
-        };
-
-        let element_size =
-            element_size_at(self.bytes, offset, element_type, self.max_cstr_parse_len)?;
-        self.offset = offset + element_size;
-
-        Ok((element_type, element_size))
-    }
-}
-
-impl<'a> Iterator for RawIter<'a> {
-    type Item = Result<RawElement<'a>>;
-
-    fn next(&mut self) -> Option<Result<RawElement<'a>>> {
+impl<'a> RawIter<'a> {
+    /// The shared walk behind [`Iterator::next`] and [`RawIter::next_view`]: framing check,
+    /// tag parse, and key scan, returning the element's type, raw key bytes, and the offset
+    /// its value starts at. `key_bound` bounds the key's cstring scan. This step does not
+    /// validate UTF-8.
+    fn next_element_header(
+        &mut self,
+        key_bound: Option<usize>,
+    ) -> Option<Result<(ElementType, &'a [u8], usize)>> {
         if !self.valid {
             return None;
         }
@@ -245,30 +232,116 @@ impl<'a> Iterator for RawIter<'a> {
                 Some(Err(error))
             }
             FramingStatus::Element => {
-                let key = match read_cstring_with_max_len(
-                    &self.bytes[self.offset + 1..],
-                    self.max_cstr_parse_len,
-                ) {
-                    Ok(k) => k,
-                    Err(e) => {
+                let element_type = match ElementType::from(self.bytes[self.offset]) {
+                    Some(et) => et,
+                    None => {
                         self.valid = false;
-                        return Some(Err(e));
+                        return Some(Err(Error::malformed_bytes(format!(
+                            "invalid tag: {} (at byte offset {})",
+                            self.bytes[self.offset], self.offset
+                        ))));
                     }
                 };
-                let offset = self.offset + 1 + key.len() + 1; // type specifier + key + \0
-
-                Some(match self.get_next_kvp(offset) {
-                    Ok((kind, size)) => Ok(RawElement::new(
-                        key,
-                        RawValue::new_at(kind, &self.bytes[offset..offset + size], offset),
-                    )),
+                match cstring_at(self.bytes, self.offset + 1, key_bound) {
+                    Ok((key, value_offset)) => Some(Ok((element_type, key, value_offset))),
                     Err(error) => {
                         self.valid = false;
-                        Err(error.with_key(key.as_str()))
+                        Some(Err(error))
                     }
-                })
+                }
             }
         }
+    }
+
+    /// Sizes the value located by [`next_element_header`] and advances past the element.
+    /// `size_bound` bounds cstring scans during sizing. The view path passes `None` because
+    /// the bounded arm UTF-8-validates regex cstrings. View iteration must not validate
+    /// UTF-8.
+    fn finish_element(
+        &mut self,
+        value_offset: usize,
+        element_type: ElementType,
+        size_bound: Option<usize>,
+    ) -> Result<usize> {
+        match element_size_at(self.bytes, value_offset, element_type, size_bound) {
+            Ok(size) => {
+                self.offset = value_offset + size;
+                Ok(size)
+            }
+            Err(error) => {
+                self.valid = false;
+                Err(error)
+            }
+        }
+    }
+
+    /// Advances the iterator and returns a view of the next element's unvalidated bytes.
+    /// The view exposes the key and any string-like value payloads as raw bytes for the
+    /// caller to decode. Shares the iterator's cursor with [`Iterator::next`], so the two
+    /// calls may be mixed. The iterator's `max_cstr_parse_len` bound applies to the key
+    /// scan only.
+    ///
+    /// ```
+    /// # use bson::raw::RawDocument;
+    /// // a document with an invalid UTF-8 key.
+    /// let doc = RawDocument::from_bytes(b"\x12\0\0\0\x02\xff\0\x06\0\0\0value\0\0")?;
+    /// let mut iter = doc.iter_elements();
+    /// let element = iter.next_view().unwrap()?;
+    /// assert_eq!(element.key_bytes(), b"\xff");
+    /// assert!(iter.next_view().is_none());
+    /// # Ok::<(), bson::error::Error>(())
+    /// ```
+    pub fn next_view(&mut self) -> Option<Result<RawElementView<'a>>> {
+        let (element_type, key, value_offset) =
+            match self.next_element_header(self.max_cstr_parse_len) {
+                Some(Ok(parts)) => parts,
+                Some(Err(error)) => return Some(Err(error)),
+                None => return None,
+            };
+        Some(
+            match self.finish_element(value_offset, element_type, None) {
+                Ok(size) => Ok(RawElementView::new(
+                    element_type,
+                    key,
+                    &self.bytes[value_offset..value_offset + size],
+                    value_offset,
+                )),
+                Err(error) => Err(error),
+            },
+        )
+    }
+}
+
+impl<'a> Iterator for RawIter<'a> {
+    type Item = Result<RawElement<'a>>;
+
+    fn next(&mut self) -> Option<Result<RawElement<'a>>> {
+        let (element_type, key_bytes, value_offset) =
+            match self.next_element_header(self.max_cstr_parse_len) {
+                Some(Ok(parts)) => parts,
+                Some(Err(error)) => return Some(Err(error)),
+                None => return None,
+            };
+        let key: &CStr = match try_to_str(key_bytes).and_then(|s| s.try_into()) {
+            Ok(key) => key,
+            Err(error) => {
+                self.valid = false;
+                return Some(Err(error));
+            }
+        };
+        Some(
+            match self.finish_element(value_offset, element_type, self.max_cstr_parse_len) {
+                Ok(size) => Ok(RawElement::new(
+                    key,
+                    RawValue::new_at(
+                        element_type,
+                        &self.bytes[value_offset..value_offset + size],
+                        value_offset,
+                    ),
+                )),
+                Err(error) => Err(error.with_key(key.as_str())),
+            },
+        )
     }
 }
 

@@ -722,6 +722,22 @@ fn max_cstr_parse_len() {
     assert!(matches!(error.kind, ErrorKind::TooLongCStr { .. }));
 }
 
+#[test]
+#[cfg(feature = "sfp-internal")]
+fn max_cstr_parse_len_next_view() {
+    // the bound applies to next_view's key scan, though never to view value sizing.
+    let doc = rawdoc! { "aaaaaaaa": "b" };
+
+    let mut iter = doc.iter_elements().max_cstr_parse_len(8);
+    let element = iter.next_view().unwrap().unwrap();
+    assert_eq!(element.key_bytes(), b"aaaaaaaa");
+    assert!(iter.next_view().is_none());
+
+    let mut iter = doc.iter_elements().max_cstr_parse_len(7);
+    let error = iter.next_view().unwrap().unwrap_err();
+    assert!(matches!(error.kind, ErrorKind::TooLongCStr { .. }));
+}
+
 // helpers for the element-view tests: build complete document bytes from element bytes.
 
 fn element_view_doc_bytes(elements: &[u8]) -> Vec<u8> {
@@ -757,9 +773,9 @@ fn element_view_iter_keys_and_values() {
 
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    let mut iter = doc.iter_element_views();
+    let mut iter = doc.iter_elements();
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(element.key_bytes(), b"s");
     assert_eq!(element.element_type(), ElementType::String);
     // value_bytes includes framing: the length prefix and null terminator.
@@ -767,11 +783,11 @@ fn element_view_iter_keys_and_values() {
     // strict parsing is still available as an explicit step.
     assert_eq!(element.value().unwrap().as_str(), Some("hello"));
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(element.key_bytes(), b"i");
     assert_eq!(element.value().unwrap().as_i32(), Some(42));
 
-    assert!(iter.next().is_none());
+    assert!(iter.next_view().is_none());
 }
 
 #[test]
@@ -788,15 +804,15 @@ fn element_view_iter_invalid_utf8_key() {
     assert!(doc.iter_elements().next().unwrap().is_err());
 
     // the view iterator yields the raw key bytes.
-    let mut iter = doc.iter_element_views();
-    let element = iter.next().unwrap().unwrap();
+    let mut iter = doc.iter_elements();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(element.key_bytes(), b"\xFF\xFE");
     assert_eq!(element.value().unwrap().as_str(), Some("value"));
-    assert!(iter.next().is_none());
+    assert!(iter.next_view().is_none());
 
     // validating the key is an explicit, fallible step.
-    let mut iter = doc.iter_element_views();
-    let element = iter.next().unwrap().unwrap();
+    let mut iter = doc.iter_elements();
+    let element = iter.next_view().unwrap().unwrap();
     assert!(RawElement::try_from(element).is_err());
 
     // a valid key round-trips into a RawElement.
@@ -806,10 +822,42 @@ fn element_view_iter_invalid_utf8_key() {
     elements.extend(element_view_len_encode(b"value"));
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    let element = doc.iter_element_views().next().unwrap().unwrap();
+    let element = doc.iter_elements().next_view().unwrap().unwrap();
     let raw_element = RawElement::try_from(element).unwrap();
     assert_eq!(raw_element.key(), "ok");
     assert_eq!(raw_element.value().unwrap().as_str(), Some("value"));
+}
+
+#[test]
+fn raw_iter_next_view_yields_unvalidated_bytes() {
+    // a document with an invalid UTF-8 key and an invalid UTF-8 string value.
+    let doc = RawDocument::from_bytes(b"\x12\0\0\0\x02\xff\0\x06\0\0\0h\xffllo\0\0").unwrap();
+    let mut iter = doc.iter_elements();
+    let element = iter.next_view().unwrap().unwrap();
+    assert_eq!(element.key_bytes(), b"\xff");
+    assert_eq!(element.element_type(), ElementType::String);
+    assert_eq!(element.value_bytes(), b"\x06\0\0\0h\xffllo\0");
+    match element.value_view().unwrap() {
+        RawBsonRefView::String(payload) => assert_eq!(payload, b"h\xffllo"),
+        other => panic!("expected string view, got {other:?}"),
+    }
+    assert!(iter.next_view().is_none());
+    // the strict path rejects the same document.
+    let mut strict = doc.iter_elements();
+    assert!(strict.next().unwrap().is_err());
+}
+
+#[test]
+fn raw_iter_mixed_next_and_next_view() {
+    // the strict and view walks share one cursor.
+    let doc = RawDocument::from_bytes(b"\x13\0\0\0\x10a\0\x01\0\0\0\x10b\0\x02\0\0\0\0").unwrap();
+    let mut iter = doc.iter_elements();
+    let first = iter.next().unwrap().unwrap();
+    assert_eq!(first.key().as_str(), "a");
+    let second = iter.next_view().unwrap().unwrap();
+    assert_eq!(second.key_bytes(), b"b");
+    assert_eq!(second.element_type(), ElementType::Int32);
+    assert!(iter.next().is_none());
 }
 
 #[test]
@@ -826,21 +874,21 @@ fn element_view_iter_rejects_underfilled_body() {
     bytes.push(0);
 
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    let mut iter = doc.iter_element_views();
+    let mut iter = doc.iter_elements();
 
     // the element is located...
-    assert!(iter.next().unwrap().is_ok());
+    assert!(iter.next_view().unwrap().is_ok());
     // ...but the unconsumed body byte is an error, not a clean end of iteration.
-    assert!(iter.next().unwrap().is_err());
+    assert!(iter.next_view().unwrap().is_err());
     // and iteration has ended.
-    assert!(iter.next().is_none());
+    assert!(iter.next_view().is_none());
 }
 
 #[test]
 fn element_view_iter_empty_document() {
     let doc = RawDocument::from_bytes(b"\x05\0\0\0\0").unwrap();
-    let mut iter = doc.iter_element_views();
-    assert!(iter.next().is_none());
+    let mut iter = doc.iter_elements();
+    assert!(iter.next_view().is_none());
 }
 
 #[test]
@@ -851,10 +899,10 @@ fn element_view_iter_malformed_documents() {
     elements.extend(element_view_cstring(b"k"));
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    let mut iter = doc.iter_element_views();
-    let err = iter.next().unwrap().unwrap_err();
+    let mut iter = doc.iter_elements();
+    let err = iter.next_view().unwrap().unwrap_err();
     assert!(err.to_string().contains("invalid tag"));
-    assert!(iter.next().is_none());
+    assert!(iter.next_view().is_none());
 
     // string value that overruns the document.
     let mut elements = Vec::new();
@@ -863,9 +911,9 @@ fn element_view_iter_malformed_documents() {
     elements.extend([99, 0, 0, 0]); // declares 99 bytes of string.
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    let mut iter = doc.iter_element_views();
-    assert!(iter.next().unwrap().is_err());
-    assert!(iter.next().is_none());
+    let mut iter = doc.iter_elements();
+    assert!(iter.next_view().unwrap().is_err());
+    assert!(iter.next_view().is_none());
 
     // key that is not null terminated.
     let mut elements = Vec::new();
@@ -874,9 +922,9 @@ fn element_view_iter_malformed_documents() {
     elements.extend(1i32.to_le_bytes());
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    let mut iter = doc.iter_element_views();
-    assert!(iter.next().unwrap().is_err());
-    assert!(iter.next().is_none());
+    let mut iter = doc.iter_elements();
+    assert!(iter.next_view().unwrap().is_err());
+    assert!(iter.next_view().is_none());
 }
 
 #[test]
@@ -949,9 +997,9 @@ fn element_view_iter_full_shape() {
 
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    let mut iter = doc.iter_element_views();
+    let mut iter = doc.iter_elements();
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(element.key_bytes(), b"s");
     assert_eq!(element.element_type(), ElementType::String);
     assert_eq!(
@@ -959,19 +1007,19 @@ fn element_view_iter_full_shape() {
         RawBsonRefView::String(b"hello")
     );
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(
         element.value_view().unwrap(),
         RawBsonRefView::Symbol(b"sym")
     );
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(
         element.value_view().unwrap(),
         RawBsonRefView::JavaScriptCode(b"code")
     );
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     match element.value_view().unwrap() {
         RawBsonRefView::RegularExpression { pattern, options } => {
             assert_eq!(pattern, b"ab");
@@ -981,7 +1029,7 @@ fn element_view_iter_full_shape() {
     }
     assert_eq!(element.value_bytes(), b"ab\0b\0");
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     match element.value_view().unwrap() {
         RawBsonRefView::DbPointer { namespace, id } => {
             assert_eq!(namespace, b"ns");
@@ -993,7 +1041,7 @@ fn element_view_iter_full_shape() {
     dbpointer_bytes.extend([7u8; 12]);
     assert_eq!(element.value_bytes(), dbpointer_bytes);
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     match element.value_view().unwrap() {
         RawBsonRefView::Binary(binary) => {
             assert_eq!(binary.bytes, &[1, 2, 3]);
@@ -1003,41 +1051,41 @@ fn element_view_iter_full_shape() {
     }
     assert_eq!(element.value_bytes(), b"\x03\x00\x00\x00\x80\x01\x02\x03");
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     match element.value_view().unwrap() {
         RawBsonRefView::Document(nested) => {
             assert_eq!(nested.as_bytes(), b"\x05\0\0\0\0");
-            assert!(nested.iter_element_views().next().is_none());
+            assert!(nested.iter_elements().next_view().is_none());
         }
         other => panic!("expected document, got {other:?}"),
     }
     assert_eq!(element.value_bytes(), b"\x05\0\0\0\0");
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     match element.value_view().unwrap() {
         RawBsonRefView::Array(array) => {
-            assert!(array.iter_element_views().next().is_none());
+            assert!(array.iter_elements().next_view().is_none());
         }
         other => panic!("expected array, got {other:?}"),
     }
     assert_eq!(element.value_bytes(), b"\x05\0\0\0\0");
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(element.value_view().unwrap(), RawBsonRefView::Int32(42));
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(element.value_view().unwrap(), RawBsonRefView::Double(2.5));
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(element.value_view().unwrap(), RawBsonRefView::Boolean(true));
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(
         element.value_view().unwrap(),
         RawBsonRefView::DateTime(DateTime::from_millis(0))
     );
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     match element.value_view().unwrap() {
         RawBsonRefView::Timestamp(ts) => {
             assert_eq!(
@@ -1051,13 +1099,13 @@ fn element_view_iter_full_shape() {
         other => panic!("expected timestamp, got {other:?}"),
     }
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(element.value_view().unwrap(), RawBsonRefView::ObjectId(oid));
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(element.value_view().unwrap(), RawBsonRefView::Null);
 
-    assert!(iter.next().is_none());
+    assert!(iter.next_view().is_none());
 }
 
 #[test]
@@ -1082,27 +1130,27 @@ fn element_view_iter_code_with_scope() {
 
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    let mut iter = doc.iter_element_views();
+    let mut iter = doc.iter_elements();
 
-    let element = iter.next().unwrap().unwrap();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(element.value_bytes(), &value);
     match element.value_view().unwrap() {
         RawBsonRefView::JavaScriptCodeWithScope { code, scope } => {
             assert_eq!(code, b"va\xFFr");
             assert_eq!(scope.as_bytes(), &element_view_doc_bytes(&scope_elements));
             // the scope can be iterated with the same iterator.
-            let mut scope_iter = scope.iter_element_views();
-            let scope_element = scope_iter.next().unwrap().unwrap();
+            let mut scope_iter = scope.iter_elements();
+            let scope_element = scope_iter.next_view().unwrap().unwrap();
             assert_eq!(scope_element.key_bytes(), b"x");
             assert_eq!(
                 scope_element.value_view().unwrap(),
                 RawBsonRefView::Int32(1)
             );
-            assert!(scope_iter.next().is_none());
+            assert!(scope_iter.next_view().is_none());
         }
         other => panic!("expected code with scope, got {other:?}"),
     }
-    assert!(iter.next().is_none());
+    assert!(iter.next_view().is_none());
 }
 
 #[test]
@@ -1115,8 +1163,8 @@ fn element_view_iter_invalid_utf8_string_value() {
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
 
-    let mut iter = doc.iter_element_views();
-    let element = iter.next().unwrap().unwrap();
+    let mut iter = doc.iter_elements();
+    let element = iter.next_view().unwrap().unwrap();
     // strict parsing validates utf-8.
     let error = element.value().unwrap_err();
     assert!(matches!(error.kind, ErrorKind::Utf8Encoding { .. }));
@@ -1137,7 +1185,7 @@ fn element_view_iter_invalid_utf8_regex_and_dbpointer() {
     elements.extend(element_view_cstring(b"i"));
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    let element = doc.iter_element_views().next().unwrap().unwrap();
+    let element = doc.iter_elements().next_view().unwrap().unwrap();
     assert!(element.value().is_err());
     match element.value_view().unwrap() {
         RawBsonRefView::RegularExpression { pattern, options } => {
@@ -1155,7 +1203,7 @@ fn element_view_iter_invalid_utf8_regex_and_dbpointer() {
     elements.extend([9u8; 12]);
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    let element = doc.iter_element_views().next().unwrap().unwrap();
+    let element = doc.iter_elements().next_view().unwrap().unwrap();
     assert!(element.value().is_err());
     match element.value_view().unwrap() {
         RawBsonRefView::DbPointer { namespace, id } => {
@@ -1205,7 +1253,8 @@ fn element_view_iter_decode_loop() {
 
     let mut out = std::collections::BTreeMap::new();
     let mut dollar_key = false;
-    for element in doc.iter_element_views() {
+    let mut iter = doc.iter_elements();
+    while let Some(element) = iter.next_view() {
         let element = element.unwrap();
         let key = element.key_bytes();
         dollar_key |= key.first() == Some(&b'$');
@@ -1213,15 +1262,15 @@ fn element_view_iter_decode_loop() {
             RawBsonRefView::String(payload) => format!("string:{}", decode(payload)),
             RawBsonRefView::JavaScriptCode(payload) => format!("code:{}", decode(payload)),
             RawBsonRefView::Document(nested) => {
-                let mut iter = nested.iter_element_views();
-                let element = iter.next().unwrap().unwrap();
-                assert!(iter.next().is_none());
+                let mut iter = nested.iter_elements();
+                let element = iter.next_view().unwrap().unwrap();
+                assert!(iter.next_view().is_none());
                 format!("doc:{{{:?}}}", element.value_view().unwrap(),)
             }
             RawBsonRefView::Array(array) => {
-                let mut iter = array.iter_element_views();
-                let element = iter.next().unwrap().unwrap();
-                assert!(iter.next().is_none());
+                let mut iter = array.iter_elements();
+                let element = iter.next_view().unwrap().unwrap();
+                assert!(iter.next_view().is_none());
                 format!(
                     "arr:[{}]",
                     match element.value_view().unwrap() {
@@ -1248,14 +1297,14 @@ fn element_view_iter_rejects_element_overrunning_terminator() {
     // consumes every byte of the buffer and the iteration overruns the terminating null.
     let bytes: &[u8] = b"\x0d\0\0\0\x02k\0\x02\0\0\0v\0";
     let doc = RawDocument::from_bytes(bytes).unwrap();
-    let mut iter = doc.iter_element_views();
+    let mut iter = doc.iter_elements();
     assert_eq!(
-        iter.next().unwrap().unwrap().value().unwrap().as_str(),
+        iter.next_view().unwrap().unwrap().value().unwrap().as_str(),
         Some("v")
     );
-    let err = iter.next().unwrap().unwrap_err();
+    let err = iter.next_view().unwrap().unwrap_err();
     assert!(err.to_string().contains("iteration overflowed document"));
-    assert!(iter.next().is_none());
+    assert!(iter.next_view().is_none());
 }
 
 #[test]
@@ -1354,7 +1403,8 @@ fn element_view_into_validated_matches_strict_parse() {
 
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    for element in doc.iter_element_views() {
+    let mut iter = doc.iter_elements();
+    while let Some(element) = iter.next_view() {
         let element = element.unwrap();
         assert_eq!(
             element.value_view().unwrap().into_validated().unwrap(),
@@ -1364,21 +1414,21 @@ fn element_view_into_validated_matches_strict_parse() {
 }
 
 #[test]
-fn raw_document_buf_iter_element_views() {
+fn raw_document_buf_next_view() {
     // the owned document type exposes the same element-view iteration as the borrowed one.
     let doc = RawDocumentBuf::from_bytes(
         b"\x13\x00\x00\x00\x02hi\x00\x06\x00\x00\x00y'all\x00\x00".to_vec(),
     )
     .unwrap();
-    let mut iter = doc.iter_element_views();
-    let element = iter.next().unwrap().unwrap();
+    let mut iter = doc.iter_elements();
+    let element = iter.next_view().unwrap().unwrap();
     assert_eq!(element.element_type(), ElementType::String);
     assert_eq!(element.key_bytes(), b"hi".as_slice());
     match element.value_view().unwrap() {
         RawBsonRefView::String(v) => assert_eq!(v, b"y'all".as_slice()),
         other => panic!("unexpected {other:?}"),
     }
-    assert!(iter.next().is_none());
+    assert!(iter.next_view().is_none());
 }
 
 #[test]
@@ -1523,7 +1573,7 @@ fn element_view_into_validated_rejects_invalid_utf8() {
 
     let bytes = element_view_doc_bytes(&elements);
     let doc = RawDocument::from_bytes(&bytes).unwrap();
-    let element = doc.iter_element_views().next().unwrap().unwrap();
+    let element = doc.iter_elements().next_view().unwrap().unwrap();
     let error = element.value_view().unwrap().into_validated().unwrap_err();
     assert!(matches!(error.kind, ErrorKind::Utf8Encoding { .. }));
 }

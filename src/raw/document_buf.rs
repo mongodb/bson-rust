@@ -9,15 +9,7 @@ use crate::{
     raw::{CStr, doc_writer::DocWriter},
 };
 
-use super::{
-    RawBsonRef,
-    RawDocument,
-    RawElementViewIter,
-    RawIter,
-    Result,
-    bson::RawBson,
-    iter::Iter,
-};
+use super::{RawBsonRef, RawDocument, RawIter, Result, bson::RawBson, iter::Iter};
 
 #[cfg(feature = "facet-unstable")]
 use crate::facet::opaque;
@@ -159,13 +151,6 @@ impl RawDocumentBuf {
     /// must explicitly convert them to owned types yourself.
     pub fn iter_elements(&self) -> RawIter<'_> {
         RawIter::new(self)
-    }
-
-    /// Gets an iterator over views of the elements in the [`RawDocumentBuf`]. Unlike
-    /// [`RawDocumentBuf::iter_elements`], this iterator does not validate keys or values as
-    /// UTF-8. See [`RawElementViewIter`] for details.
-    pub fn iter_element_views(&self) -> RawElementViewIter<'_> {
-        RawElementViewIter::new(self)
     }
 
     /// Return the contained data as a `Vec<u8>`

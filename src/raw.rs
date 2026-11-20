@@ -127,14 +127,13 @@
 //! ### Element views vs elements
 //!
 //! The iteration above returns validated keys ([`&CStr`](CStr)) and fully parsed values.
-//! [`RawDocument::iter_element_views`](crate::RawDocument::iter_element_views) (and its
-//! [`RawDocumentBuf`] and [`RawArray`] variants) instead returns element views that defer
-//! UTF-8 validation to the caller. Keys and the payloads of string-like values are exposed
-//! as raw bytes, and the iterator validates only the structure needed to locate each element
-//! (type tags, lengths, null terminators, and bounds). Prefer the validating iterator when
-//! the standard UTF-8 decoding policy is fine, and element views when applying a custom
-//! decoding policy to keys or string-like values. Both models share the same framing
-//! helpers, so an element's extent is always determined identically.
+//! [`RawIter::next_view`](crate::raw::RawIter::next_view) instead returns element views
+//! that defer UTF-8 validation to the caller. View iteration exposes keys and the payloads
+//! of string-like values as raw bytes, and it validates only the structure needed to
+//! locate each element (type tags, lengths, null terminators, and bounds). Prefer the
+//! validating iterator when the standard UTF-8 decoding policy is fine, and element views
+//! when applying a custom decoding policy to keys or string-like values. Both walk the
+//! same framing code, so both determine an element's extent identically.
 
 mod array;
 mod array_buf;
@@ -174,7 +173,7 @@ pub use self::{
     document::RawDocument,
     document_buf::{BindRawBsonRef, BindValue, RawDocumentBuf},
     iter::{Iter, RawElement, RawIter},
-    view::{RawBsonRefView, RawElementView, RawElementViewIter},
+    view::{RawBsonRefView, RawElementView},
 };
 
 pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
