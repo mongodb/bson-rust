@@ -453,6 +453,9 @@
 #![allow(clippy::cognitive_complexity, clippy::derive_partial_eq_without_eq)]
 #![doc(html_root_url = "https://docs.rs/bson/3.1.0")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+// the facet derive expands to a `ʄ` lifetime, which confusable_idents reports against
+// ordinary `f` identifiers. Remove this allow once a fix lands on main.
+#![cfg_attr(docsrs, allow(confusable_idents))]
 #![cfg_attr(mongodb_internal_bench, feature(test))]
 #![warn(missing_docs)]
 
@@ -468,6 +471,7 @@ pub use self::{
         RawBinaryRef,
         RawBson,
         RawBsonRef,
+        RawBsonRefView,
         RawDbPointerRef,
         RawDocument,
         RawDocumentBuf,

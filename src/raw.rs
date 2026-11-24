@@ -123,6 +123,17 @@
 //! assert_eq!(value.as_str(), Some("2021"));
 //! # Ok::<(), bson::error::Error>(())
 //! ```
+//!
+//! ### Element views vs elements
+//!
+//! The iteration above returns validated keys ([`&CStr`](CStr)) and fully parsed values.
+//! [`RawIter::next_view`](crate::raw::RawIter::next_view) instead returns element views
+//! that defer UTF-8 validation to the caller. View iteration exposes keys and the payloads
+//! of string-like values as raw bytes, and it validates only the structure needed to
+//! locate each element (type tags, lengths, null terminators, and bounds). Prefer the
+//! validating iterator when the standard UTF-8 decoding policy is fine, and element views
+//! when applying a custom decoding policy to keys or string-like values. Both walk the
+//! same framing code, so both determine an element's extent identically.
 
 mod array;
 mod array_buf;
@@ -138,6 +149,7 @@ pub(crate) mod serde;
 #[cfg(test)]
 mod test;
 pub(crate) mod value;
+mod view;
 
 use std::{
     convert::{TryFrom, TryInto},
@@ -161,6 +173,7 @@ pub use self::{
     document::RawDocument,
     document_buf::{BindRawBsonRef, BindValue, RawDocumentBuf},
     iter::{Iter, RawElement, RawIter},
+    view::{RawBsonRefView, RawElementView},
 };
 
 pub(crate) const MIN_BSON_STRING_SIZE: i32 = 4 + 1; // 4 bytes for length, one byte for null terminator
@@ -302,6 +315,7 @@ fn read_lenencode_bytes(buf: &[u8]) -> Result<&[u8]> {
     Ok(&buf[4..(end - 1)])
 }
 
+#[cfg(feature = "facet-unstable")]
 pub(crate) fn read_lenencode(buf: &[u8]) -> Result<&str> {
     try_to_str(read_lenencode_bytes(buf)?)
 }
@@ -341,41 +355,43 @@ pub(crate) fn write_string(buf: &mut Vec<u8>, s: &str) {
     buf.push(0);
 }
 
-pub(crate) fn cstring_bytes(buf: &[u8]) -> Result<&[u8]> {
-    let mut splits = buf.splitn(2, |x| *x == 0);
-    let value = splits
-        .next()
-        .ok_or_else(|| Error::malformed_bytes("no value"))?;
-    if splits.next().is_some() {
-        Ok(value)
-    } else {
-        Err(Error::malformed_bytes("expected null terminator"))
+/// Scans for a cstring starting at `offset` in `bytes`, returning the cstring's contents
+/// (excluding the null terminator) and the offset of the first byte after it. If
+/// `max_parse_len` is set and no null terminator appears within that many bytes, returns a
+/// `TooLongCStr` error. No UTF-8 validation is performed.
+pub(crate) fn cstring_at(
+    bytes: &[u8],
+    offset: usize,
+    max_parse_len: Option<usize>,
+) -> Result<(&[u8], usize)> {
+    let end = max_parse_len
+        .map(|len| std::cmp::min(offset.saturating_add(len.saturating_add(1)), bytes.len()))
+        .unwrap_or(bytes.len());
+    match bytes[offset..end].iter().position(|b| *b == 0) {
+        Some(index) => {
+            let nul = offset + index;
+            Ok((&bytes[offset..nul], nul + 1))
+        }
+        None => {
+            #[cfg(feature = "sfp-internal")]
+            if let Some(max_parse_len) = max_parse_len {
+                return Err(crate::error::ErrorKind::TooLongCStr {
+                    max_parse_len,
+                    bytes: bytes[offset..end].to_vec(),
+                }
+                .into());
+            }
+            Err(Error::malformed_bytes(format!(
+                "expected null terminator (at byte offset {})",
+                offset
+            )))
+        }
     }
-}
-
-pub(crate) fn read_cstring(buf: &[u8]) -> Result<&CStr> {
-    read_cstring_with_max_len(buf, None)
 }
 
 /// Reads a cstring from the start of `buf`, returning an error if no null terminator is found
 /// within the first `max_parse_len + 1` bytes.
 pub(crate) fn read_cstring_with_max_len(buf: &[u8], max_parse_len: Option<usize>) -> Result<&CStr> {
-    let end = max_parse_len
-        .map(|len| std::cmp::min(len.saturating_add(1), buf.len()))
-        .unwrap_or(buf.len());
-    let buf = &buf[..end];
-
-    let Some(index) = buf.iter().position(|b| *b == 0) else {
-        #[cfg(feature = "sfp-internal")]
-        if let Some(max_parse_len) = max_parse_len {
-            return Err(crate::error::ErrorKind::TooLongCStr {
-                max_parse_len,
-                bytes: buf.to_vec(),
-            }
-            .into());
-        }
-        return Err(Error::malformed_bytes("expected null terminator"));
-    };
-    let s = try_to_str(&buf[..index])?;
-    s.try_into()
+    let (s, _) = cstring_at(buf, 0, max_parse_len)?;
+    try_to_str(s)?.try_into()
 }

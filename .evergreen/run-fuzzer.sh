@@ -34,6 +34,7 @@ run_fuzzer "decode"
 run_fuzzer "raw_deserialize"
 run_fuzzer "raw_deserialize_utf8_lossy"
 run_fuzzer "iterate"
+run_fuzzer "iterate_views"
 
 # Run new security-focused targets
 run_fuzzer "type_markers"
