@@ -56,6 +56,37 @@ fn to_json() {
 }
 
 #[test]
+#[cfg(feature = "serde_json-1")]
+fn canonical_extjson_subnormal_double() {
+    let _guard = LOCK.run_concurrently();
+
+    // Subnormal doubles are neither zero nor "normal" in the IEEE 754 sense; they still need the
+    // `$numberDouble` wrapper in canonical extended JSON.
+    for value in [
+        f64::from_bits(1),
+        -f64::from_bits(1),
+        f64::MIN_POSITIVE / 2.0,
+        -f64::MIN_POSITIVE / 2.0,
+    ] {
+        assert!(value.is_subnormal());
+
+        let json = Bson::Double(value).into_canonical_extjson();
+        assert_eq!(
+            json,
+            serde_json::json!({ "$numberDouble": value.to_string() })
+        );
+        assert_eq!(Bson::try_from(json).unwrap(), Bson::Double(value));
+
+        // A document field goes through the same conversion.
+        let doc = Bson::Document(crate::doc! { "d": value }).into_canonical_extjson();
+        assert_eq!(
+            doc,
+            serde_json::json!({ "d": { "$numberDouble": value.to_string() } })
+        );
+    }
+}
+
+#[test]
 fn bson_default() {
     let _guard = LOCK.run_concurrently();
     let bson1 = Bson::default();

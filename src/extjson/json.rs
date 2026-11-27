@@ -273,7 +273,8 @@ impl Bson {
         match self {
             Bson::Int32(i) => json!({ "$numberInt": i.to_string() }),
             Bson::Int64(i) => json!({ "$numberLong": i.to_string() }),
-            Bson::Double(f) if f.is_normal() => {
+            // Any finite, nonzero value; `is_normal` would skip subnormal values.
+            Bson::Double(f) if f.is_finite() && f != 0.0 => {
                 let mut s = f.to_string();
                 if f.fract() == 0.0 {
                     s.push_str(".0");
