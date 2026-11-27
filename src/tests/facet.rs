@@ -204,6 +204,35 @@ fn roundtrip_binary() {
 }
 
 #[test]
+fn parse_binary_single_digit_subtype() {
+    #[derive(Debug, PartialEq, Facet)]
+    struct Foo {
+        #[facet(opaque, proxy = ExtJson)]
+        v: crate::Binary,
+        #[facet(opaque, proxy = ExtJson)]
+        b: Bson,
+    }
+    let bin = crate::Binary {
+        subtype: crate::spec::BinarySubtype::Uuid,
+        bytes: vec![1, 2, 3],
+    };
+    let parsed: Foo = facet_json::from_str(
+        r#"{
+  "v": { "$binary": { "base64": "AQID", "subType": "4" } },
+  "b": { "$binary": { "base64": "AQID", "subType": "4" } }
+}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        parsed,
+        Foo {
+            v: bin.clone(),
+            b: Bson::Binary(bin),
+        }
+    );
+}
+
+#[test]
 fn roundtrip_timestamp() {
     #[derive(Debug, PartialEq, Facet)]
     struct Foo {

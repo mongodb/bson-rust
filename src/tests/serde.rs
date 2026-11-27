@@ -553,6 +553,59 @@ fn test_de_date_extjson_number() {
 }
 
 #[test]
+fn test_de_binary_extjson_subtype_digits() {
+    let _guard = LOCK.run_concurrently();
+
+    // The extended JSON spec allows the binary subtype to be written as one or two hexadecimal
+    // digits; other drivers write a single digit for subtypes below 16.
+    let mut valid = Vec::new();
+    for byte in 0..=u8::MAX {
+        valid.push((format!("{byte:02x}"), byte));
+        valid.push((format!("{byte:02X}"), byte));
+        if byte < 0x10 {
+            valid.push((format!("{byte:x}"), byte));
+        }
+    }
+    for (text, byte) in valid {
+        let value = json!({ "$binary": { "base64": "AQID", "subType": text } });
+        let expected = Bson::Binary(Binary {
+            bytes: vec![1, 2, 3],
+            subtype: byte.into(),
+        });
+
+        let from_value: Bson = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(from_value, expected, "deserialize, subType {text:?}");
+
+        let serialized = serialize_to_bson(&value).unwrap();
+        assert_eq!(serialized, expected, "serialize_to_bson, subType {text:?}");
+
+        #[cfg(feature = "serde_json-1")]
+        {
+            let converted = Bson::try_from(value).unwrap();
+            assert_eq!(converted, expected, "Bson::try_from, subType {text:?}");
+        }
+    }
+
+    let invalid = [
+        "", "000", "0102", "g", "+1", "-1", "0x", " 1", "1 ", "\u{e9}",
+    ];
+    for text in invalid {
+        let value = json!({ "$binary": { "base64": "AQID", "subType": text } });
+
+        serde_json::from_value::<Bson>(value.clone()).unwrap_err();
+
+        let serialized = serialize_to_bson(&value).unwrap();
+        assert!(
+            matches!(serialized, Bson::Document(_)),
+            "serialize_to_bson, subType {text:?}"
+        );
+
+        #[cfg(feature = "serde_json-1")]
+        Bson::try_from(value).unwrap_err();
+    }
+}
+
+#[test]
 fn test_de_oid_string() {
     let _guard = LOCK.run_concurrently();
 

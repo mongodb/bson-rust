@@ -330,21 +330,28 @@ impl Binary {
         let bytes = base64::decode(self.body.base64.as_str())
             .map_err(|_| parse_err!("invalid base64 encoded bytes: {}", self.body.base64))?;
 
-        let subtype = hex::decode(self.body.subtype.as_str())
-            .map_err(|_| parse_err!("invalid hexadecimal subtype: {}", self.body.subtype))?;
+        let subtype = parse_binary_subtype(self.body.subtype.as_str()).ok_or_else(|| {
+            parse_err!(
+                "binary subtype must be a one or two character hexadecimal string, got {}",
+                self.body.subtype
+            )
+        })?;
 
-        if subtype.len() == 1 {
-            Ok(crate::Binary {
-                bytes,
-                subtype: subtype[0].into(),
-            })
-        } else {
-            Err(parse_err!(
-                "binary subtype must be one byte, got {}",
-                subtype.len()
-            ))
-        }
+        Ok(crate::Binary {
+            bytes,
+            subtype: subtype.into(),
+        })
     }
+}
+
+/// Parses the `subType` of an extended JSON `$binary` value. The extended JSON specification
+/// allows the subtype byte to be written as either one or two hexadecimal characters (e.g. `"3"` or
+/// `"03"`); some other drivers omit the leading zero for subtypes below 16.
+pub(crate) fn parse_binary_subtype(subtype: &str) -> Option<u8> {
+    if !(1..=2).contains(&subtype.len()) || !subtype.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    u8::from_str_radix(subtype, 16).ok()
 }
 
 #[cfg_attr(feature = "serde", derive(Deserialize), serde(deny_unknown_fields))]

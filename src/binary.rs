@@ -71,15 +71,11 @@ impl Binary {
         if let Ok(bytes) = binary_doc.get_str("base64") {
             let bytes = base64::decode(bytes).ok()?;
             let subtype = binary_doc.get_str("subType").ok()?;
-            let subtype = hex::decode(subtype).ok()?;
-            if subtype.len() == 1 {
-                Some(Self {
-                    bytes,
-                    subtype: subtype[0].into(),
-                })
-            } else {
-                None
-            }
+            let subtype = crate::extjson::models::parse_binary_subtype(subtype)?;
+            Some(Self {
+                bytes,
+                subtype: subtype.into(),
+            })
         } else {
             // in non-human-readable mode, RawBinary will serialize as
             // { "$binary": { "bytes": <bytes>, "subType": <i32> } };
